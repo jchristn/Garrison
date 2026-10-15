@@ -561,7 +561,7 @@ namespace Test.Shared.Suites
                 string blocked = yaml.Replace("https://hooks.example.com/garrison", "http://169.254.169.254/latest", StringComparison.Ordinal);
                 TestResponse refused = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/apply?allowSecretValues=true", blocked, token).ConfigureAwait(false);
                 Assert.True(refused.StatusCode == 400 && refused.Body.Contains("refused URL (LinkLocal)", StringComparison.Ordinal) && refused.Body.Contains("spec.url", StringComparison.Ordinal), "Manifests are checked against the SSRF rules: " + refused.Body);
-                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
+                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.True(export.Body.Contains("kind: NotificationEndpoint", StringComparison.Ordinal) && export.Body.Contains("manifest-endpoint", StringComparison.Ordinal) && !export.Body.Contains(secret, StringComparison.Ordinal) && !export.Body.Contains("signingSecret", StringComparison.Ordinal), "Export carries the endpoint without its secret");
 
                 await client.ConnectAsync(host, null, token).ConfigureAwait(false);

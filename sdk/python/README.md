@@ -248,6 +248,36 @@ for item in result["items"]:
 
 Each item reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes`, a list of `{"field", "before", "after"}` with values as strings truncated to 200 characters. Every item also carries `warnings` (a list of `FieldWarning`, empty when there is nothing to report) for dry runs and applies alike; see "Clamped values".
 
+`manifests.export` returns a multi-document YAML bundle that apply accepts unchanged (`GET .../manifests/export`). With no selectors it exports every tenant-owned resource. `kinds` names whole kinds, `resources` names single records as `Kind/name` (split on the first `/`), `follow_references` also exports what the selection depends on (an agent brings its deployments, the triggers and notification endpoints that target it, and agents it may delegate to; a deployment brings its agent, harness profile, prompt templates, workspace template, and MCP servers; a pipeline brings its stage agents, pinned deployments, handoff templates, and triggers), and `include_built_in` adds referenced built-in prompt templates and harness profiles. Secret values are never exported: the first document is a `kind: Bundle` document listing `requiredSecrets`, `requiredArtifactStores`, and `requiredBuiltIns`, and applying it to a tenant that lacks one fails with `errorCode` `MissingSecret`, `MissingArtifactStore`, or `MissingBuiltIn`. A reference that cannot be resolved fails with `MissingSecret` or `ReferenceNotFound` and an `errorField` naming it. Re-applying an applied bundle reports every document `Unchanged`. An unknown kind is a 400 with field code `UnknownKind`, a malformed resource selector is a 400 with `InvalidSelector`, and a selected resource that does not exist is a 404.
+
+```python
+bundle = client.manifests.export(resources=["Agent/triage"], follow_references=True)
+check = client.manifests.apply(bundle, dry_run=True)
+```
+
+## Transcripts
+
+```python
+markdown = client.runs.transcript_markdown(run_id)
+transcript = client.runs.transcript(run_id, include_thinking=True)
+conversation = client.conversations.transcript(conversation_id)
+```
+
+A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested), `approvals`, `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
+
+## Structured input
+
+An agent with `inputSchemaJson` (JSON Schema text) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
+
+```python
+try:
+    client.agents.invoke("triage", json.dumps({"count": 2}), input_content_type="application/json")
+except GarrisonError as e:
+    print(e.status_code, e.field_codes, e.fields)
+```
+
+`GarrisonError.fields` and `GarrisonError.field_codes` are dictionaries (empty when the server sent none). The module exports `INPUT_SCHEMA_FIELD_CODES`, `TRANSCRIPT_FORMATS`, and the `Transcript`, `TranscriptTurn`, `TranscriptEntry`, `TranscriptApproval`, and `TranscriptUsage` typed dictionaries.
+
 ## Clamped values
 
 Numbers outside their documented range are not rejected: the server stores the nearest allowed value (deployment `maxAttempts` 99 is stored as 10). Create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates then carry `warnings`, a list of `FieldWarning` dictionaries (`field`, `code`, `given`, `stored`, `message`). The key is absent when every value was stored as given, and reads never carry it. `FIELD_WARNING_CODES` lists the codes; today the only one is `"ValueClamped"`.

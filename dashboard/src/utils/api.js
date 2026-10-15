@@ -6,6 +6,9 @@
  * { items, pageNumber, pageSize, totalCount }. Errors throw ApiError with the parsed error body.
  */
 
+import { manifestExportQuery } from './manifestBundles';
+import { transcriptQuery } from './transcripts';
+
 const enc = encodeURIComponent;
 
 class ApiClient {
@@ -56,7 +59,7 @@ class ApiClient {
     return normalizeEnumeration(result, requestedPageNumber, requestedPageSize);
   }
 
-  async _request(method, path, { query = null, body = null, headers = {}, raw = false } = {}) {
+  async _request(method, path, { query = null, body = null, headers = {}, raw = false, text: asText = false } = {}) {
     const init = { method, headers: this._headers(headers) };
     if (body !== null && body !== undefined) init.body = raw ? body : JSON.stringify(body);
 
@@ -72,6 +75,7 @@ class ApiClient {
     }
 
     const text = await response.text().catch(() => '');
+    if (asText && response.ok) return text;
     let parsed = null;
     if (text) {
       try {
@@ -913,8 +917,12 @@ class ApiClient {
     });
   }
 
-  exportManifests(tenantId) {
-    return this._request('POST', this._t(tenantId, 'manifests/export'));
+  /**
+   * Export a manifest bundle as YAML text (P12.21). selection: { kinds: string[], resources: string[] ('Kind/name'),
+   * followReferences, includeBuiltIn }; an empty selection exports every tenant-owned resource.
+   */
+  exportManifests(tenantId, selection = {}) {
+    return this._request('GET', this._t(tenantId, 'manifests/export'), { query: manifestExportQuery(selection), text: true });
   }
 
   listManifestApplies(tenantId, params) {
@@ -923,6 +931,18 @@ class ApiClient {
 
   getManifestApply(tenantId, id) {
     return this._request('GET', this._t(tenantId, `manifests/applies/${enc(id)}`));
+  }
+
+  // ------------------------------------------------------------------ transcripts
+
+  /** Run transcript as text (P12.27). format: 'markdown' or 'json'. */
+  runTranscript(tenantId, runId, format = 'markdown', includeThinking = false) {
+    return this._request('GET', this._t(tenantId, `runs/${enc(runId)}/transcript`), { query: transcriptQuery(format, includeThinking), text: true });
+  }
+
+  /** Conversation transcript (every turn) as text (P12.27). */
+  conversationTranscript(tenantId, id, format = 'markdown', includeThinking = false) {
+    return this._request('GET', this._t(tenantId, `conversations/${enc(id)}/transcript`), { query: transcriptQuery(format, includeThinking), text: true });
   }
 
   // ------------------------------------------------------------------ conversations

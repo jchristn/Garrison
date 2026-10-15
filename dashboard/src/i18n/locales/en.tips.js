@@ -787,7 +787,7 @@ const tips = {
         description: 'What the skill does, written for the calling agent.'
       },
       inputMode: 'Text accepts a plain message. Structured requires input that matches the input JSON Schema.',
-      inputSchemaJson: 'JSON Schema the input must match when the input mode is Structured.',
+      inputSchemaJson: "JSON Schema for the agent input. When set, every invocation input must be a JSON document that matches it, and Invoke shows a form generated from it.",
       outputSchemaJson: 'JSON Schema the result must match. Garrison validates the output and retries once with a repair prompt.',
       delegationAllowList: 'The agents this agent may call when delegation uses an allow list.',
       delegationMaxDepth: 'How many levels of agent-to-agent calls may follow below this agent. Between 0 and 10.',
@@ -2131,5 +2131,51 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "p1": "A notification endpoint receives a signed JSON POST when a subscribed event happens: a run or pipeline finishing, or an approval waiting for a person.",
   "p2": "Deliveries are queued durably and retried with growing delays. The same delivery ID is sent on every attempt, so receivers can ignore repeats.",
   "p3": "Notifications never include secrets or run input, and include run output only when you allow it. Private network addresses are refused unless an operator allows them."
+ }
+});
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "components": {
+  "transcriptExport": {
+   "menu": "Download this transcript as a file: input, assistant text, tool calls, approvals, errors, usage, and cost, with secrets redacted.",
+   "markdown": "Download a readable Markdown transcript, suitable for sharing or attaching to a ticket.",
+   "json": "Download the transcript as a typed JSON document (garrison.transcript/v1) for scripts and other tools.",
+   "includeThinking": "Also include the model thinking events. They are left out by default because they are long and internal."
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "This agent has an input schema, so its input is a JSON document. Fill in the form, or switch to raw JSON.",
+    "modeForm": "Edit the input with a form generated from the agent input schema.",
+    "modeJson": "Edit the input as raw JSON text. Values carry over when you switch back to the form.",
+    "field": "Value for {{name}}, as the agent input schema describes it.",
+    "fieldWithDescription": "{{name}}: {{description}}",
+    "addItem": "Add another item to this list.",
+    "removeItem": "Remove this item from the list.",
+    "jsonLabel": "The JSON document sent as the run input. It must match the agent input schema."
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scopeAll": "Export every resource this tenant owns. Built-ins are left out unless you include them.",
+    "scopeSelected": "Export only the kinds and resources you choose, optionally with what they depend on.",
+    "kinds": "Export every resource of the checked kinds.",
+    "kind": "Export every {{kind}} in this tenant.",
+    "resources": "Specific resources to export, written as Kind/name, for example Agent/triage or Pipeline/release.",
+    "followReferences": "Also export what the selection depends on: deployments, harness profiles, prompt templates, workspaces, MCP servers, triggers, and notification endpoints. Secrets are listed as requirements, never exported.",
+    "includeBuiltIn": "Add the built-in prompt templates and harness profiles the bundle references. Applying leaves built-ins unchanged and only checks that they exist."
+   }
+  }
  }
 });

@@ -2537,3 +2537,67 @@ fr.tips.resources.deployments.egressDefault = "Aucune liste de sortie autorisée
   }
  }
 });
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "transcriptExport": {
+   "label": "Exporter la transcription",
+   "exporting": "Exportation...",
+   "markdown": "Document Markdown (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "Inclure le raisonnement",
+   "failed": "Échec de l'exportation de la transcription : {{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Entrée structurée",
+    "modeLabel": "Éditeur d'entrée",
+    "modeForm": "Formulaire",
+    "modeJson": "JSON brut",
+    "required": "obligatoire",
+    "choose": "Choisir une valeur",
+    "addItem": "Ajouter un élément",
+    "removeItem": "Retirer l'élément",
+    "jsonLabel": "JSON d'entrée",
+    "jsonPlaceholder": "Valeur JSON",
+    "unsupported": "Ce schéma d'entrée n'a pas de propriétés permettant de créer un formulaire. Saisissez le document JSON attendu par l'agent.",
+    "invalidRaw": "Le JSON n'est pas valide. Corrigez-le avant de passer au formulaire.",
+    "errors": {
+     "required": "Ce champ est obligatoire.",
+     "number": "Saisissez un nombre.",
+     "integer": "Saisissez un nombre entier.",
+     "json": "Saisissez un JSON valide."
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "Portée de l'exportation",
+    "scopeAll": "Toutes les ressources",
+    "scopeSelected": "Ressources choisies",
+    "kinds": "Types",
+    "resources": "Ressources",
+    "resourcesHint": "Un Type/nom par ligne ou séparés par des virgules, par exemple Agent/triage.",
+    "invalidSelectors": "Pas un Type/nom d'un type connu : {{entries}}",
+    "followReferences": "Inclure ce qu'elles référencent",
+    "includeBuiltIn": "Inclure les éléments intégrés référencés",
+    "exporting": "Exportation...",
+    "noSecrets": "Ce paquet n'a besoin d'aucun secret.",
+    "requiredSecrets": "Créez ces secrets dans le locataire cible avant d'appliquer. Les valeurs des secrets ne sont jamais exportées.",
+    "requiredArtifactStores": "Créez ces magasins d'artefacts dans le locataire cible avant d'appliquer."
+   }
+  }
+ }
+});

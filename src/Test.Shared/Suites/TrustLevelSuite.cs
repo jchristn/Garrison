@@ -284,7 +284,7 @@ namespace Test.Shared.Suites
                 Deployment trusted = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "manifest-trusted", token).ConfigureAwait(false), "Trusted deployment");
                 Assert.True(untrusted.TrustLevel == DeploymentTrustLevelEnum.Untrusted && trusted.TrustLevel == DeploymentTrustLevelEnum.Trusted, "Manifest trust levels applied; omitted means Trusted");
 
-                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/manifests/export", null, token).ConfigureAwait(false);
+                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, tenantPath + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.Equal(1, export.Body.Split("trustLevel:").Length - 1, "Export writes trustLevel only for the Untrusted deployment");
                 Assert.True(export.Body.Contains("trustLevel: Untrusted", StringComparison.Ordinal), "Export carries Untrusted");
                 ManifestApply reapplied = await ApplyAsync(host, export.Body, 200, token).ConfigureAwait(false);

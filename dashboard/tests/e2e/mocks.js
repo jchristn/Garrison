@@ -46,6 +46,57 @@ function record(prefix, i, extra = {}) {
 }
 
 /** A tenant-owned record with a name. */
+/** P12.22: the input schema of mock agent 3 (agt_0003). */
+export const STRUCTURED_INPUT_SCHEMA = JSON.stringify({
+  type: 'object',
+  required: ['topic'],
+  properties: {
+    topic: { type: 'string', description: 'What to research' },
+    depth: { type: 'integer', default: 2 },
+    urgent: { type: 'boolean' },
+    tone: { enum: ['formal', 'casual'] },
+    tags: { type: 'array', items: { type: 'string' } },
+    address: { type: 'object', properties: { city: { type: 'string' } } }
+  }
+});
+
+/** P12.21: an exported manifest bundle with its Bundle requirements document. */
+export const BUNDLE_YAML = [
+  '# Garrison manifest bundle (garrison/v1) exported 2026-10-14T12:00:00Z from tenant default.',
+  '# Apply it with POST /v1.0/api/tenants/{tenantId}/manifests/apply (add ?dryRun=true to check it first).',
+  '# Secret values are never exported. Create these secrets in the target tenant before applying:',
+  '#   - github-token (ApiKey)',
+  'apiVersion: garrison/v1',
+  'kind: Bundle',
+  'metadata:',
+  '  name: garrison-bundle',
+  'spec:',
+  '  exportedUtc: 2026-10-14T12:00:00.0000000Z',
+  '  requiredSecrets:',
+  '  - name: github-token',
+  '    kind: ApiKey',
+  '  requiredArtifactStores: []',
+  '  requiredBuiltIns:',
+  '  - kind: HarnessProfile',
+  '    name: builtin/fake',
+  '---',
+  'apiVersion: garrison/v1',
+  'kind: Agent',
+  'metadata:',
+  '  name: echo-agent',
+  'spec:',
+  '  description: Sample agent',
+  ''
+].join('\n');
+
+/** P12.27: a transcript in the requested format (Markdown text, or the typed JSON document as text). */
+export function transcript(kind, id, format) {
+  if (format === 'json') {
+    return JSON.stringify({ schema: 'garrison.transcript/v1', kind, tenantId: TENANT, ...(kind === 'Run' ? { runId: id } : { conversationId: id }), agentName: 'echo-agent', generatedUtc: iso(0), includesThinking: false, truncated: false, turnCount: 1, usage: { inputTokens: 10, outputTokens: 5, cachedTokens: 0, reasoningTokens: 0, toolCallCount: 0, costEstimated: false }, turns: [] });
+  }
+  return `# Transcript: ${kind === 'Run' ? 'run' : 'conversation'} ${id}\n\n## Input\n\nhello\n`;
+}
+
 function base(prefix, i, extra = {}) {
   return record(prefix, i, { tenantId: TENANT, name: `${prefix}-${i}`, ...extra });
 }
@@ -336,7 +387,9 @@ const FACTORIES = {
       exposeA2A: true,
       exposeMcpTool: i % 2 === 0,
       mcpToolName: i % 2 === 0 ? `agent_${i}` : undefined,
-      inputMode: 'Text',
+      inputMode: i === 3 ? 'Structured' : 'Text',
+      // P12.22: agent 3 takes structured input described by a JSON Schema, so Invoke renders a form for it.
+      ...(i === 3 ? { inputSchemaJson: STRUCTURED_INPUT_SCHEMA } : {}),
       delegationMode: i === 2 ? 'AllowList' : 'None',
       delegationMaxDepth: 2,
       delegationAllowRecursion: false,
@@ -1428,7 +1481,9 @@ export function respond(method, url) {
     if (collection === 'queue') return [{ agentName: 'echo-agent', harnessType: 'ClaudeCode', queued: 3, leased: 1, running: 2 }];
     if (collection === 'audit' && parts.length === 1 && method === 'GET') return page('audit', url);
     if (collection === 'manifests' && parts[1] === 'applies') return parts.length === 2 ? enumerate('manifest-applies', url) : FACTORIES['manifest-applies'](1);
-    if (collection === 'manifests' && parts[1] === 'export') return 'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo-agent\n';
+    if (collection === 'manifests' && parts[1] === 'export' && method === 'GET') return BUNDLE_YAML;
+    // P12.27: transcripts are text (Markdown, or JSON the dashboard saves as is).
+    if ((collection === 'runs' || collection === 'conversations') && parts[2] === 'transcript' && method === 'GET') return transcript(collection === 'runs' ? 'Run' : 'Conversation', parts[1], url.searchParams.get('format') || 'markdown');
     if (collection === 'manifests')
       return {
         items: [

@@ -123,7 +123,7 @@ namespace Garrison.Server.Services
             provider.Organization = "Garrison";
             provider.Url = Constants.RepositoryUrl;
             card.Provider = provider;
-            card.DefaultInputModes = new List<string> { agent.InputMode == AgentInputModeEnum.Structured ? "application/json" : "text/plain" };
+            card.DefaultInputModes = new List<string> { agent.InputMode == AgentInputModeEnum.Structured || !String.IsNullOrWhiteSpace(agent.InputSchemaJson) ? "application/json" : "text/plain" };
             card.DefaultOutputModes = new List<string> { "text/plain", "application/json" };
 
             if (agent.Skills.Count == 0)

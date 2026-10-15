@@ -149,6 +149,33 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Download a run's transcript as Markdown (input, assistant text, tool calls and result summaries, approvals,
+        /// errors, usage, cost, and timestamps; secrets redacted).
+        /// </summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="includeThinking">Whether to include thinking events. Default false.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Markdown text.</returns>
+        /// <exception cref="GarrisonException">404 when the run does not exist in the tenant.</exception>
+        public async Task<string> GetTranscriptMarkdownAsync(string id, bool includeThinking = false, CancellationToken token = default)
+        {
+            return await Transport.SendTextAsync(HttpMethod.Get, TenantPath("/runs/" + Segment(id) + "/transcript"), null, TranscriptQuery.Build(TranscriptFormatEnum.Markdown, includeThinking), token: token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Download a run's transcript as a typed JSON document.
+        /// </summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="includeThinking">Whether to include thinking events. Default false.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Transcript.</returns>
+        /// <exception cref="GarrisonException">404 when the run does not exist in the tenant.</exception>
+        public async Task<Transcript> GetTranscriptAsync(string id, bool includeThinking = false, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<Transcript>(HttpMethod.Get, TenantPath("/runs/" + Segment(id) + "/transcript"), null, TranscriptQuery.Build(TranscriptFormatEnum.Json, includeThinking), token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
         /// Stream a run's events until it finishes. The last item is run.completed with the final run.
         /// </summary>
         /// <param name="id">Run identifier.</param>

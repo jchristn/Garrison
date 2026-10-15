@@ -85,6 +85,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, baseRuns + "/{id}/retry", ResourceTypeEnum.Run, OperationTypeEnum.Create, RetryAsync, "Retry a finished run as a new run", tag, null, typeof(Run));
             routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/events", ResourceTypeEnum.Run, OperationTypeEnum.Read, EventsAsync, "Read run events after a sequence", tag, null, typeof(RunEventsResponse));
             routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/events/stream", ResourceTypeEnum.Run, OperationTypeEnum.Read, StreamAsync, "Stream run events (server-sent events)", tag);
+            routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/transcript", ResourceTypeEnum.Run, OperationTypeEnum.Read, TranscriptAsync, "Export a run transcript as Markdown or JSON (query: format, includeThinking)", tag, null, typeof(Garrison.Core.Transcripts.Transcript));
             routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/children", ResourceTypeEnum.Run, OperationTypeEnum.Read, ChildrenAsync, "List runs delegated by a run", tag, null, typeof(EnumerationResult<Run>));
         }
 
@@ -309,6 +310,15 @@ namespace Garrison.Server.Routes
                 _Context.Activity.StreamClosed();
                 StreamTelemetry.Closed("run_events");
             }
+        }
+
+        private async Task TranscriptAsync(HttpContextBase context)
+        {
+            TranscriptFormatEnum format = TranscriptResponder.Format(context);
+            Run run = await RequireRunAsync(context).ConfigureAwait(false);
+            bool thinking = RouteHelpers.QueryBool(context, "includeThinking") ?? false;
+            Garrison.Core.Transcripts.Transcript transcript = await _Context.Get<TranscriptService>().BuildRunAsync(run, thinking, context.Token).ConfigureAwait(false);
+            await TranscriptResponder.SendAsync(context, transcript, format).ConfigureAwait(false);
         }
 
         private async Task ChildrenAsync(HttpContextBase context)

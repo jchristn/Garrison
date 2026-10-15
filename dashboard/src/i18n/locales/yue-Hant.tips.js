@@ -787,7 +787,7 @@ const tips = {
         description: '技能做咩，寫畀呼叫嘅代理程式睇。'
       },
       inputMode: 'Text 接受純文字訊息。Structured 要求輸入符合輸入 JSON Schema。',
-      inputSchemaJson: '輸入模式係 Structured 時，輸入必須符合嘅 JSON Schema。',
+      inputSchemaJson: "代理輸入嘅 JSON 結構。設定咗之後，每次呼叫嘅輸入都一定要係符合佢嘅 JSON 文件，呼叫頁面會顯示根據佢整出嚟嘅表格。",
       outputSchemaJson: '結果必須符合嘅 JSON Schema。Garrison 會驗證輸出，唔啱就用修復提示重試一次。',
       delegationAllowList: '委派用允許清單時，呢個代理程式可以呼叫嘅代理程式。',
       delegationMaxDepth: '喺呢個代理程式之下，代理程式之間嘅呼叫最多可以有幾多層。介乎 0 至 10。',
@@ -2131,5 +2131,51 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "p1": "當訂閱嘅事件發生時（執行或管線結束，或核准等待人員處理），通知端點會收到簽章嘅 JSON POST。",
   "p2": "傳遞會持久排入佇列，並以遞增嘅間隔重試。每次嘗試都帶有相同嘅傳遞 ID，接收端可據此忽略重複。",
   "p3": "通知絕不包含密鑰或執行輸入，只有在你允許時才包含執行輸出。除非維運人員允許，否則私人網路位址會遭拒。"
+ }
+});
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "components": {
+  "transcriptExport": {
+   "menu": "將呢份對話紀錄下載做檔案：包括輸入、助理文字、工具呼叫、批核、錯誤、用量同費用，密鑰已經遮咗。",
+   "markdown": "下載易讀嘅 Markdown 對話紀錄，啱分享或者附加落工單。",
+   "json": "將對話紀錄下載做有型別嘅 JSON 文件 (garrison.transcript/v1)，俾指令碼同其他工具用。",
+   "includeThinking": "連埋模型嘅思考事件都包埋。因為又長又係內部資料，預設唔包。"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "呢個代理有輸入結構，所以佢嘅輸入係一份 JSON 文件。請填表格，或者轉去原始 JSON。",
+    "modeForm": "用根據代理輸入結構整出嚟嘅表格去改輸入。",
+    "modeJson": "將輸入當原始 JSON 文字去改。轉返去表格嗰陣啲值會保留。",
+    "field": "{{name}} 嘅值，跟代理輸入結構嘅描述填。",
+    "fieldWithDescription": "{{name}}：{{description}}",
+    "addItem": "喺呢個清單加多一項。",
+    "removeItem": "將呢項由清單移除。",
+    "jsonLabel": "當做執行輸入送出嘅 JSON 文件。佢一定要符合代理嘅輸入結構。"
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scopeAll": "匯出呢個租戶擁有嘅所有資源。除非揀咗包埋，否則唔包內建資源。",
+    "scopeSelected": "淨係匯出揀咗嘅類型同資源，亦可以包埋佢哋依賴嘅資源。",
+    "kinds": "匯出剔咗嘅類型嘅所有資源。",
+    "kind": "匯出呢個租戶入面所有 {{kind}}。",
+    "resources": "要匯出嘅特定資源，寫做 類型/名稱，例如 Agent/triage 或者 Pipeline/release。",
+    "followReferences": "連埋揀咗嘅內容所依賴嘅資源都匯出：部署、harness 設定檔、提示範本、工作區、MCP 伺服器、觸發器同通知端點。密鑰只會列做前提條件，永遠唔會匯出。",
+    "includeBuiltIn": "加入套件參照嘅內建提示範本同 harness 設定檔。套用嗰陣唔會改佢哋，只會檢查佢哋存唔存在。"
+   }
+  }
  }
 });

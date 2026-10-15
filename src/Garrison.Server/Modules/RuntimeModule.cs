@@ -63,6 +63,7 @@ namespace Garrison.Server.Modules
         private NotificationOptions? _NotificationOptions = null;
         private TriggerService? _Triggers = null;
         private NotificationService? _Notifications = null;
+        private TranscriptOptions? _TranscriptOptions = null;
 
         #endregion
 
@@ -119,6 +120,9 @@ namespace Garrison.Server.Modules
             _NotificationOptions = new NotificationOptions();
             _Triggers = new TriggerService(context.Database, _Runs, _Pipelines, context.Authorization, _TriggerOptions, context.Logging);
             _Notifications = new NotificationService(context.Database, context.Cipher, _NotificationOptions, () => ExternalUrls.RestBaseUrl(context, null), context.NodeId, context.Logging);
+            _TranscriptOptions = new TranscriptOptions();
+            context.Register(_TranscriptOptions);
+            context.Register(new TranscriptService(context.Database, new RunRedactorFactory(context.Database, context.Cipher), _TranscriptOptions));
             _Maintenance.Triggers = _Triggers;
             _Maintenance.Notifications = _Notifications;
             if (context.Settings.Archive.Enabled)
@@ -328,6 +332,12 @@ namespace Garrison.Server.Modules
                 _NotificationOptions.SweepOverlapSeconds = cluster.GetInt("Notifications.SweepOverlapSeconds");
                 _NotificationOptions.DeliveryRetentionDays = cluster.GetInt("Notifications.DeliveryRetentionDays");
                 if (_Manifests != null) _Manifests.AllowPrivateNotificationDestinations = _NotificationOptions.AllowPrivateDestinations;
+            }
+            if (_TranscriptOptions != null)
+            {
+                _TranscriptOptions.MaxBytes = cluster.GetInt("Transcripts.MaxBytes");
+                _TranscriptOptions.ToolTextMaxChars = cluster.GetInt("Transcripts.ToolTextMaxChars");
+                _TranscriptOptions.MaxTurns = cluster.GetInt("Transcripts.MaxTurns");
             }
             if (_Compiler != null)
             {

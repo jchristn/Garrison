@@ -333,7 +333,7 @@ namespace Test.Shared.Suites
                 }
                 Pipeline fromManifest = Assert.NotNull(await Db(host).Pipelines.ReadByNameAsync(host.TenantId, "crud-manifest", token).ConfigureAwait(false), "Pipeline from the manifest");
                 Assert.True(fromManifest.MaxDurationSeconds == 600 && fromManifest.Stages.Count == 2 && fromManifest.Stages[0].DeploymentId == writerDeployment.Id && fromManifest.Stages[0].MaxAttempts == 2 && fromManifest.Stages[1].RequiresReview && fromManifest.Stages[1].ReviewTimeoutAction == PipelineReviewDecisionEnum.Approve, "Manifest stages resolved by name");
-                HttpResponseMessage exported = await host.AdminClient.PostAsync(T(host) + "/manifests/export", null, token).ConfigureAwait(false);
+                HttpResponseMessage exported = await host.AdminClient.GetAsync(T(host) + "/manifests/export", token).ConfigureAwait(false);
                 string yaml = await exported.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                 Assert.True(yaml.Contains("kind: Pipeline", StringComparison.Ordinal) && yaml.Contains("crud-manifest", StringComparison.Ordinal) && yaml.Contains("agent: crud-writer", StringComparison.Ordinal), "Export includes pipelines by name:\n" + yaml);
                 using (StringContent again = new StringContent(manifest, Encoding.UTF8, "application/yaml"))

@@ -242,6 +242,37 @@ for (const item of result.items) {
 
 Each item (`ManifestApplyItem`) reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes` (`ManifestFieldChange`: `field`, `before`, `after`), with values as strings truncated to 200 characters. Every item also carries `warnings` (`FieldWarning[]`, empty when there is nothing to report) for dry runs and applies alike; see "Clamped values".
 
+`manifests.export` returns a multi-document YAML bundle that apply accepts unchanged (`GET .../manifests/export`). With no selectors it exports every tenant-owned resource. `kinds` names whole kinds, `resources` names single records as `Kind/name` (split on the first `/`), `followReferences` also exports what the selection depends on (an agent brings its deployments, the triggers and notification endpoints that target it, and agents it may delegate to; a deployment brings its agent, harness profile, prompt templates, workspace template, and MCP servers; a pipeline brings its stage agents, pinned deployments, handoff templates, and triggers), and `includeBuiltIn` adds referenced built-in prompt templates and harness profiles. Secret values are never exported: the first document is a `kind: Bundle` document listing `requiredSecrets`, `requiredArtifactStores`, and `requiredBuiltIns`, and applying it to a tenant that lacks one fails with `errorCode` `MissingSecret`, `MissingArtifactStore`, or `MissingBuiltIn`. A reference that cannot be resolved fails with `MissingSecret` or `ReferenceNotFound` and an `errorField` naming it. Re-applying an applied bundle reports every document `Unchanged`. An unknown kind is a 400 with field code `UnknownKind`, a malformed resource selector is a 400 with `InvalidSelector`, and a selected resource that does not exist is a 404.
+
+```ts
+const bundle = await client.manifests.export({ resources: ["Agent/triage"], followReferences: true });
+const check = await client.manifests.apply(bundle, { dryRun: true });
+```
+
+## Transcripts
+
+```ts
+const markdown = await client.runs.transcriptMarkdown(runId);
+const transcript = await client.runs.transcript(runId, { includeThinking: true });
+const conversation = await client.conversations.transcript(conversationId);
+```
+
+A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested), `approvals`, `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
+
+## Structured input
+
+An agent with `inputSchemaJson` (JSON Schema text) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
+
+```ts
+try {
+  await client.agents.invoke("triage", JSON.stringify({ count: 2 }), { inputContentType: "application/json" });
+} catch (e) {
+  if (e instanceof GarrisonError && e.statusCode === 400) console.log(e.fieldCodes, e.fields);
+}
+```
+
+`Agent` has `inputMode`, `inputSchemaJson`, and `outputSchemaJson`; `INPUT_SCHEMA_FIELD_CODES` lists the codes.
+
 ## Clamped values
 
 Numbers outside their documented range are not rejected: the server stores the nearest allowed value (deployment `maxAttempts` 99 is stored as 10). Create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`) then carry `warnings?: FieldWarning[]` (`field`, `code`, `given`, `stored`, `message`). The property is absent when every value was stored as given, and reads never carry it. `FieldWarningCode` lists the codes; today the only one is `"ValueClamped"`.

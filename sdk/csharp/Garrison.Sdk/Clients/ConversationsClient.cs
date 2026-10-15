@@ -6,6 +6,7 @@ namespace Garrison.Sdk.Clients
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Sdk.Enumeration;
+    using Garrison.Sdk.Enums;
     using Garrison.Sdk.Http;
     using Garrison.Sdk.Models;
     using Garrison.Sdk.Requests;
@@ -91,6 +92,32 @@ namespace Garrison.Sdk.Clients
             query["maxResults"] = Math.Clamp(maxResults, 1, 1000).ToString();
             query["skip"] = Math.Max(0, skip).ToString();
             return await Transport.SendAsync<EnumerationResult<Run>>(HttpMethod.Get, TenantPath("/conversations/" + Segment(id) + "/runs"), null, query, token: token).ConfigureAwait(false) ?? new EnumerationResult<Run>();
+        }
+
+        /// <summary>
+        /// Download a conversation's transcript (every turn, oldest first) as Markdown.
+        /// </summary>
+        /// <param name="id">Conversation identifier.</param>
+        /// <param name="includeThinking">Whether to include thinking events. Default false.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Markdown text.</returns>
+        /// <exception cref="GarrisonException">404 when the conversation does not exist in the tenant.</exception>
+        public async Task<string> GetTranscriptMarkdownAsync(string id, bool includeThinking = false, CancellationToken token = default)
+        {
+            return await Transport.SendTextAsync(HttpMethod.Get, TenantPath("/conversations/" + Segment(id) + "/transcript"), null, TranscriptQuery.Build(TranscriptFormatEnum.Markdown, includeThinking), token: token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Download a conversation's transcript (every turn, oldest first) as a typed JSON document.
+        /// </summary>
+        /// <param name="id">Conversation identifier.</param>
+        /// <param name="includeThinking">Whether to include thinking events. Default false.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Transcript.</returns>
+        /// <exception cref="GarrisonException">404 when the conversation does not exist in the tenant.</exception>
+        public async Task<Transcript> GetTranscriptAsync(string id, bool includeThinking = false, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<Transcript>(HttpMethod.Get, TenantPath("/conversations/" + Segment(id) + "/transcript"), null, TranscriptQuery.Build(TranscriptFormatEnum.Json, includeThinking), token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
 
         #endregion

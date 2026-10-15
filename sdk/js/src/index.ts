@@ -91,6 +91,72 @@ export interface WithWarnings {
 export interface Agent extends Json, WithWarnings {
   id: string; tenantId: string; name: string; displayName?: string; description?: string; kind?: string;
   delegationMode?: string; skills?: Json[]; tags?: string[];
+  /** "Text" (default) or "Structured"; the A2A card advertises application/json for Structured or schema agents. */
+  inputMode?: "Text" | "Structured";
+  /**
+   * JSON Schema text for the input. When set, every invocation's input must be a JSON document that matches it; otherwise
+   * the server answers 400 with fieldCodes "input" (InputNotJson) or "input.<path>" (InputSchemaViolation). Saving a
+   * value that is not a valid JSON Schema fails with field code InvalidJsonSchema.
+   */
+  inputSchemaJson?: string | null;
+  /** JSON Schema text the final output is validated against. */
+  outputSchemaJson?: string | null;
+}
+
+/** Field codes for input schema failures (GarrisonError.fieldCodes values). */
+export const INPUT_SCHEMA_FIELD_CODES = ["InputNotJson", "InputSchemaViolation", "InvalidJsonSchema"] as const;
+
+/** Transcript download formats. */
+export type TranscriptFormat = "markdown" | "json";
+
+/** Token, tool, cost, and duration totals of a transcript or one turn. */
+export interface TranscriptUsage {
+  inputTokens: number; outputTokens: number; cachedTokens: number; reasoningTokens: number; toolCallCount: number;
+  costUsd?: number; costEstimated: boolean; durationMs?: number;
+}
+
+/** One transcript event; Thinking appears only with includeThinking. Secrets read [REDACTED]. */
+export interface TranscriptEntry {
+  sequence: number; timestampUtc: string;
+  type: "AssistantText" | "Thinking" | "ToolCall" | "ToolResult" | "Warning" | "Error" | "Lifecycle";
+  text?: string; toolName?: string; toolCallId?: string; success?: boolean; code?: string; textTruncated: boolean;
+}
+
+/** An approval requested during a turn. */
+export interface TranscriptApproval {
+  id: string; kind: string; toolName: string; summary?: string; inputPreview?: string; status: string; decision?: string;
+  decisionSource?: string; decidedBy?: string; reason?: string; requestedUtc: string; decidedUtc?: string;
+}
+
+/** One run of a transcript (a conversation has one per turn). */
+export interface TranscriptTurn {
+  turn: number; runId: string; agentName: string; deploymentId: string; kind: string; status: string; outcome: string;
+  callerName?: string; model?: string; input?: string; inputContentType?: string;
+  createdUtc: string; startedUtc?: string; completedUtc?: string;
+  entries: TranscriptEntry[]; approvals: TranscriptApproval[];
+  result?: string; errorMessage?: string; usage: TranscriptUsage;
+  /** Events the run recorded that are no longer stored (retention). */
+  omittedEvents: number;
+  truncated: boolean;
+}
+
+/** Run or conversation transcript, schema "garrison.transcript/v1". */
+export interface Transcript {
+  schema: string; kind: "Run" | "Conversation"; tenantId: string; runId?: string; conversationId?: string;
+  agentName: string; title?: string; generatedUtc: string; includesThinking: boolean;
+  truncated: boolean; truncationNote?: string; turnCount: number; usage: TranscriptUsage; turns: TranscriptTurn[];
+}
+
+/** Manifest bundle export selectors. With no kinds and no resources every tenant-owned resource is exported. */
+export interface ManifestExportOptions {
+  /** Whole kinds, for example ["Agent", "Pipeline"]. */
+  kinds?: string[];
+  /** Single records as "Kind/name", for example ["Agent/triage"]. */
+  resources?: string[];
+  /** Also export what the selection depends on. Default false. */
+  followReferences?: boolean;
+  /** Include referenced built-in prompt templates and harness profiles. Default false. */
+  includeBuiltIn?: boolean;
 }
 
 /** How a worker executes a run: as a subprocess of the worker, or in its own Kubernetes Job (pod per run). */
@@ -819,6 +885,8 @@ export interface InvokeOptions {
   conversationId?: string;
   /** Start a new conversation with this run as its first turn; the returned run's conversationId names it. */
   startConversation?: boolean;
+  /** Input content type, for example "application/json" for a structured input. */
+  inputContentType?: string;
 }
 
 export interface RunFilter {
@@ -1202,6 +1270,7 @@ export class Agents extends Resource<Agent> {
       input, wait: options.wait ?? true, waitSeconds: options.waitSeconds ?? 60, parameters: options.parameters ?? {},
       deploymentId: options.deploymentId, priority: options.priority ?? 0, cancelOnDisconnect: options.cancelOnDisconnect,
       conversationId: options.conversationId, startConversation: options.startConversation,
+      inputContentType: options.inputContentType,
     });
   }
   card(id: string): Promise<Json> { return this.t.request("GET", this.item(id) + "/card"); }
@@ -1252,7 +1321,19 @@ export class Manifests {
     const contentType = trimmed.startsWith("{") || trimmed.startsWith("[") ? "application/json" : "application/yaml";
     return this.t.request("POST", this.t.tenantPath("/manifests/apply"), { dryRun: options.dryRun ?? false, allowSecretValues: options.allowSecretValues ? true : undefined }, content, contentType);
   }
-  export(): Promise<string> { return this.t.requestText("POST", this.t.tenantPath("/manifests/export")); }
+  /**
+   * Export a multi-document YAML bundle that apply accepts unchanged. Secret values are never exported; the leading Bundle
+   * document lists requiredSecrets, requiredArtifactStores, and requiredBuiltIns. Rejects with GarrisonError 400
+   * (fieldCodes UnknownKind, InvalidSelector) or 404 when a selected resource does not exist.
+   */
+  export(options: ManifestExportOptions = {}): Promise<string> {
+    return this.t.requestText("GET", this.t.tenantPath("/manifests/export"), {
+      kinds: options.kinds && options.kinds.length > 0 ? options.kinds.join(",") : undefined,
+      resources: options.resources && options.resources.length > 0 ? options.resources.join(",") : undefined,
+      followReferences: options.followReferences ? true : undefined,
+      includeBuiltIn: options.includeBuiltIn ? true : undefined,
+    });
+  }
   applies(query?: EnumerationQuery): Promise<EnumerationResult<Json>> { return this.t.request("GET", this.t.tenantPath("/manifests/applies"), query as any); }
   getApply(id: string): Promise<Json> { return this.t.request("GET", this.t.tenantPath(`/manifests/applies/${seg(id)}`)); }
 }
@@ -1283,6 +1364,14 @@ export class Runs {
     }
   }
   children(id: string): Promise<EnumerationResult<Run>> { return this.t.request("GET", this.p(`/${seg(id)}/children`)); }
+  /** A run's transcript as Markdown (secrets redacted). Rejects with GarrisonError 404 for an unknown run. */
+  transcriptMarkdown(id: string, options: { includeThinking?: boolean } = {}): Promise<string> {
+    return this.t.requestText("GET", this.p(`/${seg(id)}/transcript`), { format: "markdown", includeThinking: options.includeThinking ?? false });
+  }
+  /** A run's transcript as the typed JSON document. */
+  transcript(id: string, options: { includeThinking?: boolean } = {}): Promise<Transcript> {
+    return this.t.request("GET", this.p(`/${seg(id)}/transcript`), { format: "json", includeThinking: options.includeThinking ?? false });
+  }
   delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.p(`/${seg(id)}`)); }
   async waitForCompletion(id: string, timeoutMs = 300000): Promise<Run> {
     const deadline = Date.now() + timeoutMs;
@@ -1311,6 +1400,14 @@ export class Conversations {
   /** A conversation's turns (runs), oldest first. */
   listRuns(id: string, query: { maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<Run>> {
     return this.t.request("GET", this.p(`/${seg(id)}/runs`), query as any);
+  }
+  /** A conversation's transcript (every turn, oldest first) as Markdown. */
+  transcriptMarkdown(id: string, options: { includeThinking?: boolean } = {}): Promise<string> {
+    return this.t.requestText("GET", this.p(`/${seg(id)}/transcript`), { format: "markdown", includeThinking: options.includeThinking ?? false });
+  }
+  /** A conversation's transcript (every turn, oldest first) as the typed JSON document. */
+  transcript(id: string, options: { includeThinking?: boolean } = {}): Promise<Transcript> {
+    return this.t.request("GET", this.p(`/${seg(id)}/transcript`), { format: "json", includeThinking: options.includeThinking ?? false });
   }
 }
 

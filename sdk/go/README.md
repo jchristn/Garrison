@@ -273,6 +273,36 @@ for _, item := range items {
 
 Each `ManifestApplyItem` reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `Changes` (`ManifestFieldChange`: `Field`, `Before`, `After`; `Before` and `After` are `*string`), with values truncated to 200 characters. `Warnings` lists values in the document that were accepted but not stored as written; see "Warnings".
 
+`Manifests.Export` returns a multi-document YAML bundle that apply accepts unchanged (`GET .../manifests/export`). With no selectors it exports every tenant-owned resource. `ManifestExportOptions.Kinds` names whole kinds, `Resources` names single records as `Kind/name` (split on the first `/`), `FollowReferences` also exports what the selection depends on (an agent brings its deployments, the triggers and notification endpoints that target it, and agents it may delegate to; a deployment brings its agent, harness profile, prompt templates, workspace template, and MCP servers; a pipeline brings its stage agents, pinned deployments, handoff templates, and triggers), and `IncludeBuiltIn` adds referenced built-in prompt templates and harness profiles. Secret values are never exported: the first document is a `kind: Bundle` document listing `requiredSecrets`, `requiredArtifactStores`, and `requiredBuiltIns`, and applying it to a tenant that lacks one fails with `errorCode` `MissingSecret`, `MissingArtifactStore`, or `MissingBuiltIn`. A reference that cannot be resolved fails with `MissingSecret` or `ReferenceNotFound` and an `errorField` naming it. Re-applying an applied bundle reports every document `Unchanged`. An unknown kind is a 400 with field code `UnknownKind`, a malformed resource selector is a 400 with `InvalidSelector`, and a selected resource that does not exist is a 404.
+
+```go
+bundle, err := client.Manifests.Export(ctx, garrison.ManifestExportOptions{Resources: []string{"Agent/triage"}, FollowReferences: true})
+```
+
+## Transcripts
+
+```go
+markdown, err := client.Runs.TranscriptMarkdown(ctx, runID, false)
+transcript, err := client.Runs.Transcript(ctx, runID, true) // include thinking
+conversation, err := client.Conversations.Transcript(ctx, conversationID, false)
+```
+
+A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested), `approvals`, `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
+
+## Structured input
+
+An agent with `inputSchemaJson` (JSON Schema text) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
+
+```go
+_, err := client.Agents.Invoke(ctx, "triage", garrison.InvokeRequest{Input: `{"count":2}`, InputContentType: "application/json"})
+var apiErr *garrison.Error
+if errors.As(err, &apiErr) && apiErr.FieldCodes["input.topic"] == garrison.FieldCodeInputSchemaViolation {
+	fmt.Println(apiErr.Fields["input.topic"])
+}
+```
+
+`Agent` has `InputMode`, `InputSchemaJSON`, and `OutputSchemaJSON`; `InvokeRequest` has `InputContentType`.
+
 ## Warnings
 
 A few numeric fields have a documented range, and the server clamps an out-of-range value to the nearest allowed value instead of rejecting the request. The create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates then carry a `warnings` array of `FieldWarning`: `Field` (the REST field name, for example `maxAttempts` or `delegationMaxDepth`), `Code` (`FieldWarningValueClamped`), `Given` and `Stored` (the values as text, `*string`), and `Message`. The array is omitted when there is nothing to report and on reads, and the server never stores it. `Agent`, `Deployment`, `HarnessProfile`, `WorkspaceTemplate`, and `ManifestApplyItem` have a `Warnings []FieldWarning` field; for MCP servers, decode into your own struct with a ``Warnings []garrison.FieldWarning `json:"warnings"` `` field or into a `map[string]any`.

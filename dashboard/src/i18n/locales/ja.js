@@ -2488,3 +2488,67 @@ ja.tips.resources.deployments.egressDefault = "送信許可リストなし: 実�
   }
  }
 });
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "transcriptExport": {
+   "label": "トランスクリプトをエクスポート",
+   "exporting": "エクスポート中...",
+   "markdown": "Markdown ドキュメント (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "思考を含める",
+   "failed": "トランスクリプトのエクスポートに失敗しました: {{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "構造化入力",
+    "modeLabel": "入力エディター",
+    "modeForm": "フォーム",
+    "modeJson": "生の JSON",
+    "required": "必須",
+    "choose": "値を選択",
+    "addItem": "項目を追加",
+    "removeItem": "項目を削除",
+    "jsonLabel": "入力 JSON",
+    "jsonPlaceholder": "JSON 値",
+    "unsupported": "この入力スキーマにはフォームを作成できるプロパティがありません。エージェントが期待する JSON ドキュメントを入力してください。",
+    "invalidRaw": "JSON が無効です。フォームに切り替える前に修正してください。",
+    "errors": {
+     "required": "この項目は必須です。",
+     "number": "数値を入力してください。",
+     "integer": "整数を入力してください。",
+     "json": "有効な JSON を入力してください。"
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "エクスポート範囲",
+    "scopeAll": "すべてのリソース",
+    "scopeSelected": "選択したリソース",
+    "kinds": "種類",
+    "resources": "リソース",
+    "resourcesHint": "1 行に 1 つ、またはカンマ区切りで 種類/名前 を指定します。例: Agent/triage",
+    "invalidSelectors": "既知の種類の 種類/名前 ではありません: {{entries}}",
+    "followReferences": "参照先も含める",
+    "includeBuiltIn": "参照している組み込みも含める",
+    "exporting": "エクスポート中...",
+    "noSecrets": "このバンドルにシークレットは不要です。",
+    "requiredSecrets": "適用する前に、対象テナントでこれらのシークレットを作成してください。シークレットの値はエクスポートされません。",
+    "requiredArtifactStores": "適用する前に、対象テナントでこれらのアーティファクトストアを作成してください。"
+   }
+  }
+ }
+});

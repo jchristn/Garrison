@@ -34,7 +34,18 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint", "Bundle" };
+
+        /// <summary>
+        /// Kinds an export can select (P12.21), in apply order. Secrets are never exported as documents (only as bundle
+        /// requirements), and the Bundle document is written by every export.
+        /// </summary>
+        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint" };
+
+        /// <summary>
+        /// Name written to the Bundle document of an export.
+        /// </summary>
+        public static readonly string BundleName = "garrison-bundle";
 
         /// <summary>
         /// Most stages a Pipeline document may have (P12.9). Minimum 1, maximum 100, default 20. The control plane sets it
@@ -128,9 +139,12 @@ namespace Garrison.Core.Manifests
                 catch (ValidationException e)
                 {
                     planned.Result = ManifestApplyResultEnum.Failed;
-                    planned.Message = e.Code == ManifestSpecError.Code ? e.Message : e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty);
-                    planned.ErrorCode = e.Code;
+                    List<KeyValuePair<string, string>> extra = e.Fields.Where(f => !String.Equals(f.Value, e.Message, StringComparison.Ordinal)).ToList();
+                    planned.Message = e.Code == ManifestSpecError.Code ? e.Message : e.Message + (extra.Count > 0 ? " " + String.Join("; ", extra.Select(f => f.Key + ": " + f.Value)) : String.Empty);
                     planned.ErrorField = e.Fields.Keys.FirstOrDefault();
+
+                    // A field with its own code (for example MissingSecret on a secret reference) reports that code.
+                    planned.ErrorCode = e.Code != ManifestSpecError.Code && planned.ErrorField != null && e.Codes.ContainsKey(planned.ErrorField) ? e.CodeFor(planned.ErrorField) : e.Code;
                 }
                 catch (CompilationException e)
                 {
@@ -138,6 +152,7 @@ namespace Garrison.Core.Manifests
                     planned.Message = e.Message;
                     planned.ErrorCode = e.Code;
                 }
+                if (planned.Result == ManifestApplyResultEnum.Failed) Placeholder(resolver, document);
                 plan.Add(planned);
             }
 
@@ -211,37 +226,82 @@ namespace Garrison.Core.Manifests
         }
 
         /// <summary>
-        /// Export a tenant's configuration as multi-document YAML. Secrets are exported as metadata only.
+        /// Export every tenant-owned resource as a manifest bundle (multi-document YAML). Secrets are requirements only.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>YAML text.</returns>
         public async Task<string> ExportAsync(string tenantId, CancellationToken token = default)
         {
+            return (await ExportAsync(tenantId, new ManifestExportOptions(), token).ConfigureAwait(false)).Yaml;
+        }
+
+        /// <summary>
+        /// Export a manifest bundle (P12.21): header comments, a Bundle document listing what the target tenant needs
+        /// (secrets, artifact stores, built-ins), then the selected resources in apply order. The text applies unchanged
+        /// with <see cref="ApplyAsync"/>; secret values are never exported.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="options">Selection; null exports every tenant-owned resource.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Bundle.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        /// <exception cref="ValidationException">Thrown with the field code UnknownKind when a kind cannot be exported.</exception>
+        /// <exception cref="NotFoundException">Thrown when a selected resource does not exist in the tenant.</exception>
+        public async Task<ManifestExportResult> ExportAsync(string tenantId, ManifestExportOptions? options, CancellationToken token = default)
+        {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            options ??= new ManifestExportOptions();
+            ManifestExportPlan plan = await ManifestExportPlan.LoadAsync(_Database, tenantId, token).ConfigureAwait(false);
+            plan.IncludeBuiltIn = options.IncludeBuiltIn;
+            plan.FollowReferences = options.FollowReferences;
+
+            List<string> kinds = new List<string>();
+            foreach (string kind in options.Kinds) kinds.Add(ExportKind(kind, "kinds"));
+            List<ManifestResourceReference> resources = new List<ManifestResourceReference>();
+            foreach (ManifestResourceReference reference in options.Resources) resources.Add(new ManifestResourceReference(ExportKind(reference.Kind, "resources"), reference.Name));
+
+            if (kinds.Count == 0 && resources.Count == 0) kinds.AddRange(ExportableKinds);
+            foreach (string kind in kinds) plan.SelectKind(kind);
+            foreach (ManifestResourceReference reference in resources)
+            {
+                if (!await plan.SelectAsync(reference.Kind, reference.Name, token).ConfigureAwait(false)) throw new NotFoundException(reference.Kind + " " + reference.Name + " not found.");
+            }
+            await plan.ExpandAsync(token).ConfigureAwait(false);
+
             Resolver resolver = new Resolver(_Database, tenantId);
             List<Dictionary<string, object?>> documents = new List<Dictionary<string, object?>>();
-            EnumerationQuery query = new EnumerationQuery();
-            query.MaxResults = 1000;
-            query.IncludeBuiltIn = false;
-            query.Ordering = EnumerationOrderEnum.NameAscending;
+            foreach (PromptTemplate template in plan.Selected<PromptTemplate>()) documents.Add(Wrap("PromptTemplate", template.Name, PromptTree(template)));
+            foreach (HarnessProfile profile in plan.Selected<HarnessProfile>()) documents.Add(Wrap("HarnessProfile", profile.Name, Tree(profile)));
+            foreach (McpServer server in plan.Selected<McpServer>()) documents.Add(Wrap("McpServer", server.Name, Tree(server)));
+            foreach (WorkspaceTemplate workspace in plan.Selected<WorkspaceTemplate>()) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
+            foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false)));
+            foreach (Deployment deployment in plan.Selected<Deployment>()) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
+            foreach (Pipeline pipeline in plan.Selected<Pipeline>()) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
+            foreach (Trigger trigger in plan.Selected<Trigger>()) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
+            foreach (NotificationEndpoint endpoint in plan.Selected<NotificationEndpoint>()) documents.Add(Wrap("NotificationEndpoint", endpoint.Name, await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false)));
 
-            foreach (Secret secret in (await _Database.Secrets.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Secret", secret.Name, SecretTree(secret)));
-            foreach (PromptTemplate template in (await _Database.PromptTemplates.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects.Where(t => t.TenantId == tenantId)) documents.Add(Wrap("PromptTemplate", template.Name, PromptTree(template)));
-            foreach (HarnessProfile profile in (await _Database.HarnessProfiles.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects.Where(p => p.TenantId == tenantId)) documents.Add(Wrap("HarnessProfile", profile.Name, Tree(profile)));
-            foreach (McpServer server in (await _Database.McpServers.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("McpServer", server.Name, Tree(server)));
-            foreach (WorkspaceTemplate workspace in (await _Database.WorkspaceTemplates.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
-            foreach (Agent agent in (await _Database.Agents.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false)));
-            foreach (Deployment deployment in (await _Database.Deployments.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
-            foreach (Pipeline pipeline in (await _Database.Pipelines.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
-            foreach (Trigger trigger in (await _Database.Triggers.EnumerateAsync(tenantId, null, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
-            foreach (NotificationEndpoint endpoint in (await _Database.NotificationEndpoints.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("NotificationEndpoint", endpoint.Name, await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false)));
-            return ManifestParser.ToYaml(documents);
+            ManifestExportResult result = new ManifestExportResult();
+            result.Bundle = await plan.RequirementsAsync(token).ConfigureAwait(false);
+            result.Bundle.ExportedUtc = DateTime.UtcNow;
+            result.DocumentCount = documents.Count;
+            documents.Insert(0, Wrap("Bundle", BundleName, BundleTree(result.Bundle)));
+            result.Yaml = BundleHeader(tenantId, result.Bundle) + ManifestParser.ToYaml(documents);
+            return result;
         }
 
         #endregion
 
         #region Private-Methods
+
+        private static void Placeholder(Resolver resolver, ManifestDocument document)
+        {
+            // A failed document still answers references from later documents, so each failure is reported once, on the
+            // document that caused it, instead of again on everything that names it. Nothing is written after a failure.
+            string? kind = Kinds.FirstOrDefault(k => String.Equals(k, document.Kind, StringComparison.OrdinalIgnoreCase));
+            if (kind == null || String.IsNullOrWhiteSpace(document.Metadata.Name)) return;
+            resolver.Add(kind, document.Metadata.Name, "unresolved_" + kind.ToLowerInvariant() + "_" + document.Index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
 
         private static int KindOrder(string kind)
         {
@@ -258,7 +318,16 @@ namespace Garrison.Core.Manifests
             if (KindOrder(document.Kind) >= Kinds.Count) throw new ValidationException("Document " + document.Index + " has unknown kind '" + document.Kind + "'. Supported: " + String.Join(", ", Kinds) + ".");
             string name = document.Metadata.Name;
             if (String.IsNullOrWhiteSpace(name)) throw new ValidationException("Document " + document.Index + " (" + document.Kind + ") needs metadata.name.");
-            if (name.StartsWith(Constants.BuiltInPrefix, StringComparison.OrdinalIgnoreCase)) throw new ValidationException(document.Kind + " " + name + ": names starting with " + Constants.BuiltInPrefix + " are reserved for built-ins.");
+            if (name.StartsWith(Constants.BuiltInPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                // P12.21: a bundle exported with includeBuiltIn carries the built-ins it uses; applying one only checks it.
+                if (String.Equals(document.Kind, "PromptTemplate", StringComparison.OrdinalIgnoreCase) || String.Equals(document.Kind, "HarnessProfile", StringComparison.OrdinalIgnoreCase))
+                {
+                    await PlanBuiltInAsync(tenantId, document, planned, token).ConfigureAwait(false);
+                    return;
+                }
+                throw new ValidationException(document.Kind + " " + name + ": names starting with " + Constants.BuiltInPrefix + " are reserved for built-ins.");
+            }
             if (document.Metadata.Description != null) document.Spec["description"] = document.Metadata.Description;
 
             switch (document.Kind.ToLowerInvariant())
@@ -293,7 +362,91 @@ namespace Garrison.Core.Manifests
                 case "notificationendpoint":
                     await PlanNotificationEndpointAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
                     break;
+                case "bundle":
+                    await PlanBundleAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
+                    break;
             }
+        }
+
+        private async Task PlanBuiltInAsync(string tenantId, ManifestDocument document, Planned planned, CancellationToken token)
+        {
+            string name = document.Metadata.Name;
+            Dictionary<string, string> fields = new Dictionary<string, string> { { "metadata.name", "Built-in " + document.Kind + " " + name + " does not exist on this server." } };
+            Dictionary<string, string> codes = new Dictionary<string, string> { { "metadata.name", "MissingBuiltIn" } };
+            bool same;
+            if (String.Equals(document.Kind, "PromptTemplate", StringComparison.OrdinalIgnoreCase))
+            {
+                PromptTemplate? builtIn = await _Database.PromptTemplates.ReadByNameAsync(tenantId, name, token).ConfigureAwait(false);
+                if (builtIn == null || !builtIn.IsBuiltIn) throw new ValidationException("Built-in prompt template " + name + " does not exist on this server.", fields, codes);
+                PromptTemplateSpec spec = Deserialize<PromptTemplateSpec>(document);
+                same = String.Equals(builtIn.Content, spec.Content, StringComparison.Ordinal);
+                planned.ResourceId = builtIn.Id;
+            }
+            else
+            {
+                HarnessProfile? builtIn = await _Database.HarnessProfiles.ReadByNameAsync(tenantId, name, token).ConfigureAwait(false);
+                if (builtIn == null || !builtIn.IsBuiltIn) throw new ValidationException("Built-in harness profile " + name + " does not exist on this server.", fields, codes);
+                HarnessProfile profile = Deserialize<HarnessProfile>(document);
+                profile.Name = builtIn.Name;
+                same = Same(Tree(builtIn), Tree(profile));
+                planned.ResourceId = builtIn.Id;
+            }
+            planned.Result = ManifestApplyResultEnum.Unchanged;
+            planned.Message = same
+                ? "Built-in; built-ins are managed by the server and left unchanged."
+                : "Built-in; this server's version differs from the document. Built-ins are managed by the server and left unchanged.";
+        }
+
+        private async Task PlanBundleAsync(string tenantId, ManifestDocument document, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            BundleSpec spec = Deserialize<BundleSpec>(document);
+            Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            List<string> missing = new List<string>();
+            for (int i = 0; i < spec.RequiredSecrets.Count; i++)
+            {
+                string secret = spec.RequiredSecrets[i].Name;
+                if (await resolver.TryResolveAsync("Secret", secret, token).ConfigureAwait(false) != null) continue;
+                string field = "spec.requiredSecrets[" + i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+                errors[field] = "Secret '" + secret + "' does not exist in this tenant. Secret values are never exported; create it, then apply again.";
+                codes[field] = "MissingSecret";
+                missing.Add("secret " + secret);
+            }
+            for (int i = 0; i < spec.RequiredArtifactStores.Count; i++)
+            {
+                string store = spec.RequiredArtifactStores[i];
+                if (!String.IsNullOrWhiteSpace(store) && await _Database.ArtifactStores.ReadByNameAsync(tenantId, store, token).ConfigureAwait(false) != null) continue;
+                string field = "spec.requiredArtifactStores[" + i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+                errors[field] = "Artifact store '" + store + "' does not exist in this tenant.";
+                codes[field] = "MissingArtifactStore";
+                missing.Add("artifact store " + store);
+            }
+            for (int i = 0; i < spec.RequiredBuiltIns.Count; i++)
+            {
+                ManifestResourceReference reference = spec.RequiredBuiltIns[i];
+                bool exists = false;
+                if (String.Equals(reference.Kind, "PromptTemplate", StringComparison.OrdinalIgnoreCase))
+                {
+                    PromptTemplate? template = await _Database.PromptTemplates.ReadByNameAsync(tenantId, reference.Name, token).ConfigureAwait(false);
+                    exists = template != null && template.IsBuiltIn;
+                }
+                else if (String.Equals(reference.Kind, "HarnessProfile", StringComparison.OrdinalIgnoreCase))
+                {
+                    HarnessProfile? profile = await _Database.HarnessProfiles.ReadByNameAsync(tenantId, reference.Name, token).ConfigureAwait(false);
+                    exists = profile != null && profile.IsBuiltIn;
+                }
+                if (exists) continue;
+                string field = "spec.requiredBuiltIns[" + i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+                errors[field] = "Built-in " + reference + " does not exist on this server.";
+                codes[field] = "MissingBuiltIn";
+                missing.Add("built-in " + reference);
+            }
+            if (errors.Count > 0)
+            {
+                throw new ValidationException("Bundle " + document.Metadata.Name + " needs what this tenant does not have: " + String.Join(", ", missing) + ".", errors, codes);
+            }
+            planned.Result = ManifestApplyResultEnum.Unchanged;
+            planned.Message = "Bundle requirements are met (" + spec.RequiredSecrets.Count + " secret(s), " + spec.RequiredArtifactStores.Count + " artifact store(s), " + spec.RequiredBuiltIns.Count + " built-in(s)).";
         }
 
         private async Task PlanSecretAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
@@ -463,6 +616,7 @@ namespace Garrison.Core.Manifests
             }
             string? toolTemplate = Take(spec, "toolDescriptionTemplate");
             string? skillTemplate = Take(spec, "skillDescriptionTemplate");
+            string? remoteSecret = Take(spec, "remoteCredentialSecret");
 
             Agent agent = Deserialize<Agent>(document);
             Agent? existing = await _Database.Agents.ReadByNameAsync(tenantId, document.Metadata.Name, token).ConfigureAwait(false);
@@ -470,6 +624,7 @@ namespace Garrison.Core.Manifests
             agent.TenantId = tenantId;
             if (!String.IsNullOrEmpty(toolTemplate)) agent.ToolDescriptionTemplateId = await resolver.RequireAsync("PromptTemplate", toolTemplate, "toolDescriptionTemplate", token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(skillTemplate)) agent.SkillDescriptionTemplateId = await resolver.RequireAsync("PromptTemplate", skillTemplate, "skillDescriptionTemplate", token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(remoteSecret)) agent.RemoteCredentialSecretId = await resolver.RequireAsync("Secret", remoteSecret, "remoteCredentialSecret", token).ConfigureAwait(false);
             if (existing != null)
             {
                 agent.Id = existing.Id;
@@ -531,7 +686,7 @@ namespace Garrison.Core.Manifests
             if (!String.IsNullOrEmpty(spec.ArtifactStore))
             {
                 ArtifactStore? store = await _Database.ArtifactStores.ReadByNameAsync(tenantId, spec.ArtifactStore, token).ConfigureAwait(false);
-                if (store == null) throw new ValidationException("Deployment " + deployment.Name + ": artifact store '" + spec.ArtifactStore + "' was not found.");
+                if (store == null) throw new ValidationException("Deployment " + deployment.Name + ": artifact store '" + spec.ArtifactStore + "' was not found.", new Dictionary<string, string> { { "artifactStore", "Artifact store '" + spec.ArtifactStore + "' does not exist in this tenant." } }, new Dictionary<string, string> { { "artifactStore", "MissingArtifactStore" } });
                 deployment.ArtifactStoreId = store.Id;
             }
 
@@ -1161,6 +1316,67 @@ namespace Garrison.Core.Manifests
             return tree;
         }
 
+        private static string ExportKind(string? kind, string field)
+        {
+            string? match = ExportableKinds.FirstOrDefault(k => String.Equals(k, kind?.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match != null) return match;
+            string message = String.Equals(kind?.Trim(), "Secret", StringComparison.OrdinalIgnoreCase)
+                ? "Secrets are never exported; a bundle lists the secrets it needs in its Bundle document."
+                : "'" + kind + "' cannot be exported. Kinds: " + String.Join(", ", ExportableKinds) + ".";
+            throw new ValidationException(message, new Dictionary<string, string> { { field, message } }, new Dictionary<string, string> { { field, "UnknownKind" } });
+        }
+
+        private static Dictionary<string, object?> BundleTree(BundleSpec bundle)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (bundle.ExportedUtc.HasValue) tree["exportedUtc"] = bundle.ExportedUtc.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+            List<object?> secrets = new List<object?>();
+            foreach (BundleSecretRequirement secret in bundle.RequiredSecrets)
+            {
+                Dictionary<string, object?> item = new Dictionary<string, object?>();
+                item["name"] = secret.Name;
+                if (secret.Kind.HasValue) item["kind"] = secret.Kind.Value.ToString();
+                secrets.Add(item);
+            }
+            tree["requiredSecrets"] = secrets;
+            tree["requiredArtifactStores"] = bundle.RequiredArtifactStores.Select(s => (object?)s).ToList();
+            List<object?> builtIns = new List<object?>();
+            foreach (ManifestResourceReference reference in bundle.RequiredBuiltIns)
+            {
+                Dictionary<string, object?> item = new Dictionary<string, object?>();
+                item["kind"] = reference.Kind;
+                item["name"] = reference.Name;
+                builtIns.Add(item);
+            }
+            tree["requiredBuiltIns"] = builtIns;
+            return tree;
+        }
+
+        private static string BundleHeader(string tenantId, BundleSpec bundle)
+        {
+            System.Text.StringBuilder header = new System.Text.StringBuilder();
+            string exported = (bundle.ExportedUtc ?? DateTime.UtcNow).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+            header.Append("# Garrison manifest bundle (").Append(ApiVersion).Append(") exported ").Append(exported).Append(" from tenant ").Append(tenantId).Append('.').Append(Environment.NewLine);
+            header.Append("# Apply it with POST /v1.0/api/tenants/{tenantId}/manifests/apply (add ?dryRun=true to check it first).").Append(Environment.NewLine);
+            if (bundle.RequiredSecrets.Count == 0)
+            {
+                header.Append("# This bundle needs no secrets.").Append(Environment.NewLine);
+            }
+            else
+            {
+                header.Append("# Secret values are never exported. Create these secrets in the target tenant before applying:").Append(Environment.NewLine);
+                foreach (BundleSecretRequirement secret in bundle.RequiredSecrets)
+                {
+                    header.Append("#   - ").Append(secret.Name).Append(secret.Kind.HasValue ? " (" + secret.Kind.Value + ")" : String.Empty).Append(Environment.NewLine);
+                }
+            }
+            if (bundle.RequiredArtifactStores.Count > 0)
+            {
+                header.Append("# Artifact stores the target tenant needs: ").Append(String.Join(", ", bundle.RequiredArtifactStores)).Append('.').Append(Environment.NewLine);
+            }
+            return header.ToString();
+        }
+
         private static Dictionary<string, object?> PromptTree(PromptTemplate template)
         {
             Dictionary<string, object?> tree = new Dictionary<string, object?>();
@@ -1183,6 +1399,8 @@ namespace Garrison.Core.Manifests
             Dictionary<string, object?> tree = Tree(agent);
             tree.Remove("toolDescriptionTemplateId");
             tree.Remove("skillDescriptionTemplateId");
+            tree.Remove("remoteCredentialSecretId");
+            if (!String.IsNullOrEmpty(agent.RemoteCredentialSecretId)) tree["remoteCredentialSecret"] = await resolver.NameAsync("Secret", agent.RemoteCredentialSecretId, token).ConfigureAwait(false) ?? agent.RemoteCredentialSecretId;
             if (!String.IsNullOrEmpty(agent.ToolDescriptionTemplateId)) tree["toolDescriptionTemplate"] = await resolver.NameAsync("PromptTemplate", agent.ToolDescriptionTemplateId, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(agent.SkillDescriptionTemplateId)) tree["skillDescriptionTemplate"] = await resolver.NameAsync("PromptTemplate", agent.SkillDescriptionTemplateId, token).ConfigureAwait(false);
             return tree;

@@ -40,13 +40,25 @@ namespace Garrison.Sdk.Clients
             return await Transport.SendAsync<ManifestApply>(HttpMethod.Post, TenantPath("/manifests/apply"), content, query, contentType, token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
         /// <summary>
-        /// Export the tenant's configuration as YAML manifests (secret values excluded).
+        /// Export the tenant's configuration as a multi-document YAML bundle that apply accepts unchanged. Secret values
+        /// are never exported; the leading Bundle document lists the secrets, artifact stores, and built-ins the target
+        /// tenant needs.
         /// </summary>
+        /// <param name="request">Optional selectors; null exports every tenant-owned resource.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>Manifest text.</returns>
-        public async Task<string> ExportAsync(CancellationToken token = default)
+        /// <returns>Bundle YAML text.</returns>
+        /// <exception cref="GarrisonException">400 UnknownKind or InvalidSelector; 404 when a selected resource does not exist.</exception>
+        public async Task<string> ExportAsync(ManifestExportRequest? request = null, CancellationToken token = default)
         {
-            return await Transport.SendTextAsync(HttpMethod.Post, TenantPath("/manifests/export"), token: token).ConfigureAwait(false);
+            Dictionary<string, string?> query = new Dictionary<string, string?>(StringComparer.Ordinal);
+            if (request != null)
+            {
+                if (request.Kinds.Count > 0) query["kinds"] = String.Join(",", request.Kinds);
+                if (request.Resources.Count > 0) query["resources"] = String.Join(",", request.Resources);
+                if (request.FollowReferences) query["followReferences"] = "true";
+                if (request.IncludeBuiltIn) query["includeBuiltIn"] = "true";
+            }
+            return await Transport.SendTextAsync(HttpMethod.Get, TenantPath("/manifests/export"), null, query, token: token).ConfigureAwait(false);
         }
         /// <summary>
         /// List previous applies.

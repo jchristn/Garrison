@@ -248,7 +248,7 @@ namespace Test.Shared.Suites
                 Assert.Equal(DeploymentEffectPolicyEnum.AtLeastOnce, Assert.NotNull(await db.Deployments.ReadByNameAsync(host.TenantId, "effect-legacy", token).ConfigureAwait(false), "Legacy").EffectPolicy, "retryOnNodeLoss true maps to AtLeastOnce");
                 Assert.Equal(DeploymentEffectPolicyEnum.Journaled, Assert.NotNull(await db.Deployments.ReadByNameAsync(host.TenantId, "effect-journaled", token).ConfigureAwait(false), "Journaled").EffectPolicy, "effectPolicy applies");
 
-                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/manifests/export", null, token).ConfigureAwait(false);
+                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, tenantPath + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.True(export.Body.Contains("effectPolicy: AtMostOnce", StringComparison.Ordinal) && export.Body.Contains("effectPolicy: AtLeastOnce", StringComparison.Ordinal) && export.Body.Contains("effectPolicy: Journaled", StringComparison.Ordinal), "Export writes effectPolicy for every deployment");
                 Assert.True(!export.Body.Contains("retryOnNodeLoss", StringComparison.Ordinal), "Export does not write the deprecated field");
                 ManifestApply reapplied = await ApplyAsync(host, export.Body, 200, token).ConfigureAwait(false);

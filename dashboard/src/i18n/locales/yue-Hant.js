@@ -2488,3 +2488,67 @@ yueHant.tips.resources.deployments.egressDefault = "冇出站允許清單：執�
   }
  }
 });
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "transcriptExport": {
+   "label": "匯出對話紀錄",
+   "exporting": "匯出緊...",
+   "markdown": "Markdown 文件 (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "包埋思考過程",
+   "failed": "匯出對話紀錄失敗：{{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "結構化輸入",
+    "modeLabel": "輸入編輯器",
+    "modeForm": "表格",
+    "modeJson": "原始 JSON",
+    "required": "必填",
+    "choose": "揀一個值",
+    "addItem": "加項目",
+    "removeItem": "移除項目",
+    "jsonLabel": "輸入 JSON",
+    "jsonPlaceholder": "JSON 值",
+    "unsupported": "呢個輸入結構冇可以用嚟整表格嘅屬性。請輸入代理預期嘅 JSON 文件。",
+    "invalidRaw": "JSON 唔啱。轉去表格之前請先改好佢。",
+    "errors": {
+     "required": "呢個欄位係必填嘅。",
+     "number": "請輸入數字。",
+     "integer": "請輸入整數。",
+     "json": "請輸入有效嘅 JSON。"
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "匯出範圍",
+    "scopeAll": "所有資源",
+    "scopeSelected": "揀咗嘅資源",
+    "kinds": "類型",
+    "resources": "資源",
+    "resourcesHint": "每行一個 類型/名稱，或者用逗號分隔，例如 Agent/triage。",
+    "invalidSelectors": "唔係已知類型嘅 類型/名稱：{{entries}}",
+    "followReferences": "包埋佢哋參照嘅資源",
+    "includeBuiltIn": "包埋參照嘅內建資源",
+    "exporting": "匯出緊...",
+    "noSecrets": "呢個套件唔使任何密鑰。",
+    "requiredSecrets": "套用之前，請喺目標租戶度建立呢啲密鑰。密鑰值永遠唔會匯出。",
+    "requiredArtifactStores": "套用之前，請喺目標租戶度建立呢啲成品儲存區。"
+   }
+  }
+ }
+});

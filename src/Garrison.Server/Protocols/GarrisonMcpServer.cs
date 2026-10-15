@@ -23,6 +23,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Garrison.Core.Templates;
+    using Garrison.Core.Transcripts;
     using Garrison.Server.Routes;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
@@ -658,8 +659,7 @@ namespace Garrison.Server.Protocols
                         result = await ApplyManifestAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_export_manifest":
-                        await Require(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
-                        result = new McpManifestExport { Manifest = await _Context.Get<ManifestService>().ExportAsync(tenantId, token).ConfigureAwait(false) };
+                        result = await ExportManifestAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_upload_artifact":
                         result = await UploadArtifactAsync(ctx, tenantId, args, token).ConfigureAwait(false);
@@ -681,6 +681,12 @@ namespace Garrison.Server.Protocols
                         break;
                     case "garrison_get_run_events":
                         result = await EventsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_run_transcript":
+                        result = await RunTranscriptAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_conversation_transcript":
+                        result = await ConversationTranscriptAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_cancel_run":
                         Run toCancel = await RequireRunAsync(ctx, tenantId, args, OperationTypeEnum.Update, token).ConfigureAwait(false);
@@ -1039,6 +1045,23 @@ namespace Garrison.Server.Protocols
             return await _Context.Get<PipelineService>().DecideAsync(ctx, review, request, token).ConfigureAwait(false);
         }
 
+        private async Task<object> ExportManifestAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            McpManifestExportArguments arguments = ManagementArguments<McpManifestExportArguments>(args);
+            ManifestExportOptions options = new ManifestExportOptions();
+            foreach (string kind in arguments.Kinds ?? new List<string>()) options.Kinds.Add(kind);
+            foreach (string selector in arguments.Resources ?? new List<string>()) options.Resources.Add(ManifestRoutes.Selector(selector));
+            options.FollowReferences = arguments.FollowReferences;
+            options.IncludeBuiltIn = arguments.IncludeBuiltIn;
+            ManifestExportResult export = await _Context.Get<ManifestService>().ExportAsync(tenantId, options, token).ConfigureAwait(false);
+            McpManifestExport result = new McpManifestExport();
+            result.Manifest = export.Yaml;
+            result.FileName = ManifestRoutes.FileName(tenantId);
+            result.RequiredSecrets = export.Bundle.RequiredSecrets.Select(r => r.Name).ToList();
+            return result;
+        }
+
         private async Task<object> ApplyManifestAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
         {
             await Require(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
@@ -1126,6 +1149,39 @@ namespace Garrison.Server.Protocols
             RunEventsResponse events = await _Events.ReadAsync(run, after, limit, token).ConfigureAwait(false);
             foreach (RunEvent evt in events.Events) evt.RawEventJson = null;
             return events;
+        }
+
+        private async Task<object> RunTranscriptAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpTranscriptArguments arguments = ManagementArguments<McpTranscriptArguments>(args);
+            TranscriptFormatEnum format = TranscriptResponder.Parse(arguments.Format);
+            Run run = await RequireRunAsync(ctx, tenantId, args, OperationTypeEnum.Read, token).ConfigureAwait(false);
+            Transcript transcript = await _Context.Get<TranscriptService>().BuildRunAsync(run, arguments.IncludeThinking, token).ConfigureAwait(false);
+            return TranscriptResult(transcript, format);
+        }
+
+        private async Task<object> ConversationTranscriptAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpTranscriptArguments arguments = ManagementArguments<McpTranscriptArguments>(args);
+            TranscriptFormatEnum format = TranscriptResponder.Parse(arguments.Format);
+            if (String.IsNullOrWhiteSpace(arguments.ConversationId)) throw ToolError("ValidationFailed", "conversationId is required.");
+            Conversation conversation = await _Context.Database.Conversations.ReadAsync(tenantId, arguments.ConversationId, token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "Conversation " + arguments.ConversationId + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Conversation, OperationTypeEnum.Read, conversation.Id, token).ConfigureAwait(false);
+            Transcript transcript = await _Context.Get<TranscriptService>().BuildConversationAsync(conversation, arguments.IncludeThinking, token).ConfigureAwait(false);
+            return TranscriptResult(transcript, format);
+        }
+
+        private static McpTranscriptExport TranscriptResult(Transcript transcript, TranscriptFormatEnum format)
+        {
+            McpTranscriptExport export = new McpTranscriptExport();
+            export.Format = format == TranscriptFormatEnum.Json ? "json" : "markdown";
+            export.MediaType = format == TranscriptFormatEnum.Json ? "application/json" : "text/markdown";
+            export.FileName = TranscriptService.FileName(transcript, format);
+            export.Truncated = transcript.Truncated;
+            if (format == TranscriptFormatEnum.Json) export.Transcript = transcript;
+            else export.Markdown = TranscriptMarkdownWriter.Write(transcript);
+            return export;
         }
 
         private async Task<object> ListRunsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)

@@ -94,6 +94,10 @@ Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`.
 | `ParameterNotAllowed`, `ParameterInvalid` | A run parameter the deployment does not allow, or a value its rule rejects |
 | `ExpiryInPast` | A secret `expiresUtc` that has already passed |
 | `InputRequired` | A run or pipeline start without input, or with an input that is empty or only whitespace |
+| `InputNotJson`, `InputSchemaViolation` | The agent has an input schema and the input is not JSON, or does not match it (the field key is `input` or `input.` plus the path, such as `input.topic`) |
+| `InvalidJsonSchema` | An agent's `inputSchemaJson` or `outputSchemaJson` is not a usable JSON Schema |
+| `InvalidFormat` | A transcript `format` other than `markdown` or `json` |
+| `UnknownKind`, `InvalidSelector` | A manifest export `kinds` value that cannot be exported, or a `resources` entry that is not `Kind/name` |
 | `Invalid` | Any other field problem; read the message |
 
 Query string values are decoded the way browsers and HTTP clients encode them: percent escapes are decoded and a `+` is a space, so send a literal plus sign as `%2B`. A model name such as `gpt-oss:20b` works raw or encoded (`gpt-oss%3A20b`). Timestamps keep a raw `+` as a time zone offset sign.
@@ -2297,7 +2301,7 @@ Add `?dryRun=true` to see what would happen without writing anything. Each item 
 | `changes` | For `Updated` documents, one entry per changed field: `{ "field", "before", "after" }`. Values are text, truncated to 200 characters, `null` when the field was not set. Secret values are never shown; a changed value appears as field `value` with `(hidden)` and `(hidden, changed)` |
 | `resourceId` | The record's ID; `null` in a dry run for a record that does not exist yet |
 | `message` | For people, for example `Would be updated: content, description.` |
-| `errorCode`, `errorField` | For a failed document, a stable code and the failing field's path. `ManifestInvalid` means a spec field has the wrong type or a value that is not allowed; the message then names the document, field, value, and the allowed values, never internal type names |
+| `errorCode`, `errorField` | For a failed document, a stable code and the failing field's path. `ManifestInvalid` means a spec field has the wrong type or a value that is not allowed; the message then names the document, field, value, and the allowed values, never internal type names. A reference that cannot be resolved fails with `MissingSecret` (a secret reference) or `ReferenceNotFound` (any other kind), and `errorField` names the reference, such as `resources.secrets.github` or `agent`. A `Bundle` document fails with `MissingSecret`, `MissingArtifactStore`, or `MissingBuiltIn` |
 
 A document whose spec has a value the field does not accept fails like this (the apply answers 400 and writes nothing):
 
@@ -2321,18 +2325,65 @@ In a dry run, `createdCount`, `updatedCount`, and `unchangedCount` count what wo
 }
 ```
 
-#### `POST /v1.0/api/tenants/{tenantId}/manifests/export`
+#### `GET /v1.0/api/tenants/{tenantId}/manifests/export`
 
-Export the tenant configuration as YAML manifests (secrets as metadata only).
+Export tenant configuration as a manifest bundle: multi-document YAML that `POST .../manifests/apply` accepts unchanged. Secret values are never exported.
+
+| Query parameter | Meaning |
+|---|---|
+| `kinds` | Comma list of kinds to export in full: `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, `Pipeline`, `Trigger`, `NotificationEndpoint` (case does not matter) |
+| `resources` | Comma list of `Kind/name` entries, such as `Agent/triage,Pipeline/release`. The kind ends at the first `/`, so names that contain `/` work |
+| `followReferences` | `true` to also export what the selection depends on. Default `false` |
+| `includeBuiltIn` | `true` to include referenced built-in prompt templates and harness profiles as documents. Default `false` |
+
+With neither `kinds` nor `resources`, every tenant-owned resource is exported and built-ins are left out (references to them are kept). `kinds` and `resources` can be combined.
+
+With `followReferences=true`:
+
+- an agent brings its deployments, the triggers and notification endpoints that target it, the agents in its delegation allow list, and its tool and skill description templates;
+- a deployment brings its agent, harness profile, prompt templates, workspace template, and MCP servers;
+- a pipeline brings its stage agents (with their own dependencies), pinned deployments, handoff templates, and the triggers that target it;
+- a trigger brings its agent or pipeline, its deployment, and its input template;
+- a notification endpoint brings its agent and deployment.
+
+Secrets and artifact stores never become documents. They are listed as requirements in the first document of the bundle, a `Bundle` document, and secrets are also listed in the header comment:
+
+```yaml
+# Garrison manifest bundle (garrison/v1) exported 2026-10-14T12:00:00Z from tenant default.
+# Apply it with POST /v1.0/api/tenants/{tenantId}/manifests/apply (add ?dryRun=true to check it first).
+# Secret values are never exported. Create these secrets in the target tenant before applying:
+#   - github-token (ApiKey)
+apiVersion: garrison/v1
+kind: Bundle
+metadata:
+  name: garrison-bundle
+spec:
+  exportedUtc: 2026-10-14T12:00:00.0000000Z
+  requiredSecrets:
+  - name: github-token
+    kind: ApiKey
+  requiredArtifactStores: []
+  requiredBuiltIns:
+  - kind: HarnessProfile
+    name: builtin/fake
+---
+apiVersion: garrison/v1
+kind: Agent
+...
+```
+
+When applied, the `Bundle` document writes nothing. It checks that every required secret, artifact store, and built-in exists in the target tenant (a secret may also be defined in the same manifest) and reports `Unchanged`. When something is missing it fails with `errorCode` `MissingSecret`, `MissingArtifactStore`, or `MissingBuiltIn` and an `errorField` such as `spec.requiredSecrets[0]`, so the whole apply writes nothing until the secrets exist.
 
 | | |
 |---|---|
 | Permission | Read on `Manifest` |
+| Response | `application/yaml; charset=utf-8`, with `Content-Disposition: attachment; filename="garrison-bundle-<tenantId>.yaml"` |
 | Success | 200 |
+| Errors | 400 `ValidationFailed` with field code `UnknownKind` on `kinds` (also for `Secret` and `Bundle`, which are never exported) or `InvalidSelector` on `resources`; 404 `NotFound` when a selected resource does not exist in the tenant |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export" \
-  -H "Authorization: Bearer $TOKEN"
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export?resources=Agent/triage&followReferences=true" \
+  -H "Authorization: Bearer $TOKEN" -o triage-bundle.yaml
 ```
 
 #### `GET /v1.0/api/tenants/{tenantId}/manifests/applies`
@@ -2708,6 +2759,69 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events/
   -H "Authorization: Bearer $TOKEN"
 ```
 
+#### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/transcript`
+
+Download a run as a readable transcript, in Markdown or as a JSON document. See [docs/TRANSCRIPTS.md](docs/TRANSCRIPTS.md).
+
+| Query parameter | Meaning |
+|---|---|
+| `format` | `markdown` or `json` (case does not matter). Without it, an `Accept` header that contains `application/json` gives JSON and anything else gives Markdown |
+| `includeThinking` | `true` to include thinking events. Default `false` |
+
+| | |
+|---|---|
+| Permission | Read on `Run` |
+| Response | `text/markdown; charset=utf-8`, or `application/json; charset=utf-8` with a `Transcript` |
+| Headers | `Content-Disposition: attachment; filename="<runId>-transcript.md"` (or `.json`), `Cache-Control: private, no-store`, `X-Garrison-Transcript-Truncated: true` or `false` |
+| Success | 200 |
+| Errors | 400 `ValidationFailed` with field code `InvalidFormat` on `format`; 404 for an unknown run or one in another tenant |
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/transcript?format=markdown" \
+  -H "Authorization: Bearer $TOKEN" -o transcript.md
+```
+
+The transcript has the input, assistant text, tool calls with their arguments and results, approvals, warnings and errors, the result, usage and cost, and timestamps. Standard output, standard error, progress, usage, and result events are not entries (the result and usage are on the turn). Tool call and tool result text is cut at `Transcripts.ToolTextMaxChars` characters and marked `textTruncated`. Secret values the deployment binds and common credential shapes are replaced with `[REDACTED]`, using the same redactor as approval previews. The whole transcript is capped at `Transcripts.MaxBytes`; later events are left out, `truncated` is true, and `truncationNote` says so.
+
+```json
+{
+  "schema": "garrison.transcript/v1",
+  "kind": "Run",
+  "tenantId": "default", "runId": "run_...", "agentName": "helper",
+  "generatedUtc": "2026-10-14T12:00:00Z", "includesThinking": false,
+  "truncated": false, "turnCount": 1,
+  "usage": { "inputTokens": 1200, "outputTokens": 340, "cachedTokens": 0, "reasoningTokens": 0, "toolCallCount": 1, "costUsd": 0.0123, "costEstimated": false, "durationMs": 8200 },
+  "turns": [
+    {
+      "turn": 1, "runId": "run_...", "agentName": "helper", "deploymentId": "dep_...",
+      "kind": "Invoke", "status": "Succeeded", "outcome": "Success", "callerName": "admin", "model": "sonnet",
+      "input": "List the files.", "createdUtc": "2026-10-14T11:59:50Z", "startedUtc": "2026-10-14T11:59:51Z", "completedUtc": "2026-10-14T11:59:59Z",
+      "entries": [
+        { "sequence": 2, "timestampUtc": "2026-10-14T11:59:52Z", "type": "ToolCall", "toolName": "Bash", "toolCallId": "t1", "text": "{\"command\":\"ls\"}", "textTruncated": false },
+        { "sequence": 3, "timestampUtc": "2026-10-14T11:59:53Z", "type": "ToolResult", "toolCallId": "t1", "success": true, "text": "README.md", "textTruncated": false },
+        { "sequence": 4, "timestampUtc": "2026-10-14T11:59:55Z", "type": "AssistantText", "text": "There is one file.", "textTruncated": false }
+      ],
+      "approvals": [],
+      "result": "There is one file.",
+      "usage": { "inputTokens": 1200, "outputTokens": 340, "cachedTokens": 0, "reasoningTokens": 0, "toolCallCount": 1, "costUsd": 0.0123, "costEstimated": false, "durationMs": 8200 },
+      "omittedEvents": 0, "truncated": false
+    }
+  ]
+}
+```
+
+| `Transcript` field | Meaning |
+|---|---|
+| `schema` | Always `garrison.transcript/v1` |
+| `kind` | `Run` or `Conversation` |
+| `runId`, `conversationId` | The run, or the conversation, the transcript is for |
+| `includesThinking` | Whether thinking events were asked for |
+| `truncated`, `truncationNote` | Whether the size cap or the turn cap cut the transcript, and how |
+| `usage` | Totals over the included turns |
+| `turns[].omittedEvents` | Events the run recorded that are no longer stored, removed by `Runs.EventRetentionDays` |
+| `turns[].entries[].type` | `AssistantText`, `Thinking`, `ToolCall`, `ToolResult`, `Warning`, `Error`, or `Lifecycle` |
+| `turns[].approvals` | Approvals the run asked for: `id`, `kind`, `toolName`, `summary`, `inputPreview` (redacted), `status`, `decision`, `decisionSource`, `decidedBy`, `reason`, `requestedUtc`, `decidedUtc` |
+
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/children`
 
 List runs delegated by a run.
@@ -2824,6 +2938,23 @@ List a conversation's turns (runs), oldest first unless `ordering` is given.
 ```bash
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}/runs" \
   -H "Authorization: Bearer $TOKEN"
+```
+
+
+#### `GET /v1.0/api/tenants/{tenantId}/conversations/{id}/transcript`
+
+Download every turn of a conversation, oldest first, as one transcript (`kind` `Conversation`). It takes the same `format` and `includeThinking` parameters, sends the same headers, and has the same shape as the run transcript (`GET .../runs/{id}/transcript`), with one entry in `turns` per run. At most `Transcripts.MaxTurns` turns are included; when a conversation has more, `truncated` is true and `truncationNote` says how many were left out.
+
+| | |
+|---|---|
+| Permission | Read on `Conversation` |
+| Response | `text/markdown; charset=utf-8`, or `application/json; charset=utf-8` with a `Transcript` |
+| Success | 200 |
+| Errors | 400 `ValidationFailed` with field code `InvalidFormat` on `format`; 404 for an unknown conversation or one in another tenant |
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}/transcript?format=json" \
+  -H "Authorization: Bearer $TOKEN" -o conversation.json
 ```
 
 
@@ -4253,6 +4384,14 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false. Every call that starts a run from caller input (invoke, conversation turns, `POST .../runs`, `POST .../deployments/{deploymentId}/test`, and pipeline start) needs a non-empty `input`: a missing body or an empty or whitespace input returns 400 `ValidationFailed` with field code `InputRequired` on `input` instead of starting a run that spends harness quota on nothing. Retrying a run (`POST .../runs/{id}/retry`) reuses the stored input and is not checked.
 
+**Input schemas.** When the agent has an `inputSchemaJson`, the input must be a JSON document that matches it. This is checked on every surface that starts a run from caller input: invoke, `POST .../runs`, deployment tests, conversation turns, MCP (`garrison_invoke_agent`, `garrison_start_run`, and agent tools), A2A, and delegation. A mismatch is a 400 `ValidationFailed` with `fields` and `fieldCodes`. The key is `input` for the document itself, otherwise `input.` plus the path to the value, with dots between properties and `[n]` for array items: `input.topic`, `input.tags[1]`, `input.address.city`. A missing required property is reported on its own key (`input.topic`). The code is `InputNotJson` when the input does not parse as JSON and `InputSchemaViolation` for every schema failure. Send `inputContentType: "application/json"` with a structured input. Agents without an input schema take any text.
+
+```json
+{ "error": "BadRequest", "code": "ValidationFailed", "message": "The input does not match the agent's input schema.",
+  "fields": { "input.topic": "is required", "input.count": "Value should be at least 1" },
+  "fieldCodes": { "input.topic": "InputSchemaViolation", "input.count": "InputSchemaViolation" } }
+```
+
 **Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
@@ -4265,7 +4404,9 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Credentials.** `POST .../credentials` and `POST .../credentials/{id}/rotate` return the secret key exactly once. When the caller is the administrator API key (which has no user), `userId` is required.
 
-**Manifests.** `POST .../manifests/apply` takes a YAML or JSON body containing one or more documents (`Content-Type: application/yaml` or `application/json`); add `?dryRun=true` to validate without writing and `?allowSecretValues=true` to accept secret values. `POST .../manifests/export` returns the tenant's configuration as YAML. See `docs/MANIFESTS.md`.
+**Manifests.** `POST .../manifests/apply` takes a YAML or JSON body containing one or more documents (`Content-Type: application/yaml` or `application/json`); add `?dryRun=true` to validate without writing and `?allowSecretValues=true` to accept secret values. `GET .../manifests/export` returns a manifest bundle (YAML) of the whole tenant or of selected resources (`kinds`, `resources`, `followReferences`, `includeBuiltIn`), with secrets listed as requirements, never values. See `docs/MANIFESTS.md`.
+
+**Transcripts.** `GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript` return a Markdown or JSON transcript (`format`, `includeThinking`) as an attachment, with secrets redacted. See `docs/TRANSCRIPTS.md`.
 
 **Settings.** `GET /v1.0/api/settings` returns every setting with its value (secrets show only whether they are set), source (`File`, `Environment`, `ConfigMap`, or `Database`), whether a change applies live or needs a restart, and whether it is editable. `PUT` takes `{"values":[{"path":"...","value":"..."}]}` and answers 400 with per-field errors when a value is rejected. `POST /v1.0/api/settings/restart` answers 202 and exits the process so the container runtime restarts it.
 
@@ -4330,8 +4471,8 @@ Named agent capability exposed by Garrison.
 | `toolDescriptionTemplateId` | `string?` | Template for the MCP tool description; null uses the tenant's `mcp-tool-description` template or `builtin/mcp-tool-description`. |
 | `skillDescriptionTemplateId` | `string?` | Template for the A2A skill description. |
 | `inputMode` | `AgentInputModeEnum` | Input mode. |
-| `inputSchemaJson` | `string?` | JSON Schema for structured input (unmanaged JSON). |
-| `outputSchemaJson` | `string?` | JSON Schema for structured output (unmanaged JSON). When set, each run's final output is validated against it, with one repair attempt when the harness can resume (see [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts)). |
+| `inputSchemaJson` | `string?` | JSON Schema for structured input (unmanaged JSON). Must be a valid JSON Schema when saved (field code `InvalidJsonSchema`). When set, every invocation's input must be a JSON document that matches it (field codes `InputNotJson` and `InputSchemaViolation`; see Input schemas under Notes on specific routes), the A2A card advertises `application/json` input, and the dashboard's Invoke page shows a form built from it. |
+| `outputSchemaJson` | `string?` | JSON Schema for structured output (unmanaged JSON). Must be a valid JSON Schema when saved (field code `InvalidJsonSchema`). When set, each run's final output is validated against it, with one repair attempt when the harness can resume (see [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts)). |
 | `delegationMode` | `DelegationModeEnum` | Delegation mode. |
 | `delegationMaxDepth` | `int` | Maximum delegation depth below this agent. Minimum 0, maximum 10, default 2. |
 | `delegationAllowRecursion` | `bool` | Whether an agent may appear twice in a delegation chain. |

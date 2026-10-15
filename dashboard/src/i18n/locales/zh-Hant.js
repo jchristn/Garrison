@@ -2489,3 +2489,67 @@ zhHant.tips.resources.deployments.egressDefault = "沒有出站允許清單：�
   }
  }
 });
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "transcriptExport": {
+   "label": "匯出對話記錄",
+   "exporting": "正在匯出...",
+   "markdown": "Markdown 文件 (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "包含思考過程",
+   "failed": "匯出對話記錄失敗：{{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "結構化輸入",
+    "modeLabel": "輸入編輯器",
+    "modeForm": "表單",
+    "modeJson": "原始 JSON",
+    "required": "必填",
+    "choose": "選擇一個值",
+    "addItem": "新增項目",
+    "removeItem": "移除項目",
+    "jsonLabel": "輸入 JSON",
+    "jsonPlaceholder": "JSON 值",
+    "unsupported": "此輸入結構描述沒有可用來產生表單的屬性。請輸入代理程式預期的 JSON 文件。",
+    "invalidRaw": "JSON 無效。請先修正，再切換到表單。",
+    "errors": {
+     "required": "此欄位為必填。",
+     "number": "請輸入數字。",
+     "integer": "請輸入整數。",
+     "json": "請輸入有效的 JSON。"
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "匯出範圍",
+    "scopeAll": "所有資源",
+    "scopeSelected": "所選資源",
+    "kinds": "類型",
+    "resources": "資源",
+    "resourcesHint": "每行一個 類型/名稱，或以逗號分隔，例如 Agent/triage。",
+    "invalidSelectors": "不是已知類型的 類型/名稱：{{entries}}",
+    "followReferences": "包含它們參照的資源",
+    "includeBuiltIn": "包含參照的內建資源",
+    "exporting": "正在匯出...",
+    "noSecrets": "此套件不需要任何密鑰。",
+    "requiredSecrets": "套用之前，請在目標租用戶中建立這些密鑰。密鑰值永遠不會被匯出。",
+    "requiredArtifactStores": "套用之前，請在目標租用戶中建立這些成品儲存區。"
+   }
+  }
+ }
+});

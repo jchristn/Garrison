@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import TranscriptExportMenu from '../components/TranscriptExportMenu';
 import CopyableId from '../components/CopyableId';
 import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
@@ -190,6 +191,7 @@ export default function ConversationDetailView({ recordId }) {
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.conversationDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>
+            <TranscriptExportMenu id={c.id} load={(format, thinking) => apiClient.conversationTranscript(tenantId, c.id, format, thinking)} testId="conversation-transcript-export" />
             <button type="button" className="button-secondary" onClick={() => navigate(pathFor('runs', null, { conversationId: c.id }))} data-testid="conversation-runs" {...tip(t('tips.resources.conversations.actions.runs'))}>
               {t('resources.conversations.actions.runs')}
             </button>

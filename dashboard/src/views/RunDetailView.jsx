@@ -23,6 +23,7 @@ import { formatDateTime, formatNumber } from '../i18n/formatters';
 import { runTelemetry, formatMs, formatUsd } from '../utils/telemetry';
 import RunTelemetryPanel from '../components/RunTelemetryPanel';
 import ExportMenu from '../components/ExportMenu';
+import TranscriptExportMenu from '../components/TranscriptExportMenu';
 import { exportFileName, toCsv } from '../utils/exporters';
 import { tip } from '../components/Tooltip';
 import { BlockedBadge, BlockedRunNotice } from '../components/BlockedRun';
@@ -265,6 +266,7 @@ export default function RunDetailView({ recordId }) {
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.runDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>
+            <TranscriptExportMenu id={run.id} load={(format, thinking) => apiClient.runTranscript(tenantId, run.id, format, thinking)} testId="run-transcript-export" />
             {!terminal && (
               <button type="button" className="button-danger" onClick={() => setConfirmCancel(true)} {...tip(t('tips.resources.runs.actions.cancel'))}>
                 <StopIcon size={14} /> {t('resources.runs.actions.cancel')}

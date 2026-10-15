@@ -95,11 +95,31 @@ namespace Garrison.Core.Manifests
         /// <exception cref="ValidationException">Thrown when the reference cannot be resolved.</exception>
         public async Task<string> RequireAsync(string kind, string name, string field, CancellationToken token)
         {
-            if (String.IsNullOrWhiteSpace(name)) throw new ValidationException("Reference '" + field + "' to a " + kind + " is empty.");
-            if (_Pending.TryGetValue(kind + "/" + name, out string? pending)) return pending;
-            string? id = await _Cache.IdByNameAsync(kind, name, token).ConfigureAwait(false);
-            if (id == null) throw new ValidationException("Reference '" + field + "' points to " + kind + " '" + name + "', which does not exist and is not defined earlier in this manifest.");
+            string code = String.Equals(kind, "Secret", StringComparison.Ordinal) ? "MissingSecret" : "ReferenceNotFound";
+            if (String.IsNullOrWhiteSpace(name)) throw Missing("Reference '" + field + "' to a " + kind + " is empty.", field, code);
+            string? id = await TryResolveAsync(kind, name, token).ConfigureAwait(false);
+            if (id == null)
+            {
+                string message = String.Equals(kind, "Secret", StringComparison.Ordinal)
+                    ? "Reference '" + field + "' points to secret '" + name + "', which does not exist in this tenant. Secret values are never exported; create the secret, then apply again."
+                    : "Reference '" + field + "' points to " + kind + " '" + name + "', which does not exist and is not defined earlier in this manifest.";
+                throw Missing(message, field, code);
+            }
             return id;
+        }
+
+        /// <summary>
+        /// Resolve a name to an identifier without failing.
+        /// </summary>
+        /// <param name="kind">Kind.</param>
+        /// <param name="name">Name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Identifier, or null when the name is empty or nothing matches.</returns>
+        public async Task<string?> TryResolveAsync(string kind, string? name, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(name)) return null;
+            if (_Pending.TryGetValue(kind + "/" + name, out string? pending)) return pending;
+            return await _Cache.IdByNameAsync(kind, name, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -125,6 +145,15 @@ namespace Garrison.Core.Manifests
         #endregion
 
         #region Private-Methods
+
+        private static ValidationException Missing(string message, string field, string code)
+        {
+            Dictionary<string, string> fields = new Dictionary<string, string>();
+            fields[field] = message;
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            codes[field] = code;
+            return new ValidationException(message, fields, codes);
+        }
 
         private async Task<string?> ReadNameAsync(string kind, string id, CancellationToken token)
         {

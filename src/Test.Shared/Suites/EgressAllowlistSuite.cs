@@ -442,7 +442,7 @@ namespace Test.Shared.Suites
                 Deployment allowlisted = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "manifest-allowlisted", token).ConfigureAwait(false), "Allowlisted deployment");
                 Assert.Equal("203.0.113.0/24:443/TCP|2001:db8::/32:53/UDP", Describe(allowlisted.EgressRules), "Manifest rules applied");
 
-                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/manifests/export", null, token).ConfigureAwait(false);
+                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, tenantPath + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.Equal(1, export.Body.Split("egressRules:").Length - 1, "Export writes egressRules only for the allowlisted deployment: " + export.Body);
                 Assert.True(export.Body.Contains("203.0.113.0/24", StringComparison.Ordinal) && export.Body.Contains("UDP", StringComparison.Ordinal), "Export carries the rules");
                 ManifestApply reapplied = await ApplyAsync(host, export.Body, 200, token).ConfigureAwait(false);

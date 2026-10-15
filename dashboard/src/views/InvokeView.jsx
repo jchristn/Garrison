@@ -18,6 +18,8 @@ import { formatNumber } from '../i18n/formatters';
 import { isModelOutput } from '../utils/streamPreview';
 import { CONVERSATION_MODES, conversationBody, textPreview } from '../utils/conversations';
 import Explainer from '../components/Explainer';
+import SchemaInputForm from '../components/SchemaInputForm';
+import { parseSchema, buildFormModel, initialState, buildValue, stateFromValue, mapServerErrors } from '../utils/schemaForm';
 import { tip } from '../components/Tooltip';
 
 /** How often (ms) streamed events are flushed to the screen, so a fast token stream re-renders smoothly without flicker. */
@@ -54,6 +56,12 @@ export default function InvokeView() {
   const [conversations, setConversations] = useState([]);
   const [params, setParams] = useState({});
   const [message, setMessage] = useState('');
+  // P12.22: agents with an input schema get a generated form (or raw JSON) instead of free text.
+  const [schemaState, setSchemaState] = useState({});
+  const [schemaMode, setSchemaMode] = useState('form');
+  const [rawJson, setRawJson] = useState('{}');
+  const [schemaErrors, setSchemaErrors] = useState({});
+  const [schemaGeneral, setSchemaGeneral] = useState([]);
   const [run, setRun] = useState(null);
   const [events, setEvents] = useState([]);
   const [clock, setClock] = useState(EMPTY_CLOCK);
@@ -124,6 +132,59 @@ export default function InvokeView() {
   const continuing = conversationMode === 'continue';
   const conversationOptions = conversationId && !conversations.some((c) => c.id === conversationId) ? [{ id: conversationId }, ...conversations] : conversations;
   const selectedConversation = conversations.find((c) => c.id === conversationId) || null;
+
+  const selectedAgent = agents.find((a) => a.id === agentId) || null;
+  const schemaText = selectedAgent?.inputSchemaJson && String(selectedAgent.inputSchemaJson).trim() ? selectedAgent.inputSchemaJson : null;
+  const schemaModel = schemaText ? buildFormModel(parseSchema(schemaText)) : null;
+  const structured = !!schemaText;
+  // A schema that cannot drive a form (no object properties) still takes raw JSON.
+  const effectiveSchemaMode = schemaModel ? schemaMode : 'json';
+  useEffect(() => {
+    const model = schemaText ? buildFormModel(parseSchema(schemaText)) : null;
+    const initial = model ? initialState(model) : {};
+    setSchemaState(initial);
+    setRawJson(model ? JSON.stringify(buildValue(model, initial).value, null, 2) : '{}');
+    setSchemaMode('form');
+    setSchemaErrors({});
+    setSchemaGeneral([]);
+  }, [schemaText]);
+  const switchSchemaMode = (mode) => {
+    if (mode === schemaMode || !schemaModel) return;
+    if (mode === 'json') {
+      setRawJson(JSON.stringify(buildValue(schemaModel, schemaState).value, null, 2));
+      setSchemaMode('json');
+      setSchemaGeneral([]);
+      return;
+    }
+    try {
+      setSchemaState(stateFromValue(schemaModel, JSON.parse(rawJson)));
+      setSchemaMode('form');
+      setSchemaGeneral([]);
+    } catch {
+      setSchemaGeneral([t('views.invoke.schemaForm.invalidRaw')]);
+    }
+  };
+  /** The structured input as JSON text, or null after recording why it cannot be sent. */
+  const structuredInput = () => {
+    if (effectiveSchemaMode === 'json') {
+      try {
+        JSON.parse(rawJson);
+      } catch {
+        setSchemaGeneral([t('views.invoke.schemaForm.errors.json')]);
+        return null;
+      }
+      return rawJson;
+    }
+    const { value, errors } = buildValue(schemaModel, schemaState);
+    if (Object.keys(errors).length) {
+      const out = {};
+      for (const [key, kind] of Object.entries(errors)) out[key] = t(`views.invoke.schemaForm.errors.${kind}`);
+      setSchemaErrors(out);
+      return null;
+    }
+    return JSON.stringify(value);
+  };
+  const hasInput = structured || !!message.trim();
 
   const deployment = deployments.find((d) => d.id === deploymentId);
   // M1-26: say up front when the agent has nothing to route to, instead of letting the invoke fail.
@@ -246,7 +307,11 @@ export default function InvokeView() {
   }, [run, apiClient, tenantId, append, applyRun]);
 
   const send = async () => {
-    if (busy || !agentId || !message.trim() || timeLimitProblem || (continuing && !conversationId)) return;
+    if (busy || !agentId || !hasInput || timeLimitProblem || (continuing && !conversationId)) return;
+    setSchemaErrors({});
+    setSchemaGeneral([]);
+    const input = structured ? structuredInput() : message;
+    if (input === null) return;
     // The run still in progress, if any: cancelled before the new one starts unless the user keeps runs going.
     const previous = liveRunRef.current;
     liveRunRef.current = null;
@@ -273,7 +338,8 @@ export default function InvokeView() {
     try {
       // A conversation stays on the deployment of its first turn, so a continued turn never names one (409 otherwise).
       const body = {
-        input: message,
+        input,
+        inputContentType: structured ? 'application/json' : undefined,
         deploymentId: (!continuing && deploymentId) || undefined,
         parameters: Object.keys(params).length ? params : undefined,
         ...conversationBody(conversationMode, conversationId)
@@ -320,6 +386,19 @@ export default function InvokeView() {
       );
       const timeMessage = fieldMessages?.[`parameters.${TIMEOUT_OVERRIDE}`];
       if (timeMessage) setTimeLimitServerError(timeMessage);
+      // P12.22: schema violations come back keyed input, input.topic, input.tags[1]; show them on the controls.
+      if (structured && e?.fields) {
+        const inputFields = Object.fromEntries(Object.entries(fieldMessages || e.fields).filter(([k]) => k === 'input' || k.startsWith('input.') || k.startsWith('input[')));
+        if (Object.keys(inputFields).length) {
+          if (effectiveSchemaMode === 'form' && schemaModel) {
+            const mapped = mapServerErrors(schemaModel, inputFields);
+            setSchemaErrors(mapped.byKey);
+            setSchemaGeneral(mapped.general);
+          } else {
+            setSchemaGeneral(Object.entries(inputFields).map(([k, v]) => (k === 'input' ? v : `${k.replace(/^input\.?/, '')}: ${v}`)));
+          }
+        }
+      }
       setError(e);
       setClock(EMPTY_CLOCK);
     } finally {
@@ -473,11 +552,45 @@ export default function InvokeView() {
                 )}
               </div>
             )}
-            <div className="field">
-              <label htmlFor="invoke-message" {...tip(t('tips.views.invoke.message'))}>{t('views.invoke.message')}</label>
-              <textarea id="invoke-message" {...tip(t('tips.views.invoke.message'))} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
-              <div className="field-hint">{t('views.invoke.shortcut')}</div>
-            </div>
+            {structured ? (
+              <div className="field" data-testid="invoke-structured">
+                <div className="flex items-center justify-between gap-sm">
+                  <span className="section-title" {...tip(t('tips.views.invoke.schemaForm.title'))}>{t('views.invoke.schemaForm.title')}</span>
+                  {schemaModel && (
+                    <span className="flex gap-sm" role="group" aria-label={t('views.invoke.schemaForm.modeLabel')}>
+                      <button type="button" className={`button-secondary button-sm ${schemaMode === 'form' ? 'active' : ''}`} aria-pressed={schemaMode === 'form'} onClick={() => switchSchemaMode('form')} data-testid="schema-mode-form" {...tip(t('tips.views.invoke.schemaForm.modeForm'))}>
+                        {t('views.invoke.schemaForm.modeForm')}
+                      </button>
+                      <button type="button" className={`button-secondary button-sm ${schemaMode === 'json' ? 'active' : ''}`} aria-pressed={schemaMode === 'json'} onClick={() => switchSchemaMode('json')} data-testid="schema-mode-json" {...tip(t('tips.views.invoke.schemaForm.modeJson'))}>
+                        {t('views.invoke.schemaForm.modeJson')}
+                      </button>
+                    </span>
+                  )}
+                </div>
+                {!schemaModel && <div className="field-hint">{t('views.invoke.schemaForm.unsupported')}</div>}
+                {effectiveSchemaMode === 'form' ? (
+                  <SchemaInputForm model={schemaModel} state={schemaState} onChange={(next) => { setSchemaState(next); setSchemaErrors({}); }} errors={schemaErrors} disabled={busy} />
+                ) : (
+                  <>
+                    <label htmlFor="invoke-raw-json" className="sr-only">{t('views.invoke.schemaForm.jsonLabel')}</label>
+                    <textarea id="invoke-raw-json" className="monospace" rows={10} spellCheck={false} value={rawJson} onChange={(e) => setRawJson(e.target.value)} data-testid="schema-raw-json" onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} {...tip(t('tips.views.invoke.schemaForm.jsonLabel'))} />
+                  </>
+                )}
+                {schemaGeneral.length > 0 && (
+                  <div className="field-error" role="alert" data-testid="schema-errors">
+                    {schemaGeneral.map((m, i) => (
+                      <div key={i}>{m}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="field">
+                <label htmlFor="invoke-message" {...tip(t('tips.views.invoke.message'))}>{t('views.invoke.message')}</label>
+                <textarea id="invoke-message" {...tip(t('tips.views.invoke.message'))} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
+                <div className="field-hint">{t('views.invoke.shortcut')}</div>
+              </div>
+            )}
             {noRoutableDeployment && !deploymentId && (
               <div className="warning-banner" role="status" data-testid="invoke-no-deployment">
                 {t('views.invoke.noDeployment')}
@@ -485,7 +598,7 @@ export default function InvokeView() {
             )}
             {error && <ErrorBanner message={errorMessage(t, error)} />}
             <div className="flex gap-sm invoke-actions">
-              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || !!timeLimitProblem || (continuing && !conversationId)} data-testid="invoke-send" {...tip(t(active && stopOnLeave ? 'tips.views.invoke.sendReplaces' : active ? 'tips.views.invoke.sendKeeps' : 'tips.views.invoke.send'))}>
+              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !hasInput || !!timeLimitProblem || (continuing && !conversationId)} data-testid="invoke-send" {...tip(t(active && stopOnLeave ? 'tips.views.invoke.sendReplaces' : active ? 'tips.views.invoke.sendKeeps' : 'tips.views.invoke.send'))}>
                 <SendIcon size={14} /> {busy ? t('views.invoke.sending') : t('views.invoke.send')}
               </button>
               {active && (

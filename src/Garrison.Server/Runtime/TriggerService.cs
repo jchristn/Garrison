@@ -61,6 +61,7 @@ namespace Garrison.Server.Runtime
         private readonly AuthorizationService _Authorization;
         private readonly TriggerOptions _Options;
         private readonly LoggingModule _Logging;
+        private readonly InputSchemaValidator _InputSchemas = new InputSchemaValidator();
         private readonly string _Header = "[Triggers] ";
         private DateTime _LastPruneUtc = DateTime.MinValue;
 
@@ -296,6 +297,9 @@ namespace Garrison.Server.Runtime
 
             Agent agent = await _Database.Agents.ReadAsync(trigger.TenantId, trigger.AgentId ?? String.Empty, token).ConfigureAwait(false)
                 ?? throw new TriggerFireException("AgentNotFound", "Agent " + trigger.AgentId + " of trigger " + trigger.Name + " no longer exists.");
+
+            // P12.22: a rendered input must match the agent's input schema, as on every other surface.
+            _InputSchemas.Require(agent.InputSchemaJson, input);
             RunCreateContext create = new RunCreateContext();
             create.TenantId = trigger.TenantId;
             create.Agent = agent;

@@ -787,7 +787,7 @@ const tips = {
         description: 'スキルの役割です。呼び出し側のエージェントに向けて書きます。'
       },
       inputMode: 'テキストは通常のメッセージを受け付けます。構造化では、入力 JSON スキーマに一致する入力が必要です。',
-      inputSchemaJson: '入力モードが構造化の場合に、入力が一致しなければならない JSON スキーマです。',
+      inputSchemaJson: "エージェントの入力の JSON スキーマです。設定すると、呼び出しの入力はすべてこれに一致する JSON ドキュメントである必要があり、呼び出し画面にはここから生成したフォームが表示されます。",
       outputSchemaJson: '結果が一致しなければならない JSON スキーマです。Garrison は出力を検証し、修復プロンプトで 1 回再試行します。',
       delegationAllowList: '委任で許可リストを使う場合に、このエージェントが呼び出せるエージェントです。',
       delegationMaxDepth: 'このエージェントの下に続けられるエージェント間呼び出しの階層数です。0 から 10 の範囲です。',
@@ -2131,5 +2131,51 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "p1": "通知エンドポイントは、購読したイベント (実行やパイプラインの終了、人を待つ承認) が起きると署名付きの JSON POST を受け取ります。",
   "p2": "配信は永続的にキューに入れられ、間隔を広げながら再試行されます。毎回同じ配信 ID が送られるため、受信側は重複を無視できます。",
   "p3": "通知にはシークレットや実行の入力は含まれず、実行の出力は許可した場合だけ含まれます。運用者が許可しない限り、プライベートネットワークのアドレスは拒否されます。"
+ }
+});
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "components": {
+  "transcriptExport": {
+   "menu": "このトランスクリプトをファイルとしてダウンロードします。入力、アシスタントのテキスト、ツール呼び出し、承認、エラー、使用量、コストを含み、シークレットは伏せられます。",
+   "markdown": "共有やチケットへの添付に適した、読みやすい Markdown のトランスクリプトをダウンロードします。",
+   "json": "スクリプトや他のツール向けに、型付き JSON ドキュメント (garrison.transcript/v1) としてダウンロードします。",
+   "includeThinking": "モデルの思考イベントも含めます。長く内部的な内容のため、既定では含めません。"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "このエージェントには入力スキーマがあるため、入力は JSON ドキュメントです。フォームに入力するか、生の JSON に切り替えてください。",
+    "modeForm": "エージェントの入力スキーマから生成したフォームで入力を編集します。",
+    "modeJson": "入力を生の JSON テキストとして編集します。フォームに戻しても値は引き継がれます。",
+    "field": "エージェントの入力スキーマで説明されている {{name}} の値です。",
+    "fieldWithDescription": "{{name}}: {{description}}",
+    "addItem": "このリストに項目を追加します。",
+    "removeItem": "この項目をリストから削除します。",
+    "jsonLabel": "実行の入力として送信される JSON ドキュメントです。エージェントの入力スキーマに一致する必要があります。"
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scopeAll": "このテナントが所有するすべてのリソースをエクスポートします。組み込みは含めない限り除外されます。",
+    "scopeSelected": "選択した種類とリソースだけをエクスポートします。依存先を含めることもできます。",
+    "kinds": "チェックした種類のすべてのリソースをエクスポートします。",
+    "kind": "このテナントのすべての {{kind}} をエクスポートします。",
+    "resources": "エクスポートする個別のリソースを 種類/名前 の形式で指定します。例: Agent/triage、Pipeline/release",
+    "followReferences": "選択したものが依存するものもエクスポートします: デプロイメント、ハーネスプロファイル、プロンプトテンプレート、ワークスペース、MCP サーバー、トリガー、通知エンドポイント。シークレットは要件として列挙され、エクスポートされません。",
+    "includeBuiltIn": "バンドルが参照する組み込みのプロンプトテンプレートとハーネスプロファイルを追加します。適用時には変更されず、存在するかだけが確認されます。"
+   }
+  }
  }
 });
