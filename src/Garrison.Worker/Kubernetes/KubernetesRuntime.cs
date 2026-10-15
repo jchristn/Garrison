@@ -204,7 +204,7 @@ namespace Garrison.Worker.Kubernetes
                 {
                     foreach (string[] check in new[]
                     {
-                        new[] { "", "pods", "create", "" }, new[] { "", "pods", "update", "" }, new[] { "", "pods", "delete", "" }, new[] { "", "pods", "create", "attach" },
+                        new[] { "", "pods", "create", "" }, new[] { "", "pods", "update", "" }, new[] { "", "pods", "delete", "" }, new[] { "", "pods", "create", "attach" }, new[] { "", "pods", "get", "attach" },
                         new[] { "coordination.k8s.io", "leases", "get", "" }, new[] { "coordination.k8s.io", "leases", "create", "" }, new[] { "coordination.k8s.io", "leases", "update", "" }
                     })
                     {

@@ -2,9 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Isolation red-team install (P11.17, k8s/tests/isolation-test.sh): the scale-test overlay (KubernetesJob executor,
-# egress canary, and egress allowlists on, as in the base) plus two in-cluster TCP targets for the probes, no dashboard,
-# and no warm run pods. Allowlisted runs never use warm pods, and turning them off keeps the Trusted run pod contrast on
-# the same cold Job path. Apply it through isolation-test.sh, which wraps it with deploy.sh (OVERLAY_DIR).
+# egress canary, egress allowlists, and warm run pods on, as in the base) plus two in-cluster TCP targets for the probes,
+# and no dashboard. Allowlisted runs never use warm pods, so the Untrusted runs take the cold Job path, and the Trusted
+# run pod contrast takes a warm pod, as by default. Apply it through isolation-test.sh, which wraps it with deploy.sh
+# (OVERLAY_DIR).
 namespace: garrison
 
 resources:
@@ -19,16 +20,3 @@ patches:
         name: garrison-dashboard
       spec:
         replicas: 0
-  - patch: |-
-      apiVersion: apps/v1
-      kind: StatefulSet
-      metadata:
-        name: garrison-worker
-      spec:
-        template:
-          spec:
-            containers:
-              - name: worker
-                env:
-                  - name: GARRISON_WORKER_WARM_PODS_ENABLED
-                    value: "false"

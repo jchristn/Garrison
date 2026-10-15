@@ -25,7 +25,7 @@ rules:
     verbs: ["get"]
   - apiGroups: [""]
     resources: ["pods/attach"]
-    verbs: ["create"]
+    verbs: ["get", "create"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "create", "update"]

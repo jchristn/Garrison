@@ -84,6 +84,7 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - Pull-based scheduling with an atomic compare-and-set claim, fencing epochs, lease heartbeats, and long-poll leasing.
 - Workers lease every free slot in one request instead of one run per request (`MaxLeaseBatch`, default all free slots).
 - Claims and admissions take the tenant quota lock only when an enforcing quota applies, and the per-deployment claim lock only when the deployment has a concurrency limit.
+- Warm run pods failed with a 403 on older Kubernetes versions (seen on k3s v1.31), which authorize the WebSocket stdin attach as `get`: the worker Role now grants `pods/attach` get and create, and a worker without both runs cold. Warm pod transport failures name the step and error.
 - Leader election through a database lease, with a maintenance loop that requeues or fails runs whose node disappeared, enforces deadlines, marks silent nodes lost, and prunes old runs and events.
 - Run lifecycle with cancellation, retry, idempotency keys, events streamed over SSE and WebSocket, and delegation limited by allowlist, depth, and recursion rules.
 - Structured output validation: when an agent has an output schema, the control plane validates each run's final output against it (JsonSchema.Net), makes one repair attempt that resumes the harness session in the same lease with the `Repair` prompt template when the profile supports resume, and otherwise fails the run with `SchemaValidationFailed`. Runs carry `outputSchemaValid`, `schemaValidationErrors`, and `repairAttempts`.

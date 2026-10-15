@@ -483,7 +483,7 @@ Idle pods hold no run spec or provider credentials. The worker reserves a Ready 
 
 Ordinary runs fall back to cold Jobs when stock is unavailable. Explicit `requiredCapabilities.coldStartClass=Warm` runs require warm support and cannot fall back. PersistentVolume workspaces and custom deployment pod resources use cold execution; validation rejects either with an explicit Warm requirement. A worker reports `warmStart=true` only when warming is enabled and the required RBAC is available; its primary cold-start class remains Cold so it can serve both requirements.
 
-Worker Roles need pod create/update/delete, `pods/attach` create, and coordination Lease get/create/update in addition to existing cold executor permissions. Apply the updated base or Helm RBAC before enabling warm requirements. Missing warm permissions leave cold execution available.
+Worker Roles need pod create/update/delete, `pods/attach` get and create, and coordination Lease get/create/update in addition to existing cold executor permissions. Older Kubernetes versions authorize the WebSocket attach as `get` (k3s v1.31 returns 403 without it), newer ones check `create`, so grant both; a worker missing either reports warm pods unavailable and runs cold. Apply the updated base or Helm RBAC before enabling warm requirements. Missing warm permissions leave cold execution available.
 
 Run `scripts/check-warm-pods.sh` after building a current local worker image tagged `garrison-worker:warm-test`. The local gate creates and removes a temporary K3S cluster, checks shared refill bounds, competing reservations, isolation, completion, cancellation, and deletion, and reports warm/cold startup measurements. It uses no provider credentials and is excluded from routine CI.
 
