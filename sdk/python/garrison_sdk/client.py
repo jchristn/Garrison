@@ -54,6 +54,10 @@ RUN_EXECUTORS = ("Process", "KubernetesJob")
 # executor resolves to KubernetesJob, and a run no Ready worker can isolate stays Queued with blockedReason
 # NoIsolatingWorker. Tenant "requireUntrustedDeployments" rejects Trusted deployments (field code TenantRequiresUntrusted).
 TRUST_LEVELS = ("Trusted", "Untrusted")
+# Deployment "egressRules" items: {"cidr": "203.0.113.0/24", "port": 443 or None for every port, "protocol": one of these}
+# (default TCP). With rules, run pods reach only DNS, the Garrison MCP port, and the rules; an unset executor resolves to
+# KubernetesJob and a run no Ready worker can enforce stays Queued with blockedReason NoIsolatingWorker.
+EGRESS_PROTOCOLS = ("TCP", "UDP")
 # Deployment and run "effectPolicy" (default AtMostOnce for new deployments): what happens to a run that was already
 # Running when its worker was lost. AtMostOnce fails it with outcome NodeLost, AtLeastOnce requeues it while attempts
 # remain, and Journaled behaves as AtMostOnce until the effect journal exists. The deprecated "retryOnNodeLoss" is still

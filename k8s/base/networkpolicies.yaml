@@ -30,9 +30,8 @@ spec:
         - port: 8701
         - port: 9464
 ---
-# Run pods (KubernetesJob executor) accept no inbound traffic. They may resolve DNS, reach the Garrison MCP port on
-# the server (agent-to-agent delegation), and reach the internet on 443 only (model APIs, git over HTTPS). Widen or
-# narrow the last rule to the endpoints your harnesses need; the Helm chart's runEgress value does the same.
+# Run pods (KubernetesJob executor) accept no inbound traffic. They may resolve DNS and reach the Garrison MCP port on
+# the server (agent-to-agent delegation). This policy selects every run pod.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -57,6 +56,26 @@ spec:
               app.kubernetes.io/name: garrison-server
       ports:
         - port: 8701
+---
+# Default run egress: the internet on 443 only (model APIs, git over HTTPS), for run pods whose deployment has no
+# egress allowlist. Pods of deployments with egressRules carry garrison.io/egress=allowlist, so this policy does not
+# select them; the worker gives each of them a NetworkPolicy that allows only DNS, the MCP port, and the deployment's
+# rules (P11.15). Widen or narrow this rule to the endpoints your harnesses need; the Helm chart's runEgress value does
+# the same. Keep the matchExpressions: a rule here that also selected allowlisted pods would widen their egress, and
+# workers then stop reporting egress control.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-run-default-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-run
+    matchExpressions:
+      - key: garrison.io/egress
+        operator: DoesNotExist
+  policyTypes: ["Egress"]
+  egress:
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

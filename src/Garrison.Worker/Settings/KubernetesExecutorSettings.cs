@@ -338,6 +338,46 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Per-deployment egress allowlists (P11.15, D-052). When true, <see cref="EgressCanary"/> is set (proof that
+        /// the network plugin enforces NetworkPolicy), the worker may create, get, list, and delete NetworkPolicies in
+        /// the run namespace, and no shared NetworkPolicy there widens allowlisted run pods, the
+        /// KubernetesJob executor reports the EgressControl capability: for a run whose deployment has egress rules it
+        /// labels the Job and pod garrison.io/egress=allowlist (so the garrison-run-default-egress policy no longer
+        /// selects them) and creates a NetworkPolicy for that pod that allows only DNS, the server MCP port, and the
+        /// rules. Default false in code, because the setting is only safe with the split run policies shipped in the
+        /// Kubernetes manifests and Helm chart (which set it true); a cluster that still has the old single garrison-run
+        /// policy with the HTTPS-to-anywhere rule would let allowlisted pods reach that rule, and the worker reports no
+        /// EgressControl then. Runs with egress rules only go to workers that report it.
+        /// Environment: GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS.
+        /// </summary>
+        public bool EgressAllowlists { get; set; } = false;
+
+        /// <summary>
+        /// Garrison server MCP port that allowlisted run pods may reach, mirroring the garrison-run policy (the server's
+        /// pods are selected by app.kubernetes.io/name=garrison-server). Minimum 1, maximum 65535, default 8701.
+        /// Environment: GARRISON_WORKER_RUN_SERVER_MCP_PORT.
+        /// </summary>
+        public int ServerMcpPort
+        {
+            get
+            {
+                return _ServerMcpPort;
+            }
+            set
+            {
+                if (value < 1 || value > 65535) throw new ArgumentOutOfRangeException(nameof(value), "ServerMcpPort must be from 1 to 65535.");
+                _ServerMcpPort = value;
+            }
+        }
+
+        /// <summary>
+        /// Namespace of the Garrison server pods, used in the MCP rule of allowlisted run pods when it differs from the
+        /// run namespace. Null uses the worker's own namespace (the server and workers share a namespace in the shipped
+        /// manifests). Environment: GARRISON_WORKER_SERVER_NAMESPACE.
+        /// </summary>
+        public string? ServerNamespace { get; set; } = null;
+
+        /// <summary>
         /// Longest accepted protocol line from a run pod, in bytes. Longer lines are ignored and counted. Minimum 65536,
         /// maximum 67108864, default 8388608.
         /// </summary>
@@ -374,6 +414,7 @@ namespace Garrison.Worker.Settings
         private int _MaxLineBytes = 8388608;
         private string? _EgressCanary = null;
         private int _EgressCanaryTimeoutSeconds = 30;
+        private int _ServerMcpPort = 8701;
 
         #endregion
 
@@ -408,6 +449,12 @@ namespace Garrison.Worker.Settings
             if (value != null && Int32.TryParse(value, out int ttl)) JobTtlSeconds = ttl;
             value = Env("GARRISON_WORKER_RUN_EGRESS_CANARY");
             if (value != null) EgressCanary = value;
+            value = Env("GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS");
+            if (value != null && Boolean.TryParse(value, out bool allowlists)) EgressAllowlists = allowlists;
+            value = Env("GARRISON_WORKER_RUN_SERVER_MCP_PORT");
+            if (value != null && Int32.TryParse(value, out int mcpPort)) ServerMcpPort = mcpPort;
+            value = Env("GARRISON_WORKER_SERVER_NAMESPACE");
+            if (value != null) ServerNamespace = value;
             value = Env("GARRISON_WORKER_RUN_PENDING_TIMEOUT_SECONDS");
             if (value != null && Int32.TryParse(value, out int pending)) PendingTimeoutSeconds = pending;
         }

@@ -485,7 +485,7 @@ namespace Garrison.Worker.Hosting
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
             request.Capabilities = _Capabilities;
             request.Executors = Executors();
-            request.ExecutorCapabilities = request.Executors.Select(e => ExecutorCapabilityProfiles.For(e, _WarmPool?.Available == true)).ToList();
+            request.ExecutorCapabilities = request.Executors.Select(e => ExecutorCapabilityProfiles.For(e, _WarmPool?.Available == true, _Kubernetes?.EgressAvailable == true)).ToList();
 
             NodeRegisterResponse response = await _Client.RegisterAsync(request, token).ConfigureAwait(false);
             _NodeId = response.NodeId;
@@ -1139,8 +1139,9 @@ namespace Garrison.Worker.Hosting
                 if (_Kubernetes != null)
                 {
                     bool before = _Kubernetes.Available;
+                    bool egressBefore = _Kubernetes.EgressAvailable;
                     await _Kubernetes.InitializeAsync(_Settings.EffectiveNodeName, token).ConfigureAwait(false);
-                    if (before != _Kubernetes.Available) changed = true;
+                    if (before != _Kubernetes.Available || egressBefore != _Kubernetes.EgressAvailable) changed = true;
                 }
                 _Capabilities = latest;
                 if (changed)

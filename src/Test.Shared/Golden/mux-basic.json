@@ -104,7 +104,8 @@
     ],
     "retainForRepair": false,
     "repairAttempt": 0,
-    "executor": "Process"
+    "executor": "Process",
+    "egressRules": []
   },
   "templateVersions": [
     {

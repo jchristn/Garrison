@@ -343,6 +343,15 @@ namespace Garrison.Core.Helpers
             return New(Constants.RunChildWaitIdPrefix);
         }
 
+        /// <summary>
+        /// Generate a deployment egress rule row identifier (prefix der_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewDeploymentEgressRuleId()
+        {
+            return New(Constants.DeploymentEgressRuleIdPrefix);
+        }
+
         /// <summary>Generate an artifact identifier (prefix art_).</summary>
         /// <returns>Identifier.</returns>
         public static string NewArtifactId()

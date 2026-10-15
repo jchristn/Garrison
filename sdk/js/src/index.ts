@@ -100,6 +100,8 @@ export type RunExecutor = "Process" | "KubernetesJob";
 export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob"] as const;
 /** Deployment and run trustLevel values; Trusted is the default. */
 export const TRUST_LEVELS: readonly TrustLevel[] = ["Trusted", "Untrusted"] as const;
+/** Egress rule protocols; TCP is the default. */
+export const EGRESS_PROTOCOLS: readonly EgressProtocol[] = ["TCP", "UDP"] as const;
 /** Deployment and run effectPolicy values; AtMostOnce is the default for new deployments. */
 export const EFFECT_POLICIES: readonly EffectPolicy[] = ["AtMostOnce", "AtLeastOnce", "Journaled"] as const;
 
@@ -149,6 +151,12 @@ export interface Deployment extends Json, WithWarnings {
   requiredCapabilities?: ExecutorRequirements;
   /** Trust level, default Trusted. Untrusted runs need at least Container isolation (an unset executor resolves to KubernetesJob). */
   trustLevel?: TrustLevel;
+  /**
+   * Egress allowlist, at most 64 rules; empty or omitted means no allowlist. With rules, run pods reach only DNS, the
+   * Garrison MCP port, and the rules; an unset executor resolves to KubernetesJob, and a run no Ready worker can
+   * enforce stays Queued with blockedReason NoIsolatingWorker.
+   */
+  egressRules?: DeploymentEgressRule[];
   /** Effect policy, default AtMostOnce: what happens to a run that was already Running when its worker was lost. AtMostOnce fails it with NodeLost, AtLeastOnce requeues it while attempts remain, Journaled behaves as AtMostOnce until the effect journal exists. */
   effectPolicy?: EffectPolicy;
   /** @deprecated Use effectPolicy. Read-only view: true only for AtLeastOnce. Still accepted on input (true AtLeastOnce, false AtMostOnce); sending it with a disagreeing effectPolicy is a 400 (EffectPolicyConflict), so omit it when you change effectPolicy. */
@@ -608,6 +616,22 @@ export type RunOutcome = typeof RUN_OUTCOMES[number];
 export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool" | "NoIsolatingWorker";
 /** Deployment and run trust level. Tenant requireUntrustedDeployments rejects Trusted deployments (TenantRequiresUntrusted). */
 export type TrustLevel = "Trusted" | "Untrusted";
+/** Protocol of a deployment egress rule. */
+export type EgressProtocol = "TCP" | "UDP";
+
+/**
+ * One deployment egress allowlist rule. The server rejects an invalid CIDR (InvalidCidr), a port outside 1 to 65535
+ * (PortOutOfRange), more than 64 rules (TooManyEgressRules), Process executor with rules (EgressRulesNeedKubernetesJob),
+ * and Warm cold start with rules (EgressRulesNeedColdStart).
+ */
+export interface DeploymentEgressRule {
+  /** Destination CIDR network address, for example "203.0.113.0/24" or "2001:db8::/32". Host names are not accepted. */
+  cidr: string;
+  /** Destination port, 1 to 65535; null or omitted allows every port. */
+  port?: number | null;
+  /** Protocol, default TCP. */
+  protocol?: EgressProtocol;
+}
 /** Deployment and run effect policy: what happens to a started run whose worker was lost. Journaled behaves as AtMostOnce until the effect journal exists. */
 export type EffectPolicy = "AtMostOnce" | "AtLeastOnce" | "Journaled";
 

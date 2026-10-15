@@ -205,7 +205,12 @@ kubernetesExecutor:
   # never runs before the policy is programmed. Empty disables the check (needed when networkPolicies.enabled is
   # false or the network plugin does not enforce policies).
   egressCanary: '{{ include "garrison.serverHost" . }}:8700'
-  # Egress allowed from run pods besides DNS and the Garrison MCP port: CIDRs with optional except lists and ports.
+  # Per-deployment egress allowlists (P11.15): workers create a NetworkPolicy per run of a deployment with
+  # egressRules that allows only DNS, the MCP port, and those rules. Takes effect only with networkPolicies.enabled
+  # and an egressCanary, which prove the network plugin enforces policies; otherwise such runs stay queued.
+  egressAllowlists: true
+  # Default egress of run pods besides DNS and the Garrison MCP port: CIDRs with optional except lists and ports. It
+  # does not apply to run pods of deployments with egressRules (garrison-run-default-egress skips them).
   runEgress:
     - cidr: 0.0.0.0/0
       ports: [443]

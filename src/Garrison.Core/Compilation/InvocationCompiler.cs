@@ -716,6 +716,13 @@ namespace Garrison.Core.Compilation
             spec.Executor = run.Executor;
             spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(run.RequiredCapabilities) ? run.RequiredCapabilities.Clone() : null;
             spec.PodResources = run.Executor == RunExecutorEnum.KubernetesJob && !deployment.PodResources.IsEmpty ? deployment.PodResources.Clone() : null;
+            spec.EgressRules = deployment.EgressRules.Select(r => r.Clone()).ToList();
+            if (spec.EgressRules.Count > 0 && run.Executor != RunExecutorEnum.KubernetesJob)
+            {
+                // P11.15 (D-052): never run an allowlisted deployment where the allowlist cannot be enforced, for example
+                // when the rules were added after this run was admitted for the Process executor.
+                throw new CompilationException("ExecutorMismatch", "Deployment " + deployment.Name + " has an egress allowlist, which only KubernetesJob runs enforce; this run was admitted for the " + run.Executor + " executor. Submit the run again so it is admitted with the allowlist.");
+            }
             if (spec.Workspace.Kind == WorkspaceKindEnum.PersistentVolume && run.Executor != RunExecutorEnum.KubernetesJob)
             {
                 throw new CompilationException("ExecutorMismatch", "Workspace template " + (inputs.Workspace?.Name ?? String.Empty) + " is a PersistentVolume workspace, which needs the KubernetesJob executor; deployment " + deployment.Name + " runs with " + run.Executor + ".");

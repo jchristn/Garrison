@@ -1,6 +1,7 @@
 // Blocked queued runs (G-15): the server sets run.blockedReason (NoReadyWorker, NoCapableWorker, NoMatchingPool, or
-// NoIsolatingWorker for an Untrusted run no Ready worker can isolate, P11.14) on a Queued run that no Ready worker can
-// take right now, and the overview counts them in blockedRuns.
+// NoIsolatingWorker for an Untrusted run no Ready worker can isolate, P11.14, or a run whose deployment has an egress
+// allowlist no Ready worker can enforce, P11.15) on a Queued run that no Ready worker can take right now, and the
+// overview counts them in blockedRuns.
 
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,15 @@ export function BlockedBadge({ run, reason, t }) {
   );
 }
 
+/**
+ * Translation key of the explanation for a blocked reason. NoIsolatingWorker has two causes: an Untrusted run that needs
+ * Container isolation, and a run that needs egress control because its deployment has an egress allowlist (P11.15).
+ */
+export function blockedReasonTextKey(run, reason) {
+  if (reason === 'NoIsolatingWorker' && run?.requiredCapabilities?.egressControl) return 'components.blocked.reasons.NoIsolatingWorkerEgress';
+  return `components.blocked.reasons.${reason}`;
+}
+
 /** Run detail notice: what the blocked reason means and where to fix it. */
 export function BlockedRunNotice({ run }) {
   const { t } = useTranslation();
@@ -42,7 +52,7 @@ export function BlockedRunNotice({ run }) {
           <strong>{t('components.blocked.title')}</strong> <BlockedBadge reason={reason} t={t} />
         </div>
         <p>{t('components.blocked.body')}</p>
-        <p>{t(`components.blocked.reasons.${reason}`, { harness })}</p>
+        <p>{t(blockedReasonTextKey(run, reason), { harness })}</p>
         <p className="text-muted">{t('components.blocked.failNote')}</p>
       </div>
       <div className="blocked-notice-actions">

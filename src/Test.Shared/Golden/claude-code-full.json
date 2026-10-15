@@ -163,7 +163,8 @@
     ],
     "retainForRepair": true,
     "repairAttempt": 0,
-    "executor": "Process"
+    "executor": "Process",
+    "egressRules": []
   },
   "templateVersions": [
     {

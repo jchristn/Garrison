@@ -321,7 +321,31 @@ spec:
 
 **Placement.** Workers report the `KubernetesJob` executor only when `GARRISON_WORKER_KUBERNETES_ENABLED` is `true`, they run in a cluster (or have `GARRISON_WORKER_KUBECONFIG`), they know the run image, and a SelfSubjectAccessReview confirms their Role. The scheduler gives `KubernetesJob` runs only to such workers and keeps filtering in SQL, so a backlog of Job runs never starves Process-only workers. A queued Job run with no capable worker shows `blockedReason: NoCapableWorker` and a message naming the executor. Deployments with `trustLevel: Untrusted` (P11.14) need at least Container isolation: an unset executor resolves to `KubernetesJob` for them, and their runs queue with `blockedReason: NoIsolatingWorker` until a worker reporting `KubernetesJob` is Ready. Job runs still count against the worker's `MaxConcurrentRuns`, even though the harness does not run in the worker's container.
 
-**What the manifests set up.** `base/rbac.yaml` gives the `garrison-worker` service account a Role in its namespace: create, get, list, watch, and delete Jobs; create Secrets (never get, list, or watch them); get, list, and watch pods; get `pods/log`. Nothing is cluster-wide. The worker StatefulSet mounts its token and sets `GARRISON_WORKER_KUBERNETES_ENABLED=true`. `base/serviceaccounts.yaml` adds `garrison-run`, the run pods' account, which has no RoleBindings and whose token run pods never mount. `base/networkpolicies.yaml` adds `garrison-run`: no ingress, and egress only to DNS, the Garrison MCP port on the server (for delegation), and port 443 anywhere. Edit the last rule (or, in Helm, `kubernetesExecutor.runEgress`) to the endpoints your harnesses need.
+**What the manifests set up.** `base/rbac.yaml` gives the `garrison-worker` service account a Role in its namespace: create, get, list, watch, and delete Jobs; create Secrets (never get, list, or watch them); get, list, and watch pods; get `pods/log`; create, get, list, and delete NetworkPolicies (for egress allowlists, below). Nothing is cluster-wide. The worker StatefulSet mounts its token and sets `GARRISON_WORKER_KUBERNETES_ENABLED=true` and `GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS=true`. `base/serviceaccounts.yaml` adds `garrison-run`, the run pods' account, which has no RoleBindings and whose token run pods never mount. `base/networkpolicies.yaml` adds two run policies:
+
+- `garrison-run` selects every run pod: no ingress, and egress only to DNS and the Garrison MCP port on the server (for delegation).
+- `garrison-run-default-egress` selects run pods without the `garrison.io/egress` label and adds port 443 anywhere.
+
+Edit the default rule (or, in Helm, `kubernetesExecutor.runEgress`) to the endpoints your harnesses need. Keep its `DoesNotExist` selector: a rule that also selected allowlisted pods would widen their egress, and workers then stop reporting egress control.
+
+**Egress allowlists (P11.15).** A deployment with `egressRules` (CIDR, optional port, protocol; see `docs/SECURITY.md`, "Egress allowlists") narrows its run pods to DNS, the MCP port, and those rules. Its runs need the `EgressControl` capability, so only a worker that enforces allowlists claims them; with none Ready they queue with `blockedReason: NoIsolatingWorker`.
+
+For each such run the worker:
+
+1. builds the Job and pod with the label `garrison.io/egress: allowlist`, so `garrison-run-default-egress` never selects the pod;
+2. creates the NetworkPolicy `<job>-egress`, owned by the Job, before the spec Secret, so it exists before `run-one` can start. The policy selects that pod by run ID and epoch, has `policyTypes: [Egress]`, and allows DNS, the server MCP port, and one `ipBlock` entry per rule;
+3. deletes the policy when the run ends. Reconciliation deletes policies of runs the worker no longer holds, and the owner reference removes the policy with the Job in any case.
+
+These runs always start cold, never on a warm pod.
+
+A worker reports egress control only when all of these hold:
+
+- `Kubernetes.EgressAllowlists` is on.
+- `Kubernetes.EgressCanary` is set. This is the proof that the network plugin enforces NetworkPolicy.
+- A SelfSubjectAccessReview allows create, get, list, and delete on `networkpolicies`.
+- No NetworkPolicy in the run namespace would widen allowlisted pods: a policy that selects them and allows an `ipBlock` or every destination.
+
+That last check catches a cluster still running the old single `garrison-run` policy with the 443 rule. Upgrade the policies before you rely on allowlists; until then those runs queue rather than run unenforced. NetworkPolicy needs a network plugin that enforces it, including for IPv6 blocks if you list them. K3S's default plugin (kube-router) does. minikube's default does not: start minikube with a policy-enforcing CNI (`minikube start --cni=calico` or `--cni=cilium`), or allowlisted runs stay queued and other Job runs fail the egress canary.
 
 **Worker settings** (all under `Kubernetes` in `garrison-worker.json`, most also as environment variables):
 
@@ -342,13 +366,16 @@ spec:
 | `EmptyDirSizeLimit` | none | `sizeLimit` of the data and `/tmp` emptyDirs |
 | `PodLabels` | none | Extra labels on Jobs, pods, and Secrets |
 | `EgressCanary` (`GARRISON_WORKER_RUN_EGRESS_CANARY`) | none (`garrison-server:8700` in the manifests) | An address the run NetworkPolicy blocks. `run-one` starts the harness only once a connection to it fails, so the harness never runs before the policy controller has programmed the new pod (on K3S that took up to about a second in testing). If it is still reachable after `EgressCanaryTimeoutSeconds` (30), the run fails with `PodFailed`. Clear it on clusters that do not enforce NetworkPolicy |
-| `ReconcileIntervalSeconds` | `60` | How often orphaned Jobs are deleted |
+| `EgressAllowlists` (`GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS`) | `false` (`true` in the Kubernetes manifests and Helm) | Enforce per-deployment egress allowlists with a NetworkPolicy per run and report the `EgressControl` capability. Off in code because it is only safe with the split run policies the manifests ship; it also needs `EgressCanary` and NetworkPolicy RBAC |
+| `ServerMcpPort` (`GARRISON_WORKER_RUN_SERVER_MCP_PORT`) | `8701` | MCP port that allowlisted run pods may reach on `app.kubernetes.io/name=garrison-server` pods |
+| `ServerNamespace` (`GARRISON_WORKER_SERVER_NAMESPACE`) | the worker's namespace | Namespace of the server pods, used in that MCP rule when runs live in another namespace |
+| `ReconcileIntervalSeconds` | `60` | How often orphaned Jobs and egress NetworkPolicies are deleted |
 
-In Helm the same choices live under `kubernetesExecutor` (`enabled`, `runNamespace`, `runImage`, `imagePullSecrets`, `runtimeClassName`, `jobTtlSeconds`, `pendingTimeoutSeconds`, `nodeSelector`, `egressCanary`, `runEgress`).
+In Helm the same choices live under `kubernetesExecutor` (`enabled`, `runNamespace`, `runImage`, `imagePullSecrets`, `runtimeClassName`, `jobTtlSeconds`, `pendingTimeoutSeconds`, `nodeSelector`, `egressCanary`, `egressAllowlists`, `runEgress`). `egressAllowlists` (default `true`) is passed to workers only when `networkPolicies.enabled` is true and `egressCanary` is set, and `runEgress` fills `garrison-run-default-egress`.
 
 A run pod that is evicted, or whose Job is deleted outside Garrison, while the harness runs counts as node loss: the worker does not report the run, its lease expires, and the control plane requeues it when the run's `effectPolicy` is `AtLeastOnce` (and attempts remain) or fails it with `NodeLost`. A worker that is itself lost behaves the same way, and its replacement deletes the orphaned Jobs when it starts.
 
-**A separate run namespace.** Anyone who can create Jobs in a namespace can mount that namespace's Secrets, so a worker that creates run Jobs next to `garrison-secrets` could, if compromised, read them. For untrusted prompts put runs in their own namespace: create it (ideally with the `restricted` Pod Security level, which run pods satisfy), set `kubernetesExecutor.runNamespace` in Helm (the chart then puts the Role, the `garrison-run` account, and the run NetworkPolicy there, and lets the worker read its own pod), set `runImage`, and set `GARRISON_MCP_PUBLIC_URL` to the server's fully qualified name (`http://garrison-server.<namespace>.svc.cluster.local:8701`) so run pods can resolve it. With Kustomize, copy `base/rbac.yaml`, the `garrison-run` account, and the `garrison-run` NetworkPolicy into the run namespace, change the RoleBinding subject to `namespace: garrison`, and set the same environment variables on the worker.
+**A separate run namespace.** Anyone who can create Jobs in a namespace can mount that namespace's Secrets, so a worker that creates run Jobs next to `garrison-secrets` could, if compromised, read them. For untrusted prompts put runs in their own namespace: create it (ideally with the `restricted` Pod Security level, which run pods satisfy), set `kubernetesExecutor.runNamespace` in Helm (the chart then puts the Role, the `garrison-run` account, and the run NetworkPolicy there, and lets the worker read its own pod), set `runImage`, and set `GARRISON_MCP_PUBLIC_URL` to the server's fully qualified name (`http://garrison-server.<namespace>.svc.cluster.local:8701`) so run pods can resolve it. With Kustomize, copy `base/rbac.yaml`, the `garrison-run` account, and the `garrison-run` and `garrison-run-default-egress` NetworkPolicies into the run namespace, change the RoleBinding subject to `namespace: garrison`, and set the same environment variables on the worker.
 
 **Sandboxed runtimes.** Run pods share the node's kernel. gVisor (`runsc`) or Kata Containers give each pod its own kernel boundary. Install the runtime on the nodes, create its RuntimeClass, and set `kubernetesExecutor.runtimeClassName` (or `GARRISON_WORKER_RUN_RUNTIME_CLASS`):
 

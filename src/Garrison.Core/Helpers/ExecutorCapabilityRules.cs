@@ -31,9 +31,11 @@ namespace Garrison.Core.Helpers
 
         /// <summary>
         /// The effective placement requirement of a deployment: an independent copy of its required capabilities with
-        /// the isolation raised to the trust level's minimum. This is the only place trust level becomes a placement
-        /// requirement; admission stores the result on the run, and every claim path (candidate selection, the atomic
-        /// claim, the delegated child reserve claim) and blocked-run detection match against the stored run columns.
+        /// the isolation raised to the trust level's minimum, and, when the deployment has an egress allowlist (P11.15),
+        /// EgressControl required and isolation raised to at least Container. This is the only place trust level and
+        /// egress rules become placement requirements; admission stores the result on the run, and every claim path
+        /// (candidate selection, the atomic claim, the delegated child reserve claim) and blocked-run detection match
+        /// against the stored run columns.
         /// </summary>
         /// <param name="deployment">Deployment.</param>
         /// <returns>Effective requirements.</returns>
@@ -44,6 +46,11 @@ namespace Garrison.Core.Helpers
             ExecutorRequirements effective = deployment.RequiredCapabilities.Clone();
             ExecutorIsolationEnum minimum = MinimumIsolation(deployment.TrustLevel);
             if (effective.Isolation < minimum) effective.Isolation = minimum;
+            if (deployment.EgressRules.Count > 0)
+            {
+                effective.EgressControl = true;
+                if (effective.Isolation < ExecutorIsolationEnum.Container) effective.Isolation = ExecutorIsolationEnum.Container;
+            }
             return effective;
         }
 
@@ -65,8 +72,9 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
-        /// Whether a node offers an executor with at least a run's required isolation for the run's executor, ignoring
-        /// every other capability. Used to name missing isolation as the blocked reason of Untrusted runs.
+        /// Whether a node offers an executor with at least a run's required isolation for the run's executor and, when
+        /// the run requires it, egress control (P11.15), ignoring every other capability. Used to name missing isolation
+        /// or egress enforcement as the blocked reason of Untrusted runs and runs with an egress allowlist.
         /// </summary>
         /// <param name="node">Node.</param>
         /// <param name="run">Run.</param>
@@ -76,7 +84,8 @@ namespace Garrison.Core.Helpers
         {
             if (node == null) throw new ArgumentNullException(nameof(node));
             if (run == null) throw new ArgumentNullException(nameof(run));
-            return Of(node).Any(c => c.Executor == run.Executor && c.Isolation >= run.RequiredCapabilities.Isolation);
+            return Of(node).Any(c => c.Executor == run.Executor && c.Isolation >= run.RequiredCapabilities.Isolation
+                && (!run.RequiredCapabilities.EgressControl || c.EgressControl));
         }
 
         /// <summary>True when a requirement asks for more than legacy Process placement.</summary>

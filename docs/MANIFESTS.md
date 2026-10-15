@@ -335,6 +335,7 @@ spec:
 | `executor` | `Process` or `KubernetesJob` (a pod per run). Omit it to use the node pool's default, then `Process` (an `Untrusted` deployment never resolves to `Process` and uses `KubernetesJob`) |
 | `trustLevel` | `Trusted` or `Untrusted`. Omit it for `Trusted`; export writes it only for `Untrusted` deployments. `Untrusted` runs need at least Container isolation and wait in the queue (`NoIsolatingWorker`) until a worker can provide it. In a tenant with `requireUntrustedDeployments`, a document that creates or changes a `Trusted` deployment fails with `errorCode` `TenantRequiresUntrusted` and `errorField` `trustLevel`; an unchanged existing deployment is left alone |
 | `podResources` | Run pod `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit` for `KubernetesJob` runs. It is not called `resources` because that key holds the secret and MCP server bindings |
+| `egressRules` | Egress allowlist: a list of `cidr` (required), `port` (1 to 65535; omit for every port), and `protocol` (`TCP`, the default, or `UDP`), at most 64. Omit it for no allowlist; export writes it only for deployments that have rules. Runs of a deployment with rules reach only DNS, the Garrison MCP port, and the rules, and wait in the queue (`NoIsolatingWorker`) until a worker enforces them. An invalid rule fails the document with `errorCode` `InvalidCidr`, `PortOutOfRange`, or `TooManyEgressRules` and `errorField` such as `egressRules[0].cidr` |
 
 ### Pipeline
 

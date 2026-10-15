@@ -1,6 +1,6 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
-import { EFFECT_POLICIES, GarrisonClient, GarrisonError, TRUST_LEVELS } from "./dist/esm/index.js";
+import { EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
 const suffix = Math.random().toString(16).slice(2, 10);
@@ -156,6 +156,32 @@ await check("effect policy default, update, and conflict", async () => {
     require(status === 400, `conflict status ${status}`);
     const run = await client.runs.create({ input: "Effect policy", agentId: state.agent, deploymentId: deployment.id });
     require(run.effectPolicy === "AtLeastOnce", `run effectPolicy ${run.effectPolicy}`);
+    await client.runs.cancel(run.id);
+  } finally {
+    await client.deployments.delete(deployment.id);
+  }
+});
+await check("egress allowlist round trip, validation, and queueing", async () => {
+  require(EGRESS_PROTOCOLS.join(",") === "TCP,UDP", "egress protocol constants");
+  const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-egress`, agentId: state.agent, harnessProfileId: state.fake, weight: 0,
+    egressRules: [{ cidr: "203.0.113.0/24", port: 443, protocol: "TCP" }] });
+  try {
+    const read = await client.deployments.get(deployment.id);
+    const rules = read.egressRules ?? [];
+    require(rules.length === 1 && rules[0].cidr === "203.0.113.0/24" && rules[0].port === 443 && rules[0].protocol === "TCP", `egressRules ${JSON.stringify(rules)}`);
+    let status = 0;
+    try {
+      await client.deployments.update(deployment.id, { ...read, egressRules: [{ cidr: "203.0.113.7/24", port: 443, protocol: "TCP" }] });
+    } catch (e) {
+      require(e instanceof GarrisonError, `unexpected error ${e}`);
+      status = e.statusCode;
+      require(String(e.body).includes("InvalidCidr"), `bad cidr body ${e.body}`);
+    }
+    require(status === 400, `bad cidr status ${status}`);
+    const run = await client.runs.create({ input: "Egress allowlist", agentId: state.agent, deploymentId: deployment.id });
+    const queued = await client.runs.get(run.id);
+    require(queued.executor === "KubernetesJob", `run executor ${queued.executor}`);
+    require(queued.status === "Queued" && queued.blockedReason === "NoIsolatingWorker", `run ${queued.status} ${queued.blockedReason}`);
     await client.runs.cancel(run.id);
   } finally {
     await client.deployments.delete(deployment.id);

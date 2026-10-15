@@ -24,6 +24,7 @@ import { loadRuntimeLimits } from '../utils/settings';
 import UsageQuotaUsageModal from '../components/UsageQuotaUsageModal';
 import ApprovalCheckPanel from '../components/ApprovalCheckPanel';
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
+import { EGRESS_PROTOCOLS, egressErrors, egressRulesToBody, egressRulesToForm, hasEgressRules } from '../utils/egressRules';
 import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
 
 // Pipeline definitions (P12.9) live in their own module; re-exported so configuration-wide tests cover them.
@@ -939,13 +940,13 @@ async function loadTenant(apiClient, tenantId) {
 
 /**
  * The executor a deployment's runs resolve to: its own, else the pool default, else Process. An Untrusted deployment
- * with no executor never resolves to Process (P11.14); the server picks KubernetesJob.
+ * (P11.14) or one with egress rules (P11.15) with no executor never resolves to Process; the server picks KubernetesJob.
  */
 export function resolvedExecutor(d, pools) {
   const pool = (pools || []).find((p) => p.id === d?.nodePoolId);
   const inherited = pool?.defaultExecutor || 'Process';
   if (d?.executor) return d.executor;
-  return d?.trustLevel === 'Untrusted' && inherited === 'Process' ? 'KubernetesJob' : inherited;
+  return (d?.trustLevel === 'Untrusted' || hasEgressRules(d)) && inherited === 'Process' ? 'KubernetesJob' : inherited;
 }
 
 /** Hint under the executor select: what an empty choice resolves to, and where pod resources apply. */
@@ -964,14 +965,35 @@ function deploymentNotice(d, { t, options }) {
   if (d.trustLevel === 'Untrusted' && d.executor === 'Process') {
     notices.push(<div key="untrusted" className="error-banner" role="alert" data-testid="untrusted-process">{t('resources.deployments.trust.untrustedProcess')}</div>);
   }
+  if (hasEgressRules(d) && d.executor === 'Process') {
+    notices.push(<div key="egressProcess" className="error-banner" role="alert" data-testid="egress-process">{t('common.fieldCodes.EgressRulesNeedKubernetesJob')}</div>);
+  } else if (hasEgressRules(d)) {
+    notices.push(<div key="egress" className="info-banner" role="status" data-testid="egress-note">{t('resources.deployments.egress.note', { count: d.egressRules.length })}</div>);
+  }
   if (d.trustLevel !== 'Untrusted' && options?.tenant?.requireUntrustedDeployments) {
     notices.push(<div key="tenant" className="warning-banner" role="status" data-testid="tenant-requires-untrusted">{t('resources.deployments.trust.tenantRequiresUntrusted')}</div>);
   }
-  if (d.trustLevel !== 'Untrusted' && resolvedExecutor(d, options?.pools) === 'Process') {
+  if (d.trustLevel !== 'Untrusted' && !hasEgressRules(d) && resolvedExecutor(d, options?.pools) === 'Process') {
     notices.push(<div key="process" className="warning-banner" role="status" data-testid="process-trusted-only">{t('processSecurity.trustedOnly')}</div>);
   }
   if (notices.length === 0) return null;
   return notices.length === 1 ? notices[0] : <>{notices}</>;
+}
+
+/** One egress rule as text, for example 203.0.113.0/24:443/TCP (no port means every port). */
+export function egressRuleText(rule) {
+  return `${rule?.cidr || ''}${rule?.port ? `:${rule.port}` : ''}/${rule?.protocol || 'TCP'}`;
+}
+
+/** Egress allowlist cell: the rule count with every rule in the tooltip, or the default egress. */
+function egressBadge(t, r) {
+  const rules = r?.egressRules || [];
+  if (rules.length === 0) return <Badge tip={t('tips.resources.deployments.egressDefault')}>{t('resources.deployments.egress.default')}</Badge>;
+  return (
+    <span data-testid="egress-rules-cell">
+      <Badge tone="info" tip={rules.map((x) => egressRuleText(x)).join(', ')}>{t('resources.deployments.egress.count', { count: rules.length })}</Badge>
+    </span>
+  );
 }
 
 /** A deployment's effect policy (P12.29); records from before the field derive it from the deprecated retryOnNodeLoss. */
@@ -1057,6 +1079,7 @@ export const deploymentsConfig = {
     workspaceTemplateId: null,
     artifactStoreId: null,
     artifactGlobs: [],
+    egressRules: [],
     promptBindings: [
       { role: 'System', templateId: '', pinnedVersion: null },
       { role: 'Task', templateId: '', pinnedVersion: null }
@@ -1078,6 +1101,7 @@ export const deploymentsConfig = {
     col('deployments', t, 'model', (r) => r.model || '-'),
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
     col('deployments', t, 'trustLevel', (r) => trustBadge(t, r, lookups?.tenant), { csv: (r) => r.trustLevel || 'Trusted' }),
+    col('deployments', t, 'egressRules', (r) => egressBadge(t, r), { csv: (r) => (r.egressRules || []).map((x) => egressRuleText(x)).join(' ') }),
     col('deployments', t, 'effectPolicy', (r) => enumBadge(t, 'effectPolicy', effectPolicyOf(r), effectPolicyOf(r) === 'AtLeastOnce' ? 'warning' : 'neutral'), { csv: (r) => effectPolicyOf(r) }),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
@@ -1239,6 +1263,16 @@ export const deploymentsConfig = {
       field(id, t, 'capIsolation', 'select', { step: 5, required: true, options: ['Process', 'Container', 'SandboxedRuntime'].map((value) => ({ value, label: enumLabel(t, 'executorIsolation', value) })), hint: t('resources.deployments.hints.capabilities') }),
       field(id, t, 'capColdStartClass', 'select', { step: 5, options: ['Immediate', 'Cold', 'Warm'].map((value) => ({ value, label: enumLabel(t, 'executorColdStart', value) })) }),
       ...EXECUTOR_REQUIREMENT_FLAGS.map((key) => field(id, t, capabilityField(key), 'checkbox', { step: 5 })),
+      // Egress allowlist (P11.15): with rules, run pods reach only DNS, the Garrison MCP port, and these blocks.
+      field(id, t, 'egressRules', 'objectList', {
+        step: 5,
+        addLabel: t('resources.deployments.egress.add'),
+        fields: [
+          { name: 'cidr', type: 'text', label: t('resources.deployments.fields.egressCidr'), required: true, placeholder: '203.0.113.0/24' },
+          { name: 'port', type: 'number', label: t('resources.deployments.fields.egressPort'), min: 1, max: 65535, placeholder: t('resources.deployments.egress.allPorts') },
+          { name: 'protocol', type: 'select', label: t('resources.deployments.fields.egressProtocol'), required: true, default: 'TCP', options: EGRESS_PROTOCOLS.map((value) => ({ value, label: value })) }
+        ]
+      }),
       ...POD_RESOURCE_KEYS.map((key) =>
         field(id, t, podField(key), 'text', { step: 5, placeholder: POD_RESOURCE_EXAMPLES[key], showIf: (x) => x.executor !== 'Process' })
       ),
@@ -1262,7 +1296,7 @@ export const deploymentsConfig = {
     ];
   },
   toForm: (r) => {
-    const form = { ...deploymentToForm(r), ...approvalFormDefaults(r) };
+    const form = { ...deploymentToForm(r), ...approvalFormDefaults(r), egressRules: egressRulesToForm(r?.egressRules) };
     form.effectPolicy = effectPolicyOf(r);
     delete form.retryOnNodeLoss;
     return form;
@@ -1278,6 +1312,7 @@ export const deploymentsConfig = {
     body.approvalTimeoutSeconds = d.approvalTimeoutSeconds ?? APPROVAL_TIMEOUT.default;
     body.approvalTimeoutDecision = d.approvalTimeoutDecision || 'Deny';
     body.approvalRules = approvalRulesToBody(d.approvalRules);
+    body.egressRules = egressRulesToBody(d.egressRules);
     return body;
   },
   validate: (d, t) => {
@@ -1288,6 +1323,9 @@ export const deploymentsConfig = {
     if (d.trustLevel === 'Untrusted' && d.executor === 'Process') e.executor = t('common.fieldCodes.UntrustedNeedsIsolation');
     Object.assign(e, podResourceErrors(d, t('resources.deployments.errors.quantity')));
     Object.assign(e, approvalErrors(d, t));
+    const egress = egressErrors(d, t);
+    if (egress.executor && e.executor) delete egress.executor;
+    Object.assign(e, egress);
     return e;
   },
   rowActions: (r, ctx) => [

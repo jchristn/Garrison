@@ -13,8 +13,8 @@ namespace Garrison.Server.Runtime
 
     /// <summary>
     /// Explains why queued runs are not being picked up: no Ready node at all, no Ready node that reports the run's
-    /// harness, no Ready node that can isolate an Untrusted run, or no capable Ready node that matches the deployment's
-    /// node pool and selectors. The reason is computed
+    /// harness, no Ready node that can isolate an Untrusted run or enforce a run's egress allowlist, or no capable Ready
+    /// node that matches the deployment's node pool and selectors. The reason is computed
     /// on read from a short-lived snapshot of node state, so reads never query nodes per run. Thread-safe.
     /// </summary>
     public class BlockedRunService
@@ -98,8 +98,10 @@ namespace Garrison.Server.Runtime
             List<Node> capable = withHarness.Where(n => ExecutorCapabilityRules.Supports(n, run)).ToList();
             if (capable.Count == 0)
             {
-                // Untrusted runs (P11.14) name missing isolation when that is what no worker with the harness offers.
-                if (run.TrustLevel == DeploymentTrustLevelEnum.Untrusted && withHarness.Count > 0 && !withHarness.Any(n => ExecutorCapabilityRules.Isolates(n, run)))
+                // Untrusted runs (P11.14) and runs that need egress control (P11.15, an egress allowlist) name missing
+                // isolation or egress enforcement when that is what no worker with the harness offers.
+                bool needsIsolation = run.TrustLevel == DeploymentTrustLevelEnum.Untrusted || run.RequiredCapabilities.EgressControl;
+                if (needsIsolation && withHarness.Count > 0 && !withHarness.Any(n => ExecutorCapabilityRules.Isolates(n, run)))
                     return RunBlockedReasonEnum.NoIsolatingWorker;
                 return RunBlockedReasonEnum.NoCapableWorker;
             }
@@ -127,7 +129,7 @@ namespace Garrison.Server.Runtime
                     if (run.Executor != RunExecutorEnum.Process) return "No Ready worker reports both the " + harness + " harness and the " + run.Executor + " executor. The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs).";
                     return "No Ready worker reports the " + harness + " harness. The run waits until one registers.";
                 case RunBlockedReasonEnum.NoIsolatingWorker:
-                    return "This run is Untrusted and needs " + run.RequiredCapabilities.Isolation + " isolation or stronger, but no Ready worker with the " + harness + " harness offers the " + run.Executor + " executor with that isolation. The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs).";
+                    return "This run " + Needs(run) + ", but no Ready worker with the " + harness + " harness offers the " + run.Executor + " executor with " + (run.RequiredCapabilities.EgressControl ? "that isolation and egress control" : "that isolation") + ". The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs" + (run.RequiredCapabilities.EgressControl ? ", and egress control only when Kubernetes.EgressAllowlists is on and it may create NetworkPolicies" : String.Empty) + ").";
                 default:
                     return "Ready workers report the " + harness + " harness, but none matches this deployment's node pool or node selectors. The run waits until a matching worker registers.";
             }
@@ -152,7 +154,7 @@ namespace Garrison.Server.Runtime
                     if (run.Executor != RunExecutorEnum.Process) return "no Ready worker reported both the " + harness + " harness and the " + run.Executor + " executor";
                     return "no Ready worker reported the " + harness + " harness";
                 case RunBlockedReasonEnum.NoIsolatingWorker:
-                    return "no Ready worker with the " + harness + " harness offered the " + run.RequiredCapabilities.Isolation + " isolation this Untrusted run needs";
+                    return "no Ready worker with the " + harness + " harness offered the " + (run.RequiredCapabilities.EgressControl ? run.RequiredCapabilities.Isolation + " isolation and egress control" : run.RequiredCapabilities.Isolation + " isolation") + " this run needs";
                 default:
                     return "no Ready worker with the " + harness + " harness matched the deployment's node pool or node selectors";
             }
@@ -281,6 +283,15 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static string Needs(Run run)
+        {
+            List<string> reasons = new List<string>();
+            if (run.TrustLevel == DeploymentTrustLevelEnum.Untrusted) reasons.Add("is Untrusted and needs " + run.RequiredCapabilities.Isolation + " isolation or stronger");
+            if (run.RequiredCapabilities.EgressControl) reasons.Add("needs egress control (its deployment has an egress allowlist, enforced only by KubernetesJob run pods with a NetworkPolicy)");
+            if (reasons.Count == 0) reasons.Add("needs " + run.RequiredCapabilities.Isolation + " isolation or stronger");
+            return String.Join(" and ", reasons);
+        }
 
         private static string HarnessName(HarnessTypeEnum harness)
         {

@@ -2141,3 +2141,18 @@ ja.tips.views.runDetail.effectPolicy = "この実行がキューに入ったと�
 ja.views.settings.fields.Scheduling.QueueWakeFanout = "レプリカごとに起こすポーリング数";
 ja.views.settings.fields.Scheduling.RemoteWakeDelayMs = "リモート起床の保留時間 (ms)";
 ja.views.settings.fields.Auth.CacheSeconds = "認証キャッシュの有効期間 (秒)";
+
+// Deployment egress allowlists (P11.15).
+ja.resources.deployments.fields.egressRules = "送信先許可リスト";
+ja.resources.deployments.fields.egressCidr = "CIDR ブロック";
+ja.resources.deployments.fields.egressPort = "宛先ポート";
+ja.resources.deployments.fields.egressProtocol = "プロトコル";
+ja.resources.deployments.columns.egressRules = "送信";
+ja.resources.deployments.hints.egressRules = "空のままにすると、クラスターの既定の実行用送信 (任意の宛先への HTTPS) を使います。ルールがあると、実行 Pod は DNS、Garrison の MCP ポート、これらのブロックにだけ到達でき、実行にはそれを強制する Kubernetes ワーカーが必要です。ホスト名ではなく CIDR ブロックを入力し、名前はご自身でアドレスに解決してください。ポートが空の場合はすべてのポートを許可します。ルールは最大 64 件です。";
+ja.resources.deployments.egress = {"add": "送信ルールを追加", "allPorts": "すべてのポート", "default": "既定", "count_one": "許可リスト、ルール {{count}} 件", "count_other": "許可リスト、ルール {{count}} 件", "note_one": "このデプロイメントには送信ルールが {{count}} 件あります。実行は送信許可リストを有効にした Kubernetes ワーカーでのみ行われ、DNS、Garrison の MCP ポート、ルールだけを許可する NetworkPolicy を持つ Pod で動きます。該当するワーカーが Ready でない場合、実行はキューで待機します (分離できるワーカーなし)。許可リストなしで実行されることはありません。", "note_other": "このデプロイメントには送信ルールが {{count}} 件あります。実行は送信許可リストを有効にした Kubernetes ワーカーでのみ行われ、DNS、Garrison の MCP ポート、ルールだけを許可する NetworkPolicy を持つ Pod で動きます。該当するワーカーが Ready でない場合、実行はキューで待機します (分離できるワーカーなし)。許可リストなしで実行されることはありません。", "errors": {"cidrRequired": "CIDR ブロックを入力してください (例: 203.0.113.0/24)。", "cidrFormat": "プレフィックス長付きの CIDR 表記を使ってください (例: 198.51.100.7/32)。ホスト名は使えません。", "cidrAddress": "アドレスが有効な IPv4 または IPv6 アドレスではありません。", "cidrPrefix": "プレフィックス長が範囲外です (IPv4 は 0 から 32、IPv6 は 0 から 128)。", "cidrMapped": "IPv4 射影 IPv6 アドレスは使えません。代わりに IPv4 ブロックを入力してください。", "cidrHostBits": "プレフィックスより後ろのビットが立っています。ブロックのネットワークアドレスを使ってください。"}};
+Object.assign(ja.common.fieldCodes, {"InvalidCidr": "CIDR ブロックが無効です。", "PortOutOfRange": "ポートは 1 から 65535 の範囲で指定するか、すべてのポートの場合は空にしてください。", "InvalidProtocol": "不明なプロトコルです。TCP または UDP を使ってください。", "TooManyEgressRules": "1 つのデプロイメントに設定できる送信ルールは最大 64 件です。", "EgressRulesNeedKubernetesJob": "送信ルールは Kubernetes Job の実行でのみ強制されます。Kubernetes Job を選ぶか、実行方式を空のままにしてください。", "EgressRulesNeedColdStart": "ウォーム Pod は既定の送信設定ですでに動いているため、送信ルールにはコールドスタートが必要です。起動クラスを空にするか、コールドを選んでください。"});
+ja.components.blocked.reasons.NoIsolatingWorkerEgress = "この実行のデプロイメントには送信許可リストがあり、送信許可リストを有効にした Kubernetes ワーカーだけがそれを強制できますが、{{harness}} を実行できる Ready のワーカーにそれを提供するものがありません。実行はキューで待機し、許可リストなしで実行されることはありません。ネットワークプラグインが NetworkPolicy を強制するクラスターで、Kubernetes Job ワーカーの送信許可リストを有効にしてください。";
+ja.tips.enums.runBlockedReason.NoIsolatingWorker = "ブロック中: この実行には分離できるワーカー (信頼されていない実行にはコンテナー分離、送信許可リストのあるデプロイメントには送信制御) が必要ですが、そのハーネスを持つ Ready のワーカーに提供するものがありません。適切な Kubernetes Job ワーカーが登録されるまでキューで待機します。";
+ja.tips.resources.deployments.egressRules = "このデプロイメントの実行 Pod が到達できる宛先です。CIDR ブロックと、任意のポートとプロトコルで指定します。空の場合は既定の実行用送信を使います。";
+ja.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表記の宛先ブロック (IPv4 または IPv6、例: 203.0.113.0/24)。ホスト名はご自身でアドレスに解決してください。", "port": "1 から 65535 の宛先ポート。空にするとブロックのすべてのポートを許可します。", "protocol": "多くのサービスは TCP、または UDP。"};
+ja.tips.resources.deployments.egressDefault = "送信許可リストなし: 実行 Pod はクラスターの既定の実行用送信を使います。";

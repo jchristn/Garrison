@@ -4446,6 +4446,151 @@
           ]
         },
         {
+          "name": "Update deployment with egress allowlist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}"
+              ]
+            },
+            "description": "Sets an egress allowlist (P11.15): a list of rules with cidr (required), port (1 to 65535, null for every port), and protocol (TCP by default, or UDP). With rules, run pods reach only DNS, the Garrison MCP port, and these rules; runs need a KubernetesJob worker that enforces egress and otherwise stay Queued with blockedReason NoIsolatingWorker.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120,\n  \"effectPolicy\": \"AtLeastOnce\",\n  \"egressRules\": [\n    {\n      \"cidr\": \"203.0.113.0/24\",\n      \"port\": 443,\n      \"protocol\": \"TCP\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('egress rules are echoed', function () { const rules = pm.response.json().egressRules; pm.expect(rules).to.have.lengthOf(1); pm.expect(rules[0].cidr).to.eql('203.0.113.0/24'); pm.expect(rules[0].port).to.eql(443); pm.expect(rules[0].protocol).to.eql('TCP'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update deployment with an invalid egress CIDR",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}"
+              ]
+            },
+            "description": "Rejected with 400: the CIDR has bits set after its prefix (field code InvalidCidr on egressRules[0].cidr).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120,\n  \"effectPolicy\": \"AtLeastOnce\",\n  \"egressRules\": [\n    {\n      \"cidr\": \"203.0.113.7/24\",\n      \"port\": 443,\n      \"protocol\": \"TCP\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code is InvalidCidr', function () { pm.expect(pm.response.json().fieldCodes['egressRules[0].cidr']).to.eql('InvalidCidr'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear deployment egress allowlist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}"
+              ]
+            },
+            "description": "Removes the egress allowlist (an empty egressRules list), so later requests run the deployment on any worker again.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120,\n  \"effectPolicy\": \"AtLeastOnce\",\n  \"egressRules\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('egress rules are empty', function () { pm.expect(pm.response.json().egressRules).to.eql([]); });",
+                  "pm.test('effect policy is AtLeastOnce', function () { pm.expect(pm.response.json().effectPolicy).to.eql('AtLeastOnce'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Update deployment with conflicting effect policy",
           "request": {
             "method": "PUT",

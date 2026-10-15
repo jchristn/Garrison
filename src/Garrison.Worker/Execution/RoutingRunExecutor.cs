@@ -43,6 +43,17 @@ namespace Garrison.Worker.Execution
         {
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
             RunExecutorEnum executor = assignment.Spec?.Executor ?? RunExecutorEnum.Process;
+            if (executor == RunExecutorEnum.Process && assignment.Spec != null && assignment.Spec.EgressRules.Count > 0)
+            {
+                // P11.15 (D-052), defense in depth: the control plane never leases an allowlisted run to Process, but if
+                // one arrives, fail it rather than run it with the worker's unrestricted network.
+                RunCompleteRequest refused = new RunCompleteRequest();
+                refused.Status = RunStatusEnum.Failed;
+                refused.Outcome = RunOutcomeEnum.NoCapableWorker;
+                refused.ErrorMessage = "This run's deployment has an egress allowlist, which only the KubernetesJob executor enforces; the Process executor refused to run it so the allowlist is never bypassed.";
+                refused.CompletedUtc = DateTime.UtcNow;
+                return Task.FromResult(refused);
+            }
             if (executor == RunExecutorEnum.Process) return _Process.ExecuteAsync(assignment, reporter, token);
             if (executor == RunExecutorEnum.KubernetesJob && _KubernetesJob != null) return _KubernetesJob.ExecuteAsync(assignment, reporter, token);
 

@@ -260,6 +260,54 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Validate deployment egress rules (P11.15): at most <see cref="Deployment.MaxEgressRules"/> rules (field
+        /// egressRules, code TooManyEgressRules), each with a valid CIDR block (egressRules[i].cidr, code InvalidCidr),
+        /// a port from 1 to 65535 or none (egressRules[i].port, code PortOutOfRange), and a known protocol
+        /// (egressRules[i].protocol, code InvalidProtocol).
+        /// </summary>
+        /// <param name="rules">Rules, or null for none.</param>
+        /// <param name="errors">Field errors to add to.</param>
+        /// <param name="codes">Field codes to add to.</param>
+        /// <exception cref="ArgumentNullException">Thrown when errors or codes is null.</exception>
+        public static void EgressRules(List<DeploymentEgressRule>? rules, Dictionary<string, string> errors, Dictionary<string, string> codes)
+        {
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (codes == null) throw new ArgumentNullException(nameof(codes));
+            if (rules == null) return;
+            if (rules.Count > Deployment.MaxEgressRules)
+            {
+                errors["egressRules"] = "A deployment can have at most " + Deployment.MaxEgressRules + " egress rules; " + rules.Count + " were given. Combine adjacent blocks into wider CIDRs.";
+                codes["egressRules"] = "TooManyEgressRules";
+            }
+            for (int i = 0; i < rules.Count; i++)
+            {
+                DeploymentEgressRule rule = rules[i];
+                string field = "egressRules[" + i + "]";
+                if (rule == null)
+                {
+                    errors[field] = "An egress rule is required.";
+                    codes[field] = "InvalidCidr";
+                    continue;
+                }
+                if (!CidrNotation.IsValid(rule.Cidr, out string? cidrError))
+                {
+                    errors[field + ".cidr"] = cidrError ?? "The CIDR block is invalid.";
+                    codes[field + ".cidr"] = "InvalidCidr";
+                }
+                if (rule.Port.HasValue && (rule.Port.Value < 1 || rule.Port.Value > 65535))
+                {
+                    errors[field + ".port"] = "The port must be from 1 to 65535, or empty for every port; " + rule.Port.Value + " was given.";
+                    codes[field + ".port"] = "PortOutOfRange";
+                }
+                if (!Enum.IsDefined(rule.Protocol))
+                {
+                    errors[field + ".protocol"] = "Unknown protocol; use TCP or UDP.";
+                    codes[field + ".protocol"] = "InvalidProtocol";
+                }
+            }
+        }
+
+        /// <summary>
         /// Validate a pipeline definition (P12.9): name, duration, stage count, stage names, agent and deployment
         /// references (a stage's deployment must belong to its agent), handoff template kind (Task) and pinned version,
         /// stage ranges, and stage run parameters (only with a deployment, checked against its allowed run overrides).
@@ -422,6 +470,19 @@ namespace Garrison.Core.Services
             catch (ArgumentException ex) { errors["requiredCapabilities"] = ex.Message; }
             await TrustLevelAsync(database, tenantId, deployment, errors, codes, cache, token).ConfigureAwait(false);
             EffectPolicy(deployment, errors, codes);
+            EgressRules(deployment.EgressRules, errors, codes);
+            if (deployment.EgressRules.Count > 0 && deployment.Executor == RunExecutorEnum.Process && !codes.ContainsKey("executor"))
+            {
+                // P11.15 (D-052): an allowlist is only enforced by KubernetesJob run pods with a NetworkPolicy.
+                errors["executor"] = "Egress rules are enforced only for KubernetesJob runs, by a NetworkPolicy on the run pod. The Process executor shares the worker's network; set executor to KubernetesJob or leave it unset.";
+                codes["executor"] = "EgressRulesNeedKubernetesJob";
+            }
+            if (deployment.EgressRules.Count > 0 && deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Warm)
+            {
+                // Warm pods start before the run is known, under the default run egress; allowlisted runs start cold.
+                errors["requiredCapabilities.coldStartClass"] = "Egress rules need a cold-started run pod, which is created with its NetworkPolicy; warm pods already run under the default run egress. Clear coldStartClass or set it to Cold.";
+                codes["requiredCapabilities.coldStartClass"] = "EgressRulesNeedColdStart";
+            }
 
             Name(deployment.Name, errors);
 

@@ -29,9 +29,13 @@ const RUN_STATUSES = ['Succeeded', 'Failed', 'Running', 'Queued', 'Succeeded', '
 
 /**
  * Why a queued run is blocked (G-15): run_0003 has no capable worker, run_0009 no Ready worker, run_0015 no pool, and
- * run_0021 is Untrusted with no worker that can isolate it (P11.14).
+ * run_0021 is Untrusted with no worker that can isolate it (P11.14), and run_0027's deployment has an egress allowlist
+ * no Ready worker can enforce (P11.15).
  */
-const BLOCKED = { 3: 'NoCapableWorker', 9: 'NoReadyWorker', 15: 'NoMatchingPool', 21: 'NoIsolatingWorker' };
+const BLOCKED = { 3: 'NoCapableWorker', 9: 'NoReadyWorker', 15: 'NoMatchingPool', 21: 'NoIsolatingWorker', 27: 'NoIsolatingWorker' };
+
+/** run_0027 needs egress control: its deployment has an egress allowlist (P11.15). */
+const EGRESS_RUN = 27;
 
 /** run_0021 is an Untrusted run: KubernetesJob with Container isolation (P11.14). */
 const UNTRUSTED_RUN = 21;
@@ -71,8 +75,13 @@ function run(i) {
     deploymentId: 'dep_0001',
     deploymentVersion: 3,
     harnessType: 'ClaudeCode',
-    executor: i === UNTRUSTED_RUN ? 'KubernetesJob' : 'Process',
-    requiredCapabilities: i === UNTRUSTED_RUN ? { ...defaultExecutorRequirements(), isolation: 'Container' } : defaultExecutorRequirements(),
+    executor: i === UNTRUSTED_RUN || i === EGRESS_RUN ? 'KubernetesJob' : 'Process',
+    requiredCapabilities:
+      i === UNTRUSTED_RUN
+        ? { ...defaultExecutorRequirements(), isolation: 'Container' }
+        : i === EGRESS_RUN
+          ? { ...defaultExecutorRequirements(), isolation: 'Container', egressControl: true }
+          : defaultExecutorRequirements(),
     trustLevel: i === UNTRUSTED_RUN ? 'Untrusted' : 'Trusted',
     // P12.29: run_0005 was admitted under AtLeastOnce; the rest under AtMostOnce (the default).
     effectPolicy: i === 5 ? 'AtLeastOnce' : 'AtMostOnce',
@@ -361,6 +370,8 @@ const FACTORIES = {
       artifactStoreId: 'as_0001',
       // P12.8: explicit collection globs; none means collection is off (D-046).
       artifactGlobs: [],
+      // P11.15: deployment-4 has an egress allowlist; the others use the default run egress.
+      egressRules: i === 4 ? [{ cidr: '203.0.113.0/24', port: 443, protocol: 'TCP' }, { cidr: '2001:db8::/32', port: null, protocol: 'UDP' }] : [],
       configVersion: 3,
       active: i !== 3,
       promptBindings: [

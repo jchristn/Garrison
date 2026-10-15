@@ -129,6 +129,11 @@ spec:
             # whose network plugin does not enforce NetworkPolicy.
             - name: GARRISON_WORKER_RUN_EGRESS_CANARY
               value: garrison-server:8700
+            # Per-deployment egress allowlists (P11.15): runs of deployments with egressRules get a NetworkPolicy
+            # that allows only DNS, the MCP port, and the rules. Needs the canary above and the split run policies
+            # in networkpolicies.yaml.
+            - name: GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS
+              value: "true"
           volumeMounts:
             - name: settings
               mountPath: /etc/garrison

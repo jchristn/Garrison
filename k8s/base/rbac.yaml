@@ -1,7 +1,8 @@
 # The worker's permissions for the KubernetesJob executor (pod-per-run, plan D-033), in this namespace only and
 # nothing cluster-wide. The worker creates a Job and a spec Secret per run (the Secret is owned by the Job and garbage
 # collected with it), reads the run pod's status and log, and deletes the Job on cancel, timeout, or reconciliation.
-# Warm stock also needs pod reservation/deletion, authenticated stdin attach, and shared refill Leases.
+# Warm stock also needs pod reservation/deletion, authenticated stdin attach, and shared refill Leases. Egress
+# allowlists (P11.15) need NetworkPolicies: one per allowlisted run, owned by its Job, and a list to audit shared ones.
 # It is never granted get, list, or watch on Secrets. Note that anyone who can create Jobs in a namespace can mount
 # that namespace's Secrets, so for untrusted prompts run the pods in a separate namespace (Worker RunNamespace,
 # docs/KUBERNETES.md).
@@ -28,6 +29,9 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "create", "update"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["create", "get", "list", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

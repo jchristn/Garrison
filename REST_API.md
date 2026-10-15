@@ -2541,7 +2541,7 @@ Every `Run` returned by REST (invoke, create, read, list, children, cancel, retr
 | `NoReadyWorker` | No node is Ready at all. |
 | `NoCapableWorker` | Ready nodes exist, but none reports the run's harness as available. |
 | `NoMatchingPool` | Ready nodes report the harness, but none matches the deployment's node pool, the pool's tenant dedication, or the deployment's node selector labels. |
-| `NoIsolatingWorker` | The run is `Untrusted` (see [Deployment trust level](#deployment-trust-level-trustlevel)) and Ready nodes report its harness, but none offers its executor with the isolation it needs (at least `Container`). The run waits until such a worker registers; it is never given to a Process worker. |
+| `NoIsolatingWorker` | The run is `Untrusted` (see [Deployment trust level](#deployment-trust-level-trustlevel)) or needs egress control because its deployment has `egressRules` (see [Deployment egress allowlist](#deployment-egress-allowlist-egressrules)), and Ready nodes report its harness, but none offers its executor with the isolation it needs (at least `Container`) and, for an allowlist, egress control. The run waits until such a worker registers; it is never given to a Process worker or run without its allowlist. |
 
 The reason comes from a snapshot of node state that is reused for up to 3 seconds, so it can lag a node registering or going away by that long. The control plane leader also checks queued runs every 5 seconds. The first time it finds a run blocked for a given reason it appends one `Warning` run event that explains it, for example `No Ready worker reports the Codex harness. The run waits until one registers.` Each reason is explained at most once per run. When the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 (the default 0 waits forever), a run that stays blocked that long fails with status `Failed`, outcome `NoCapableWorker`, and an `errorMessage` that names the reason. The overview counts blocked runs in `blockedRuns`.
 
@@ -4698,8 +4698,9 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `retryOnNodeLoss` | `bool` | Deprecated; use `effectPolicy`. Responses carry it as a derived value, `true` only for `AtLeastOnce`. Still accepted on input for one release: `true` maps to `AtLeastOnce` and `false` to `AtMostOnce` when `effectPolicy` is absent; disagreeing with a supplied `effectPolicy` is a 400 (`EffectPolicyConflict`). |
 | `weight` | `int` | Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100. |
 | `nodePoolId` | `string?` | Required node pool. |
-| `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`; for an `Untrusted` deployment null never resolves to `Process` and uses `KubernetesJob`. A PersistentVolume workspace template requires `KubernetesJob`. `Process` on an `Untrusted` deployment is rejected (`UntrustedNeedsIsolation`). |
+| `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`; for an `Untrusted` deployment or one with `egressRules`, null never resolves to `Process` and uses `KubernetesJob`. A PersistentVolume workspace template requires `KubernetesJob`. `Process` on an `Untrusted` deployment is rejected (`UntrustedNeedsIsolation`), and on a deployment with `egressRules` too (`EgressRulesNeedKubernetesJob`). |
 | `trustLevel` | `DeploymentTrustLevelEnum` | `Trusted` (default) or `Untrusted`. Untrusted runs need at least `Container` isolation and queue with `NoIsolatingWorker` until a worker can provide it. See [Deployment trust level](#deployment-trust-level-trustlevel). |
+| `egressRules` | `DeploymentEgressRule[]` | Egress allowlist; empty (default) means none. With rules, run pods reach only DNS, the Garrison MCP port, and these rules, and runs need a worker that enforces them. At most 64. See [Deployment egress allowlist](#deployment-egress-allowlist-egressrules). |
 | `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
 | `workspaceTemplateId` | `string?` | Workspace template. |
 | `artifactStoreId` | `string?` | Artifact store. |
@@ -5582,6 +5583,10 @@ A multi-turn conversation with one agent. See [Conversations](#conversations).
 #### `RunBlockedReasonEnum`
 
 `NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`, `NoIsolatingWorker`
+
+#### `EgressProtocolEnum`
+
+`TCP` (default), `UDP`. Used by `DeploymentEgressRule.protocol`.
 
 #### `DeploymentTrustLevelEnum`
 
@@ -6513,6 +6518,40 @@ Tenants carry `requireUntrustedDeployments` (default `false`), set with `PUT /v1
   "fields": { "trustLevel": "Tenant default requires every deployment to be Untrusted; set trustLevel to Untrusted." },
   "fieldCodes": { "trustLevel": "TenantRequiresUntrusted" } }
 ```
+
+### Deployment egress allowlist (`egressRules`)
+
+`egressRules` narrows what a deployment's runs can reach on the network (P11.15). Each rule is a `DeploymentEgressRule`:
+
+| Field | Type | Description |
+|---|---|---|
+| `cidr` | `string` | Required. IPv4 or IPv6 block in CIDR notation, written as its network address (`203.0.113.0/24`, `198.51.100.7/32`, `2001:db8::/32`). Host names are not accepted; resolve them yourself. |
+| `port` | `int?` | Destination port, 1 to 65535. Null or omitted allows every port. |
+| `protocol` | `EgressProtocolEnum` | `TCP` (default) or `UDP`. |
+
+An empty list (the default) keeps the cluster's default run egress. With at least one rule:
+
+- The run pod may reach only DNS (port 53), the Garrison server MCP port, and the listed rules; the default HTTPS-to-anywhere rule does not apply to it.
+- Every run requires `EgressControl` and at least `Container` isolation, recorded in its `requiredCapabilities` at admission, and an unset `executor` resolves to `KubernetesJob`. Only KubernetesJob workers with egress allowlists enabled report `EgressControl`.
+- When no Ready worker can enforce the rules, the run stays `Queued` with `blockedReason: "NoIsolatingWorker"`. It is never run without them.
+- The rules are compiled into the run's spec when it is leased, so a deployment edit applies to runs not yet leased. A run admitted for the `Process` executor before rules were added fails when it is leased (outcome `CompileFailed`, `ExecutorMismatch` in its error message) instead of running unenforced; submit it again.
+
+Validation errors are 400 `ValidationFailed` with these field codes:
+
+| Field | Code | Meaning |
+|---|---|---|
+| `egressRules` | `TooManyEgressRules` | More than 64 rules. |
+| `egressRules[i].cidr` | `InvalidCidr` | Not a CIDR block, host bits set, a host name, leading zeros, or an IPv4-mapped IPv6 address. |
+| `egressRules[i].port` | `PortOutOfRange` | Port below 1 or above 65535. |
+| `egressRules[i].protocol` | `InvalidProtocol` | Not `TCP` or `UDP`. |
+| `executor` | `EgressRulesNeedKubernetesJob` | `executor: "Process"` with rules. |
+| `requiredCapabilities.coldStartClass` | `EgressRulesNeedColdStart` | `Warm` startup with rules (warm pods already run under the default egress). |
+
+```json
+{ "egressRules": [ { "cidr": "203.0.113.0/24", "port": 443, "protocol": "TCP" }, { "cidr": "198.51.100.7/32" } ] }
+```
+
+Changes to `egressRules` are named in the deployment update audit record. See `docs/SECURITY.md`, "Egress allowlists", for how workers enforce them.
 
 ### Effect policy (`effectPolicy`)
 

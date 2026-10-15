@@ -33,6 +33,17 @@ namespace Garrison.Worker.Kubernetes
         public static readonly string EpochLabel = "garrison.io/epoch";
 
         /// <summary>
+        /// Label marking a run pod whose deployment has an egress allowlist (P11.15). The garrison-run-default-egress
+        /// NetworkPolicy selects only run pods without it, so the default HTTPS-to-anywhere rule never applies to them.
+        /// </summary>
+        public static readonly string EgressLabel = "garrison.io/egress";
+
+        /// <summary>
+        /// Value of <see cref="EgressLabel"/> on allowlisted run pods.
+        /// </summary>
+        public static readonly string EgressAllowlistValue = "allowlist";
+
+        /// <summary>
         /// Value of app.kubernetes.io/name on run pods; the run NetworkPolicy selects it.
         /// </summary>
         public static readonly string AppName = "garrison-run";
@@ -86,6 +97,16 @@ namespace Garrison.Worker.Kubernetes
         public static string SecretName(string jobName)
         {
             return jobName + "-spec";
+        }
+
+        /// <summary>
+        /// Name of the per-run egress NetworkPolicy of a Job (P11.15).
+        /// </summary>
+        /// <param name="jobName">Job name.</param>
+        /// <returns>Name.</returns>
+        public static string NetworkPolicyName(string jobName)
+        {
+            return jobName + "-egress";
         }
 
         /// <summary>
