@@ -158,6 +158,17 @@ namespace Garrison.Server.Routes
             Exception? failure = null;
             try
             {
+                if (!Uri.TryCreate((server.Url ?? String.Empty).TrimEnd('/'), UriKind.Absolute, out Uri? target)) throw new InvalidOperationException("The MCP server URL is not an absolute URL.");
+                string? blocked = await OutboundAddressPolicy.BlockedReasonAsync(target, http.Token).ConfigureAwait(false);
+                if (blocked != null)
+                {
+                    response.Error = blocked;
+                    outcome = "error";
+                    GarrisonTracing.EndOutbound(outbound, "mcp_server", "test", outboundStart, outcome, null);
+                    response.DurationMs = watch.ElapsedMilliseconds;
+                    await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+                    return;
+                }
                 TemplateContext context = await SecretsByNameAsync(tenantId, http.Token).ConfigureAwait(false);
                 using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(http.Token))
                 {

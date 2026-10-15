@@ -25,7 +25,7 @@ Every one of these defaults is public, so change them all:
 | Credential | Access key and secret key, sent directly, used to sign requests, or exchanged for a token | Owned by a user. Never has more permission than its owner |
 | Administrator | `x-api-key` | No tenant and no user. Bypasses every check. Meant for bootstrapping and platform operations |
 | Run | A run token issued by Garrison | Exists for one run, for agent-to-agent delegation |
-| Node | A credential with the `NodeAgent` role | Can only use the node protocol |
+| Node | A credential with the `NodeAgent` role | Can only use the node protocol. Only a role that names `Node` explicitly, or a system administrator, may use the node protocol; tenant administrators and `All` grants do not count, because a node receives every tenant's runs and their secrets |
 
 `REST_API.md` documents the headers for each scheme and the signed-request canonical string.
 
@@ -86,9 +86,12 @@ The decision for a request is made in this order:
 1. The administrator API key and system administrators (`isAdmin`) are allowed.
 2. A tenant in the path that is not the caller's tenant is reported as not found.
 3. Platform resources (`Settings`, `NodePool`, `Admin`, creating or deleting tenants, and changing nodes) need a system administrator.
-4. Run tokens are limited to reading and invoking agents and to reading, starting, and cancelling runs, and are then checked against the permissions of the user or credential that started the chain.
-5. Tenant administrators (`isTenantAdmin`) are allowed within their tenant. A credential owned by a tenant administrator is still limited by its own assignments when it has any.
-6. Everyone else: the grants from all their assignments are expanded. An explicit `Deny` wins, then any `Permit`, otherwise the request is denied. For a credential, its owner's grants are checked as well, so a credential can never do what its owner cannot.
+4. Run tokens are limited to reading and invoking agents and to reading, starting, and cancelling runs, and are then checked against the permissions of the user or credential that started the chain. A run token cannot retry a run (403 `RunTokenRetryNotAllowed`), because a retry would start a top-level run outside the delegation policy.
+5. The node protocol (`Node` `Execute`) needs a grant that names `Node` explicitly, such as the `NodeAgent` role. The tenant administrator bypass and `All` grants are not enough.
+6. Tenant administrators (`isTenantAdmin`) are allowed within their tenant. A credential owned by a tenant administrator is still limited by its own assignments when it has any.
+7. Everyone else: the grants from all their assignments are expanded. An explicit `Deny` wins, then any `Permit`, otherwise the request is denied. For a credential, its owner's grants are checked as well, so a credential can never do what its owner cannot.
+
+A system administrator's account can only be changed by a system administrator: creating or rotating one of their credentials, or changing their password or email, answers 400 to anyone else, since a credential acts with its owner's administrator flag.
 
 Denials are audited with the permission that was missing, and the response carries it (`requiredPermission`, `resourceType`), so a 403 tells you exactly what to grant. `GET .../users/{id}/permissions` and `GET .../credentials/{id}/permissions` show the effective permissions of a principal.
 
@@ -287,7 +290,27 @@ Approvals (P12.3) put a person, or rules a person wrote, between a Claude Code o
 
 ## Prompts and untrusted input
 
-Callers' messages, parameters, and other agents' replies are inserted into prompts as text. Garrison does not and cannot stop a harness from following instructions embedded in that text. Limit what an agent can do (tools, MCP servers, secrets, sandbox, delegation allowlist) to what its job needs, and expose agents that hold powerful credentials only to callers you trust. Run parameters can only set values a deployment explicitly allows, each with a validation rule, so callers cannot inject arbitrary command-line flags.
+Callers' messages, parameters, and other agents' replies are inserted into prompts as text. Garrison does not and cannot stop a harness from following instructions embedded in that text. Limit what an agent can do (tools, MCP servers, secrets, sandbox, delegation allowlist) to what its job needs, and expose agents that hold powerful credentials only to callers you trust.
+
+Harness processes are started with an argument list, never through a shell, and each argument template renders to exactly one argument. Run parameters can only set values a deployment explicitly allows, each with a validation rule; prefer `Enum` or `Regex` rules for anything that lands in a command line, since `Any` accepts whatever the caller sends. The built-in profiles deliver the prompt on stdin. A custom profile with `promptDelivery: Argument` passes the task text as the last argument with no `--` before it, so text that starts with `-` can be read as an option by the CLI; use stdin or file delivery for untrusted input (SR-14 in `docs/SECURITY_REVIEW.md`).
+
+## Configuration authors and tenant secrets
+
+Secret values are never returned by the API, but anyone who can configure deployments or MCP servers in a tenant (`Editor`, `AgentDeveloper`, and up) can bind any of the tenant's secrets to a deployment or reference them in an MCP server's headers, arguments, or environment, and so can send them wherever that configuration points. Grant configuration roles only to people you would trust with the tenant's secrets, or keep sensitive secrets in a separate tenant (SR-10 in `docs/SECURITY_REVIEW.md`).
+
+Stdio MCP server tests (`POST .../mcp-servers/{id}/test?nodeId=`) run the server's command directly on the selected worker, outside any run pod. A tenant with `requireUntrustedDeployments` cannot run them (400, field code `StdioDiagnosticsRequireTrust`). In other tenants, treat the permission to test stdio MCP servers like the permission to run Process deployments.
+
+## Outbound requests and request limits
+
+The control plane refuses to contact unspecified, link-local, multicast, and broadcast addresses on a tenant's behalf. That includes the cloud metadata services at 169.254.169.254 and fd00:ec2::254. The rule applies to the HTTP MCP server test, which resolves the host before connecting, and to S3 artifact store endpoints given as an IP address. Loopback and private ranges are allowed, because in-cluster MCP servers and object stores live there. The check runs before the connection and the MCP client follows redirects, so it is not a complete SSRF defense; keep egress NetworkPolicies on the server and worker pods as well (SR-07 and SR-23 in `docs/SECURITY_REVIEW.md`).
+
+The REST listener refuses a request whose Content-Length exceeds `Rest.MaxRequestBodyBytes` (128 MiB by default) with 413 before reading it, and the MCP listener does the same with `Mcp.MaxMessageSize`. Bodies sent with chunked transfer encoding are not covered by this check.
+
+Request history redacts request and response bodies for secrets, tokens, credentials, users, manifest applies, settings, artifact uploads and downloads, and node leases and heartbeats, redacts authentication headers, and replaces the value of any query parameter whose name contains `token`, `secret`, `password`, `ticket`, `key`, or `signature`.
+
+## Security review
+
+`docs/SECURITY_REVIEW.md` records the P15.1 review: what was checked, what was fixed, and the open findings with recommendations.
 
 ## Audit
 

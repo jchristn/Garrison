@@ -171,6 +171,7 @@ namespace Garrison.Server
             settings.Port = context.Settings.Rest.Port;
             settings.Ssl.Enable = context.Settings.Rest.Ssl;
             settings.WebSockets.Enable = true;
+            settings.IO.MaxRequestBodySize = context.Settings.Rest.MaxRequestBodyBytes;
             // Watson's built-in HTTP telemetry (http.server.*, watson.*, and one server span per request named
             // "{method} {route}") is the foundation; the Radiant pipeline subscribes to the Watson meter and source.
             settings.Telemetry.Enable = true;
@@ -423,7 +424,7 @@ namespace Garrison.Server
             if (_Context.Logging.Settings.MinimumSeverity <= Severity.Debug)
             {
                 string? traceId = (requestSpan ?? Activity.Current)?.TraceId.ToHexString();
-                _Context.Logging.Debug(_Header + context.Request.Method + " " + context.Request.Url.RawWithQuery + " " + context.Response.StatusCode + " (" + (context.Timestamp.TotalMs.HasValue ? context.Timestamp.TotalMs.Value.ToString("F2") : "?") + "ms) "
+                _Context.Logging.Debug(_Header + context.Request.Method + " " + Garrison.Server.Services.RequestHistoryCaptureService.RedactQuery(context.Request.Url.RawWithQuery) + " " + context.Response.StatusCode + " (" + (context.Timestamp.TotalMs.HasValue ? context.Timestamp.TotalMs.Value.ToString("F2") : "?") + "ms) "
                     + GarrisonTracing.LogFields("route", route, "tenant", tenant, "status", context.Response.StatusCode.ToString(), "trace", traceId));
             }
 

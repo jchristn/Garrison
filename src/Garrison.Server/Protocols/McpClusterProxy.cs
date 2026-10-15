@@ -171,6 +171,7 @@ namespace Garrison.Server.Protocols
             settings.Hostname = _Context.Settings.Mcp.Hostname;
             settings.Port = _Context.Settings.Mcp.Port;
             settings.Headers.DefaultHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            settings.IO.MaxRequestBodySize = _Context.Settings.Mcp.MaxMessageSize;
             _Server = new Webserver(settings, HandleAsync);
             _Server.Routes.Preflight = HandleAsync;
             _Server.Start();

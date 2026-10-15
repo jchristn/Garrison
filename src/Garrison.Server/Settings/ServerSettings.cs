@@ -229,6 +229,7 @@ namespace Garrison.Server.Settings
             Str("GARRISON_NODE_SECRET_KEY", "Security.NodeSecretKey", v => Security.NodeSecretKey = v);
             Int("GARRISON_REST_PORT", "Rest.Port", v => Rest.Port = v);
             Int("GARRISON_LIVENESS_PORT", "Rest.LivenessPort", v => Rest.LivenessPort = v);
+            Int("GARRISON_REST_MAX_REQUEST_BODY_BYTES", "Rest.MaxRequestBodyBytes", v => Rest.MaxRequestBodyBytes = v);
             Str("GARRISON_PUBLIC_BASE_URL", "Rest.PublicBaseUrl", v => Rest.PublicBaseUrl = v);
             Str("GARRISON_EXTERNAL_BASE_URL", "Rest.ExternalBaseUrl", v => Rest.ExternalBaseUrl = v);
             Int("GARRISON_MCP_PORT", "Mcp.Port", v => Mcp.Port = v);

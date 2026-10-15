@@ -189,6 +189,13 @@ namespace Garrison.Server.Routes
 
         private async Task RetryAsync(HttpContextBase context)
         {
+            if (RouteHelpers.Context(context).PrincipalType == PrincipalTypeEnum.Run)
+            {
+                // A retry starts a new top-level run with no parent, outside the delegation policy (depth, allowlist,
+                // DelegationMode) that governs what a run may start. Runs delegate through invoke instead.
+                await RouteHelpers.ErrorAsync(context, 403, "RunTokenRetryNotAllowed", "Run tokens cannot retry runs; invoke the agent so the delegation policy applies.").ConfigureAwait(false);
+                return;
+            }
             Run run = await RequireRunAsync(context).ConfigureAwait(false);
             if (await _Context.Database.Agents.ReadAsync(run.TenantId, run.AgentId, context.Token).ConfigureAwait(false) == null)
             {

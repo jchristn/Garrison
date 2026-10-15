@@ -92,7 +92,7 @@ Rules for keeping the plan honest:
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, optional quotas, artifacts, pipelines | M3 | Complete (active scope) | 12 / 12 active (32 deferred, 1 dropped) |
 | 13 | Observability stack and dashboards | M2 | Complete | 28 / 28 |
 | 14 | Benchmarking | M3 | In progress | 14 / 14 active (1 deferred) |
-| 15 | Hardening, simulated user testing, and 1.0 release | M4 | Deferred | 0 / 0 active (21 deferred) |
+| 15 | Hardening, simulated user testing, and 1.0 release | M4 | In progress (D-054) | 3 / 5 active (18 deferred) |
 
 Milestones:
 
@@ -257,6 +257,7 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-051 | User 2026-10-14: next work is worker batch leasing (on by default, capped by free slots), dashboard and SDK support for `warnings` and `containerized`, then P11.15 and P11.17. The user asked for a priority order on the deferred themes before choosing any. | Explicit user decisions on the remaining-plan summary. | This plan, `docs/REMAINING_PLAN_MATRIX.md` |
 | D-052 | User 2026-10-14 on P11.15 (D-051 follow-up): (1) a run whose deployment has an egress allowlist runs only where the allowlist is enforced (KubernetesJob run pods with a NetworkPolicy); with no such worker it queues with `blockedReason` `NoIsolatingWorker` (the existing value, its text generalized to cover egress control) and is never run unenforced; (2) with an allowlist a run pod may reach only DNS (UDP and TCP 53), the Garrison server MCP port (as in `garrison-run`), and the listed rules, and the 443-to-anywhere default does not apply to it; (3) the mechanism stays plain NetworkPolicy CIDR and port rules, with operators resolving host names (D-035). | Explicit user decisions; keeps enforcement provable and fails closed. | This plan, `docs/SECURITY.md`, `docs/KUBERNETES.md` |
 | D-053 | User 2026-10-14 on P11.17 (D-051, D-052 follow-up): the isolation red-team CI job runs on pushes that touch `k8s/**`, `src/Garrison.Worker/**` (the Kubernetes executor and the worker Dockerfile), or the workflow itself, plus `workflow_dispatch`; it is not scheduled nightly. | Explicit user decision; the test costs a worker image build, so it runs when the isolation boundary can change. | `.github/workflows/isolation.yaml`, `docs/SECURITY.md` |
+| D-054 | User 2026-10-14 after P11.17: bring into scope claim collision tuning, release hardening (P15.1 security review, P15.4 vulnerability scans, P15.6 upgrade-path tests; no version or visibility changes), triggers and webhooks (P12.5, P12.14), and convenience (P12.21, P12.22, P12.27). Order: claim tuning first while the machine is quiet, then the rest. | Explicit user decision on the deferred-theme ranking. | This plan, `docs/REMAINING_PLAN_MATRIX.md` |
 
 ---
 
@@ -1716,12 +1717,12 @@ Contract shared by the infrastructure tasks (P13.1 to P13.11, P13.17) and the pr
 
 ### Phase 15: Hardening, simulated user testing, and 1.0 release (M4)
 
-- [-] P15.1 Security review: threat model, secrets handling, token handling, SSRF on MCP test and remote agents, path traversal in file materialization, command injection review of argument templates.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
+- [x] P15.1 Security review: threat model, secrets handling, token handling, SSRF on MCP test and remote agents, path traversal in file materialization, command injection review of argument templates.  | claude 2026-10-14 back in scope by D-054; `docs/SECURITY_REVIEW.md`: 26 findings (SR-01 to SR-26). Fixed with tests that fail without the fix (`security-unit`, `security-<provider>`): SR-01 tenant admins could use the node protocol and lease other tenants' runs (Critical), SR-02 tenant roles could take over a system administrator (High), SR-03 no request body limit (`Rest.MaxRequestBodyBytes`, Content-Length only), SR-04 stdio MCP diagnostics refused for Untrusted-only tenants, SR-05 run-token retry, SR-06 request history redaction, SR-07 link-local and metadata SSRF (`OutboundAddressPolicy`). Open with recommendations: P15.22
 - [-] P15.2 Master key rotation with key versions.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
 - [-] P15.3 Credential and run token expiry policies.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
-- [-] P15.4 Dependency and image vulnerability scanning in CI.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
+- [x] P15.4 Dependency and image vulnerability scanning in CI.  | claude 2026-10-14 back in scope by D-054; `.github/workflows/security-scans.yaml` (push, pull request, weekly, dispatch): NuGet `--vulnerable --include-transitive` (High/Critical fail), npm audit for dashboard and sdk/js, pip-audit, govulncheck, Trivy on the three images (HIGH/CRITICAL, ignore-unfixed; action pinned to a commit). Local run: NuGet, sdk/js, Python, Go clean; dashboard lockfile fixes applied (brace-expansion, js-yaml, source-map-js, vite 6.4.3), vitest 2 tree left (major bump); image findings are base-image only (.NET 10.0.12, Alpine, worker npm). Follow-up P15.23
 - [-] P15.5 Signed images and SBOMs.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
-- [-] P15.6 Upgrade path tests from every 0.x release.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
+- [x] P15.6 Upgrade path tests from every 0.x release.  | claude 2026-10-14 back in scope by D-054; no older release images exist to replay, so `upgrade-sqlite` and `upgrade-postgresql` (`src/Test.Shared/Suites/UpgradeSuite.cs`) rebuild older installations from the tracked migrations: schema 1, and schema 1 moved to 15, seeded with that version's columns (tenant, user with a legacy SHA-256 password and role assignment, credential and secret encrypted under the master key, built-in profile row, agent, deployment with parameters, finished run with parameters and events, conversation, quota). The current server migrates them, then the test checks API reads, sign-in (rehash), the credential, secret decryption, quota enforcement off, Trusted/AtMostOnce defaults, an end-to-end run on a worker, and a migration-free restart. 4/4 pass. Rolling replacement stays with `k8s/tests/rolling-upgrade-test.sh` (P10.8)
 - [-] P15.7 Full simulated user testing session per `SIMULATED_USER_TESTING.md` with report under `docs/testing/`.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
 - [-] P15.8 Findings reviewed with the user; approved fixes verified on a fresh instance.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
 - [-] P15.9 Documentation completeness review.  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
@@ -1737,6 +1738,8 @@ Contract shared by the infrastructure tasks (P13.1 to P13.11, P13.17) and the pr
 - [-] P15.19 1.0 version change. **(requires explicit user approval per `VERSIONING.md`)**  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
 - [-] P15.20 Launch materials (README refresh, screenshots, Docker Hub page).  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
 - [-] P15.21 Every release attaches the effect-safety chaos summary (P12.34) and the scale results (P14.15) as release artifacts (AB-A7, AB-G8).  | user 2026-10-12 deferred by scope decision D-042; retain completed capabilities
+- [ ] P15.22 Decide and fix the open P15.1 findings (`docs/SECURITY_REVIEW.md` SR-08 to SR-25, plus the open parts of SR-03, SR-04, and SR-07). Several change behavior existing installations rely on, so each needs a user decision first: refusing default keys, PVC claim ownership, a secret "use" permission, seeded-credential reset, assignment ceiling, worker opt-in for stdio diagnostics, and redirect and DNS-rebinding protection (needs a Voltaic handler hook).
+- [ ] P15.23 Clear the P15.4 scan failures: dashboard `vitest` 2 to 5 (major; critical `tinypool` advisory, development only) and image rebuilds on current .NET runtime (10.0.13+), Alpine, and worker npm before the next image publication.
 
 ---
 
