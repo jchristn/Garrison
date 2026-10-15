@@ -60,6 +60,7 @@ namespace Test.Shared
                 suites.AddRange(TrustLevelSuite.Build());
                 suites.AddRange(EffectPolicySuite.Build());
                 suites.AddRange(EgressAllowlistSuite.Build());
+                suites.AddRange(IsolationProbeSuite.Build());
                 suites.AddRange(ControlPlaneTuningSuite.Build());
                 return suites;
             }

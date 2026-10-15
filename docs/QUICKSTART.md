@@ -13,14 +13,16 @@ This walk-through takes a running Garrison and gives it four agents on four diff
 
 Budget about fifteen minutes once the stack is up. Most of that is reading.
 
+Where the agents run matters as much as what they do. On Kubernetes, a deployment marked `trustLevel: Untrusted` runs each run in its own pod with no access to other runs or the worker's credentials, and `egressRules` limit what it can reach on the network. That is the path to use for any prompt, document, or repository you do not control, and the end of step 2 shows how to switch an agent to it. Docker Compose runs every harness as a process on a shared worker (the Process executor), which is for trusted work only. `docs/SECURITY.md`, "Harness isolation", explains both and the red-team test that checks the isolated path.
+
 ## Before you start
 
 You need a running stack and its URLs:
 
-| Runtime | How to start it | REST and A2A | MCP | Dashboard |
-|---|---|---|---|---|
-| Docker Compose | `docs/DOCKER.md` | http://127.0.0.1:8700 | http://127.0.0.1:8701/mcp | http://127.0.0.1:8080 |
-| Kubernetes | `docs/KUBERNETES.md`, then `k8s/scripts/port-forward.sh` | http://127.0.0.1:8700 | http://127.0.0.1:8701/mcp | http://127.0.0.1:8080 |
+| Runtime | Isolation | How to start it | REST and A2A | MCP | Dashboard |
+|---|---|---|---|---|---|
+| Kubernetes | Isolated: a pod per run for `Untrusted` deployments, with egress allowlists | `docs/KUBERNETES.md`, then `k8s/scripts/port-forward.sh` | http://127.0.0.1:8700 | http://127.0.0.1:8701/mcp | http://127.0.0.1:8080 |
+| Docker Compose | Trusted only: every run is a process on a shared worker | `docs/DOCKER.md` | http://127.0.0.1:8700 | http://127.0.0.1:8701/mcp | http://127.0.0.1:8080 |
 
 If you moved the ports (in `docker/.env`, or with `REST_PORT` and friends on `port-forward.sh`), use yours everywhere below. The commands also need `curl` and `jq`.
 
@@ -101,6 +103,31 @@ curl -s -X POST "$API/manifests/apply" -H "Authorization: Bearer $TOKEN" \
 The secrets report `Unchanged` and everything else `Created`. Applying again reports `Unchanged` across the board.
 
 The dashboard does the same thing under Configuration, Manifests tab: **Upload file**, pick `examples/multi-agent.yaml`, press **Dry run**, read the table, then **Apply**.
+
+### Run an agent isolated (Kubernetes)
+
+The example deployments are `Trusted`, so they run on any worker, including a Docker Compose one. On Kubernetes, switch `echo` to the isolated path by applying its deployment again with a trust level and an egress allowlist:
+
+```bash
+curl -s -X POST "$API/manifests/apply" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" --data-binary @- <<'YAML' | jq -c '.items[] | [.kind, .name, .result]'
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: echo-fake
+spec:
+  agent: echo
+  harnessProfile: builtin/fake
+  timeoutSeconds: 60
+  parameters:
+    format: claude
+  trustLevel: Untrusted
+  egressRules:
+    - cidr: 192.0.2.0/24
+      port: 443
+YAML
+```
+
+From now on each `echo` run gets its own pod (the KubernetesJob executor), and that pod can reach only DNS, the Garrison MCP port, and the rules you list. `192.0.2.0/24` is a documentation range that nothing answers on, so this allowlist means "no outside network at all", which is all the fake harness needs. For a real harness, list the blocks of its model API and anything else it calls; host names are not accepted (`docs/SECURITY.md`, "Egress allowlists"). On Docker Compose the run would wait in the queue with `blockedReason: NoIsolatingWorker`, because no worker there can isolate it, so skip this on Compose.
 
 ## 3. Add an agent in the dashboard
 

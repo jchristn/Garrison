@@ -1,0 +1,49 @@
+name: Isolation
+
+# Isolation red-team test (plan P11.17, decision D-053): builds the server and worker images from this commit, starts a
+# throwaway k3d cluster with the KubernetesJob executor and egress allowlists, and checks that runs of an Untrusted
+# deployment cannot read another run's workspace, the worker's credentials, or a service account token, and cannot
+# reach hosts outside their allowlist. Runs on pushes that touch Kubernetes manifests, the worker (including its
+# Dockerfile and the Kubernetes executor), or this workflow, and on demand. Not scheduled.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - 'k8s/**'
+      - 'src/Garrison.Worker/**'
+      - 'src/Garrison.FakeHarness/**'
+      - '.github/workflows/isolation.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  red-team:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      K3D_VERSION: v5.8.3
+      RESULTS_DIR: ${{ github.workspace }}/isolation-results
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Install k3d
+        run: |
+          set -e
+          curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG="${K3D_VERSION}" bash
+          k3d version
+      - name: Red-team test
+        run: NODE_MEMORY=6g bash k8s/tests/isolation-test.sh
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolation-results
+          path: isolation-results/
+          if-no-files-found: warn

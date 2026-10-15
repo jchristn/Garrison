@@ -12,7 +12,8 @@
 #     127.0.0.1:${HTTP_PORT} (18870), which kube-proxy balances across server replicas
 #   - API server on 127.0.0.1:${API_PORT} (6560); change API_PORT or HTTP_PORT if they collide
 #
-# Environment (see common.sh for the rest): NODE_MEMORY (4g), AGENTS (0), BUILD (0), IMAGE_TAG.
+# Environment (see common.sh for the rest): NODE_MEMORY (4g), AGENTS (0), BUILD (0), IMAGE_TAG, and IMAGES (the Garrison
+# images to build and import; default "garrison-server garrison-worker garrison-dashboard").
 # Running it again on an existing cluster only refreshes the kubeconfig and re-imports images.
 if [ "${BUILD:-0}" = "1" ] && [ -z "${IMAGE_TAG:-}" ]; then IMAGE_TAG="scaletest-local"; fi
 source "$(dirname "$0")/common.sh"
@@ -21,6 +22,7 @@ need docker
 need kubectl
 
 NODE_MEMORY="${NODE_MEMORY:-4g}"
+IMAGES="${IMAGES:-garrison-server garrison-worker garrison-dashboard}"
 mkdir -p "${WORK_DIR}"
 
 if k3d cluster list "${CLUSTER_NAME}" >/dev/null 2>&1; then
@@ -49,13 +51,18 @@ chmod 600 "${KUBECONFIG_FILE}"
 kc get nodes
 
 if [ "${BUILD:-0}" = "1" ]; then
-  log "building images with tag ${IMAGE_TAG} (the worker image takes a while and about 2 GB)"
-  docker build -t "jchristn77/garrison-server:${IMAGE_TAG}" -f "${REPO_DIR}/src/Garrison.Server/Dockerfile" "${REPO_DIR}"
-  docker build -t "jchristn77/garrison-worker:${IMAGE_TAG}" -f "${REPO_DIR}/src/Garrison.Worker/Dockerfile" "${REPO_DIR}"
-  docker build -t "jchristn77/garrison-dashboard:${IMAGE_TAG}" "${REPO_DIR}/dashboard"
+  log "building ${IMAGES} with tag ${IMAGE_TAG} (the worker image takes a while and about 2 GB)"
+  for image in ${IMAGES}; do
+    case "${image}" in
+      garrison-server) docker build -t "jchristn77/garrison-server:${IMAGE_TAG}" -f "${REPO_DIR}/src/Garrison.Server/Dockerfile" "${REPO_DIR}" ;;
+      garrison-worker) docker build -t "jchristn77/garrison-worker:${IMAGE_TAG}" -f "${REPO_DIR}/src/Garrison.Worker/Dockerfile" "${REPO_DIR}" ;;
+      garrison-dashboard) docker build -t "jchristn77/garrison-dashboard:${IMAGE_TAG}" "${REPO_DIR}/dashboard" ;;
+      *) fail "unknown image ${image} in IMAGES" ;;
+    esac
+  done
 fi
 
-for image in garrison-server garrison-worker garrison-dashboard; do
+for image in ${IMAGES}; do
   docker image inspect "jchristn77/${image}:${IMAGE_TAG}" >/dev/null 2>&1 \
     || fail "image jchristn77/${image}:${IMAGE_TAG} not found locally; build it (BUILD=1) or set IMAGE_TAG"
   log "importing jchristn77/${image}:${IMAGE_TAG}"

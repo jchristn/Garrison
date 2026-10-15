@@ -22,7 +22,13 @@ namespace Garrison.FakeHarness
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--session-id id] [resume sessionId] [--report-turns].
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--approval-command text]
     /// [--request-file-approval path] [--permission-prompt-tool mcp__server__tool] [--mcp-config file]
-    /// [--permission-request Tool=inputJson] [--mcp-invoke server,tool,argsjson] [--events-per-second N] [--duration-ms N].
+    /// [--permission-request Tool=inputJson] [--mcp-invoke server,tool,argsjson] [--events-per-second N] [--duration-ms N]
+    /// [--probe "kind target [argument]"] [--probe-prompt] [--probe-timeout-ms N].
+    /// Isolation probes (P11.17, see <see cref="FakeProbe"/>): --probe is repeatable, and --probe-prompt also runs every
+    /// prompt line that starts with "probe ". Kinds: read path-or-glob, list directory, env NAME[*], proc-env NAME,
+    /// connect host:port, http url, marker name text, hold ms. Each result is a tool call and one answer line
+    /// PROBE|kind|target|OUTCOME|detail (OUTCOME is ALLOWED, BLOCKED, DONE, or ERROR); details never include contents,
+    /// values, or tokens.
     /// </summary>
     public static class Program
     {
@@ -88,6 +94,23 @@ namespace Garrison.FakeHarness
 
             FakeEmitter emitter = new FakeEmitter(options, sessionId);
             emitter.Start();
+
+            if (options.Probes.Count > 0 || options.ProbePrompt)
+            {
+                // Isolation probes (P11.17): each result is a tool call as it finishes and one line of the answer.
+                List<string> texts = new List<string>(options.Probes);
+                if (options.ProbePrompt) texts.AddRange(FakeProbe.PromptLines(prompt));
+                FakeProber prober = new FakeProber();
+                prober.TimeoutMs = options.ProbeTimeoutMs;
+                List<string> lines = new List<string>();
+                foreach (string text in texts)
+                {
+                    FakeProbeResult result = await prober.RunTextAsync(text, CancellationToken.None).ConfigureAwait(false);
+                    emitter.ToolCall("isolation_probe", result.ToLine(), result.Outcome != FakeProbeOutcomeEnum.Error);
+                    lines.Add(result.ToLine());
+                }
+                answer = lines.Count == 0 ? "PROBES|0" : String.Join("\n", lines);
+            }
 
             if (options.Hang)
             {

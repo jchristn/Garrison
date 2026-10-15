@@ -125,22 +125,15 @@ Workers are shared by default. To keep a tenant's runs on its own workers, creat
 
 This is the most important limit to understand. Garrison has two executors, chosen per deployment (`executor`) or per node pool (`defaultExecutor`), and they protect against different things.
 
-### Process executor (trusted only, default)
+For any prompt, document, or repository you do not control, use the isolated path:
 
-Process execution is for trusted workloads only. The worker image stays non-root (UID 10001); all Process harnesses use that same user. Unix run roots and their `work`, `home`, and `config` directories are created with mode `0700`, and existing directories are tightened on reuse, including conversation turns. These permissions exclude other OS users; they do not isolate concurrent harnesses sharing the worker user. Windows inherits the worker account's directory ACLs. Use `KubernetesJob` for untrusted inputs. The dashboard displays the same warning in deployment forms and Process run details.
+1. Run the worker in Kubernetes with the KubernetesJob executor, so each run gets its own pod (below).
+2. Mark the deployment `trustLevel: Untrusted`, so its runs are only ever placed on an executor that isolates them.
+3. Give the deployment `egressRules`, so its runs reach only the endpoints they need.
 
-Each run is a subprocess of the worker, inside the worker's container, with:
+The isolation red-team test (`k8s/tests/isolation-test.sh`, below) attacks exactly this setup on every change to the Kubernetes manifests or the worker. The Process executor, which runs harnesses as subprocesses of the worker, is for trusted workloads only; it is described after the isolated path.
 
-- its own working directory, `HOME`, and configuration directory, deleted after the run (the workspace may be kept for debugging);
-- for a conversation turn, the conversation's working, `HOME`, and configuration directories instead, which stay on the worker between turns (so the next turn can resume the harness session) until they go unused for the worker's `ConversationRetentionHours`. Files the profile writes there, such as a Codex `auth.json` or an MCP configuration with a run token, are rewritten every turn and the run token is revoked when its run ends, but they sit on the worker's disk between turns;
-- an environment that starts empty apart from an allowlist (`PATH`, locale, proxy and certificate settings), plus the variables the profile and deployment define;
-- a deadline, an output size limit, run guards, and a process-tree kill on cancellation;
-- relative paths for every file it writes, with absolute paths and `..` rejected;
-- secret values scrubbed from everything it prints before it leaves the node.
-
-It does **not** have its own filesystem namespace, network namespace, or user. A harness running with permissions such as Claude Code's `acceptEdits`, Codex's `workspace-write`, or Gemini's `yolo` can read anything the worker user can read, including other concurrent runs' directories and the worker's node credential, and can reach anything the worker pod can reach. Treat everyone who can configure deployments on a shared worker as able to see the others' runs. In Kubernetes the worker's service account token is mounted (it creates run Jobs), so a harness on a Process worker can also use the worker's Role.
-
-### KubernetesJob executor (pod per run)
+### KubernetesJob executor (pod per run, isolated)
 
 Each run gets its own Job and pod (`docs/KUBERNETES.md`, "Pod-per-run executor"). The worker keeps every credential; the pod gets only the compiled spec for its own run through a Secret. The pod:
 
@@ -155,17 +148,6 @@ Each run gets its own Job and pod (`docs/KUBERNETES.md`, "Pod-per-run executor")
 The worker trusts nothing the pod prints except lines that start with the run's random nonce, which only the worker and the pod's spec Secret know. JSON encoding keeps harness text on one line, and `run-one` marks itself non-dumpable so the harness, which runs as the same user with no capabilities, cannot open `run-one`'s stdout through `/proc`. A harness that reads its own spec file learns its own nonce and could, at worst, misreport its own run; it cannot affect other runs or the control plane.
 
 What it does not protect against: run pods still share the node's kernel unless you use a sandboxed runtime; for deployments without an egress allowlist, the default egress rule allows HTTPS to anywhere, which a prompt-injected harness can use to send out what it can read (its workspace, its own secrets), so give such deployments `egressRules` (below); and the worker's Role can create pods in the run namespace, which can mount that namespace's Secrets, so a compromised worker in the same namespace as `garrison-secrets` could read them.
-
-### Codex sandbox in containers
-
-Codex normally runs each shell command inside bubblewrap with its `workspace-write` sandbox: writes limited to the workspace, no network. Bubblewrap needs user namespaces, which a worker container or run pod cannot create, so inside Docker or Kubernetes that sandbox stops every shell command instead of confining it. Garrison's built-in Codex profiles therefore default to `danger-full-access` when the run executes in a container: a KubernetesJob run pod, or a Process run on a worker that reports `Containerized` (set by the worker image). Workers started directly on a host keep `workspace-write`. A deployment `sandbox` parameter always wins (D-050, `docs/HARNESSES.md`).
-
-The container or pod is then the isolation boundary, so what Codex can reach is what the section above says for its executor:
-
-- In a KubernetesJob run pod, Codex can write anywhere the pod allows (its own emptyDir volumes; the root filesystem is read-only) and use the network the `garrison-run` NetworkPolicy allows. It cannot see other runs or the worker's credentials. This is the same boundary every other harness in a run pod has.
-- In a Process run on a containerized worker, Codex can write anything the worker user can write and reach anything the worker can reach, including other concurrent runs' directories and the node credential. That was already true of reads with `workspace-write` (the Process executor has no filesystem namespace); `danger-full-access` adds writes outside the workspace and network access from shell commands. This is why Process stays trusted only.
-
-Trust levels (below) still decide placement: an `Untrusted` deployment never runs on a Process worker, whatever the sandbox. Set `sandbox` explicitly (for example `read-only`) on a deployment that should not run shell commands at all, and expect shell commands to fail in a container when you do.
 
 ### Deployment trust level
 
@@ -218,6 +200,26 @@ Limits:
 - The rules are only as strong as the network plugin, which must enforce NetworkPolicy, including IPv6 rules if you list IPv6 blocks.
 - Do not list a block that contains the Garrison server's pod or service address on every port. Doing so makes the egress canary reachable, and runs then fail with `PodFailed` rather than start.
 
+### Isolation red-team test
+
+`k8s/tests/isolation-test.sh` (P11.17) checks the isolated path end to end on a throwaway k3d cluster. It builds the server and worker images from your checkout, installs Garrison with the KubernetesJob executor and egress allowlists on, and starts two runs of an `Untrusted` deployment whose allowlist names one in-cluster test server on one port. Run A writes a marker file into its own workspace and stays alive; run B, of the same deployment, then tries to:
+
+- read A's marker, by its path in a run pod and on the worker, and by globbing every run directory;
+- read the worker's settings file, find the worker's access and secret keys in its own environment or in any process it can see, and read a service account token;
+- list Secrets and pods through the Kubernetes API, and connect to the API server's node port;
+- connect to the control plane REST port (8700), the database, the worker's health port, the internet on 443 and 80, an external DNS server over TCP, an in-cluster pod that is not allowlisted, and the allowlisted pod on a port that is not allowlisted.
+
+Every one of those attempts must fail, and both positive controls must succeed: the allowlisted pod and port (TCP and HTTP), and the Garrison MCP port. The probes come from the fake harness's probe mode (`--probe-prompt`, `src/Garrison.FakeHarness/README.md`), which only reads and connects and never reports file contents, variable values, or tokens. The script also runs the same probes in two `Trusted` deployments without an allowlist, a run pod and a Process run on the worker, and reports what they reach without failing on it. That contrast shows what the isolated path takes away. In the first local run (k3s v1.31.4, 2026-10-14) the Trusted run pod reached only the internet on 443 and the MCP port, as the default `garrison-run` policies intend. The Process run read the other run's marker, the worker's settings file, the worker's secret key (in the worker process's `/proc/1/environ`), and the worker's service account token, listed the namespace's pods with that token, and reached every network target except the database, which is exactly why Process is trusted only.
+
+Run it locally with Docker and k3d (it takes about 10 to 20 minutes, most of it the worker image build):
+
+```bash
+k8s/tests/isolation-test.sh                  # build, test, print the table, delete the cluster
+KEEP_CLUSTER=1 k8s/tests/isolation-test.sh   # keep the cluster for inspection; delete it with CLUSTER_NAME=garrison-isolation k8s/tests/cluster-down.sh
+```
+
+It uses its own cluster name (`garrison-isolation`), API port (6562), NodePort mapping (127.0.0.1:18872), and kubeconfig, so it does not touch other clusters, your default kubeconfig, or a Docker Compose stack. It refuses to start if a cluster with its name already exists and deletes only the cluster it created. Results, including a CSV and each run's JSON, go to `k8s/tests/results/isolation-<time>/`. The `Isolation` GitHub Actions workflow (`.github/workflows/isolation.yaml`) runs it on pushes that touch `k8s/`, `src/Garrison.Worker/`, or the workflow, and on demand, and uploads the results.
+
 ### Recommendations for untrusted prompts
 
 - Set `trustLevel: Untrusted` on every deployment that handles prompts, documents, or repositories you do not control, and turn on `requireUntrustedDeployments` for tenants that only serve such work.
@@ -229,6 +231,34 @@ Limits:
 - Bind only the secrets and MCP servers the agent needs, keep delegation off or on a tight allowlist, and use the harnesses' own sandboxes (`sandbox` for Codex and Mux, `permissionMode` and `allowedTools` for Claude Code) as tightly as the work allows.
 - A worker with the KubernetesJob executor enabled mounts its service account token, which Process runs on that worker can read. Where Process deployments also take untrusted input, give them a separate worker pool with `GARRISON_WORKER_KUBERNETES_ENABLED=false` and `automountServiceAccountToken: false`, and keep the Job-capable pool for KubernetesJob deployments (pin them with a node pool or `nodeSelector`).
 - For Process deployments that must stay, run one concurrent run per worker (`MaxConcurrentRuns: 1`) and give sensitive tenants dedicated node pools.
+
+### Process executor (trusted only)
+
+Process is the default executor when a deployment and its node pool name none, because it needs no cluster. Use it only for trusted work.
+
+Process execution is for trusted workloads only. The worker image stays non-root (UID 10001); all Process harnesses use that same user. Unix run roots and their `work`, `home`, and `config` directories are created with mode `0700`, and existing directories are tightened on reuse, including conversation turns. These permissions exclude other OS users; they do not isolate concurrent harnesses sharing the worker user. Windows inherits the worker account's directory ACLs. Use `KubernetesJob` for untrusted inputs. The dashboard displays the same warning in deployment forms and Process run details.
+
+Each run is a subprocess of the worker, inside the worker's container, with:
+
+- its own working directory, `HOME`, and configuration directory, deleted after the run (the workspace may be kept for debugging);
+- for a conversation turn, the conversation's working, `HOME`, and configuration directories instead, which stay on the worker between turns (so the next turn can resume the harness session) until they go unused for the worker's `ConversationRetentionHours`. Files the profile writes there, such as a Codex `auth.json` or an MCP configuration with a run token, are rewritten every turn and the run token is revoked when its run ends, but they sit on the worker's disk between turns;
+- an environment that starts empty apart from an allowlist (`PATH`, locale, proxy and certificate settings), plus the variables the profile and deployment define;
+- a deadline, an output size limit, run guards, and a process-tree kill on cancellation;
+- relative paths for every file it writes, with absolute paths and `..` rejected;
+- secret values scrubbed from everything it prints before it leaves the node.
+
+It does **not** have its own filesystem namespace, network namespace, or user. A harness running with permissions such as Claude Code's `acceptEdits`, Codex's `workspace-write`, or Gemini's `yolo` can read anything the worker user can read, including other concurrent runs' directories and the worker's node credential, and can reach anything the worker pod can reach. Treat everyone who can configure deployments on a shared worker as able to see the others' runs. In Kubernetes the worker's service account token is mounted (it creates run Jobs), so a harness on a Process worker can also use the worker's Role.
+
+### Codex sandbox in containers
+
+Codex normally runs each shell command inside bubblewrap with its `workspace-write` sandbox: writes limited to the workspace, no network. Bubblewrap needs user namespaces, which a worker container or run pod cannot create, so inside Docker or Kubernetes that sandbox stops every shell command instead of confining it. Garrison's built-in Codex profiles therefore default to `danger-full-access` when the run executes in a container: a KubernetesJob run pod, or a Process run on a worker that reports `Containerized` (set by the worker image). Workers started directly on a host keep `workspace-write`. A deployment `sandbox` parameter always wins (D-050, `docs/HARNESSES.md`).
+
+The container or pod is then the isolation boundary, so what Codex can reach is what the executor sections above say:
+
+- In a KubernetesJob run pod, Codex can write anywhere the pod allows (its own emptyDir volumes; the root filesystem is read-only) and use the network the `garrison-run` NetworkPolicy allows. It cannot see other runs or the worker's credentials. This is the same boundary every other harness in a run pod has.
+- In a Process run on a containerized worker, Codex can write anything the worker user can write and reach anything the worker can reach, including other concurrent runs' directories and the node credential. That was already true of reads with `workspace-write` (the Process executor has no filesystem namespace); `danger-full-access` adds writes outside the workspace and network access from shell commands. This is why Process stays trusted only.
+
+Trust levels ("Deployment trust level" above) still decide placement: an `Untrusted` deployment never runs on a Process worker, whatever the sandbox. Set `sandbox` explicitly (for example `read-only`) on a deployment that should not run shell commands at all, and expect shell commands to fail in a container when you do.
 
 ## Delegation
 

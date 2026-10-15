@@ -19,7 +19,7 @@ Everything lives under `k8s/`:
 | `k8s/overlays/k3s-worker-pools`, `k8s/overlays/production-custom-metrics` | Examples that add the worker-pools and custom-metrics components to an overlay. |
 | `k8s/helm/garrison` | A Helm chart that renders the same resources. |
 | `k8s/scripts` | Deploy, update, reset, smoke-test, and port-forward helpers, each as a `.sh` and `.bat` pair. |
-| `k8s/tests` | Scale, rolling-upgrade, and chaos tests on a throwaway k3d cluster (`docs/SCALING.md`). |
+| `k8s/tests` | Scale, rolling-upgrade, and chaos tests on a throwaway k3d cluster (`docs/SCALING.md`), and the isolation red-team test (`isolation-test.sh`, `docs/SECURITY.md`). |
 
 ## Which option to use
 

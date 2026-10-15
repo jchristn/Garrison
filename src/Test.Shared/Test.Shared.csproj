@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Garrison.Server\Garrison.Server.csproj" />
     <ProjectReference Include="..\Garrison.Worker\Garrison.Worker.csproj" />
     <ProjectReference Include="..\Garrison.ProviderHarness\Garrison.ProviderHarness.csproj" />
+    <ProjectReference Include="..\Garrison.FakeHarness\Garrison.FakeHarness.csproj" />
   </ItemGroup>
 
   <ItemGroup>

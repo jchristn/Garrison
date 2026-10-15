@@ -228,6 +228,35 @@ namespace Garrison.FakeHarness
         /// </summary>
         public List<string> McpInvokes { get; set; } = new List<string>();
 
+        /// <summary>
+        /// Isolation probes (P11.17), as "kind target [argument]" (repeatable), for example "read /etc/hostname" or
+        /// "connect 10.0.0.5:8080". See <see cref="FakeProbe"/> for the kinds. With any probe (or
+        /// <see cref="ProbePrompt"/>) the answer is one PROBE|kind|target|OUTCOME|detail line per probe instead of the
+        /// echo.
+        /// </summary>
+        public List<string> Probes { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Also run every prompt line that starts with "probe " as a probe, after the --probe probes, so a script can
+        /// choose the probes per run through the run input. Default false.
+        /// </summary>
+        public bool ProbePrompt { get; set; } = false;
+
+        /// <summary>
+        /// Timeout of each connect and http probe in milliseconds. Minimum 100, maximum 60,000, default 3,000.
+        /// </summary>
+        public int ProbeTimeoutMs
+        {
+            get
+            {
+                return _ProbeTimeoutMs;
+            }
+            set
+            {
+                _ProbeTimeoutMs = Math.Clamp(value, 100, 60000);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -235,6 +264,7 @@ namespace Garrison.FakeHarness
         private int _EchoChars = 200;
         private int _EventsPerSecond = 0;
         private int _DurationMs = 0;
+        private int _ProbeTimeoutMs = 3000;
 
         #endregion
 
@@ -353,6 +383,15 @@ namespace Garrison.FakeHarness
                         break;
                     case "--mcp-invoke":
                         if (next != null) { options.McpInvokes.Add(next); i++; }
+                        break;
+                    case "--probe":
+                        if (next != null) { options.Probes.Add(next); i++; }
+                        break;
+                    case "--probe-prompt":
+                        options.ProbePrompt = true;
+                        break;
+                    case "--probe-timeout-ms":
+                        if (next != null) { options.ProbeTimeoutMs = Int32.Parse(next, CultureInfo.InvariantCulture); i++; }
                         break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }

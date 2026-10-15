@@ -12,6 +12,7 @@ garrison-fake-harness --format claude|codex|codex-app-server|mux|plain [--scenar
                       [--request-approval] [--approval-command text] [--request-file-approval path]
                       [--permission-prompt-tool mcp__server__tool] [--mcp-config file] [--permission-request Tool=inputJson]
                       [--events-per-second N] [--duration-ms N]
+                      [--probe "kind target [argument]"] [--probe-prompt] [--probe-timeout-ms N]
 ```
 
 | Option | Effect |
@@ -43,11 +44,37 @@ garrison-fake-harness --format claude|codex|codex-app-server|mux|plain [--scenar
 | `--permission-request Tool=inputJson` | Repeatable. In Claude format, emit a `tool_use` for the tool with that input, ask for permission, emit the `tool_result` (the denial message as an error when denied), and append `permission <Tool>: allow` or `deny` to the answer. Used by the approval tests. |
 | `--events-per-second N` | With `--duration-ms`, stream round(N x duration / 1000) assistant text deltas (`event 000001`, `event 000002`, ...; at least one) before the answer, each at its scheduled offset from the start of the stream so the rate does not drift. 0 to 10,000; default 0. Used by the control plane load test (`benchmarks/scale.sh`). |
 | `--duration-ms N` | How long the paced stream lasts, in milliseconds (0 to 3,600,000; default 0, no stream). Without `--events-per-second` the harness only waits this long, which gives a run a fixed duration. The event count and content are deterministic; only the timing follows the clock. |
+| `--probe "kind target [argument]"` | Repeatable. Run an isolation probe (P11.17) and report it; see "Isolation probes" below. |
+| `--probe-prompt` | Also run every prompt line that starts with `probe ` as a probe, after the `--probe` ones, so a script can pick the probes per run through the run input. |
+| `--probe-timeout-ms N` | Timeout of each `connect` and `http` probe, 100 to 60,000; default 3,000. |
 | `--think-ms N` | Pause between the thinking event and the first answer chunk. Default 20, so every run has a measurable time to first token and streaming time. |
 
 In the Claude, Codex, and Mux formats the answer is preceded by one thinking event (a `thinking_delta`, a `reasoning` item, or `assistant_thinking`), and the final usage reports 2 reasoning tokens (`output_tokens_details.thinking_tokens` for Claude, `reasoning_output_tokens` for Codex). Plain format has no thinking event.
 
 In `codex-app-server` format the fake reads JSON-RPC requests from stdin and answers `initialize`, `account/login/start`, `thread/start`, `thread/resume` (an unknown thread gets an error response, like a missing rollout), and `turn/start` the way Codex 0.159.3 does. A turn sends `turn/started`, the `--tool-calls` command items, a reasoning item with one summary delta, the answer as one `item/agentMessage/delta` per word (`--delay-ms` apart), `thread/tokenUsage/updated`, and `turn/completed` (status `failed` with `--fail`; never with `--hang`). Threads are recorded under `$HOME/.garrison-fake/sessions` like the other formats. It exits when stdin closes. To make the worker's behavior checkable it prints `fake app-server: api key login`, `fake app-server: approval policy ...`, and `fake app-server: output schema received` to stderr.
+
+## Isolation probes
+
+With `--probe` or `--probe-prompt`, the harness tries each probe once, in order, emits each result as an `isolation_probe` tool call as it finishes, and answers with one line per probe instead of the echo:
+
+```
+PROBE|kind|target|OUTCOME|detail
+```
+
+`OUTCOME` is `ALLOWED` (the attempt worked), `BLOCKED` (missing, denied, unreachable, timed out, or not 2xx), `DONE` (an action finished), or `ERROR` (the probe did not parse, or the action failed). A `|` or line break inside a field becomes `/` or a space, and the detail is cut at 300 characters. Details name paths, sizes, variable names, and errors; they never include file contents, variable values, or tokens.
+
+| Probe | What it tries |
+|---|---|
+| `read path` | Read a file. `*` and `?` in any path segment match every entry there (up to 200 matches); `ALLOWED` names the first one read and its size. |
+| `list directory` | List a directory; `ALLOWED` gives the entry count and the first ten names. |
+| `env NAME` | Whether the harness's own environment has the variable. A trailing `*` matches a prefix (`env GARRISON_*`). |
+| `proc-env NAME` | Whether any readable `/proc/<pid>/environ` has the variable (Linux), for example the worker's secret key in a Process run. |
+| `connect host:port` | Open a TCP connection (`[v6]:port` for IPv6 addresses). |
+| `http url` | GET the URL without a proxy, accepting any TLS certificate, with the Kubernetes service account token as a bearer token when `/var/run/secrets/kubernetes.io/serviceaccount/token` is readable. 2xx is `ALLOWED`. |
+| `marker name text` | Write `text` to a file called `name` in the working directory (the run's workspace). The name must be a plain file name; `..` and path separators are refused. This is the only probe that writes. |
+| `hold ms` | Wait, up to 600,000 ms, so another run can probe while this one is alive. The worker's no-progress guard (300 s by default) stops longer holds. |
+
+`k8s/tests/isolation-test.sh` uses these to attack an `Untrusted` deployment on k3d (`docs/SECURITY.md`, "Isolation red-team test").
 
 Unknown arguments are ignored, so a harness profile can pass extra flags.
 
