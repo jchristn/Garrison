@@ -99,7 +99,11 @@ namespace Test.Shared.Suites
             {
                 foreach (string file in Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories))
                 {
-                    yield return Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
+                    string relative = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
+                    // Skip untracked scratch output (k8s/tests/.work, rendered by test scripts) and test results: they are
+                    // not shipped assets and may predate the checkout.
+                    if (relative.Contains("/.work/", StringComparison.Ordinal) || relative.Contains("/results/", StringComparison.Ordinal)) continue;
+                    yield return relative;
                 }
             }
         }
