@@ -2545,6 +2545,40 @@
         "h": 8
       },
       "id": 28
+    },
+    {
+      "id": 29,
+      "title": "Workspace cache hit rate by deployment",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 90
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (deployment, cache) (rate(garrison_worker_workspace_cache_total{result=\"hit\"}[5m])) / sum by (deployment, cache) (rate(garrison_worker_workspace_cache_total[5m]))",
+          "legendFormat": "{{deployment}} {{cache}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     }
   ]
 }

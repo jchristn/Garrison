@@ -128,6 +128,9 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A trigger or notification endpoint signing secret was rotated (P12.5, P12.14).
         /// </summary>
-        SigningSecretRotated
+        SigningSecretRotated,
+
+        /// <summary>A queued-run depth limit refused admission.</summary>
+        QueueFull
     }
 }

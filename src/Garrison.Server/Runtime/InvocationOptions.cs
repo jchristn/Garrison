@@ -105,6 +105,9 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public bool CallerWaits { get; set; } = false;
 
+        /// <summary>Use a durable checkpoint instead of keeping a resident parent waiting. Internal callers only.</summary>
+        public bool DurableWait { get; set; } = false;
+
         /// <summary>
         /// Set by the invocation: the delegation wait left open for a caller that waits by itself
         /// (<see cref="CallerWaits"/>), or null.

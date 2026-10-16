@@ -19,6 +19,9 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// The cluster already has Runs.DelegationChildQueueDepth queued children whose parents are waiting on them.
         /// </summary>
-        ChildQueueDepth
+        ChildQueueDepth,
+
+        /// <summary>The replica has no synchronous wait budget available before admitting a resident child wait.</summary>
+        SynchronousWaiters
     }
 }

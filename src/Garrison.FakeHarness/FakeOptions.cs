@@ -10,6 +10,9 @@ namespace Garrison.FakeHarness
     public class FakeOptions
     {
         #region Public-Members
+        /// <summary>Fixture mode: ask permission only on the initial session turn.</summary>
+        public bool PermissionOnce { get; set; } = false;
+
 
         /// <summary>
         /// Output format: claude, codex, codex-app-server (JSON-RPC over stdin and stdout, see
@@ -377,6 +380,9 @@ namespace Garrison.FakeHarness
                         break;
                     case "--mcp-config":
                         if (next != null) { options.McpConfig = next; i++; }
+                        break;
+                    case "--permission-once":
+                        options.PermissionOnce = true;
                         break;
                     case "--permission-request":
                         if (next != null) { options.PermissionRequests.Add(next); i++; }

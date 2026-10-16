@@ -4,14 +4,14 @@ This is the plan for Garrison's benchmark suite: what it measures and why, the h
 
 ## What the suite measures, and why
 
-Garrison makes four claims that numbers can check:
+The suite evaluates four aspects of the implemented platform:
 
 1. **It puts runs in the right place.** A run goes only to a worker that has its harness, matches its deployment's node selector and pool, and respects the deployment's concurrency limit; a run nobody can take says why (`blockedReason`). Priority orders the queue.
-2. **It adds little to a run.** Everything between "the caller asked" and "the harness started" (authentication, queueing, claiming, compiling the execution spec, leasing, preparing the workspace) and between "the harness exited" and "the caller has the answer" (event shipping, completion, the wake-up of a waiting request) is overhead the caller pays on every run.
-3. **It scales out.** Workers pull work; adding workers adds capacity without any control-plane change (`docs/SCALING.md`).
-4. **It survives failure.** A crashed worker's runs are requeued, a crashed control plane loses nothing, a database outage costs latency and not data, and every error is a clean JSON error (`docs/SCALING.md`, Failure handling; `REST_API.md`, Errors).
+2. **Execution overhead.** Everything between "the caller asked" and "the harness started" (authentication, queueing, claiming, compiling the execution spec, leasing, preparing the workspace) and between "the harness exited" and "the caller has the answer" (event shipping, completion, the wake-up of a waiting request) is overhead the caller pays on every run.
+3. **Scale-out behavior.** Workers pull work and can be added independently of control-plane replicas. Measure the resulting capacity and bottlenecks rather than assuming a linear gain; database, listener and scheduler limits can dominate. See `docs/SCALING.md`.
+4. **Failure and recovery behavior.** Verify retry/failure decisions against each stored effect policy, lease fencing, persisted checkpoints and external receipts. Buffered worker events, request-history capture and best-effort telemetry have distinct loss limits; arbitrary external effects are not exactly-once. Exercise database and transport errors rather than assuming every outage is transparent. See `docs/SCALING.md`, `docs/effect-safety.md` and `REST_API.md`.
 
-The plan's risk register names the database as the likely ceiling (R-005), and P15.10 wants performance targets from this phase. The suite therefore also measures cost per run in database operations, from the server's own metrics.
+The plan's risk register identifies the database as a potential ceiling (R-005). Larger capacity acceptance (P14.15) and release performance targets (P15.10) are deferred under the current scope. The suite therefore also measures cost per run in database operations, from the server's own metrics.
 
 ### How this differs from the sibling suites
 
@@ -134,3 +134,9 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 5. **Run-level, not per-request, overrides.** There is no ablation sweep yet: Garrison's tunables that matter here (lease wait, event flush interval, poll intervals) are cluster settings, and the suite does not change them between arms. IMPROVEMENTS.md I-09 proposes sweeping them.
 6. **The direct arm runs on the harness machine.** On the k3d stack the Garrison arm's harness runs in a Linux container in the Docker VM while the direct arm runs on the host, so the floor is a floor for the work, not for the container. `clientOverheadMs` (client latency minus the worker's own `executionMs`) is the container-fair overhead and is reported next to it.
 7. **The root README has no Benchmarks section yet.** This phase was delivered by an agent restricted to its own files while two others edited the tree; adding the short section that links `benchmarks/README.md` is a one-line follow-up.
+
+## D-062 measurement extensions
+
+The suite now supports trace-driven scheduled arrivals with burst preservation, client-drop accounting and source/prepared hashes; an optional native Azure Functions 2019 CSV converter supplies an attributed external count-window experiment without committing raw public data. Its minute bins are explicitly time-compressed, not interpolated into invented original invocation times. Runtime trace datasets do not replace the synthetic content/workflow correctness oracle.
+
+Load reports can collect actual completed-scope per-run SQL observations after timing, with a bounded collection budget and explicit missing observations. Global server counters remain separate. Placement probes use the read-only run placement endpoint rather than guessing worker rejection reasons. Synchronous accepted responses are followed to terminal state, and their early response time is not reported as terminal latency. Repeated seeded timing sweeps retain arm order, exact settings, binary/report hashes and per-arm host load. See `benchmarks/README.md` and `docs/testing/D062_VALIDATION.md`.

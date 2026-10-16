@@ -12,6 +12,11 @@ namespace Garrison.Sdk.Models
     {
         #region Public-Members
 
+        /// <summary>Provider resource identifier for a LeaseBroker secret; no reusable credential value is stored.</summary>
+        public string? BrokerResource { get; set; } = null;
+        /// <summary>Optional provider audience.</summary>
+        public string? BrokerAudience { get; set; } = null;
+
         /// <summary>
         /// Identifier.
         /// </summary>

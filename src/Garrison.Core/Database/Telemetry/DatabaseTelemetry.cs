@@ -109,14 +109,18 @@ namespace Garrison.Core.Database.Telemetry
         public static void End(Activity? activity, DatabaseStatement statement, string provider, long startTimestamp, Exception? exception)
         {
             if (statement == null) return;
+            RunDatabaseAttribution.Record(statement, GarrisonMetrics.SecondsSince(startTimestamp), exception != null);
             try
             {
                 string result = exception == null ? "ok" : exception is OperationCanceledException ? "cancelled" : "error";
                 if (exception != null && result == "error")
                 {
-                    GarrisonTracing.Fail(activity, exception);
+                    activity?.SetTag("error.type", exception.GetType().Name);
+                    GarrisonTracing.Fail(activity, exception.GetType().Name);
                     GarrisonMetrics.Count(GarrisonMetricCatalog.DbErrors, 1, ErrorTags(provider, statement, exception));
                 }
+                if (exception == null) GarrisonTracing.Ok(activity);
+                else if (result == "cancelled") GarrisonTracing.Fail(activity, "cancelled");
                 activity?.Dispose();
                 if (GarrisonMetrics.Enabled(GarrisonMetricCatalog.DbDuration))
                 {

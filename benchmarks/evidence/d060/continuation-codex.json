@@ -1,0 +1,13 @@
+{
+  "harness": "codex",
+  "installedVersion": "codex-cli 0.159.3",
+  "accountPluginSyncDisabled": true,
+  "sameSession": true,
+  "originalWorkerStopped": true,
+  "effectsExactlyOnce": true,
+  "resumeToCompletionMs": 7106.002582935616,
+  "checkpointUncompressedBytes": 4569010,
+  "checkpointArchiveBytes": 618755,
+  "checkpointCaptureAndUploadMs": 34,
+  "latencyIncludes": "queueing, restore, provider inference, tools, artifact collection, and completion observation"
+}

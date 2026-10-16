@@ -4,6 +4,10 @@ namespace Test.Shared.Suites
     using System.Collections.Generic;
     using System.Linq;
     using System.IO;
+    using System.IO.Compression;
+    using System.Net.Http.Headers;
+    using Garrison.Core.Protocol;
+    using Garrison.Core.Compilation;
     using System.Net.Http;
     using System.Security.Cryptography;
     using System.Text;
@@ -33,6 +37,7 @@ namespace Test.Shared.Suites
             {
                 new TestSuiteDescriptor("artifacts", "Artifact collection", new List<TestCaseDescriptor>
                 {
+                    new TestCaseDescriptor("artifacts", "prepared-restore-boundary", "Prepared archives cannot restore HOME or config and private upload callbacks never serialize", PreparedRestoreBoundaryAsync),
                     new TestCaseDescriptor("artifacts", "selection", "Explicit collection is bounded, skips links, and does nothing without globs", SelectionAsync),
                     new TestCaseDescriptor("artifacts", "globs", "Artifact globs select only relative files with explicit supported patterns", GlobsAsync)
                 })
@@ -40,8 +45,11 @@ namespace Test.Shared.Suites
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
             {
                 string id = "artifacts-" + provider.ToString().ToLowerInvariant();
+                string cacheId = "workspace-cache-" + provider.ToString().ToLowerInvariant();
+                result.Add(new TestSuiteDescriptor(cacheId, "Prepared workspace cache", new List<TestCaseDescriptor> { new TestCaseDescriptor(cacheId, "cross-node-hit", "Immutable commit prepared archive restores byte-identically on a different worker (" + provider + ")", ct => PreparedWorkspaceAsync(provider, ct)) }));
                 result.Add(new TestSuiteDescriptor(id, "Artifact persistence (" + provider + ")", new List<TestCaseDescriptor>
                 {
+                    new TestCaseDescriptor(id, "internal-node-upload", "Internal archives require a node-owned live lease and cannot be poisoned with run or administrator public uploads", ct => InternalUploadAsync(provider, ct)),
                     new TestCaseDescriptor(id, "atomic-fence", "Artifact insertion atomically rejects stale epochs, repair phases, and cancellation", ct => FenceAsync(provider, ct)),
                     new TestCaseDescriptor(id, "worker-database", "Worker collects explicit files through MCP into the database; signed links download only their file", ct => WorkerAsync(provider, ArtifactStoreKindEnum.Database, ct)),
                     new TestCaseDescriptor(id, "worker-filesystem", "Worker collects explicit files through MCP into filesystem storage and deletes content", ct => WorkerAsync(provider, ArtifactStoreKindEnum.Filesystem, ct)),
@@ -63,6 +71,66 @@ namespace Test.Shared.Suites
         public static Task S3ConformanceAsync(string endpoint, string accessKey, string secretKey, string bucket, string region, CancellationToken token)
         {
             return WorkerAsync(DatabaseTypeEnum.Sqlite, ArtifactStoreKindEnum.S3, token, endpoint, accessKey, secretKey, bucket, region);
+        }
+
+        private static async Task PreparedRestoreBoundaryAsync(CancellationToken token)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "garrison-prepared-boundary-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                foreach (string name in new[] { "home/.claude/settings.json", "config/mux/commands.json" })
+                {
+                    using MemoryStream bytes = new MemoryStream();
+                    using (ZipArchive archive = new ZipArchive(bytes, ZipArchiveMode.Create, true))
+                    using (StreamWriter writer = new StreamWriter(archive.CreateEntry(name).Open())) await writer.WriteAsync("poison").ConfigureAwait(false);
+                    bytes.Position = 0;
+                    RunDirectories destination = new RunDirectories(root, Guid.NewGuid().ToString("N"));
+                    bool refused = false;
+                    try { await new WorkspaceSnapshot { IncludeSession = false }.RestoreAsync(bytes, destination, token).ConfigureAwait(false); }
+                    catch (IOException) { refused = true; }
+                    Assert.True(refused && !Directory.Exists(destination.Root), "Prepared restore rejects private state before atomic publication");
+                }
+                RunAssignment assignment = new RunAssignment { SnapshotUploader = (_, _, _) => throw new InvalidOperationException("private-node-credential") };
+                string serialized = Serializer.Serialize(assignment);
+                Assert.True(!serialized.Contains("SnapshotUploader", StringComparison.OrdinalIgnoreCase) && !serialized.Contains("private-node-credential", StringComparison.Ordinal), "Private transport never enters wire spec");
+                assignment.Spec.Artifacts = new ExecutionArtifacts(); assignment.SnapshotUploader = null;
+                bool noFallback = false;
+                try { await ArtifactUploader.StoreSnapshotAsync(assignment, Array.Empty<byte>(), token).ConfigureAwait(false); }
+                catch (IOException) { noFallback = true; }
+                Assert.True(noFallback, "Missing private transport does not fall back to harness run credential");
+            }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        }
+
+        private static async Task InternalUploadAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using TestServerHost host = await TestServerHost.StartAsync(provider, token: token).ConfigureAwait(false);
+            DatabaseDriverBase db = host.Server.Context.Database;
+            ArtifactStore store = await db.ArtifactStores.CreateAsync(new ArtifactStore { TenantId = host.TenantId, Name = "internal-node", Kind = ArtifactStoreKindEnum.Database }, token).ConfigureAwait(false);
+            WorkspaceTemplate workspace = await db.WorkspaceTemplates.CreateAsync(new WorkspaceTemplate { TenantId = host.TenantId, Name = "internal-work", Kind = WorkspaceKindEnum.GitRepository, GitUrl = "https://example.invalid/repo.git", GitRef = new string('a', 40) }, token).ConfigureAwait(false);
+            Deployment deployment = await db.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, AgentId = "agt_internal", Name = "internal-node", SuspensionEnabled = true, ArtifactStoreId = store.Id, WorkspaceTemplateId = workspace.Id, ArtifactGlobs = new List<string> { "**/*" } }, token).ConfigureAwait(false);
+            Node node = await db.Nodes.CreateAsync(new Node { Name = "internal-node" }, token).ConfigureAwait(false);
+            Run run = await db.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = deployment.AgentId, DeploymentId = deployment.Id, CallerType = PrincipalTypeEnum.Administrator, Status = RunStatusEnum.Running, LeaseEpoch = 3, LeaseNodeId = node.Id, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
+            string runToken = await host.Server.Context.Authentication.IssueForRunAsync(run, run.LeaseEpoch, DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false);
+            using HttpClient harness = new HttpClient { BaseAddress = new Uri(host.BaseUrl) };
+            harness.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", runToken);
+            string name = ".garrison/prepared-" + WorkspaceCacheKey.For(host.TenantId, workspace, null) + ".zip";
+            string suffix = "?tenantId=" + host.TenantId + "&nodeId=" + node.Id + "&storeId=" + store.Id + "&name=" + Uri.EscapeDataString(name) + "&epoch=3&repairAttempt=0";
+            string publicPath = "/v1.0/api/tenants/" + host.TenantId + "/runs/" + run.Id + "/artifacts" + suffix;
+            string nodePath = "/v1.0/api/node/runs/" + run.Id + "/artifacts" + suffix;
+            foreach (HttpClient client in new[] { harness, host.AdminClient })
+            {
+                using HttpResponseMessage denied = await client.PostAsync(publicPath, new ByteArrayContent(new byte[] { 1 }), token).ConfigureAwait(false);
+                Assert.Equal(400, (int)denied.StatusCode, "All public credentials reject reserved namespace");
+            }
+            using (HttpResponseMessage denied = await harness.PostAsync(nodePath, new ByteArrayContent(new byte[] { 1 }), token).ConfigureAwait(false)) Assert.True((int)denied.StatusCode >= 400, "Run bearer has no private node upload privilege");
+            using (HttpResponseMessage wrong = await host.AdminClient.PostAsync(nodePath.Replace("nodeId=" + node.Id, "nodeId=nod_wrong", StringComparison.Ordinal), new ByteArrayContent(new byte[] { 1 }), token).ConfigureAwait(false)) Assert.Equal(409, (int)wrong.StatusCode, "Wrong node cannot commit archive");
+            using (HttpResponseMessage invalid = await host.AdminClient.PostAsync(nodePath.Replace(Uri.EscapeDataString(name), Uri.EscapeDataString(".garrison/prepared-wrong.zip"), StringComparison.Ordinal), new ByteArrayContent(new byte[] { 1 }), token).ConfigureAwait(false)) Assert.Equal(400, (int)invalid.StatusCode, "Cache identity must match deployment immutable workspace");
+            using (HttpResponseMessage accepted = await host.AdminClient.PostAsync(nodePath, new ByteArrayContent(new byte[] { 1 }), token).ConfigureAwait(false)) Assert.Equal(201, (int)accepted.StatusCode, "Owning node may upload exact prepared state");
+            run.LeaseExpiresUtc = DateTime.UtcNow.AddSeconds(-1); await db.Runs.UpdateAsync(run, token).ConfigureAwait(false);
+            using (HttpResponseMessage expired = await host.AdminClient.PostAsync(nodePath, new ByteArrayContent(new byte[] { 1 }), token).ConfigureAwait(false)) Assert.Equal(409, (int)expired.StatusCode, "Expired lease rejects even matching retry");
+            Artifact stale = new Artifact { TenantId = run.TenantId, RunId = run.Id, ArtifactStoreId = store.Id, Name = ".garrison/continuation.zip", LeaseEpoch = 3 };
+            Assert.True(await db.Artifacts.CreateForExecutionAsync(stale, null, token, node.Id).ConfigureAwait(false) == null, "Database commit independently fences expired node lease");
         }
 
         private static async Task SelectionAsync(CancellationToken token)
@@ -114,6 +182,52 @@ namespace Test.Shared.Suites
                 artifact.RepairAttempt = 2; run.CancelRequested = true; await db.Runs.UpdateAsync(run, token).ConfigureAwait(false);
                 Assert.True(await db.Artifacts.CreateForExecutionAsync(artifact, null, token).ConfigureAwait(false) == null, "Cancellation refuses metadata");
                 Assert.True(await db.Artifacts.ReadAsync(run.TenantId, artifact.Id, token).ConfigureAwait(false) == null, "Rejected upload leaves no row");
+            }
+        }
+
+        private static async Task PreparedWorkspaceAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            if (OperatingSystem.IsWindows()) return;
+            await using (LocalGitFixture fixture = await LocalGitFixture.CreateAsync(token).ConfigureAwait(false))
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                string api = "/v1.0/api/tenants/" + host.TenantId;
+                ArtifactStore store = await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, api + "/artifact-stores", new ArtifactStore { Name = "prepared-cache", Kind = ArtifactStoreKindEnum.Database }, 201, token).ConfigureAwait(false);
+                WorkspaceTemplate workspace = await HttpTestHelpers.SendAsync<WorkspaceTemplate>(host.AdminClient, HttpMethod.Post, api + "/workspace-templates", new WorkspaceTemplate { Name = "immutable-git", Kind = WorkspaceKindEnum.GitRepository, GitUrl = fixture.Url, GitRef = fixture.Commit, GitDepth = 0 }, 201, token).ConfigureAwait(false);
+                Agent agent = await cluster.CreateAgentAsync("prepared-workspace", token: token, configureDeployment: deployment =>
+                {
+                    deployment.WorkspaceTemplateId = workspace.Id;
+                    deployment.ArtifactStoreId = store.Id;
+                    deployment.ArtifactGlobs.Add("payload.txt");
+                    foreach (string name in new[] { "GIT_SSH_COMMAND", "GIT_SSH_VARIANT" }) deployment.EnvironmentOverrides.Add(new DeploymentEnvironmentOverride { Name = name, ValueTemplate = fixture.Environment[name] });
+                }).ConfigureAwait(false);
+                string expectedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("immutable payload\n"))).ToLowerInvariant();
+                for (int attempt = 0; attempt < 2; attempt++)
+                {
+                    if (attempt == 1)
+                    {
+                        await cluster.Workers[0].StopAsync(token).ConfigureAwait(false);
+                        await cluster.AddWorkerAsync("prepared-other-node", token).ConfigureAwait(false);
+                    }
+                    Run run = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, api + "/agents/" + agent.Id + "/invoke", new InvokeRequest { Input = "workspace", Wait = true, WaitSeconds = 30 }, 200, token).ConfigureAwait(false);
+                    Assert.Equal(RunStatusEnum.Succeeded, run.Status, "Workspace run succeeds: " + run.ErrorMessage);
+                    EnumerationResult<Artifact> rows = await HttpTestHelpers.SendAsync<EnumerationResult<Artifact>>(host.AdminClient, HttpMethod.Get, api + "/runs/" + run.Id + "/artifacts", null, 200, token).ConfigureAwait(false);
+                    Artifact payload = rows.Objects.Single(artifact => artifact.Name == "payload.txt");
+                    Assert.Equal(expectedHash, payload.Sha256, "Cold and prepared workspaces preserve exact committed file bytes");
+                    if (attempt == 0)
+                    {
+                        EnumerationResult<Artifact> internalRows = await host.Server.Context.Database.Artifacts.EnumerateAsync(host.TenantId, new EnumerationQuery { MaxResults = 100 }, run.Id, token: token, includeInternal: true).ConfigureAwait(false);
+                        Artifact checkpoint = internalRows.Objects.Single(artifact => artifact.Name.StartsWith(".garrison/prepared-", StringComparison.Ordinal));
+                        Assert.True(!rows.Objects.Any(artifact => artifact.Id == checkpoint.Id), "Internal cache archive is absent from ordinary artifact listings");
+                        using (HttpResponseMessage forbidden = await host.AdminClient.GetAsync(api + "/artifacts/" + checkpoint.Id + "/content", token).ConfigureAwait(false)) Assert.Equal(404, (int)forbidden.StatusCode, "Even administrators cannot retrieve internal archives through public artifact routes");
+                    }
+                    else
+                    {
+                        Garrison.Core.Responses.RunEventsResponse events = await HttpTestHelpers.SendAsync<Garrison.Core.Responses.RunEventsResponse>(host.AdminClient, HttpMethod.Get, api + "/runs/" + run.Id + "/events", null, 200, token).ConfigureAwait(false);
+                        Assert.True(events.Events.Any(entry => entry.Code == "WorkspaceCacheHit"), "Another node used the artifact cache instead of cloning");
+                    }
+                }
             }
         }
 

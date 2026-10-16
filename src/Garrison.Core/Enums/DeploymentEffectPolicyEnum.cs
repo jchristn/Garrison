@@ -22,8 +22,8 @@ namespace Garrison.Core.Enums
         AtLeastOnce = 1,
 
         /// <summary>
-        /// Requeue only when every effect went through Garrison's effect journal and none has an unknown outcome
-        /// (plan P12.33). The journal does not exist yet, so today this behaves exactly like AtMostOnce.
+        /// Requeue only from a trusted known-coverage checkpoint before any effect was dispatched. Unknown shell or
+        /// network coverage, unresolved dispatches, and completed effects without resumable state fail closed.
         /// </summary>
         Journaled = 2
     }

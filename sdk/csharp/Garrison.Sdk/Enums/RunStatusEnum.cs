@@ -53,6 +53,9 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Rejected.
         /// </summary>
-        Rejected
+        Rejected,
+
+        /// <summary>Durable checkpoint stored; no lease or worker slot is held.</summary>
+        Suspended
     }
 }

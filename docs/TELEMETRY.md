@@ -38,7 +38,7 @@ If the pipeline cannot start at all, for example because the scrape port is take
 
 Every Garrison metric lives on one OpenTelemetry meter named `Garrison`, declared in a single catalog (`GarrisonMetricCatalog` in `src/Garrison.Core/Telemetry`) with its type, unit, labels, histogram buckets, the process that emits it, and the Grafana dashboard that charts it. The catalog is the source of the table in the [coverage matrix](#coverage-matrix) below, and a test fails when a metric is added without a row there or without a panel on its dashboard.
 
-Prometheus names are the OpenTelemetry names with dots replaced by underscores, `_total` on counters, and `_seconds` or `_bytes` on histograms measured in seconds or bytes (`garrison.run.stage.duration` becomes `garrison_run_stage_duration_seconds_bucket`). Every series also carries `otel_scope_name="Garrison"` and the scrape labels `component` (`server`, `worker`), `node`, `pod`, `namespace`, and `pool`.
+Prometheus names are the OpenTelemetry names with dots replaced by underscores, `_total` on counters, and `_seconds` or `_bytes` on histograms measured in seconds or bytes (`garrison.run.stage.duration` becomes `garrison_run_stage_duration_seconds_bucket`). Every series also carries `otel_scope_name="Garrison"` and the scrape label `process_component` (`server`, `worker`), `node`, `pod`, `namespace`, and `pool`.
 
 Per-run metrics carry five labels, on the server and on the worker:
 
@@ -56,7 +56,7 @@ Requests the client abandoned before the answer, such as a worker dropping its c
 
 #### Cardinality
 
-Labels never carry run IDs, user IDs, raw paths, or free text. REST metrics use the route template Watson matched (`/v1.0/api/tenants/{tenantId}/runs/{id}`), never the raw path. The labels that grow with your data (tenant, agent, deployment, model, MCP tool, database table, error type) pass through a guard: each label keeps its first `Telemetry.MaxLabelValues` distinct values (200 by default) and reports any further value as `other`, counting each one in `garrison_telemetry_labels_folded_total{label}`. Empty values are reported as `none`. If that counter moves, raise the limit or look for a label that is not as bounded as it should be. With the defaults a busy cluster stays in the low tens of thousands of series.
+Labels never carry run IDs, user IDs, raw paths, or free text. REST metrics use the route template Watson matched (`/v1.0/api/tenants/{tenantId}/runs/{id}`), never the raw path. The labels that grow with your data (tenant, agent, deployment, model, MCP tool, database table, error type) pass through a guard: each label keeps its first `Telemetry.MaxLabelValues` distinct values (200 by default) and reports any further value as `other`, counting each one in `garrison_telemetry_labels_folded_total{label}`. Empty values are reported as `none`. If that counter moves, raise the limit or look for a label that is not as bounded as it should be. The guard bounds each label independently, not their cross-product; series count still depends on active combinations and histogram buckets. Size retention and collectors using measured cardinality.
 
 #### Exemplars
 
@@ -90,6 +90,8 @@ Counters are created the first time something happens, so a series' first scrape
 | Are all control-plane replicas up? | `max(garrison_control_nodes{status="Ready"})` against the expected replica count, and `GET /v1.0/api/control-nodes` for which one is missing |
 | Is someone guessing credentials? | `garrison_auth_failures_total` by `reason`, `garrison_auth_rate_limited_total` |
 
+Cost metrics contain harness-reported cost or server estimates using operator-configured model rates. Missing prices or usage can leave cost unknown; these counters do not measure infrastructure, database hosting, collector expense or a provider invoice. Worker cost metrics contain reported harness cost, while server completion can add a configured estimate.
+
 ### Worker metrics
 
 Workers publish their own metrics through the same pipeline, configured by the `Telemetry` block in `garrison-worker.json` (service name `garrison-worker`, Prometheus on port 9465 at `/metrics`) and the environment variables `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT`, and `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES`. Worker metrics are the `garrison_worker_*` rows of the catalog; every call a worker makes to the control plane is also an outbound call, `garrison_outbound_duration_seconds{service="control_plane", operation="lease"}` and so on, and its Kubernetes API calls are `service="kubernetes"`.
@@ -122,7 +124,7 @@ queued --> leased --> process start --> first output --> last output --> exit --
 | `delegationWaitMs` | How long the run waited on runs it delegated to: every run whose `parentRunId` is this run contributes its lifetime from creation to finish, the intervals are merged so children that ran in parallel count once, and the result is clipped to this run's execution (started to completion received). 0 for a run that delegated nothing. | Server, from the child runs' `createdUtc`, `queuedUtc`, and `totalMs`, when the parent's completion arrives. |
 | `timeToFirstTokenExcludingDelegationMs` | `timeToFirstTokenMs` minus the part of the delegation wait that happened before the first model output, never negative. | Server. The first output is placed at the parent's `startedUtc` plus `timeToFirstTokenMs`, so only server timestamps are compared. |
 
-Durations measured by the worker never mix clocks, so they are exact even when the worker's and server's clocks disagree. Durations the server computes use only server timestamps for the same reason. A value that could not be measured is `null`: a harness that never started has no timings, one that was killed before it produced output has `executionMs` but no `timeToFirstTokenMs`, and runs that finished before schema migration 2 have only `queueMs` and `totalMs`, derived from their stored timestamps.
+Durations measured by the worker never mix clocks, so they avoid cross-host clock skew even when the worker's and server's clocks disagree. Durations the server computes use only server timestamps for the same reason. A value that could not be measured is `null`: a harness that never started has no timings, one that was killed before it produced output has `executionMs` but no `timeToFirstTokenMs`, and runs that finished before schema migration 2 have only `queueMs` and `totalMs`, derived from their stored timestamps.
 
 `timeToFirstTokenMs` deliberately stays the time to the first real model output. An agent that starts by calling `garrison_invoke_agent` and writes nothing until the child answers has a TTFT close to its whole run; `delegationWaitMs` shows how much of that was waiting, and `timeToFirstTokenExcludingDelegationMs` lets a chart compare it with agents that answer directly. Analytics reports `delegationWaitMsAvg` and the average, p50, and p95 of the excluded TTFT. Runs that finished before schema migration 4 have `null` for both.
 
@@ -289,7 +291,7 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 
 | What | Why |
 |---|---|
-| Remote A2A agents as outbound calls | Invoking remote agents is not implemented yet (plan Phase 12); the outbound handler covers them once it is |
+| Dedicated remote-executor HTTP/MCP stage measurements | Remote A2A/MCP execution is implemented and reports normalized run events and worker execution outcomes. `RemoteRunExecutor` uses address-policy-guarded clients; it does not currently add the same per-stage outbound measurements as the node-protocol handler. Do not infer remote call-stage coverage from the node-protocol metrics |
 | OTLP export outcomes | Radiant does not expose exporter results; its diagnostics are counted in `garrison_telemetry_diagnostics_total` and logged |
 | Spans inside KubernetesJob run pods | Run pods have no network path to the collector by design; their log lines carry `run=` and `trace=` |
 | Database statement spans outside a trace | Background polling would create a root span per query; the statements are still timed in `garrison_db_operation_duration_seconds` |
@@ -330,6 +332,11 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_http_requests_total` | counter | `method`, `route`, `status_code`, `status_class`, `tenant` | server | garrison-http | REST requests handled, by route template (never the raw path), method, status, and tenant. Requests the client abandoned (a worker dropping its cancellation watch, a closed browser tab) have status_code 499 and status_class aborted, never 5xx |
 | `garrison_http_requests_in_flight` | gauge | none | server | garrison-http | REST requests being handled right now, including long polls and streams |
 | `garrison_http_response_size_bytes` | histogram, bytes | `method`, `route` | server | garrison-http | Response body size (0 for streamed responses) |
+| `garrison_synchronous_wait_admission_total` | counter | `result` | server | garrison-http | Synchronous wait admission, accepted asynchronous fallback, or fail-fast delegation denial protecting worker protocol request capacity |
+| `garrison_synchronous_waiters` | gauge | none | server | garrison-http | Active synchronous invocation waiters admitted by the shared request budget |
+| `garrison_application_operation_duration_seconds` | histogram, seconds | `component`, `operation`, `result` | server and worker | garrison-integrations | Application stage wall time; use nested traces to separate database, admission and outbound work |
+| `garrison_application_operations_total` | counter | `component`, `operation`, `result` | server and worker | garrison-integrations | Application stage completions including errors and cancellations; labels contain no run identifiers or input |
+| `garrison_gateway_overhead_duration_seconds` | histogram, seconds | `mode`, `result` | server | garrison-integrations | Gateway-owned elapsed time excluding awaited tool dispatch; includes authorization, database statements and lock waits |
 | `garrison_observability_reachable` | gauge | `service` | server | garrison-integrations | 1 when the server's last probe reached the observability service (Grafana, Prometheus, Loki, Tempo), 0 when not; absent when not configured |
 | `garrison_outbound_duration_seconds` | histogram, seconds | `service`, `operation`, `result` | server, worker | garrison-integrations | Outbound call duration |
 | `garrison_outbound_requests_total` | counter | `service`, `operation`, `result` | server, worker | garrison-integrations | Outbound calls (MCP server tests, A2A remote agents, observability probes, metrics relay, MCP proxying, Kubernetes API) by result (ok, error, status class) |
@@ -430,6 +437,7 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_worker_runs_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `model`, `outcome` | worker | garrison-workers | Runs this worker finished |
 | `garrison_worker_runs_active` | gauge | none | worker | garrison-workers | Runs in progress on this worker |
 | `garrison_worker_slots_free` | gauge | none | worker | garrison-workers | Free run slots on this worker |
+| `garrison_worker_workspace_cache_total` | counter | `tenant`, `agent`, `deployment`, `cache`, `result` | worker | garrison-workers | Workspace cache lookups, split by git mirror or prepared archive and hit or miss |
 <!-- /telemetry-coverage:metrics -->
 
 ### REST routes
@@ -458,6 +466,7 @@ Every route registers through the route registrar, which records it in the opera
 | POST | `/v1.0/api/node/heartbeat` | `route="/v1.0/api/node/heartbeat"` | `POST /v1.0/api/node/heartbeat` | `route=/v1.0/api/node/heartbeat` | garrison-http, garrison-workers |
 | POST | `/v1.0/api/node/lease` | `route="/v1.0/api/node/lease"` | `POST /v1.0/api/node/lease` | `route=/v1.0/api/node/lease` | garrison-http, garrison-workers, garrison-scheduler |
 | POST | `/v1.0/api/node/register` | `route="/v1.0/api/node/register"` | `POST /v1.0/api/node/register` | `route=/v1.0/api/node/register` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/runs/{runId}/artifacts` | `route="/v1.0/api/node/runs/{runId}/artifacts"` | `POST /v1.0/api/node/runs/{runId}/artifacts` | `route=/v1.0/api/node/runs/{runId}/artifacts` | garrison-http, garrison-workers |
 | POST | `/v1.0/api/node/runs/{runId}/complete` | `route="/v1.0/api/node/runs/{runId}/complete"` | `POST /v1.0/api/node/runs/{runId}/complete` | `route=/v1.0/api/node/runs/{runId}/complete` | garrison-http, garrison-workers |
 | POST | `/v1.0/api/node/runs/{runId}/events` | `route="/v1.0/api/node/runs/{runId}/events"` | `POST /v1.0/api/node/runs/{runId}/events` | `route=/v1.0/api/node/runs/{runId}/events` | garrison-http, garrison-workers |
 | POST | `/v1.0/api/node/runs/{runId}/started` | `route="/v1.0/api/node/runs/{runId}/started"` | `POST /v1.0/api/node/runs/{runId}/started` | `route=/v1.0/api/node/runs/{runId}/started` | garrison-http, garrison-workers |
@@ -479,6 +488,7 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/api/settings` | `route="/v1.0/api/settings"` | `GET /v1.0/api/settings` | `route=/v1.0/api/settings` | garrison-http |
 | PUT | `/v1.0/api/settings` | `route="/v1.0/api/settings"` | `PUT /v1.0/api/settings` | `route=/v1.0/api/settings` | garrison-http |
 | POST | `/v1.0/api/settings/database/test` | `route="/v1.0/api/settings/database/test"` | `POST /v1.0/api/settings/database/test` | `route=/v1.0/api/settings/database/test` | garrison-http |
+| POST | `/v1.0/api/settings/keys/rotate` | `route="/v1.0/api/settings/keys/rotate"` | `POST /v1.0/api/settings/keys/rotate` | `route=/v1.0/api/settings/keys/rotate` | garrison-http |
 | POST | `/v1.0/api/settings/restart` | `route="/v1.0/api/settings/restart"` | `POST /v1.0/api/settings/restart` | `route=/v1.0/api/settings/restart` | garrison-http |
 | GET | `/v1.0/api/tenants` | `route="/v1.0/api/tenants"` | `GET /v1.0/api/tenants` | `route=/v1.0/api/tenants` | garrison-http |
 | POST | `/v1.0/api/tenants` | `route="/v1.0/api/tenants"` | `POST /v1.0/api/tenants` | `route=/v1.0/api/tenants` | garrison-http |
@@ -617,8 +627,11 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}` | garrison-http, garrison-runs |
 | POST | `/v1.0/api/tenants/{tenantId}/runs/{id}/cancel` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/cancel"` | `POST /v1.0/api/tenants/{tenantId}/runs/{id}/cancel` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/cancel` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/children` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/children"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/children` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/children` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/database-usage` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/database-usage"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/database-usage` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/database-usage` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/events` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/events"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/events` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/operations` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/operations"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/operations` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/operations` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/placement` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/placement"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/placement` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/placement` | garrison-http, garrison-runs |
 | POST | `/v1.0/api/tenants/{tenantId}/runs/{id}/retry` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/retry"` | `POST /v1.0/api/tenants/{tenantId}/runs/{id}/retry` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/retry` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/transcript` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/transcript"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/transcript` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/transcript` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | `route="/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts"` | `GET /v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | `route=/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | garrison-http, garrison-runs |
@@ -718,6 +731,9 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_list_runs` | `tool="garrison_list_runs"` | `mcp garrison_list_runs` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_trigger_fires` | `tool="garrison_list_trigger_fires"` | `mcp garrison_list_trigger_fires` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_triggers` | `tool="garrison_list_triggers"` | `mcp garrison_list_triggers` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_memory_delete` | `tool="garrison_memory_delete"` | `mcp garrison_memory_delete` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_memory_read` | `tool="garrison_memory_read"` | `mcp garrison_memory_read` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_memory_write` | `tool="garrison_memory_write"` | `mcp garrison_memory_write` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_permission_prompt` | `tool="garrison_permission_prompt"` | `mcp garrison_permission_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_rotate_notification_endpoint_secret` | `tool="garrison_rotate_notification_endpoint_secret"` | `mcp garrison_rotate_notification_endpoint_secret` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_rotate_trigger_secret` | `tool="garrison_rotate_trigger_secret"` | `mcp garrison_rotate_trigger_secret` | `[Mcp]` lines, `tenant=` | garrison-protocols |
@@ -763,6 +779,32 @@ Request history capture can be turned off with the `RequestHistory.Enabled` clus
 
 ## Kubernetes
 
-The Helm chart and Kustomize base annotate the server and worker pods with `prometheus.io/scrape: "true"`, `prometheus.io/path: /metrics`, and `prometheus.io/port` set to the metrics listener: 9464 on the server and 9465 on workers. The pods bind those listeners to their pod IP (`GARRISON_PROMETHEUS_HOSTNAME` and `GARRISON_WORKER_PROMETHEUS_HOSTNAME` from `status.podIP`), so a Prometheus that honors the annotations and scrapes pod IPs finds every replica. `/metrics` is not served on 8700 or 8710 (`Telemetry.ServeMetricsOnServicePort` is false). The packaged observability stack (Prometheus, Grafana with the Garrison dashboards, Tempo, Loki, and Grafana Alloy) lives in `k8s/components/observability`; `docs/KUBERNETES.md` covers the overlays that enable it, and `docs/DOCKER.md` the Compose profile.
+The Helm chart and Kustomize base annotate the server and worker pods with `prometheus.io/scrape: "true"`, `prometheus.io/path: /metrics`, and `prometheus.io/port` set to the metrics listener: 9464 on the server and 9465 on workers. The pods bind those listeners to their pod IP (`GARRISON_PROMETHEUS_HOSTNAME` and `GARRISON_WORKER_PROMETHEUS_HOSTNAME` from `status.podIP`), so a Prometheus that honors the annotations and scrapes pod IPs finds every replica. `/metrics` is not served on 8700 or 8710 (`Telemetry.ServeMetricsOnServicePort` is false). The packaged observability stack (Prometheus, Grafana with the Garrison dashboards, Tempo, Loki, and Grafana Alloy) lives in `k8s/components/observability`; `docs/KUBERNETES.md` covers the overlays that enable it, and `docs/DOCKER.md` the default Compose observability services.
 
 The packaged Grafana is configured mostly through `GF_*` environment variables. Settings that have no environment override, such as feature toggles, live in `k8s/components/observability/config/grafana.ini` (mirrored in the Helm chart as `files/observability/grafana.ini`), mounted as `/etc/grafana/grafana.ini` by Kustomize, Helm, and Docker Compose. It turns off the Grafana 13 `splashScreen` feature toggle, so nobody is shown the "What's new in Grafana" announcement (the Grafana Assistant slide) on first sign-in. Without it the announcement would come back after every pod restart, because Grafana's database is not persisted. The news feed, usage reporting, and update checks are off through `GF_NEWS_NEWS_FEED_ENABLED`, `GF_ANALYTICS_REPORTING_ENABLED`, `GF_ANALYTICS_CHECK_FOR_UPDATES`, and `GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES`. Count panels over the selected range (run outcomes, harness availability problems, HTTP requests and errors) round `increase()` to whole numbers.
+
+Workspace cache lookups use `garrison.worker.workspace.cache` (counter, `{request}`), with `tenant`, `agent`, `deployment`, `cache` (`mirror` or `prepared`), and `result` (`hit` or `miss`). The worker dashboard charts the hit rate per deployment. Workspace stage duration includes preparation or snapshot download.
+
+### Replaceable agent memory (D-062)
+
+| MCP tool | Metrics | Span | Logs | Grafana |
+|---|---|---|---|---|
+| `garrison_memory_read` | `tool="garrison_memory_read"`; application operation component=memory, operation=read | `mcp garrison_memory_read`, nested memory stage | `[Mcp]` outcome; never memory text | garrison-protocols |
+| `garrison_memory_write` | `tool="garrison_memory_write"`; application operation component=memory, operation=write | `mcp garrison_memory_write`, nested memory stage | `[Mcp]` outcome; never memory text | garrison-protocols |
+| `garrison_memory_delete` | `tool="garrison_memory_delete"`; application operation component=memory, operation=delete | `mcp garrison_memory_delete`, nested memory stage | `[Mcp]` outcome; never memory text | garrison-protocols |
+
+Worker application stages emit `garrison_application_operation_duration_seconds` and `garrison_application_operations_total` with bounded component/operation/result dimensions: `workspace` prepare/git-clone/git-mirror; `snapshot` capture/restore/upload/download-headers/download-body. Snapshot download-headers measures response-header latency; download-body measures bounded archive streaming. Capture/restore include archive processing. No paths, URLs, keys, tokens or file content are stage labels.
+
+## Application stages and run database attribution
+
+`ApplicationOperation.MeasureAsync` emits nested `stage:<component>:<operation>` spans and the `garrison_application_operations_total` and `garrison_application_operation_duration_seconds` families. Components and operations are fixed in code; neither metric carries run IDs, keys, input, URLs or credential values. Outcomes include `ok`, `error` and `cancelled`, including exceptions caught by outer layers. Error traces contain exception types without exception messages. Listener failures are isolated from application results.
+
+Stages cover scheduler refresh/candidate SQL/tenant weights/placement/claim/compile, gateway session and lease checks plus journal authorization/dispatch/completion, broker issuance/revocation with outbound HTTP instrumentation, continuation checkpoint/resume work, workspace preparation/Git clone/mirror, snapshot capture/restore/upload/download, and memory read/write/delete. Existing HTTP, harness, pipeline, database, outbound integration and background metrics continue alongside these finer stages.
+
+`garrison_gateway_overhead_duration_seconds{mode="run"}` measures gateway-owned fencing and journal wall time. It excludes awaited tool execution, child admission inside the dispatched tool, HTTP transport, and attribution flush. It includes gateway database and lock waits. `mode="operator"` separates operator calls. There is no fixed 5 ms SLO or acceptance threshold. This is the metric to profile before assigning an intrinsic-overhead budget; full MCP request latency answers a different question. The Integrations dashboard charts these stages and intrinsic gateway p99; the HTTP dashboard charts synchronous-wait admission/fallback and active waiters.
+
+The run `database-usage` endpoint reports actual SQL attempts attributed through async-local scopes with atomic counters. Unrelated execution contexts are excluded, nested same-run stages count once, and different child runs get separate scopes. See [REST API](../REST_API.md#per-run-database-attribution) for response fields and exclusions. The load harness can collect these rows after the measured window with `--database-attribution true`; it reports observed and missing completion scopes separately from server-wide database-cost estimates. Only completed instrumented scopes are represented. Shared candidate scans, candidate eligibility prechecks before atomic claim, heartbeats, maintenance, request history and attribution persistence are excluded. A process crash or failed flush can leave incomplete telemetry, so it is unsuitable for financial accounting.
+
+The default Compose stack now starts all five observability services and enables server/worker OTLP export. The explicit observability overlay remains compatible with older commands. Collector acceptance and evidence are documented in [D062 telemetry validation](testing/D062_TELEMETRY.md).
+
+Packaged Prometheus jobs use `honor_labels: true` so application `component` values such as `gateway` and `memory` survive target labels. `process_component` retains the scrape target's server/worker identity. Custom scrape configurations must preserve the same distinction; otherwise Prometheus renames the application label to `exported_component` and stage queries no longer match.

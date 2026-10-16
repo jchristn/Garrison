@@ -13,6 +13,7 @@
   "killGraceSeconds": 5,
   "isolateHome": true,
   "supportsResume": true,
+  "sessionFormat": "garrison-provider-history-json-v1",
   "arguments": [
     {
       "template": "--config"

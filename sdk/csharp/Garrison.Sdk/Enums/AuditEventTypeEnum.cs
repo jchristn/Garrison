@@ -111,23 +111,26 @@ namespace Garrison.Sdk.Enums
         ConversationDeleted,
 
         /// <summary>
-        /// A person decided a permission approval.
+        /// A person decided a permission approval (P12.3).
         /// </summary>
         ApprovalDecided,
 
         /// <summary>
-        /// A person decided a pipeline stage review.
+        /// A person decided a pipeline stage review (P12.9).
         /// </summary>
         PipelineReviewDecided,
 
         /// <summary>
-        /// A pipeline run was cancelled.
+        /// A pipeline run was cancelled (P12.9).
         /// </summary>
         PipelineRunCancelled,
 
         /// <summary>
-        /// A trigger or notification endpoint signing secret was rotated.
+        /// A trigger or notification endpoint signing secret was rotated (P12.5, P12.14).
         /// </summary>
-        SigningSecretRotated
+        SigningSecretRotated,
+
+        /// <summary>A queued-run depth limit refused admission.</summary>
+        QueueFull
     }
 }

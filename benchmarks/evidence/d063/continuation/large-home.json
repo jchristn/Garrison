@@ -1,0 +1,13 @@
+{
+  "payloadBytes": 83886080,
+  "archiveBytes": 88474189,
+  "uncompressedBytes": 83886374,
+  "configuredMaxFileBytes": 100663296,
+  "catalogSha256": "d6fb6c3062620e065a99ff76cf17a4cff276b5bc0ba40aaeb94f6cbb76a9bd41",
+  "archiveSha256": "16c4207076774340a362c30bacc3a4f4aec620ca4a994844e2c27aff4af6c017",
+  "workerDefaultRejected": true,
+  "serverDefaultRejected": true,
+  "serverDefaultRejectionPath": "ArtifactService.UploadInternalAsync",
+  "replacementRoundtrip": true,
+  "failedRestoreCleaned": true
+}

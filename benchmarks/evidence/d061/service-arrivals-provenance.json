@@ -1,0 +1,11 @@
+{
+  "source": "CreatedUtc records from the isolated Garrison PostgreSQL service during this benchmark, not external production traffic",
+  "sourceWindowUtc": [
+    "2026-10-16T14:35:00Z",
+    "2026-10-16T14:36:00Z"
+  ],
+  "sourceWorkload": "D061 three-replica ten-thousand-run tier, 25 runs/s, deterministic fake harness",
+  "count": 1497,
+  "sha256": "01a319e3ca82d783d9366ec956a4e149be74a31c54ca3ddc1f0223e1c439fbbd",
+  "transformation": "Milliseconds relative to source window start, rounded to nearest millisecond; each row is one admitted service request; timestamps preserved in order."
+}

@@ -61,7 +61,7 @@ namespace Test.Shared.Infrastructure
 
         #region Private-Members
 
-        private readonly string _Target;
+        private string _Target;
         private readonly Webserver _Server;
         private readonly HttpClient _Client = new HttpClient();
         private int _Partitioned = 0;
@@ -102,6 +102,14 @@ namespace Test.Shared.Infrastructure
             Interlocked.Exchange(ref _Partitioned, 1);
         }
 
+        /// <summary>Retarget the simulated load balancer to another control-plane replica.</summary>
+        /// <param name="targetBaseUrl">New upstream base URL.</param>
+        public void Retarget(string targetBaseUrl)
+        {
+            if (String.IsNullOrWhiteSpace(targetBaseUrl)) throw new ArgumentNullException(nameof(targetBaseUrl));
+            Volatile.Write(ref _Target, targetBaseUrl.TrimEnd('/'));
+        }
+
         /// <summary>
         /// Reconnect the worker.
         /// </summary>
@@ -134,7 +142,7 @@ namespace Test.Shared.Infrastructure
             }
 
             string path = context.Request.Url.RawWithQuery;
-            using (HttpRequestMessage request = new HttpRequestMessage(new System.Net.Http.HttpMethod(context.Request.Method.ToString()), _Target + path))
+            using (HttpRequestMessage request = new HttpRequestMessage(new System.Net.Http.HttpMethod(context.Request.Method.ToString()), Volatile.Read(ref _Target) + path))
             {
                 byte[]? body = context.Request.DataAsBytes;
                 if (body != null && body.Length > 0)

@@ -9,6 +9,13 @@ namespace Garrison.Sdk.Compilation
     /// </summary>
     public class ExecutionWorkspace
     {
+        /// <summary>Prepared workspace cache key for an immutable commit.</summary>
+        public string? CacheKey { get; set; } = null;
+        /// <summary>Signed prepared archive URL, or null on a cache miss.</summary>
+        public string? DownloadUrl { get; set; } = null;
+        /// <summary>Expected archive SHA-256.</summary>
+        public string? Sha256 { get; set; } = null;
+
         /// <summary>
         /// Kind.
         /// </summary>

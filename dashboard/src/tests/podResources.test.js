@@ -46,7 +46,7 @@ describe('form conversion', () => {
 
 describe('labels', () => {
   it('names the executors, the PersistentVolume workspace kind, and the PodFailed outcome in every locale', () => {
-    expect(ENUMS.runExecutor).toEqual(['Process', 'KubernetesJob']);
+    expect(ENUMS.runExecutor).toEqual(['Process', 'KubernetesJob', 'RemoteA2A', 'RemoteMcp']);
     expect(ENUMS.workspaceKind).toContain('PersistentVolume');
     expect(ENUMS.runOutcome).toContain('PodFailed');
     expect(enumLabel(en, 'runExecutor', 'KubernetesJob')).toBe('Kubernetes Job');

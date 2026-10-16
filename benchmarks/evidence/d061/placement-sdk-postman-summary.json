@@ -1,0 +1,20 @@
+{
+  "items": 370,
+  "requests": 367,
+  "assertions": 570,
+  "failures": 0,
+  "optionalRequestsSkipped": 3,
+  "fixture": "Fresh private SQLite benchmark server37800, two fake CLI workers; existing public development defaults; original deployment untouched",
+  "routesAdded": [
+    "GET /v1.0/api/tenants/{tenantId}/runs/{id}/placement",
+    "GET /v1.0/api/tenants/{tenantId}/runs/{id}/database-usage"
+  ],
+  "sdkCases": {
+    "csharp": 45,
+    "python": 44,
+    "javascript": 45,
+    "go": 45
+  },
+  "sdkConsoles": 4,
+  "providerCasesPassed": 8
+}

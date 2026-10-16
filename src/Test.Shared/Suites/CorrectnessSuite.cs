@@ -546,6 +546,9 @@ namespace Test.Shared.Suites
                     if (OperatingSystem.IsWindows()) locks.Add(new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None));
                     else File.SetUnixFileMode(file, UnixFileMode.None);
                 }
+                // A background request can reopen a pooled handle between the first clear and chmod.
+                // Retire those handles after access is removed so subsequent reads cannot bypass the outage.
+                SqliteConnection.ClearAllPools();
             }
             return locks;
         }

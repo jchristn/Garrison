@@ -70,6 +70,33 @@ namespace Garrison.Sdk.Clients
             return await Transport.SendAsync<Run>(HttpMethod.Post, TenantPath("/runs"), request, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
 
+        /// <summary>Explain current placement without leasing or reserving capacity.</summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Advisory tenant-scoped placement diagnostics.</returns>
+        public async Task<RunPlacementResponse> GetPlacementAsync(string id, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<RunPlacementResponse>(HttpMethod.Get, TenantPath("/runs/" + Segment(id) + "/placement"), token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>Read exact database statement totals from completed run lifecycle scopes.</summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Totals by fixed lifecycle operation, excluding shared polling and telemetry writes.</returns>
+        public async Task<List<RunDatabaseUsage>> GetDatabaseUsageAsync(string id, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<List<RunDatabaseUsage>>(HttpMethod.Get, TenantPath("/runs/" + Segment(id) + "/database-usage"), token: token).ConfigureAwait(false) ?? new List<RunDatabaseUsage>();
+        }
+
+        /// <summary>List gateway effect intent metadata for a run. Result bodies and secrets are excluded.</summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Operations in creation order.</returns>
+        public async Task<List<EffectOperation>> GetOperationsAsync(string id, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<List<EffectOperation>>(HttpMethod.Get, TenantPath("/runs/" + Segment(id) + "/operations"), token: token).ConfigureAwait(false) ?? new List<EffectOperation>();
+        }
+
         /// <summary>
         /// Read a run.
         /// </summary>

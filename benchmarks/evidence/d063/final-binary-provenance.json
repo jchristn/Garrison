@@ -1,0 +1,67 @@
+{
+  "sourceHead": "f64960d78a59a1008a58c4c9aa01825f32bd2325",
+  "workingTreeUncommitted": true,
+  "build": "Full solution Debug net8.0/net10.0; zero warnings/errors; final source including whitespace-only archive-test correction",
+  "artifacts": [
+    {
+      "project": "Garrison.Core",
+      "framework": "net8.0",
+      "sha256": "fcebac768bdab355bdb65a57fea0f16b3499022063b621580e9b7068899cb714"
+    },
+    {
+      "project": "Garrison.Core",
+      "framework": "net10.0",
+      "sha256": "b4295c48906a3470662165077f332c43a226fd68cd3cf96585c68b45922b187c"
+    },
+    {
+      "project": "Garrison.Server",
+      "framework": "net8.0",
+      "sha256": "ad4358f4938dcecbec3af059f9355f165decf86a56676979ea9aa4c1fcabb351"
+    },
+    {
+      "project": "Garrison.Server",
+      "framework": "net10.0",
+      "sha256": "5c049ca3ec77ed26ccc66d77b8875abf8fd83b5211e8838b85c3b87681a86143"
+    },
+    {
+      "project": "Garrison.Worker",
+      "framework": "net8.0",
+      "sha256": "af577eb8ba59d9f2151632fbb3eccfc865442e4b51607aa89403f5ed588e0630"
+    },
+    {
+      "project": "Garrison.Worker",
+      "framework": "net10.0",
+      "sha256": "087937cb25658bfceb6ec788bbd42ba369d00aaeefb445ce2d21cd27def66f12"
+    },
+    {
+      "project": "Garrison.Sdk",
+      "framework": "net8.0",
+      "sha256": "ae8ab766963274de46cae6c20ea13cc999b2fe096ae8f63d77a758ff302248d5"
+    },
+    {
+      "project": "Garrison.Sdk",
+      "framework": "net10.0",
+      "sha256": "5aaa09b8c78d48fd6911ab08379bcf10941c6d832214c3f021f0805ae48cfb4d"
+    },
+    {
+      "project": "Test.Shared",
+      "framework": "net8.0",
+      "sha256": "72c4e631e1f212f677d92a2a3be3244a83d45572ad031f9b797d46b9e52d9364"
+    },
+    {
+      "project": "Test.Shared",
+      "framework": "net10.0",
+      "sha256": "9b7a910cb2c84f29bea0f72848291b0bee84ab2ea371ea0038648fd0974add26"
+    },
+    {
+      "project": "Test.Automated",
+      "framework": "net8.0",
+      "sha256": "5b2f337d5cc714fcd49dcc960c850c757e0662d5670e4f4a98db68c53d7691f2"
+    },
+    {
+      "project": "Test.Automated",
+      "framework": "net10.0",
+      "sha256": "9076c9a97aca167a5cbc38e95b4fcd6bf5a96bb7dd481251f74a8d95d6df0bd4"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "harness": "codex",
+  "version": "codex-cli 0.159.3",
+  "sessionId": "01a14374-ec94-7d70-9c79-46dcf6530821",
+  "originalWorkspace": "/tmp/garrison-session-compat/work",
+  "provider": "offline protocol fixture; no real credentials",
+  "recordedBy": "installed CLI session writer",
+  "sanitization": "Generated system prompts and environment attachments removed; session envelopes and fixture user/assistant history retained; sanitized recordings validated by installed CLI resume",
+  "sessionFormat": "codex-rollout-jsonl-v1"
+}

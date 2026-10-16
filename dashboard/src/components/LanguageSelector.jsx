@@ -20,7 +20,7 @@ export default function LanguageSelector({ compact = false, className = '' }) {
         onChange={(e) => i18n.changeLanguage(e.target.value)}
       >
         {LOCALES.map((l) => (
-          <option key={l.code} value={l.code} lang={l.code} dir={l.dir} data-beta={l.beta ? 'true' : undefined}>
+          <option key={l.code} value={l.code} lang={l.code === 'zz' ? undefined : l.code} dir={l.dir} data-beta={l.beta ? 'true' : undefined}>
             {getLocaleLabel(l.code)}
           </option>
         ))}

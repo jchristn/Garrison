@@ -241,6 +241,73 @@ namespace Garrison.Core.Database.Ado
             v28.BuildVersion28();
             migrations.Add(new SchemaMigration(28, "Cron and webhook triggers, notification endpoints, and the notification outbox", v28._Statements, v28._Columns));
 
+            SchemaBuilder v29 = new SchemaBuilder(catalog, dialect);
+            v29.Table("effect_operations",
+                "id " + dialect.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + dialect.TypeId + " NOT NULL",
+                "runid " + dialect.TypeId + " NOT NULL",
+                "leaseepoch " + "BIGINT" + " NOT NULL",
+                "tool VARCHAR(512) NOT NULL",
+                "argumentdigest VARCHAR(64) NOT NULL",
+                "state VARCHAR(32) NOT NULL",
+                "resultreference VARCHAR(1024)",
+                "createdutc " + dialect.TypeTimestamp + " NOT NULL");
+            v29.Index("effect_operations", "run", false, "tenantid", "runid", "leaseepoch");
+            v29.Table("effect_checkpoints",
+                "tenantid " + dialect.TypeId + " NOT NULL",
+                "runid " + dialect.TypeId + " NOT NULL PRIMARY KEY",
+                "leaseepoch " + "BIGINT" + " NOT NULL",
+                "gatewayonly " + dialect.TypeBool + " NOT NULL",
+                "createdutc " + dialect.TypeTimestamp + " NOT NULL");
+            migrations.Add(new SchemaMigration(29, "Epoch fenced effect journal and recovery checkpoints", v29._Statements, v29._Columns));
+
+            SchemaBuilder v31 = new SchemaBuilder(catalog, dialect);
+            v31.Column("tenants", "schedulingweight", "INTEGER NOT NULL DEFAULT 1");
+            migrations.Add(new SchemaMigration(31, "Tenant weighted scheduling", v31._Statements, v31._Columns));
+
+            SchemaBuilder v30 = new SchemaBuilder(catalog, dialect);
+            v30.BuildVersion30();
+            migrations.Add(new SchemaMigration(30, "Durable continuation checkpoints and session contracts", v30._Statements, v30._Columns));
+
+            SchemaBuilder v32 = new SchemaBuilder(catalog, dialect);
+            v32.Column("secrets", "brokerresource", "VARCHAR(512)");
+            v32.Column("secrets", "brokeraudience", "VARCHAR(512)");
+            v32.Table("credential_leases",
+                "id " + dialect.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + dialect.TypeId + " NOT NULL",
+                "runid " + dialect.TypeId + " NOT NULL",
+                "secretid " + dialect.TypeId + " NOT NULL",
+                "leaseepoch BIGINT NOT NULL",
+                "resource VARCHAR(512) NOT NULL",
+                "audience VARCHAR(512)",
+                "state VARCHAR(32) NOT NULL",
+                "expiresutc " + dialect.TypeTimestamp + " NOT NULL",
+                "createdutc " + dialect.TypeTimestamp + " NOT NULL",
+                "revokedutc " + dialect.TypeTimestamp,
+                "revokeattempts " + dialect.TypeInt + " NOT NULL DEFAULT 0");
+            v32.Index("credential_leases", "attempt", true, "runid", "leaseepoch", "secretid");
+            v32.Index("credential_leases", "pending", false, "state", "expiresutc");
+            migrations.Add(new SchemaMigration(32, "Revocable provider credential leases", v32._Statements, v32._Columns));
+
+            SchemaBuilder v33 = new SchemaBuilder(catalog, dialect);
+            v33.Column("approvals", "inputdigest", "VARCHAR(64)");
+            v33.Column("approvals", "resumeepoch", "BIGINT");
+            migrations.Add(new SchemaMigration(33, "One-time exact-input durable approval grants", v33._Statements, v33._Columns));
+
+            SchemaBuilder v34 = new SchemaBuilder(catalog, dialect);
+            v34.Table("run_database_usage",
+                "tenantid " + dialect.TypeId + " NOT NULL",
+                "runid " + dialect.TypeId + " NOT NULL",
+                "operation VARCHAR(64) NOT NULL",
+                "statements BIGINT NOT NULL DEFAULT 0",
+                "reads BIGINT NOT NULL DEFAULT 0",
+                "writes BIGINT NOT NULL DEFAULT 0",
+                "errors BIGINT NOT NULL DEFAULT 0",
+                "transactions BIGINT NOT NULL DEFAULT 0",
+                "durationmicroseconds BIGINT NOT NULL DEFAULT 0",
+                "PRIMARY KEY (tenantid,runid,operation)");
+            migrations.Add(new SchemaMigration(34, "Exact scoped per-run database attribution", v34._Statements, v34._Columns));
+
             return migrations;
         }
 
@@ -304,6 +371,16 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion30()
+        {
+            SqlDialect d = _Dialect;
+            Column("deployments", "suspensionenabled", d.TypeBool + " NOT NULL DEFAULT " + d.BooleanLiteral(false));
+            Column("harness_profiles", "sessionformat", "VARCHAR(128)");
+            Table("run_checkpoints", "runid " + d.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + d.TypeId + " NOT NULL",
+                "artifactid " + d.TypeId + " NOT NULL", "sessionid VARCHAR(256) NOT NULL", "sessionformat VARCHAR(128) NOT NULL",
+                "epoch BIGINT NOT NULL", "createdutc " + d.TypeTimestamp + " NOT NULL");
         }
 
         private void BuildVersion28()

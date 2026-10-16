@@ -14,6 +14,14 @@ namespace Garrison.Core.Models
     public class Approval
     {
         #region Public-Members
+        /// <summary>Internal SHA-256 of full canonical input. Never expose a secret-input fingerprint through the API.</summary>
+        [JsonIgnore]
+        public string? InputDigest { get; set; } = null;
+
+        /// <summary>Epoch that atomically consumed this human decision during durable resume; null when unused.</summary>
+        [JsonIgnore]
+        public long? ResumeEpoch { get; set; } = null;
+
 
         /// <summary>
         /// Identifier (apr_).

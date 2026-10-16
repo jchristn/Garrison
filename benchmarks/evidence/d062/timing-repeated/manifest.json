@@ -1,0 +1,1487 @@
+{
+  "createdUtc": "2026-10-16T15:10:11.659388+00:00",
+  "randomSeed": 62026,
+  "repeats": 2,
+  "randomized": true,
+  "pythonVersion": "3.14.8",
+  "durationSeconds": 25,
+  "warmupSeconds": 5,
+  "concurrency": 16,
+  "notes": [
+    "Each arm starts a fresh private SQLite stack.",
+    "Harness report options are authoritative if CLI arguments override environment defaults.",
+    "Shared-host load averages are observations, not proof of an uncontended host."
+  ],
+  "arms": [
+    {
+      "trial": 1,
+      "order": 1,
+      "arm": "lease1s",
+      "reportLabel": "timing-lease1s-trial1-order1",
+      "leaseWaitMs": 1000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:10:11.697599+00:00",
+        "loadAverage1_5_15": [
+          2.982421875,
+          6.5185546875,
+          15.79296875
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:10:47.985327+00:00",
+        "loadAverage1_5_15": [
+          4.765625,
+          6.5458984375,
+          15.4267578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151014-load-synthetic-fleet-timing-lease1s-trial1-order1.json",
+          "sha256": "7706306d14d68b9ab84eb727e06000d1a9d050a4c5ba44c17f73515b851abd34",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease1s-trial1-order1",
+            "mode": "closed",
+            "stack-details": "timing ablation lease1s; trial=1, order=1, seed=62026; SQLite; LeaseWaitMs=1000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "order": 2,
+      "arm": "poll50",
+      "reportLabel": "timing-poll50-trial1-order2",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 50,
+      "before": {
+        "timestampUtc": "2026-10-16T15:10:48.017526+00:00",
+        "loadAverage1_5_15": [
+          4.765625,
+          6.5458984375,
+          15.4267578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:11:24.298821+00:00",
+        "loadAverage1_5_15": [
+          4.99560546875,
+          6.38232421875,
+          14.95703125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151050-load-synthetic-fleet-timing-poll50-trial1-order2.json",
+          "sha256": "9e0385df63ecf1ce4a88a57c2abc6ef5e001c8b2160e35fd6c64872104026b75",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll50-trial1-order2",
+            "mode": "closed",
+            "stack-details": "timing ablation poll50; trial=1, order=2, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=50; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "order": 3,
+      "arm": "flush25",
+      "reportLabel": "timing-flush25-trial1-order3",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 25,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:11:24.333698+00:00",
+        "loadAverage1_5_15": [
+          4.99560546875,
+          6.38232421875,
+          14.95703125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:12:00.657352+00:00",
+        "loadAverage1_5_15": [
+          5.75244140625,
+          6.4306640625,
+          14.6279296875
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151126-load-synthetic-fleet-timing-flush25-trial1-order3.json",
+          "sha256": "e61fa47352c2d9e71bec897792f27ca7c0f02485a1202b1d2f81bca7d4b1e197",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush25-trial1-order3",
+            "mode": "closed",
+            "stack-details": "timing ablation flush25; trial=1, order=3, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=25, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "order": 4,
+      "arm": "poll100",
+      "reportLabel": "timing-poll100-trial1-order4",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 100,
+      "before": {
+        "timestampUtc": "2026-10-16T15:12:00.692032+00:00",
+        "loadAverage1_5_15": [
+          5.75244140625,
+          6.4306640625,
+          14.6279296875
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:12:36.996217+00:00",
+        "loadAverage1_5_15": [
+          5.75732421875,
+          6.35107421875,
+          14.26708984375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151203-load-synthetic-fleet-timing-poll100-trial1-order4.json",
+          "sha256": "129edd660233f0a4f8040a159e479fb06d078be315f662b85496c149f47b613e",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll100-trial1-order4",
+            "mode": "closed",
+            "stack-details": "timing ablation poll100; trial=1, order=4, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=100; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "order": 5,
+      "arm": "baseline",
+      "reportLabel": "timing-baseline-trial1-order5",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:12:37.028661+00:00",
+        "loadAverage1_5_15": [
+          5.75732421875,
+          6.35107421875,
+          14.26708984375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:13:13.329290+00:00",
+        "loadAverage1_5_15": [
+          6.02880859375,
+          6.3701171875,
+          13.9541015625
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151239-load-synthetic-fleet-timing-baseline-trial1-order5.json",
+          "sha256": "96f69ebc4fd3d7ac9d696c04a18918a7ea79121dc13a060d0eb43019efcf414d",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-baseline-trial1-order5",
+            "mode": "closed",
+            "stack-details": "timing ablation baseline; trial=1, order=5, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "order": 6,
+      "arm": "lease5s",
+      "reportLabel": "timing-lease5s-trial1-order6",
+      "leaseWaitMs": 5000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:13:13.360870+00:00",
+        "loadAverage1_5_15": [
+          6.02880859375,
+          6.3701171875,
+          13.9541015625
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:13:49.709314+00:00",
+        "loadAverage1_5_15": [
+          5.9697265625,
+          6.3330078125,
+          13.59228515625
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151315-load-synthetic-fleet-timing-lease5s-trial1-order6.json",
+          "sha256": "c06f6a4664fa9bac79ea8b603eeaacdf74b697b53de544cb032fdd64a8d8eeca",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease5s-trial1-order6",
+            "mode": "closed",
+            "stack-details": "timing ablation lease5s; trial=1, order=6, seed=62026; SQLite; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "order": 7,
+      "arm": "flush100",
+      "reportLabel": "timing-flush100-trial1-order7",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 100,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:13:49.743875+00:00",
+        "loadAverage1_5_15": [
+          5.9697265625,
+          6.3330078125,
+          13.59228515625
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:14:26.221644+00:00",
+        "loadAverage1_5_15": [
+          13.0185546875,
+          8.30126953125,
+          14.0302734375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151352-load-synthetic-fleet-timing-flush100-trial1-order7.json",
+          "sha256": "fb31e290fbc64a35266c0d8d9f69594198b27549ece88b185302b484b1286b98",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush100-trial1-order7",
+            "mode": "closed",
+            "stack-details": "timing ablation flush100; trial=1, order=7, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=100, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 1,
+      "arm": "flush25",
+      "reportLabel": "timing-flush25-trial2-order1",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 25,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:14:26.256590+00:00",
+        "loadAverage1_5_15": [
+          13.0185546875,
+          8.30126953125,
+          14.0302734375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:15:02.563449+00:00",
+        "loadAverage1_5_15": [
+          9.5263671875,
+          7.93701171875,
+          13.66455078125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151428-load-synthetic-fleet-timing-flush25-trial2-order1.json",
+          "sha256": "38dd99411a0daf5569659ba2b92c3ce3f4ff1df183f6949324aa1c39592e0eba",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush25-trial2-order1",
+            "mode": "closed",
+            "stack-details": "timing ablation flush25; trial=2, order=1, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=25, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 2,
+      "arm": "baseline",
+      "reportLabel": "timing-baseline-trial2-order2",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:15:02.597594+00:00",
+        "loadAverage1_5_15": [
+          9.5263671875,
+          7.93701171875,
+          13.66455078125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:15:38.961378+00:00",
+        "loadAverage1_5_15": [
+          7.52294921875,
+          7.61572265625,
+          13.28173828125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151504-load-synthetic-fleet-timing-baseline-trial2-order2.json",
+          "sha256": "f8b97c0689b42f02c310e2d3a4c22297aab4a6738e0183962cfde138a6ba8da2",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-baseline-trial2-order2",
+            "mode": "closed",
+            "stack-details": "timing ablation baseline; trial=2, order=2, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 3,
+      "arm": "lease5s",
+      "reportLabel": "timing-lease5s-trial2-order3",
+      "leaseWaitMs": 5000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:15:38.995389+00:00",
+        "loadAverage1_5_15": [
+          7.52294921875,
+          7.61572265625,
+          13.28173828125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:16:15.392015+00:00",
+        "loadAverage1_5_15": [
+          8.13623046875,
+          7.7275390625,
+          13.09130859375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151541-load-synthetic-fleet-timing-lease5s-trial2-order3.json",
+          "sha256": "5b56041c21062dfe227b3530abf743b3a1137bbb983298b2a61f2bc7a8b2c11c",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease5s-trial2-order3",
+            "mode": "closed",
+            "stack-details": "timing ablation lease5s; trial=2, order=3, seed=62026; SQLite; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 4,
+      "arm": "poll50",
+      "reportLabel": "timing-poll50-trial2-order4",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 50,
+      "before": {
+        "timestampUtc": "2026-10-16T15:16:15.425714+00:00",
+        "loadAverage1_5_15": [
+          8.13623046875,
+          7.7275390625,
+          13.09130859375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:16:51.695134+00:00",
+        "loadAverage1_5_15": [
+          6.705078125,
+          7.40966796875,
+          12.7578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151617-load-synthetic-fleet-timing-poll50-trial2-order4.json",
+          "sha256": "32d95171d6fd972339e04ebed9e2c95388e388a3adbc6ad06e791f3264f9c23d",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll50-trial2-order4",
+            "mode": "closed",
+            "stack-details": "timing ablation poll50; trial=2, order=4, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=50; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 5,
+      "arm": "flush100",
+      "reportLabel": "timing-flush100-trial2-order5",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 100,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:16:51.729497+00:00",
+        "loadAverage1_5_15": [
+          6.705078125,
+          7.40966796875,
+          12.7578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:17:27.923867+00:00",
+        "loadAverage1_5_15": [
+          6.8671875,
+          7.3388671875,
+          12.51318359375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151654-load-synthetic-fleet-timing-flush100-trial2-order5.json",
+          "sha256": "13724b9747add10eb3ca59478a759740f8a202361ff675f2e59e30f5eb0c0a3f",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush100-trial2-order5",
+            "mode": "closed",
+            "stack-details": "timing ablation flush100; trial=2, order=5, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=100, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 6,
+      "arm": "lease1s",
+      "reportLabel": "timing-lease1s-trial2-order6",
+      "leaseWaitMs": 1000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:17:27.956375+00:00",
+        "loadAverage1_5_15": [
+          6.8671875,
+          7.3388671875,
+          12.51318359375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:18:04.132603+00:00",
+        "loadAverage1_5_15": [
+          10.6533203125,
+          8.0224609375,
+          12.51171875
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151730-load-synthetic-fleet-timing-lease1s-trial2-order6.json",
+          "sha256": "e1ebfe53384602eb33db9350ae6ad0062f0425b297cea0f8b153b9ef9ca2a6d8",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease1s-trial2-order6",
+            "mode": "closed",
+            "stack-details": "timing ablation lease1s; trial=2, order=6, seed=62026; SQLite; LeaseWaitMs=1000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "order": 7,
+      "arm": "poll100",
+      "reportLabel": "timing-poll100-trial2-order7",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 100,
+      "before": {
+        "timestampUtc": "2026-10-16T15:18:04.167616+00:00",
+        "loadAverage1_5_15": [
+          10.6533203125,
+          8.0224609375,
+          12.51171875
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:18:40.397222+00:00",
+        "loadAverage1_5_15": [
+          8.35302734375,
+          7.77294921875,
+          12.24072265625
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151806-load-synthetic-fleet-timing-poll100-trial2-order7.json",
+          "sha256": "a20fa538f63923217986d9f823484ebca7a0c08903100dd4d7b32e9d2f3cf0fe",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll100-trial2-order7",
+            "mode": "closed",
+            "stack-details": "timing ablation poll100; trial=2, order=7, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=100; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ]
+    }
+  ],
+  "frozenBinaries": {
+    "capturedUtc": "2026-10-16T15:20:56.059927+00:00",
+    "capturePhase": "after",
+    "files": [
+      {
+        "file": "bin/Garrison.Server/release_net10.0/AWSSDK.Core.dll",
+        "bytes": 1065128,
+        "sha256": "53d1ffe32d7b3151e652e053349a84fe893c0dae691f4bc9a2538eff77446ac8"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/AWSSDK.S3.dll",
+        "bytes": 1185960,
+        "sha256": "1f1b36fd19e8efd4a0135a17e5dfbb01e673fa28e468e0040cccb50e129a96a0"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Caching.dll",
+        "bytes": 397312,
+        "sha256": "27e72c6cf68a5a348210ee4d475c2984797a0161df17d28ce32ccdf812743002"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Clutch.Sdk.dll",
+        "bytes": 278016,
+        "sha256": "d78d1d980f3622562dca23c7a2d92b9209e5e273b3f1b9aad5aa268420e600f0"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Cronos.dll",
+        "bytes": 64824,
+        "sha256": "e0ad7c799904f1b663ab090b32665e0e90ede27699937588900845383064ba03"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Core.dll",
+        "bytes": 2285056,
+        "sha256": "0d5c87cdce2b3e9f2c38ad45c1ea73d1896da9768e9acbbc221ce5bbbcc1b882"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Core.pdb",
+        "bytes": 501312,
+        "sha256": "f004bf7b7eef993e4664c1cd46b2dcf7ed8d491a13d17d9129809749ad26109a"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Core.xml",
+        "bytes": 1465842,
+        "sha256": "462a91f872590719055fe7e3d4187a6268f8d4ff3bcbf93cf3d8a3eaec00a276"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Server",
+        "bytes": 124712,
+        "sha256": "041e2c9477b0f234470796503af0f0540eb5ef59ace212b8dc46cd42d49bd7e3"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Server.deps.json",
+        "bytes": 36040,
+        "sha256": "9affac8433eb683e1a30c65a5e08f2d093751bec874627cab4bc232db462578d"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Server.dll",
+        "bytes": 1889792,
+        "sha256": "5fe518e403904db10e400c0187638cfa4818f817a89a2104b21d189044056243"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Server.pdb",
+        "bytes": 353524,
+        "sha256": "a0c1962cb363797f946c8441c89f08f5d49a7a8d7ecbec20638b977ef2f65d95"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Server.runtimeconfig.json",
+        "bytes": 330,
+        "sha256": "9950d4583cfc9a106857c0d5b8a75b53e8774852b57b80bc3823a74d44a4d87f"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Garrison.Server.xml",
+        "bytes": 602649,
+        "sha256": "2e883626bd156d7d32380aea8b0fb269d3161c45851a26328efb97adf6b102c9"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Google.Protobuf.dll",
+        "bytes": 512152,
+        "sha256": "0f93ce18692e0b789c41299d0d2af2b477644fc4b13482bd0680b29289603996"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Humanizer.dll",
+        "bytes": 643248,
+        "sha256": "deacf1954c330a47b8a5d735271e576dea4937d1e5bd2a145f3accf86afebbce"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/IpMatcher.dll",
+        "bytes": 14336,
+        "sha256": "8f502f854dfae2a987573ab1f4819dd5dd622402dc4f245c6c02e587d4854e74"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Json.More.dll",
+        "bytes": 54784,
+        "sha256": "681cb7e4223cb83a813cb8ef859cdc37a24d3d12ea90605acb13b8ba5f3e7b6e"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/JsonPointer.Net.dll",
+        "bytes": 25088,
+        "sha256": "10e14287853200ab0b1f31e325954873ae18280b0a26ab1dc353a07ef68fd27d"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/JsonSchema.Net.dll",
+        "bytes": 277504,
+        "sha256": "0186c945c1963bd2dfe911f2095c482e5243f6fdc8ae828e69bdca84e50a0542"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/LoggingModule.dll",
+        "bytes": 370688,
+        "sha256": "1bccc8fb5abf8f407758d5e5f50bf0bbd200c5be452bdcfa5ae4b1270905c592"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Data.Sqlite.dll",
+        "bytes": 177464,
+        "sha256": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Configuration.Abstractions.dll",
+        "bytes": 28984,
+        "sha256": "5def68e1c7d9c1fcf56153bb669e00d84c1ae17b35fb09c5a8ccf93e9b934d3e"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Configuration.Binder.dll",
+        "bytes": 43792,
+        "sha256": "0637a0ab2b5a77b000c0d96c46573dae8c04fa86ae1374b5a1f00855a712d6f9"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Configuration.EnvironmentVariables.dll",
+        "bytes": 22288,
+        "sha256": "9971a5a6d7b0dc66f22fefa8f785bb8ec54100d8c44569fed2e70f8ab02298dd"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Configuration.dll",
+        "bytes": 45320,
+        "sha256": "94c3981084f713a51ad3d266145154d2468f59c4cd3e2bde82941bf84e97fb55"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+        "bytes": 65872,
+        "sha256": "da04edc338d5aa0f38a1f5fa5ff3ee7e36affe9c961daf3ea724a428bd746bc6"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.DependencyInjection.dll",
+        "bytes": 95528,
+        "sha256": "2d0e268bf76b4ce36a55ebb2767354db956c6660de65d6cccfc35c957fb12cfc"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Diagnostics.Abstractions.dll",
+        "bytes": 31504,
+        "sha256": "9702b8737009bb5f6c943cf7a3ba5c0991c7e4eb58a9e952d54835bb596fe563"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Logging.Abstractions.dll",
+        "bytes": 66856,
+        "sha256": "7c242f8ca612fa1acc61f78efd5f8c89e01bd0bd47dc4ecc65e0e6e24f1a1668"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Logging.Configuration.dll",
+        "bytes": 28976,
+        "sha256": "52cbb4793651e6db0f5e9b1300661a8e0a8f76c15c9123e42c39aff35d571e24"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Logging.dll",
+        "bytes": 51536,
+        "sha256": "05b76234f2a5eb945b268ced706cb4d81446778ea6bd6910298b5e9111170b4a"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll",
+        "bytes": 22280,
+        "sha256": "f5078a206f8d54d03e15b32cbae7bfb2d95348719b1f3cf4a9bea32ced1c8b7b"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Options.dll",
+        "bytes": 65360,
+        "sha256": "b4ff561da6a7b11b68341f9fd32cab3f8b23cdd8b40332b9fd8bed73a9ee7de3"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Microsoft.Extensions.Primitives.dll",
+        "bytes": 44880,
+        "sha256": "67642533eb87e8dadeb9026de59ff4b66cc9bf35c0cfbedfef7b79bc6d8b30bc"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Npgsql.dll",
+        "bytes": 1478656,
+        "sha256": "e2bcafe1660fe4543fe9dfcabed972ec8d32259e5ea8009462ce1de23c7034c2"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/OpenTelemetry.Api.ProviderBuilderExtensions.dll",
+        "bytes": 24576,
+        "sha256": "dec906a34dbafcfd2c23b73fd05e58defc7f8c1627890fad4e4461c23b8de989"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/OpenTelemetry.Api.dll",
+        "bytes": 82432,
+        "sha256": "b92d1b32ba9f7ddf4f06a7efab22c6424beba8760976f0eb5811ed3713d81f4c"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/OpenTelemetry.Exporter.OpenTelemetryProtocol.dll",
+        "bytes": 191488,
+        "sha256": "be37059eb65a9f4af95081c2d4795afd198a657dbf2e35363cca6444fd75b2ab"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/OpenTelemetry.Exporter.Prometheus.HttpListener.dll",
+        "bytes": 99328,
+        "sha256": "c42ed9790f368093d29681adb82e9fa1f8fcfd03507aa08e8a0b203a7d95d039"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/OpenTelemetry.Instrumentation.Runtime.dll",
+        "bytes": 26624,
+        "sha256": "ecc5ab3b910a9f8d05bf20f64293f8eb85b68cbc44345684876621cac706a1dc"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/OpenTelemetry.dll",
+        "bytes": 274944,
+        "sha256": "6623430269ed62f1a8e097e3909b9c8d778ae72b9b69f096140c71d06e0eb043"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/PrettyId.dll",
+        "bytes": 28672,
+        "sha256": "6bf682987a40aa5f547c12f2f2b3ead7d822f599ef0bc777692a80dd383c0d1f"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/QoSKit.dll",
+        "bytes": 82432,
+        "sha256": "a5161658b3017b4b30e377660364a29dbcff1ccda36300f663a3eed0c9bf0916"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Radiant.dll",
+        "bytes": 49664,
+        "sha256": "6a4909022e8078e4ca6982f495579ea35715cb3bca964b7474d33b2e17803713"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/RegexMatcher.dll",
+        "bytes": 203264,
+        "sha256": "9af92c98c1740ef4a3355e4b660e290094a6061747f3d21de65e81643d07a21a"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/SQLitePCLRaw.batteries_v2.dll",
+        "bytes": 5120,
+        "sha256": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/SQLitePCLRaw.core.dll",
+        "bytes": 51200,
+        "sha256": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/SQLitePCLRaw.provider.e_sqlite3.dll",
+        "bytes": 36864,
+        "sha256": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Timestamps.dll",
+        "bytes": 11776,
+        "sha256": "ac22bf251ddd59894caf8d97765228dfb9ac2e43e16e0960920335a62fb265e8"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/UrlMatcher.dll",
+        "bytes": 317440,
+        "sha256": "e3e32f1a049265ab3dda2cbf3fddf1b431ad7481b5c916b0adbe2ab88c8edb9d"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/Voltaic.dll",
+        "bytes": 1624064,
+        "sha256": "33840599d96ad45ee3f7ac7a951bf3eac319b6ca6a42f81320e78a60123025b2"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/WatsonWebserver.dll",
+        "bytes": 617984,
+        "sha256": "0b1d045f392b6b4b0fbf34f5fc19f942591ec85a4df9e5d7dbbce2f45ae53b22"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/YamlDotNet.dll",
+        "bytes": 300032,
+        "sha256": "d618138109a40e4a7250e49e2abad8c450e3636bee18d7499ab231e37fa9150a"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/browser-wasm/nativeassets/net9.0/e_sqlite3.a",
+        "bytes": 1308854,
+        "sha256": "c64ae8d44dc3e1aa03aca4e79ccc501cbc3a3c490e8e2ea9e369367f68cf0f21"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-arm/native/libe_sqlite3.so",
+        "bytes": 982224,
+        "sha256": "43556c2f5075857bf57be1136d556733bdc27195884fbdde127cd976d1c25ad5"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-arm64/native/libe_sqlite3.so",
+        "bytes": 1534296,
+        "sha256": "707fff6b18c1f083158e7a543c8d2545d5485f547ffd96db29679a95f52878d5"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-armel/native/libe_sqlite3.so",
+        "bytes": 1375344,
+        "sha256": "3f4d9b9ca49bb3f100882e78ba85807398cee19b481bfd4c301a8f5f58d48540"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-mips64/native/libe_sqlite3.so",
+        "bytes": 1756544,
+        "sha256": "985884523e512414f3e50aa359f08dad3ce635e99405e7823de9b26a7db38d09"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-musl-arm/native/libe_sqlite3.so",
+        "bytes": 1322584,
+        "sha256": "7fec7057d16e8b5ae54fed0c42a0e6b85e40df0d57092ef20cd647a4e1c1e0ed"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-musl-arm64/native/libe_sqlite3.so",
+        "bytes": 1450704,
+        "sha256": "530e2f74f259fe04faa4b595336e671fab5eedbb6f4e94dad59494efb7b00c2a"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-musl-riscv64/native/libe_sqlite3.so",
+        "bytes": 1015888,
+        "sha256": "d8e54eb7dc52ea0a7df9b78ac6feb85af429e7264613099df478825dea5805d4"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-musl-s390x/native/libe_sqlite3.so",
+        "bytes": 1685752,
+        "sha256": "64260c0460ad6efa7dce9263bff7a4b64ad66172ccc580cb09181c845e1a3407"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-musl-x64/native/libe_sqlite3.so",
+        "bytes": 1445336,
+        "sha256": "647b7b5886526691aed58e0fcbb56dc1e6dea8b1f9f5390782f0c95269250db1"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-ppc64le/native/libe_sqlite3.so",
+        "bytes": 1937408,
+        "sha256": "1ef00b5e3ac63e491f59ecf587680fc52ad844cea62e0a879a1315ef6bd10fc6"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-riscv64/native/libe_sqlite3.so",
+        "bytes": 1291896,
+        "sha256": "6b390eecbc6f55c44d9ab8a774f1fe4283dfb33a72e6f29f4e0b173065e7e105"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-s390x/native/libe_sqlite3.so",
+        "bytes": 1655776,
+        "sha256": "dfd5ab35f6d61155a3c629d0bceff4d6e0f0f190983f3fb8f681fb34ec08c67e"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-x64/native/libe_sqlite3.so",
+        "bytes": 1470784,
+        "sha256": "b0f5c48026fedcf9f05cf31c6fadf9e1e001ca59cd85aa68b8b6814e52c18a07"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/linux-x86/native/libe_sqlite3.so",
+        "bytes": 1547984,
+        "sha256": "fe8229e5baeaf21e721cf65626a6b07ec22d9b17d07bd624e7a77927174277f1"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/maccatalyst-arm64/native/libe_sqlite3.dylib",
+        "bytes": 1695264,
+        "sha256": "8d63d80bc6caa754679d6fc89fd741a32c156f136c34759cc8fff8cd51468a93"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/maccatalyst-x64/native/libe_sqlite3.dylib",
+        "bytes": 1724352,
+        "sha256": "43d27adbc5ba40850bac42a12aea08314a22a43d3ce77cdc7a6cc47ecffb5746"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/osx-arm64/native/libe_sqlite3.dylib",
+        "bytes": 1696624,
+        "sha256": "09fe20a6c050912a7944b2f2f2981debe31679f7919f523c87251ae8cf0f2daa"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/osx-x64/native/libe_sqlite3.dylib",
+        "bytes": 1724472,
+        "sha256": "02344e1d0bcb5ed447ad9b79ed19e37a590fb1ece3eba1e63efbc35e36e47bdf"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/win-arm64/native/e_sqlite3.dll",
+        "bytes": 1814528,
+        "sha256": "4177542756bd94f75b55fb74367e0cf34e66a88ffaf95755489af14c6ca2f792"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/win-x64/native/e_sqlite3.dll",
+        "bytes": 1978880,
+        "sha256": "b7385d722c83fb52142a00477a726723745916d22a555711ee89834c1111fb2e"
+      },
+      {
+        "file": "bin/Garrison.Server/release_net10.0/runtimes/win-x86/native/e_sqlite3.dll",
+        "bytes": 1533952,
+        "sha256": "d13eb819d1353d98c684c88672868bbfcc6a52eb5987bdf2557ec02fabce4ea7"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Caching.dll",
+        "bytes": 397312,
+        "sha256": "27e72c6cf68a5a348210ee4d475c2984797a0161df17d28ce32ccdf812743002"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Cronos.dll",
+        "bytes": 64824,
+        "sha256": "e0ad7c799904f1b663ab090b32665e0e90ede27699937588900845383064ba03"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Fractions.dll",
+        "bytes": 22016,
+        "sha256": "e8407a878af8aec1f485f50a9f356c439371610fff20756d4f2284ac6c995cbf"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Core.dll",
+        "bytes": 2285056,
+        "sha256": "0d5c87cdce2b3e9f2c38ad45c1ea73d1896da9768e9acbbc221ce5bbbcc1b882"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Core.pdb",
+        "bytes": 501312,
+        "sha256": "f004bf7b7eef993e4664c1cd46b2dcf7ed8d491a13d17d9129809749ad26109a"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Core.xml",
+        "bytes": 1465842,
+        "sha256": "462a91f872590719055fe7e3d4187a6268f8d4ff3bcbf93cf3d8a3eaec00a276"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Harnesses.dll",
+        "bytes": 135680,
+        "sha256": "840ab9bfdc8fc19a1e6d8515a0362301bbe2ad88b7534b1c77d228158bb3fdd4"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Harnesses.pdb",
+        "bytes": 54720,
+        "sha256": "ec5fffe8dc7860f1eec1b2533025296a81e84f201687873bc012a02a10dbfca5"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Harnesses.xml",
+        "bytes": 116144,
+        "sha256": "001f75e8c5e3675fc616afc8252a3a3f38f3bf32a65e65e668e908c56cfa2e72"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Sdk.dll",
+        "bytes": 403456,
+        "sha256": "a72ed0b0fbb7d6f429781afeeb5ea035609b3ed101ad7524f2897139c6280070"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Sdk.pdb",
+        "bytes": 147160,
+        "sha256": "a145b96e5fe97887213a559ec61c78e5ce89bc4a5a1a0cae179bf92fc25518e9"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Sdk.xml",
+        "bytes": 548095,
+        "sha256": "db04f06df27d274638a07e8da5cb496322f6bcea9d76252939506fa19a7208f8"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Worker",
+        "bytes": 124712,
+        "sha256": "cc1e93a31046b022a622cdbcc8872bddb9d4b5236081a86ec57661b25db1db90"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Worker.deps.json",
+        "bytes": 36370,
+        "sha256": "0e05774512222ceb6ecd4119be03d9dc9f472b78b35c48af42e1b4bd6de117fb"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Worker.dll",
+        "bytes": 323072,
+        "sha256": "cedb5461dd6dd9af3e9a9b9dc751339047a9d3acc881f862217d4f56079e9a20"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Worker.pdb",
+        "bytes": 86716,
+        "sha256": "866940f88573c8c33dfba2f4108a83a869cde1c82494bc59c95390446e272602"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Worker.runtimeconfig.json",
+        "bytes": 330,
+        "sha256": "9950d4583cfc9a106857c0d5b8a75b53e8774852b57b80bc3823a74d44a4d87f"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Garrison.Worker.xml",
+        "bytes": 157225,
+        "sha256": "360959162316f94ffaf8b5fd6ec9ac9da77102f9c02cdc070b726573094fe973"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Google.Protobuf.dll",
+        "bytes": 512152,
+        "sha256": "0f93ce18692e0b789c41299d0d2af2b477644fc4b13482bd0680b29289603996"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Humanizer.dll",
+        "bytes": 643248,
+        "sha256": "deacf1954c330a47b8a5d735271e576dea4937d1e5bd2a145f3accf86afebbce"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/IpMatcher.dll",
+        "bytes": 14336,
+        "sha256": "8f502f854dfae2a987573ab1f4819dd5dd622402dc4f245c6c02e587d4854e74"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Json.More.dll",
+        "bytes": 54784,
+        "sha256": "681cb7e4223cb83a813cb8ef859cdc37a24d3d12ea90605acb13b8ba5f3e7b6e"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/JsonPointer.Net.dll",
+        "bytes": 25088,
+        "sha256": "10e14287853200ab0b1f31e325954873ae18280b0a26ab1dc353a07ef68fd27d"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/JsonSchema.Net.dll",
+        "bytes": 277504,
+        "sha256": "0186c945c1963bd2dfe911f2095c482e5243f6fdc8ae828e69bdca84e50a0542"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/KubernetesClient.dll",
+        "bytes": 10680320,
+        "sha256": "1fdb3ddc3db829a3f4015afc328a00d3747fb228c7866df6f765be4cedb800ce"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/LoggingModule.dll",
+        "bytes": 370688,
+        "sha256": "1bccc8fb5abf8f407758d5e5f50bf0bbd200c5be452bdcfa5ae4b1270905c592"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Data.Sqlite.dll",
+        "bytes": 177464,
+        "sha256": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Configuration.Abstractions.dll",
+        "bytes": 28984,
+        "sha256": "5def68e1c7d9c1fcf56153bb669e00d84c1ae17b35fb09c5a8ccf93e9b934d3e"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Configuration.Binder.dll",
+        "bytes": 43792,
+        "sha256": "0637a0ab2b5a77b000c0d96c46573dae8c04fa86ae1374b5a1f00855a712d6f9"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Configuration.EnvironmentVariables.dll",
+        "bytes": 22288,
+        "sha256": "9971a5a6d7b0dc66f22fefa8f785bb8ec54100d8c44569fed2e70f8ab02298dd"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Configuration.dll",
+        "bytes": 45320,
+        "sha256": "94c3981084f713a51ad3d266145154d2468f59c4cd3e2bde82941bf84e97fb55"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+        "bytes": 65872,
+        "sha256": "da04edc338d5aa0f38a1f5fa5ff3ee7e36affe9c961daf3ea724a428bd746bc6"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.DependencyInjection.dll",
+        "bytes": 95528,
+        "sha256": "2d0e268bf76b4ce36a55ebb2767354db956c6660de65d6cccfc35c957fb12cfc"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Diagnostics.Abstractions.dll",
+        "bytes": 31504,
+        "sha256": "9702b8737009bb5f6c943cf7a3ba5c0991c7e4eb58a9e952d54835bb596fe563"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Logging.Abstractions.dll",
+        "bytes": 66856,
+        "sha256": "7c242f8ca612fa1acc61f78efd5f8c89e01bd0bd47dc4ecc65e0e6e24f1a1668"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Logging.Configuration.dll",
+        "bytes": 28976,
+        "sha256": "52cbb4793651e6db0f5e9b1300661a8e0a8f76c15c9123e42c39aff35d571e24"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Logging.dll",
+        "bytes": 51536,
+        "sha256": "05b76234f2a5eb945b268ced706cb4d81446778ea6bd6910298b5e9111170b4a"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll",
+        "bytes": 22280,
+        "sha256": "f5078a206f8d54d03e15b32cbae7bfb2d95348719b1f3cf4a9bea32ced1c8b7b"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Options.dll",
+        "bytes": 65360,
+        "sha256": "b4ff561da6a7b11b68341f9fd32cab3f8b23cdd8b40332b9fd8bed73a9ee7de3"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Microsoft.Extensions.Primitives.dll",
+        "bytes": 44880,
+        "sha256": "67642533eb87e8dadeb9026de59ff4b66cc9bf35c0cfbedfef7b79bc6d8b30bc"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Npgsql.dll",
+        "bytes": 1478656,
+        "sha256": "e2bcafe1660fe4543fe9dfcabed972ec8d32259e5ea8009462ce1de23c7034c2"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/OpenTelemetry.Api.ProviderBuilderExtensions.dll",
+        "bytes": 24576,
+        "sha256": "dec906a34dbafcfd2c23b73fd05e58defc7f8c1627890fad4e4461c23b8de989"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/OpenTelemetry.Api.dll",
+        "bytes": 82432,
+        "sha256": "b92d1b32ba9f7ddf4f06a7efab22c6424beba8760976f0eb5811ed3713d81f4c"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/OpenTelemetry.Exporter.OpenTelemetryProtocol.dll",
+        "bytes": 191488,
+        "sha256": "be37059eb65a9f4af95081c2d4795afd198a657dbf2e35363cca6444fd75b2ab"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/OpenTelemetry.Exporter.Prometheus.HttpListener.dll",
+        "bytes": 99328,
+        "sha256": "c42ed9790f368093d29681adb82e9fa1f8fcfd03507aa08e8a0b203a7d95d039"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/OpenTelemetry.Instrumentation.Runtime.dll",
+        "bytes": 26624,
+        "sha256": "ecc5ab3b910a9f8d05bf20f64293f8eb85b68cbc44345684876621cac706a1dc"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/OpenTelemetry.dll",
+        "bytes": 274944,
+        "sha256": "6623430269ed62f1a8e097e3909b9c8d778ae72b9b69f096140c71d06e0eb043"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Padlock.dll",
+        "bytes": 27648,
+        "sha256": "f08f07254fd15af51424e29c9a73d74dfb0e03ec7032695382ca9a1a394e61ae"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/PrettyId.dll",
+        "bytes": 28672,
+        "sha256": "6bf682987a40aa5f547c12f2f2b3ead7d822f599ef0bc777692a80dd383c0d1f"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Radiant.dll",
+        "bytes": 49664,
+        "sha256": "6a4909022e8078e4ca6982f495579ea35715cb3bca964b7474d33b2e17803713"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/RegexMatcher.dll",
+        "bytes": 203264,
+        "sha256": "9af92c98c1740ef4a3355e4b660e290094a6061747f3d21de65e81643d07a21a"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/SQLitePCLRaw.batteries_v2.dll",
+        "bytes": 5120,
+        "sha256": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/SQLitePCLRaw.core.dll",
+        "bytes": 51200,
+        "sha256": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/SQLitePCLRaw.provider.e_sqlite3.dll",
+        "bytes": 36864,
+        "sha256": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Timestamps.dll",
+        "bytes": 11776,
+        "sha256": "ac22bf251ddd59894caf8d97765228dfb9ac2e43e16e0960920335a62fb265e8"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/UrlMatcher.dll",
+        "bytes": 317440,
+        "sha256": "e3e32f1a049265ab3dda2cbf3fddf1b431ad7481b5c916b0adbe2ab88c8edb9d"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/Voltaic.dll",
+        "bytes": 1624064,
+        "sha256": "33840599d96ad45ee3f7ac7a951bf3eac319b6ca6a42f81320e78a60123025b2"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/WatsonWebserver.dll",
+        "bytes": 617984,
+        "sha256": "0b1d045f392b6b4b0fbf34f5fc19f942591ec85a4df9e5d7dbbce2f45ae53b22"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/YamlDotNet.dll",
+        "bytes": 300032,
+        "sha256": "d618138109a40e4a7250e49e2abad8c450e3636bee18d7499ab231e37fa9150a"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/garrison-worker.json",
+        "bytes": 2368,
+        "sha256": "57a4769b0a12115524f26690cb5f1dc4872a62786edcad1ea131addbe8da79ec"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/browser-wasm/nativeassets/net9.0/e_sqlite3.a",
+        "bytes": 1308854,
+        "sha256": "c64ae8d44dc3e1aa03aca4e79ccc501cbc3a3c490e8e2ea9e369367f68cf0f21"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-arm/native/libe_sqlite3.so",
+        "bytes": 982224,
+        "sha256": "43556c2f5075857bf57be1136d556733bdc27195884fbdde127cd976d1c25ad5"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-arm64/native/libe_sqlite3.so",
+        "bytes": 1534296,
+        "sha256": "707fff6b18c1f083158e7a543c8d2545d5485f547ffd96db29679a95f52878d5"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-armel/native/libe_sqlite3.so",
+        "bytes": 1375344,
+        "sha256": "3f4d9b9ca49bb3f100882e78ba85807398cee19b481bfd4c301a8f5f58d48540"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-mips64/native/libe_sqlite3.so",
+        "bytes": 1756544,
+        "sha256": "985884523e512414f3e50aa359f08dad3ce635e99405e7823de9b26a7db38d09"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-musl-arm/native/libe_sqlite3.so",
+        "bytes": 1322584,
+        "sha256": "7fec7057d16e8b5ae54fed0c42a0e6b85e40df0d57092ef20cd647a4e1c1e0ed"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-musl-arm64/native/libe_sqlite3.so",
+        "bytes": 1450704,
+        "sha256": "530e2f74f259fe04faa4b595336e671fab5eedbb6f4e94dad59494efb7b00c2a"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-musl-riscv64/native/libe_sqlite3.so",
+        "bytes": 1015888,
+        "sha256": "d8e54eb7dc52ea0a7df9b78ac6feb85af429e7264613099df478825dea5805d4"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-musl-s390x/native/libe_sqlite3.so",
+        "bytes": 1685752,
+        "sha256": "64260c0460ad6efa7dce9263bff7a4b64ad66172ccc580cb09181c845e1a3407"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-musl-x64/native/libe_sqlite3.so",
+        "bytes": 1445336,
+        "sha256": "647b7b5886526691aed58e0fcbb56dc1e6dea8b1f9f5390782f0c95269250db1"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-ppc64le/native/libe_sqlite3.so",
+        "bytes": 1937408,
+        "sha256": "1ef00b5e3ac63e491f59ecf587680fc52ad844cea62e0a879a1315ef6bd10fc6"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-riscv64/native/libe_sqlite3.so",
+        "bytes": 1291896,
+        "sha256": "6b390eecbc6f55c44d9ab8a774f1fe4283dfb33a72e6f29f4e0b173065e7e105"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-s390x/native/libe_sqlite3.so",
+        "bytes": 1655776,
+        "sha256": "dfd5ab35f6d61155a3c629d0bceff4d6e0f0f190983f3fb8f681fb34ec08c67e"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-x64/native/libe_sqlite3.so",
+        "bytes": 1470784,
+        "sha256": "b0f5c48026fedcf9f05cf31c6fadf9e1e001ca59cd85aa68b8b6814e52c18a07"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/linux-x86/native/libe_sqlite3.so",
+        "bytes": 1547984,
+        "sha256": "fe8229e5baeaf21e721cf65626a6b07ec22d9b17d07bd624e7a77927174277f1"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/maccatalyst-arm64/native/libe_sqlite3.dylib",
+        "bytes": 1695264,
+        "sha256": "8d63d80bc6caa754679d6fc89fd741a32c156f136c34759cc8fff8cd51468a93"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/maccatalyst-x64/native/libe_sqlite3.dylib",
+        "bytes": 1724352,
+        "sha256": "43d27adbc5ba40850bac42a12aea08314a22a43d3ce77cdc7a6cc47ecffb5746"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/osx-arm64/native/libe_sqlite3.dylib",
+        "bytes": 1696624,
+        "sha256": "09fe20a6c050912a7944b2f2f2981debe31679f7919f523c87251ae8cf0f2daa"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/osx-x64/native/libe_sqlite3.dylib",
+        "bytes": 1724472,
+        "sha256": "02344e1d0bcb5ed447ad9b79ed19e37a590fb1ece3eba1e63efbc35e36e47bdf"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/win-arm64/native/e_sqlite3.dll",
+        "bytes": 1814528,
+        "sha256": "4177542756bd94f75b55fb74367e0cf34e66a88ffaf95755489af14c6ca2f792"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/win-x64/native/e_sqlite3.dll",
+        "bytes": 1978880,
+        "sha256": "b7385d722c83fb52142a00477a726723745916d22a555711ee89834c1111fb2e"
+      },
+      {
+        "file": "bin/Garrison.Worker/release_net10.0/runtimes/win-x86/native/e_sqlite3.dll",
+        "bytes": 1533952,
+        "sha256": "d13eb819d1353d98c684c88672868bbfcc6a52eb5987bdf2557ec02fabce4ea7"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/Caching.dll",
+        "bytes": 397312,
+        "sha256": "27e72c6cf68a5a348210ee4d475c2984797a0161df17d28ce32ccdf812743002"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/Google.Protobuf.dll",
+        "bytes": 512152,
+        "sha256": "0f93ce18692e0b789c41299d0d2af2b477644fc4b13482bd0680b29289603996"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/IpMatcher.dll",
+        "bytes": 14336,
+        "sha256": "8f502f854dfae2a987573ab1f4819dd5dd622402dc4f245c6c02e587d4854e74"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/RegexMatcher.dll",
+        "bytes": 203264,
+        "sha256": "9af92c98c1740ef4a3355e4b660e290094a6061747f3d21de65e81643d07a21a"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/Timestamps.dll",
+        "bytes": 11776,
+        "sha256": "ac22bf251ddd59894caf8d97765228dfb9ac2e43e16e0960920335a62fb265e8"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/UrlMatcher.dll",
+        "bytes": 317440,
+        "sha256": "e3e32f1a049265ab3dda2cbf3fddf1b431ad7481b5c916b0adbe2ab88c8edb9d"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/Voltaic.dll",
+        "bytes": 1624064,
+        "sha256": "33840599d96ad45ee3f7ac7a951bf3eac319b6ca6a42f81320e78a60123025b2"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/WatsonWebserver.dll",
+        "bytes": 617984,
+        "sha256": "d179149deca454bb0fdee1e3bc9af90fbe4444577eca05228dd92100f5331ab3"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness",
+        "bytes": 124712,
+        "sha256": "59eaeb57087bccf761463e50140b7b23d5d2de29fd454e3efea9c145991b560d"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.deps.json",
+        "bytes": 4733,
+        "sha256": "2218eeb0717b5adf87bca60c60806d614859d98a06f57b97f116debd50816932"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll",
+        "bytes": 139264,
+        "sha256": "dace72d0910fbcaa77fc2fe73fd82b478d117538e0fe74eb1b17bf6cbce11230"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.pdb",
+        "bytes": 31988,
+        "sha256": "f481800ace7dd93fd56b82145d2998464795ba7b2777b23526a49f74eb967d44"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.runtimeconfig.json",
+        "bytes": 330,
+        "sha256": "9950d4583cfc9a106857c0d5b8a75b53e8774852b57b80bc3823a74d44a4d87f"
+      },
+      {
+        "file": "bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.xml",
+        "bytes": 36961,
+        "sha256": "1b5424fa7ed9785c008e4b2c3c43f38766bba31003207d52a380d28c72757c63"
+      },
+      {
+        "file": "bin/Test.Benchmark/release_net10.0/Garrison.Benchmark",
+        "bytes": 124712,
+        "sha256": "3f6f5a6f8edad52184127433d28e2c9c540f2556780388671495c4cb8bb5edda"
+      },
+      {
+        "file": "bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.deps.json",
+        "bytes": 438,
+        "sha256": "207c278ed32ebee9c3ad97a43261191e2515cfc3088a150dbf1fc20ea4d250e2"
+      },
+      {
+        "file": "bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.dll",
+        "bytes": 446976,
+        "sha256": "184293680f2ab9f3057ec7f49a519458cccd58fdfea14a3c50789cfe358cfd54"
+      },
+      {
+        "file": "bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.pdb",
+        "bytes": 118208,
+        "sha256": "6442ff24bc5e5b7eb306686d881e690375255aa702272fb63781e86719c24752"
+      },
+      {
+        "file": "bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.runtimeconfig.json",
+        "bytes": 468,
+        "sha256": "a5cafbe1634533c90fc483e3a376bff913ae27b63c4af2aec5cdcc4bfd927430"
+      },
+      {
+        "file": "bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.xml",
+        "bytes": 240305,
+        "sha256": "81e52c845c1decd83296fd4a6da270948442ef6f32850089f604af879962a3c2"
+      }
+    ]
+  }
+}

@@ -13,6 +13,12 @@ namespace Garrison.Sdk.Compilation
     /// </summary>
     public class ExecutionSpec
     {
+        /// <summary>Portable durable session continuation.</summary>
+        public ExecutionContinuation? Continuation { get; set; } = null;
+
+        /// <summary>Resolved remote invocation for RemoteA2A or RemoteMcp.</summary>
+        public ExecutionRemoteAgent? RemoteAgent { get; set; } = null;
+
         /// <summary>Optional artifact collection instructions; credentials are redacted in previews.</summary>
         public ExecutionArtifacts? Artifacts { get; set; } = null;
 

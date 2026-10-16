@@ -271,7 +271,7 @@ namespace Garrison.Benchmark.Reporting
             md.Append("## Load\n\n| Arm | Mode | Workers | Slots | Load | Started | Succeeded | Failed | Throughput (ops/s) [95% CI] | p50 (ms) | p95 [95% CI] (ms) | p99 (ms) | queue p50 (ms) |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
             foreach (LoadLevelResult level in report.LoadLevels)
             {
-                string load = level.Mode == "open" ? N(level.TargetRate, "0.##") + "/s" : "c" + level.Concurrency.ToString(CultureInfo.InvariantCulture);
+                string load = level.Mode != "closed" ? N(level.TargetRate, "0.##") + "/s" : "c" + level.Concurrency.ToString(CultureInfo.InvariantCulture);
                 level.Timings.TryGetValue("queueMs", out LatencyStatistics? queue);
                 md.Append("| ").Append(level.Arm).Append(" | ").Append(level.Mode).Append(" | ").Append(level.Workers).Append(" | ").Append(level.Slots).Append(" | ").Append(load)
                     .Append(" | ").Append(level.Started).Append(" | ").Append(level.Succeeded).Append(" | ").Append(level.Failed)
@@ -283,6 +283,22 @@ namespace Garrison.Benchmark.Reporting
                     .Append(" |\n");
             }
             md.Append('\n');
+            if (report.LoadLevels.Any(l => l.EstimatedDbStatementsPerSucceededRun.HasValue))
+            {
+                md.Append("### Database cost estimates\n\nThese divide server-wide counter deltas by successful runs and include background and failed-run work. They are not exact per-run attribution.\n\n| Arm | Mode | DB statements / success | History header inserts / success |\n|---|---|---|---|\n");
+                foreach (LoadLevelResult level in report.LoadLevels.Where(l => l.EstimatedDbStatementsPerSucceededRun.HasValue))
+                    md.Append("| ").Append(level.Arm).Append(" | ").Append(level.Mode).Append(" | ").Append(N(level.EstimatedDbStatementsPerSucceededRun!.Value, "0.##")).Append(" | ").Append(N(level.EstimatedRequestHistoryHeaderInsertsPerSucceededRun ?? 0, "0.##")).Append(" |\n");
+                md.Append('\n');
+            }
+
+            if (report.LoadLevels.Any(l => l.ExactDbUsageRuns > 0 || l.ExactDbUsageMissingRuns > 0))
+            {
+                md.Append("### Exact scoped database attribution\n\nCollected after the timed window with --database-attribution true. Counts include actual SQL attempts in completed per-run lifecycle scopes, excluding shared scans, telemetry persistence and unfinished scopes lost on process failure. Missing completion scopes are reported separately.\n\n| Arm | Mode | Observed runs | Missing runs | Statements/run | Reads/run | Writes/run |\n|---|---|---|---|---|---|---|\n");
+                foreach (LoadLevelResult level in report.LoadLevels.Where(l => l.ExactDbUsageRuns > 0 || l.ExactDbUsageMissingRuns > 0))
+                    md.Append("| ").Append(level.Arm).Append(" | ").Append(level.Mode).Append(" | ").Append(level.ExactDbUsageRuns).Append(" | ").Append(level.ExactDbUsageMissingRuns).Append(" | ").Append(N(level.ExactScopedDbStatementsPerRun ?? 0, "0.##")).Append(" | ").Append(N(level.ExactScopedDbReadsPerRun ?? 0, "0.##")).Append(" | ").Append(N(level.ExactScopedDbWritesPerRun ?? 0, "0.##")).Append(" |\n");
+                md.Append('\n');
+            }
+
             List<LoadLevelResult> failing = report.LoadLevels.Where(l => l.FailuresByKind.Count > 0).ToList();
             if (failing.Count > 0)
             {

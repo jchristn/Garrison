@@ -18,6 +18,12 @@ namespace Garrison.Server.Settings
         public string MasterKey { get; set; } = "garrison-default-master-key-override-me";
 
         /// <summary>
+        /// Previous master keys indexed by version, for reading during rotation. Default empty. Configure only in the
+        /// protected settings file; never place keys in manifests. All replicas must hold the ring before rotation.
+        /// </summary>
+        public Dictionary<int, string> PreviousMasterKeys { get; set; } = new Dictionary<int, string>();
+
+        /// <summary>
         /// Master key version written with encrypted values. Minimum 1, maximum 255, default 1.
         /// </summary>
         public int MasterKeyVersion

@@ -245,6 +245,7 @@ namespace Garrison.Worker.Hosting
 
             ExecutorOptions options = new ExecutorOptions();
             options.WorkRoot = settings.WorkRoot;
+            options.GitCacheRoot = settings.GitCacheEnabled ? System.IO.Path.Combine(settings.WorkRoot, ".git-cache") : null;
             options.EnvironmentAllowlist = new List<string>(settings.EnvironmentAllowlist);
             options.McpPreflightTimeoutMs = settings.McpPreflightTimeoutMs;
             _ConversationSweeper = new ProcessRunExecutor(options, message => _Logging.Info(_Header + message));
@@ -483,7 +484,9 @@ namespace Garrison.Worker.Hosting
             request.NodePool = _Settings.NodePool;
             request.Labels = new Dictionary<string, string>(_Settings.Labels);
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
-            request.Capabilities = _Capabilities;
+            request.Capabilities = new List<NodeCapabilityReport>(_Capabilities);
+            if (!request.Capabilities.Any(capability => capability.HarnessType == HarnessTypeEnum.Generic && capability.Available))
+                request.Capabilities.Add(new NodeCapabilityReport { HarnessType = HarnessTypeEnum.Generic, Available = true, Executable = "remote-protocol" });
             request.Executors = Executors();
             request.ExecutorCapabilities = request.Executors.Select(e => ExecutorCapabilityProfiles.For(e, _WarmPool?.Available == true, _Kubernetes?.EgressAvailable == true)).ToList();
 
@@ -885,6 +888,7 @@ namespace Garrison.Worker.Hosting
 
         private bool Launch(RunAssignment assignment, bool childReserve)
         {
+            assignment.SnapshotUploader = (name, content, token) => _Client.UploadInternalArtifactAsync(_NodeId ?? String.Empty, assignment, name, content, token);
             ActiveRun run = new ActiveRun(assignment);
             run.ChildReserve = childReserve;
             if (!_Runs.TryAdd(run.RunId, run))
@@ -1028,6 +1032,7 @@ namespace Garrison.Worker.Hosting
                     repair.LeaseExpiresUtc = current.LeaseExpiresUtc;
                     repair.EventSequenceStart = response.EventSequenceStart;
                     repair.Spec = response.Repair;
+                    repair.SnapshotUploader = (name, content, ct) => _Client.UploadInternalArtifactAsync(nodeId, repair, name, content, ct);
                     current = repair;
                 }
             }
@@ -1160,7 +1165,7 @@ namespace Garrison.Worker.Hosting
 
         private List<RunExecutorEnum> Executors()
         {
-            List<RunExecutorEnum> executors = new List<RunExecutorEnum> { RunExecutorEnum.Process };
+            List<RunExecutorEnum> executors = new List<RunExecutorEnum> { RunExecutorEnum.Process, RunExecutorEnum.RemoteA2A, RunExecutorEnum.RemoteMcp };
             if (_Kubernetes != null && _Kubernetes.Available) executors.Add(RunExecutorEnum.KubernetesJob);
             return executors;
         }

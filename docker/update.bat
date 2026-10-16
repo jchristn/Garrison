@@ -11,7 +11,7 @@ REM For a destructive reset use docker\factory\reset.bat.
 REM
 REM Usage:   update.bat                   rebuild images from this repository (default)
 REM          update.bat --pull            pull the published images named in compose.yaml instead
-REM          update.bat --observability   also run the observability profile (Prometheus, Loki, Tempo, Grafana,
+REM          update.bat --observability   retain explicit observability settings (enabled by default; Prometheus, Loki, Tempo, Grafana,
 REM                                       Alloy) with compose.observability.yaml; combines with --pull
 REM ==========================================================================
 

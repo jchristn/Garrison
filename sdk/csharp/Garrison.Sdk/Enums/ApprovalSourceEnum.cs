@@ -28,6 +28,9 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// The run was cancelled, finished, or lost its lease, or the harness stopped waiting.
         /// </summary>
-        Cancelled
+        Cancelled,
+
+        /// <summary>A one-time human decision carried from the previous durable checkpoint.</summary>
+        DurableResume
     }
 }

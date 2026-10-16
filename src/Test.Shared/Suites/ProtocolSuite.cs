@@ -583,6 +583,7 @@ namespace Test.Shared.Suites
                 parent.AgentName = lead.Name;
                 parent.DeploymentId = "dep_parent";
                 parent.Status = RunStatusEnum.Running;
+                parent.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5);
                 parent.CallChain = lead.Name;
                 parent.CallerType = PrincipalTypeEnum.User;
                 parent.TraceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";

@@ -32,6 +32,7 @@ namespace Test.Shared
                 suites.AddRange(RuntimeSuite.Build());
                 suites.AddRange(PauseToleranceSuite.Build());
                 suites.AddRange(WorkerSuite.Build());
+                suites.AddRange(ContinuationArchiveSuite.Build());
                 suites.AddRange(EventCoalescingSuite.Build());
                 suites.AddRange(RunGuardSuite.Build());
                 suites.AddRange(ProtocolSuite.Build());
@@ -57,8 +58,15 @@ namespace Test.Shared
                 suites.AddRange(ManagementMcpSuite.Build());
                 suites.AddRange(PipelineSuite.Build());
                 suites.AddRange(DelegationCapacitySuite.Build());
+                suites.AddRange(TenantSchedulingSuite.Build());
+                suites.AddRange(PlacementExplanationSuite.Build());
+                suites.AddRange(AgentMemorySuite.Build());
+                suites.AddRange(RemoteExecutionSuite.Build());
                 suites.AddRange(TrustLevelSuite.Build());
                 suites.AddRange(EffectPolicySuite.Build());
+                suites.AddRange(RecoveryAcceptanceSuite.Build());
+                suites.AddRange(EffectJournalSuite.Build());
+                suites.AddRange(CredentialBrokerSuite.Build());
                 suites.AddRange(EgressAllowlistSuite.Build());
                 suites.AddRange(IsolationProbeSuite.Build());
                 suites.AddRange(ControlPlaneTuningSuite.Build());
@@ -72,6 +80,7 @@ namespace Test.Shared
                 suites.AddRange(TranscriptSuite.Build());
                 suites.AddRange(ManifestBundleSuite.Build());
                 suites.AddRange(InputSchemaSuite.Build());
+                suites.AddRange(KeyLifecycleSuite.Build());
                 return suites;
             }
         }

@@ -49,6 +49,9 @@ namespace Garrison.Server.Modules
             CompilerOptions options = new CompilerOptions();
             options.McpBaseUrl = String.IsNullOrWhiteSpace(context.Settings.Mcp.PublicUrl) ? "http://127.0.0.1:" + context.Settings.Mcp.Port : context.Settings.Mcp.PublicUrl!.TrimEnd('/');
             options.McpPath = context.Settings.Mcp.Path;
+            options.AgentMemoryEnabled = context.Settings.AgentMemory.Enabled;
+            if (context.Settings.AgentMemory.Enabled && context.TryGet<Garrison.Core.Memory.IAgentMemoryStore>() == null)
+                context.Register<Garrison.Core.Memory.IAgentMemoryStore>(new Garrison.Core.Memory.FilesystemAgentMemoryStore(context.Settings.AgentMemory.RootDirectory, context.Settings.AgentMemory.MaxValueBytes));
             options.ApiBaseUrl = ApiBaseUrl(context);
             options.ArtifactCollection.MaxFileBytes = context.Settings.Artifacts.MaxFileBytes;
             options.ArtifactCollection.MaxTotalBytes = context.Settings.Artifacts.MaxTotalBytes;

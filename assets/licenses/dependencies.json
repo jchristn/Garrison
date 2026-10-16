@@ -1,0 +1,898 @@
+[
+  {
+    "ecosystem": "go",
+    "name": "golang.org/x/sys",
+    "version": "v0.29.0",
+    "license": "See bundled license",
+    "source": "https://golang.org/x/sys",
+    "texts": [
+      "go/golang.org/x/sys/v0.29.0/LICENSE",
+      "go/golang.org/x/sys/v0.29.0/PATENTS"
+    ]
+  },
+  {
+    "ecosystem": "go",
+    "name": "golang.org/x/term",
+    "version": "v0.28.0",
+    "license": "See bundled license",
+    "source": "https://golang.org/x/term",
+    "texts": [
+      "go/golang.org/x/term/v0.28.0/LICENSE",
+      "go/golang.org/x/term/v0.28.0/PATENTS"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@babel/runtime",
+    "version": "7.29.7",
+    "license": "MIT",
+    "source": "https://babel.dev/docs/en/next/babel-runtime",
+    "texts": [
+      "npm/@babel/runtime/7.29.7/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@types/trusted-types",
+    "version": "2.0.7",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types",
+    "texts": [
+      "npm/@types/trusted-types/2.0.7/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "cookie",
+    "version": "1.1.1",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/cookie/-/cookie-1.1.1.tgz",
+    "texts": [
+      "npm/cookie/1.1.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "dompurify",
+    "version": "3.4.16",
+    "license": "(MPL-2.0 OR Apache-2.0)",
+    "source": "https://github.com/cure53/DOMPurify",
+    "texts": [
+      "npm/dompurify/3.4.16/LICENSE",
+      "npm/dompurify/3.4.16/LICENSE-MPL"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "html-parse-stringify",
+    "version": "3.1.0",
+    "license": "MIT",
+    "source": "https://github.com/henrikjoreteg/html-parse-stringify",
+    "texts": [
+      "npm/html-parse-stringify/3.1.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "i18next",
+    "version": "24.2.3",
+    "license": "MIT",
+    "source": "https://www.i18next.com",
+    "texts": [
+      "npm/i18next/24.2.3/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "i18next-browser-languagedetector",
+    "version": "8.2.1",
+    "license": "MIT",
+    "source": "https://github.com/i18next/i18next-browser-languageDetector",
+    "texts": [
+      "npm/i18next-browser-languagedetector/8.2.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "marked",
+    "version": "18.1.0",
+    "license": "MIT",
+    "source": "https://marked.js.org",
+    "texts": [
+      "npm/marked/18.1.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "react",
+    "version": "19.2.8",
+    "license": "MIT",
+    "source": "https://react.dev/",
+    "texts": [
+      "npm/react/19.2.8/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "react-dom",
+    "version": "19.2.8",
+    "license": "MIT",
+    "source": "https://react.dev/",
+    "texts": [
+      "npm/react-dom/19.2.8/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "react-i18next",
+    "version": "15.7.4",
+    "license": "MIT",
+    "source": "https://github.com/i18next/react-i18next",
+    "texts": [
+      "npm/react-i18next/15.7.4/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "react-router",
+    "version": "7.18.2",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/react-router/-/react-router-7.18.2.tgz",
+    "texts": [
+      "npm/react-router/7.18.2/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "react-router-dom",
+    "version": "7.18.2",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.18.2.tgz",
+    "texts": [
+      "npm/react-router-dom/7.18.2/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "scheduler",
+    "version": "0.27.0",
+    "license": "MIT",
+    "source": "https://react.dev/",
+    "texts": [
+      "npm/scheduler/0.27.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "set-cookie-parser",
+    "version": "2.7.2",
+    "license": "MIT",
+    "source": "https://github.com/nfriedly/set-cookie-parser",
+    "texts": [
+      "npm/set-cookie-parser/2.7.2/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "void-elements",
+    "version": "3.1.0",
+    "license": "MIT",
+    "source": "https://github.com/jadejs/void-elements",
+    "texts": [
+      "npm/void-elements/3.1.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "AWSSDK.Core",
+    "version": "4.0.102.10",
+    "license": "Apache-2.0",
+    "source": "https://github.com/aws/aws-sdk-net/",
+    "texts": [
+      "nuget/AWSSDK.Core/4.0.102.10/License.txt"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "AWSSDK.S3",
+    "version": "4.0.104.3",
+    "license": "Apache-2.0",
+    "source": "https://github.com/aws/aws-sdk-net/",
+    "texts": [
+      "nuget/AWSSDK.S3/4.0.104.3/License.txt"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Caching",
+    "version": "5.1.2",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/caching",
+    "texts": [
+      "nuget/Caching/5.1.2/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Clutch.Sdk",
+    "version": "0.3.0",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/Clutch",
+    "texts": [
+      "nuget/Clutch.Sdk/0.3.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Cronos",
+    "version": "0.13.0",
+    "license": "MIT",
+    "source": "https://github.com/HangfireIO/Cronos",
+    "texts": [
+      "nuget/Cronos/0.13.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Fractions",
+    "version": "7.3.0",
+    "license": "license.txt",
+    "source": "https://github.com/danm-de/Fractions",
+    "texts": [
+      "nuget/Fractions/7.3.0/license.txt"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Google.Protobuf",
+    "version": "3.36.2",
+    "license": "BSD-3-Clause",
+    "source": "https://github.com/protocolbuffers/protobuf",
+    "texts": [
+      "nuget/Google.Protobuf/3.36.2/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Humanizer.Core",
+    "version": "2.14.1",
+    "license": "MIT",
+    "source": "https://github.com/Humanizr/Humanizer",
+    "texts": [
+      "nuget/Humanizer.Core/2.14.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Humanizer.Core",
+    "version": "3.0.1",
+    "license": "MIT",
+    "source": "https://github.com/Humanizr/Humanizer",
+    "texts": [
+      "nuget/Humanizer.Core/3.0.1/license.txt"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "IpMatcher",
+    "version": "1.1.0",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/ipmatcher",
+    "texts": [
+      "nuget/IpMatcher/1.1.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Json.More.Net",
+    "version": "2.2.0",
+    "license": "MIT",
+    "source": "https://github.com/json-everything/json-everything",
+    "texts": [
+      "nuget/Json.More.Net/2.2.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "JsonPointer.Net",
+    "version": "6.0.1",
+    "license": "MIT",
+    "source": "https://github.com/json-everything/json-everything",
+    "texts": [
+      "nuget/JsonPointer.Net/6.0.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "JsonSchema.Net",
+    "version": "8.0.5",
+    "license": "MIT",
+    "source": "https://github.com/json-everything/json-everything",
+    "texts": [
+      "nuget/JsonSchema.Net/8.0.5/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "KubernetesClient",
+    "version": "19.0.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/kubernetes-client/csharp",
+    "texts": [
+      "nuget/KubernetesClient/19.0.2/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Data.Sqlite",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://docs.microsoft.com/dotnet/standard/data/sqlite/",
+    "texts": [
+      "nuget/Microsoft.Data.Sqlite/10.0.12/LICENSE.txt"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Data.Sqlite.Core",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://docs.microsoft.com/dotnet/standard/data/sqlite/",
+    "texts": [
+      "nuget/Microsoft.Data.Sqlite.Core/10.0.12/LICENSE.txt"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration",
+    "version": "8.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration/8.0.0/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Configuration/8.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration.Abstractions",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration.Abstractions/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration.Abstractions",
+    "version": "8.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration.Abstractions/8.0.0/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Configuration.Abstractions/8.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration.Binder",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration.Binder/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration.Binder",
+    "version": "8.0.2",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration.Binder/8.0.2/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Configuration.Binder/8.0.2/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration.EnvironmentVariables/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+    "version": "8.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Configuration.EnvironmentVariables/8.0.0/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Configuration.EnvironmentVariables/8.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.DependencyInjection",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.DependencyInjection/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.DependencyInjection.Abstractions/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Diagnostics.Abstractions",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Diagnostics.Abstractions/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Diagnostics.Abstractions",
+    "version": "8.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Diagnostics.Abstractions/8.0.0/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Diagnostics.Abstractions/8.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Logging",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Logging/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Logging.Abstractions",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Logging.Abstractions/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Logging.Configuration",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Logging.Configuration/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Logging.Configuration",
+    "version": "8.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Logging.Configuration/8.0.0/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Logging.Configuration/8.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Options",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Options/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Options.ConfigurationExtensions",
+    "version": "10.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Options.ConfigurationExtensions/10.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Options.ConfigurationExtensions",
+    "version": "8.0.0",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Options.ConfigurationExtensions/8.0.0/LICENSE.TXT",
+      "nuget/Microsoft.Extensions.Options.ConfigurationExtensions/8.0.0/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Microsoft.Extensions.Primitives",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/Microsoft.Extensions.Primitives/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Npgsql",
+    "version": "10.0.3",
+    "license": "PostgreSQL",
+    "source": "https://github.com/npgsql/npgsql",
+    "texts": [
+      "nuget/Npgsql/10.0.3/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "OpenTelemetry",
+    "version": "1.19.1",
+    "license": "Apache-2.0",
+    "source": "https://opentelemetry.io/",
+    "texts": [
+      "nuget/OpenTelemetry/1.19.1/LICENSE.TXT",
+      "nuget/OpenTelemetry/1.19.1/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "OpenTelemetry.Api",
+    "version": "1.19.1",
+    "license": "Apache-2.0",
+    "source": "https://opentelemetry.io/",
+    "texts": [
+      "nuget/OpenTelemetry.Api/1.19.1/LICENSE.TXT",
+      "nuget/OpenTelemetry.Api/1.19.1/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "OpenTelemetry.Api.ProviderBuilderExtensions",
+    "version": "1.19.1",
+    "license": "Apache-2.0",
+    "source": "https://opentelemetry.io/",
+    "texts": [
+      "nuget/OpenTelemetry.Api.ProviderBuilderExtensions/1.19.1/LICENSE.TXT",
+      "nuget/OpenTelemetry.Api.ProviderBuilderExtensions/1.19.1/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "OpenTelemetry.Exporter.OpenTelemetryProtocol",
+    "version": "1.19.1",
+    "license": "Apache-2.0",
+    "source": "https://opentelemetry.io/",
+    "texts": [
+      "nuget/OpenTelemetry.Exporter.OpenTelemetryProtocol/1.19.1/LICENSE.TXT",
+      "nuget/OpenTelemetry.Exporter.OpenTelemetryProtocol/1.19.1/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "OpenTelemetry.Exporter.Prometheus.HttpListener",
+    "version": "1.19.1-beta.1",
+    "license": "Apache-2.0",
+    "source": "https://opentelemetry.io/",
+    "texts": [
+      "nuget/OpenTelemetry.Exporter.Prometheus.HttpListener/1.19.1-beta.1/LICENSE.TXT",
+      "nuget/OpenTelemetry.Exporter.Prometheus.HttpListener/1.19.1-beta.1/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "OpenTelemetry.Instrumentation.Runtime",
+    "version": "1.19.0",
+    "license": "Apache-2.0",
+    "source": "https://opentelemetry.io/",
+    "texts": [
+      "nuget/OpenTelemetry.Instrumentation.Runtime/1.19.0/LICENSE.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Padlock",
+    "version": "1.2.1",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/padlock",
+    "texts": [
+      "nuget/Padlock/1.2.1/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "PolyPrompt",
+    "version": "2.8.0",
+    "license": "MIT",
+    "source": "https://github.com/jchristn/PolyPrompt",
+    "texts": [
+      "nuget/PolyPrompt/2.8.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "PrettyId",
+    "version": "2.0.2",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/PrettyId",
+    "texts": [
+      "nuget/PrettyId/2.0.2/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "QoSKit",
+    "version": "0.2.2",
+    "license": "MIT",
+    "source": "https://github.com/jchristn/QoSKit",
+    "texts": [
+      "nuget/QoSKit/0.2.2/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Radiant",
+    "version": "0.1.3",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/Radiant",
+    "texts": [
+      "nuget/Radiant/0.1.3/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "RegexMatcher",
+    "version": "1.1.0",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/regexmatcher",
+    "texts": [
+      "nuget/RegexMatcher/1.1.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "SQLitePCLRaw.bundle_e_sqlite3",
+    "version": "2.1.12",
+    "license": "Apache-2.0",
+    "source": "https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3/2.1.12",
+    "texts": [
+      "nuget/SQLitePCLRaw.bundle_e_sqlite3/2.1.12/LICENSE.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "SQLitePCLRaw.core",
+    "version": "2.1.12",
+    "license": "Apache-2.0",
+    "source": "https://www.nuget.org/packages/SQLitePCLRaw.core/2.1.12",
+    "texts": [
+      "nuget/SQLitePCLRaw.core/2.1.12/LICENSE.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "SQLitePCLRaw.lib.e_sqlite3",
+    "version": "2.1.12",
+    "license": "Apache-2.0",
+    "source": "https://www.nuget.org/packages/SQLitePCLRaw.lib.e_sqlite3/2.1.12",
+    "texts": [
+      "nuget/SQLitePCLRaw.lib.e_sqlite3/2.1.12/LICENSE.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "SQLitePCLRaw.provider.e_sqlite3",
+    "version": "2.1.12",
+    "license": "Apache-2.0",
+    "source": "https://www.nuget.org/packages/SQLitePCLRaw.provider.e_sqlite3/2.1.12",
+    "texts": [
+      "nuget/SQLitePCLRaw.provider.e_sqlite3/2.1.12/LICENSE.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "SyslogLogging",
+    "version": "2.2.1",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/LoggingModule",
+    "texts": [
+      "nuget/SyslogLogging/2.2.1/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "SyslogLogging",
+    "version": "2.4.1",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/LoggingModule",
+    "texts": [
+      "nuget/SyslogLogging/2.4.1/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "System.Diagnostics.DiagnosticSource",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/System.Diagnostics.DiagnosticSource/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "System.IO.Pipelines",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/System.IO.Pipelines/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "System.Text.Encodings.Web",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/System.Text.Encodings.Web/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "System.Text.Json",
+    "version": "10.0.12",
+    "license": "MIT",
+    "source": "https://dot.net/",
+    "texts": [
+      "nuget/System.Text.Json/10.0.12/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Timestamps",
+    "version": "1.0.13",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/timestamps",
+    "texts": [
+      "nuget/Timestamps/1.0.13/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "UrlMatcher",
+    "version": "3.1.0",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/UrlMatcher",
+    "texts": [
+      "nuget/UrlMatcher/3.1.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Voltaic",
+    "version": "2.4.0",
+    "license": "LICENSE.md",
+    "source": "https://github.com/jchristn/Voltaic",
+    "texts": [
+      "nuget/Voltaic/2.4.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Watson",
+    "version": "7.3.0",
+    "license": "LICENSE.md",
+    "source": "https://github.com/dotnet/WatsonWebserver",
+    "texts": [
+      "nuget/Watson/7.3.0/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "Watson",
+    "version": "7.3.1",
+    "license": "LICENSE.md",
+    "source": "https://github.com/dotnet/WatsonWebserver",
+    "texts": [
+      "nuget/Watson/7.3.1/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "nuget",
+    "name": "YamlDotNet",
+    "version": "18.1.0",
+    "license": "MIT",
+    "source": "https://github.com/aaubry/YamlDotNet/wiki",
+    "texts": [
+      "nuget/YamlDotNet/18.1.0/LICENSE.txt"
+    ]
+  },
+  {
+    "ecosystem": "python",
+    "name": "certifi",
+    "version": "2026.7.22",
+    "license": "MPL-2.0",
+    "source": "https://github.com/certifi/python-certifi",
+    "texts": [
+      "python/certifi/2026.7.22/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "python",
+    "name": "charset-normalizer",
+    "version": "3.5.2",
+    "license": "MIT",
+    "source": "https://pypi.org/project/charset-normalizer",
+    "texts": [
+      "python/charset-normalizer/3.5.2/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "python",
+    "name": "idna",
+    "version": "3.20",
+    "license": "BSD-3-Clause",
+    "source": "https://pypi.org/project/idna",
+    "texts": [
+      "python/idna/3.20/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "python",
+    "name": "requests",
+    "version": "2.34.2",
+    "license": "Apache-2.0",
+    "source": "https://pypi.org/project/requests",
+    "texts": [
+      "python/requests/2.34.2/LICENSE",
+      "python/requests/2.34.2/NOTICE"
+    ]
+  },
+  {
+    "ecosystem": "python",
+    "name": "urllib3",
+    "version": "2.8.0",
+    "license": "MIT",
+    "source": "https://pypi.org/project/urllib3",
+    "texts": [
+      "python/urllib3/2.8.0/LICENSE.txt"
+    ]
+  }
+]

@@ -128,7 +128,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, harnesstype = @harnesstype, executable = @executable, promptdelivery = @promptdelivery, promptargumenttemplate = @promptargumenttemplate, systempromptdelivery = @systempromptdelivery, systemprompttarget = @systemprompttarget, mcpconfigformat = @mcpconfigformat, mcpconfigfilename = @mcpconfigfilename, outputparser = @outputparser, resultsource = @resultsource, resultfilename = @resultfilename, successpolicy = @successpolicy, generictextfield = @generictextfield, genericfinalfield = @genericfinalfield, genericsuccessfield = @genericsuccessfield, genericsuccessvalue = @genericsuccessvalue, defaulttimeoutseconds = @defaulttimeoutseconds, killgraceseconds = @killgraceseconds, maxoutputbytes = @maxoutputbytes, stderrtailbytes = @stderrtailbytes, isolatehome = @isolatehome, supportsresume = @supportsresume, isbuiltin = @isbuiltin, builtinkey = @builtinkey, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, harnesstype = @harnesstype, executable = @executable, promptdelivery = @promptdelivery, promptargumenttemplate = @promptargumenttemplate, systempromptdelivery = @systempromptdelivery, systemprompttarget = @systemprompttarget, mcpconfigformat = @mcpconfigformat, mcpconfigfilename = @mcpconfigfilename, outputparser = @outputparser, resultsource = @resultsource, resultfilename = @resultfilename, successpolicy = @successpolicy, generictextfield = @generictextfield, genericfinalfield = @genericfinalfield, genericsuccessfield = @genericsuccessfield, genericsuccessvalue = @genericsuccessvalue, defaulttimeoutseconds = @defaulttimeoutseconds, killgraceseconds = @killgraceseconds, maxoutputbytes = @maxoutputbytes, stderrtailbytes = @stderrtailbytes, isolatehome = @isolatehome, supportsresume = @supportsresume, sessionformat = @sessionformat, isbuiltin = @isbuiltin, builtinkey = @builtinkey, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -160,6 +160,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "stderrtailbytes", obj.StderrTailBytes);
                     AdoDatabaseDriver.Add(command, "isolatehome", obj.IsolateHome);
                     AdoDatabaseDriver.Add(command, "supportsresume", obj.SupportsResume);
+                    AdoDatabaseDriver.Add(command, "sessionformat", obj.SessionFormat);
                     AdoDatabaseDriver.Add(command, "isbuiltin", obj.IsBuiltIn);
                     AdoDatabaseDriver.Add(command, "builtinkey", obj.BuiltInKey);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
@@ -268,6 +269,7 @@ namespace Garrison.Core.Database.Ado
             obj.StderrTailBytes = AdoConverters.Int(reader, "stderrtailbytes");
             obj.IsolateHome = AdoConverters.Bool(reader, "isolatehome");
             obj.SupportsResume = AdoConverters.Bool(reader, "supportsresume");
+            obj.SessionFormat = AdoConverters.Str(reader, "sessionformat");
             obj.IsBuiltIn = AdoConverters.Bool(reader, "isbuiltin");
             obj.BuiltInKey = AdoConverters.NullableStr(reader, "builtinkey");
             obj.Active = AdoConverters.Bool(reader, "active");
@@ -330,7 +332,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, HarnessProfile obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, harnesstype, executable, promptdelivery, promptargumenttemplate, systempromptdelivery, systemprompttarget, mcpconfigformat, mcpconfigfilename, outputparser, resultsource, resultfilename, successpolicy, generictextfield, genericfinalfield, genericsuccessfield, genericsuccessvalue, defaulttimeoutseconds, killgraceseconds, maxoutputbytes, stderrtailbytes, isolatehome, supportsresume, isbuiltin, builtinkey, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @harnesstype, @executable, @promptdelivery, @promptargumenttemplate, @systempromptdelivery, @systemprompttarget, @mcpconfigformat, @mcpconfigfilename, @outputparser, @resultsource, @resultfilename, @successpolicy, @generictextfield, @genericfinalfield, @genericsuccessfield, @genericsuccessvalue, @defaulttimeoutseconds, @killgraceseconds, @maxoutputbytes, @stderrtailbytes, @isolatehome, @supportsresume, @isbuiltin, @builtinkey, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, harnesstype, executable, promptdelivery, promptargumenttemplate, systempromptdelivery, systemprompttarget, mcpconfigformat, mcpconfigfilename, outputparser, resultsource, resultfilename, successpolicy, generictextfield, genericfinalfield, genericsuccessfield, genericsuccessvalue, defaulttimeoutseconds, killgraceseconds, maxoutputbytes, stderrtailbytes, isolatehome, supportsresume, sessionformat, isbuiltin, builtinkey, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @harnesstype, @executable, @promptdelivery, @promptargumenttemplate, @systempromptdelivery, @systemprompttarget, @mcpconfigformat, @mcpconfigfilename, @outputparser, @resultsource, @resultfilename, @successpolicy, @generictextfield, @genericfinalfield, @genericsuccessfield, @genericsuccessvalue, @defaulttimeoutseconds, @killgraceseconds, @maxoutputbytes, @stderrtailbytes, @isolatehome, @supportsresume, @sessionformat, @isbuiltin, @builtinkey, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -359,6 +361,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "stderrtailbytes", obj.StderrTailBytes);
                 AdoDatabaseDriver.Add(command, "isolatehome", obj.IsolateHome);
                 AdoDatabaseDriver.Add(command, "supportsresume", obj.SupportsResume);
+                    AdoDatabaseDriver.Add(command, "sessionformat", obj.SessionFormat);
                 AdoDatabaseDriver.Add(command, "isbuiltin", obj.IsBuiltIn);
                 AdoDatabaseDriver.Add(command, "builtinkey", obj.BuiltInKey);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);

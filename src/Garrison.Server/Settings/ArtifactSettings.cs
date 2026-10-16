@@ -12,7 +12,7 @@ namespace Garrison.Server.Settings
             get { return _RootDirectory; }
             set { _RootDirectory = String.IsNullOrWhiteSpace(value) ? "data/artifacts" : value; }
         }
-        /// <summary>Maximum file bytes. Default 16 MiB; range 1024 to 64 MiB.</summary>
+        /// <summary>Maximum file or compressed checkpoint bytes. Default 16 MiB; range 1024 to 256 MiB. Raising this requires matching REST/proxy limits and available memory.</summary>
         public int MaxFileBytes { get { return _Collection.MaxFileBytes; } set { _Collection.MaxFileBytes = value; } }
         /// <summary>Maximum collected bytes per execution. Default 64 MiB; range 1024 to 1 GiB.</summary>
         public long MaxTotalBytes { get { return _Collection.MaxTotalBytes; } set { _Collection.MaxTotalBytes = value; } }

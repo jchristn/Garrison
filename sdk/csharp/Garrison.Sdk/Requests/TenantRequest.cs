@@ -9,6 +9,9 @@ namespace Garrison.Sdk.Requests
     /// </summary>
     public class TenantRequest
     {
+        /// <summary>Relative weighted fair-share scheduling weight, 1 to 1000. Null preserves the current value.</summary>
+        public int? SchedulingWeight { get; set; } = null;
+
         /// <summary>
         /// Tenant name. Required on create.
         /// </summary>

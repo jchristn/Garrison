@@ -38,6 +38,10 @@ namespace Garrison.Core.Database
 
         private static readonly List<string> _AllTables = new List<string>
         {
+                "credential_leases",
+                "effect_operations",
+                "run_database_usage",
+                "effect_checkpoints",
                 "tenants",
                 "users",
                 "credentials",
@@ -71,7 +75,7 @@ namespace Garrison.Core.Database
                 "workspace_templates",
                 "workspace_template_files",
                 "artifact_stores",
-                "artifacts", "mcp_tests", "mcp_test_tools",
+                "artifacts", "run_checkpoints", "mcp_tests", "mcp_test_tools",
                 "deployment_artifact_globs",
                 "model_prices",
                 "usage_quotas",

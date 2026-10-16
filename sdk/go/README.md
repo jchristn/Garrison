@@ -384,3 +384,14 @@ The normal agent/deployment methods configure `hrn_builtin_provider_api`: set an
 ### Management MCP clients
 
 The same agent/deployment/manifest validation, default bindings, versioning, and audit behavior now serve REST and management MCP. Use normal developer/user credentials for MCP configuration tools; hosted run tokens cannot change configuration. Existing SDK REST methods are unchanged. See [management MCP tools](../../docs/MANAGEMENT_MCP.md) for the MCP contract and replacement semantics.
+
+
+Effect safety and continuation: run operations expose gateway intent metadata (no raw arguments or secrets). `Suspended` is an active status, so completion waits keep polling until a terminal status. Suspension and resume occur automatically for deployments with `suspensionEnabled` and compatible pinned harness `sessionFormat`; there are no manual suspend/resume endpoints. A raw CLI attempt lost after resuming fails closed if its new epoch lacks a safe checkpoint.
+
+Remote agents use kind `Remote`, protocol `A2A` or `Mcp`, a full `remoteEndpointUrl`, and optionally `remoteCredentialSecretId` and `registrationTtlSeconds`; `mcpToolName` selects the remote MCP tool. Executors include `RemoteA2A` and `RemoteMcp`. See [remote agents](../../docs/REMOTE_AGENTS.md) and [tenant scheduling](../../docs/TENANT_SCHEDULING.md). Queue saturation returns HTTP 429 with code `QueueFull`, rather than creating a failed run.
+
+System administrators can change tenant `schedulingWeight` (1 to 1000, default 1), use server settings for credential/run-token expiry policies and queue bounds, and run the master-key rotation method. Rotation uses keys already configured on the server and returns counts only; clients never supply key material to the endpoint. Keep old keys until a pass reports zero conflicts and failures.
+
+LeaseBroker secret metadata uses `kind: "LeaseBroker"`, `brokerResource`, and optional `brokerAudience`; it rejects a static `value`. Issuance/revocation endpoints and provider authorization are operator-only settings. See the [provider contract](../../docs/CREDENTIAL_BROKER.md) for TTL, tombstone, and tenant authorization requirements.
+
+`client.Runs.Placement(ctx, runID)` returns read-only placement diagnostics. `client.Runs.DatabaseUsage(ctx, runID)` returns exact SQL attempts inside completed instrumented lifecycle scopes. Placement eligibility is advisory and reserves no capacity. External invocation wait is best effort: when the server wait budget is full, it returns the accepted run for polling. Resident synchronous delegation instead fails with `DelegationCapacityExhausted` before child creation when no wait slot is available. Poll an accepted run's ID instead of submitting another invocation.

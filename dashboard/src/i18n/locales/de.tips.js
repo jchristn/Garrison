@@ -351,6 +351,7 @@ const tips = {
       Deny: 'Verweigern: Die Harness wurde abgewiesen und hat den Grund erfahren.'
     },
     approvalSource: {
+      DurableResume: "Eine einmalige menschliche Genehmigung aus dem vorherigen dauerhaften Prüfpunkt. Sie gilt nur für die passende fortgesetzte Werkzeuganfrage.",
       Rule: 'Sofort durch eine Regel der Bereitstellung entschieden. Die zutreffende Regel wird daneben angezeigt.',
       Default: 'Keine Regel traf zu, daher hat die Standardaktion der Bereitstellung entschieden.',
       User: 'Eine Person hat im Dashboard, über die API oder über MCP entschieden.',

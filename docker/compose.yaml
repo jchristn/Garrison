@@ -15,16 +15,9 @@
 # update.sh / update.bat rebuild the images and recreate the stack without touching data.
 # factory/reset.sh / factory/reset.bat delete all data (volumes) and start fresh.
 #
-# Observability (profile "observability"): Prometheus, Loki, Tempo, Grafana with the Garrison dashboards, and Grafana
-# Alloy (OTLP receiver and container log shipper). compose.observability.yaml turns on OTLP export and hands the
-# Grafana, Prometheus, Loki, and Tempo URLs to the server, so use both together:
-#
-#   docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d
-#   ./update.sh --observability          (the same, with a rebuild)
-#
-# Grafana http://127.0.0.1:3000 (admin, GARRISON_GRAFANA_PASSWORD from .env), Prometheus
-# http://127.0.0.1:9090. Loki, Tempo, Grafana provisioning, and the dashboards are mounted from
-# ../k8s/components/observability so Compose and Kubernetes share one copy.
+# Observability starts with the application: Prometheus, Loki, Tempo, Grafana and Alloy share the Kubernetes
+# provisioning files. Grafana uses GARRISON_GRAFANA_PASSWORD from .env; update scripts generate it.
+# compose.observability.yaml remains a compatible explicit settings overlay for existing installations.
 
 name: 'garrison'
 
@@ -46,6 +39,8 @@ x-worker: &worker
     start_period: 60s
 
 x-worker-environment: &worker-environment
+  GARRISON_WORKER_OTLP_ENABLE: '${GARRISON_WORKER_OTLP_ENABLE:-true}'
+  GARRISON_WORKER_OTLP_ENDPOINT: 'http://garrison-alloy:4317'
   GARRISON_WORKER_SETTINGS_FILE: '/etc/garrison/garrison-worker.json'
   GARRISON_WORKER_SERVER_URL: 'http://garrison-server:8700'
   GARRISON_WORKER_CONTAINERIZED: 'true'
@@ -60,6 +55,8 @@ services:
   postgres:
     container_name: 'garrison-postgres'
     image: 'postgres:17'
+    # Parallel queries need more than Docker's default 64 MiB shared-memory mount.
+    shm_size: '256m'
     restart: 'unless-stopped'
     ports:
       - '127.0.0.1:${GARRISON_POSTGRES_PORT:-5433}:5432'
@@ -94,6 +91,16 @@ services:
       - '127.0.0.1:${GARRISON_REST_PORT:-8700}:8700'
       - '127.0.0.1:${GARRISON_MCP_PORT:-8701}:8701'
     environment:
+      GARRISON_OTLP_ENABLE: '${GARRISON_OTLP_ENABLE:-true}'
+      GARRISON_OTLP_ENDPOINT: 'http://garrison-alloy:4317'
+      GARRISON_GRAFANA_URL: 'http://127.0.0.1:${GARRISON_GRAFANA_PORT:-3000}'
+      GARRISON_PROMETHEUS_URL: 'http://127.0.0.1:${GARRISON_PROMETHEUS_PORT:-9090}'
+      GARRISON_LOKI_URL: 'http://127.0.0.1:${GARRISON_LOKI_PORT:-3100}'
+      GARRISON_TEMPO_URL: 'http://127.0.0.1:${GARRISON_TEMPO_PORT:-3200}'
+      GARRISON_GRAFANA_INTERNAL_URL: 'http://garrison-grafana:3000'
+      GARRISON_PROMETHEUS_INTERNAL_URL: 'http://garrison-prometheus:9090'
+      GARRISON_LOKI_INTERNAL_URL: 'http://garrison-loki:3100'
+      GARRISON_TEMPO_INTERNAL_URL: 'http://garrison-tempo:3200'
       GARRISON_SETTINGS_FILE: '/etc/garrison/garrison.json'
       GARRISON_SETTINGS_READONLY: 'true'
       GARRISON_NODE_ID: 'garrison-server'
@@ -124,6 +131,8 @@ services:
 
     volumes:
       - ./server/garrison.json:/etc/garrison/garrison.json:ro
+      # Filesystem artifact stores and durable checkpoints under /app/data survive recreation.
+      - garrison-server-data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -215,12 +224,11 @@ services:
         condition: service_healthy
 
   # ------------------------------------------------------------------
-  # Observability (profile observability). Third-party images are pinned and match k8s/components/observability.
+  # Observability (enabled by default). Third-party images are pinned and match k8s/components/observability.
   # ------------------------------------------------------------------
   garrison-prometheus:
     container_name: 'garrison-prometheus'
     image: 'prom/prometheus:v3.5.4'
-    profiles: ['observability']
     restart: 'unless-stopped'
     command:
       - '--config.file=/etc/prometheus/prometheus.yaml'
@@ -245,7 +253,6 @@ services:
   garrison-loki:
     container_name: 'garrison-loki'
     image: 'grafana/loki:3.5.5'
-    profiles: ['observability']
     restart: 'unless-stopped'
     command: ['-config.file=/etc/loki/loki.yaml']
     ports:
@@ -264,7 +271,6 @@ services:
   garrison-tempo:
     container_name: 'garrison-tempo'
     image: 'grafana/tempo:2.6.1'
-    profiles: ['observability']
     restart: 'unless-stopped'
     command: ['-config.file=/etc/tempo/tempo.yaml']
     ports:
@@ -284,7 +290,6 @@ services:
   garrison-alloy:
     container_name: 'garrison-alloy'
     image: 'grafana/alloy:v1.5.0'
-    profiles: ['observability']
     restart: 'unless-stopped'
     command:
       - 'run'
@@ -306,7 +311,6 @@ services:
   garrison-grafana:
     container_name: 'garrison-grafana'
     image: 'grafana/grafana-oss:13.0.2'
-    profiles: ['observability']
     restart: 'unless-stopped'
     ports:
       - '127.0.0.1:${GARRISON_GRAFANA_PORT:-3000}:3000'
@@ -345,6 +349,7 @@ services:
 
 volumes:
   garrison-postgres-data:
+  garrison-server-data:
   garrison-worker-1-workspaces:
   garrison-worker-2-workspaces:
   garrison-prometheus-data:

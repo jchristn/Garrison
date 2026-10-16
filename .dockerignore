@@ -45,3 +45,7 @@ sdk/csharp/Garrison.Sdk.Console/
 # Worker now consumes the C# SDK (P6.17). Its package metadata files must be present.
 !sdk/csharp/README.md
 !sdk/csharp/LICENSE.md
+
+# Runtime distribution license inventory.
+!LICENSE.md
+!THIRD_PARTY_NOTICES.md

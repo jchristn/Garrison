@@ -12,6 +12,9 @@ namespace Garrison.Sdk.Models
     {
         #region Public-Members
 
+        /// <summary>Relative weighted fair-share scheduling weight. Default 1; range 1 to 1000.</summary>
+        public int SchedulingWeight { get; set; } = 1;
+
         /// <summary>
         /// Identifier.
         /// </summary>

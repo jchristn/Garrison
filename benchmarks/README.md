@@ -204,7 +204,7 @@ Everything shares one machine: servers, workers, every fake harness process (a `
 | `synthetic-fleet` | synthetic | 4 corpora: routing (20 items, 24 probes, 7 negative), e2e (28 items, 23 probes, 5 negative), load (7 items), fleet (440 items, 9 probes, 6 negative) | 56 (18 negative) | all | Part of this repository (MIT) |
 | `garrison-live` | live, frozen 2026-10-11 | 2 corpora (live-ingest, live-e2e), each with the 15 shipped sample documents | 8 (4 negative) | all | Part of this repository (MIT) |
 
-`datasets/SCHEMA.md` describes the format and how the files are built. No public dataset is used: none measures an agent-harness control plane with an oracle and published scores (`BENCHMARKING.md`, Datasets, says why the cluster traces that exist do not fit yet). If a public trace is added later, it is downloaded at run time into `data/` and never committed; check licenses upstream before publishing anything derived from these datasets. There are no local corpora either: Garrison does not ingest unstructured content.
+`datasets/SCHEMA.md` describes the format and how the files are built. The primary content/workflow datasets are synthetic: no public corpus measures this agent-harness control plane with an oracle and published scores. Optional arrival replay now supports a runtime-downloaded Azure Functions 2019 count window; see the conversion instructions below. Raw public datasets and prepared external arrival schedules stay outside version control. Source attribution, transformations and hashes are recorded with the experiment; external counts do not supply an agent-content correctness oracle. There are no local corpora either: Garrison does not ingest unstructured content.
 
 After changing code on the load path (manifest apply), pass a new `--workspace-suffix` or let the corpus hash change, because a reused tenant only re-applies the same documents.
 
@@ -243,3 +243,81 @@ Every run writes `results/<yyyyMMdd-HHmmss>-<kind>-<dataset>[-<label>].json` and
 - A high error rate makes latency meaningless: look at failures by kind first.
 - Compare numbers only on the same machine, and say in `RESULTS.md` when anything else was running.
 - A report whose provenance says `-dirty` was produced from uncommitted code. For numbers that leave the team, run from a clean commit.
+
+## Bursty arrival traces and timing experiments
+
+`prepare-trace` converts an ordered `offsetMs,count` CSV into a finite arrival schedule. Offsets are milliseconds relative to the start of a measurement window, counts are nonnegative integers, and equal offsets retain a burst. Omitting count means one arrival. Inputs must be ordered, finite, and nonnegative. The command refuses more than one million arrivals and records the input SHA-256. It does not contact Garrison.
+
+```bash
+benchmarks/bench.sh prepare-trace --input benchmarks/traces/bursts.csv --output benchmarks/.run/bursts.json
+benchmarks/bench.sh load --mode trace --trace benchmarks/.run/bursts.json --duration-seconds 5 --warmup-seconds 0 --max-in-flight 200
+```
+
+Use `--time-scale 0.1` during preparation to compress source time by ten. The loader validates the prepared file again. Trace mode sends the schedule once per arm; it does not loop it or add jitter. Offsets at or beyond `--duration-seconds` are omitted. If warmup is enabled, it replays the prefix independently before measurement. Reports include both source and prepared-file hashes, the supplied duration, average offered rate, and failure counts, including client-side in-flight drops. Latency starts at the scheduled arrival, so a stalled load generator does not hide queuing. The committed burst fixture is synthetic, not an Azure trace. To use an external invocation trace, first extract the selected function/window into this CSV contract and retain its source information with the prepared artifact.
+
+`benchmarks/timing-sweep.sh` starts seven fresh private local benchmark stacks and changes one timing dimension at a time: lease long polls of 1, 5, and 20 seconds, worker flush intervals of 25, 100, and 250 milliseconds, and server event polls of 50, 100, and 250 milliseconds. The common baseline is 20 seconds, 250 milliseconds, and 250 milliseconds. It refuses to start if the local benchmark port is already occupied. The script records the exact settings with each arm, stops its own processes on exit, and does not touch Compose or the scale stack.
+
+Each point runs closed-loop load and a short streaming e2e arm, because event polling affects subscribers rather than synchronous invocation completion. Configure `TIMING_DURATION_SECONDS`, `TIMING_WARMUP_SECONDS`, `TIMING_CONCURRENCY`, and `TIMING_STREAM_REPEAT`; set `TIMING_STREAM_PROBES=0` to omit stream probes. `BENCH_EVENT_FLUSH_MS` and `BENCH_LEASE_WAIT_MS` also configure workers started by the local and scale stack scripts, using private generated worker settings files.
+
+Load reports include database statement and request-history header insert deltas per successful run. These are explicitly estimates: they include background and failed-run work during the window, and require scraping the same server before and after. They support I-05 remeasurement; they do not implement exact I-12 per-run database attribution. Keep concurrent traffic absent, record the machine and stack, and compare repeated runs before treating a change as an improvement.
+
+## Tenant queue fairness
+
+`fairness` provisions one noisy and two quiet equal-weight tenant workspaces from the load corpus, interleaves 100 noisy submissions for each submission from each quiet tenant, waits for every run, and records per-tenant server `queueMs` distributions. It exits nonzero if any run fails or a quiet tenant's p95 exceeds `--max-quiet-p95-ms` (default 10000). This is a finite workload and a declared experiment target, not a universal production guarantee.
+
+```bash
+benchmarks/bench.sh fairness --url http://127.0.0.1:37800 --stack local --quiet-runs 10 --noisy-multiplier 100 --max-quiet-p95-ms 10000
+# A larger sample across replicas sharing the same database:
+benchmarks/bench.sh fairness --url http://127.0.0.1:37901 --urls http://127.0.0.1:37901,http://127.0.0.1:37902 --quiet-runs 30 --max-connections 4096 --max-quiet-p95-ms 10000
+```
+
+The command refuses a connection budget smaller than the total outstanding requests; otherwise a client-side connection queue could hide quiet tenants until noisy work had drained. For a multi-replica experiment, distribute workers across the replicas too. Reports retain individual run IDs, failures, queue times, client latencies, endpoint configuration, and the exact threshold. Use more than the default ten quiet runs when estimating a release acceptance percentile, and report the sample count with it. Workspaces remain for inspection, as with the other benchmark commands.
+
+Fairness admission defaults to `wait=false`, followed by paginated bulk completion reads per tenant. This keeps the queue experiment from creating a synchronous HTTP waiter per queued run. `admissionMs` and `leaseToStartedMs` are retained separately. Set `--wait-invoke true` to stress synchronous waiter behavior deliberately; this can expose a separate control-plane bottleneck and its results must remain labelled accordingly. The initial 2026-10-15 shared-host SQLite experiment used 1020 synchronous waiters: every run succeeded, but quiet-tenant queue p95 was approximately 26.8 seconds and failed the declared ten-second target. That failure remains evidence rather than a passed fairness acceptance test.
+
+### Workspace cache probe
+
+Run `benchmarks/workspace-cache.sh [output.json] [files] [bytes-per-file]` on macOS or Linux with .NET 10, Python 3, and git. The default deterministic fixture has 10,000 files and 81.92 MB of file content. The standalone probe calls production `WorkspacePreparer` and `WorkspaceSnapshot`; it does not add product references to the black-box benchmark application. It compares uncached clone, cold and warm git mirrors, and prepared-snapshot restoration, verifies the complete generated work tree SHA-256, and removes its temporary repository and build files.
+
+The transport is local `git-upload-pack` through an SSH command shim. Received pack bytes are captured with `GIT_TRACE_PACKFILE`; they represent git payload, not encrypted wire overhead or physical network latency. Snapshot bytes are the actual ZIP size. Run repeated randomized arms on dedicated hardware before drawing latency conclusions. A prepared snapshot includes the git database as well as the checked-out files and can transfer more bytes than a clone.
+
+For bounded real network acceptance, run `benchmarks/workspace-cache-network.sh [output.json] [files=512] [bytes-per-file=8192] [rounds=3] [response-delay-ms=25] [MiB-per-second=16]`. This uses a disposable HTTPS smart Git server over loopback TCP/TLS, a probe-only ephemeral CA, controlled response delay and per-connection body pacing. Each round checks uncached/cold/warm preparation, actual request/response body and Git pack bytes, prepared snapshot capture/HTTPS transfer/restore, and complete work-tree file/mode identity. Requirements additionally include OpenSSL and curl. See [D063 cache acceptance](../docs/testing/D063_CACHE.md) for the measured small-scale results and limits.
+
+### Exact scoped database attribution
+
+Add `--database-attribution true` to `load` to retrieve each successful run's `database-usage` after the timed window. The report separates exact scoped statement/read/write attempts from server-wide estimated costs and reports missing completion scopes. Collection does not contribute to the measured latency or throughput window. Shared scans, candidate eligibility prechecks before atomic claim, maintenance, history writes, telemetry persistence and unflushed work lost to process failure remain outside these per-run counts.
+
+Accepted `202` invocation fallbacks are followed to a terminal run by polling; full arrival-to-completion time remains in latency. A synchronous-wait admission fallback is not a failed run.
+
+### Paired request-history cost
+
+On a disposable scale stack, `NO_BUILD=1 benchmarks/request-history-ablation.sh` uses a seeded initial A/B choice and counterbalanced ABBA arms (seed 42 selects off/on/on/off) at concurrency 16, with five seconds of warmup and thirty seconds of measurement per arm. It uses `benchmarks/.run/scale/fairness-dataset.json` and the scale worker lane, reports database deltas, and restores the original `RequestHistory.Enabled` value even on failure. Set `BENCH_HISTORY_URL`, `BENCH_HISTORY_DATASET`, `BENCH_HISTORY_LANE`, `BENCH_HISTORY_DETAILS`, or duration/warmup environment variables to describe another private fixture. The script accepts only the documented loopback benchmark endpoints. Treat database deltas as whole-server estimates; background operations and history capture are outside exact run lifecycle attribution.
+
+Attribution collection has one shared flush grace and a global time budget: `--database-attribution-seconds` defaults to 10 seconds (range 1 to 300). Runs unobserved when the budget expires are reported as missing rather than extending the measured window or waiting separately for every run.
+
+### Repeated randomized timing ablations
+
+`timing-sweep.sh` preserves its default single round in fixed arm order. Set `TIMING_REPEAT` and `TIMING_RANDOM_SEED` to repeat complete seven-arm rounds in a reproducible randomized order. Each arm still starts a fresh private SQLite stack; no production settings change. `TIMING_PLAN_ONLY=1` writes/prints the schedule without starting a stack.
+
+```bash
+TIMING_REPEAT=2 TIMING_RANDOM_SEED=62026 \
+TIMING_DURATION_SECONDS=25 TIMING_WARMUP_SECONDS=5 TIMING_CONCURRENCY=16 \
+TIMING_STREAM_PROBES=0 \
+TIMING_MANIFEST=benchmarks/evidence/d062/timing-repeated/manifest.json \
+TIMING_RESULTS_DIR=benchmarks/evidence/d062/timing-repeated \
+  benchmarks/timing-sweep.sh
+```
+
+The JSON manifest and companion TSV retain explicit trial/order, seed, Python version, exact timing settings, before/after host load averages and report hashes. Each load report also carries trial/order/seed and settings in its stack details. If CLI arguments override environment settings, the report's recorded options are authoritative. Stream probes retain the existing default; disable them explicitly when isolating load-window replications. Coordinate with other benchmark owners before the run; randomizing order does not remove shared-host interference or prove causality.
+
+### Native Azure Functions invocation traces
+
+`import-azure-function-trace.py` reads the native Azure Functions 2019 CSV schema (`HashOwner,HashApp,HashFunction,Trigger,1,...,1440`) and extracts a selected one-based data row and minute window. It validates the schema, row/window bounds, unsigned counts and the benchmark's one-million-arrival limit before writing output.
+
+```bash
+python3 benchmarks/import-azure-function-trace.py --input /path/to/invocations_per_function_md.anon.d01.csv --output /tmp/azure-arrivals.csv --row 53 --first-minute 781 --minute-count 60 --provenance /tmp/azure-conversion.json
+benchmarks/bench.sh prepare-trace --input /tmp/azure-arrivals.csv --output /tmp/azure-trace.json
+benchmarks/bench.sh load --url http://127.0.0.1:37800 --stack local --mode trace --trace /tmp/azure-trace.json --duration-seconds 60 --warmup-seconds 0 --max-in-flight 512 --database-attribution true
+```
+
+The default `--bin-ms 1000` turns each source minute's aggregate into a simultaneous burst at one-second boundaries, compressing source time by 60x. Unknown subminute arrival times are not reconstructed. Use `--bin-ms 60000` to retain minute spacing and enlarge the replay duration accordingly. This converter does not download the dataset. Preserve its official source, license, attribution, selected row/window, archive hash, input-file hash and converted hash with the report. Keep downloaded source rows and temporary derived schedules outside the repository; the D062 example retains only benchmark reports and provenance under `benchmarks/evidence/d062/`.

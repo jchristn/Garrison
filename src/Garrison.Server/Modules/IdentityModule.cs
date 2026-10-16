@@ -72,7 +72,7 @@ namespace Garrison.Server.Modules
 
             _SettingsService = new SettingsService(context.Settings, _Cluster, context.Logging);
             context.Register(_SettingsService);
-            context.Register(new IdentityService(context.Database, context.Cipher, context.Audit, context.Authorization, () => context.Settings.Auth.PasswordHashIterations));
+            context.Register(new IdentityService(context.Database, context.Cipher, context.Audit, context.Authorization, () => context.Settings.Auth.PasswordHashIterations, () => context.Settings.Auth));
 
             _Capture = new RequestHistoryCaptureService(context.Database, context.Settings.RequestHistory, _Cluster, context.Logging);
             context.Register(_Capture);

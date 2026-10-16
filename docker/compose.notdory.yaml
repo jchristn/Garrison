@@ -1,0 +1,42 @@
+# Optional memory layer; combine with compose.yaml and --profile memory.
+# Metadata and filesystem memory stay in a separate named volume. No ports are published.
+services:
+  notdory-server:
+    image: jchristn77/notdory-server:v0.1.0
+    profiles: [memory]
+    restart: unless-stopped
+    environment:
+      NOTDORY_SETTINGS_FILE: /app/data/notdory.json
+      NOTDORY_REST_HOSTNAME: '*'
+      NOTDORY_DB_TYPE: Sqlite
+      NOTDORY_DB_FILENAME: /app/data/notdory.db
+      NOTDORY_AUTH_SEED_ADMIN_EMAIL: '${NOTDORY_ADMIN_EMAIL:-admin@notdory.local}'
+      NOTDORY_AUTH_SEED_ADMIN_PASSWORD: '${NOTDORY_ADMIN_PASSWORD:?set a separate NotDory administrator password}'
+      NOTDORY_AUTH_DEFAULT_ACCESS_KEY: '${NOTDORY_ACCESS_KEY:?set a separate NotDory access capability}'
+      NOTDORY_AUTH_DEFAULT_SECRET_KEY: '${NOTDORY_SECRET_KEY:?set a separate NotDory secret}'
+    volumes:
+      - notdory-data:/app/data
+    healthcheck:
+      test: [CMD, curl, -fsS, 'http://127.0.0.1:8700/v1.0/api/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  notdory-mcp:
+    image: jchristn77/notdory-mcp:v0.1.0
+    profiles: [memory]
+    restart: unless-stopped
+    environment:
+      NOTDORY_MCP_HOSTNAME: '*'
+      NOTDORY_MCP_PORT: '8720'
+      NOTDORY_MCP_REST_HOSTNAME: notdory-server
+      NOTDORY_MCP_REST_PORT: '8700'
+    depends_on:
+      notdory-server:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, -fsS, 'http://127.0.0.1:8720/']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  notdory-data:

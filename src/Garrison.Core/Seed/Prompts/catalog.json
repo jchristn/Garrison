@@ -18,5 +18,7 @@
   { "key": "mux-subagents", "kind": "ConfigFile", "description": "Mux subagents.json (no subagents)." },
   { "key": "gemini-settings", "kind": "ConfigFile", "description": "Gemini CLI settings.json with MCP servers." },
   { "key": "approval-denied", "kind": "Other", "description": "Message a harness receives when Garrison denies a permission request (P12.3). A tenant template named approval-denied of kind Other replaces it for that tenant." },
-  { "key": "provider-api-config", "kind": "ConfigFile", "description": "Optional provider API harness configuration, compiled from deployment parameters and resolved MCP servers." }
+  { "key": "provider-api-config", "kind": "ConfigFile", "description": "Optional provider API harness configuration, compiled from deployment parameters and resolved MCP servers." },
+  { "key": "continuation-resume", "kind": "Task", "description": "Resumes a suspended harness session with reviewed permission decisions; configurable per tenant." },
+  { "key": "continuation-wait", "kind": "Task", "description": "Requests a resumable harness to finish its current turn at a durable approval or child-wait checkpoint." }
 ]

@@ -1,0 +1,672 @@
+[
+  {
+    "testId": "worker-executor.git-mirror-cache",
+    "suiteId": "worker-executor",
+    "caseId": "git-mirror-cache",
+    "displayName": "Git mirror cache refreshes real git refs and produces independent byte-identical clones",
+    "success": true,
+    "skipped": false,
+    "durationMs": 509,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.portable-snapshot",
+    "suiteId": "worker-executor",
+    "caseId": "portable-snapshot",
+    "displayName": "Workspace snapshots round-trip all session directories and reject traversal, links, and decompression bombs",
+    "success": true,
+    "skipped": false,
+    "durationMs": 42,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.success-claude",
+    "suiteId": "worker-executor",
+    "caseId": "success-claude",
+    "displayName": "Executor: fake harness success in Claude format",
+    "success": true,
+    "skipped": false,
+    "durationMs": 100,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.success-codex",
+    "suiteId": "worker-executor",
+    "caseId": "success-codex",
+    "displayName": "Executor: fake harness success in Codex format",
+    "success": true,
+    "skipped": false,
+    "durationMs": 79,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.success-plain",
+    "suiteId": "worker-executor",
+    "caseId": "success-plain",
+    "displayName": "Executor: fake harness success in plain format",
+    "success": true,
+    "skipped": false,
+    "durationMs": 42,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.codex-app-server-stream",
+    "suiteId": "worker-executor",
+    "caseId": "codex-app-server-stream",
+    "displayName": "Executor: Codex app-server delivery streams deltas with real TTFT and streaming time, then closes stdin",
+    "success": true,
+    "skipped": false,
+    "durationMs": 162,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.codex-app-server-login-schema",
+    "suiteId": "worker-executor",
+    "caseId": "codex-app-server-login-schema",
+    "displayName": "Executor: Codex app-server delivery logs in with the API key from the environment and sends the output schema; the key is scrubbed",
+    "success": true,
+    "skipped": false,
+    "durationMs": 88,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.codex-app-server-approval",
+    "suiteId": "worker-executor",
+    "caseId": "codex-app-server-approval",
+    "displayName": "Executor: Codex app-server approval requests are declined and reported",
+    "success": true,
+    "skipped": false,
+    "durationMs": 89,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.codex-app-server-failures",
+    "suiteId": "worker-executor",
+    "caseId": "codex-app-server-failures",
+    "displayName": "Executor: Codex app-server failed turn, unknown resume thread, and a hung turn hitting the deadline",
+    "success": true,
+    "skipped": false,
+    "durationMs": 3193,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.failed-checkpoint-marker",
+    "suiteId": "worker-executor",
+    "caseId": "failed-checkpoint-marker",
+    "displayName": "Executor: a failed harness with a session and checkpoint marker remains failed",
+    "success": true,
+    "skipped": false,
+    "durationMs": 94,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.failure",
+    "suiteId": "worker-executor",
+    "caseId": "failure",
+    "displayName": "Executor: harness failure maps to HarnessFailed",
+    "success": true,
+    "skipped": false,
+    "durationMs": 106,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.not-installed",
+    "suiteId": "worker-executor",
+    "caseId": "not-installed",
+    "displayName": "Executor: missing executable maps to NotInstalled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.timeout",
+    "suiteId": "worker-executor",
+    "caseId": "timeout",
+    "displayName": "Executor: deadline kills a hung harness",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2058,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.output-limit",
+    "suiteId": "worker-executor",
+    "caseId": "output-limit",
+    "displayName": "Executor: stdout limit kills the harness",
+    "success": true,
+    "skipped": false,
+    "durationMs": 83,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.cancellation",
+    "suiteId": "worker-executor",
+    "caseId": "cancellation",
+    "displayName": "Executor: cancellation stops the harness",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2036,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.placeholders",
+    "suiteId": "worker-executor",
+    "caseId": "placeholders",
+    "displayName": "Executor: worker-side placeholders resolve in args, files, stdin, and result file",
+    "success": true,
+    "skipped": false,
+    "durationMs": 79,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.path-traversal",
+    "suiteId": "worker-executor",
+    "caseId": "path-traversal",
+    "displayName": "Executor: files escaping their base directory are rejected",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.scrubbing",
+    "suiteId": "worker-executor",
+    "caseId": "scrubbing",
+    "displayName": "Executor: secret values are scrubbed from stderr, result, and events",
+    "success": true,
+    "skipped": false,
+    "durationMs": 81,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.environment",
+    "suiteId": "worker-executor",
+    "caseId": "environment",
+    "displayName": "Executor: environment starts empty plus allowlist and spec values; HOME is isolated",
+    "success": true,
+    "skipped": false,
+    "durationMs": 16,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.private-directories",
+    "suiteId": "worker-executor",
+    "caseId": "private-directories",
+    "displayName": "Executor: run and conversation directories are owner-only on creation and reuse",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.retention",
+    "suiteId": "worker-executor",
+    "caseId": "retention",
+    "displayName": "Executor: workspace retention policies and secret directory cleanup",
+    "success": true,
+    "skipped": false,
+    "durationMs": 165,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.tool-call-count",
+    "suiteId": "worker-executor",
+    "caseId": "tool-call-count",
+    "displayName": "Executor: tool call events are counted",
+    "success": true,
+    "skipped": false,
+    "durationMs": 84,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.paced-events",
+    "suiteId": "worker-executor",
+    "caseId": "paced-events",
+    "displayName": "Executor: the fake harness load mode streams a deterministic number of paced events over its duration",
+    "success": true,
+    "skipped": false,
+    "durationMs": 930,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.timing-without-output",
+    "suiteId": "worker-executor",
+    "caseId": "timing-without-output",
+    "displayName": "Executor: timing on a killed harness and on a harness that never started",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2052,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.mcp-preflight",
+    "suiteId": "worker-executor",
+    "caseId": "mcp-preflight",
+    "displayName": "Executor: unreachable required MCP server fails before launch",
+    "success": true,
+    "skipped": false,
+    "durationMs": 30,
+    "message": null
+  },
+  {
+    "testId": "worker-executor.mux-probe-version",
+    "suiteId": "worker-executor",
+    "caseId": "mux-probe-version",
+    "displayName": "Probe: Mux 1.3.0 --version output (\u0022mux v1.3.0\u0022) reports version 1.3.0",
+    "success": true,
+    "skipped": false,
+    "durationMs": 23,
+    "message": null
+  },
+  {
+    "testId": "worker-host.lease-execute-complete",
+    "suiteId": "worker-host",
+    "caseId": "lease-execute-complete",
+    "displayName": "Host: registers, leases, executes, ships ordered events, completes",
+    "success": true,
+    "skipped": false,
+    "durationMs": 337,
+    "message": null
+  },
+  {
+    "testId": "worker-host.event-buffer-replay",
+    "suiteId": "worker-host",
+    "caseId": "event-buffer-replay",
+    "displayName": "Host: events survive control-plane failures and replay with original sequences",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1205,
+    "message": null
+  },
+  {
+    "testId": "worker-host.cancel-from-heartbeat",
+    "suiteId": "worker-host",
+    "caseId": "cancel-from-heartbeat",
+    "displayName": "Host: heartbeat cancellation stops the run and reports Cancelled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 609,
+    "message": null
+  },
+  {
+    "testId": "worker-host.stale-lease",
+    "suiteId": "worker-host",
+    "caseId": "stale-lease",
+    "displayName": "Host: a 409 stale lease kills the harness and skips completion",
+    "success": true,
+    "skipped": false,
+    "durationMs": 103,
+    "message": null
+  },
+  {
+    "testId": "worker-host.sdk-token-refresh",
+    "suiteId": "worker-host",
+    "caseId": "sdk-token-refresh",
+    "displayName": "SDK-backed node transport reauthenticates once after 401 and preserves event delivery",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2,
+    "message": null
+  },
+  {
+    "testId": "worker-host.settings-environment",
+    "suiteId": "worker-host",
+    "caseId": "settings-environment",
+    "displayName": "Settings: GARRISON_WORKER_* overrides and clamping",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-sqlite.exact-input-cas",
+    "suiteId": "continuation-grants-sqlite",
+    "caseId": "exact-input-cas",
+    "displayName": "Durable human grants bind the full exact input and checkpoint and can be consumed only once (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 258,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-sqlite.deny-wins",
+    "suiteId": "continuation-grants-sqlite",
+    "caseId": "deny-wins",
+    "displayName": "A current explicit Deny rule overrides a prior human durable grant (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 453,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-sqlite.boundary-proof",
+    "suiteId": "continuation-config-sqlite",
+    "caseId": "boundary-proof",
+    "displayName": "Only a current lease durable wait authorizes suspension, including decisions during checkpoint upload",
+    "success": true,
+    "skipped": false,
+    "durationMs": 365,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-sqlite.template-selection",
+    "suiteId": "continuation-config-sqlite",
+    "caseId": "template-selection",
+    "displayName": "Continuation templates accept only active tenant Task overrides and valid built-ins (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 331,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.marker-without-wait",
+    "suiteId": "continuation-sqlite",
+    "caseId": "marker-without-wait",
+    "displayName": "A successful marker-only response with a session cannot suspend or reset its deadline",
+    "success": true,
+    "skipped": false,
+    "durationMs": 925,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.cross-node-approval",
+    "suiteId": "continuation-sqlite",
+    "caseId": "cross-node-approval",
+    "displayName": "Pending approval releases its slot and resumes the recorded session on a different worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 981,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.cross-node-codex",
+    "suiteId": "continuation-sqlite",
+    "caseId": "cross-node-codex",
+    "displayName": "Codex app-server approval suspends and restores the recorded thread on another worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 869,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.ten-thousand-suspended",
+    "suiteId": "continuation-sqlite",
+    "caseId": "ten-thousand-suspended",
+    "displayName": "Ten thousand durable wait records hold zero active leases and cannot be claimed (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 822,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-postgresql.exact-input-cas",
+    "suiteId": "continuation-grants-postgresql",
+    "caseId": "exact-input-cas",
+    "displayName": "Durable human grants bind the full exact input and checkpoint and can be consumed only once (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 451,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-postgresql.deny-wins",
+    "suiteId": "continuation-grants-postgresql",
+    "caseId": "deny-wins",
+    "displayName": "A current explicit Deny rule overrides a prior human durable grant (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1008,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-postgresql.boundary-proof",
+    "suiteId": "continuation-config-postgresql",
+    "caseId": "boundary-proof",
+    "displayName": "Only a current lease durable wait authorizes suspension, including decisions during checkpoint upload",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1017,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-postgresql.template-selection",
+    "suiteId": "continuation-config-postgresql",
+    "caseId": "template-selection",
+    "displayName": "Continuation templates accept only active tenant Task overrides and valid built-ins (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 857,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.marker-without-wait",
+    "suiteId": "continuation-postgresql",
+    "caseId": "marker-without-wait",
+    "displayName": "A successful marker-only response with a session cannot suspend or reset its deadline",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1352,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.cross-node-approval",
+    "suiteId": "continuation-postgresql",
+    "caseId": "cross-node-approval",
+    "displayName": "Pending approval releases its slot and resumes the recorded session on a different worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1817,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.cross-node-codex",
+    "suiteId": "continuation-postgresql",
+    "caseId": "cross-node-codex",
+    "displayName": "Codex app-server approval suspends and restores the recorded thread on another worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1800,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.ten-thousand-suspended",
+    "suiteId": "continuation-postgresql",
+    "caseId": "ten-thousand-suspended",
+    "displayName": "Ten thousand durable wait records hold zero active leases and cannot be claimed (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 4798,
+    "message": null
+  },
+  {
+    "testId": "artifacts.prepared-restore-boundary",
+    "suiteId": "artifacts",
+    "caseId": "prepared-restore-boundary",
+    "displayName": "Prepared archives cannot restore HOME or config and private upload callbacks never serialize",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2,
+    "message": null
+  },
+  {
+    "testId": "artifacts.selection",
+    "suiteId": "artifacts",
+    "caseId": "selection",
+    "displayName": "Explicit collection is bounded, skips links, and does nothing without globs",
+    "success": true,
+    "skipped": false,
+    "durationMs": 4,
+    "message": null
+  },
+  {
+    "testId": "artifacts.globs",
+    "suiteId": "artifacts",
+    "caseId": "globs",
+    "displayName": "Artifact globs select only relative files with explicit supported patterns",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "workspace-cache-sqlite.cross-node-hit",
+    "suiteId": "workspace-cache-sqlite",
+    "caseId": "cross-node-hit",
+    "displayName": "Immutable commit prepared archive restores byte-identically on a different worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1157,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.internal-node-upload",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "internal-node-upload",
+    "displayName": "Internal archives require a node-owned live lease and cannot be poisoned with run or administrator public uploads",
+    "success": true,
+    "skipped": false,
+    "durationMs": 340,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.atomic-fence",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "atomic-fence",
+    "displayName": "Artifact insertion atomically rejects stale epochs, repair phases, and cancellation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 46,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.worker-database",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "worker-database",
+    "displayName": "Worker collects explicit files through MCP into the database; signed links download only their file",
+    "success": true,
+    "skipped": false,
+    "durationMs": 530,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.worker-filesystem",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "worker-filesystem",
+    "displayName": "Worker collects explicit files through MCP into filesystem storage and deletes content",
+    "success": true,
+    "skipped": false,
+    "durationMs": 537,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.persistence",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "persistence",
+    "displayName": "Store configuration and ordered deployment globs persist; empty globs stay disabled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 48,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.metadata-content",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "metadata-content",
+    "displayName": "Metadata and database content stay separate, scoped, filtered, and idempotently addressable",
+    "success": true,
+    "skipped": false,
+    "durationMs": 45,
+    "message": null
+  },
+  {
+    "testId": "workspace-cache-postgresql.cross-node-hit",
+    "suiteId": "workspace-cache-postgresql",
+    "caseId": "cross-node-hit",
+    "displayName": "Immutable commit prepared archive restores byte-identically on a different worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1876,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.internal-node-upload",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "internal-node-upload",
+    "displayName": "Internal archives require a node-owned live lease and cannot be poisoned with run or administrator public uploads",
+    "success": true,
+    "skipped": false,
+    "durationMs": 884,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.atomic-fence",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "atomic-fence",
+    "displayName": "Artifact insertion atomically rejects stale epochs, repair phases, and cancellation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 268,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.worker-database",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "worker-database",
+    "displayName": "Worker collects explicit files through MCP into the database; signed links download only their file",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1235,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.worker-filesystem",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "worker-filesystem",
+    "displayName": "Worker collects explicit files through MCP into filesystem storage and deletes content",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1228,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.persistence",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "persistence",
+    "displayName": "Store configuration and ordered deployment globs persist; empty globs stay disabled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 280,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.metadata-content",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "metadata-content",
+    "displayName": "Metadata and database content stay separate, scoped, filtered, and idempotently addressable",
+    "success": true,
+    "skipped": false,
+    "durationMs": 259,
+    "message": null
+  },
+  {
+    "testId": "continuation-child-sqlite.single-slot",
+    "suiteId": "continuation-child-sqlite",
+    "caseId": "single-slot",
+    "displayName": "A parent releases its sole slot while a child runs and resumes with the saved child result (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 901,
+    "message": null
+  },
+  {
+    "testId": "continuation-child-postgresql.single-slot",
+    "suiteId": "continuation-child-postgresql",
+    "caseId": "single-slot",
+    "displayName": "A parent releases its sole slot while a child runs and resumes with the saved child result (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1722,
+    "message": null
+  }
+]

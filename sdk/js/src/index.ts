@@ -89,6 +89,13 @@ export interface WithWarnings {
 }
 
 export interface Agent extends Json, WithWarnings {
+  remoteProtocol?: "A2A" | "Mcp" | null;
+  remoteEndpointUrl?: string | null;
+  remoteCredentialSecretId?: string | null;
+  registrationTtlSeconds?: number;
+  lastRegisteredUtc?: string | null;
+  mcpToolName?: string | null;
+
   id: string; tenantId: string; name: string; displayName?: string; description?: string; kind?: string;
   delegationMode?: string; skills?: Json[]; tags?: string[];
   /** "Text" (default) or "Structured"; the A2A card advertises application/json for Structured or schema agents. */
@@ -160,10 +167,10 @@ export interface ManifestExportOptions {
 }
 
 /** How a worker executes a run: as a subprocess of the worker, or in its own Kubernetes Job (pod per run). */
-export type RunExecutor = "Process" | "KubernetesJob";
+export type RunExecutor = "Process" | "KubernetesJob" | "RemoteA2A" | "RemoteMcp";
 
 /** Executors, in declaration order. */
-export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob"] as const;
+export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob", "RemoteA2A", "RemoteMcp"] as const;
 /** Deployment and run trustLevel values; Trusted is the default. */
 export const TRUST_LEVELS: readonly TrustLevel[] = ["Trusted", "Untrusted"] as const;
 /** Egress rule protocols; TCP is the default. */
@@ -211,6 +218,8 @@ export interface Artifact extends Json {
 export interface ArtifactDownload { url: string; expiresUtc: string; }
 
 export interface Deployment extends Json, WithWarnings {
+  /** Opt in to durable suspension on resumable harnesses. */
+  suspensionEnabled?: boolean;
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
   /** Executor; null uses the node pool's defaultExecutor, then Process. */
   executor?: RunExecutor | null;
@@ -223,7 +232,7 @@ export interface Deployment extends Json, WithWarnings {
    * enforce stays Queued with blockedReason NoIsolatingWorker.
    */
   egressRules?: DeploymentEgressRule[];
-  /** Effect policy, default AtMostOnce: what happens to a run that was already Running when its worker was lost. AtMostOnce fails it with NodeLost, AtLeastOnce requeues it while attempts remain, Journaled behaves as AtMostOnce until the effect journal exists. */
+  /** Effect policy, default AtMostOnce: what happens to a run that was already Running when its worker was lost. AtMostOnce fails it with NodeLost, AtLeastOnce requeues it while attempts remain, Journaled requires a safe current-epoch checkpoint. */
   effectPolicy?: EffectPolicy;
   /** @deprecated Use effectPolicy. Read-only view: true only for AtLeastOnce. Still accepted on input (true AtLeastOnce, false AtMostOnce); sending it with a disagreeing effectPolicy is a 400 (EffectPolicyConflict), so omit it when you change effectPolicy. */
   retryOnNodeLoss?: boolean;
@@ -249,7 +258,7 @@ export type ApprovalStatus = "Pending" | "Approved" | "Denied" | "Expired" | "Ca
 /** What the harness is told. */
 export type ApprovalDecision = "Allow" | "Deny";
 /** Who or what decided an approval. */
-export type ApprovalSource = "Rule" | "Default" | "User" | "Timeout" | "Cancelled";
+export type ApprovalSource = "Rule" | "Default" | "User" | "Timeout" | "Cancelled" | "DurableResume";
 /** Action of an approval rule or of the deployment default. */
 export type ApprovalRuleAction = "Allow" | "Deny" | "Ask";
 /** Where a permission request came from: a Claude Code tool call, a Codex command (evaluated as Bash), or a Codex file change (evaluated as Edit). */
@@ -650,15 +659,30 @@ export interface WorkspaceTemplate extends Json, WithWarnings {
   id: string; tenantId: string; name: string; kind: WorkspaceKind; persistentVolumeClaim?: string | null;
 }
 
-export interface HarnessProfile extends Json, WithWarnings { id: string; name: string; harnessType: string; executable: string; }
+export interface HarnessProfile extends Json, WithWarnings { id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; }
 
 /** An MCP server definition. */
 export interface McpServer extends Json, WithWarnings {
   id: string; tenantId: string; name: string; transport: string; toolTimeoutSeconds?: number;
 }
 
+export type RunStatus = "Queued" | "Leased" | "Running" | "Cancelling" | "Succeeded" | "Failed" | "Cancelled" | "TimedOut" | "Rejected" | "Suspended";
+export const RUN_STATUSES: readonly RunStatus[] = ["Queued", "Leased", "Running", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected", "Suspended"] as const;
+export const QUEUE_FULL_ERROR = "QueueFull" as const;
+export type EffectOperationState = "Authorized" | "Dispatched" | "Completed" | "Unknown";
+export const EFFECT_OPERATION_STATES: readonly EffectOperationState[] = ["Authorized", "Dispatched", "Completed", "Unknown"] as const;
+/** Read-only placement diagnostics; eligibility never reserves capacity. */
+export interface NodePlacementResponse { nodeId: string; eligible: boolean; reasons: string[]; }
+export interface RunPlacementResponse { runId: string; takenUtc: string; admissionRejection?: string | null; reasons: string[]; nodes: NodePlacementResponse[]; eligible: boolean; }
+/** Exact completed-scope SQL attempts; shared polling and telemetry writes are excluded. */
+export interface RunDatabaseUsage { tenantId: string; runId: string; operation: string; statements: number; reads: number; writes: number; errors: number; transactions: number; durationMicroseconds: number; }
+export interface EffectOperation { id: string; tenantId: string; runId: string; leaseEpoch: number; tool: string; argumentDigest: string; state: EffectOperationState; resultReference?: string | null; createdUtc: string; }
+export interface MasterKeyRotationResponse { keyVersion: number; scanned: number; rotated: number; conflicts: number; failed: number; }
+export interface Tenant extends Json { id: string; name: string; schedulingWeight: number; requireUntrustedDeployments?: boolean; }
+export interface TenantRequest extends Json { name?: string; schedulingWeight?: number; requireUntrustedDeployments?: boolean; }
+
 export interface Run extends Json {
-  id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: string; outcome: string;
+  id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: RunStatus; outcome: string;
   /** Executor the run needs, resolved when it was created. */
   executor?: RunExecutor;
   requiredCapabilities?: ExecutorRequirements;
@@ -837,7 +861,7 @@ export interface DeploymentEgressRule {
   /** Protocol, default TCP. */
   protocol?: EgressProtocol;
 }
-/** Deployment and run effect policy: what happens to a started run whose worker was lost. Journaled behaves as AtMostOnce until the effect journal exists. */
+/** Deployment and run effect policy: what happens to a started run whose worker was lost. Journaled requires a safe current-epoch checkpoint. */
 export type EffectPolicy = "AtMostOnce" | "AtLeastOnce" | "Journaled";
 
 /**
@@ -852,6 +876,7 @@ export type SecretStatus = typeof SECRET_STATUSES[number];
 
 /** Secret metadata. The value is write-only and never returned. */
 export interface Secret extends Json {
+  brokerResource?: string | null; brokerAudience?: string | null;
   id: string; tenantId: string; name: string; description?: string; kind: string; valueLast4?: string;
   fingerprint?: string; keyVersion: number; expiresUtc?: string; rotatedUtc?: string; active: boolean; isProtected: boolean;
   /** Ok, or NeedsReauthentication when the stored login must be replaced. */
@@ -1347,6 +1372,11 @@ export class Runs {
     return this.t.request("POST", this.p(), undefined, { parameters: {}, ...request });
   }
   get(id: string): Promise<Run> { return this.t.request("GET", this.p(`/${seg(id)}`)); }
+  /** Explain current placement without leasing or reserving capacity. */
+  placement(id: string): Promise<RunPlacementResponse> { return this.t.request("GET", this.p(`/${seg(id)}/placement`)); }
+  /** Read database statement totals by completed run lifecycle operation. */
+  databaseUsage(id: string): Promise<RunDatabaseUsage[]> { return this.t.request("GET", this.p(`/${seg(id)}/database-usage`)); }
+  operations(id: string): Promise<EffectOperation[]> { return this.t.request("GET", this.p(`/${seg(id)}/operations`)); }
   list(filter: RunFilter = {}): Promise<EnumerationResult<Run>> { return this.t.request("GET", this.p(), filter as any); }
   cancel(id: string): Promise<Run> { return this.t.request("POST", this.p(`/${seg(id)}/cancel`)); }
   retry(id: string): Promise<Run> { return this.t.request("POST", this.p(`/${seg(id)}/retry`)); }
@@ -1582,6 +1612,7 @@ export class Settings {
   get(): Promise<Json> { return this.t.request("GET", "/v1.0/api/settings"); }
   update(values: { path: string; value?: string | null }[]): Promise<Json> { return this.t.request("PUT", "/v1.0/api/settings", undefined, { values }); }
   restart(): Promise<Json> { return this.t.request("POST", "/v1.0/api/settings/restart"); }
+  rotateMasterKey(): Promise<MasterKeyRotationResponse> { return this.t.request("POST", "/v1.0/api/settings/keys/rotate"); }
   testDatabase(): Promise<Json> { return this.t.request("POST", "/v1.0/api/settings/database/test"); }
 }
 

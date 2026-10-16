@@ -394,6 +394,7 @@ export const harnessProfilesConfig = {
     stderrTailBytes: 8000,
     isolateHome: true,
     supportsResume: false,
+    sessionFormat: '',
     arguments: [],
     environment: [],
     files: [],
@@ -470,7 +471,8 @@ export const harnessProfilesConfig = {
       field(id, t, 'maxOutputBytes', 'number', { min: 1024, max: 1073741824, step: 3 }),
       field(id, t, 'stderrTailBytes', 'number', { min: 0, max: 1048576, step: 3 }),
       field(id, t, 'isolateHome', 'checkbox', { step: 3 }),
-      field(id, t, 'supportsResume', 'checkbox', { step: 3 })
+      field(id, t, 'supportsResume', 'checkbox', { step: 3 }),
+      field(id, t, 'sessionFormat', 'text', { step: 3, showIf: (x) => x.supportsResume })
     ];
   },
   validate: (d, t) => {
@@ -1261,7 +1263,7 @@ export const deploymentsConfig = {
       // Executor and run pod resources (Phase 11): empty executor inherits the node pool default, then Process.
       section(id, t, 'execution', 5),
       field(id, t, 'trustLevel', 'select', { step: 5, required: true, options: enumOptions(t, 'trustLevel') }),
-      field(id, t, 'executor', 'select', { step: 5, options: enumOptions(t, 'runExecutor'), noneLabel: t('resources.deployments.executorInherit'), hint: executorHint(t, d, options.pools) }),
+      field(id, t, 'executor', 'select', { step: 5, options: enumOptions(t, 'runExecutor', ['Process', 'KubernetesJob']), noneLabel: t('resources.deployments.executorInherit'), hint: executorHint(t, d, options.pools) }),
       field(id, t, 'capIsolation', 'select', { step: 5, required: true, options: ['Process', 'Container', 'SandboxedRuntime'].map((value) => ({ value, label: enumLabel(t, 'executorIsolation', value) })), hint: t('resources.deployments.hints.capabilities') }),
       field(id, t, 'capColdStartClass', 'select', { step: 5, options: ['Immediate', 'Cold', 'Warm'].map((value) => ({ value, label: enumLabel(t, 'executorColdStart', value) })) }),
       ...EXECUTOR_REQUIREMENT_FLAGS.map((key) => field(id, t, capabilityField(key), 'checkbox', { step: 5 })),
@@ -1280,6 +1282,7 @@ export const deploymentsConfig = {
       ),
       // Permission approvals (P12.3): which tool calls the harness may make, which it may not, and which wait for a person.
       field(id, t, 'approvalsEnabled', 'checkbox', { step: 6 }),
+      field(id, t, 'suspensionEnabled', 'checkbox', { step: 6 }),
       field(id, t, 'approvalDefaultAction', 'select', { step: 6, required: true, options: enumOptions(t, 'approvalRuleAction') }),
       field(id, t, 'approvalTimeoutSeconds', 'number', { step: 6, min: APPROVAL_TIMEOUT.min, max: APPROVAL_TIMEOUT.max, placeholder: String(APPROVAL_TIMEOUT.default) }),
       field(id, t, 'approvalTimeoutDecision', 'select', { step: 6, required: true, options: enumOptions(t, 'approvalDecision') }),
@@ -1299,6 +1302,7 @@ export const deploymentsConfig = {
   },
   toForm: (r) => {
     const form = { ...deploymentToForm(r), ...approvalFormDefaults(r), egressRules: egressRulesToForm(r?.egressRules) };
+    form.suspensionEnabled = !!r?.suspensionEnabled;
     form.effectPolicy = effectPolicyOf(r);
     delete form.retryOnNodeLoss;
     return form;
@@ -1309,6 +1313,7 @@ export const deploymentsConfig = {
     // disagrees with an edited policy would be rejected (EffectPolicyConflict).
     delete body.retryOnNodeLoss;
     body.effectPolicy = d.effectPolicy || 'AtMostOnce';
+    body.suspensionEnabled = !!d.suspensionEnabled;
     body.approvalsEnabled = !!d.approvalsEnabled;
     body.approvalDefaultAction = d.approvalDefaultAction || 'Ask';
     body.approvalTimeoutSeconds = d.approvalTimeoutSeconds ?? APPROVAL_TIMEOUT.default;

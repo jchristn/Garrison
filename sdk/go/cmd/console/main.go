@@ -74,7 +74,7 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 	}
 	switch command {
 	case "help":
-		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit")
+		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit")
 		return nil, nil
 	case "health":
 		return client.Health(ctx)
@@ -112,6 +112,8 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 		var out garrison.EnumerationResult[garrison.Agent]
 		err := client.Agents.List(ctx, nil, &out)
 		return out, err
+	case "operations":
+		return client.Runs.Operations(ctx, argument)
 	case "runs":
 		return client.Runs.List(ctx, garrison.RunFilter{})
 	case "invoke":

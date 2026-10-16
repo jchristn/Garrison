@@ -159,6 +159,7 @@ const es = {
       Deny: 'Denegar'
     },
     approvalSource: {
+      DurableResume: "Aprobación conservada",
       Rule: 'Regla',
       Default: 'Valor predeterminado del despliegue',
       User: 'Persona',
@@ -2607,3 +2608,17 @@ es.components.mcpTest.noWorkers = "Ningún worker listo ofrece diagnósticos std
   }
  }
 });
+
+// Durable continuation and remote execution.
+es.enums.runStatus.Suspended = "Suspendida";
+es.resources.deployments.fields.suspensionEnabled = "Suspender mientras espera aprobación";
+es.resources.harnessProfiles.fields.sessionFormat = "Formato de sesión del arnés";
+es.enums.auditEventType.QueueFull = "Cola llena";
+es.enums.runExecutor.RemoteA2A = "A2A remoto";
+es.enums.runExecutor.RemoteMcp = "MCP remoto";
+es.tips.resources.deployments.suspensionEnabled = "Activa puntos de control persistentes durante la espera. Requiere Process, directorio personal aislado, un arnés compatible con reanudación y almacén de artefactos.";
+es.tips.resources.harnessProfiles.sessionFormat = "Formato de sesión versionado para puntos de control portátiles. Cámbielo si una actualización del arnés cambia la compatibilidad.";
+es.tips.enums.runStatus.Suspended = "La ejecución tiene un punto de control persistente y no retiene una concesión ni una plaza del trabajador mientras espera.";
+es.tips.enums.runExecutor.RemoteA2A = "Ejecuta un agente A2A registrado y autenticado con plazo y cancelación.";
+es.tips.enums.runExecutor.RemoteMcp = "Invoca la herramienta MCP remota seleccionada con entrada JSON validada.";
+es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alcanzó un límite de cola del clúster, inquilino o agente.";

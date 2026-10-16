@@ -200,3 +200,24 @@ Not defects, but recorded so nobody chases them: out-of-range values such as `ma
 - Closed-loop load hides stalls; round 0's open-loop levels are what exposed D-4 and D-5. The open-loop rates are fixed, not bursty (IMPROVEMENTS.md I-10).
 - No public dataset and no published baseline exists for this kind of system; the only baselines are Garrison's own earlier numbers, measured on a different topology.
 - The CI gate runs on the local stack (Sqlite, processes), so it cannot catch PostgreSQL- or Kubernetes-specific regressions; those need a round on the k3d stack.
+
+## D-062 execution and observability measurements (2026-10-16)
+
+These observations use the working tree on a shared development host, not an uncontended release baseline. Full evidence, artifact provenance and limitations are in [D062 validation](../docs/testing/D062_VALIDATION.md) and its linked domain reports.
+
+| Experiment | Observed result | Interpretation |
+|---|---|---|
+| SQLite synchronous noisy-neighbor load | 1020/1020 succeeded; quiet queue p95 about 2.59 s versus 26.7 s before | Bounded synchronous waits remove listener starvation. 764 calls return accepted runs for polling; this is not 1020 held waits. |
+| Final three-replica PostgreSQL synchronous fairness | 3060/3060; quiet p95 8.049/7.049 s, 30 samples per quiet tenant | Passes the experiment's 10 s target; accepted fallbacks are followed to completion. |
+| 10000-run tier at 25/s | 10000/10000; claim p95 15.15 s, end-to-end p95 17.90 s | Completion passes, latency budgets fail. Retain partial performance acceptance. |
+| Final 1000-run lower bracket at 15/s | 1000/1000; claim p95 17 ms, end-to-end p95 1138 ms | Passing bracket on the observed shared host. |
+| Final gateway-owned fenced calls | 210 operations; mean 4.087 ms, histogram p99 upper bound 25 ms | Excludes tool execution/transport; no unapproved 5 ms gate. |
+| Completed-scope SQL attribution | 1497 service arrivals, 1250 burst arrivals and 662 external-trace arrivals, all observed | Actual scoped attempts, not global-counter division; shared/unscoped work remains separate. |
+| Worker-protocol request history | 2080 successes; first-replica estimated header INSERTs/success 1.00 off, 4.83 on | History enabled in both arms; only CaptureNodeProtocol changes. One pair is not a production throughput claim. |
+| PostgreSQL manifest ingestion | 4040 documents, 331.34 docs/s, zero errors; 2000 agents reachable, nine probes pass | Reapply is entirely unchanged; no uncached-binary runtime speedup inferred. |
+| Azure Functions 2019 count replay | 662/662, no drops/failures, p95 858 ms | A one-hour minute-bin window compressed 60x, not original subminute timing. Native data stays outside version control. |
+| Durable process continuation | SQLite 1000 simultaneous suspensions/restores; PostgreSQL 100 | Real deterministic processes; distinct from paid-model sessions and passive 10000-record coverage. |
+
+The initial sequential seven-arm sweep completed 4978 load calls and 84 end-to-end probes, all successful, but overlapped other work. Its order/load confounding is retained. Replicated randomized timing measurements are recorded separately; defaults are selected only when repeatable evidence supports a change.
+
+The D-062 [replicated timing sweep](../docs/testing/D062_TIMING.md) completed two randomized seven-arm rounds, 13714 successful runs and zero failures. Between-round baseline variation prevents a defensible default change; existing timing defaults remain. This is bounded experimental evidence, not release-capacity acceptance.

@@ -1,0 +1,10 @@
+{
+  "harness": "provider-api",
+  "version": "garrison-provider-api 0.1.0-alpha",
+  "sessionId": "b37a8c6d-ec31-4b1e-8e06-625885a829b1",
+  "originalWorkspace": "/tmp/garrison-session-compat/work",
+  "provider": "offline protocol fixture; no real credentials",
+  "recordedBy": "installed CLI session writer",
+  "sanitization": "Generated system prompts and environment attachments removed; session envelopes and fixture user/assistant history retained; sanitized recordings validated by installed CLI resume",
+  "sessionFormat": "garrison-provider-history-json-v1"
+}

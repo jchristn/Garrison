@@ -159,6 +159,7 @@ const de = {
       Deny: 'Verweigern'
     },
     approvalSource: {
+      DurableResume: "Übernommene Genehmigung",
       Rule: 'Regel',
       Default: 'Standard der Bereitstellung',
       User: 'Durch eine Person',
@@ -2589,3 +2590,17 @@ de.components.mcpTest.noWorkers = "Kein bereiter Worker bietet stdio-Diagnosen a
   }
  }
 });
+
+// Durable continuation and remote execution.
+de.enums.runStatus.Suspended = "Angehalten";
+de.resources.deployments.fields.suspensionEnabled = "Während der Freigabe aussetzen";
+de.resources.harnessProfiles.fields.sessionFormat = "Harness-Sitzungsformat";
+de.enums.auditEventType.QueueFull = "Warteschlange voll";
+de.enums.runExecutor.RemoteA2A = "Entferntes A2A";
+de.enums.runExecutor.RemoteMcp = "Entferntes MCP";
+de.tips.resources.deployments.suspensionEnabled = "Aktiviert dauerhafte Sicherungspunkte beim Warten. Benötigt Process, isoliertes Home, kompatible Sitzungsfortsetzung und einen Artefaktspeicher.";
+de.tips.resources.harnessProfiles.sessionFormat = "Versioniertes Sitzungsformat für portable Sicherungspunkte. Bei inkompatiblen Harness-Upgrades ändern.";
+de.tips.enums.runStatus.Suspended = "Der Lauf hat einen dauerhaften Sitzungssicherungspunkt und belegt beim Warten weder Worker-Lease noch Ausführungsplatz.";
+de.tips.enums.runExecutor.RemoteA2A = "Führt einen authentifizierten registrierten A2A-Agenten mit Frist und Abbruch aus.";
+de.tips.enums.runExecutor.RemoteMcp = "Ruft das ausgewählte registrierte MCP-Werkzeug mit geprüftem JSON-Eingang auf.";
+de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil eine Warteschlangengrenze für Cluster, Mandant oder Agent erreicht ist.";

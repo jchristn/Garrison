@@ -31,15 +31,15 @@ Everything lives under `k8s/`:
 | minikube | You already use minikube | minikube, `kubectl`, `openssl`, 4 CPUs and 8 GB for the VM by default | similar; images build inside minikube |
 | Production overlay or Helm | A shared cluster with a managed PostgreSQL and an ingress controller | `kubectl` (and `helm` for the chart), published images or your own registry | depends on the cluster |
 
-Helm is optional everywhere: the scripts use Kustomize, which is built into `kubectl`. All of them end with the same thing: namespace `garrison` with one server, two workers, the dashboard, Postgres (except production), and a bootstrap Job that creates sample agents from your harness credentials.
+Helm is optional everywhere: the scripts use Kustomize, which is built into `kubectl`. The local overlays create namespace `garrison` with one server, two workers, the dashboard, Postgres and a bootstrap Job. Production has three control-plane replicas and expects an external database. Bootstrap creates sample agent records and only creates their deployments when the corresponding credentials or endpoint are configured.
 
 ## Secrets come first
 
-Nothing secret is committed. Before the first deploy, `k8s/scripts/generate-secrets.sh` creates three Secrets in the `garrison` namespace with random values:
+Nothing secret is committed. Before the first deploy, `k8s/scripts/generate-secrets.sh` creates application Secrets and a Grafana Secret in the `garrison` namespace with random values:
 
 - `garrison-secrets` holds the master key that encrypts stored credentials, the token signing key, the administrator API key, the administrator password, the database password, and the default administrator access and secret keys.
 - `garrison-node-credential` holds the access and secret key that workers use to authenticate. The server seeds a matching credential with the `NodeAgent` role on first boot.
-- `garrison-harness-credentials` is optional. It is built from whatever of these variables are set in your shell: `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`, `MUX_BASE_URL`, `MUX_MODEL`, `MUX_API_KEY`, `MUX_ADAPTER_TYPE`, plus `CODEX_AUTH_JSON_FILE`, a path to a Codex `auth.json` (for example `~/.codex/auth.json`) used when you sign in to Codex with ChatGPT instead of an API key. Codex refreshes those tokens itself, so a refresh inside the cluster can invalidate the copy on your machine; run `codex login` again locally if that happens.
+- `garrison-harness-credentials` is optional. It is built from whatever of these variables are set in your shell: `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`, `MUX_BASE_URL`, `MUX_MODEL`, `MUX_API_KEY`, `MUX_ADAPTER_TYPE`, plus optional `MUX_CONTEXT_WINDOW`, `MUX_MAX_TOKENS`, and `CODEX_AUTH_JSON_FILE`, the path to a dedicated Codex login auth.json. Garrison refreshes stored Codex tokens on the control plane; sharing that login with another active installation can invalidate rotated refresh tokens. Create a separate login as described in the [quick start](QUICKSTART.md#1-store-the-credentials).
 
 The script keeps existing `garrison-secrets` and `garrison-node-credential` values on re-runs, because rotating them after first boot changes keys that are already seeded in the database. Pass `--force` only when you mean to start over. The administrator signs in to tenant `default` as `admin@garrison` with the password from `GARRISON_ADMIN_PASSWORD`, or a random one when that variable is not set, which the script prints once. There is no default password, and the server refuses to start with the public built-in defaults (SR-08). The other keys are random, including the administrator API key that some examples send as `x-api-key` (where they show `garrisonadmin`, use yours); read it from the Secret:
 
@@ -469,7 +469,7 @@ Resources are sized for a laptop cluster. Requests add up to 225m CPU and 640 Mi
 
 `k8s/scripts/deploy-k3s.sh --build` with `OBSERVABILITY=1` also imports the five observability images when Docker already has them, so the cluster does not pull about 1 GB again.
 
-To use your own monitoring instead, skip the component: the annotations above work with any Prometheus that honors them, and setting `GARRISON_OTLP_ENABLE=true` and `GARRISON_OTLP_ENDPOINT` on the server (and the worker equivalents) sends traces to your collector. For a quick look without Prometheus, `kubectl -n garrison port-forward deploy/garrison-server 8700:8700`, then `curl -s http://127.0.0.1:8700/metrics`. The dedicated listeners (9464, 9465) answer only requests addressed to the pod host name, so neither port-forwarding them nor scraping them by pod IP works; `docs/TELEMETRY.md` explains the relay and how to turn it off.
+To use your own monitoring instead, skip the component: the annotations above work with any Prometheus that honors them, and setting `GARRISON_OTLP_ENABLE=true` and `GARRISON_OTLP_ENDPOINT` on the server (and the worker equivalents) sends traces to your collector. The default REST listener does not serve `/metrics`. Scrape the dedicated listeners at pod IPs as configured by the component, or explicitly enable `Telemetry.ServeMetricsOnServicePort` for a suitable restricted deployment. See [telemetry](TELEMETRY.md) for listener configuration.
 
 ## Build and publish multi-architecture images
 
@@ -490,3 +490,9 @@ Worker Roles need pod create/update/delete, `pods/attach` get and create, and co
 Run `scripts/check-warm-pods.sh` after building a current local worker image tagged `garrison-worker:warm-test`. The local gate creates and removes a temporary K3S cluster, checks shared refill bounds, competing reservations, isolation, completion, cancellation, and deletion, and reports warm/cold startup measurements. It uses no provider credentials and is excluded from routine CI.
 
 Local native K3S sample (2026-10-13, six runs each, same shell harness and image): warm claim-to-Started p50 0.072 s and p95 0.110 s; cold p50 1.015 s and p95 2.023 s. These are local observations, not production guarantees. Successful direct worker API writes were 3.33 per warm run versus 2.00 per cold run, excluding controller operations and reads/attach. Warming improves startup but adds reservation and refill coordination; it does not reduce API writes in this sample.
+
+## Optional agent memory and source capabilities
+
+Agent memory defaults to disabled. Current source includes a filesystem provider behind `IAgentMemoryStore`; no NotDory deployment is required. Enable `GARRISON_AGENT_MEMORY_ENABLE=true` on the server and configure `GARRISON_AGENT_MEMORY_ROOT` on persistent storage. All replicas serving the same tenants need a shared root or a replacement shared-store implementation. A server-local `emptyDir` is unsuitable for persistent multi-replica memory. See [agent memory](AGENT_MEMORY.md) for scope, MCP tools and replacement interfaces.
+
+The standard K3S/minikube overlays do not include observability; choose their `-observability` variants or `OBSERVABILITY=1` as shown above. Docker Compose includes those services by default. A checkout may contain capabilities newer than published images: use `deploy-k3s.sh --build` or the minikube source build to test that checkout, and verify the image revision before promising those capabilities to users. Continue with the [quick start](QUICKSTART.md) and [security guide](SECURITY.md).

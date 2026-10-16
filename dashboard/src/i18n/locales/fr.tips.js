@@ -353,6 +353,7 @@ const tips = {
       Deny: 'Refuser : le harness a reçu un refus avec son motif.'
     },
     approvalSource: {
+      DurableResume: "Une approbation humaine à usage unique conservée depuis le point de contrôle précédent. Elle ne vaut que pour la demande d’outil reprise correspondante.",
       Rule: 'Décidée immédiatement par une règle du déploiement. La règle correspondante est affichée à côté.',
       Default: 'Aucune règle ne correspondait ; l\'action par défaut du déploiement a donc décidé.',
       User: 'Une personne a décidé dans le tableau de bord, via l\'API ou via MCP.',

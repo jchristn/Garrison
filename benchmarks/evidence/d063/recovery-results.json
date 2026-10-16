@@ -1,0 +1,62 @@
+[
+  {
+    "testId": "recovery-acceptance-postgresql.leader-loss-partition-atmostonce",
+    "suiteId": "recovery-acceptance-postgresql",
+    "caseId": "leader-loss-partition-atmostonce",
+    "displayName": "Three replicas: committed external effect, isolated worker, leader stopped, surviving replicas recover under AtMostOnce",
+    "success": true,
+    "skipped": false,
+    "durationMs": 9555,
+    "message": null
+  },
+  {
+    "testId": "recovery-acceptance-postgresql.all-control-planes-offline-atmostonce",
+    "suiteId": "recovery-acceptance-postgresql",
+    "caseId": "all-control-planes-offline-atmostonce",
+    "displayName": "All three replicas stop after an external commit, endpoints remain unavailable past lease expiry, new runtimes recover under AtMostOnce",
+    "success": true,
+    "skipped": false,
+    "durationMs": 14694,
+    "message": null
+  },
+  {
+    "testId": "recovery-acceptance-postgresql.leader-loss-partition-journaled",
+    "suiteId": "recovery-acceptance-postgresql",
+    "caseId": "leader-loss-partition-journaled",
+    "displayName": "Three replicas: committed external effect, isolated worker, leader stopped, surviving replicas recover under Journaled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 8736,
+    "message": null
+  },
+  {
+    "testId": "recovery-acceptance-postgresql.all-control-planes-offline-journaled",
+    "suiteId": "recovery-acceptance-postgresql",
+    "caseId": "all-control-planes-offline-journaled",
+    "displayName": "All three replicas stop after an external commit, endpoints remain unavailable past lease expiry, new runtimes recover under Journaled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 14101,
+    "message": null
+  },
+  {
+    "testId": "recovery-acceptance-postgresql.leader-loss-partition-atleastonce",
+    "suiteId": "recovery-acceptance-postgresql",
+    "caseId": "leader-loss-partition-atleastonce",
+    "displayName": "Three replicas: committed external effect, isolated worker, leader stopped, surviving replicas recover under AtLeastOnce",
+    "success": true,
+    "skipped": false,
+    "durationMs": 8834,
+    "message": null
+  },
+  {
+    "testId": "recovery-acceptance-postgresql.all-control-planes-offline-atleastonce",
+    "suiteId": "recovery-acceptance-postgresql",
+    "caseId": "all-control-planes-offline-atleastonce",
+    "displayName": "All three replicas stop after an external commit, endpoints remain unavailable past lease expiry, new runtimes recover under AtLeastOnce",
+    "success": true,
+    "skipped": false,
+    "durationMs": 13809,
+    "message": null
+  }
+]

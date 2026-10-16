@@ -313,7 +313,10 @@ namespace Garrison.Server.Services
         public async Task<TokenResponse> IssueForCredentialAsync(Credential credential, AuthSchemeEnum scheme, string? sourceIp, string? userAgent, CancellationToken token = default)
         {
             if (credential == null) throw new ArgumentNullException(nameof(credential));
-            AuthSession session = NewSession(credential.TenantId, PrincipalTypeEnum.Credential, scheme, sourceIp, userAgent, DateTime.UtcNow.AddMinutes(_Tokens.LifetimeMinutes));
+            DateTime expiry = DateTime.UtcNow.AddMinutes(_Tokens.LifetimeMinutes);
+            if (credential.ExpiresUtc.HasValue && credential.ExpiresUtc.Value < expiry) expiry = credential.ExpiresUtc.Value;
+            if (expiry <= DateTime.UtcNow) throw new InvalidOperationException("An expired credential cannot issue a session.");
+            AuthSession session = NewSession(credential.TenantId, PrincipalTypeEnum.Credential, scheme, sourceIp, userAgent, expiry);
             session.CredentialId = credential.Id;
             await _Database.Sessions.CreateAsync(session, token).ConfigureAwait(false);
             TokenPayload payload = Payload(session);
@@ -335,6 +338,9 @@ namespace Garrison.Server.Services
         public async Task<string> IssueForRunAsync(Run run, long leaseEpoch, DateTime expiresUtc, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
+            DateTime ceiling = DateTime.UtcNow.AddMinutes(_Settings.Auth.RunTokenLifetimeMinutes);
+            if (expiresUtc > ceiling) expiresUtc = ceiling;
+            if (expiresUtc <= DateTime.UtcNow) throw new ArgumentOutOfRangeException(nameof(expiresUtc), "Run token expiry must be in the future.");
             AuthSession session = NewSession(run.TenantId, PrincipalTypeEnum.Run, AuthSchemeEnum.RunToken, null, "garrison-run", expiresUtc);
             session.RunId = run.Id;
             session.OriginPrincipalType = run.CallerType;
@@ -451,7 +457,7 @@ namespace Garrison.Server.Services
                 Run? run = await _Database.Runs.ReadAsync(payload.TenantId, payload.RunId, token).ConfigureAwait(false);
                 if (run == null) return await FailAsync(ctx, AuthSchemeEnum.RunToken, AuthResultEnum.NotFound, "Run not found.", token).ConfigureAwait(false);
                 bool active = run.Status == RunStatusEnum.Leased || run.Status == RunStatusEnum.Running || run.Status == RunStatusEnum.Cancelling;
-                if (!active || (session.LeaseEpoch.HasValue && session.LeaseEpoch.Value != run.LeaseEpoch))
+                if (!active || !run.LeaseExpiresUtc.HasValue || run.LeaseExpiresUtc.Value <= DateTime.UtcNow || (session.LeaseEpoch.HasValue && session.LeaseEpoch.Value != run.LeaseEpoch))
                 {
                     return await FailAsync(ctx, AuthSchemeEnum.RunToken, AuthResultEnum.Inactive, "Run token belongs to an attempt that no longer holds the run's lease.", token).ConfigureAwait(false);
                 }

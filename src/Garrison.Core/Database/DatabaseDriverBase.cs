@@ -123,6 +123,9 @@ namespace Garrison.Core.Database
         /// <summary>Collected run artifact metadata and database content.</summary>
         public IArtifactMethods Artifacts { get; protected set; } = null!;
 
+        /// <summary>Exact scoped per-run database attribution.</summary>
+        public IRunDatabaseUsageMethods RunDatabaseUsage { get; protected set; } = null!;
+
         /// <summary>Transient worker MCP connection diagnostics.</summary>
         public IMcpTestMethods McpTests { get; protected set; } = null!;
 
@@ -165,6 +168,12 @@ namespace Garrison.Core.Database
         /// <summary>
         /// CoordinationLease methods.
         /// </summary>
+        public ICredentialLeaseMethods CredentialLeases { get; protected set; } = null!;
+
+        /// <summary>Effect operation persistence.</summary>
+        public IEffectOperationMethods EffectOperations { get; protected set; } = null!;
+
+        /// <summary>Coordination lease persistence.</summary>
         public ICoordinationLeaseMethods CoordinationLeases { get; protected set; } = null!;
 
         /// <summary>

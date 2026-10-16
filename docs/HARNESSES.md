@@ -220,7 +220,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument, after `--` unless the template starts with literal text such as `--prompt=`, so caller text that begins with `-` is never read as an option), `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`), or `CodexAppServer` (the worker drives `codex app-server` over JSON-RPC and sends the prompt as one turn; see [Streaming with `codex app-server`](#streaming-with-codex-app-server-builtincodex-app-server)). |
 | `systemPromptDelivery` | `File` (written to `systemPromptTarget` in the config directory), `Argument` (`systemPromptTarget` is the flag), `Environment` (`systemPromptTarget` is the variable), `PrependToPrompt`, or `None` (the profile handles it with its own arguments or files). |
 | `mcpConfigFormat`, `mcpConfigFileName` | Which MCP configuration dialect the harness reads and where. Informational for the built-in formats, which are produced by the profile's own files and arguments. |
-| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, or `PlainText`. |
+| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `ProviderApiJsonl`, `GenericJsonl`, or `PlainText`. |
 | `resultSource` | `ParserFinalEvent`, `LastMessageFile` (read `resultFileName` from the config directory), or `Stdout`. |
 | `successPolicy` | `FinalEvent` (the parser saw a successful final event), `ExitCode` (the exit code is in `successExitCodes`), or `FinalEventAndExitCode`. `PlainText` always uses `ExitCode`. |
 | `genericTextField`, `genericFinalField`, `genericSuccessField`, `genericSuccessValue` | Dotted JSON paths for `GenericJsonl`: assistant text, the final result, and the field and value that mean success. |
@@ -229,7 +229,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `maxOutputBytes` | Stdout limit; the run fails with `OutputLimitExceeded` beyond it (default 64 MiB). |
 | `stderrTailBytes` | How much stderr to keep for diagnosis (default 8000). |
 | `isolateHome` | Give each run its own `HOME` (and `USERPROFILE`, and `CODEX_HOME` for Codex). On by default for every built-in. |
-| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/codex-app-server` (which resumes over JSON-RPC rather than with an argument), `builtin/mux`, `builtin/gemini-cli`, and `builtin/fake`. |
+| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments, configuration or execution protocol must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/codex-app-server` (which resumes over JSON-RPC rather than with an argument), `builtin/mux`, `builtin/gemini-cli`, `builtin/provider-api`, and `builtin/fake`. |
 | `successExitCodes`, `probeArguments` | Exit codes that count as success, and the arguments used to check the harness is installed (`--version`). |
 | `credentialEnvironmentAllowlist` | The only environment variables allowed to reference a secret. When the list is not empty, an environment template (from the profile or a deployment override) that references a secret under any other name fails compilation with `SecretNotAllowed`. |
 
@@ -393,14 +393,14 @@ On the recorded gpt-oss:20b loop (`src/Test.Shared/Fixtures/mux/v1.3.0-repetitio
 
 ### Conversations
 
-A conversation turn (a run with a `conversationId`, see Conversations in `REST_API.md`) resumes the harness session the earlier turns built, with the same resume arguments the structured output repair uses (table below). Every built-in harness keeps its sessions under the run's home or config directory, so the worker runs all turns of a conversation in one set of directories, `<WorkRoot>/conversations/<conversationId>/{work,home,config}`, and keeps them after each turn instead of deleting them:
+A conversation turn (a run with a `conversationId`, see Conversations in `REST_API.md`) resumes the harness session the earlier turns built, with the same resume arguments the structured output repair uses (table below). Each resumable built-in harness keeps its sessions under the run's home or config directory, so the worker runs all turns of a conversation in one set of directories, `<WorkRoot>/conversations/<conversationId>/{work,home,config}`, and keeps them after each turn instead of deleting them:
 
 - The first turn, and any turn that starts a fresh session (a fallback), starts from empty directories, replacing any the worker still had for the conversation, and prepares the workspace as usual.
 - A turn that resumes skips workspace preparation and rewrites the spec's files over the previous turn's. A `LastMessageFile` result left by the previous turn is deleted before the harness starts, so it cannot be read as this turn's answer.
 - A turn that should resume but finds the directories gone reports outcome `ConversationStateLost` without starting the harness. The control plane queues it again as a fallback (no attempt is used), and any capable node runs it as a fresh session seeded with the transcript.
 - Directories that no turn used for `ConversationRetentionHours` (default 24) are deleted by a periodic sweep; directories of a conversation with a run on the worker are never swept.
 
-The control plane sends a follow-up turn back to the node that ran the last successful turn, waiting up to `Runtime.ConversationAffinityWaitMs` for it while it is Ready. KubernetesJob runs get a new pod with an empty home for every run, so their conversation turns after the first always start from the transcript (fallback reason `ExecutorWithoutState`) until workspace snapshots (plan P12.2) carry sessions between pods.
+The control plane sends a follow-up turn back to the node that ran the last successful turn, waiting up to `Runtime.ConversationAffinityWaitMs` for it while it is Ready. KubernetesJob runs get a new pod with an empty home for every run, so their conversation turns after the first always start from the transcript (fallback reason `ExecutorWithoutState`); durable suspension currently requires Process execution and does not transfer conversation sessions between KubernetesJob pods.
 
 How each built-in harness reports the session it resumes later:
 
@@ -411,7 +411,7 @@ How each built-in harness reports the session it resumes later:
 | `builtin/codex-app-server` | the thread ID returned by `thread/start` (a resumed turn keeps it) |
 | `builtin/mux` | `sessionId` of `run_started` and `run_completed`. Mux print mode keeps a session only when asked, so the first turn of a conversation runs with `--session-id <run id>` and without `--no-session-persistence` (the profile's `run.persistSession` condition) |
 | `builtin/gemini-cli` | `session_id` of the stream-json `init` event |
-| `builtin/provider-api` | `garrison-provider-api` | stdin | compiled template configuration | HTTP MCP entries in private config | `ProviderApiJsonl` | final event |
+| `builtin/provider-api` | `sessionId` on the normalized lifecycle event; private history files are stored under the isolated HOME |
 | `builtin/fake` | the session it writes under `$HOME/.garrison-fake/sessions`; with the deployment parameter `reportTurns` it prefixes its answer with `[turn N]`, the turns in that session |
 
 ### Structured output validation and repair
@@ -420,11 +420,11 @@ When the agent has an output schema, the control plane validates the output of a
 
 If validation fails, Garrison makes at most one repair attempt, and only when all of these hold:
 
-- the deployment's harness profile has `supportsResume` set and its arguments pass `run.resumeSessionId` to the harness;
+- the deployment's harness profile has `supportsResume` set and its arguments, private configuration, or execution protocol pass `run.resumeSessionId` to the harness;
 - the harness reported a session ID for the run;
 - the run was not cancelled, and the worker supports in-lease repairs (every current worker does).
 
-The repair runs inside the same lease, on the same worker, in the same `work/`, `home/`, and `config/` directories, because every built-in harness keeps its sessions under the run's home or config directory. The control plane answers the completion report with a second `ExecutionSpec` compiled with `run.resumeSessionId` set and the `Repair` prompt as the task prompt (`docs/PROMPTS.md`); the worker skips workspace preparation, rewrites the files, launches the harness again, and reports completion with `repairAttempt` 1. How each built-in resumes:
+The repair runs inside the same lease, on the same worker, in the same `work/`, `home/`, and `config/` directories, because each resumable built-in harness keeps its sessions under the run's home or config directory. The control plane answers the completion report with a second `ExecutionSpec` compiled with `run.resumeSessionId` set and the `Repair` prompt as the task prompt (`docs/PROMPTS.md`); the worker skips workspace preparation, rewrites the files, launches the harness again, and reports completion with `repairAttempt` 1. How each built-in resumes:
 
 | Profile | Resume arguments |
 |---|---|
@@ -433,10 +433,10 @@ The repair runs inside the same lease, on the same worker, in the same `work/`, 
 | `builtin/codex-app-server` | no argument: the worker sends `thread/resume` with the thread ID before the repair turn |
 | `builtin/mux` | `--resume <sessionId>`; the original execution passes `--session-id <run id>` so Mux persists the session, which it does only for agents with an output schema and for conversation turns |
 | `builtin/gemini-cli` | `--resume <session_id>` |
-| `builtin/provider-api` | `garrison-provider-api` | stdin | compiled template configuration | HTTP MCP entries in private config | `ProviderApiJsonl` | final event |
+| `builtin/provider-api` | compiled configuration sets `sessionId` to the saved ID and `resume` to `true`; no resume CLI argument |
 | `builtin/fake` | `--resume <session>` |
 
-A profile without `supportsResume` (for example a clone with it turned off, or `builtin/generic-jsonl`) gets no repair: an invalid output fails the run at once with `SchemaValidationFailed`, and the error message says that the profile does not support resume. A cloned profile that sets `supportsResume` must also add resume arguments conditioned on `{{run.resumeSessionId}}`, or the repair prompt would start a fresh session without the original context.
+A profile without `supportsResume` (for example a clone with it turned off, or `builtin/generic-jsonl`) gets no repair: an invalid output fails the run at once with `SchemaValidationFailed`, and the error message says that the profile does not support resume. A cloned profile that sets `supportsResume` must also pass `{{run.resumeSessionId}}` through resume arguments, private configuration or its execution protocol, or the repair prompt would start a fresh session without the original context.
 
 #### Verified with real CLIs
 

@@ -21,7 +21,7 @@ namespace Garrison.Core.Database.Ado
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
-        private static readonly string _Columns = "id, tenantid, runid, rootrunid, agentid, agentname, deploymentid, leaseepoch, harnesstype, kind, toolname, toolcallid, inputpreview, summary, suggestedrule, status, decision, decisionsource, ruleid, rulepattern, rememberedruleid, decidedby, decidedbyid, reason, timeoutdecision, requestedutc, decidedutc, expiresutc, createdutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, runid, rootrunid, agentid, agentname, deploymentid, leaseepoch, harnesstype, kind, toolname, toolcallid, inputpreview, summary, suggestedrule, status, decision, decisionsource, ruleid, rulepattern, rememberedruleid, decidedby, decidedbyid, reason, timeoutdecision, requestedutc, decidedutc, expiresutc, createdutc, lastupdateutc, inputdigest, resumeepoch";
 
         #endregion
 
@@ -41,6 +41,28 @@ namespace Garrison.Core.Database.Ado
         #endregion
 
         #region Public-Methods
+
+        /// <inheritdoc />
+        public async Task<Approval?> TryConsumeResumeGrantAsync(string tenantId, string runId, long epoch, string tool, ApprovalKindEnum kind, string inputDigest, CancellationToken token = default)
+        {
+            Approval? granted = null;
+            await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+            {
+                int active = await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                    "UPDATE " + _Driver.Table("runs") + " SET lastupdateutc = lastupdateutc WHERE tenantid = @tenant AND id = @run AND leaseepoch = @epoch AND status IN ('Leased','Running') AND leaseexpiresutc > @now AND cancelrequested = " + _Driver.Dialect.BooleanLiteral(false) + ";",
+                    command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "run", runId); AdoDatabaseDriver.Add(command, "epoch", epoch); AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow); }, ct).ConfigureAwait(false);
+                if (active == 0) return;
+                List<Approval> candidates = await AdoDatabaseDriver.QueryAsync(connection, transaction,
+                    "SELECT " + _Columns + " FROM " + _Table + " WHERE tenantid = @tenant AND runid = @run AND toolname = @tool AND kind = @kind AND inputdigest = @digest AND resumeepoch IS NULL AND decisionsource = 'User' AND status IN ('Approved','Denied') AND decision IN ('Allow','Deny') AND leaseepoch < @epoch AND leaseepoch = (SELECT epoch FROM " + _Driver.Table("run_checkpoints") + " WHERE tenantid = @tenant AND runid = @run) ORDER BY requestedutc;",
+                    command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "run", runId); AdoDatabaseDriver.Add(command, "epoch", epoch); AdoDatabaseDriver.Add(command, "tool", tool); AdoDatabaseDriver.Add(command, "kind", kind.ToString()); AdoDatabaseDriver.Add(command, "digest", inputDigest); }, Map, ct).ConfigureAwait(false);
+                if (candidates.Count == 0) return;
+                Approval candidate = candidates[0];
+                int consumed = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "UPDATE " + _Table + " SET resumeepoch = @epoch, lastupdateutc = @now WHERE tenantid = @tenant AND id = @id AND resumeepoch IS NULL;",
+                    command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "id", candidate.Id); AdoDatabaseDriver.Add(command, "epoch", epoch); AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow); }, ct).ConfigureAwait(false);
+                if (consumed == 1) { candidate.ResumeEpoch = epoch; granted = candidate; }
+            }, token).ConfigureAwait(false);
+            return granted;
+        }
 
         /// <inheritdoc />
         public async Task<Approval> CreateAsync(Approval obj, CancellationToken token = default)
@@ -64,6 +86,8 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "toolname", Truncate(obj.ToolName, 256));
                 AdoDatabaseDriver.Add(command, "toolcallid", Truncate(obj.ToolCallId, 256));
                 AdoDatabaseDriver.Add(command, "inputpreview", obj.InputPreview);
+                AdoDatabaseDriver.Add(command, "inputdigest", obj.InputDigest);
+                AdoDatabaseDriver.Add(command, "resumeepoch", obj.ResumeEpoch);
                 AdoDatabaseDriver.Add(command, "summary", obj.Summary);
                 AdoDatabaseDriver.Add(command, "suggestedrule", Truncate(obj.SuggestedRule, 1024));
                 AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
@@ -275,6 +299,8 @@ namespace Garrison.Core.Database.Ado
             obj.ToolName = AdoConverters.Str(reader, "toolname");
             obj.ToolCallId = AdoConverters.NullableStr(reader, "toolcallid");
             obj.InputPreview = AdoConverters.NullableStr(reader, "inputpreview");
+            obj.InputDigest = AdoConverters.NullableStr(reader, "inputdigest");
+            obj.ResumeEpoch = AdoConverters.NullableLong(reader, "resumeepoch");
             obj.Summary = AdoConverters.NullableStr(reader, "summary");
             obj.SuggestedRule = AdoConverters.NullableStr(reader, "suggestedrule");
             obj.Status = AdoConverters.Enum<ApprovalStatusEnum>(reader, "status", ApprovalStatusEnum.Pending);

@@ -2,6 +2,7 @@ namespace Garrison.Core.Compilation
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
 
     /// <summary>
@@ -9,6 +10,16 @@ namespace Garrison.Core.Compilation
     /// </summary>
     public class ExecutionWorkspace
     {
+        /// <summary>Worker-local diagnostic indicating that an existing mirror was used; excluded from the wire contract.</summary>
+        [JsonIgnore]
+        public bool MirrorCacheHit { get; set; } = false;
+        /// <summary>Prepared workspace cache key when a full immutable git commit and artifact store are configured.</summary>
+        public string? CacheKey { get; set; } = null;
+        /// <summary>Signed prepared workspace archive download URL, or null on a cache miss.</summary>
+        public string? DownloadUrl { get; set; } = null;
+        /// <summary>Expected archive SHA-256 on a prepared cache hit.</summary>
+        public string? Sha256 { get; set; } = null;
+
         /// <summary>
         /// Kind.
         /// </summary>

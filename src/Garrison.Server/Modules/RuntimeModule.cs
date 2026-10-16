@@ -56,6 +56,7 @@ namespace Garrison.Server.Modules
         private RunGaugeService? _Gauges = null;
         private CompilerOptions? _Compiler = null;
         private CodexCredentialService? _Codex = null;
+        private CredentialBrokerService? _CredentialBroker = null;
         private ApprovalService? _Approvals = null;
         private PipelineService? _Pipelines = null;
         private ManifestService? _Manifests = null;
@@ -82,6 +83,7 @@ namespace Garrison.Server.Modules
             _Runs = new RunService(context.Database, _Signals, _Options, context.Telemetry);
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
             _StructuredOutput = new StructuredOutputService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Options, context.Telemetry);
+            _StructuredOutput.AgentMemoryEnabled = context.Settings.AgentMemory.Enabled;
             _Events.StructuredOutput = _StructuredOutput;
             _Events.CostEstimation = new RunCostEstimationService(context.Database);
             _Runs.Logging = context.Logging;
@@ -92,6 +94,7 @@ namespace Garrison.Server.Modules
             _Delegation = new DelegationPolicy(context.Database);
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation, _Options);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
+            _Scheduler.AgentMemoryEnabled = context.Settings.AgentMemory.Enabled;
             _Scheduler.ShutdownToken = context.Stopping;
             _Scheduler.Activity = context.Activity;
             _Conversations = new ConversationService(context.Database, _Options, _Signals);
@@ -107,8 +110,21 @@ namespace Garrison.Server.Modules
             _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
             _Maintenance.BlockedRuns = _Blocked;
+            _CredentialBroker = new CredentialBrokerService(context.Database, context.Cipher, context.Settings.CredentialBroker);
+            context.Register(_CredentialBroker);
+            _Maintenance.CredentialBroker = _CredentialBroker;
+            _Scheduler.CredentialBroker = _CredentialBroker;
+            _Runs.CredentialBroker = _CredentialBroker;
+            _Events.CredentialBroker = _CredentialBroker;
             _Approvals = new ApprovalService(context.Database, _Signals, context.Cipher, context.Audit, context.Logging);
             _Approvals.IsLeader = () => _Leader.IsLeader;
+            ContinuationService continuations = new ContinuationService(context.Database, context.Get<ArtifactService>(), context.Settings.Rest.PublicBaseUrl ?? ExternalUrls.BindBaseUrl(context), _Signals);
+            context.Register(continuations);
+            continuations.OnSuspended = (run, epoch, ct) => _CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, epoch, ct);
+            _Approvals.Continuations = continuations;
+            _Maintenance.Continuations = continuations;
+            _Scheduler.Continuations = continuations;
+            _Events.Continuations = continuations;
             _Runs.Approvals = _Approvals;
             _Events.Approvals = _Approvals;
             _Maintenance.Approvals = _Approvals;
@@ -219,7 +235,7 @@ namespace Garrison.Server.Modules
             // G-22: runs that bind a CodexAuthJson secret get a login the control plane refreshed, and the leader keeps
             // idle logins from lapsing.
             InvocationCompiler? compiler = context.TryGet<InvocationCompiler>();
-            if (compiler != null) compiler.SecretPreparer = _Codex;
+            if (compiler != null) { compiler.SecretPreparer = _Codex; compiler.LeaseSecretPreparer = _CredentialBroker; }
 
             _Leader!.Start(token);
             _Maintenance!.Start(token);
@@ -260,6 +276,7 @@ namespace Garrison.Server.Modules
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);
             if (_Leader != null) await _Leader.StopAsync(token).ConfigureAwait(false);
             _Maintenance?.Dispose();
+            _CredentialBroker?.Dispose();
             _Approvals?.Dispose();
             _Pipelines?.Dispose();
             _Notifications?.Dispose();
@@ -297,11 +314,15 @@ namespace Garrison.Server.Modules
             _Options.PauseGraceMs = cluster.GetInt("Scheduling.PauseGraceMs");
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.InvocationWaitPollMs = cluster.GetInt("Scheduling.InvocationWaitPollMs");
+            _Options.MaxSynchronousWaiters = cluster.GetInt("Scheduling.MaxSynchronousWaiters");
             if (_Signals != null)
             {
                 _Signals.Waiters.Fanout = cluster.GetInt("Scheduling.QueueWakeFanout");
                 _Signals.Waiters.RemoteDelayMs = cluster.GetInt("Scheduling.RemoteWakeDelayMs");
             }
+            _Options.QueueDepthCluster = cluster.GetInt("Runs.QueueDepthCluster");
+            _Options.QueueDepthTenant = cluster.GetInt("Runs.QueueDepthTenant");
+            _Options.QueueDepthAgent = cluster.GetInt("Runs.QueueDepthAgent");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.DelegationChildQueueDepth = cluster.GetInt("Runs.DelegationChildQueueDepth");
             _Options.DelegationRetryAfterSeconds = cluster.GetInt("Runs.DelegationRetryAfterSeconds");

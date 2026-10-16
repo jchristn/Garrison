@@ -42,6 +42,17 @@ namespace Test.Automated
                 if (args[i] == "--suites" && i + 1 < args.Length) prefixes.AddRange(args[i + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
             }
 
+            if (args.Contains("--telemetry-collector-conformance"))
+            {
+                using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+                    Console.WriteLine(await TelemetryCollectorConformance.RunAsync(
+                        Environment.GetEnvironmentVariable("GARRISON_TEST_OTLP_ENDPOINT") ?? "http://127.0.0.1:14317",
+                        Environment.GetEnvironmentVariable("GARRISON_TEST_PROMETHEUS_URL") ?? "http://127.0.0.1:39090",
+                        Environment.GetEnvironmentVariable("GARRISON_TEST_TEMPO_URL") ?? "http://127.0.0.1:39200",
+                        Int32.Parse(Environment.GetEnvironmentVariable("GARRISON_TEST_METRICS_PORT") ?? "39464"), timeout.Token).ConfigureAwait(false));
+                return 0;
+            }
+
             if (args.Contains("--clutch-conformance"))
             {
                 string endpoint = Environment.GetEnvironmentVariable("GARRISON_TEST_CLUTCH_ENDPOINT") ?? throw new InvalidOperationException("A temporary Clutch endpoint is required.");

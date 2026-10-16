@@ -19,6 +19,8 @@ global:
 
 scrape_configs:
   - job_name: garrison
+    # Application stages use component; retain their bounded metric labels on collisions.
+    honor_labels: true
     kubernetes_sd_configs:
       - role: pod
         namespaces:
@@ -46,6 +48,8 @@ scrape_configs:
         regex: garrison-(.+)
         replacement: $1
         target_label: component
+      - source_labels: [component]
+        target_label: process_component
       - source_labels: [__meta_kubernetes_pod_name]
         target_label: node
       - source_labels: [__meta_kubernetes_pod_name]

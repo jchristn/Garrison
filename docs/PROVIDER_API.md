@@ -18,7 +18,7 @@ Optional parameters include `maxTokens` (8192), `maxRetries` (2), `timeoutMs` (1
 
 ## Tools, approvals, and conversations
 
-The initial mode supports HTTP MCP tools. Required unsupported stdio servers fail initialization; optional unavailable servers are skipped with a warning. It has no built-in shell, file-editing, or web-search tools. Configure appropriate MCP tools for those operations, or delegate to a CLI agent.
+The built-in provider mode supports HTTP MCP tools. Required unsupported stdio servers fail initialization; optional unavailable servers are skipped with a warning. It has no built-in shell, file-editing, or web-search tools. Configure appropriate MCP tools for those operations, or delegate to a CLI agent.
 
 Tool arguments are validated against the advertised schema before execution. With deployment approvals enabled, every tool call goes through Garrison's permission-prompt hook. Rules use canonical names such as `mcp__garrison__garrison_invoke_agent`. The model cannot call the approval hook itself. Denials become tool errors, and the decision appears in the existing approval history. Run tokens retain their existing tenant, originating-principal, delegation, and lease fences.
 
@@ -28,7 +28,7 @@ Conversation messages persist in the isolated worker HOME as private files. Resu
 
 The loop streams text, reasoning, tool calls/results, and token usage. Its compatible adapter follows the [Chat Completions streaming contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events). It retries 429/5xx responses before consuming a stream, never an interrupted stream or an executed tool. Missing/rejected credentials become `NotCredentialed`; incomplete output and exhausted turn limits fail the run.
 
-Cost estimation uses existing operator-configured rates. Daily quota enforcement remains optional and disabled unless explicitly enabled. No additional budgeting is introduced. API execution requires provider API credentials; CLI sign-in files do not supply them. Other provider adapters and provider-native search are outside the initial mode.
+Cost estimation uses existing operator-configured rates. Daily quota enforcement remains optional and disabled unless explicitly enabled. No additional budgeting is introduced. API execution requires provider API credentials; CLI sign-in files do not supply them. Other provider adapters and provider-native search are not implemented by this harness.
 
 Run `dotnet run --project src/Test.Automated -f net10.0 -- --suites provider-api` for fixture-backed execution, streaming/history, failure, compilation, and real Garrison MCP approval checks. Tests use temporary endpoints and spend no provider tokens.
 

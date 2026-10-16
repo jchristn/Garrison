@@ -1,0 +1,533 @@
+{
+  "schemaVersion": 1,
+  "kind": "ingest",
+  "dataset": "synthetic-fleet",
+  "label": "d060-ingest-2000",
+  "deterministic": false,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-16T06:15:18.710469Z",
+    "finishedUtc": "2026-10-16T06:15:22.141982Z",
+    "sutUrl": "http://127.0.0.1:37800",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "productCommit": "f64960d78a59a1008a58c4c9aa01825f32bd2325-dirty",
+    "productDirtyFiles": 231,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "68bc0a61b0171c9408fdd5fc36370e7b0fc156e4-dirty",
+    "machineName": "joels-mbp",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "synthetic-fleet",
+    "datasetSha256": "5c6fc00f82e5c090264fba8e7298921920ca2feb74527e1f12c09e430a84b250",
+    "datasetPath": "benchmarks/.run/d060-fleet-2000.json",
+    "commandLine": "Garrison.Benchmark ingest --url http://127.0.0.1:37800 --admin-key *** --stack local --dataset benchmarks/.run/d060-fleet-2000.json --corpus fleet --batch-size 4040 --resamples 100 --label d060-ingest-2000 --results-dir benchmarks/results/d060",
+    "seed": 42
+  },
+  "options": {
+    "batch-size": "4040",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "fleet",
+    "dataset": "benchmarks/.run/d060-fleet-2000.json",
+    "deterministic": "false",
+    "dry-run": "true",
+    "kubeconfig": "(unset)",
+    "label": "d060-ingest-2000",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "reapply": "true",
+    "request-timeout-seconds": "660",
+    "resamples": "100",
+    "results-dir": "benchmarks/results/d060",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 9,
+      "passed": 9,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 9,
+        "indicative": true
+      },
+      "latency": {
+        "count": 9,
+        "mean": 1.8887277888888891,
+        "stdDev": 1.8151919753727155,
+        "min": 0.459250100000001,
+        "p50": 1.1187,
+        "p90": 6.4015,
+        "p95": 6.4015,
+        "p99": 6.4015,
+        "max": 6.4015,
+        "p50Ci": {
+          "estimate": 1.1187,
+          "lower": 0.9747,
+          "upper": 1.9227,
+          "level": 0.95,
+          "n": 9,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 6.4015,
+          "lower": 1.7241,
+          "upper": 6.4015,
+          "level": 0.95,
+          "n": 9,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "agents": {
+          "count": 1,
+          "mean": 2000,
+          "stdDev": 0,
+          "min": 2000,
+          "p50": 2000,
+          "p90": 2000,
+          "p95": 2000,
+          "p99": 2000,
+          "max": 2000
+        },
+        "reachable": {
+          "count": 1,
+          "mean": 2000,
+          "stdDev": 0,
+          "min": 2000,
+          "p50": 2000,
+          "p90": 2000,
+          "p95": 2000,
+          "p99": 2000,
+          "max": 2000
+        },
+        "requestMs": {
+          "count": 8,
+          "mean": 2.0674125,
+          "stdDev": 1.8539742249999829,
+          "min": 0.8037,
+          "p50": 1.1187,
+          "p90": 6.4015,
+          "p95": 6.4015,
+          "p99": 6.4015,
+          "max": 6.4015,
+          "p50Ci": {
+            "estimate": 1.1187,
+            "lower": 0.9747,
+            "upper": 1.9227,
+            "level": 0.95,
+            "n": 8,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 6.4015,
+            "lower": 1.7241,
+            "upper": 6.4015,
+            "level": 0.95,
+            "n": 8,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "bad-api-version",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "idempotent-dry-run",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "missing-reference",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "new-document",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "reachability",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "reserved-name",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "secret-value",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "template-syntax",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unknown-kind",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "load-path",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        },
+        {
+          "key": "validation",
+          "n": 6,
+          "passed": 6,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 6,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "fleet",
+      "probeId": "reachable-all",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "reachability",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "2000 of 2000 agents readable",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.459250100000001,
+      "timings": {
+        "agents": 2000,
+        "reachable": 2000
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "dry-run-existing",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "idempotent-dry-run",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200, created 0, unchanged 0, failed 0",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 2.6032,
+      "timings": {
+        "requestMs": 2.6032
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "dry-run-new",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "new-document",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200, created 1, unchanged 0, failed 0",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.9747,
+      "timings": {
+        "requestMs": 0.9747
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "unknown-kind",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unknown-kind",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Document 0 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, A...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.7241,
+      "timings": {
+        "requestMs": 1.7241
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "missing-reference",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "missing-reference",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Reference 'agent' points to Agent 'fleet-agent-missing', which does not exist and is not defined earlier in this manifes...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.9907,
+      "timings": {
+        "requestMs": 0.9907
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "bad-api-version",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "bad-api-version",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Document 0 has apiVersion 'garrison/v2'; expected garrison/v1.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.8037,
+      "timings": {
+        "requestMs": 0.8037
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "secret-value",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "secret-value",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Secret fleet-secret carries a value but this apply does not allow secret values.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 6.4015,
+      "timings": {
+        "requestMs": 6.4015
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "reserved-name",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "reserved-name",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Built-in prompt template builtin/fleet-reserved does not exist on this server. metadata.name: Built-in PromptTemplate bu...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.9227,
+      "timings": {
+        "requestMs": 1.9227
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "bad-template-syntax",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "template-syntax",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: The prompt template is invalid. content: template 'content' at line 1, column 1: Unclosed {{#if}} block.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.1187,
+      "timings": {
+        "requestMs": 1.1187
+      }
+    }
+  ],
+  "loadLevels": [],
+  "ingest": {
+    "documents": 4040,
+    "applies": 1,
+    "batchSize": 4040,
+    "created": 4040,
+    "updated": 0,
+    "unchanged": 0,
+    "failed": 0,
+    "requestErrors": 0,
+    "documentsPerSecond": 3324.1723859847957,
+    "applyLatency": {
+      "count": 1,
+      "mean": 1205.7668,
+      "stdDev": 0,
+      "min": 1205.7668,
+      "p50": 1205.7668,
+      "p90": 1205.7668,
+      "p95": 1205.7668,
+      "p99": 1205.7668,
+      "max": 1205.7668
+    },
+    "reapplyUnchangedRate": 1,
+    "reapplyLatency": {
+      "count": 1,
+      "mean": 753.7682,
+      "stdDev": 0,
+      "min": 753.7682,
+      "p50": 753.7682,
+      "p90": 753.7682,
+      "p95": 753.7682,
+      "p99": 753.7682,
+      "max": 753.7682
+    },
+    "dryRunMs": 465.6567,
+    "reachable": 2000,
+    "agentDocuments": 2000,
+    "reachability": 1
+  },
+  "scenarios": [],
+  "stages": [],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": []
+}

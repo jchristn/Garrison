@@ -9,6 +9,9 @@ namespace Garrison.Core.Requests
     /// </summary>
     public class TenantRequest
     {
+        /// <summary>Relative scheduling share, 1..1000; null preserves current value, default 1. Only system administrators may change it.</summary>
+        public int? SchedulingWeight { get; set; } = null;
+
         /// <summary>
         /// Tenant name. Required on create.
         /// </summary>

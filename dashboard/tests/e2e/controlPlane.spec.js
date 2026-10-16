@@ -17,9 +17,11 @@ const json = (route, body) => route.fulfill({ status: 200, contentType: 'applica
 
 /** A Draining replica that has gone quiet (40 seconds without a heartbeat) answers, and nobody holds the lease. */
 async function drainingCluster(page) {
+  const now = Date.now();
+  await page.clock.setFixedTime(now);
   const nodes = [
     controlNode('garrison-server-a', { activeRequests: 4, openStreams: 2, heldLongPolls: 3 }),
-    controlNode('garrison-server-b', { status: 'Draining', address: '10.42.0.18:8700', lastHeartbeatUtc: new Date(Date.now() - 40000).toISOString() })
+    controlNode('garrison-server-b', { status: 'Draining', address: '10.42.0.18:8700', lastHeartbeatUtc: new Date(now - 40000).toISOString() })
   ];
   await page.route(/\/v1\.0\/api\/control-nodes(\?.*)?$/, (route) => json(route, controlNodeList(nodes, 'garrison-server-b')));
   await page.route(/\/v1\.0\/api\/tenants\/[^/]+\/overview$/, (route) => {

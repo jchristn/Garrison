@@ -1,0 +1,8 @@
+{
+  "sampledReadiness": "Report sampled the node inventory before workers finished registration immediately after the server became ready, reporting zero workers at the initial instant. The stack starter subsequently confirmed six Ready workers. Raw report metadata is retained unchanged.",
+  "actualRunQuery": "SELECT count(*),count(distinct leasenodeid) FROM runs WHERE createdutc >= timestamp '2026-10-16 14:54:07' AND createdutc < timestamp '2026-10-16 14:55:08'",
+  "observedRuns": 1497,
+  "observedExecutingNodes": 6,
+  "database": "Disposable garrison-scale-postgres public schema",
+  "capturedUtc": "2026-10-16T14:56:38Z"
+}

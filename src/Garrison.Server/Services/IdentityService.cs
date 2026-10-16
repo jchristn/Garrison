@@ -12,6 +12,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Server.Settings;
 
     /// <summary>
     /// Business rules for tenants, users, credentials, roles, permissions, and assignments: validation, uniqueness,
@@ -27,6 +28,7 @@ namespace Garrison.Server.Services
         private readonly AuditService _Audit;
         private readonly AuthorizationService _Authorization;
         private readonly Func<int> _PasswordHashIterations;
+        private readonly Func<AuthSettings> _AuthSettings;
 
         #endregion
 
@@ -40,10 +42,12 @@ namespace Garrison.Server.Services
         /// <param name="audit">Audit.</param>
         /// <param name="authorization">Authorization service (cache invalidation and evaluation).</param>
         /// <param name="passwordHashIterations">Returns the PBKDF2 iterations for new password hashes (read on each use, so live setting changes apply). Null uses PasswordHasher.DefaultIterations.</param>
+        /// <param name="authSettings">Live credential expiry policies; null uses defaults.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public IdentityService(DatabaseDriverBase database, SecretCipher cipher, AuditService audit, AuthorizationService authorization, Func<int>? passwordHashIterations = null)
+        public IdentityService(DatabaseDriverBase database, SecretCipher cipher, AuditService audit, AuthorizationService authorization, Func<int>? passwordHashIterations = null, Func<AuthSettings>? authSettings = null)
         {
             _PasswordHashIterations = passwordHashIterations ?? (() => PasswordHasher.DefaultIterations);
+            _AuthSettings = authSettings ?? (() => new AuthSettings());
             _Database = database ?? throw new ArgumentNullException(nameof(database));
             _Cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
             _Audit = audit ?? throw new ArgumentNullException(nameof(audit));
@@ -71,6 +75,8 @@ namespace Garrison.Server.Services
             tenant.Name = request.Name.Trim();
             tenant.Description = request.Description;
             tenant.Active = request.Active ?? true;
+            if (request.SchedulingWeight.HasValue && request.SchedulingWeight.Value != 1 && !ctx.IsAdmin) throw Invalid("schedulingWeight", "Only system administrators may change scheduling weight.");
+            tenant.SchedulingWeight = request.SchedulingWeight ?? 1;
             tenant.RequireUntrustedDeployments = request.RequireUntrustedDeployments ?? false;
             await _Database.Tenants.CreateAsync(tenant, token).ConfigureAwait(false);
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Tenant", tenant.Id, "Tenant created.", tenant.Id, token).ConfigureAwait(false);
@@ -100,6 +106,11 @@ namespace Garrison.Server.Services
             {
                 if (tenant.IsProtected && !request.Active.Value) throw new ConflictException("Protected", "The protected tenant cannot be deactivated.");
                 tenant.Active = request.Active.Value;
+            }
+            if (request.SchedulingWeight.HasValue && request.SchedulingWeight.Value != tenant.SchedulingWeight)
+            {
+                if (!ctx.IsAdmin) throw Invalid("schedulingWeight", "Only system administrators may change scheduling weight.");
+                tenant.SchedulingWeight = request.SchedulingWeight.Value;
             }
             string summary = "Tenant updated.";
             if (request.RequireUntrustedDeployments.HasValue && request.RequireUntrustedDeployments.Value != tenant.RequireUntrustedDeployments)
@@ -315,7 +326,7 @@ namespace Garrison.Server.Services
             credential.SecretKeyEncrypted = _Cipher.Encrypt(secret, credential.Id);
             credential.SecretKeyLast4 = SecretGenerator.Last4(secret);
             credential.AuthMode = request.AuthMode ?? CredentialAuthModeEnum.Hybrid;
-            credential.ExpiresUtc = request.ExpiresUtc;
+            credential.ExpiresUtc = CredentialExpiry(request.ExpiresUtc, true);
             credential.Active = request.Active ?? true;
             await _Database.Credentials.CreateAsync(credential, token).ConfigureAwait(false);
 
@@ -355,7 +366,7 @@ namespace Garrison.Server.Services
             if (request == null) throw Invalid("body", "A request body is required.");
             if (!String.IsNullOrWhiteSpace(request.Name)) credential.Name = request.Name.Trim();
             if (request.AuthMode.HasValue) credential.AuthMode = request.AuthMode.Value;
-            if (request.ExpiresUtc.HasValue) credential.ExpiresUtc = request.ExpiresUtc;
+            if (request.ExpiresUtc.HasValue) credential.ExpiresUtc = CredentialExpiry(request.ExpiresUtc, false);
             if (request.Active.HasValue)
             {
                 if (credential.IsProtected && !request.Active.Value) throw new ConflictException("Protected", "Protected credentials cannot be deactivated.");
@@ -562,6 +573,23 @@ namespace Garrison.Server.Services
         #endregion
 
         #region Private-Methods
+
+        private DateTime? CredentialExpiry(DateTime? requested, bool creating)
+        {
+            AuthSettings policy = _AuthSettings();
+            DateTime now = DateTime.UtcNow;
+            DateTime? expiry = requested?.ToUniversalTime();
+            if (creating && !expiry.HasValue)
+            {
+                int days = policy.CredentialDefaultLifetimeDays;
+                if (policy.CredentialMaxLifetimeDays > 0 && (days == 0 || days > policy.CredentialMaxLifetimeDays)) days = policy.CredentialMaxLifetimeDays;
+                if (days > 0) expiry = now.AddDays(days);
+            }
+            if (expiry.HasValue && expiry.Value <= now) throw Invalid("expiresUtc", "Credential expiry must be in the future.");
+            if (expiry.HasValue && policy.CredentialMaxLifetimeDays > 0 && expiry.Value > now.AddDays(policy.CredentialMaxLifetimeDays))
+                throw Invalid("expiresUtc", "Credential expiry exceeds Auth.CredentialMaxLifetimeDays.");
+            return expiry;
+        }
 
         private async Task<EffectivePermissionsResponse> BuildEffectiveAsync(RequestContext principal, string principalId, List<PermissionGrant> grants, CancellationToken token)
         {

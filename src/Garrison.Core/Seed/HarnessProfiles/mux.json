@@ -16,6 +16,7 @@
   "killGraceSeconds": 5,
   "isolateHome": true,
   "supportsResume": true,
+  "sessionFormat": "mux-session-json-v1",
   "arguments": [
     {
       "template": "--print"

@@ -1,0 +1,1 @@
+{"provider":"OpenAiCompatible","endpoint":"http://127.0.0.1:41237/v1","model":"fixture-model","messages":[{"role":"user","content":"Remember GARRISON_RECORDED_SESSION_FIRST_8da3. Reply with that marker only.","toolCalls":[]},{"role":"assistant","content":"GARRISON_RECORDED_SESSION_FIRST_8da3","toolCalls":[]}]}

@@ -14,6 +14,7 @@
   "killGraceSeconds": 5,
   "isolateHome": true,
   "supportsResume": true,
+  "sessionFormat": "codex-rollout-jsonl-v1",
   "arguments": [
     {
       "template": "exec"

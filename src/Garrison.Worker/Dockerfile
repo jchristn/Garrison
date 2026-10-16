@@ -61,6 +61,7 @@ COPY --from=build /out/worker/ /opt/garrison/worker/
 COPY --from=build /out/fake/ /opt/garrison/fake/
 COPY --from=build /out/provider/ /opt/garrison/provider/
 COPY --from=mux /out/mux/ /opt/mux/
+COPY --from=mux /mux/LICENSE.md /licenses/Mux-LICENSE.md
 
 RUN printf '#!/bin/sh\nexec dotnet /opt/mux/Mux.Cli.dll "$@"\n' > /usr/local/bin/mux \
  && printf '#!/bin/sh\nexec dotnet /opt/garrison/fake/garrison-fake-harness.dll "$@"\n' > /usr/local/bin/garrison-fake-harness \
@@ -73,6 +74,8 @@ RUN printf '#!/bin/sh\nexec dotnet /opt/mux/Mux.Cli.dll "$@"\n' > /usr/local/bin
  && mkdir -p /workspaces \
  && chown -R 10001:10001 /workspaces /opt/garrison
 
+COPY LICENSE.md THIRD_PARTY_NOTICES.md /licenses/
+COPY assets/licenses/ /licenses/assets/licenses/
 USER 10001
 WORKDIR /opt/garrison/worker
 ENV HOME=/home/garrison \

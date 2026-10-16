@@ -751,7 +751,7 @@
             "description": "Creates a tenant. This one is deleted in Cleanup.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"description\": \"Created by the Postman collection\"\n}",
+              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"description\": \"Created by the Postman collection\",\n  \"schedulingWeight\": 7\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -767,7 +767,8 @@
                 "exec": [
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
-                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('tempTenantId', json.id); }"
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('tempTenantId', json.id); }",
+                  "pm.test('scheduling weight stored', () => pm.expect(pm.response.json().schedulingWeight).to.eql(7));"
                 ]
               }
             }
@@ -829,7 +830,7 @@
             "description": "Updates a tenant's name, description, or active flag.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated by the Postman collection\",\n  \"requireUntrustedDeployments\": true\n}",
+              "raw": "{\n  \"description\": \"Updated by the Postman collection\",\n  \"requireUntrustedDeployments\": true,\n  \"schedulingWeight\": 3\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -844,7 +845,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('tenant requires Untrusted deployments', function () { pm.expect(pm.response.json().requireUntrustedDeployments).to.eql(true); });"
+                  "pm.test('tenant requires Untrusted deployments', function () { pm.expect(pm.response.json().requireUntrustedDeployments).to.eql(true); });",
+                  "pm.test('scheduling weight updated', () => pm.expect(pm.response.json().schedulingWeight).to.eql(3));"
                 ]
               }
             }
@@ -2402,7 +2404,7 @@
             "description": "Creates a profile from scratch.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-profile-{{suffix}}\",\n  \"description\": \"Fake harness profile created by Postman\",\n  \"harnessType\": \"Generic\",\n  \"executable\": \"garrison-fake-harness\",\n  \"promptDelivery\": \"Stdin\",\n  \"systemPromptDelivery\": \"PrependToPrompt\",\n  \"mcpConfigFormat\": \"None\",\n  \"outputParser\": \"ClaudeStreamJson\",\n  \"resultSource\": \"ParserFinalEvent\",\n  \"successPolicy\": \"FinalEvent\",\n  \"defaultTimeoutSeconds\": 120,\n  \"killGraceSeconds\": 2,\n  \"isolateHome\": true,\n  \"arguments\": [\n    {\n      \"template\": \"--format\"\n    },\n    {\n      \"template\": \"claude\"\n    }\n  ],\n  \"successExitCodes\": [\n    0\n  ],\n  \"probeArguments\": [\n    \"--version\"\n  ]\n}",
+              "raw": "{\n  \"name\": \"postman-profile-{{suffix}}\",\n  \"description\": \"Fake harness profile created by Postman\",\n  \"harnessType\": \"Generic\",\n  \"executable\": \"garrison-fake-harness\",\n  \"promptDelivery\": \"Stdin\",\n  \"systemPromptDelivery\": \"PrependToPrompt\",\n  \"mcpConfigFormat\": \"None\",\n  \"outputParser\": \"ClaudeStreamJson\",\n  \"resultSource\": \"ParserFinalEvent\",\n  \"successPolicy\": \"FinalEvent\",\n  \"defaultTimeoutSeconds\": 120,\n  \"killGraceSeconds\": 2,\n  \"isolateHome\": true,\n  \"arguments\": [\n    {\n      \"template\": \"--format\"\n    },\n    {\n      \"template\": \"claude\"\n    }\n  ],\n  \"successExitCodes\": [\n    0\n  ],\n  \"probeArguments\": [\n    \"--version\"\n  ],\n  \"sessionFormat\": \"postman-session-v1\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2418,7 +2420,8 @@
                 "exec": [
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
-                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('profileId', json.id); }"
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('profileId', json.id); }",
+                  "pm.test('pinned session format stored', () => pm.expect(pm.response.json().sessionFormat).to.eql('postman-session-v1'));"
                 ]
               }
             }
@@ -2484,7 +2487,7 @@
             "description": "Replaces a tenant profile.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-profile-{{suffix}}\",\n  \"description\": \"Updated by Postman\",\n  \"harnessType\": \"Generic\",\n  \"executable\": \"garrison-fake-harness\",\n  \"promptDelivery\": \"Stdin\",\n  \"systemPromptDelivery\": \"PrependToPrompt\",\n  \"mcpConfigFormat\": \"None\",\n  \"outputParser\": \"ClaudeStreamJson\",\n  \"resultSource\": \"ParserFinalEvent\",\n  \"successPolicy\": \"FinalEvent\",\n  \"defaultTimeoutSeconds\": 120,\n  \"killGraceSeconds\": 2,\n  \"isolateHome\": true,\n  \"arguments\": [\n    {\n      \"template\": \"--format\"\n    },\n    {\n      \"template\": \"claude\"\n    }\n  ],\n  \"successExitCodes\": [\n    0\n  ],\n  \"probeArguments\": [\n    \"--version\"\n  ]\n}",
+              "raw": "{\n  \"name\": \"postman-profile-{{suffix}}\",\n  \"description\": \"Updated by Postman\",\n  \"harnessType\": \"Generic\",\n  \"executable\": \"garrison-fake-harness\",\n  \"promptDelivery\": \"Stdin\",\n  \"systemPromptDelivery\": \"PrependToPrompt\",\n  \"mcpConfigFormat\": \"None\",\n  \"outputParser\": \"ClaudeStreamJson\",\n  \"resultSource\": \"ParserFinalEvent\",\n  \"successPolicy\": \"FinalEvent\",\n  \"defaultTimeoutSeconds\": 120,\n  \"killGraceSeconds\": 2,\n  \"isolateHome\": true,\n  \"arguments\": [\n    {\n      \"template\": \"--format\"\n    },\n    {\n      \"template\": \"claude\"\n    }\n  ],\n  \"successExitCodes\": [\n    0\n  ],\n  \"probeArguments\": [\n    \"--version\"\n  ],\n  \"sessionFormat\": \"postman-session-v1\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2498,7 +2501,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('pinned session format stored', () => pm.expect(pm.response.json().sessionFormat).to.eql('postman-session-v1'));"
                 ]
               }
             }
@@ -4291,7 +4295,7 @@
             "description": "Creates a deployment on the fake harness. Default prompt bindings are added for roles left out.\n\nExecutor capabilities use conservative explicit reports. Defaults preserve legacy placement; runs snapshot requiredCapabilities at admission. Session requirements also need a resume-capable harness profile.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"requiredCapabilities\": {\n    \"isolation\": \"Process\",\n    \"egressControl\": false,\n    \"filesystemSnapshot\": false,\n    \"sessionContinuation\": false,\n    \"crossNodeRestore\": false\n  },\n  \"trustLevel\": \"Trusted\"\n}",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"requiredCapabilities\": {\n    \"isolation\": \"Process\",\n    \"egressControl\": false,\n    \"filesystemSnapshot\": false,\n    \"sessionContinuation\": false,\n    \"crossNodeRestore\": false\n  },\n  \"trustLevel\": \"Trusted\",\n  \"suspensionEnabled\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4309,7 +4313,8 @@
                   "pm.test('trust level is Trusted', function () { pm.expect(pm.response.json().trustLevel).to.eql('Trusted'); });",
                   "pm.test('effect policy defaults to AtMostOnce', function () { pm.expect(pm.response.json().effectPolicy).to.eql('AtMostOnce'); pm.expect(pm.response.json().retryOnNodeLoss).to.eql(false); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
-                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('deploymentId', json.id); }"
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('deploymentId', json.id); }",
+                  "pm.test('durable suspension defaults off', () => pm.expect(pm.response.json().suspensionEnabled).to.eql(false));"
                 ]
               }
             }
@@ -5918,7 +5923,7 @@
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('markdown', function () { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/markdown'); });",
                   "pm.test('attachment', function () { pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'); pm.expect(pm.response.headers.get('Content-Disposition')).to.include('-transcript.md'); });",
-                  "pm.test('names the run', function () { pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('runId')); });"
+                  "pm.test('names the run', function () { const id = pm.collectionVariables.get('runId'); const text = pm.response.text(); pm.expect(text.includes(id) || text.includes(id.replace(/_/g, '\\\\_'))).to.eql(true); });"
                 ]
               }
             }
@@ -6217,6 +6222,143 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read effect operation journal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/operations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "operations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('metadata list', () => { const rows=pm.response.json(); pm.expect(rows).to.be.an('array'); rows.forEach(op => {pm.expect(op.tenantId).to.eql(pm.variables.get('tenantId')); pm.expect(['Authorized','Dispatched','Completed','Unknown']).to.include(op.state); pm.expect(op).not.to.have.property('arguments');}); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explain run placement without claiming",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/placement",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "placement"
+              ]
+            },
+            "description": "Advisory tenant-scoped snapshot. Does not lease, compile, or reserve capacity. Other tenants dedicated nodes are omitted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('placement shape', () => { const p=pm.response.json(); pm.expect(p.runId).to.eql(pm.variables.get('runId')); pm.expect(p.reasons).to.be.an('array'); pm.expect(p.nodes).to.be.an('array'); pm.expect(p.eligible).to.be.a('boolean'); p.nodes.forEach(n => {pm.expect(n.reasons).to.be.an('array'); pm.expect(n.eligible).to.be.a('boolean');}); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read exact completed-scope run database attribution",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/database-usage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "database-usage"
+              ]
+            },
+            "description": "Actual SQL attempts in completed run scopes. Excludes shared scans, telemetry persistence and unfinished scopes lost on process failure; tenant-scoped Run Read authorization."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('run database usage shape', () => { const rows=pm.response.json(); pm.expect(rows).to.be.an('array'); rows.forEach(r => {pm.expect(r.runId).to.eql(pm.variables.get('runId')); pm.expect(r.tenantId).to.eql(pm.variables.get('tenantId')); ['statements','reads','writes','errors','transactions','durationMicroseconds'].forEach(k => pm.expect(r[k]).to.be.a('number').and.at.least(0)); pm.expect(r.operation).to.be.a('string'); pm.expect(r).not.to.have.property('sql');}); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown run journal returns 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/no-such-run-{{suffix}}/operations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "no-such-run-{{suffix}}",
+                "operations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -13264,6 +13406,964 @@
       ]
     },
     {
+      "name": "Execution safety contracts",
+      "description": "Queue bounds, remote admission, continuation configuration, and configured master-key rotation. Uses disposable fixtures, restores the queue setting, and never supplies key material. Automatic suspension/resume is covered by the backend continuation suite; there are no manual suspend/resume endpoints.",
+      "item": [
+        {
+          "name": "Read queue policy before temporary test",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const rows=pm.response.json().fields || []; const row=rows.find(x => x.path === 'Runs.QueueDepthAgent'); pm.collectionVariables.set('previousQueueDepthAgent', row ? String(row.value) : '0');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set per-agent queue limit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"values\": [\n    {\n      \"path\": \"Runs.QueueDepthAgent\",\n      \"value\": \"1\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create pool with no workers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/node-pools",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "node-pools"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-queue-pool-{{suffix}}\",\n  \"tenants\": [\n    \"{{tenantId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('queuePoolId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create queue test agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-queue-{{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('queueAgentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create queue test deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-queue-{{suffix}}\",\n  \"agentId\": \"{{queueAgentId}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"nodePoolId\": \"{{queuePoolId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('queueDeploymentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admit first waiting run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{queueAgentId}}\",\n  \"deploymentId\": \"{{queueDeploymentId}}\",\n  \"input\": \"queue-bound-fixture\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 202', () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set('queueBoundRunId',pm.response.json().id); pm.test('run queued', () => pm.expect(pm.response.json().status).to.eql('Queued')); "
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject second waiting run with QueueFull",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{queueAgentId}}\",\n  \"deploymentId\": \"{{queueDeploymentId}}\",\n  \"input\": \"queue-bound-fixture-2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 429', () => pm.response.to.have.status(429));",
+                  "pm.test('typed queue admission error', () => pm.expect(pm.response.json().code).to.eql('QueueFull'));",
+                  "pm.test('retry hint', () => pm.expect(Number(pm.response.headers.get('Retry-After'))).to.be.greaterThan(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Restore per-agent queue policy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"values\": [\n    {\n      \"path\": \"Runs.QueueDepthAgent\",\n      \"value\": \"{{previousQueueDepthAgent}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel queue fixture",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{queueBoundRunId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{queueBoundRunId}}",
+                "cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete queue fixture run",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{queueBoundRunId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{queueBoundRunId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete queue fixture deployment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{queueDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{queueDeploymentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete queue fixture agent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{queueAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{queueAgentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete empty queue fixture pool",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/node-pools/{{queuePoolId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "node-pools",
+                "{{queuePoolId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create remote A2A agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-remote-{{suffix}}\",\n  \"kind\": \"Remote\",\n  \"remoteProtocol\": \"A2A\",\n  \"remoteEndpointUrl\": \"http://127.0.0.1:9/a2a\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('remoteFixtureAgentId',pm.response.json().id); pm.test('remote contract', () => pm.expect(pm.response.json().remoteProtocol).to.eql('A2A'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remote agent rejects hosted deployment override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{remoteFixtureAgentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{remoteFixtureAgentId}}",
+                "invoke"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"fixture\",\n  \"deploymentId\": \"{{deploymentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('typed remote admission rejection', () => pm.expect(pm.response.json().code).to.eql('RemoteDeploymentUnsupported'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete remote A2A fixture",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{remoteFixtureAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{remoteFixtureAgentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid suspension configuration is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-suspend-invalid-{{suffix}}\",\n  \"agentId\": \"{{agentId}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"suspensionEnabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('suspension requires an artifact store', () => pm.expect(pm.response.json().fields).to.have.property('artifactStoreId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate configured master key without supplying keys",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/settings/keys/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "settings",
+                "keys",
+                "rotate"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const result=pm.response.json(); pm.test('rotation counts', () => {pm.expect(result.keyVersion).to.be.at.least(1); pm.expect(result.failed).to.eql(0); pm.expect(result.conflicts).to.eql(0); ['scanned','rotated'].forEach(k => pm.expect(result[k]).to.be.at.least(0));});",
+                  "pm.test('no key material', () => {pm.expect(pm.response.json()).not.to.have.property('masterKey');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repeat rotation safely",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{adminApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/settings/keys/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "settings",
+                "keys",
+                "rotate"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('idempotent completed rotation', () => {pm.expect(pm.response.json().rotated).to.eql(0);pm.expect(pm.response.json().failed).to.eql(0);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create broker resource metadata without a credential",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-broker-{{suffix}}\",\n  \"kind\": \"LeaseBroker\",\n  \"brokerResource\": \"tenant-scoped-fixture\",\n  \"brokerAudience\": \"fixture\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('brokerSecretId',pm.response.json().id);pm.test('metadata only',()=>{pm.expect(pm.response.json().brokerResource).to.eql('tenant-scoped-fixture');pm.expect(pm.response.json()).not.to.have.property('valueEncrypted');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read broker resource metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets/{{brokerSecretId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets",
+                "{{brokerSecretId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('provider metadata round trip',()=>pm.expect(pm.response.json().brokerAudience).to.eql('fixture')); "
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Broker secret rejects reusable static values",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets/{{brokerSecretId}}/value",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets",
+                "{{brokerSecretId}}",
+                "value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"forbidden-static-fixture\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete broker metadata fixture",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets/{{brokerSecretId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets",
+                "{{brokerSecretId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
@@ -14785,6 +15885,34 @@
     },
     {
       "key": "manifestBundle",
+      "value": ""
+    },
+    {
+      "key": "queuePoolId",
+      "value": ""
+    },
+    {
+      "key": "queueAgentId",
+      "value": ""
+    },
+    {
+      "key": "queueDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "queueBoundRunId",
+      "value": ""
+    },
+    {
+      "key": "previousQueueDepthAgent",
+      "value": ""
+    },
+    {
+      "key": "remoteFixtureAgentId",
+      "value": ""
+    },
+    {
+      "key": "brokerSecretId",
       "value": ""
     }
   ]

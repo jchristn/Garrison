@@ -6,7 +6,7 @@ namespace Garrison.Core.Services
 
     /// <summary>
     /// A synchronous delegation was refused because waiting on the child could leave no capacity to run it (P12.38): the
-    /// parent's node already keeps as many waiting runs as it may, or too many waited children are queued. Code
+    /// parent's node already keeps as many waiting runs as it may, too many waited children are queued, or the replica has no synchronous wait budget. Code
     /// DelegationCapacityExhausted. REST maps it to 429 with Retry-After; MCP and A2A return the code like other
     /// conflicts.
     /// </summary>
@@ -68,6 +68,8 @@ namespace Garrison.Core.Services
         private static string Describe(DelegationCapacityLimitEnum limit, string? nodeId, long used, long maximum)
         {
             string counts = " (" + used.ToString(CultureInfo.InvariantCulture) + " of " + maximum.ToString(CultureInfo.InvariantCulture) + ")";
+            if (limit == DelegationCapacityLimitEnum.SynchronousWaiters)
+                return "The control-plane replica already holds as many synchronous waits as it permits" + counts + ". Retry later, or delegate without waiting.";
             if (limit == DelegationCapacityLimitEnum.ChildQueueDepth)
             {
                 return "Too many delegated runs are already queued while their parents wait" + counts + ". Retry later, or delegate without waiting.";

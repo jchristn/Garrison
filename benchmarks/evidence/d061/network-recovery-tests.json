@@ -1,0 +1,202 @@
+[
+  {
+    "testId": "effect-policy.requeue-decision",
+    "suiteId": "effect-policy",
+    "caseId": "requeue-decision",
+    "displayName": "Lease expiry decision: Leased runs requeue under every policy; Running runs only under AtLeastOnce; cancelled runs and runs out of attempts never requeue",
+    "success": true,
+    "skipped": false,
+    "durationMs": 3,
+    "message": null
+  },
+  {
+    "testId": "effect-policy.legacy-input",
+    "suiteId": "effect-policy",
+    "caseId": "legacy-input",
+    "displayName": "Deployment JSON: retryOnNodeLoss alone maps (true AtLeastOnce, false AtMostOnce), effectPolicy wins when both agree, a disagreement is flagged, and output carries both fields",
+    "success": true,
+    "skipped": false,
+    "durationMs": 70,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.transient-connection-reset",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "transient-connection-reset",
+    "displayName": "Dropped worker TCP connections recover before lease expiry without duplicate execution",
+    "success": true,
+    "skipped": false,
+    "durationMs": 7743,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.transient-control-plane-outage",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "transient-control-plane-outage",
+    "displayName": "A transient full worker/control-plane outage heals before lease expiry without retry or loss",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6863,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.node-loss-at-least-once",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "node-loss-at-least-once",
+    "displayName": "A worker partitioned after its run started: under AtLeastOnce the run is requeued and succeeds on another worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 13635,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.node-loss-at-most-once",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "node-loss-at-most-once",
+    "displayName": "A worker partitioned after its run started: under AtMostOnce the run ends Failed with NodeLost and never runs again, even after the deployment is changed to AtLeastOnce mid-run (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 10433,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.node-loss-journaled",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "node-loss-journaled",
+    "displayName": "A worker partitioned after its run started: under Journaled the run ends Failed with NodeLost, because the CLI has unknown effect coverage (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 10451,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.rest",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "rest",
+    "displayName": "REST: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, conflicts are 400 EffectPolicyConflict, responses carry both fields, runs record the policy, and changes are audited (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 577,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.manifests",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "manifests",
+    "displayName": "Manifests: omitted means AtMostOnce, retryOnNodeLoss maps, a conflict fails with EffectPolicyConflict, and export writes effectPolicy and round-trips unchanged (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 643,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.mcp-management",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "mcp-management",
+    "displayName": "MCP management: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, and a conflict is rejected naming effectPolicy (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 646,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.delegated-child",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "delegated-child",
+    "displayName": "A delegated child run follows its own deployment\u0027s effect policy, not its parent\u0027s (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 948,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.transient-connection-reset",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "transient-connection-reset",
+    "displayName": "Dropped worker TCP connections recover before lease expiry without duplicate execution",
+    "success": true,
+    "skipped": false,
+    "durationMs": 11677,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.transient-control-plane-outage",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "transient-control-plane-outage",
+    "displayName": "A transient full worker/control-plane outage heals before lease expiry without retry or loss",
+    "success": true,
+    "skipped": false,
+    "durationMs": 11316,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.node-loss-at-least-once",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "node-loss-at-least-once",
+    "displayName": "A worker partitioned after its run started: under AtLeastOnce the run is requeued and succeeds on another worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 19088,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.node-loss-at-most-once",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "node-loss-at-most-once",
+    "displayName": "A worker partitioned after its run started: under AtMostOnce the run ends Failed with NodeLost and never runs again, even after the deployment is changed to AtLeastOnce mid-run (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 15256,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.node-loss-journaled",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "node-loss-journaled",
+    "displayName": "A worker partitioned after its run started: under Journaled the run ends Failed with NodeLost, because the CLI has unknown effect coverage (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 15103,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.rest",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "rest",
+    "displayName": "REST: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, conflicts are 400 EffectPolicyConflict, responses carry both fields, runs record the policy, and changes are audited (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6307,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.manifests",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "manifests",
+    "displayName": "Manifests: omitted means AtMostOnce, retryOnNodeLoss maps, a conflict fails with EffectPolicyConflict, and export writes effectPolicy and round-trips unchanged (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6440,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.mcp-management",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "mcp-management",
+    "displayName": "MCP management: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, and a conflict is rejected naming effectPolicy (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6291,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.delegated-child",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "delegated-child",
+    "displayName": "A delegated child run follows its own deployment\u0027s effect policy, not its parent\u0027s (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 5578,
+    "message": null
+  }
+]

@@ -9,6 +9,9 @@ namespace Garrison.Benchmark.Runners
     /// </summary>
     public class LevelSettings
     {
+        /// <summary>Trace offsets for trace mode; null for closed and fixed-rate open modes.</summary>
+        public List<double>? ArrivalOffsetsMs { get; set; } = null;
+
         /// <summary>
         /// Arm: garrison or direct.
         /// </summary>

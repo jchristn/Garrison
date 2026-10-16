@@ -12,7 +12,7 @@ Use Configuration > Artifact Stores or the tenant `artifact-stores` API:
 - `Filesystem` stores content under `Artifacts.RootDirectory` (default `data/artifacts`). `pathPrefix` is an optional relative subdirectory; otherwise the store ID is used. Multiple server replicas must mount the same directory. Docker Compose already persists the default root in the server data volume.
 - `S3` requires an existing `bucket`. `region` defaults to `us-east-1`; an empty `endpoint` uses AWS. Set an endpoint for Less3, Hydra, or another compatible service. `forcePathStyle` defaults to true; disable it if the service requires virtual-host addressing. `pathPrefix` optionally controls the object prefix.
 
-For S3 credentials, create an encrypted `GenericEnv` secret containing JSON with `accessKey`, `secretKey`, and optional `sessionToken`, then select its `secretId`. Without a secret, the server uses the AWS credential chain. Credentials stay on the server. Workers upload through authenticated Garrison MCP, including from Kubernetes run pods under the existing network policy.
+For S3 credentials, create an encrypted `GenericEnv` secret containing JSON with `accessKey`, `secretKey`, and optional `sessionToken`, then select its `secretId`. Without a secret, the server uses the AWS credential chain. Credentials stay on the server. Normal collected artifacts upload through authenticated Garrison APIs, including MCP from Kubernetes run pods under the existing network policy. Internal continuation/prepared-workspace archives use a separate node-authenticated binary route; node credentials are not exposed in harness configuration.
 
 Stores cannot be deleted while artifacts or deployments reference them. Store kind, bucket, and endpoint cannot change while artifacts exist. Deleting a referenced credential is also blocked.
 
@@ -34,7 +34,9 @@ Under `/v1.0/api/tenants/{tenantId}`:
 
 Uploads use `application/octet-stream` and query parameters `storeId`, `name`, `epoch`, `repairAttempt`, and optional `mediaType`. The name must match the deployment's configured globs and store. Stale leases, earlier repair attempts, cancellation, and terminal runs cannot create artifacts. Repeating the same upload is idempotent; different content for the same execution/file conflicts.
 
-Download URLs grant access to one file until expiry; they cannot authenticate other API calls. Deleting the file invalidates its links. Links are served through Garrison rather than exposing provider credentials or filesystem paths. There is no automatic retention cleanup; operators explicitly delete artifacts.
+The `.garrison/` namespace is reserved for internal execution state. Public uploads reject it even for administrators. Internal archives are excluded from public listings, metadata/content/download access and pipeline artifact handoff; trusted workers restore through narrowly scoped internal transport. Upload authorization checks the current node binding, live lease epoch and repair attempt in the run transaction.
+
+Download URLs grant access to one file until expiry; they cannot authenticate other API calls. Deleting the file invalidates its links. Links are served through Garrison rather than exposing provider credentials or filesystem paths. Normal artifacts are retained independently of run retention and require explicit deletion. Internal execution-state cleanup has its own lifecycle; do not use public artifact APIs to manage hidden checkpoints.
 
 ## Limits and validation
 
@@ -42,7 +44,7 @@ Server settings under `Artifacts` apply after restart:
 
 | Setting | Default | Range |
 |---|---|---|
-| `MaxFileBytes` | 16 MiB | 1 KiB to 64 MiB |
+| `MaxFileBytes` | 16 MiB | 1 KiB to 256 MiB |
 | `MaxTotalBytes` | 64 MiB | 1 KiB to 1 GiB |
 | `MaxFiles` | 100 | 1 to 10,000 |
 | `MaxScanEntries` | 100,000 | 1 to 1,000,000 |
@@ -52,3 +54,7 @@ Server settings under `Artifacts` apply after restart:
 Environment overrides use `GARRISON_ARTIFACT_` followed by `ROOT_DIRECTORY`, `MAX_FILE_BYTES`, `MAX_TOTAL_BYTES`, `MAX_FILES`, `MAX_SCAN_ENTRIES`, `COLLECTION_TIMEOUT_SECONDS`, or `DOWNLOAD_LIFETIME_SECONDS`.
 
 Run `dotnet run --project src/Test.Automated -f net10.0 -- --suites artifacts` for collection, persistence, tenant, lease, and download tests. `scripts/check-artifact-s3.sh` checks real Less3 transfers using a disposable local container. The configurable adapter supports Hydra/AWS endpoints; those services have not been exercised against live accounts in this validation.
+
+The per-file cap also bounds compressed internal continuation archives. Raising it is an explicit operator decision and does not raise the REST/proxy request ceilings or the 256 MiB uncompressed snapshot guard used by the continuation path. Normal collected files still obey MaxTotalBytes. See [archive size policy](CONTINUATION.md#archive-size-policy).
+
+For large complete-HOME checkpoints, an explicit 96 MiB compressed cap was validated against an 80 MiB fixture in D063. The default stays 16 MiB. A higher file cap also affects ordinary artifacts, does not raise the REST/ingress limit automatically, and is not a peak-memory bound: current archive/file transfers buffer bytes. See [D063 continuation evidence](testing/D063_CONTINUATION.md) and the size policy above.

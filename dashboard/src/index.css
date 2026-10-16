@@ -2,19 +2,19 @@
   --color-primary: #0f766e;
   --color-primary-hover: #115e59;
   --color-primary-soft: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  --color-secondary: #64748b;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --color-secondary: #475569;
+  --color-success: #066448;
+  --color-warning: #92400e;
+  --color-danger: #b91c1c;
+  --color-info: #1d4ed8;
 
   --color-background: #f8fafc;
   --color-surface: #ffffff;
   --color-surface-alt: #f1f5f9;
   --color-border: #e2e8f0;
   --color-text: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
+  --color-text-secondary: #475569;
+  --color-text-muted: #526178;
 
   --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     'Noto Sans', 'Noto Sans JP', 'Noto Sans CJK JP', 'Hiragino Sans', 'Yu Gothic', Meiryo,
@@ -50,6 +50,11 @@
 }
 
 [data-theme='dark'] {
+  --color-secondary: #cbd5e1;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #60a5fa;
   --color-primary: #2dd4bf;
   --color-primary-hover: #5eead4;
   --color-primary-soft: color-mix(in srgb, var(--color-primary) 20%, transparent);
@@ -58,8 +63,8 @@
   --color-surface-alt: #1a243a;
   --color-border: #1f2b44;
   --color-text: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #9aaac1;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 28px -6px rgba(0, 0, 0, 0.6);
@@ -1158,3 +1163,15 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .schema-form-group { border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 12px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .schema-form-group legend { font-weight: 600; padding: 0 4px; }
 .transcript-export-thinking { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-top: 1px solid var(--color-border); font-size: 0.9em; }
+
+/* Bright action backgrounds in dark mode use dark text to preserve readable contrast. */
+[data-theme='dark'] .button-primary,
+[data-theme='dark'] .button-danger,
+[data-theme='dark'] .range-btn.active,
+[data-theme='dark'] .snippet-tab.active,
+[data-theme='dark'] .skip-link,
+[data-theme='dark'] .toast { color: #0b1220; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

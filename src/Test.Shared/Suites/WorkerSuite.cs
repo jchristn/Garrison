@@ -5,6 +5,7 @@ namespace Test.Shared.Suites
     using System.Diagnostics;
     using System.Globalization;
     using System.IO;
+    using System.IO.Compression;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -36,6 +37,8 @@ namespace Test.Shared.Suites
         {
             List<TestCaseDescriptor> executor = new List<TestCaseDescriptor>
             {
+                new TestCaseDescriptor("worker-executor", "git-mirror-cache", "Git mirror cache refreshes real git refs and produces independent byte-identical clones", GitMirrorCacheAsync),
+                new TestCaseDescriptor("worker-executor", "portable-snapshot", "Workspace snapshots round-trip all session directories and reject traversal, links, and decompression bombs", SnapshotAsync),
                 new TestCaseDescriptor("worker-executor", "success-claude", "Executor: fake harness success in Claude format", ct => FormatSuccessAsync("claude", OutputParserEnum.ClaudeStreamJson, ct)),
                 new TestCaseDescriptor("worker-executor", "success-codex", "Executor: fake harness success in Codex format", ct => FormatSuccessAsync("codex", OutputParserEnum.CodexJsonl, ct)),
                 new TestCaseDescriptor("worker-executor", "success-plain", "Executor: fake harness success in plain format", ct => FormatSuccessAsync("plain", OutputParserEnum.PlainText, ct)),
@@ -43,6 +46,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-executor", "codex-app-server-login-schema", "Executor: Codex app-server delivery logs in with the API key from the environment and sends the output schema; the key is scrubbed", AppServerLoginSchemaAsync),
                 new TestCaseDescriptor("worker-executor", "codex-app-server-approval", "Executor: Codex app-server approval requests are declined and reported", AppServerApprovalAsync),
                 new TestCaseDescriptor("worker-executor", "codex-app-server-failures", "Executor: Codex app-server failed turn, unknown resume thread, and a hung turn hitting the deadline", AppServerFailuresAsync),
+                new TestCaseDescriptor("worker-executor", "failed-checkpoint-marker", "Executor: a failed harness with a session and checkpoint marker remains failed", FailedCheckpointMarkerAsync),
                 new TestCaseDescriptor("worker-executor", "failure", "Executor: harness failure maps to HarnessFailed", FailureAsync),
                 new TestCaseDescriptor("worker-executor", "not-installed", "Executor: missing executable maps to NotInstalled", NotInstalledAsync),
                 new TestCaseDescriptor("worker-executor", "timeout", "Executor: deadline kills a hung harness", TimeoutAsync),
@@ -81,6 +85,126 @@ namespace Test.Shared.Suites
         #endregion
 
         #region Private-Methods
+
+        private static async Task GitMirrorCacheAsync(CancellationToken token)
+        {
+            if (OperatingSystem.IsWindows()) return;
+            await using (LocalGitFixture fixture = await LocalGitFixture.CreateAsync(token).ConfigureAwait(false))
+            {
+                WorkspacePreparer preparer = new WorkspacePreparer { GitCacheRoot = Path.Combine(fixture.Root, "cache") };
+                ExecutionWorkspace workspace = new ExecutionWorkspace { Kind = WorkspaceKindEnum.GitRepository, GitUrl = fixture.Url, GitRef = "main", GitDepth = 0 };
+                RunDirectories first = new RunDirectories(fixture.Root, "first");
+                first.Create();
+                await preparer.PrepareAsync(workspace, first, fixture.Environment, token).ConfigureAwait(false);
+                if (workspace.MirrorCacheHit) throw new TestAssertionException("Cold clone falsely reported a hit.");
+                RunDirectories second = new RunDirectories(fixture.Root, "second");
+                second.Create();
+                await preparer.PrepareAsync(workspace, second, fixture.Environment, token).ConfigureAwait(false);
+                if (!workspace.MirrorCacheHit) throw new TestAssertionException("Warm clone did not reuse its mirror.");
+                string expected = await File.ReadAllTextAsync(Path.Combine(first.Workspace, "payload.txt"), token).ConfigureAwait(false);
+                if (await File.ReadAllTextAsync(Path.Combine(second.Workspace, "payload.txt"), token).ConfigureAwait(false) != expected) throw new TestAssertionException("Cached workspace differs from a fresh clone.");
+                Directory.Delete(preparer.GitCacheRoot!, true);
+                if (File.Exists(Path.Combine(second.Workspace, ".git", "objects", "info", "alternates"))) throw new TestAssertionException("Run depends on mutable shared mirror objects.");
+                await File.WriteAllTextAsync(Path.Combine(first.Workspace, "payload.txt"), "mutated", token).ConfigureAwait(false);
+                if (await File.ReadAllTextAsync(Path.Combine(second.Workspace, "payload.txt"), token).ConfigureAwait(false) != expected) throw new TestAssertionException("Independent clone was mutated by another run.");
+            }
+        }
+
+        private static async Task SnapshotAsync(CancellationToken token)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "garrison-snapshot-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                RunDirectories original = new RunDirectories(root, "original");
+                original.Create();
+                await File.WriteAllTextAsync(Path.Combine(original.Workspace, "completed-tool.txt"), "do not replay", token).ConfigureAwait(false);
+                Directory.CreateDirectory(Path.Combine(original.Home, ".codex"));
+                await File.WriteAllTextAsync(Path.Combine(original.Home, ".codex", "session.jsonl"), "recorded-session", token).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(original.Config, "settings"), "settings", token).ConfigureAwait(false);
+                WorkspaceSnapshot snapshots = new WorkspaceSnapshot();
+                using (MemoryStream archive = new MemoryStream())
+                {
+                    long captured = await snapshots.CaptureAsync(original, archive, token).ConfigureAwait(false);
+                    Directory.Delete(original.Root, true); // Original worker can be lost before restoration.
+                    archive.Position = 0;
+                    RunDirectories restored = new RunDirectories(root, "other-node");
+                    long bytes = await snapshots.RestoreAsync(archive, restored, token).ConfigureAwait(false);
+                    if (bytes != captured || await File.ReadAllTextAsync(Path.Combine(restored.Workspace, "completed-tool.txt"), token).ConfigureAwait(false) != "do not replay"
+                        || await File.ReadAllTextAsync(Path.Combine(restored.Home, ".codex", "session.jsonl"), token).ConfigureAwait(false) != "recorded-session") throw new TestAssertionException("Snapshot lost workspace or session content.");
+                }
+                RunDirectories portable = new RunDirectories(root, "portable-session");
+                portable.Create();
+                string oldProject = Path.Combine(portable.Home, ".claude", "projects", "-old-worker-root");
+                Directory.CreateDirectory(oldProject);
+                const string recordedSession = "{\"type\":\"user\",\"sessionId\":\"recorded-session\",\"cwd\":\"/old/worker/root\",\"message\":{\"role\":\"user\",\"content\":\"completed history\"}}\n";
+                await File.WriteAllTextAsync(Path.Combine(oldProject, "recorded-session.jsonl"), recordedSession, token).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(portable.Config, "continuation-manifest.json"), Garrison.Core.Serialization.Serializer.Serialize(new SessionSnapshotManifest { WorkspacePath = "/old/worker/root", SessionFormat = "claude-project-jsonl-v1", SessionId = "recorded-session" }), token).ConfigureAwait(false);
+                await SessionSnapshotPaths.RestoreAsync(portable, HarnessTypeEnum.ClaudeCode, "claude-project-jsonl-v1", "recorded-session", token).ConfigureAwait(false);
+                string relocated = Path.Combine(portable.Home, ".claude", "projects", System.Text.RegularExpressions.Regex.Replace(portable.Workspace, "[^a-zA-Z0-9]", "-"), "recorded-session.jsonl");
+                if (await File.ReadAllTextAsync(relocated, token).ConfigureAwait(false) != recordedSession) throw new TestAssertionException("Claude session history was changed or not relocated for the new workspace.");
+                bool incompatible = false;
+                try { await SessionSnapshotPaths.RestoreAsync(portable, HarnessTypeEnum.ClaudeCode, "different-format", "recorded-session", token).ConfigureAwait(false); }
+                catch (IOException) { incompatible = true; }
+                if (!incompatible) throw new TestAssertionException("Incompatible pinned session format was accepted.");
+                foreach (string malicious in new[] { "work/../../outside", "home/../outside", "/absolute", "config/link" })
+                {
+                    using (MemoryStream archive = new MemoryStream())
+                    {
+                        using (ZipArchive zip = new ZipArchive(archive, ZipArchiveMode.Create, true))
+                        {
+                            ZipArchiveEntry entry = zip.CreateEntry(malicious);
+                            if (malicious == "config/link") entry.ExternalAttributes = 0xa1ff << 16;
+                            using (Stream stream = entry.Open()) await stream.WriteAsync(new byte[] { 1 }, token).ConfigureAwait(false);
+                        }
+                        archive.Position = 0;
+                        RunDirectories destination = new RunDirectories(root, "unsafe");
+                        bool refused = false;
+                        try { await snapshots.RestoreAsync(archive, destination, token).ConfigureAwait(false); }
+                        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { refused = true; }
+                        if (!refused || Directory.Exists(destination.Root)) throw new TestAssertionException("Unsafe snapshot was restored or left a partial destination.");
+                    }
+                }
+                using (MemoryStream archive = new MemoryStream())
+                {
+                    using (ZipArchive zip = new ZipArchive(archive, ZipArchiveMode.Create, true))
+                    {
+                        using (Stream stream = zip.CreateEntry("work/bomb").Open()) await stream.WriteAsync(new byte[2048], token).ConfigureAwait(false);
+                    }
+                    snapshots.MaxBytes = 1024;
+                    archive.Position = 0;
+                    bool refused = false;
+                    try { await snapshots.RestoreAsync(archive, new RunDirectories(root, "large"), token).ConfigureAwait(false); }
+                    catch (IOException) { refused = true; }
+                    if (!refused) throw new TestAssertionException("Uncompressed size bound was ignored.");
+                }
+                if (!OperatingSystem.IsWindows())
+                {
+                    original.Create();
+                    Garrison.Harnesses.Execution.ProcessRunRequest fifoRequest = new Garrison.Harnesses.Execution.ProcessRunRequest { Executable = "mkfifo", Arguments = new List<string> { Path.Combine(original.Workspace, "fifo") }, WorkingDirectory = root, Environment = new Dictionary<string, string> { ["PATH"] = Environment.GetEnvironmentVariable("PATH") ?? "/usr/bin:/bin" }, TimeoutSeconds = 5 };
+                    Garrison.Harnesses.Execution.ProcessRunResult fifo = await new Garrison.Harnesses.Execution.ProcessRunner().RunAsync(fifoRequest, null, null, token).ConfigureAwait(false);
+                    if (fifo.ExitCode == 0)
+                    {
+                        using (MemoryStream archive = new MemoryStream())
+                        {
+                            bool refused = false;
+                            try { await snapshots.CaptureAsync(original, archive, token).ConfigureAwait(false); }
+                            catch (IOException) { refused = true; }
+                            if (!refused) throw new TestAssertionException("Snapshot accepted a FIFO instead of refusing it immediately.");
+                        }
+                        File.Delete(Path.Combine(original.Workspace, "fifo"));
+                    }
+                    File.CreateSymbolicLink(Path.Combine(original.Workspace, "link"), "/etc/passwd");
+                    using (MemoryStream archive = new MemoryStream())
+                    {
+                        bool refused = false;
+                        try { await snapshots.CaptureAsync(original, archive, token).ConfigureAwait(false); }
+                        catch (IOException) { refused = true; }
+                        if (!refused) throw new TestAssertionException("Snapshot followed a filesystem link.");
+                    }
+                }
+            }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        }
 
         private static string FakeHarnessDll()
         {
@@ -305,6 +429,20 @@ namespace Test.Shared.Suites
             missing.Spec.Executable = "garrison-executable-that-does-not-exist";
             RunCompleteRequest notInstalled = await Executor().ExecuteAsync(missing, new InMemoryRunReporter(), token).ConfigureAwait(false);
             Assert.True(notInstalled.ExecutionMs == null && notInstalled.TimeToFirstTokenMs == null, "No timing when the process never started.");
+        }
+
+        private static async Task FailedCheckpointMarkerAsync(CancellationToken token)
+        {
+            RunAssignment assignment = Assignment("claude", OutputParserEnum.ClaudeStreamJson, "x", "--fail", "--answer", "GARRISON_CONTINUATION_WAIT");
+            assignment.Spec.Continuation = new ExecutionContinuation { SessionFormat = "garrison-fake-session-v1" };
+            InMemoryRunReporter reporter = new InMemoryRunReporter();
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, reporter, token).ConfigureAwait(false);
+            Assert.True(!String.IsNullOrEmpty(complete.SessionId), "Failed harness still reported its session");
+            Assert.True((complete.ResultText ?? String.Empty).Contains("GARRISON_CONTINUATION_WAIT", StringComparison.Ordinal), "Failed harness emitted the checkpoint marker");
+            Assert.Equal(RunStatusEnum.Failed, complete.Status, "Marker must not promote a failed harness to Suspended");
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, complete.Outcome, "Original failure outcome retained");
+            Assert.Equal(1, complete.ExitCode, "Original failure exit code retained");
+            Assert.True(complete.SnapshotArtifactId == null, "Failed execution must not upload a checkpoint");
         }
 
         private static async Task FailureAsync(CancellationToken token)

@@ -1,6 +1,6 @@
 # Provider API execution evaluation
 
-Recommendation: defer a second execution engine until a concrete provider-only deployment needs it. The initial goal is to get agents running reliably. Garrison's CLI harnesses, process/Kubernetes execution, credentials, delegation, and local Docker deployment already serve that goal.
+Historical design evaluation, reviewed 2026-10-13. The initial recommendation below was superseded when the user selected optional implementation under P12.13. The compatible provider harness is implemented; use [the current provider API guide](PROVIDER_API.md) for configuration and supported behavior. This document retains the original tradeoffs and decision context.
 
 ## What the reference implementation adds
 
@@ -8,7 +8,7 @@ Reviewed on 2026-10-13: the local Aegon `ProviderApiHarness`, `ProviderClientFac
 
 Aegon's provider configuration supplies endpoint and API-key-variable settings. Its API-key contract does not consume the CLI auth/session files used by Garrison's current harnesses. Some enumerated providers remain unsupported in the reference factory. Copying the adapter would therefore require decisions about credentials and supported providers as well as integration work.
 
-## What Garrison would need
+## Requirements considered during evaluation
 
 A compatible implementation needs typed provider configuration in compilation, capability reporting, streaming events and usage, a tool loop that retains delegation and approval behavior, conversation history, cancellation, structured-output repair through prompt templates, and SDK/dashboard configuration. Workspace operations would depend on the supplied tools. Existing isolation and artifact collection must continue working in process, cold Kubernetes, and warm Kubernetes execution.
 
@@ -18,4 +18,4 @@ Cost reporting can reuse the existing estimation path and operator-configured ra
 
 The useful trigger is a deployment that must run a named provider using endpoint credentials without installing its CLI. If that is an immediate requirement, start with one provider and prove streaming, one MCP tool round trip, cancellation, usage, and a conversation before widening support.
 
-The evaluation is complete. The user selected optional implementation under P12.13 after reviewing the recommendation. Implement the provider path while retaining the existing CLI paths and optional quota enforcement. The initial OpenAI-compatible mode now uses a bundled process with PolyPrompt 2.8.0. Streaming/usage, HTTP MCP approval/delegation, schema repair and conversation resume are validated. It is deployed to local Docker and has succeeded against the existing configured Mux endpoint. See [provider API configuration](PROVIDER_API.md). Other provider adapters and stdio tools remain outside the initial mode.
+The evaluation is complete. The user selected optional implementation under P12.13 after reviewing the recommendation. The implementation retains existing CLI paths and optional quota enforcement. The initial OpenAI-compatible mode now uses a bundled process with PolyPrompt 2.8.0. Streaming/usage, HTTP MCP approval/delegation, schema repair and conversation resume are validated. It is deployed to local Docker and has succeeded against the existing configured Mux endpoint. See [provider API configuration](PROVIDER_API.md). Other provider adapters and stdio tools remain outside the initial mode.

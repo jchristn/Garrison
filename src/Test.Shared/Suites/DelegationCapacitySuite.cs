@@ -44,6 +44,14 @@ namespace Test.Shared.Suites
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
             {
                 string id = "delegation-capacity-" + provider.ToString().ToLowerInvariant();
+                string durableId = "continuation-child-" + provider.ToString().ToLowerInvariant();
+                suites.Add(new TestSuiteDescriptor(durableId, "Durable delegation wait", new List<TestCaseDescriptor> { new TestCaseDescriptor(durableId, "single-slot", "A parent releases its sole slot while a child runs and resumes with the saved child result (" + provider + ")", ct => DurableWaitAsync(provider, ct)) }));
+                string budgetId = "delegation-wait-budget-" + provider.ToString().ToLowerInvariant();
+                suites.Add(new TestSuiteDescriptor(budgetId, "Delegation wait budget (" + provider + ")", new List<TestCaseDescriptor>
+                {
+                    new TestCaseDescriptor(budgetId, "shared-wait-budget-admission", "Full external wait budget refuses resident delegation before child creation; cancellation, idempotency and creation failure release resources", ct => SharedWaitBudgetAsync(provider, ct)),
+                    new TestCaseDescriptor(budgetId, "reserved-child-wait", "An admitted resident child wait owns one slot, retains reserve eligibility and completes with a terminal child", ct => ReservedChildWaitAsync(provider, ct))
+                }));
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "deadlock-4x4", "4 slots and 4 parents that each delegate once synchronously all finish (" + provider + ")", ct => DeadlockAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "random-trees", "Random delegation trees on small slot counts always finish or fail with DelegationCapacityExhausted, never hang (" + provider + ")", ct => RandomTreesAsync(provider, ct)));
@@ -58,6 +66,38 @@ namespace Test.Shared.Suites
         #endregion
 
         #region Private-Methods
+
+        private static async Task DurableWaitAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await StartAsync(provider, settings => { settings.MaxConcurrentRuns = 1; settings.ChildReserveSlots = 0; }, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                string api = "/v1.0/api/tenants/" + host.TenantId;
+                ArtifactStore store = await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, api + "/artifact-stores", new ArtifactStore { Name = "child-checkpoints", Kind = ArtifactStoreKindEnum.Database }, 201, token).ConfigureAwait(false);
+                HarnessProfile profile = await DelegatingProfileAsync(host, token).ConfigureAwait(false);
+                profile.SessionFormat = "garrison-fake-session-v1";
+                profile.Arguments.Add(new HarnessArgument { Template = "--permission-once" });
+                profile.Arguments.Add(new HarnessArgument { Template = "--echo-chars" });
+                profile.Arguments.Add(new HarnessArgument { Template = "0" });
+                await host.Server.Context.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
+                await cluster.CreateAgentAsync("durable-child", "builtin/fake", token: token).ConfigureAwait(false);
+                Agent agent = await cluster.CreateAgentAsync("durable-parent", profile.Name, parent => { parent.DelegationMode = DelegationModeEnum.AllowList; parent.DelegationAllowList.Add("durable-child"); }, token, deployment =>
+                {
+                    deployment.SuspensionEnabled = true;
+                    deployment.ArtifactStoreId = store.Id;
+                    deployment.Parameters.Add(new DeploymentParameter { Name = "invoke1", Value = Invoke("durable-child", "durable-child-result") });
+                }).ConfigureAwait(false);
+                Run started = await CreateRunAsync(cluster, agent, "parent", token).ConfigureAwait(false);
+                List<Run> completed = await WaitAllAsync(cluster, new List<string> { started.Id }, TimeSpan.FromSeconds(60), "durable parent sharing its only slot with its child", token).ConfigureAwait(false);
+                Run done = completed.Single();
+                Assert.Equal(RunStatusEnum.Succeeded, done.Status, "Durable parent succeeds: " + done.ErrorMessage);
+                Assert.True((done.ResultText ?? String.Empty).Contains("durable-child-result", StringComparison.Ordinal), "Parent resumed with the saved child output: " + done.ResultText);
+                Assert.Equal(1, (await ChildrenAsync(cluster, new List<Run> { done }, token).ConfigureAwait(false)).Count, "Resume did not invoke the child twice");
+                RunEventsResponse events = await HttpTestHelpers.SendAsync<RunEventsResponse>(host.AdminClient, HttpMethod.Get, api + "/runs/" + done.Id + "/events", null, 200, token).ConfigureAwait(false);
+                Assert.True(events.Events.Any(entry => entry.Code == "RunSuspended"), "Parent emitted a durable suspension checkpoint");
+                Assert.True(cluster.Workers[0].PeakActiveRunCount <= 1, "Parent and child never exceeded the sole process slot");
+            }
+        }
 
         private static async Task DeadlockAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
@@ -334,6 +374,91 @@ namespace Test.Shared.Suites
                         await Task.Delay(50, token).ConfigureAwait(false);
                     }
                 }
+            }
+        }
+
+        private static async Task SharedWaitBudgetAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (MetricCapture capture = new MetricCapture())
+            {
+                await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+                {
+                    DatabaseDriverBase db = cluster.Server.Server.Context.Database;
+                    RuntimeOptions runtime = cluster.Server.Server.Context.Get<RuntimeOptions>();
+                    runtime.MaxSynchronousWaiters = 1;
+                    Agent holder = await cluster.CreateAgentAsync("budget-holder", token: token).ConfigureAwait(false);
+                    Agent child = await cluster.CreateAgentAsync("budget-child", token: token).ConfigureAwait(false);
+                    Agent parent = await cluster.CreateAgentAsync("budget-parent", configure: a => a.DelegationMode = DelegationModeEnum.Any, token: token).ConfigureAwait(false);
+                    Node node = await db.Nodes.CreateAsync(new Node { Name = "budget-parent-node", MaxConcurrentRuns = 4, ChildReserveSlots = 1, LastHeartbeatUtc = DateTime.UtcNow }, token).ConfigureAwait(false);
+                    string parentToken = await LeasedRunTokenAsync(cluster, parent, node, "parent", token).ConfigureAwait(false);
+                    using (HttpClient parentClient = RunClient(cluster, parentToken))
+                    {
+                        using (CancellationTokenSource held = CancellationTokenSource.CreateLinkedTokenSource(token))
+                        {
+                            Task<TestResponse> external = HttpTestHelpers.SendAsync(cluster.Server.AdminClient, HttpMethod.Post, InvokePath(cluster, holder), new InvokeRequest { Input = "hold external wait", Wait = true, WaitSeconds = 60, CancelOnDisconnect = false }, held.Token);
+                            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                            while (runtime.SynchronousWaits.Active != 1 && DateTime.UtcNow < deadline) await Task.Delay(20, token).ConfigureAwait(false);
+                            Assert.Equal(1, runtime.SynchronousWaits.Active, "real external invocation occupies the wait budget");
+                            TestResponse denied = await HttpTestHelpers.SendAsync(parentClient, HttpMethod.Post, InvokePath(cluster, child), new InvokeRequest { Input = "must not create child", Wait = true, WaitSeconds = 60 }, token).ConfigureAwait(false);
+                            Assert.True(denied.StatusCode == 429 && denied.Body.Contains("DelegationCapacityExhausted", StringComparison.Ordinal) && denied.Body.Contains("control-plane replica", StringComparison.Ordinal), "typed wait-budget denial: " + denied.Body);
+                            Assert.True(!(await AllRunsAsync(cluster, token).ConfigureAwait(false)).Any(r => r.AgentId == child.Id), "denied delegation creates zero child runs");
+                            Assert.Equal(0L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "denied delegation creates zero child handshakes");
+                            Assert.Equal(1, runtime.SynchronousWaits.Active, "denial does not release another caller's budget slot");
+                            Assert.True(capture.Of("garrison.synchronous.wait.admission").Any(m => m.Tag("result") == "delegation_denied"), "typed denial has its own bounded telemetry result");
+                            Assert.True(!capture.Of("garrison.synchronous.wait.admission").Any(m => m.Tag("result") == "fallback"), "denied delegation is not counted as accepted asynchronous fallback");
+                            Assert.True(capture.Of("garrison.delegation.denials").Any(m => m.Tag("reason") == "DelegationCapacityExhausted"), "denial also records the existing delegation counter");
+                            held.Cancel();
+                            try { await external.ConfigureAwait(false); } catch (OperationCanceledException) { }
+                            deadline = DateTime.UtcNow.AddSeconds(15);
+                            while (runtime.SynchronousWaits.Active != 0 && DateTime.UtcNow < deadline) await Task.Delay(20, token).ConfigureAwait(false);
+                            Assert.Equal(0, runtime.SynchronousWaits.Active, "cancelled external wait releases its slot");
+                        }
+                        TestResponse createFailure = await HttpTestHelpers.SendAsync(parentClient, HttpMethod.Post, InvokePath(cluster, child), new InvokeRequest { Input = "invalid child deployment", DeploymentId = "dep_missing_budget_regression", Wait = true }, token).ConfigureAwait(false);
+                        Assert.Equal(404, createFailure.StatusCode, "creation fails after acquiring budget and handshake");
+                        Assert.Equal(0, runtime.SynchronousWaits.Active, "creation failure releases reserved budget");
+                        Assert.Equal(0L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "creation failure ends handshake");
+                        parentClient.DefaultRequestHeaders.Add("Idempotency-Key", "budget-idempotent-child");
+                        TestResponse firstChild = await HttpTestHelpers.SendAsync(parentClient, HttpMethod.Post, InvokePath(cluster, child), new InvokeRequest { Input = "cancel admitted child wait", Wait = false }, token).ConfigureAwait(false);
+                        Assert.Equal(202, firstChild.StatusCode, "idempotent original child accepted asynchronously");
+                        Run canonicalChild = Serializer.Deserialize<Run>(firstChild.Body) ?? throw new TestAssertionException("Missing canonical child.");
+                        using (CancellationTokenSource waiting = CancellationTokenSource.CreateLinkedTokenSource(token))
+                        {
+                            Task<TestResponse> admitted = HttpTestHelpers.SendAsync(parentClient, HttpMethod.Post, InvokePath(cluster, child), new InvokeRequest { Input = "cancel admitted child wait", Wait = true, WaitSeconds = 60, CancelOnDisconnect = true }, waiting.Token);
+                            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                            while (await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false) != 1 && DateTime.UtcNow < deadline) await Task.Delay(20, token).ConfigureAwait(false);
+                            Assert.Equal(1, runtime.SynchronousWaits.Active, "admitted delegation holds exactly one wait slot");
+                            Assert.True(!admitted.IsCompleted, "reserved wait must not reacquire and silently fall back");
+                            Assert.True(await db.Runs.IsWaitedChildAsync(cluster.Server.TenantId, canonicalChild.Id, token).ConfigureAwait(false), "idempotent retry retargets handshake to canonical child");
+                            Assert.Equal(1, (await AllRunsAsync(cluster, token).ConfigureAwait(false)).Count(r => r.AgentId == child.Id), "idempotent retry creates no second child");
+                            waiting.Cancel();
+                            try { await admitted.ConfigureAwait(false); } catch (OperationCanceledException) { }
+                            deadline = DateTime.UtcNow.AddSeconds(15);
+                            while ((runtime.SynchronousWaits.Active != 0 || await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false) != 0) && DateTime.UtcNow < deadline) await Task.Delay(20, token).ConfigureAwait(false);
+                            Assert.Equal(0, runtime.SynchronousWaits.Active, "cancelled child wait releases reservation");
+                            Assert.Equal(0L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "cancelled child wait releases handshake");
+                        }
+                    }
+                }
+            }
+        }
+
+        private static async Task ReservedChildWaitAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await StartAsync(provider, settings => { settings.MaxConcurrentRuns = 1; settings.ChildReserveSlots = 1; }, token).ConfigureAwait(false))
+            {
+                RuntimeOptions runtime = cluster.Server.Server.Context.Get<RuntimeOptions>();
+                runtime.MaxSynchronousWaiters = 1;
+                HarnessProfile profile = await DelegatingProfileAsync(cluster.Server, token).ConfigureAwait(false);
+                Agent child = await cluster.CreateAgentAsync("reserved-child", token: token).ConfigureAwait(false);
+                Agent parent = await cluster.CreateAgentAsync("reserved-parent", profile.Name, a => a.DelegationMode = DelegationModeEnum.Any, token, d => d.Parameters.Add(new DeploymentParameter { Name = "invoke1", Value = Invoke(child.Name, "reserved child") })).ConfigureAwait(false);
+                Run root = await CreateRunAsync(cluster, parent, "parent", token).ConfigureAwait(false);
+                await WaitAllAsync(cluster, new List<string> { root.Id }, TimeSpan.FromSeconds(30), "reserved synchronous child", token).ConfigureAwait(false);
+                List<Run> runs = await AllRunsAsync(cluster, token).ConfigureAwait(false);
+                Assert.True(runs.Any(r => r.ParentRunId == root.Id && r.AgentId == child.Id && r.Status == RunStatusEnum.Succeeded), "child uses reserve and completes");
+                List<string> results = await InvokeResultsAsync(cluster, root.Id, token).ConfigureAwait(false);
+                Assert.True(results.Count == 1 && Classify(results[0]) == "ok", "parent received a terminal child result, not queued fallback: " + String.Join("; ", results));
+                Assert.Equal(0, runtime.SynchronousWaits.Active, "normal completion releases reservation");
+                Assert.Equal(0L, await cluster.Server.Server.Context.Database.Runs.CountWaitingOnNodeAsync(cluster.Workers[0].NodeId!, token).ConfigureAwait(false), "normal completion releases handshake");
             }
         }
 

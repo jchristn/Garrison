@@ -22,6 +22,8 @@ RUN apt-get update \
  && chown -R 10001:10001 /app
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /out/ /app/
+COPY LICENSE.md THIRD_PARTY_NOTICES.md /licenses/
+COPY assets/licenses/ /licenses/assets/licenses/
 USER 10001
 ENV GARRISON_SETTINGS_FILE=/app/garrison.json \
     DOTNET_CLI_TELEMETRY_OPTOUT=1

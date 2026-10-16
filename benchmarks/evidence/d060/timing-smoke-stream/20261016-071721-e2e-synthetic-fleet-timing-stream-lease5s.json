@@ -1,0 +1,391 @@
+{
+  "schemaVersion": 1,
+  "kind": "e2e",
+  "dataset": "synthetic-fleet",
+  "label": "timing-stream-lease5s",
+  "deterministic": false,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-16T07:17:21.458275Z",
+    "finishedUtc": "2026-10-16T07:17:22.022819Z",
+    "sutUrl": "http://127.0.0.1:37800",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "stackDetails": "stream timing lease5s; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250",
+    "productCommit": "f64960d78a59a1008a58c4c9aa01825f32bd2325-dirty",
+    "productDirtyFiles": 377,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "68bc0a61b0171c9408fdd5fc36370e7b0fc156e4-dirty",
+    "machineName": "joels-mbp",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "synthetic-fleet",
+    "datasetSha256": "2e79613ad9cab719bd66ffaa8c3eb6ac6688c37ae25a5eae9ab23cf67cf5b52a",
+    "datasetPath": "benchmarks/datasets/synthetic-fleet.json",
+    "commandLine": "Garrison.Benchmark e2e --url http://127.0.0.1:37800 --admin-key *** --stack local --stack-details \"stream timing lease5s; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250\" --direct false --stream true --repeat 1 --warmup 0 --limit 2 --label timing-stream-lease5s",
+    "seed": 42
+  },
+  "options": {
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "",
+    "dataset": "benchmarks/datasets/synthetic-fleet.json",
+    "deterministic": "false",
+    "direct": "false",
+    "kubeconfig": "(unset)",
+    "label": "timing-stream-lease5s",
+    "limit": "2",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "other-tenant": "default",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "repeat": "1",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "(unset)",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "stream timing lease5s; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250",
+    "stream": "true",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "warmup": "0",
+    "workspace-suffix": "(unset)"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "description": "Runs through Garrison: REST create or invoke, scheduling, lease, compile, worker, fake harness, event shipping, completion.",
+      "probes": 2,
+      "passed": 2,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 2,
+        "indicative": true
+      },
+      "latency": {
+        "count": 2,
+        "mean": 86.84305,
+        "stdDev": 17.8304753050781,
+        "min": 74.235,
+        "p50": 74.235,
+        "p90": 99.4511,
+        "p95": 99.4511,
+        "p99": 99.4511,
+        "max": 99.4511,
+        "p50Ci": {
+          "estimate": 74.235,
+          "lower": 74.235,
+          "upper": 99.4511,
+          "level": 0.95,
+          "n": 2,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 99.4511,
+          "lower": 74.235,
+          "upper": 99.4511,
+          "level": 0.95,
+          "n": 2,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "cancelMs": {
+          "count": 1,
+          "mean": 74.235,
+          "stdDev": 0,
+          "min": 74.235,
+          "p50": 74.235,
+          "p90": 74.235,
+          "p95": 74.235,
+          "p99": 74.235,
+          "max": 74.235
+        },
+        "cancelRequestMs": {
+          "count": 1,
+          "mean": 3.5995,
+          "stdDev": 0,
+          "min": 3.5995,
+          "p50": 3.5995,
+          "p90": 3.5995,
+          "p95": 3.5995,
+          "p99": 3.5995,
+          "max": 3.5995
+        },
+        "eventPersistMaxMs": {
+          "count": 1,
+          "mean": 26.128,
+          "stdDev": 0,
+          "min": 26.128,
+          "p50": 26.128,
+          "p90": 26.128,
+          "p95": 26.128,
+          "p99": 26.128,
+          "max": 26.128
+        },
+        "eventPersistMs": {
+          "count": 1,
+          "mean": 4.402,
+          "stdDev": 0,
+          "min": 4.402,
+          "p50": 4.402,
+          "p90": 4.402,
+          "p95": 4.402,
+          "p99": 4.402,
+          "max": 4.402
+        },
+        "events": {
+          "count": 1,
+          "mean": 7,
+          "stdDev": 0,
+          "min": 7,
+          "p50": 7,
+          "p90": 7,
+          "p95": 7,
+          "p99": 7,
+          "max": 7
+        },
+        "executionMs": {
+          "count": 1,
+          "mean": 65,
+          "stdDev": 0,
+          "min": 65,
+          "p50": 65,
+          "p90": 65,
+          "p95": 65,
+          "p99": 65,
+          "max": 65
+        },
+        "queueMs": {
+          "count": 1,
+          "mean": 1,
+          "stdDev": 0,
+          "min": 1,
+          "p50": 1,
+          "p90": 1,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "requestMs": {
+          "count": 2,
+          "mean": 52.4571,
+          "stdDev": 66.45955215016123,
+          "min": 5.4631,
+          "p50": 5.4631,
+          "p90": 99.4511,
+          "p95": 99.4511,
+          "p99": 99.4511,
+          "max": 99.4511,
+          "p50Ci": {
+            "estimate": 5.4631,
+            "lower": 5.4631,
+            "upper": 99.4511,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 99.4511,
+            "lower": 5.4631,
+            "upper": 99.4511,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "serverOverheadMs": {
+          "count": 1,
+          "mean": 31,
+          "stdDev": 0,
+          "min": 31,
+          "p50": 31,
+          "p90": 31,
+          "p95": 31,
+          "p99": 31,
+          "max": 31
+        },
+        "totalMs": {
+          "count": 1,
+          "mean": 96,
+          "stdDev": 0,
+          "min": 96,
+          "p50": 96,
+          "p90": 96,
+          "p95": 96,
+          "p99": 96,
+          "max": 96
+        },
+        "ttftMs": {
+          "count": 1,
+          "mean": 41,
+          "stdDev": 0,
+          "min": 41,
+          "p50": 41,
+          "p90": 41,
+          "p95": 41,
+          "p99": 41,
+          "max": 41
+        }
+      },
+      "byType": [
+        {
+          "key": "cancel",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "codex-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "lifecycle",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "parsing",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "e2e",
+      "probeId": "parse-codex",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "codex-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Codex format output is parsed into a result.",
+      "runIds": [
+        "run_mvamxk2o_S9ikn3kfotFFfJxXYk4"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 99.4511,
+      "timings": {
+        "eventPersistMaxMs": 26.128,
+        "eventPersistMs": 4.402,
+        "events": 7,
+        "executionMs": 65,
+        "queueMs": 1,
+        "requestMs": 99.4511,
+        "serverOverheadMs": 31,
+        "totalMs": 96,
+        "ttftMs": 41
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "cancel-running",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "cancel",
+      "category": "lifecycle",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Cancelled/Cancelled on bench-alpha-1, result Echo: A long run",
+      "runIds": [
+        "run_mvamxk5v_2ejEBjZgP93qeCgA274"
+      ],
+      "nodes": [],
+      "latencyMs": 74.235,
+      "timings": {
+        "cancelMs": 74.235,
+        "cancelRequestMs": 3.5995,
+        "requestMs": 5.4631
+      }
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "stages": [],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    },
+    {
+      "metric": "garrison.queueMs.p50",
+      "source": "docs/SCALING.md, Measured results (2026-10-10)",
+      "link": "docs/SCALING.md",
+      "baseline": 39,
+      "ours": 1,
+      "delta": -38,
+      "note": "Claim latency (queued to leased) with no backlog, 0.5 s runs, 3 server replicas and 4 workers on k3d; this suite uses 1 replica and measures across all e2e probes."
+    },
+    {
+      "metric": "garrison.serverOverheadMs.p50",
+      "source": "docs/SCALING.md, Measured results (2026-10-10)",
+      "link": "docs/SCALING.md",
+      "baseline": 140,
+      "ours": 31,
+      "delta": -109,
+      "note": "SCALING.md reports runs finishing 140 to 230 ms after their harness time with no backlog; the low end is shown. serverOverheadMs is totalMs minus executionMs."
+    }
+  ],
+  "notes": []
+}

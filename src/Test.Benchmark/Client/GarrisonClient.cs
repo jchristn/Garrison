@@ -241,6 +241,16 @@ namespace Garrison.Benchmark.Client
             return SendAsync<Run>(HttpMethod.Post, TenantPath(tenantId) + "/agents/" + Uri.EscapeDataString(agent) + "/invoke", Serialize(body), "application/json", null, token);
         }
 
+        /// <summary>Read exact completed-scope statement attribution outside a measured load window.</summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Usage rows by lifecycle operation.</returns>
+        public Task<ApiResponse<List<RunDatabaseUsage>>> GetRunDatabaseUsageAsync(string tenantId, string runId, CancellationToken token)
+        {
+            return SendAsync<List<RunDatabaseUsage>>(HttpMethod.Get, TenantPath(tenantId) + "/runs/" + Uri.EscapeDataString(runId) + "/database-usage", null, null, null, token);
+        }
+
         /// <summary>
         /// GET .../runs/{id}.
         /// </summary>

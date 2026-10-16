@@ -46,14 +46,40 @@ namespace Garrison.Server.Services
         /// <returns>Persisted metadata; never the file bytes.</returns>
         public async Task<Artifact> UploadAsync(string tenantId, string runId, string storeId, string name, string mediaType, long epoch, int repairAttempt, byte[] content, CancellationToken token)
         {
+            if (name.StartsWith(".garrison/", StringComparison.OrdinalIgnoreCase)) throw new ValidationException("The .garrison namespace is reserved for node-authenticated execution state.");
+            return await UploadCoreAsync(tenantId, runId, storeId, name, mediaType, epoch, repairAttempt, content, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>Upload internal state using a separately authenticated worker node identity and a live execution fence.</summary>
+        /// <param name="tenantId">Run tenant.</param><param name="runId">Run.</param><param name="storeId">Store.</param><param name="name">Exact internal archive name.</param><param name="epoch">Lease epoch.</param><param name="repairAttempt">Repair phase.</param><param name="content">Archive bytes.</param><param name="nodeId">Authenticated node.</param><param name="token">Cancellation.</param><returns>Artifact metadata.</returns>
+        public Task<Artifact> UploadInternalAsync(string tenantId, string runId, string storeId, string name, long epoch, int repairAttempt, byte[] content, string nodeId, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(nodeId)) throw new ValidationException("An authenticated node is required.");
+            return UploadCoreAsync(tenantId, runId, storeId, name, "application/zip", epoch, repairAttempt, content, nodeId, token);
+        }
+
+        private async Task<Artifact> UploadCoreAsync(string tenantId, string runId, string storeId, string name, string mediaType, long epoch, int repairAttempt, byte[] content, string? nodeId, CancellationToken token)
+        {
             if (content == null) throw new ArgumentNullException(nameof(content));
             if (content.Length > _Context.Settings.Artifacts.MaxFileBytes) throw new ValidationException("Artifact exceeds the configured file byte limit.");
             if (!ArtifactGlob.Matches("**/*", name)) throw new ValidationException("Artifact name must be a relative workspace path.");
             if (!System.Text.RegularExpressions.Regex.IsMatch(mediaType, "\\A[a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+\\z", System.Text.RegularExpressions.RegexOptions.NonBacktracking)) throw new ValidationException("Artifact media type is invalid.");
             Run run = await _Context.Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false) ?? throw new NotFoundException("Run not found.");
             if (run.LeaseEpoch != epoch || run.RepairAttempts != repairAttempt || (run.Status != RunStatusEnum.Leased && run.Status != RunStatusEnum.Running)) throw new ConflictException("StaleArtifactUpload", "Artifact upload no longer belongs to the current active execution.");
+            if (nodeId != null && (run.LeaseNodeId != nodeId || !run.LeaseExpiresUtc.HasValue || run.LeaseExpiresUtc.Value <= DateTime.UtcNow || run.CancelRequested)) throw new ConflictException("StaleArtifactUpload", "The node no longer holds the run lease.");
             Deployment deployment = await _Context.Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false) ?? throw new NotFoundException("Deployment not found.");
-            if (deployment.ArtifactStoreId != storeId || !deployment.ArtifactGlobs.Any(glob => ArtifactGlob.Matches(glob, name))) throw new ValidationException("Artifact is not selected by the deployment's configured store and globs.");
+            bool preparedCache = false;
+            if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && name.StartsWith(".garrison/prepared-", StringComparison.Ordinal))
+            {
+                WorkspaceTemplate? workspace = await _Context.Database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
+                Secret? credential = workspace == null || String.IsNullOrEmpty(workspace.GitCredentialSecretId) ? null : await _Context.Database.Secrets.ReadAsync(tenantId, workspace.GitCredentialSecretId, token).ConfigureAwait(false);
+                string? key = workspace == null ? null : WorkspaceCacheKey.For(tenantId, workspace, credential);
+                preparedCache = key != null && name == ".garrison/prepared-" + key + ".zip";
+            }
+            bool checkpoint = deployment.SuspensionEnabled && name == ".garrison/continuation.zip";
+            if (nodeId != null && !checkpoint && !preparedCache) throw new ValidationException("Node archive uploads require an exact configured internal name.");
+            if (name.StartsWith(".garrison/", StringComparison.OrdinalIgnoreCase) && !checkpoint && !preparedCache) throw new ValidationException("The .garrison namespace is reserved for internal execution state.");
+            if (deployment.ArtifactStoreId != storeId || (!preparedCache && !(deployment.SuspensionEnabled && name == ".garrison/continuation.zip") && !deployment.ArtifactGlobs.Any(glob => ArtifactGlob.Matches(glob, name)))) throw new ValidationException("Artifact is not selected by the deployment's configured store and globs.");
             ArtifactStore store = await StoreAsync(tenantId, storeId, token).ConfigureAwait(false);
             if (!store.Active) throw new ValidationException("Artifact store is inactive.");
             string hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
@@ -70,7 +96,7 @@ namespace Garrison.Server.Services
             try
             {
                 await _Storage.PutAsync(store, artifact, content, token).ConfigureAwait(false);
-                return await _Context.Database.Artifacts.CreateForExecutionAsync(artifact, store.Kind == ArtifactStoreKindEnum.Database ? content : null, token).ConfigureAwait(false)
+                return await _Context.Database.Artifacts.CreateForExecutionAsync(artifact, store.Kind == ArtifactStoreKindEnum.Database ? content : null, token, nodeId).ConfigureAwait(false)
                     ?? throw new ConflictException("StaleArtifactUpload", "The execution changed before artifact metadata could be committed.");
             }
             catch (Exception ex) when (DatabaseFailures.IsUniqueViolation(ex))

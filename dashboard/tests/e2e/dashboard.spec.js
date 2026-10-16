@@ -295,6 +295,9 @@ for (const vp of VIEWPORTS) {
         await page.goto(shot.path);
         await expect(page.locator('.page-header-title').first()).toBeVisible();
         await page.waitForLoadState('networkidle');
+        if (shot.name === 'deployments') {
+          await page.getByTestId('explainer-dismiss-deployments').click();
+        }
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         expect(overflow, `${shot.name} horizontal overflow at ${vp.width}`).toBeLessThanOrEqual(1);
         await page.screenshot({ path: `test-results/screenshots/${vp.width}-${theme}-${shot.name}.png`, fullPage: true });

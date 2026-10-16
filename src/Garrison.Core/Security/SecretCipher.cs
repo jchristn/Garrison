@@ -1,6 +1,7 @@
 namespace Garrison.Core.Security
 {
     using System;
+    using System.Collections.Generic;
     using System.Security.Cryptography;
     using System.Text;
     using Garrison.Core.Telemetry;
@@ -32,6 +33,7 @@ namespace Garrison.Core.Security
         private readonly byte[] _Key;
         private readonly byte[] _FingerprintKey;
         private readonly int _KeyVersion;
+        private readonly Dictionary<int, byte[]> _ReadKeys = new Dictionary<int, byte[]>();
 
         #endregion
 
@@ -43,12 +45,35 @@ namespace Garrison.Core.Security
         /// <param name="masterKey">Master key: base64 of 32 bytes, or any passphrase (derived with SHA-256).</param>
         /// <param name="keyVersion">Key version. Minimum 1, maximum 255.</param>
         /// <exception cref="ArgumentNullException">Thrown when masterKey is null or empty.</exception>
-        public SecretCipher(string masterKey, int keyVersion = 1)
+        public SecretCipher(string masterKey, int keyVersion = 1) : this(masterKey, keyVersion, null)
+        {
+        }
+
+        /// <summary>
+        /// Instantiate a rotation key ring. New values use the active key; previous keys are read-only.
+        /// </summary>
+        /// <param name="masterKey">Active master key.</param>
+        /// <param name="keyVersion">Active version, 1 to 255.</param>
+        /// <param name="previousKeys">Previous versions and their master keys; never include the active version.</param>
+        /// <exception cref="ArgumentException">Thrown for invalid or duplicate key versions.</exception>
+        /// <exception cref="ArgumentNullException">Thrown when masterKey is empty.</exception>
+        public SecretCipher(string masterKey, int keyVersion, IReadOnlyDictionary<int, string>? previousKeys)
         {
             if (String.IsNullOrEmpty(masterKey)) throw new ArgumentNullException(nameof(masterKey));
+            if (keyVersion < 1 || keyVersion > 255) throw new ArgumentOutOfRangeException(nameof(keyVersion));
             _Key = DeriveKey(masterKey);
             _FingerprintKey = HMACSHA256.HashData(_Key, Encoding.UTF8.GetBytes("garrison-secret-fingerprint"));
             _KeyVersion = Math.Clamp(keyVersion, 1, 255);
+            _ReadKeys.Add(_KeyVersion, _Key);
+            if (previousKeys != null)
+            {
+                foreach (KeyValuePair<int, string> key in previousKeys)
+                {
+                    if (key.Key < 1 || key.Key > 255 || key.Key == keyVersion || String.IsNullOrWhiteSpace(key.Value))
+                        throw new ArgumentException("Previous keys must have distinct versions from 1 to 255 and nonempty values.", nameof(previousKeys));
+                    _ReadKeys.Add(key.Key, DeriveKey(key.Value));
+                }
+            }
         }
 
         #endregion
@@ -145,7 +170,7 @@ namespace Garrison.Core.Security
         {
             byte[] raw = Convert.FromBase64String(encoded);
             if (raw.Length < 29) throw new CryptographicException("Encrypted value is truncated.");
-            if (raw[0] != _KeyVersion) throw new CryptographicException("Encrypted value was written with master key version " + raw[0] + ", but this server holds key version " + _KeyVersion + " only.");
+            if (!_ReadKeys.TryGetValue(raw[0], out byte[]? readKey)) throw new CryptographicException("Encrypted value was written with master key version " + raw[0] + ", which is absent from this server's key ring.");
             byte[] nonce = new byte[12];
             byte[] tag = new byte[16];
             byte[] cipher = new byte[raw.Length - 29];
@@ -153,7 +178,7 @@ namespace Garrison.Core.Security
             Buffer.BlockCopy(raw, 13, tag, 0, 16);
             Buffer.BlockCopy(raw, 29, cipher, 0, cipher.Length);
             byte[] data = new byte[cipher.Length];
-            using (AesGcm gcm = new AesGcm(_Key, 16))
+            using (AesGcm gcm = new AesGcm(readKey, 16))
             {
                 gcm.Decrypt(nonce, cipher, tag, data, Encoding.UTF8.GetBytes(associatedData ?? String.Empty));
             }

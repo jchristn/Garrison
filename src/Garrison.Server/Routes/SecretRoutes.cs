@@ -79,6 +79,9 @@ namespace Garrison.Server.Routes
             secret.Name = request.Name;
             secret.Description = request.Description;
             secret.Kind = request.Kind;
+            secret.BrokerResource = request.BrokerResource;
+            secret.BrokerAudience = request.BrokerAudience;
+            if (secret.Kind == SecretKindEnum.LeaseBroker) { secret.ValueEncrypted = null; secret.ValueLast4 = null; secret.Fingerprint = null; }
             secret.ExpiresUtc = request.ExpiresUtc;
             if (!String.IsNullOrEmpty(request.Value)) SetValue(secret, request.Value);
             Secret created = await _Server.Database.Secrets.CreateAsync(secret, http.Token).ConfigureAwait(false);
@@ -103,11 +106,16 @@ namespace Garrison.Server.Routes
             secret.Name = request.Name;
             secret.Description = request.Description;
             bool kindChanged = secret.Kind != request.Kind;
+            bool brokerChanged = secret.Kind == SecretKindEnum.LeaseBroker && (kindChanged || secret.BrokerResource != request.BrokerResource || secret.BrokerAudience != request.BrokerAudience || secret.ExpiresUtc != request.ExpiresUtc);
             secret.Kind = request.Kind;
+            secret.BrokerResource = request.BrokerResource;
+            secret.BrokerAudience = request.BrokerAudience;
+            if (secret.Kind == SecretKindEnum.LeaseBroker) { secret.ValueEncrypted = null; secret.ValueLast4 = null; secret.Fingerprint = null; }
             secret.ExpiresUtc = request.ExpiresUtc;
             if (!String.IsNullOrEmpty(request.Value)) SetValue(secret, request.Value);
             else if (kindChanged) SecretValueState.Reset(secret, secret.Kind == SecretKindEnum.CodexAuthJson ? DecryptOrNull(secret) : null);
             Secret updated = await _Server.Database.Secrets.UpdateAsync(secret, http.Token).ConfigureAwait(false);
+            if (brokerChanged && _Server.TryGet<CredentialBrokerService>() is CredentialBrokerService broker) await broker.RevokeSecretAsync(tenantId, secret.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretChanged, "Secret", updated.Id, "Updated secret " + updated.Name + (String.IsNullOrEmpty(request.Value) ? "." : " including its value.")).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
         }
@@ -134,12 +142,14 @@ namespace Garrison.Server.Routes
             if (await _Server.Database.ArtifactStores.UsesSecretAsync(tenantId, secret.Id, http.Token).ConfigureAwait(false)) throw new ConflictException("ResourceInUse", "The secret is used by an artifact store.");
             await _Server.Database.Secrets.DeleteAsync(secret.Id, http.Token).ConfigureAwait(false);
             await CodexCredentialService.DeleteLeaseAsync(_Server.Database, secret.Id, http.Token).ConfigureAwait(false);
+            if (_Server.TryGet<CredentialBrokerService>() is CredentialBrokerService broker) await broker.RevokeSecretAsync(tenantId, secret.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretChanged, "Secret", secret.Id, "Deleted secret " + secret.Name + ".").ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private void SetValue(Secret secret, string value)
         {
+            if (secret.Kind == SecretKindEnum.LeaseBroker) throw new ValidationException("Broker secrets do not accept static credential values.");
             secret.ValueEncrypted = _Server.Cipher.Encrypt(value, secret.Id);
             secret.ValueLast4 = SecretGenerator.Last4(value);
             secret.Fingerprint = _Server.Cipher.Fingerprint(value);
@@ -166,6 +176,13 @@ namespace Garrison.Server.Routes
             System.Collections.Generic.Dictionary<string, string> errors = new System.Collections.Generic.Dictionary<string, string>();
             System.Collections.Generic.Dictionary<string, string> codes = new System.Collections.Generic.Dictionary<string, string>();
             ConfigurationValidator.Name(request.Name, errors);
+            if (request.Kind == SecretKindEnum.LeaseBroker)
+            {
+                if (String.IsNullOrWhiteSpace(request.BrokerResource) || request.BrokerResource.Length > 512) errors["brokerResource"] = "LeaseBroker requires a provider resource identifier of 1 to 512 characters.";
+                if (request.BrokerAudience?.Length > 512) errors["brokerAudience"] = "Provider audiences are limited to 512 characters.";
+                if (request.Value != null) errors["value"] = "LeaseBroker secrets store resource metadata only; no reusable credential value is accepted.";
+            }
+            else if (request.BrokerResource != null || request.BrokerAudience != null) errors["brokerResource"] = "Broker metadata requires kind LeaseBroker.";
             if (request.Value != null && request.Value.Length > 1048576)
             {
                 errors["value"] = "Secret values are limited to 1 MiB.";

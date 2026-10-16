@@ -586,17 +586,26 @@ namespace Garrison.Server.Runtime
         /// <returns>The pipeline run, or null when it no longer exists.</returns>
         public async Task<PipelineRun?> WaitAsync(string tenantId, string pipelineRunId, int waitSeconds, CancellationToken token = default)
         {
-            DateTime deadline = DateTime.UtcNow.AddSeconds(Math.Clamp(waitSeconds, 0, 600));
-            using (RunSignalSubscription signal = _Signals.SubscribeCompletion(pipelineRunId))
+            if (!_Options.SynchronousWaits.TryEnter(_Options.MaxSynchronousWaiters))
+                return await _Database.PipelineRuns.ReadAsync(tenantId, pipelineRunId, token).ConfigureAwait(false);
+            try
             {
-                while (true)
+                DateTime deadline = DateTime.UtcNow.AddSeconds(Math.Clamp(waitSeconds, 0, 600));
+                using (RunSignalSubscription signal = _Signals.SubscribeCompletion(pipelineRunId))
                 {
-                    PipelineRun? run = await _Database.PipelineRuns.ReadAsync(tenantId, pipelineRunId, token).ConfigureAwait(false);
-                    if (run == null || IsTerminal(run.Status) || run.Status == PipelineRunStatusEnum.AwaitingReview) return run;
-                    int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
-                    if (remaining <= 0) return run;
-                    await signal.WaitAsync(Math.Min(remaining, _Options.InvocationWaitPollMs), token).ConfigureAwait(false);
+                    while (true)
+                    {
+                        PipelineRun? run = await _Database.PipelineRuns.ReadAsync(tenantId, pipelineRunId, token).ConfigureAwait(false);
+                        if (run == null || IsTerminal(run.Status) || run.Status == PipelineRunStatusEnum.AwaitingReview) return run;
+                        int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+                        if (remaining <= 0) return run;
+                        await signal.WaitAsync(Math.Min(remaining, _Options.InvocationWaitPollMs), token).ConfigureAwait(false);
+                    }
                 }
+            }
+            finally
+            {
+                _Options.SynchronousWaits.Release();
             }
         }
 

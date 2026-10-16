@@ -9,6 +9,11 @@ namespace Garrison.Core.Protocol
     /// </summary>
     public class RunCompleteRequest
     {
+        /// <summary>Stored portable snapshot artifact when status is Suspended.</summary>
+        public string? SnapshotArtifactId { get; set; } = null;
+        /// <summary>Pinned session format of the snapshot.</summary>
+        public string? SessionFormat { get; set; } = null;
+
         /// <summary>
         /// Node identifier.
         /// </summary>

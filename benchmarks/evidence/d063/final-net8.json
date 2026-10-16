@@ -1,0 +1,412 @@
+[
+  {
+    "testId": "continuation-archive.explicit-raised-cap",
+    "suiteId": "continuation-archive",
+    "caseId": "explicit-raised-cap",
+    "displayName": "Configuration and C# SDK retain an explicit 96 MiB file cap while preserving default, minimum and maximum guards",
+    "success": true,
+    "skipped": false,
+    "durationMs": 63,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.download-guards",
+    "suiteId": "continuation-archive",
+    "caseId": "download-guards",
+    "displayName": "All store kinds enforce the configured download cap before I/O and database content must match recorded length",
+    "success": true,
+    "skipped": false,
+    "durationMs": 922,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.large-complete-home",
+    "suiteId": "continuation-archive",
+    "caseId": "large-complete-home",
+    "displayName": "An incompressible 80 MiB HOME archive fails default worker/server limits and round-trips through node upload and signed download with an explicit 96 MiB cap",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2093,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.oversize-retention",
+    "suiteId": "continuation-archive",
+    "caseId": "oversize-retention",
+    "displayName": "Oversized checkpoint failure retains KeepOnFailure work and removes HOME/config without uploading an artifact",
+    "success": true,
+    "skipped": false,
+    "durationMs": 120,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.upload-failure-retention",
+    "suiteId": "continuation-archive",
+    "caseId": "upload-failure-retention",
+    "displayName": "Checkpoint storage failure retains failed work and removes private HOME/config",
+    "success": true,
+    "skipped": false,
+    "durationMs": 103,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.upload-cancellation-retention",
+    "suiteId": "continuation-archive",
+    "caseId": "upload-cancellation-retention",
+    "displayName": "Checkpoint cancellation remains Cancelled and retains failed work while removing HOME/config",
+    "success": true,
+    "skipped": false,
+    "durationMs": 106,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-sqlite.exact-input-cas",
+    "suiteId": "continuation-grants-sqlite",
+    "caseId": "exact-input-cas",
+    "displayName": "Durable human grants bind the full exact input and checkpoint and can be consumed only once (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 72,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-sqlite.deny-wins",
+    "suiteId": "continuation-grants-sqlite",
+    "caseId": "deny-wins",
+    "displayName": "A current explicit Deny rule overrides a prior human durable grant (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 365,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-sqlite.boundary-proof",
+    "suiteId": "continuation-config-sqlite",
+    "caseId": "boundary-proof",
+    "displayName": "Only a current lease durable wait authorizes suspension, including decisions during checkpoint upload",
+    "success": true,
+    "skipped": false,
+    "durationMs": 366,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-sqlite.template-selection",
+    "suiteId": "continuation-config-sqlite",
+    "caseId": "template-selection",
+    "displayName": "Continuation templates accept only active tenant Task overrides and valid built-ins (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 341,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.marker-without-wait",
+    "suiteId": "continuation-sqlite",
+    "caseId": "marker-without-wait",
+    "displayName": "A successful marker-only response with a session cannot suspend or reset its deadline",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1035,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.cross-node-approval",
+    "suiteId": "continuation-sqlite",
+    "caseId": "cross-node-approval",
+    "displayName": "Pending approval releases its slot and resumes the recorded session on a different worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 973,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.cross-node-codex",
+    "suiteId": "continuation-sqlite",
+    "caseId": "cross-node-codex",
+    "displayName": "Codex app-server approval suspends and restores the recorded thread on another worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 874,
+    "message": null
+  },
+  {
+    "testId": "continuation-sqlite.ten-thousand-suspended",
+    "suiteId": "continuation-sqlite",
+    "caseId": "ten-thousand-suspended",
+    "displayName": "Ten thousand durable wait records hold zero active leases and cannot be claimed (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 763,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-postgresql.exact-input-cas",
+    "suiteId": "continuation-grants-postgresql",
+    "caseId": "exact-input-cas",
+    "displayName": "Durable human grants bind the full exact input and checkpoint and can be consumed only once (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 417,
+    "message": null
+  },
+  {
+    "testId": "continuation-grants-postgresql.deny-wins",
+    "suiteId": "continuation-grants-postgresql",
+    "caseId": "deny-wins",
+    "displayName": "A current explicit Deny rule overrides a prior human durable grant (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 886,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-postgresql.boundary-proof",
+    "suiteId": "continuation-config-postgresql",
+    "caseId": "boundary-proof",
+    "displayName": "Only a current lease durable wait authorizes suspension, including decisions during checkpoint upload",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1048,
+    "message": null
+  },
+  {
+    "testId": "continuation-config-postgresql.template-selection",
+    "suiteId": "continuation-config-postgresql",
+    "caseId": "template-selection",
+    "displayName": "Continuation templates accept only active tenant Task overrides and valid built-ins (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 872,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.marker-without-wait",
+    "suiteId": "continuation-postgresql",
+    "caseId": "marker-without-wait",
+    "displayName": "A successful marker-only response with a session cannot suspend or reset its deadline",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1382,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.cross-node-approval",
+    "suiteId": "continuation-postgresql",
+    "caseId": "cross-node-approval",
+    "displayName": "Pending approval releases its slot and resumes the recorded session on a different worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1966,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.cross-node-codex",
+    "suiteId": "continuation-postgresql",
+    "caseId": "cross-node-codex",
+    "displayName": "Codex app-server approval suspends and restores the recorded thread on another worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1898,
+    "message": null
+  },
+  {
+    "testId": "continuation-postgresql.ten-thousand-suspended",
+    "suiteId": "continuation-postgresql",
+    "caseId": "ten-thousand-suspended",
+    "displayName": "Ten thousand durable wait records hold zero active leases and cannot be claimed (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 4434,
+    "message": null
+  },
+  {
+    "testId": "artifacts.prepared-restore-boundary",
+    "suiteId": "artifacts",
+    "caseId": "prepared-restore-boundary",
+    "displayName": "Prepared archives cannot restore HOME or config and private upload callbacks never serialize",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2,
+    "message": null
+  },
+  {
+    "testId": "artifacts.selection",
+    "suiteId": "artifacts",
+    "caseId": "selection",
+    "displayName": "Explicit collection is bounded, skips links, and does nothing without globs",
+    "success": true,
+    "skipped": false,
+    "durationMs": 5,
+    "message": null
+  },
+  {
+    "testId": "artifacts.globs",
+    "suiteId": "artifacts",
+    "caseId": "globs",
+    "displayName": "Artifact globs select only relative files with explicit supported patterns",
+    "success": true,
+    "skipped": false,
+    "durationMs": 3,
+    "message": null
+  },
+  {
+    "testId": "workspace-cache-sqlite.cross-node-hit",
+    "suiteId": "workspace-cache-sqlite",
+    "caseId": "cross-node-hit",
+    "displayName": "Immutable commit prepared archive restores byte-identically on a different worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1205,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.internal-node-upload",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "internal-node-upload",
+    "displayName": "Internal archives require a node-owned live lease and cannot be poisoned with run or administrator public uploads",
+    "success": true,
+    "skipped": false,
+    "durationMs": 341,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.atomic-fence",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "atomic-fence",
+    "displayName": "Artifact insertion atomically rejects stale epochs, repair phases, and cancellation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 47,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.worker-database",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "worker-database",
+    "displayName": "Worker collects explicit files through MCP into the database; signed links download only their file",
+    "success": true,
+    "skipped": false,
+    "durationMs": 548,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.worker-filesystem",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "worker-filesystem",
+    "displayName": "Worker collects explicit files through MCP into filesystem storage and deletes content",
+    "success": true,
+    "skipped": false,
+    "durationMs": 558,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.persistence",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "persistence",
+    "displayName": "Store configuration and ordered deployment globs persist; empty globs stay disabled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 52,
+    "message": null
+  },
+  {
+    "testId": "artifacts-sqlite.metadata-content",
+    "suiteId": "artifacts-sqlite",
+    "caseId": "metadata-content",
+    "displayName": "Metadata and database content stay separate, scoped, filtered, and idempotently addressable",
+    "success": true,
+    "skipped": false,
+    "durationMs": 47,
+    "message": null
+  },
+  {
+    "testId": "workspace-cache-postgresql.cross-node-hit",
+    "suiteId": "workspace-cache-postgresql",
+    "caseId": "cross-node-hit",
+    "displayName": "Immutable commit prepared archive restores byte-identically on a different worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2113,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.internal-node-upload",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "internal-node-upload",
+    "displayName": "Internal archives require a node-owned live lease and cannot be poisoned with run or administrator public uploads",
+    "success": true,
+    "skipped": false,
+    "durationMs": 967,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.atomic-fence",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "atomic-fence",
+    "displayName": "Artifact insertion atomically rejects stale epochs, repair phases, and cancellation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 322,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.worker-database",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "worker-database",
+    "displayName": "Worker collects explicit files through MCP into the database; signed links download only their file",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1452,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.worker-filesystem",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "worker-filesystem",
+    "displayName": "Worker collects explicit files through MCP into filesystem storage and deletes content",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1440,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.persistence",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "persistence",
+    "displayName": "Store configuration and ordered deployment globs persist; empty globs stay disabled",
+    "success": true,
+    "skipped": false,
+    "durationMs": 332,
+    "message": null
+  },
+  {
+    "testId": "artifacts-postgresql.metadata-content",
+    "suiteId": "artifacts-postgresql",
+    "caseId": "metadata-content",
+    "displayName": "Metadata and database content stay separate, scoped, filtered, and idempotently addressable",
+    "success": true,
+    "skipped": false,
+    "durationMs": 330,
+    "message": null
+  },
+  {
+    "testId": "continuation-child-sqlite.single-slot",
+    "suiteId": "continuation-child-sqlite",
+    "caseId": "single-slot",
+    "displayName": "A parent releases its sole slot while a child runs and resumes with the saved child result (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 909,
+    "message": null
+  },
+  {
+    "testId": "continuation-child-postgresql.single-slot",
+    "suiteId": "continuation-child-postgresql",
+    "caseId": "single-slot",
+    "displayName": "A parent releases its sole slot while a child runs and resumes with the saved child result (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1872,
+    "message": null
+  }
+]

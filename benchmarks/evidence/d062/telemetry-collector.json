@@ -1,0 +1,72 @@
+{
+  "timestampUtc": "2026-10-16T14:47:02.890096+00:00",
+  "command": "dotnet Test.Automated.dll --telemetry-collector-conformance",
+  "status": "passed",
+  "traceId": "57b0e0d498f504b3629350a5400d2069",
+  "signals": [
+    "actual fake-harness worker completed",
+    "tenant-scoped database-usage completion scope present",
+    "Prometheus application/memory/workspace histogram counts present",
+    "OTLP through Alloy to Tempo with nested app and database spans"
+  ],
+  "collectorImages": [
+    "prom/prometheus:v3.5.4",
+    "grafana/alloy:v1.5.0",
+    "grafana/tempo:2.6.1",
+    "grafana/grafana-oss:13.0.2",
+    "grafana/loki:3.5.5"
+  ],
+  "spans": [
+    {
+      "name": "db select runs",
+      "parent": "stage:collector_probe:inner",
+      "durationMicroseconds": 415.0,
+      "status": {}
+    },
+    {
+      "name": "db select run_parameters",
+      "parent": "stage:collector_probe:inner",
+      "durationMicroseconds": 66.0,
+      "status": {}
+    },
+    {
+      "name": "db select run_requirements",
+      "parent": "stage:collector_probe:inner",
+      "durationMicroseconds": 39.0,
+      "status": {}
+    },
+    {
+      "name": "db select run_template_versions",
+      "parent": "stage:collector_probe:inner",
+      "durationMicroseconds": 67.0,
+      "status": {}
+    },
+    {
+      "name": "stage:collector_probe:inner",
+      "parent": "stage:collector_probe:outer",
+      "durationMicroseconds": 866.0,
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "stage:collector_probe:outer",
+      "parent": "collector:application-acceptance",
+      "durationMicroseconds": 1017.0,
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "collector:application-acceptance",
+      "parent": "root",
+      "durationMicroseconds": 1055.0,
+      "status": {}
+    }
+  ],
+  "notes": [
+    "Source-process metrics scraped through a loopback proxy to preserve Radiant listener Host header; packaged Compose service DNS names already match listeners.",
+    "The probe collector only verifies newly exercised stages; snapshot cache transfer and broker paths have separate runtime suites and stage instrumentation.",
+    "This probe does not claim all fault permutations or sustained trace-ingestion capacity."
+  ]
+}

@@ -228,7 +228,7 @@ namespace Test.Shared.Suites
                 Agent target = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "provider-target" }, token).ConfigureAwait(false);
                 await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, AgentId = target.Id, Name = "provider-target", HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
                 Deployment deployment = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, AgentId = agent.Id, Name = "provider-tool-test", HarnessProfileId = "hrn_builtin_provider_api", ApprovalsEnabled = true, ApprovalDefaultAction = ApprovalRuleActionEnum.Allow }, token).ConfigureAwait(false);
-                Run run = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = agent.Id, DeploymentId = deployment.Id, CallerType = PrincipalTypeEnum.Administrator, Status = RunStatusEnum.Running, LeaseEpoch = 1 }, token).ConfigureAwait(false);
+                Run run = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = agent.Id, DeploymentId = deployment.Id, CallerType = PrincipalTypeEnum.Administrator, Status = RunStatusEnum.Running, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
                 string bearer = await host.Server.Context.Authentication.IssueForRunAsync(run, run.LeaseEpoch, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
                 ProviderApiConfig config = Config(endpoint);
                 config.ApprovalsEnabled = true;

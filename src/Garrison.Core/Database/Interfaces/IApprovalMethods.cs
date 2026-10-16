@@ -5,6 +5,7 @@ namespace Garrison.Core.Database.Interfaces
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
+    using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
 
@@ -14,6 +15,10 @@ namespace Garrison.Core.Database.Interfaces
     /// </summary>
     public interface IApprovalMethods
     {
+        /// <summary>Atomically consume one human decision from the prior saved checkpoint for an exact current permission input.</summary>
+        /// <param name="tenantId">Tenant.</param><param name="runId">Run.</param><param name="epoch">Current active lease epoch.</param><param name="tool">Exact tool name.</param><param name="kind">Permission kind.</param><param name="inputDigest">Canonical complete-input SHA-256.</param><param name="token">Cancellation token.</param><returns>Consumed prior approval, or null when no grant matches.</returns>
+        Task<Approval?> TryConsumeResumeGrantAsync(string tenantId, string runId, long epoch, string tool, ApprovalKindEnum kind, string inputDigest, CancellationToken token = default);
+
         /// <summary>
         /// Insert an approval.
         /// </summary>

@@ -13,6 +13,10 @@ namespace Garrison.Core.Models
     public class Run
     {
         #region Public-Members
+        /// <summary>Transient, template-rendered continuation prompt supplied only while recompiling a checkpoint.</summary>
+        [JsonIgnore]
+        public string? ContinuationPrompt { get; set; } = null;
+
 
         /// <summary>
         /// Identifier.
@@ -699,7 +703,7 @@ namespace Garrison.Core.Models
         /// The deployment's effect policy when the run was admitted (P12.29). Default AtMostOnce. The lease reaper uses
         /// this value, not the deployment's current one, so editing the deployment does not change how an in-flight run is
         /// handled when its worker is lost: AtLeastOnce requeues a lost Running run while attempts remain; AtMostOnce and
-        /// Journaled (until P12.33) end it Failed with outcome NodeLost.
+        /// Journaled without a safe known-coverage checkpoint end it Failed with outcome NodeLost.
         /// </summary>
         public DeploymentEffectPolicyEnum EffectPolicy { get; set; } = DeploymentEffectPolicyEnum.AtMostOnce;
 

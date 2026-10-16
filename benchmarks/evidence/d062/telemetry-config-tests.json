@@ -1,0 +1,102 @@
+[
+  {
+    "testId": "telemetry.catalog",
+    "suiteId": "telemetry",
+    "caseId": "catalog",
+    "displayName": "Every metric in the catalog is unique, bucketed, documented, and assigned a dashboard",
+    "success": true,
+    "skipped": false,
+    "durationMs": 5,
+    "message": null
+  },
+  {
+    "testId": "telemetry.dashboards",
+    "suiteId": "telemetry",
+    "caseId": "dashboards",
+    "displayName": "Every metric is charted on its dashboard, and every dashboard UID is in server-info",
+    "success": true,
+    "skipped": false,
+    "durationMs": 8,
+    "message": null
+  },
+  {
+    "testId": "telemetry.routes",
+    "suiteId": "telemetry",
+    "caseId": "routes",
+    "displayName": "Every REST route, MCP tool, and A2A method has a row in the coverage matrix",
+    "success": true,
+    "skipped": false,
+    "durationMs": 498,
+    "message": null
+  },
+  {
+    "testId": "telemetry.http-runtime",
+    "suiteId": "telemetry",
+    "caseId": "http-runtime",
+    "displayName": "Requests record route-template metrics, database statements, background iterations, and auth failures",
+    "success": true,
+    "skipped": false,
+    "durationMs": 374,
+    "message": null
+  },
+  {
+    "testId": "telemetry.run-runtime",
+    "suiteId": "telemetry",
+    "caseId": "run-runtime",
+    "displayName": "A run records per-agent lifecycle, stage, token, and worker metrics with tenant, agent, deployment, harness, and model labels",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1036,
+    "message": null
+  },
+  {
+    "testId": "telemetry.mcp-runtime",
+    "suiteId": "telemetry",
+    "caseId": "mcp-runtime",
+    "displayName": "MCP tool calls record duration by tool and result, and sessions are counted",
+    "success": true,
+    "skipped": false,
+    "durationMs": 395,
+    "message": null
+  },
+  {
+    "testId": "telemetry.label-guard",
+    "suiteId": "telemetry",
+    "caseId": "label-guard",
+    "displayName": "The cardinality guard folds values beyond the limit into other and counts them",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "telemetry.telemetry-failure-isolation",
+    "suiteId": "telemetry",
+    "caseId": "telemetry-failure-isolation",
+    "displayName": "Throwing trace and metric consumers cannot change the application result or original exception",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "telemetry.application-stage-runtime",
+    "suiteId": "telemetry",
+    "caseId": "application-stage-runtime",
+    "displayName": "Application spans classify error and cancellation without exception values; intrinsic gateway timing excludes tool execution",
+    "success": true,
+    "skipped": false,
+    "durationMs": 153,
+    "message": null
+  },
+  {
+    "testId": "telemetry.statement-names",
+    "suiteId": "telemetry",
+    "caseId": "statement-names",
+    "displayName": "Database statement names carry the operation and table, never values",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  }
+]

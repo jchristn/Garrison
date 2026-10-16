@@ -14,6 +14,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
     using WatsonWebserver.Core;
@@ -80,6 +81,9 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.GET, baseRuns, ResourceTypeEnum.Run, OperationTypeEnum.Read, ListAsync, "List runs", tag, null, typeof(EnumerationResult<Run>));
             routes.Scoped(HttpMethod.DELETE, baseRuns, ResourceTypeEnum.Run, OperationTypeEnum.Delete, DeleteManyAsync, "Delete finished runs matching a filter", tag, null, typeof(DeleteCountResponse));
             routes.Scoped(HttpMethod.GET, baseRuns + "/{id}", ResourceTypeEnum.Run, OperationTypeEnum.Read, ReadAsync, "Read a run", tag, null, typeof(Run));
+            routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/placement", ResourceTypeEnum.Run, OperationTypeEnum.Read, PlacementAsync, "Explain run placement without claiming or reserving capacity", tag, null, typeof(RunPlacementResponse));
+            routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/database-usage", ResourceTypeEnum.Run, OperationTypeEnum.Read, DatabaseUsageAsync, "Read exact completed-scope database attribution for a run", tag, null, typeof(List<RunDatabaseUsage>));
+            routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/operations", ResourceTypeEnum.Run, OperationTypeEnum.Read, OperationsAsync, "List gateway effect operations for a run", tag, null, typeof(List<EffectOperation>));
             routes.Scoped(HttpMethod.DELETE, baseRuns + "/{id}", ResourceTypeEnum.Run, OperationTypeEnum.Delete, DeleteAsync, "Delete a finished run", tag);
             routes.Scoped(HttpMethod.POST, baseRuns + "/{id}/cancel", ResourceTypeEnum.Run, OperationTypeEnum.Update, CancelAsync, "Cancel a run", tag, null, typeof(Run));
             routes.Scoped(HttpMethod.POST, baseRuns + "/{id}/retry", ResourceTypeEnum.Run, OperationTypeEnum.Create, RetryAsync, "Retry a finished run as a new run", tag, null, typeof(Run));
@@ -171,6 +175,27 @@ namespace Garrison.Server.Routes
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
             await _Blocked.AnnotateManyAsync(page.Objects, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, page).ConfigureAwait(false);
+        }
+
+        private async Task PlacementAsync(HttpContextBase context)
+        {
+            Run run = await RequireRunAsync(context).ConfigureAwait(false);
+            RunPlacementResponse response = await ApplicationOperation.MeasureAsync("scheduler", "placement_explanation", ct => new PlacementExplanationService(_Context.Database).ExplainAsync(run, ct), context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
+        }
+
+        private async Task DatabaseUsageAsync(HttpContextBase context)
+        {
+            Run run = await RequireRunAsync(context).ConfigureAwait(false);
+            List<RunDatabaseUsage> usage = await _Context.Database.RunDatabaseUsage.ListAsync(run.TenantId, run.Id, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, usage).ConfigureAwait(false);
+        }
+
+        private async Task OperationsAsync(HttpContextBase context)
+        {
+            Run run = await RequireRunAsync(context).ConfigureAwait(false);
+            List<EffectOperation> operations = await _Context.Database.EffectOperations.ListAsync(run.TenantId, run.Id, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, operations).ConfigureAwait(false);
         }
 
         private async Task ReadAsync(HttpContextBase context)

@@ -108,7 +108,7 @@ Anyone else gets 400 `ValidationFailed`, with the field named. Nothing changes f
 
 **Fix:** a new setting, `Rest.MaxRequestBodyBytes` (environment variable `GARRISON_REST_MAX_REQUEST_BODY_BYTES`):
 
-- Default 128 MiB, which leaves room for the largest artifact upload (64 MiB). 0 turns the check off.
+- Default 128 MiB, which leaves room for the default 16 MiB artifact limit. Explicitly raised artifact/checkpoint caps must be aligned with this ceiling and any proxy limits. 0 turns the check off.
 - The REST listener refuses any request whose Content-Length is larger with 413, before reading the body.
 - The MCP listener applies `Mcp.MaxMessageSize` the same way.
 

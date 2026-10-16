@@ -10,7 +10,7 @@
 #  Usage:   ./update.sh                   rebuild images from this repository (default)
 #           ./update.sh --pull            pull the published images named in compose.yaml instead
 #           ./update.sh --observability   also run the observability profile (Prometheus, Loki, Tempo, Grafana,
-#                                         Alloy) with compose.observability.yaml; combines with --pull
+#                                         Alloy) with the compatible explicit overlay; combines with --pull
 # =============================================================================
 set -euo pipefail
 
@@ -25,8 +25,8 @@ for arg in "$@"; do
   esac
 done
 
-# Compose files and profile. Without --observability the stack runs without the observability services (and stops
-# them if a previous update started them).
+# Compose files and profile. Observability services are enabled by default; --observability retains the explicit overlay for
+# existing automation; the base file already wires the complete stack.
 COMPOSE=(docker compose -f compose.yaml)
 if [ "${OBSERVABILITY}" = "1" ]; then
   COMPOSE=(docker compose -f compose.yaml -f compose.observability.yaml --profile observability)

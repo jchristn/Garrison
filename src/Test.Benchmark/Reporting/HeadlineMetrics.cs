@@ -76,7 +76,7 @@ namespace Garrison.Benchmark.Reporting
         public static string LevelKey(LoadLevelResult level)
         {
             if (level == null) throw new ArgumentNullException(nameof(level));
-            string load = level.Mode == "open"
+            string load = level.Mode != "closed"
                 ? "r" + level.TargetRate.ToString("0.##", CultureInfo.InvariantCulture)
                 : "c" + level.Concurrency.ToString(CultureInfo.InvariantCulture);
             return "w" + level.Workers.ToString(CultureInfo.InvariantCulture) + "-" + load;

@@ -1,0 +1,124 @@
+# Optional filesystem-backed NotDory. Create notdory-auth before applying (docs/NOTDORY.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: notdory-server
+spec:
+  selector: {app.kubernetes.io/name: notdory-server}
+  ports: [{name: rest, port: 8700, targetPort: 8700}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: notdory-server
+spec:
+  serviceName: notdory-server
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: notdory-server}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: notdory-server}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, runAsNonRoot: true}
+      containers:
+        - name: server
+          image: jchristn77/notdory-server:v0.1.0
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          ports: [{name: rest, containerPort: 8700}]
+          env:
+            - {name: NOTDORY_SETTINGS_FILE, value: /app/data/notdory.json}
+            - {name: NOTDORY_REST_HOSTNAME, value: '*'}
+            - {name: NOTDORY_DB_TYPE, value: Sqlite}
+            - {name: NOTDORY_DB_FILENAME, value: /app/data/notdory.db}
+            - name: NOTDORY_AUTH_SEED_ADMIN_PASSWORD
+              valueFrom: {secretKeyRef: {name: notdory-auth, key: admin-password}}
+            - name: NOTDORY_AUTH_DEFAULT_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: notdory-auth, key: access-key}}
+            - name: NOTDORY_AUTH_DEFAULT_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: notdory-auth, key: secret-key}}
+          volumeMounts: [{name: data, mountPath: /app/data}]
+          readinessProbe: {httpGet: {path: /v1.0/api/health, port: rest}, initialDelaySeconds: 5}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {memory: 512Mi}}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notdory-mcp
+spec:
+  selector: {app.kubernetes.io/name: notdory-mcp}
+  ports: [{name: mcp, port: 8720, targetPort: 8720}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notdory-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: notdory-mcp}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: notdory-mcp}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true}
+      containers:
+        - name: mcp
+          image: jchristn77/notdory-mcp:v0.1.0
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          ports: [{name: mcp, containerPort: 8720}]
+          env:
+            - {name: NOTDORY_MCP_SETTINGS_FILE, value: /tmp/notdory.mcp.json}
+            - {name: NOTDORY_MCP_HOSTNAME, value: '*'}
+            - {name: NOTDORY_MCP_PORT, value: '8720'}
+            - {name: NOTDORY_MCP_REST_HOSTNAME, value: notdory-server}
+            - {name: NOTDORY_MCP_REST_PORT, value: '8700'}
+          readinessProbe: {httpGet: {path: /, port: mcp}, initialDelaySeconds: 5}
+          resources: {requests: {cpu: 100m, memory: 64Mi}, limits: {memory: 256Mi}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notdory-server
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: notdory-server}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app.kubernetes.io/name: notdory-mcp}}}]
+      ports: [{port: 8700}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notdory-mcp
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: notdory-mcp}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app.kubernetes.io/name: garrison-worker}}
+        - podSelector: {matchLabels: {app.kubernetes.io/name: garrison-server}}
+        - podSelector: {matchLabels: {app.kubernetes.io/name: garrison-run}}
+      ports: [{port: 8720}]
+---
+# Run pods using the default egress policy may reach memory. Explicit deployment allowlists remain authoritative.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-notdory-egress
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: garrison-run}
+    matchExpressions:
+      - {key: garrison.io/egress, operator: DoesNotExist}
+  policyTypes: [Egress]
+  egress:
+    - to: [{podSelector: {matchLabels: {app.kubernetes.io/name: notdory-mcp}}}]
+      ports: [{port: 8720}]

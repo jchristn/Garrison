@@ -1,0 +1,29 @@
+{
+  "original": {
+    "RequestHistory.Enabled": "true",
+    "RequestHistory.CaptureNodeProtocol": "false"
+  },
+  "arms": [
+    {
+      "label": "off",
+      "settings": {
+        "RequestHistory.Enabled": "true",
+        "RequestHistory.CaptureNodeProtocol": "false"
+      },
+      "startedUtc": "2026-10-16 15:03:09 UTC"
+    },
+    {
+      "label": "on",
+      "settings": {
+        "RequestHistory.Enabled": "true",
+        "RequestHistory.CaptureNodeProtocol": "true"
+      },
+      "startedUtc": "2026-10-16 15:03:50 UTC"
+    }
+  ],
+  "fixture": "Fresh private PostgreSQL stack: three control-plane replicas, six workers with sixteen slots each; thirty-second closed-loop concurrency 16 arms after five-second warmup; successful node-protocol capture only; other Garrison tests stopped; unrelated development-host applications remain.",
+  "restored": {
+    "RequestHistory.Enabled": "true",
+    "RequestHistory.CaptureNodeProtocol": "false"
+  }
+}

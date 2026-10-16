@@ -52,6 +52,14 @@ namespace Garrison.Sdk.Clients
         {
             return await Transport.SendAsync<RestartResponse>(HttpMethod.Post, "/v1.0/api/settings/restart", null, null, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
+        /// <summary>Re-encrypt stored credentials and secrets with the configured active master key. Requires system administration.</summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Pass counts without key material.</returns>
+        public async Task<MasterKeyRotationResponse> RotateMasterKeyAsync(CancellationToken token = default)
+        {
+            return await Transport.SendAsync<MasterKeyRotationResponse>(HttpMethod.Post, "/v1.0/api/settings/keys/rotate", token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
         /// <summary>
         /// Test database connectivity.
         /// </summary>

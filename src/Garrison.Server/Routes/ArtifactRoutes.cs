@@ -115,8 +115,10 @@ namespace Garrison.Server.Routes
 
         private async Task<Artifact> LoadAsync(HttpContextBase context)
         {
-            return await _Context.Database.Artifacts.ReadAsync(RouteHelpers.Tenant(context), RouteHelpers.Param(context, "id")!, context.Token).ConfigureAwait(false)
+            Artifact artifact = await _Context.Database.Artifacts.ReadAsync(RouteHelpers.Tenant(context), RouteHelpers.Param(context, "id")!, context.Token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Artifact not found.");
+            if (artifact.Name.StartsWith(".garrison/", StringComparison.OrdinalIgnoreCase)) throw new NotFoundException("Artifact not found.");
+            return artifact;
         }
     }
 }

@@ -459,6 +459,10 @@ namespace Garrison.Core.Manifests
         private async Task PlanSecretAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
         {
             SecretSpec spec = Deserialize<SecretSpec>(document);
+            if (spec.Kind == SecretKindEnum.LeaseBroker && (String.IsNullOrWhiteSpace(spec.BrokerResource) || spec.BrokerResource.Length > 512 || spec.BrokerAudience?.Length > 512 || spec.Value != null))
+                throw new ValidationException("LeaseBroker secrets require resource metadata and reject reusable static values.");
+            if (spec.Kind != SecretKindEnum.LeaseBroker && (spec.BrokerResource != null || spec.BrokerAudience != null))
+                throw new ValidationException("Broker metadata requires kind LeaseBroker.");
             Dictionary<string, string> expiryErrors = new Dictionary<string, string>();
             if (!ConfigurationValidator.SecretExpiry(spec.ExpiresUtc, DateTime.UtcNow, expiryErrors, "spec.expiresUtc"))
             {
@@ -470,6 +474,9 @@ namespace Garrison.Core.Manifests
             secret.TenantId = tenantId;
             secret.Name = document.Metadata.Name;
             secret.Kind = spec.Kind;
+            secret.BrokerResource = spec.BrokerResource;
+            secret.BrokerAudience = spec.BrokerAudience;
+            if (spec.Kind == SecretKindEnum.LeaseBroker) { secret.ValueEncrypted = null; secret.ValueLast4 = null; secret.Fingerprint = null; }
             secret.Description = spec.Description;
             secret.ExpiresUtc = spec.ExpiresUtc;
             bool valueChanged = false;
@@ -1318,6 +1325,8 @@ namespace Garrison.Core.Manifests
         {
             Dictionary<string, object?> tree = new Dictionary<string, object?>();
             tree["kind"] = secret.Kind.ToString();
+            if (secret.BrokerResource != null) tree["brokerResource"] = secret.BrokerResource;
+            if (secret.BrokerAudience != null) tree["brokerAudience"] = secret.BrokerAudience;
             if (secret.Description != null) tree["description"] = secret.Description;
             if (secret.ExpiresUtc.HasValue) tree["expiresUtc"] = secret.ExpiresUtc.Value;
             return tree;

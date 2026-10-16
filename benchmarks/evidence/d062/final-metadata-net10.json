@@ -1,0 +1,42 @@
+[
+  {
+    "testId": "delegation-wait-budget-sqlite.shared-wait-budget-admission",
+    "suiteId": "delegation-wait-budget-sqlite",
+    "caseId": "shared-wait-budget-admission",
+    "displayName": "Full external wait budget refuses resident delegation before child creation; cancellation, idempotency and creation failure release resources",
+    "success": true,
+    "skipped": false,
+    "durationMs": 830,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-sqlite.reserved-child-wait",
+    "suiteId": "delegation-wait-budget-sqlite",
+    "caseId": "reserved-child-wait",
+    "displayName": "An admitted resident child wait owns one slot, retains reserve eligibility and completes with a terminal child",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1214,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-postgresql.shared-wait-budget-admission",
+    "suiteId": "delegation-wait-budget-postgresql",
+    "caseId": "shared-wait-budget-admission",
+    "displayName": "Full external wait budget refuses resident delegation before child creation; cancellation, idempotency and creation failure release resources",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1450,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-postgresql.reserved-child-wait",
+    "suiteId": "delegation-wait-budget-postgresql",
+    "caseId": "reserved-child-wait",
+    "displayName": "An admitted resident child wait owns one slot, retains reserve eligibility and completes with a terminal child",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1577,
+    "message": null
+  }
+]

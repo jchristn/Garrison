@@ -599,6 +599,49 @@ await check("stdio MCP worker diagnostic", async () => {
     require(result.success && result.nodeId === node.id && result.tools.includes("fixture_status"), "worker stdio diagnostic");
   } finally { await client.mcpServers.delete(server.id); }
 });
+await check("effect operation metadata", async () => {
+  const databaseUsage = await client.runs.databaseUsage(state.run.id);
+  require(databaseUsage.some(row => row.statements > 0) && databaseUsage.every(row => row.runId === state.run.id && row.tenantId === state.tenant), "per-run database attribution");
+  const placement = await client.runs.placement(state.run.id);
+  require(placement.runId === state.run.id && placement.reasons.includes("RunNotQueued") && !placement.eligible, "terminal placement diagnostic");
+  const operations = await client.runs.operations(state.run.id);
+  require(Array.isArray(operations) && operations.every((op) => op.tenantId === state.tenant), "journal metadata");
+  let missing = false;
+  try { await client.runs.operations("run_missing_sdk"); } catch (error) { missing = error.statusCode === 404; }
+  require(missing, "unknown journal must be 404");
+});
+await check("scheduling, pinned sessions, remote admission, and key rotation", async () => {
+  const administrator = new GarrisonClient(baseUrl);
+  administrator.useAdminApiKey(process.env.GARRISON_SDK_ADMIN_API_KEY ?? "garrisonadmin", state.tenant);
+  const scratch = await administrator.tenants.create({ name: `sdk-js-weight-${suffix}`, schedulingWeight: 7 });
+  try {
+    require(scratch.schedulingWeight === 7, "tenant weight create");
+    require((await administrator.tenants.update(scratch.id, { schedulingWeight: 3 })).schedulingWeight === 3, "tenant weight update");
+  } finally { await administrator.tenants.delete(scratch.id); }
+  const rotated = await administrator.settings.rotateMasterKey();
+  require(rotated.keyVersion >= 1 && rotated.failed === 0 && rotated.conflicts === 0, "rotation pass");
+  const repeated = await administrator.settings.rotateMasterKey();
+  require(repeated.rotated === 0 && repeated.failed === 0, "rotation idempotence");
+  const brokerMetadata = await client.secrets.create({ name: `sdk-js-broker-${suffix}`, kind: "LeaseBroker", brokerResource: "tenant-scoped-fixture", brokerAudience: "fixture" });
+  try {
+    const read = await client.secrets.get(brokerMetadata.id);
+    require(read.brokerResource === "tenant-scoped-fixture" && read.brokerAudience === "fixture" && read.valueEncrypted === undefined, "provider metadata round trip");
+    let refused = false;
+    try { await client.secrets.setValue(read.id, "forbidden-static-value"); } catch (error) { refused = error.statusCode === 400; }
+    require(refused, "broker metadata rejects reusable static values");
+  } finally { await client.secrets.delete(brokerMetadata.id); }
+  const pinned = await client.harnessProfiles.create({ name: `sdk-js-session-${suffix}`, harnessType: "Generic", executable: "garrison-fake-harness", sessionFormat: "sdk-fixture-v1" });
+  try { require((await client.harnessProfiles.get(pinned.id)).sessionFormat === "sdk-fixture-v1", "session format round trip"); }
+  finally { await client.harnessProfiles.delete(pinned.id); }
+  const remote = await client.agents.create({ name: `sdk-js-remote-${suffix}`, kind: "Remote", remoteProtocol: "A2A", remoteEndpointUrl: "http://127.0.0.1:9/a2a" });
+  try {
+    let denied = false;
+    try { await client.agents.invoke(remote.id, "fixture", { deploymentId: state.deployment }); }
+    catch (error) { denied = error.statusCode === 409 && error.error?.code === "RemoteDeploymentUnsupported"; }
+    require(denied, "remote deployment override must be rejected before network I/O");
+  } finally { await client.agents.delete(remote.id); }
+  require((await client.deployments.get(state.deployment)).suspensionEnabled === false, "suspension defaults to opt out");
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

@@ -11,6 +11,8 @@ namespace Test.Shared.Suites
     using Garrison.Core.Approvals;
     using Garrison.Core.Compilation;
     using Garrison.Core.Database;
+    using Garrison.Core.Database.Ado;
+    using Garrison.Core.Protocol;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
@@ -58,6 +60,14 @@ namespace Test.Shared.Suites
             {
                 string id = "approvals-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
+                string continuationId = "continuation-" + provider.ToString().ToLowerInvariant();
+                string configId = "continuation-config-" + provider.ToString().ToLowerInvariant();
+                string scaleId = "continuation-scale-" + provider.ToString().ToLowerInvariant();
+                suites.Add(new TestSuiteDescriptor(scaleId, "Process continuation scale", new List<TestCaseDescriptor> { new TestCaseDescriptor(scaleId, "concurrent-cross-node-checkpoints", "A configurable population of actual fake-harness processes checkpoints, releases every slot, then resumes on another node", ct => DurableScaleAsync(provider, ct)) }));
+                string grantId = "continuation-grants-" + provider.ToString().ToLowerInvariant();
+                suites.Add(new TestSuiteDescriptor(grantId, "One-time durable permission grants", new List<TestCaseDescriptor> { new TestCaseDescriptor(grantId, "exact-input-cas", "Durable human grants bind the full exact input and checkpoint and can be consumed only once (" + provider + ")", ct => ContinuationGrantsAsync(provider, ct)), new TestCaseDescriptor(grantId, "deny-wins", "A current explicit Deny rule overrides a prior human durable grant (" + provider + ")", ct => ContinuationDenyWinsAsync(provider, ct)) }));
+                suites.Add(new TestSuiteDescriptor(configId, "Continuation template selection", new List<TestCaseDescriptor> { new TestCaseDescriptor(configId, "boundary-proof", "Only a current lease durable wait authorizes suspension, including decisions during checkpoint upload", ct => ContinuationBoundaryProofAsync(provider, ct)), new TestCaseDescriptor(configId, "template-selection", "Continuation templates accept only active tenant Task overrides and valid built-ins (" + provider + ")", ct => ContinuationTemplatesAsync(provider, ct)) }));
+                suites.Add(new TestSuiteDescriptor(continuationId, "Durable continuation", new List<TestCaseDescriptor> { new TestCaseDescriptor(continuationId, "marker-without-wait", "A successful marker-only response with a session cannot suspend or reset its deadline", ct => MarkerWithoutWaitAsync(provider, ct)), new TestCaseDescriptor(continuationId, "cross-node-approval", "Pending approval releases its slot and resumes the recorded session on a different worker (" + provider + ")", ct => DurableContinuationAsync(provider, ct)), new TestCaseDescriptor(continuationId, "cross-node-codex", "Codex app-server approval suspends and restores the recorded thread on another worker (" + provider + ")", ct => DurableContinuationAsync(provider, ct, true)), new TestCaseDescriptor(continuationId, "ten-thousand-suspended", "Ten thousand durable wait records hold zero active leases and cannot be claimed (" + provider + ")", ct => PassiveSuspensionsAsync(provider, ct)) }));
                 cases.Add(new TestCaseDescriptor(id, "store", "Approvals persist, enumerate by tenant, and a decision is a compare-and-set from Pending (" + provider + ")", ct => StoreAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "claude-rules", "A Claude permission prompt is allowed and denied by deployment rules, recorded, and shown in the run's events (" + provider + ")", ct => ClaudeRulesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "conversation-approval", "A conversation waits for approval, refuses concurrent turns, and resumes with approvals on its next turn (" + provider + ")", ct => ConversationApprovalAsync(provider, ct)));
@@ -422,6 +432,333 @@ namespace Test.Shared.Suites
                     Conversation finished = await HttpTestHelpers.SendAsync<Conversation>(host.AdminClient, HttpMethod.Get, path + "/conversations/" + conversationId, null, 200, token).ConfigureAwait(false);
                     Assert.True(!finished.Busy, "Finishing the approved turn releases the conversation");
                     Assert.Equal(turn, finished.TurnCount, "Refused turns do not consume turn numbers");
+                }
+            }
+        }
+
+        private static async Task ContinuationDenyWinsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+            {
+                DatabaseDriverBase database = cluster.Server.Server.Context.Database;
+                Agent agent = await database.Agents.CreateAsync(new Agent { TenantId = cluster.Server.TenantId, Name = "deny-grant" }, token).ConfigureAwait(false);
+                HarnessProfile profile = (await database.HarnessProfiles.ReadByNameAsync(agent.TenantId, "builtin/claude-code", token).ConfigureAwait(false))!;
+                Deployment deployment = await database.Deployments.CreateAsync(new Deployment { TenantId = agent.TenantId, AgentId = agent.Id, Name = "deny-grant", HarnessProfileId = profile.Id, SuspensionEnabled = true, ApprovalsEnabled = true, ApprovalRules = new List<DeploymentApprovalRule> { Rule(ApprovalRuleActionEnum.Deny, "Bash") } }, token).ConfigureAwait(false);
+                Run run = await database.Runs.CreateAsync(new Run { TenantId = agent.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Running, LeaseEpoch = 2, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
+                Garrison.Core.Database.Ado.AdoDatabaseDriver ado = (Garrison.Core.Database.Ado.AdoDatabaseDriver)database;
+                await ado.NonQueryAsync("INSERT INTO " + ado.Table("run_checkpoints") + " (runid,tenantid,artifactid,sessionid,sessionformat,epoch,createdutc) VALUES (@run,@tenant,'art_fixture','fixture','fixture-v1',1,@now);", command => { Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "run", run.Id); Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "tenant", run.TenantId); Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow); }, token).ConfigureAwait(false);
+                string json = "{\"command\":\"echo reviewed\"}";
+                string digest = ApprovalInputDigest.Compute(json);
+                Approval original = await database.Approvals.CreateAsync(new Approval { TenantId = run.TenantId, RunId = run.Id, AgentId = run.AgentId, DeploymentId = run.DeploymentId, LeaseEpoch = 1, ToolName = "Bash", Kind = ApprovalKindEnum.Tool, InputDigest = digest, Status = ApprovalStatusEnum.Approved, Decision = ApprovalDecisionEnum.Allow, DecisionSource = ApprovalSourceEnum.User }, token).ConfigureAwait(false);
+                ApprovalOutcome outcome = await cluster.Server.Server.Context.Get<ApprovalService>().RequestAsync(run, new ApprovalRequestInput { ToolName = "Bash", Kind = ApprovalKindEnum.Tool, InputJson = json }, token).ConfigureAwait(false);
+                Assert.Equal(ApprovalDecisionEnum.Deny, outcome.Decision, "Current explicit Deny wins over old human Allow");
+                Assert.Equal(ApprovalSourceEnum.Rule, outcome.Approval!.DecisionSource!.Value, "The denial records the current rule as its source");
+                Assert.True((await database.Approvals.ReadAsync(run.TenantId, original.Id, token).ConfigureAwait(false))!.ResumeEpoch == null, "A denied request does not consume the old grant");
+            }
+        }
+
+        private static async Task ContinuationGrantsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase database = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                string json = "{\"command\":\"echo reviewed\",\"cwd\":\"/workspace\"}";
+                string digest = ApprovalInputDigest.Compute(json);
+                Assert.Equal(digest, ApprovalInputDigest.Compute("{ \"cwd\": \"/workspace\", \"command\": \"echo reviewed\" }"), "Object key order and whitespace normalize to the same full input");
+                Run run = await database.Runs.CreateAsync(new Run { TenantId = "ten_grant", AgentId = "agt_grant", DeploymentId = "dep_grant", Status = RunStatusEnum.Running, LeaseEpoch = 2, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
+                Garrison.Core.Database.Ado.AdoDatabaseDriver ado = (Garrison.Core.Database.Ado.AdoDatabaseDriver)database;
+                await ado.NonQueryAsync("INSERT INTO " + ado.Table("run_checkpoints") + " (runid,tenantid,artifactid,sessionid,sessionformat,epoch,createdutc) VALUES (@run,@tenant,'art_fixture','fixture','fixture-v1',1,@now);",
+                    command => { Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "run", run.Id); Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "tenant", run.TenantId); Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow); }, token).ConfigureAwait(false);
+                Approval original = await database.Approvals.CreateAsync(new Approval { TenantId = run.TenantId, RunId = run.Id, AgentId = run.AgentId, DeploymentId = run.DeploymentId, LeaseEpoch = 1, Kind = ApprovalKindEnum.Command, ToolName = "Bash", InputDigest = digest, InputPreview = "redacted or truncated preview", Status = ApprovalStatusEnum.Approved, Decision = ApprovalDecisionEnum.Allow, DecisionSource = ApprovalSourceEnum.User }, token).ConfigureAwait(false);
+                Assert.True(await database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, 2, "Bash", ApprovalKindEnum.Command, ApprovalInputDigest.Compute("{\"command\":\"echo different\",\"cwd\":\"/workspace\"}"), token).ConfigureAwait(false) == null, "Different full input cannot borrow a grant with the same preview");
+                Assert.True(await database.Approvals.TryConsumeResumeGrantAsync("ten_other", run.Id, 2, "Bash", ApprovalKindEnum.Command, digest, token).ConfigureAwait(false) == null, "Other tenant cannot consume grant");
+                Assert.True(await database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, 1, "Bash", ApprovalKindEnum.Command, digest, token).ConfigureAwait(false) == null, "Old epoch cannot consume grant");
+                Assert.True(await database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, 2, "Edit", ApprovalKindEnum.Command, digest, token).ConfigureAwait(false) == null, "Different tool cannot consume grant");
+                Task<Approval?>[] attempts = Enumerable.Range(0, 12).Select(_ => database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, 2, "Bash", ApprovalKindEnum.Command, digest, token)).ToArray();
+                Approval?[] consumed = await Task.WhenAll(attempts).ConfigureAwait(false);
+                Assert.Equal(1, consumed.Count(approval => approval != null), "Concurrent requests consume exactly one human grant");
+                Approval persisted = (await database.Approvals.ReadAsync(run.TenantId, original.Id, token).ConfigureAwait(false))!;
+                Assert.Equal(2L, persisted.ResumeEpoch!.Value, "Grant consumption is durable");
+                Assert.True(!Garrison.Core.Serialization.Serializer.Serialize(persisted).Contains(digest, StringComparison.Ordinal), "Secret input digest is never exposed in approval API JSON");
+                await database.Approvals.CreateAsync(new Approval { TenantId = run.TenantId, RunId = run.Id, AgentId = run.AgentId, DeploymentId = run.DeploymentId, LeaseEpoch = 1, Kind = ApprovalKindEnum.Command, ToolName = "Bash", InputDigest = digest, Status = ApprovalStatusEnum.Approved, Decision = ApprovalDecisionEnum.Allow, DecisionSource = ApprovalSourceEnum.DurableResume }, token).ConfigureAwait(false);
+                Assert.True(await database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, 2, "Bash", ApprovalKindEnum.Command, digest, token).ConfigureAwait(false) == null, "A consumed/resumed decision never generates a reusable grant");
+                foreach (ApprovalSourceEnum source in new[] { ApprovalSourceEnum.Rule, ApprovalSourceEnum.Default })
+                {
+                    await database.Approvals.CreateAsync(new Approval { TenantId = run.TenantId, RunId = run.Id, AgentId = run.AgentId, DeploymentId = run.DeploymentId, LeaseEpoch = 1, Kind = ApprovalKindEnum.Command, ToolName = "Bash", InputDigest = digest, Status = ApprovalStatusEnum.Approved, Decision = ApprovalDecisionEnum.Allow, DecisionSource = source }, token).ConfigureAwait(false);
+                    Assert.True(await database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, 2, "Bash", ApprovalKindEnum.Command, digest, token).ConfigureAwait(false) == null, "Old rule or default approvals cannot mint a human grant");
+                }
+            }
+        }
+
+        private static async Task ContinuationTemplatesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+            {
+                DatabaseDriverBase database = cluster.Server.Server.Context.Database;
+                ContinuationService service = cluster.Server.Server.Context.Get<ContinuationService>();
+                Run run = new Run { TenantId = cluster.Server.TenantId };
+                PromptTemplate tenant = await database.PromptTemplates.CreateAsync(new PromptTemplate { TenantId = run.TenantId, Name = "continuation-wait", Kind = PromptTemplateKindEnum.Other, Content = "GARRISON_CONTINUATION_WAIT tenant override" }, token).ConfigureAwait(false);
+                Assert.True(!(await service.WaitInstructionAsync(run, "Child", token).ConfigureAwait(false)).Contains("tenant override", StringComparison.Ordinal), "Wrong-kind tenant override falls back to built-in");
+                tenant.Kind = PromptTemplateKindEnum.Task;
+                tenant.Active = false;
+                await database.PromptTemplates.UpdateAsync(tenant, token).ConfigureAwait(false);
+                Assert.True(!(await service.WaitInstructionAsync(run, "Child", token).ConfigureAwait(false)).Contains("tenant override", StringComparison.Ordinal), "Inactive tenant override falls back to built-in");
+                tenant.Active = true;
+                await database.PromptTemplates.UpdateAsync(tenant, token).ConfigureAwait(false);
+                Assert.True((await service.WaitInstructionAsync(run, "Child", token).ConfigureAwait(false)).Contains("tenant override", StringComparison.Ordinal), "Valid active tenant Task override applies");
+                tenant.Active = false;
+                await database.PromptTemplates.UpdateAsync(tenant, token).ConfigureAwait(false);
+                PromptTemplate builtin = (await database.PromptTemplates.ReadByNameAsync(null, "builtin/continuation-wait", token).ConfigureAwait(false))!;
+                builtin.Kind = PromptTemplateKindEnum.Other;
+                await database.PromptTemplates.UpdateAsync(builtin, token).ConfigureAwait(false);
+                bool rejected = false;
+                try { await service.WaitInstructionAsync(run, "Child", token).ConfigureAwait(false); }
+                catch (ConflictException ex) when (ex.Code == "ContinuationTemplateInvalid") { rejected = true; }
+                Assert.True(rejected, "Invalid built-in fails with a typed error");
+            }
+        }
+
+        private static async Task PassiveSuspensionsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase database = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                Run sample = await database.Runs.CreateAsync(new Run { TenantId = "ten_wait", AgentId = "agt_wait", AgentName = "wait", DeploymentId = "dep_wait", Status = RunStatusEnum.Suspended }, token).ConfigureAwait(false);
+                Garrison.Core.Database.Ado.AdoDatabaseDriver ado = (Garrison.Core.Database.Ado.AdoDatabaseDriver)database;
+                List<string> columns = (await ado.QuerySingleAsync("SELECT * FROM " + ado.Table("runs") + " WHERE id = @id;", command => Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "id", sample.Id), reader => Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList(), token).ConfigureAwait(false))!;
+                string names = String.Join(",", columns.Select(ado.Dialect.Quote));
+                string values = String.Join(",", columns.Select(column => column == "id" ? "@id" : ado.Dialect.Quote(column)));
+                await ado.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+                {
+                    for (int i = 1; i < 10000; i++)
+                    {
+                        await Garrison.Core.Database.Ado.AdoDatabaseDriver.ExecuteAsync(connection, transaction, "INSERT INTO " + ado.Table("runs") + " (" + names + ") SELECT " + values + " FROM " + ado.Table("runs") + " WHERE id = @sample;",
+                            command => { Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "id", "run_wait_" + i); Garrison.Core.Database.Ado.AdoDatabaseDriver.Add(command, "sample", sample.Id); }, ct).ConfigureAwait(false);
+                    }
+                }, token).ConfigureAwait(false);
+                Assert.Equal(0, (await database.Runs.ListQueuedAsync("ten_wait", 10000, token).ConfigureAwait(false)).Count, "Suspensions are not schedulable");
+                Assert.Equal(0, (await database.Runs.CountUnfinishedAsync(token).ConfigureAwait(false)).Count, "Suspensions do not occupy active lease or queue gauges");
+                Assert.Equal(10000L, (await database.Runs.CountByStatusAsync("ten_wait", null, token).ConfigureAwait(false)).Single(count => count.Status == "Suspended").Count, "Every waiting run remains retained");
+            }
+        }
+
+        private static async Task ContinuationBoundaryProofAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using TestServerHost host = await TestServerHost.StartAsync(provider, token: token).ConfigureAwait(false);
+            DatabaseDriverBase database = host.Server.Context.Database;
+            AdoDatabaseDriver ado = (AdoDatabaseDriver)database;
+            HarnessProfile profile = await ClaudeProfileAsync(host, token).ConfigureAwait(false);
+            Deployment deployment = await database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, AgentId = "agt_boundary", Name = "boundary", SuspensionEnabled = true, HarnessProfileId = profile.Id }, token).ConfigureAwait(false);
+            foreach (string scenario in new[] { "none", "old-approval", "rule", "current-human", "current-timeout", "current-pending", "old-child", "current-child" })
+            {
+                Run run = await database.Runs.CreateAsync(new Run { TenantId = host.TenantId, DeploymentId = deployment.Id, AgentId = deployment.AgentId, Executor = RunExecutorEnum.Process, Status = RunStatusEnum.Running, LeaseNodeId = "nod_boundary", LeaseEpoch = 7, LeasedUtc = DateTime.UtcNow.AddSeconds(-5), LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(2) }, token).ConfigureAwait(false);
+                Artifact artifact = await database.Artifacts.CreateAsync(new Artifact { TenantId = run.TenantId, RunId = run.Id, ArtifactStoreId = "ast_boundary", Name = ".garrison/continuation.zip", LeaseEpoch = 7 }, null, token).ConfigureAwait(false);
+                if (scenario.Contains("approval", StringComparison.Ordinal) || scenario == "rule" || scenario.StartsWith("current-", StringComparison.Ordinal) && scenario != "current-child")
+                {
+                    Approval approval = new Approval { TenantId = run.TenantId, RunId = run.Id, LeaseEpoch = scenario == "old-approval" ? 6 : 7, ToolName = "Bash", Status = scenario == "rule" || scenario == "current-human" ? ApprovalStatusEnum.Approved : scenario == "current-timeout" ? ApprovalStatusEnum.Expired : ApprovalStatusEnum.Pending, DecisionSource = scenario == "rule" ? ApprovalSourceEnum.Rule : scenario == "current-human" ? ApprovalSourceEnum.User : scenario == "current-timeout" ? ApprovalSourceEnum.Timeout : null };
+                    await database.Approvals.CreateAsync(approval, token).ConfigureAwait(false);
+                }
+                if (scenario.EndsWith("child", StringComparison.Ordinal))
+                {
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("run_child_waits") + " (id,tenantid,parentrunid,childrunid,createdutc) VALUES (@id,@tenant,@parent,@child,@created)", command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", IdGenerator.NewRunChildWaitId()); AdoDatabaseDriver.Add(command, "tenant", run.TenantId); AdoDatabaseDriver.Add(command, "parent", run.Id); AdoDatabaseDriver.Add(command, "child", "run_notcreated"); AdoDatabaseDriver.Add(command, "created", DateTime.UtcNow.AddSeconds(scenario == "old-child" ? -60 : -1));
+                    }, token).ConfigureAwait(false);
+                }
+                if (scenario == "current-child")
+                {
+                    await database.Runs.CreateAsync(new Run { Id = "run_notcreated", TenantId = run.TenantId, ParentRunId = run.Id, AgentId = deployment.AgentId, DeploymentId = deployment.Id, Status = RunStatusEnum.Succeeded }, token).ConfigureAwait(false);
+                    await database.Runs.PruneChildWaitsAsync(DateTime.UtcNow.AddHours(-1), token).ConfigureAwait(false);
+                }
+                RunCompleteRequest request = new RunCompleteRequest { NodeId = run.LeaseNodeId!, Epoch = 7, Status = RunStatusEnum.Suspended, SnapshotArtifactId = artifact.Id, SessionId = "session_boundary", SessionFormat = profile.SessionFormat, CompletedUtc = default, InputTokens = 3, CostUsd = 1.25 };
+                bool expected = scenario.StartsWith("current-", StringComparison.Ordinal);
+                bool accepted = await host.Server.Context.Get<ContinuationService>().AcceptAsync(run, request, token).ConfigureAwait(false);
+                Assert.Equal(expected, accepted, "Boundary proof: " + scenario);
+                if (scenario == "current-child")
+                {
+                    Run next = (await database.Runs.ReadAsync(run.TenantId, run.Id, token).ConfigureAwait(false))!;
+                    next.Status = RunStatusEnum.Running; next.LeaseEpoch = 8; next.LeaseNodeId = "nod_boundary"; next.LeasedUtc = DateTime.UtcNow; next.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(2);
+                    await database.Runs.UpdateAsync(next, token).ConfigureAwait(false);
+                    Artifact nextArtifact = await database.Artifacts.CreateAsync(new Artifact { TenantId = run.TenantId, RunId = run.Id, ArtifactStoreId = "ast_boundary", Name = ".garrison/continuation.zip", LeaseEpoch = 8 }, null, token).ConfigureAwait(false);
+                    request.Epoch = 8; request.SnapshotArtifactId = nextArtifact.Id; request.Status = RunStatusEnum.Suspended;
+                    Assert.True(!await host.Server.Context.Get<ContinuationService>().AcceptAsync(next, request, token).ConfigureAwait(false), "Prior completed child wait cannot authorize a new lease checkpoint");
+                    ChildWaitAdmission fresh = await database.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = run.TenantId, ParentRunId = run.Id, ChildRunId = "run_second_child", Durable = true }, token).ConfigureAwait(false);
+                    Assert.True(!String.IsNullOrEmpty(fresh.WaitId), "Second logical wait has a fresh handshake");
+                    request.Status = RunStatusEnum.Suspended; request.CompletedUtc = default;
+                    Assert.True(await host.Server.Context.Get<ContinuationService>().AcceptAsync(next, request, token).ConfigureAwait(false), "Fresh child wait authorizes second sequential checkpoint at the next lease epoch");
+                }
+                if (!expected)
+                {
+                    Assert.Equal(RunStatusEnum.Succeeded, request.Status, "Untrusted marker returns ordinary successful completion");
+                    Assert.True(request.CompletedUtc > DateTime.UtcNow.AddSeconds(-30), "Terminal report gets valid completion timestamp");
+                    Assert.Equal(1.25, request.CostUsd!.Value, "Already estimated cost is preserved");
+                    Assert.Equal(3L, request.InputTokens, "Usage is preserved");
+                }
+            }
+        }
+
+        private static async Task MarkerWithoutWaitAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using TestCluster cluster = await StartAsync(provider, token).ConfigureAwait(false);
+            TestServerHost host = cluster.Server;
+            ArtifactStore store = await host.Server.Context.Database.ArtifactStores.CreateAsync(new ArtifactStore { TenantId = host.TenantId, Name = "marker-only", Kind = ArtifactStoreKindEnum.Database }, token).ConfigureAwait(false);
+            HarnessProfile profile = await ClaudeProfileAsync(host, token).ConfigureAwait(false);
+            profile.SessionFormat = "garrison-fake-session-v1";
+            profile.Arguments.Add(new HarnessArgument { Template = "--answer" });
+            profile.Arguments.Add(new HarnessArgument { Template = "GARRISON_CONTINUATION_WAIT is ordinary quoted user text" });
+            await host.Server.Context.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
+            Agent agent = await cluster.CreateAgentAsync("marker-only", profile.Name, null, token, deployment => { deployment.SuspensionEnabled = true; deployment.ArtifactStoreId = store.Id; }).ConfigureAwait(false);
+            Run run = await InvokeAsync(host, agent, token).ConfigureAwait(false);
+            DateTime until = DateTime.UtcNow.AddSeconds(4);
+            while (DateTime.UtcNow < until)
+            {
+                run = (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, run.Id, token).ConfigureAwait(false))!;
+                if (RunService.IsTerminal(run.Status) || run.LeaseEpoch > 1) break;
+                await Task.Delay(40, token).ConfigureAwait(false);
+            }
+            Assert.Equal(1L, run.LeaseEpoch, "Quoted marker cannot trigger repeated lease/deadline reset");
+            Assert.Equal(RunStatusEnum.Succeeded, run.Status, "Ordinary successful response stays successful without a durable wait");
+            Assert.Equal(0, (await host.Server.Context.Database.Approvals.ListByRunAsync(run.Id, 10, token).ConfigureAwait(false)).Count, "No approval boundary exists");
+        }
+
+        private static async Task DurableContinuationAsync(DatabaseTypeEnum provider, CancellationToken token, bool codex = false)
+        {
+            await using (TestCluster cluster = await StartAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                string path = "/v1.0/api/tenants/" + host.TenantId;
+                ArtifactStore store = await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, path + "/artifact-stores", new ArtifactStore { Name = "continuation-store", Kind = ArtifactStoreKindEnum.Database }, 201, token).ConfigureAwait(false);
+                HarnessProfile profile = codex ? await CodexProfileAsync(host, token).ConfigureAwait(false) : await ClaudeProfileAsync(host, token).ConfigureAwait(false);
+                if (codex)
+                    await host.Server.Context.Database.ModelPrices.CreateAsync(new ModelPrice { TenantId = host.TenantId, Name = "continuation-cost", HarnessType = profile.HarnessType, Model = "fake-app-server-model", InputUsdPerMillion = 1000000, OutputUsdPerMillion = 1000000 }, token).ConfigureAwait(false);
+                profile.SessionFormat = "garrison-fake-session-v1";
+                profile.Arguments.Add(new HarnessArgument { Template = "--resume-answer" });
+                profile.Arguments.Add(new HarnessArgument { Template = "restored-session-without-replaying-tools" });
+                await host.Server.Context.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
+                HarnessProfile persisted = (await host.Server.Context.Database.HarnessProfiles.ReadAsync(host.TenantId, profile.Id, token).ConfigureAwait(false))!;
+                Assert.True(persisted.SupportsResume && persisted.IsolateHome && !String.IsNullOrEmpty(persisted.SessionFormat), "Continuation profile contract: resume=" + persisted.SupportsResume + " home=" + persisted.IsolateHome + " format=" + persisted.SessionFormat);
+                Agent agent = await cluster.CreateAgentAsync("durable-approval", profile.Name, null, token, deployment =>
+                {
+                    deployment.ApprovalsEnabled = true;
+                    deployment.SuspensionEnabled = true;
+                    deployment.ArtifactStoreId = store.Id;
+                    deployment.Parameters.Add(new DeploymentParameter { Name = codex ? "approvalCommand" : "permissionRequest1", Value = codex ? "git push origin main" : "Bash={\"command\":\"git push origin main\"}" });
+                }).ConfigureAwait(false);
+                Deployment compiledDeployment = (await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "durable-approval-default", token).ConfigureAwait(false))!;
+                CompilationResult preview = await host.Server.Context.Get<InvocationCompiler>().PreviewAsync(host.TenantId, compiledDeployment.Id, "persist session", null, token).ConfigureAwait(false);
+                Assert.True(!preview.Spec.Arguments.Contains("--no-session-persistence"), "Suspension always enables actual CLI session persistence");
+                Run started = await InvokeAsync(host, agent, token).ConfigureAwait(false);
+                Approval pending = await WaitForPendingAsync(host.AdminClient, host.TenantId, started.Id, token).ConfigureAwait(false);
+                Run? suspended = null;
+                DateTime until = DateTime.UtcNow.AddSeconds(30);
+                while (DateTime.UtcNow < until)
+                {
+                    suspended = await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false);
+                    if (suspended?.Status == RunStatusEnum.Suspended || (suspended != null && RunService.IsTerminal(suspended.Status))) break;
+                    await Task.Delay(50, token).ConfigureAwait(false);
+                }
+                Assert.Equal(RunStatusEnum.Suspended, suspended!.Status, "Approval reaches durable suspension: " + suspended.ErrorMessage);
+                Assert.True(suspended.LeaseNodeId == null && suspended.LeaseExpiresUtc == null, "Suspended run owns no lease");
+                Assert.Equal(ApprovalStatusEnum.Pending, (await host.Server.Context.Database.Approvals.ReadAsync(host.TenantId, pending.Id, token).ConfigureAwait(false))!.Status, "Safe denial leaves operator decision pending");
+                if (codex)
+                {
+                    Assert.True(suspended.CostEstimated, "Suspended execution receives configured model-price estimation");
+                    Assert.Equal((double)(suspended.InputTokens + suspended.OutputTokens), suspended.CostUsd, "Suspended cost includes its own token usage exactly once");
+                }
+                string? session = suspended.SessionId;
+                string? firstNode = cluster.Workers[0].NodeId;
+                string stableWorkRoot = cluster.Workers[0].Settings.WorkRoot;
+                await cluster.Workers[0].StopAsync(token).ConfigureAwait(false);
+                cluster.Workers.Add(await TestCluster.StartWorkerAsync(host.BaseUrl, "continuation-restorer", settings => { ConfigureWorker(settings); settings.WorkRoot = stableWorkRoot; }, token).ConfigureAwait(false));
+                await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, path + "/approvals/" + pending.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow, Reason = "reviewed" }, 200, token).ConfigureAwait(false);
+                Run done = Assert.NotNull(await host.Server.Context.Get<RunService>().WaitAsync(host.TenantId, started.Id, 60, token).ConfigureAwait(false), "Resumed run");
+                Assert.Equal(RunStatusEnum.Succeeded, done.Status, "Resumed run succeeds: " + done.ErrorMessage);
+                Assert.Equal(session, done.SessionId, "Original session identity restored");
+                Assert.True(suspended.InputTokens > 0 && done.InputTokens > suspended.InputTokens, "Usage from the checkpointed and resumed executions is accumulated");
+                if (codex)
+                {
+                    Assert.True(done.CostEstimated, "Resumed execution retains estimated cost provenance");
+                    Assert.Equal((double)(done.InputTokens + done.OutputTokens), done.CostUsd, "Final cost includes both execution segments exactly once");
+                }
+                Assert.True(done.LeaseNodeId != firstNode, "Execution moved to another node");
+                Assert.True((done.ResultText ?? String.Empty).Contains("restored-session-without-replaying-tools", StringComparison.Ordinal), "Harness actually loaded its saved session");
+                List<Approval> allApprovals = await host.Server.Context.Database.Approvals.ListByRunAsync(done.Id, 100, token).ConfigureAwait(false);
+                Assert.Equal(2, allApprovals.Count, "Resume re-asks the pending operation once and records its one-time grant");
+                Assert.Equal(1, allApprovals.Count(approval => approval.DecisionSource == ApprovalSourceEnum.DurableResume && approval.Status == ApprovalStatusEnum.Approved), "Exactly one durable grant allows the reviewed operation without asking the person again");
+            }
+        }
+
+        private static async Task DurableScaleAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            int count = 32;
+            if (Int32.TryParse(Environment.GetEnvironmentVariable("GARRISON_CONTINUATION_SCALE"), out int requested)) count = Math.Clamp(requested, 1, 10000);
+            await using (TestCluster cluster = await StartAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                string path = "/v1.0/api/tenants/" + host.TenantId;
+                ArtifactStore store = await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, path + "/artifact-stores", new ArtifactStore { Name = "continuation-store", Kind = ArtifactStoreKindEnum.Database }, 201, token).ConfigureAwait(false);
+                HarnessProfile profile = await ClaudeProfileAsync(host, token).ConfigureAwait(false);
+                profile.SessionFormat = "garrison-fake-session-v1";
+                profile.Arguments.Add(new HarnessArgument { Template = "--resume-answer" });
+                profile.Arguments.Add(new HarnessArgument { Template = "restored-session-without-replaying-tools" });
+                await host.Server.Context.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
+                HarnessProfile persisted = (await host.Server.Context.Database.HarnessProfiles.ReadAsync(host.TenantId, profile.Id, token).ConfigureAwait(false))!;
+                Assert.True(persisted.SupportsResume && persisted.IsolateHome && !String.IsNullOrEmpty(persisted.SessionFormat), "Continuation profile contract: resume=" + persisted.SupportsResume + " home=" + persisted.IsolateHome + " format=" + persisted.SessionFormat);
+                Agent agent = await cluster.CreateAgentAsync("durable-approval", profile.Name, null, token, deployment =>
+                {
+                    deployment.ApprovalsEnabled = true;
+                    deployment.ApprovalTimeoutSeconds = 3600;
+                    deployment.SuspensionEnabled = true;
+                    deployment.ArtifactStoreId = store.Id;
+                    deployment.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"git push origin main\"}" });
+                }).ConfigureAwait(false);
+                Deployment compiledDeployment = (await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "durable-approval-default", token).ConfigureAwait(false))!;
+                CompilationResult preview = await host.Server.Context.Get<InvocationCompiler>().PreviewAsync(host.TenantId, compiledDeployment.Id, "persist session", null, token).ConfigureAwait(false);
+                Assert.True(!preview.Spec.Arguments.Contains("--no-session-persistence"), "Suspension always enables actual CLI session persistence");
+                List<Run> checkpoints = new List<Run>();
+                List<Approval> decisions = new List<Approval>();
+                async Task<(Run Run, Approval Approval)> CaptureCheckpointAsync(int index)
+                {
+                    Run started = await InvokeAsync(host, agent, token).ConfigureAwait(false);
+                    Approval pending = await WaitForPendingAsync(host.AdminClient, host.TenantId, started.Id, token).ConfigureAwait(false);
+                    DateTime until = DateTime.UtcNow.AddSeconds(45);
+                    Run? suspended = null;
+                    while (DateTime.UtcNow < until)
+                    {
+                        suspended = await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false);
+                        if (suspended?.Status == RunStatusEnum.Suspended) break;
+                        await Task.Delay(50, token).ConfigureAwait(false);
+                    }
+                    Assert.Equal(RunStatusEnum.Suspended, suspended!.Status, "Checkpoint " + index);
+                    Assert.True(suspended.LeaseNodeId == null && suspended.LeaseExpiresUtc == null, "No lease retained at checkpoint " + index);
+                    return (suspended, pending);
+                }
+                for (int offset = 0; offset < count; offset += 8)
+                {
+                    List<Task<(Run Run, Approval Approval)>> captures = new List<Task<(Run Run, Approval Approval)>>();
+                    for (int index = offset; index < Math.Min(offset + 8, count); index++) captures.Add(CaptureCheckpointAsync(index));
+                    (Run Run, Approval Approval)[] batch = await Task.WhenAll(captures).ConfigureAwait(false);
+                    foreach ((Run Run, Approval Approval) item in batch)
+                    {
+                        checkpoints.Add(item.Run);
+                        decisions.Add(item.Approval);
+                    }
+                }
+                Assert.Equal((long)count, (await host.Server.Context.Database.Runs.CountByStatusAsync(host.TenantId, null, token).ConfigureAwait(false)).Single(item => item.Status == "Suspended").Count, "Entire population is simultaneously suspended before node replacement");
+                string? firstNode = cluster.Workers[0].NodeId;
+                await cluster.Workers[0].StopAsync(token).ConfigureAwait(false);
+                cluster.Workers.Add(await TestCluster.StartWorkerAsync(host.BaseUrl, "scale-restorer", ConfigureWorker, token).ConfigureAwait(false));
+                for (int index = 0; index < count; index++)
+                {
+                    await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, path + "/approvals/" + decisions[index].Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow, Reason = "scale acceptance" }, 200, token).ConfigureAwait(false);
+                }
+                foreach (Run checkpoint in checkpoints)
+                {
+                    Run done = Assert.NotNull(await host.Server.Context.Get<RunService>().WaitAsync(host.TenantId, checkpoint.Id, 180, token).ConfigureAwait(false), "Resumed scale run");
+                    Assert.Equal(RunStatusEnum.Succeeded, done.Status, "Scale continuation: " + done.ErrorMessage);
+                    Assert.Equal(checkpoint.SessionId, done.SessionId, "Original identity restored");
+                    Assert.True(done.LeaseNodeId != firstNode, "Restored on replacement node");
+                    Assert.True((done.ResultText ?? String.Empty).Contains("restored-session-without-replaying-tools", StringComparison.Ordinal), "Saved CLI session loaded");
+                    List<Approval> approvals = await host.Server.Context.Database.Approvals.ListByRunAsync(done.Id, 100, token).ConfigureAwait(false);
+                    Assert.Equal(1, approvals.Count(approval => approval.DecisionSource == ApprovalSourceEnum.DurableResume && approval.Status == ApprovalStatusEnum.Approved), "Exactly one reviewed grant per session");
                 }
             }
         }

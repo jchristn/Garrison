@@ -12,6 +12,7 @@
 #   CHAOS_TARGETS            server,worker (default both); one target kind is picked at random per kill
 #   CHAOS_FORCE (1)          1: kill with --grace-period=0 --force (a crash: no drain, leases expire and runs are
 #                            requeued); 0: normal delete (SIGTERM: servers shut down, workers drain)
+#   EFFECT_POLICY (AtLeastOnce) AtMostOnce, AtLeastOnce, or Journaled; policy matrix driver runs all three
 #   MAX_ATTEMPTS (3)         deployment maxAttempts for the load-test agent (effectPolicy is AtLeastOnce)
 #   RUN_MS defaults to 5000 here so kills land on running harnesses.
 RUN_MS="${RUN_MS:-5000}"
@@ -24,9 +25,10 @@ CHAOS_DURATION="${CHAOS_DURATION:-180}"
 CHAOS_TARGETS="${CHAOS_TARGETS:-server,worker}"
 CHAOS_FORCE="${CHAOS_FORCE:-1}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-3}"
+EFFECT_POLICY="${EFFECT_POLICY:-AtLeastOnce}"
 
 label="chaos-$(deployed_sizes)"
-start_loadgen "${label}" --max-attempts "${MAX_ATTEMPTS}" --effect-policy AtLeastOnce
+start_loadgen "${label}" --max-attempts "${MAX_ATTEMPTS}" --effect-policy "${EFFECT_POLICY}"
 trap 'kill "${LOADGEN_PID}" 2>/dev/null || true' INT TERM
 CHAOS_LOG="${RESULT_PREFIX}-chaos.log"
 

@@ -126,7 +126,7 @@ namespace Garrison.FakeHarness
             for (int i = 0; i < options.LargeOutputLines; i++) emitter.Filler(i);
             for (int i = 0; i < options.ToolCalls; i++) emitter.ToolCall("fake_tool", "ok " + (i + 1), true);
 
-            foreach (string request in options.PermissionRequests)
+            foreach (string request in options.PermissionOnce && !String.IsNullOrEmpty(options.Resume) ? new List<string>() : options.PermissionRequests)
             {
                 // Claude Code asks its --permission-prompt-tool before running a tool that needs permission (P12.3).
                 int equals = request.IndexOf('=');
@@ -159,7 +159,7 @@ namespace Garrison.FakeHarness
                 answer = answer + "\nTool result: " + result;
             }
 
-            foreach (string invoke in options.McpInvokes)
+            foreach (string invoke in options.PermissionOnce && !String.IsNullOrEmpty(options.Resume) ? new List<string>() : options.McpInvokes)
             {
                 string result;
                 bool success = true;

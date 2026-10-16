@@ -58,6 +58,7 @@ namespace Garrison.Server.Routes
         {
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             const string tag = "Node Protocol";
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/artifacts", ResourceTypeEnum.Node, OperationTypeEnum.Execute, UploadInternalArtifactAsync, "Upload a node-owned internal checkpoint or prepared workspace", tag, typeof(byte[]), typeof(Artifact), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/register", ResourceTypeEnum.Node, OperationTypeEnum.Execute, RegisterAsync, "Register a worker node", tag, typeof(NodeRegisterRequest), typeof(NodeRegisterResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/heartbeat", ResourceTypeEnum.Node, OperationTypeEnum.Execute, HeartbeatAsync, "Worker heartbeat", tag, typeof(NodeHeartbeatRequest), typeof(NodeHeartbeatResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/lease", ResourceTypeEnum.Node, OperationTypeEnum.Execute, LeaseAsync, "Lease runs (long poll)", tag, typeof(NodeLeaseRequest), typeof(NodeLeaseResponse), "none");
@@ -71,6 +72,23 @@ namespace Garrison.Server.Routes
         #endregion
 
         #region Private-Methods
+
+        private async Task UploadInternalArtifactAsync(HttpContextBase context)
+        {
+            RequestContext principal = RouteHelpers.Context(context);
+            if (principal.PrincipalType == PrincipalTypeEnum.Run) throw new ValidationException("Run tokens cannot upload internal execution state.");
+            string nodeId = RouteHelpers.Query(context, "nodeId") ?? String.Empty;
+            await _Bindings.RequireAsync(principal, nodeId, context.Token).ConfigureAwait(false);
+            long? epoch = RouteHelpers.QueryLong(context, "epoch");
+            int? repair = RouteHelpers.QueryInt(context, "repairAttempt");
+            if (!epoch.HasValue || epoch.Value < 1 || !repair.HasValue || repair.Value < 0) throw new ValidationException("Archive upload requires epoch and repairAttempt.");
+            if (context.Request.ContentLength > _Context.Settings.Artifacts.MaxFileBytes) throw new ValidationException("Archive exceeds the configured file limit.");
+            Artifact artifact = await _Context.Get<Garrison.Server.Services.ArtifactService>().UploadInternalAsync(
+                RouteHelpers.Query(context, "tenantId") ?? String.Empty, RouteHelpers.Param(context, "runId") ?? String.Empty,
+                RouteHelpers.Query(context, "storeId") ?? String.Empty, RouteHelpers.Query(context, "name") ?? String.Empty,
+                epoch.Value, repair.Value, context.Request.DataAsBytes ?? Array.Empty<byte>(), nodeId, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 201, artifact).ConfigureAwait(false);
+        }
 
         private async Task RegisterAsync(HttpContextBase context)
         {

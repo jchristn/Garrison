@@ -353,6 +353,7 @@ const tips = {
       Deny: 'Nega: l\'harness è stato respinto e ha ricevuto il motivo.'
     },
     approvalSource: {
+      DurableResume: "Un’approvazione umana monouso conservata dal checkpoint precedente. Si applica solo alla richiesta dello strumento ripresa corrispondente.",
       Rule: 'Decisa subito da una regola della distribuzione. La regola corrispondente è mostrata accanto.',
       Default: 'Nessuna regola corrispondeva, quindi ha deciso l\'azione predefinita della distribuzione.',
       User: 'Una persona ha deciso nella dashboard, tramite API o tramite MCP.',

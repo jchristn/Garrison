@@ -1,0 +1,14 @@
+# First create a GenericEnv secret named notdory-access containing a scoped NotDory access key.
+apiVersion: garrison/v1
+kind: McpServer
+metadata:
+  name: notdory
+spec:
+  transport: Http
+  url: http://notdory-mcp:8720
+  path: /mcp
+  required: true
+  requiredTools: [whoami, scope_enumerate, memory_upsert, memory_search]
+  headers:
+    - name: x-access-key
+      valueTemplate: '{{secret.notdory}}'

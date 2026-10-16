@@ -22,7 +22,7 @@ namespace Test.Shared.Suites
 
     /// <summary>
     /// Deployment effect policy (P12.29): AtLeastOnce requeues a run whose worker was lost after it started; AtMostOnce and
-    /// Journaled (until P12.33) end it Failed with NodeLost. New deployments default to AtMostOnce, the deprecated
+    /// Journaled without known effect coverage end it Failed with NodeLost. New deployments default to AtMostOnce, the deprecated
     /// retryOnNodeLoss is still accepted on input, and a disagreement between the two is a 400.
     /// </summary>
     public static class EffectPolicySuite
@@ -48,9 +48,11 @@ namespace Test.Shared.Suites
                 string id = "effect-policy-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>
                 {
+                    new TestCaseDescriptor(id, "transient-connection-reset", "Dropped worker TCP connections recover before lease expiry without duplicate execution", ct => TransientConnectionResetAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "transient-control-plane-outage", "A transient full worker/control-plane outage heals before lease expiry without retry or loss", ct => TransientPartitionAsync(provider, ct)),
                     new TestCaseDescriptor(id, "node-loss-at-least-once", "A worker partitioned after its run started: under AtLeastOnce the run is requeued and succeeds on another worker (" + provider + ")", ct => NodeLossAsync(provider, DeploymentEffectPolicyEnum.AtLeastOnce, ct)),
                     new TestCaseDescriptor(id, "node-loss-at-most-once", "A worker partitioned after its run started: under AtMostOnce the run ends Failed with NodeLost and never runs again, even after the deployment is changed to AtLeastOnce mid-run (" + provider + ")", ct => NodeLossAsync(provider, DeploymentEffectPolicyEnum.AtMostOnce, ct)),
-                    new TestCaseDescriptor(id, "node-loss-journaled", "A worker partitioned after its run started: under Journaled the run ends Failed with NodeLost, as AtMostOnce until P12.33 (" + provider + ")", ct => NodeLossAsync(provider, DeploymentEffectPolicyEnum.Journaled, ct)),
+                    new TestCaseDescriptor(id, "node-loss-journaled", "A worker partitioned after its run started: under Journaled the run ends Failed with NodeLost, because the CLI has unknown effect coverage (" + provider + ")", ct => NodeLossAsync(provider, DeploymentEffectPolicyEnum.Journaled, ct)),
                     new TestCaseDescriptor(id, "rest", "REST: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, conflicts are 400 EffectPolicyConflict, responses carry both fields, runs record the policy, and changes are audited (" + provider + ")", ct => RestAsync(provider, ct)),
                     new TestCaseDescriptor(id, "manifests", "Manifests: omitted means AtMostOnce, retryOnNodeLoss maps, a conflict fails with EffectPolicyConflict, and export writes effectPolicy and round-trips unchanged (" + provider + ")", ct => ManifestsAsync(provider, ct)),
                     new TestCaseDescriptor(id, "mcp-management", "MCP management: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, and a conflict is rejected naming effectPolicy (" + provider + ")", ct => McpManagementAsync(provider, ct)),
@@ -78,7 +80,7 @@ namespace Test.Shared.Suites
                 cancelled.CancelRequested = true;
                 Assert.True(!EffectPolicyRules.RequeueOnLeaseExpiry(cancelled), "A cancel-requested run is not requeued under " + policy);
             }
-            Assert.True(!EffectPolicyRules.RequeuesStartedRuns(DeploymentEffectPolicyEnum.Journaled), "Journaled behaves as AtMostOnce until P12.33");
+            Assert.True(!EffectPolicyRules.RequeuesStartedRuns(DeploymentEffectPolicyEnum.Journaled), "Journaled behaves because the CLI has unknown effect coverage");
             return Task.CompletedTask;
         }
 
@@ -167,12 +169,80 @@ namespace Test.Shared.Suites
                             Assert.Equal(0, healthyExecutor.Executed, "The healthy worker never ran it under " + policy);
                             Assert.Equal(1, partitionedExecutor.Executed, "The run started once under " + policy);
                         }
+                        long settledEpoch = finished.LeaseEpoch;
+                        proxy.Heal();
+                        await Task.Delay(2500, token).ConfigureAwait(false);
+                        Run afterHeal = Assert.NotNull(await cluster.Server.Server.Context.Database.Runs.ReadAsync(finished.Id, token).ConfigureAwait(false), "Run after partition heals");
+                        Assert.Equal(finished.Status, afterHeal.Status, "Healing an old worker cannot change terminal status");
+                        Assert.Equal(settledEpoch, afterHeal.LeaseEpoch, "Healing cannot create another execution epoch");
+                        Assert.Equal(finished.ResultText, afterHeal.ResultText, "Old worker cannot overwrite the winning result");
                     }
                 }
                 finally
                 {
                     proxy.Heal();
                     await partitioned.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static async Task TransientPartitionAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+            using (HttpPartitionProxy proxy = new HttpPartitionProxy(cluster.Server.BaseUrl))
+            {
+                RuntimeOptions options = cluster.Server.Server.Context.Get<RuntimeOptions>();
+                options.LeaseDurationMs = 30000;
+                options.MaintenanceIntervalMs = 500;
+                options.PauseGraceMs = 60000;
+                Agent agent = await cluster.CreateAgentAsync("transient-partition", "builtin/fake", null, token, deployment => deployment.EffectPolicy = DeploymentEffectPolicyEnum.AtMostOnce).ConfigureAwait(false);
+                HoldingExecutor executor = new HoldingExecutor("survived-transient-outage");
+                executor.HoldMs = 6000;
+                proxy.PartitionAfterStartAcknowledged = true;
+                await using (WorkerHost worker = await TestCluster.StartWorkerAsync(proxy.BaseUrl, "transient-worker", null, token, executor).ConfigureAwait(false))
+                {
+                    Run admitted = await CreateRunAsync(cluster.Server, agent, "Temporary control-plane outage", token).ConfigureAwait(false);
+                    Run running = await WaitForAsync(cluster, admitted.Id, run => run.Status == RunStatusEnum.Running, TimeSpan.FromSeconds(30), "first start", token).ConfigureAwait(false);
+                    Assert.True(proxy.Partitioned, "All worker requests are cut after start acknowledgement");
+                    await Task.Delay(2000, token).ConfigureAwait(false);
+                    proxy.Heal();
+                    Run finished = await WaitForAsync(cluster, admitted.Id, run => RunService.IsTerminal(run.Status), TimeSpan.FromSeconds(60), "completion after healing", token).ConfigureAwait(false);
+                    Assert.Equal(RunStatusEnum.Succeeded, finished.Status, "Work survives the short outage: " + finished.ErrorMessage);
+                    Assert.Equal(running.LeaseEpoch, finished.LeaseEpoch, "No new lease after transient outage");
+                    Assert.Equal(1, finished.Attempt, "No replay under AtMostOnce");
+                    Assert.Equal(1, executor.Executed, "Harness executes exactly once");
+                    Assert.Equal("survived-transient-outage", finished.ResultText, "Completion delivered after healing");
+                }
+            }
+        }
+
+        private static async Task TransientConnectionResetAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+            using (TcpFaultProxy proxy = new TcpFaultProxy("127.0.0.1", new Uri(cluster.Server.BaseUrl).Port))
+            {
+                RuntimeOptions options = cluster.Server.Server.Context.Get<RuntimeOptions>();
+                options.LeaseDurationMs = 30000;
+                options.MaintenanceIntervalMs = 500;
+                options.PauseGraceMs = 60000;
+                Agent agent = await cluster.CreateAgentAsync("transient-reset", "builtin/fake", null, token, deployment => deployment.EffectPolicy = DeploymentEffectPolicyEnum.AtMostOnce).ConfigureAwait(false);
+                HoldingExecutor executor = new HoldingExecutor("survived-transient-outage");
+                executor.HoldMs = 6000;
+                string workerUrl = "http://127.0.0.1:" + proxy.Port;
+                await using (WorkerHost worker = await TestCluster.StartWorkerAsync(workerUrl, "transient-worker", null, token, executor).ConfigureAwait(false))
+                {
+                    Run admitted = await CreateRunAsync(cluster.Server, agent, "Temporary control-plane outage", token).ConfigureAwait(false);
+                    Run running = await WaitForAsync(cluster, admitted.Id, run => run.Status == RunStatusEnum.Running, TimeSpan.FromSeconds(30), "first start", token).ConfigureAwait(false);
+                    proxy.Cut();
+                    Assert.True(proxy.IsCut, "Active TCP connections reset and new connections refused");
+                    await Task.Delay(2000, token).ConfigureAwait(false);
+                    proxy.Restore();
+                    Run finished = await WaitForAsync(cluster, admitted.Id, run => RunService.IsTerminal(run.Status), TimeSpan.FromSeconds(60), "completion after healing", token).ConfigureAwait(false);
+                    Assert.Equal(RunStatusEnum.Succeeded, finished.Status, "Work survives the short outage: " + finished.ErrorMessage);
+                    Assert.Equal(running.LeaseEpoch, finished.LeaseEpoch, "No new lease after transient outage");
+                    Assert.Equal(1, finished.Attempt, "No replay under AtMostOnce");
+                    Assert.Equal(1, executor.Executed, "Harness executes exactly once");
+                    Assert.Equal("survived-transient-outage", finished.ResultText, "Completion delivered after healing");
                 }
             }
         }

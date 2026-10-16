@@ -9,6 +9,22 @@ namespace Garrison.Benchmark.Reporting
     /// </summary>
     public class LoadLevelResult
     {
+        /// <summary>Number of successful runs with observed completed SQL attribution scopes.</summary>
+        public int ExactDbUsageRuns { get; set; }
+        /// <summary>Successful runs whose attribution could not be read or lacked completion scope.</summary>
+        public int ExactDbUsageMissingRuns { get; set; }
+        /// <summary>Exact scoped statement attempts divided by observed attributed successful runs; excludes shared work and telemetry persistence.</summary>
+        public double? ExactScopedDbStatementsPerRun { get; set; }
+        /// <summary>Exact scoped read attempts divided by observed attributed successful runs.</summary>
+        public double? ExactScopedDbReadsPerRun { get; set; }
+        /// <summary>Exact scoped write attempts divided by observed attributed successful runs.</summary>
+        public double? ExactScopedDbWritesPerRun { get; set; }
+
+        /// <summary>Server-wide database statement delta divided by successful runs. Includes background and failed-run work, so this is an estimate, not per-run attribution.</summary>
+        public double? EstimatedDbStatementsPerSucceededRun { get; set; }
+        /// <summary>Server-wide request-history header insert delta divided by successful runs.</summary>
+        public double? EstimatedRequestHistoryHeaderInsertsPerSucceededRun { get; set; }
+
         /// <summary>
         /// Arm.
         /// </summary>

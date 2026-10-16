@@ -55,6 +55,9 @@ namespace Garrison.Harnesses.AppServer
             }
         }
 
+        /// <summary>Called when the permission endpoint requests a durable checkpoint.</summary>
+        public Action? SuspendRequested { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -187,6 +190,7 @@ namespace Garrison.Harnesses.AppServer
                 reply.Message = "Garrison could not be asked: " + e.Message;
             }
 
+            if (reply.Suspended || reply.Message?.Contains("GARRISON_CONTINUATION_WAIT", StringComparison.Ordinal) == true) SuspendRequested?.Invoke();
             Log?.Invoke("codex " + kind.ToLowerInvariant() + " approval " + (reply.ApprovalId ?? String.Empty) + " " + (reply.Allowed ? "accepted" : "declined") + (reply.Allowed || String.IsNullOrEmpty(reply.Message) ? String.Empty : ": " + reply.Message));
             CodexApprovalResponse response = new CodexApprovalResponse();
             response.Decision = reply.Allowed ? "accept" : "decline";

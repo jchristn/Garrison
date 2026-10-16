@@ -17,6 +17,7 @@ namespace Garrison.Worker.Execution
 
         private readonly IRunExecutor _Process;
         private readonly IRunExecutor? _KubernetesJob;
+        private readonly IRunExecutor _Remote;
 
         #endregion
 
@@ -27,11 +28,13 @@ namespace Garrison.Worker.Execution
         /// </summary>
         /// <param name="process">Process executor.</param>
         /// <param name="kubernetesJob">Kubernetes Job executor, or null when the worker has none.</param>
+        /// <param name="remote">Remote A2A/MCP executor; null uses the built-in implementation.</param>
         /// <exception cref="ArgumentNullException">Thrown when process is null.</exception>
-        public RoutingRunExecutor(IRunExecutor process, IRunExecutor? kubernetesJob)
+        public RoutingRunExecutor(IRunExecutor process, IRunExecutor? kubernetesJob, IRunExecutor? remote = null)
         {
             _Process = process ?? throw new ArgumentNullException(nameof(process));
             _KubernetesJob = kubernetesJob;
+            _Remote = remote ?? new RemoteRunExecutor();
         }
 
         #endregion
@@ -54,6 +57,7 @@ namespace Garrison.Worker.Execution
                 refused.CompletedUtc = DateTime.UtcNow;
                 return Task.FromResult(refused);
             }
+            if (executor == RunExecutorEnum.RemoteA2A || executor == RunExecutorEnum.RemoteMcp) return _Remote.ExecuteAsync(assignment, reporter, token);
             if (executor == RunExecutorEnum.Process) return _Process.ExecuteAsync(assignment, reporter, token);
             if (executor == RunExecutorEnum.KubernetesJob && _KubernetesJob != null) return _KubernetesJob.ExecuteAsync(assignment, reporter, token);
 
@@ -71,6 +75,7 @@ namespace Garrison.Worker.Execution
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
             RunExecutorEnum executor = assignment.Spec?.Executor ?? RunExecutorEnum.Process;
             if (executor == RunExecutorEnum.KubernetesJob) _KubernetesJob?.Release(assignment, succeeded);
+            else if (executor == RunExecutorEnum.RemoteA2A || executor == RunExecutorEnum.RemoteMcp) _Remote.Release(assignment, succeeded);
             else _Process.Release(assignment, succeeded);
         }
 

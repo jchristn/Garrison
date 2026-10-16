@@ -160,6 +160,9 @@ namespace Garrison.Worker.Settings
         /// </summary>
         public bool McpTestsEnabled { get; set; } = false;
 
+        /// <summary>Enable private per-node git mirrors. Default true; GARRISON_WORKER_GIT_CACHE_ENABLED overrides it.</summary>
+        public bool GitCacheEnabled { get; set; } = true;
+
         /// <summary>
         /// Root directory for per-run work, home, and config directories. Default workspaces (Kubernetes: /workspaces).
         /// </summary>
@@ -622,6 +625,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Boolean.TryParse(value, out bool mcpTests)) McpTestsEnabled = mcpTests;
             value = Env("GARRISON_WORKER_WORK_ROOT");
             if (value != null) WorkRoot = value;
+            value = Environment.GetEnvironmentVariable("GARRISON_WORKER_GIT_CACHE_ENABLED");
+            if (Boolean.TryParse(value, out bool gitCacheEnabled)) GitCacheEnabled = gitCacheEnabled;
             value = Env("GARRISON_WORKER_CONVERSATION_RETENTION_HOURS");
             if (value != null && Int32.TryParse(value, out int retentionHours)) ConversationRetentionHours = retentionHours;
             value = Env("GARRISON_WORKER_HEALTH_PORT");

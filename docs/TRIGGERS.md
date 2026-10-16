@@ -129,6 +129,8 @@ Review pull request #{{webhook.json.number}} ({{webhook.json.action}}) and post 
 
 An input that renders to nothing is not sent: the fire fails with `InputRequired`. A template that fails to render fails the fire with `TemplateRenderFailed`, and a template that was deleted fails it with `InputTemplateNotFound`.
 
+For an agent target with an input schema, the rendered input must be JSON matching that schema. A failure is recorded on the fire as `InputNotJson` or `InputSchemaViolation`, and no agent run starts. For pipeline targets, each stage validates its rendered handoff during compilation; see [Pipelines](PIPELINES.md#the-handoff-between-stages).
+
 ## Manual fire
 
 `POST .../triggers/{id}/fire` fires a trigger now, regardless of its type or schedule, and answers 201 with the fire. An optional body `{"body": "...", "contentType": "application/json"}` is passed to the template as `webhook.body` (and `webhook.json` when it parses as JSON), which is the easiest way to try a webhook trigger's template without signing anything. A manual fire needs `Trigger.Execute`, still runs as the trigger's run-as principal, and does not move the cron schedule.

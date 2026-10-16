@@ -1,0 +1,19 @@
+{
+  "fixture": "Generated 2000-agent synthetic corpus on a private PostgreSQL stack with three control-plane replicas. 4040 documents in 81 batches of 50. Shared development host; cached implementation only.",
+  "datasetSha256": "5c6fc00f82e5c090264fba8e7298921920ca2feb74527e1f12c09e430a84b250",
+  "documents": 4040,
+  "created": 4040,
+  "failed": 0,
+  "requestErrors": 0,
+  "documentsPerSecond": 331.34140829841937,
+  "applyP50Ms": 140.0472,
+  "applyP95Ms": 226.7425,
+  "reapplyUnchangedRate": 1,
+  "reapplyP50Ms": 118.6775,
+  "reapplyP95Ms": 276.9132,
+  "dryRunMs": 2173.8948,
+  "reachableAgents": 2000,
+  "probesPassed": 9,
+  "probesTotal": 9,
+  "limits": "This validates PostgreSQL ingestion at 4040 documents, with idempotence and reachability. No legacy uncached binary was run, so no paired cache speedup or cross-provider performance claim is made."
+}

@@ -1,0 +1,634 @@
+{
+  "schemaVersion": 1,
+  "kind": "load",
+  "dataset": "synthetic-fleet",
+  "label": "timing-baseline",
+  "deterministic": false,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-16T14:27:49.787802Z",
+    "finishedUtc": "2026-10-16T14:28:26.720627Z",
+    "sutUrl": "http://127.0.0.1:37800",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "stackDetails": "timing ablation baseline; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+    "productCommit": "f64960d78a59a1008a58c4c9aa01825f32bd2325-dirty",
+    "productDirtyFiles": 399,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "68bc0a61b0171c9408fdd5fc36370e7b0fc156e4-dirty",
+    "machineName": "joels-mbp",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "synthetic-fleet",
+    "datasetSha256": "2e79613ad9cab719bd66ffaa8c3eb6ac6688c37ae25a5eae9ab23cf67cf5b52a",
+    "datasetPath": "benchmarks/datasets/synthetic-fleet.json",
+    "commandLine": "Garrison.Benchmark load --url http://127.0.0.1:37800 --admin-key *** --stack local --stack-details \"timing ablation baseline; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots\" --mode closed --concurrency 16 --warmup-seconds 5 --duration-seconds 30 --label timing-baseline",
+    "seed": 42
+  },
+  "options": {
+    "agent": "load-echo",
+    "arms": "garrison",
+    "concurrency": "16",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "load",
+    "dataset": "benchmarks/datasets/synthetic-fleet.json",
+    "delay-ms": "0",
+    "duration-seconds": "30",
+    "input": "load test run",
+    "kubeconfig": "(unset)",
+    "label": "timing-baseline",
+    "lane-label": "bench.garrison.io/lane=alpha",
+    "max-connections": "1024",
+    "max-in-flight": "2000",
+    "mode": "closed",
+    "namespace": "garrison",
+    "rates": "1,2,4",
+    "ready-timeout-seconds": "120",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "(unset)",
+    "scale-workers": "",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "timing ablation baseline; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+    "sut-commit": "(unset)",
+    "trace": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "wait-seconds": "300",
+    "warmup-seconds": "5",
+    "worker-statefulset": "garrison-worker",
+    "workspace-suffix": "(unset)"
+  },
+  "arms": [],
+  "outcomes": [],
+  "loadLevels": [
+    {
+      "estimatedDbStatementsPerSucceededRun": 219.21766280107047,
+      "estimatedRequestHistoryHeaderInsertsPerSucceededRun": 1,
+      "arm": "garrison",
+      "mode": "closed",
+      "concurrency": 16,
+      "targetRate": 0,
+      "workers": 1,
+      "slots": 4,
+      "measuredSeconds": 30.390892500000003,
+      "started": 1121,
+      "succeeded": 1121,
+      "failed": 0,
+      "failuresByKind": {},
+      "throughput": 36.88605064823285,
+      "throughputCi": {
+        "estimate": 36.16129032258065,
+        "lower": 34.483870967741936,
+        "upper": 37.32258064516129,
+        "level": 0.95,
+        "n": 31,
+        "indicative": false
+      },
+      "perSecond": [
+        32,
+        35,
+        36,
+        37,
+        38,
+        39,
+        37,
+        38,
+        39,
+        38,
+        38,
+        40,
+        38,
+        39,
+        38,
+        38,
+        37,
+        33,
+        37,
+        37,
+        37,
+        36,
+        38,
+        35,
+        33,
+        35,
+        36,
+        37,
+        37,
+        37,
+        16
+      ],
+      "latency": {
+        "count": 1121,
+        "mean": 431.0767801070472,
+        "stdDev": 29.96248909144631,
+        "min": 119.4796,
+        "p50": 430.7030999999997,
+        "p90": 463.6105000000025,
+        "p95": 475.85009999999966,
+        "p99": 489.9214000000029,
+        "max": 509.1052,
+        "p50Ci": {
+          "estimate": 430.7030999999997,
+          "lower": 429.16319999999905,
+          "upper": 431.95760000000064,
+          "level": 0.95,
+          "n": 1121,
+          "indicative": false
+        },
+        "p95Ci": {
+          "estimate": 475.85009999999966,
+          "lower": 473.09519999999975,
+          "upper": 479.0564000000013,
+          "level": 0.95,
+          "n": 1121,
+          "indicative": false
+        }
+      },
+      "timings": {
+        "clientOverheadMs": {
+          "count": 1121,
+          "mean": 348.12584344335414,
+          "stdDev": 27.290723806136665,
+          "min": 42.479600000000005,
+          "p50": 348.14589999999953,
+          "p90": 375.46710000000166,
+          "p95": 386.75419999999986,
+          "p99": 397.3679000000011,
+          "max": 418.1052,
+          "p50Ci": {
+            "estimate": 348.14589999999953,
+            "lower": 346.41550000000007,
+            "upper": 349.3613999999998,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 386.75419999999986,
+            "lower": 384.3637999999992,
+            "upper": 388.8237000000008,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          }
+        },
+        "executionMs": {
+          "count": 1121,
+          "mean": 82.95093666369313,
+          "stdDev": 5.8299030190187064,
+          "min": 60,
+          "p50": 82,
+          "p90": 91,
+          "p95": 94,
+          "p99": 100,
+          "max": 107,
+          "p50Ci": {
+            "estimate": 82,
+            "lower": 81,
+            "upper": 82,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 94,
+            "lower": 92,
+            "upper": 95,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          }
+        },
+        "queueMs": {
+          "count": 1121,
+          "mean": 323.6494201605709,
+          "stdDev": 27.895423685793197,
+          "min": 18,
+          "p50": 324,
+          "p90": 350,
+          "p95": 361,
+          "p99": 371,
+          "max": 382,
+          "p50Ci": {
+            "estimate": 324,
+            "lower": 323,
+            "upper": 325,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 361,
+            "lower": 358,
+            "upper": 363,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          }
+        },
+        "serverOverheadMs": {
+          "count": 1121,
+          "mean": 344.2194469223907,
+          "stdDev": 27.691702213471046,
+          "min": 36,
+          "p50": 344,
+          "p90": 372,
+          "p95": 382,
+          "p99": 393,
+          "max": 404,
+          "p50Ci": {
+            "estimate": 344,
+            "lower": 343,
+            "upper": 346,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 382,
+            "lower": 380,
+            "upper": 385,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          }
+        },
+        "totalMs": {
+          "count": 1121,
+          "mean": 427.17038358608386,
+          "stdDev": 30.314077009567985,
+          "min": 113,
+          "p50": 427,
+          "p90": 460,
+          "p95": 471,
+          "p99": 486,
+          "max": 495,
+          "p50Ci": {
+            "estimate": 427,
+            "lower": 426,
+            "upper": 428,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 471,
+            "lower": 469,
+            "upper": 475,
+            "level": 0.95,
+            "n": 1121,
+            "indicative": false
+          }
+        }
+      },
+      "stages": [
+        {
+          "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke\",status_class=\"2xx\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 482830.3499999996,
+          "mean": 430.7139607493306,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_invocation_wait_duration_seconds{result=\"completed\",surface=\"rest\"}",
+          "count": 1121,
+          "total": 479783.26340000005,
+          "mean": 427.9957746654773,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 478857.99999999936,
+          "mean": 427.1703835860833,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"queue\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 362811.0000000008,
+          "mean": 323.64942016057165,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"execution\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 92987.99999999924,
+          "mean": 82.95093666369246,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
+          "count": 1122,
+          "total": 66612.15999999993,
+          "mean": 59.369126559714736,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
+          "count": 3,
+          "total": 59995.23329999999,
+          "mean": 19998.411099999998,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"aborted\",tenant=\"default\"}",
+          "count": 1119,
+          "total": 56828.17,
+          "mean": 50.784781054512955,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 54710.99999999973,
+          "mean": 48.80553077609253,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token_excl_delegation\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 54710.99999999973,
+          "mean": 48.80553077609253,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"streaming\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 27059.999999999683,
+          "mean": 24.1391614629792,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"assigned\"}",
+          "count": 1119,
+          "total": 6184.919900000014,
+          "mean": 5.527184897229683,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
+          "count": 1119,
+          "total": 6080.1085,
+          "mean": 5.433519660411082,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+          "count": 4502,
+          "total": 4502.191099999992,
+          "mean": 1.0000424478009755,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_compile_duration_seconds{agent=\"load-echo\",harness=\"Generic\",result=\"ok\"}",
+          "count": 1121,
+          "total": 3133.4568000000027,
+          "mean": 2.795233541480823,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"startup\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 3106.9999999999227,
+          "mean": 2.7716324710079596,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_scheduler_claim_duration_seconds{result=\"empty\"}",
+          "count": 1256,
+          "total": 2829.1317999999987,
+          "mean": 2.2524934713375786,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+          "count": 7847,
+          "total": 2504.9296000000145,
+          "mean": 0.3192213075060551,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"none\",stage=\"compile\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+          "count": 1121,
+          "total": 2475.1433,
+          "mean": 2.207977966101695,
+          "unit": "ms"
+        },
+        {
+          "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+          "count": 14668,
+          "total": 2256.248499999997,
+          "mean": 0.15382114125988525,
+          "unit": "ms"
+        }
+      ]
+    }
+  ],
+  "scenarios": [],
+  "stages": [
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke\",status_class=\"2xx\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 566277.7899999997,
+      "mean": 438.6350038729665,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_invocation_wait_duration_seconds{result=\"completed\",surface=\"rest\"}",
+      "count": 1291,
+      "total": 561682.3567000001,
+      "mean": 435.07541185127815,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 560856.9999999994,
+      "mean": 434.4360960495735,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"queue\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 424693.00000000076,
+      "mean": 328.9643687064297,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"execution\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 108397.99999999926,
+      "mean": 83.96436870642854,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 1286,
+      "total": 68831.83999999992,
+      "mean": 53.5239813374805,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"aborted\",tenant=\"default\"}",
+      "count": 1280,
+      "total": 65174.95,
+      "mean": 50.9179296875,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 63995.99999999972,
+      "mean": 49.57087529047229,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token_excl_delegation\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 63995.99999999972,
+      "mean": 49.57087529047229,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
+      "count": 3,
+      "total": 59995.23329999999,
+      "mean": 19998.411099999998,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"streaming\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 31606.999999999676,
+      "mean": 24.48257164988356,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"assigned\"}",
+      "count": 1283,
+      "total": 8285.101400000014,
+      "mean": 6.457600467653947,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
+      "count": 1283,
+      "total": 7267.5136,
+      "mean": 5.66446890101325,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 5180,
+      "total": 5303.785999999993,
+      "mean": 1.0238969111969098,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"startup\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 4083.999999999923,
+      "mean": 3.1634391944228684,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_compile_duration_seconds{agent=\"load-echo\",harness=\"Generic\",result=\"ok\"}",
+      "count": 1291,
+      "total": 3762.9219000000026,
+      "mean": 2.9147342370255633,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"empty\"}",
+      "count": 1457,
+      "total": 3381.109299999999,
+      "mean": 2.3205966369251882,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 9038,
+      "total": 3197.4552000000144,
+      "mean": 0.35377906616508237,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"none\",stage=\"compile\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 2995.0013000000004,
+      "mean": 2.319908055770721,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+      "count": 16894,
+      "total": 2694.868999999997,
+      "mean": 0.15951633716112212,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/runs/{runId}/complete\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 1291,
+      "total": 1635.8599999999985,
+      "mean": 1.2671262587141738,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"update\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+      "count": 7771,
+      "total": 1035.765199999997,
+      "mean": 0.1332859606228281,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/runs/{runId}/started\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 2582,
+      "total": 994.6100000000002,
+      "mean": 0.38520914020139435,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/runs/{runId}/events\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 1291,
+      "total": 806.8599999999993,
+      "mean": 0.624988381099922,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"load-echo\",deployment=\"load-echo-fake\",harness=\"Generic\",model=\"none\",stage=\"claim\",tenant=\"ten_mvb2b5b8_WU2fsXIj0XhrvM2Vr3d\"}",
+      "count": 1291,
+      "total": 774.7872000000001,
+      "mean": 0.6001450038729668,
+      "unit": "ms"
+    }
+  ],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    },
+    {
+      "metric": "load.garrison.closed.w2-c1.queueMs.p50",
+      "source": "docs/SCALING.md, Measured results (2026-10-10)",
+      "link": "docs/SCALING.md",
+      "baseline": 39,
+      "note": "Claim latency with no backlog (16 runs of 0.5 s on 16 slots); here one closed-loop client on 8 slots."
+    }
+  ],
+  "notes": [
+    "Closed loop hides stalls (coordinated omission); use --mode open for latency claims. Open loop measures from the scheduled send time."
+  ]
+}

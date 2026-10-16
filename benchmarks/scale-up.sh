@@ -85,7 +85,7 @@ start_server() {
   "Database": { "Type": "Postgresql", "Host": "127.0.0.1", "Port": ${SCALE_PG_PORT}, "DatabaseName": "garrison", "Username": "garrison", "Password": "${SCALE_PG_PASSWORD}", "MaxPoolSize": ${POOL} },
   "Auth": { "AdminApiKey": "${ADMIN_KEY}" },
   "Logging": { "ConsoleLogging": true, "MinimumSeverity": 2 },
-  "Telemetry": { "Enabled": true, "PrometheusHostname": "127.0.0.1", "PrometheusPort": $((SCALE_PROMETHEUS_BASE + n)), "OtlpEnable": false },
+  "Telemetry": { "Enabled": true, "ServeMetricsOnServicePort": true, "PrometheusHostname": "127.0.0.1", "PrometheusPort": $((SCALE_PROMETHEUS_BASE + n)), "OtlpEnable": false },
   "Cluster": { "ExpectedReplicas": ${SERVERS} }
 }
 JSON
@@ -111,6 +111,8 @@ start_worker() {
   local n="$1" dir="${SCALE_DIR}/worker-$1"
   local server=$(( (n - 1) % SERVERS + 1 ))
   mkdir -p "${dir}"
+  # Timing experiments use a private settings file instead of changing worker production defaults.
+  printf '{"EventFlushIntervalMs":%s,"LeaseWaitMs":%s}\n' "${BENCH_EVENT_FLUSH_MS:-250}" "${BENCH_LEASE_WAIT_MS:-20000}" > "${dir}/garrison-worker.json"
   (cd "${dir}" && PATH="${SCALE_DIR}/bin:/usr/bin:/bin" HOME="${dir}" \
     GARRISON_WORKER_SERVER_URL="http://127.0.0.1:$((SCALE_REST_BASE + server))" GARRISON_WORKER_NODE_NAME="scale-worker-${n}" \
     GARRISON_WORKER_LABELS="garrison.io/pool=default,bench.garrison.io/lane=scale" \

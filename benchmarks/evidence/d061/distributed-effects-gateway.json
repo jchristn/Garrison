@@ -1,0 +1,1381 @@
+{
+  "samples": [
+    {
+      "baselineMs": 229.5111670000001,
+      "gatewayMs": 135.73516699999982,
+      "differenceMs": -93.7760000000003
+    },
+    {
+      "baselineMs": 116.16291699999965,
+      "gatewayMs": 168.83745799999951,
+      "differenceMs": 52.67454099999986
+    },
+    {
+      "baselineMs": 103.25933400000031,
+      "gatewayMs": 155.67645800000082,
+      "differenceMs": 52.41712400000051
+    },
+    {
+      "baselineMs": 135.03437500000018,
+      "gatewayMs": 159.18208400000003,
+      "differenceMs": 24.14770899999985
+    },
+    {
+      "baselineMs": 207.79008299999987,
+      "gatewayMs": 177.774042,
+      "differenceMs": -30.01604099999986
+    },
+    {
+      "baselineMs": 110.05283299999974,
+      "gatewayMs": 117.9566249999998,
+      "differenceMs": 7.903792000000067
+    },
+    {
+      "baselineMs": 221.0291669999997,
+      "gatewayMs": 237.17991699999948,
+      "differenceMs": 16.15074999999979
+    },
+    {
+      "baselineMs": 97.46287500000017,
+      "gatewayMs": 172.84962499999983,
+      "differenceMs": 75.38674999999967
+    },
+    {
+      "baselineMs": 110.26379200000065,
+      "gatewayMs": 107.97733299999982,
+      "differenceMs": -2.286459000000832
+    },
+    {
+      "baselineMs": 116.53629200000069,
+      "gatewayMs": 165.58466700000008,
+      "differenceMs": 49.048374999999396
+    },
+    {
+      "baselineMs": 93.42604099999971,
+      "gatewayMs": 164.11625000000004,
+      "differenceMs": 70.69020900000032
+    },
+    {
+      "baselineMs": 158.79562500000065,
+      "gatewayMs": 162.37354199999936,
+      "differenceMs": 3.577916999998706
+    },
+    {
+      "baselineMs": 85.2836669999997,
+      "gatewayMs": 108.10420800000065,
+      "differenceMs": 22.820541000000958
+    },
+    {
+      "baselineMs": 178.12474999999995,
+      "gatewayMs": 119.58275000000049,
+      "differenceMs": -58.54199999999946
+    },
+    {
+      "baselineMs": 174.11166700000012,
+      "gatewayMs": 135.11270799999966,
+      "differenceMs": -38.99895900000047
+    },
+    {
+      "baselineMs": 215.09987499999988,
+      "gatewayMs": 200.23425000000043,
+      "differenceMs": -14.865624999999454
+    },
+    {
+      "baselineMs": 88.46070899999904,
+      "gatewayMs": 131.60683299999982,
+      "differenceMs": 43.14612400000078
+    },
+    {
+      "baselineMs": 177.35720799999945,
+      "gatewayMs": 127.54724999999962,
+      "differenceMs": -49.809957999999824
+    },
+    {
+      "baselineMs": 166.75037500000144,
+      "gatewayMs": 185.08316700000069,
+      "differenceMs": 18.332791999999245
+    },
+    {
+      "baselineMs": 94.02712500000052,
+      "gatewayMs": 170.81816700000127,
+      "differenceMs": 76.79104200000074
+    },
+    {
+      "baselineMs": 96.04058400000031,
+      "gatewayMs": 116.70770799999991,
+      "differenceMs": 20.667123999999603
+    },
+    {
+      "baselineMs": 132.05299999999988,
+      "gatewayMs": 123.75458299999991,
+      "differenceMs": -8.298416999999972
+    },
+    {
+      "baselineMs": 165.4439999999995,
+      "gatewayMs": 189.19054099999994,
+      "differenceMs": 23.746541000000434
+    },
+    {
+      "baselineMs": 109.5577089999988,
+      "gatewayMs": 155.98662499999955,
+      "differenceMs": 46.428916000000754
+    },
+    {
+      "baselineMs": 92.09579200000007,
+      "gatewayMs": 122.429666,
+      "differenceMs": 30.333873999999923
+    },
+    {
+      "baselineMs": 136.29249999999956,
+      "gatewayMs": 152.95433299999968,
+      "differenceMs": 16.661833000000115
+    },
+    {
+      "baselineMs": 107.972749999999,
+      "gatewayMs": 133.99233399999866,
+      "differenceMs": 26.019583999999668
+    },
+    {
+      "baselineMs": 109.58691700000054,
+      "gatewayMs": 190.12474999999904,
+      "differenceMs": 80.5378329999985
+    },
+    {
+      "baselineMs": 90.89441599999918,
+      "gatewayMs": 143.4177920000002,
+      "differenceMs": 52.52337600000101
+    },
+    {
+      "baselineMs": 180.7170839999999,
+      "gatewayMs": 202.36433399999987,
+      "differenceMs": 21.647249999999985
+    },
+    {
+      "baselineMs": 121.33954199999971,
+      "gatewayMs": 196.17104199999994,
+      "differenceMs": 74.83150000000023
+    },
+    {
+      "baselineMs": 91.19754099999955,
+      "gatewayMs": 143.5739169999997,
+      "differenceMs": 52.376376000000164
+    },
+    {
+      "baselineMs": 92.15491699999984,
+      "gatewayMs": 105.92012500000055,
+      "differenceMs": 13.765208000000712
+    },
+    {
+      "baselineMs": 121.38262500000019,
+      "gatewayMs": 122.9716669999998,
+      "differenceMs": 1.5890419999996084
+    },
+    {
+      "baselineMs": 136.19237500000054,
+      "gatewayMs": 165.21208300000035,
+      "differenceMs": 29.01970799999981
+    },
+    {
+      "baselineMs": 112.61158299999988,
+      "gatewayMs": 102.27679100000023,
+      "differenceMs": -10.334791999999652
+    },
+    {
+      "baselineMs": 165.37779199999932,
+      "gatewayMs": 270.4432509999988,
+      "differenceMs": 105.06545899999946
+    },
+    {
+      "baselineMs": 145.58612500000163,
+      "gatewayMs": 269.1832919999997,
+      "differenceMs": 123.59716699999808
+    },
+    {
+      "baselineMs": 180.50508400000035,
+      "gatewayMs": 216.55737500000032,
+      "differenceMs": 36.05229099999997
+    },
+    {
+      "baselineMs": 89.63633300000038,
+      "gatewayMs": 130.9439170000005,
+      "differenceMs": 41.30758400000013
+    },
+    {
+      "baselineMs": 131.0572090000005,
+      "gatewayMs": 143.80349999999999,
+      "differenceMs": 12.746290999999474
+    },
+    {
+      "baselineMs": 86.07733399999961,
+      "gatewayMs": 141.15516699999898,
+      "differenceMs": 55.07783299999937
+    },
+    {
+      "baselineMs": 124.88883299999907,
+      "gatewayMs": 135.03949999999895,
+      "differenceMs": 10.150666999999885
+    },
+    {
+      "baselineMs": 115.14800099999957,
+      "gatewayMs": 102.56075000000055,
+      "differenceMs": -12.587250999999014
+    },
+    {
+      "baselineMs": 89.85516699999971,
+      "gatewayMs": 113.75687500000276,
+      "differenceMs": 23.901708000003055
+    },
+    {
+      "baselineMs": 113.3527499999982,
+      "gatewayMs": 127.71629200000098,
+      "differenceMs": 14.36354200000278
+    },
+    {
+      "baselineMs": 109.10175000000163,
+      "gatewayMs": 122.23541699999987,
+      "differenceMs": 13.13366699999824
+    },
+    {
+      "baselineMs": 133.08599999999933,
+      "gatewayMs": 129.98954199999935,
+      "differenceMs": -3.096457999999984
+    },
+    {
+      "baselineMs": 186.3996249999982,
+      "gatewayMs": 202.018167000002,
+      "differenceMs": 15.6185420000038
+    },
+    {
+      "baselineMs": 146.83429199999955,
+      "gatewayMs": 111.73833299999751,
+      "differenceMs": -35.09595900000204
+    },
+    {
+      "baselineMs": 165.62308399999893,
+      "gatewayMs": 272.20741700000144,
+      "differenceMs": 106.58433300000252
+    },
+    {
+      "baselineMs": 107.2899159999979,
+      "gatewayMs": 129.06987500000105,
+      "differenceMs": 21.779959000003146
+    },
+    {
+      "baselineMs": 129.43004199999996,
+      "gatewayMs": 119.0057080000006,
+      "differenceMs": -10.424333999999362
+    },
+    {
+      "baselineMs": 131.8652089999996,
+      "gatewayMs": 145.78399999999965,
+      "differenceMs": 13.918791000000056
+    },
+    {
+      "baselineMs": 76.96741699999984,
+      "gatewayMs": 202.13200000000143,
+      "differenceMs": 125.16458300000158
+    },
+    {
+      "baselineMs": 94.49354099999982,
+      "gatewayMs": 108.74812500000189,
+      "differenceMs": 14.254584000002069
+    },
+    {
+      "baselineMs": 136.2869580000006,
+      "gatewayMs": 136.82216699999844,
+      "differenceMs": 0.5352089999978489
+    },
+    {
+      "baselineMs": 95.5132909999993,
+      "gatewayMs": 119.37891700000182,
+      "differenceMs": 23.86562600000252
+    },
+    {
+      "baselineMs": 99.79504100000122,
+      "gatewayMs": 176.56737499999872,
+      "differenceMs": 76.7723339999975
+    },
+    {
+      "baselineMs": 121.89537500000006,
+      "gatewayMs": 136.0850419999988,
+      "differenceMs": 14.189666999998735
+    },
+    {
+      "baselineMs": 101.03020800000013,
+      "gatewayMs": 109.34545900000012,
+      "differenceMs": 8.31525099999999
+    },
+    {
+      "baselineMs": 109.64766700000109,
+      "gatewayMs": 120.48145799999838,
+      "differenceMs": 10.83379099999729
+    },
+    {
+      "baselineMs": 140.02008299999943,
+      "gatewayMs": 121.25700000000143,
+      "differenceMs": -18.763082999998005
+    },
+    {
+      "baselineMs": 105.97733399999925,
+      "gatewayMs": 118.23795800000153,
+      "differenceMs": 12.26062400000228
+    },
+    {
+      "baselineMs": 100.20049999999901,
+      "gatewayMs": 104.60108300000138,
+      "differenceMs": 4.400583000002371
+    },
+    {
+      "baselineMs": 98.88554199999999,
+      "gatewayMs": 142.0470830000013,
+      "differenceMs": 43.16154100000131
+    },
+    {
+      "baselineMs": 98.36737499999799,
+      "gatewayMs": 100.59820799999943,
+      "differenceMs": 2.2308330000014394
+    },
+    {
+      "baselineMs": 121.10154200000034,
+      "gatewayMs": 122.56774999999834,
+      "differenceMs": 1.466207999998005
+    },
+    {
+      "baselineMs": 82.7200840000005,
+      "gatewayMs": 109.01770899999974,
+      "differenceMs": 26.297624999999243
+    },
+    {
+      "baselineMs": 165.2177499999998,
+      "gatewayMs": 113.42062499999884,
+      "differenceMs": -51.79712500000096
+    },
+    {
+      "baselineMs": 111.77229200000147,
+      "gatewayMs": 127.78579199999876,
+      "differenceMs": 16.013499999997293
+    },
+    {
+      "baselineMs": 119.66883400000006,
+      "gatewayMs": 97.87641699999949,
+      "differenceMs": -21.79241700000057
+    },
+    {
+      "baselineMs": 91.65879199999836,
+      "gatewayMs": 121.90679200000159,
+      "differenceMs": 30.24800000000323
+    },
+    {
+      "baselineMs": 89.70254199999908,
+      "gatewayMs": 110.46162499999991,
+      "differenceMs": 20.759083000000828
+    },
+    {
+      "baselineMs": 106.34745799999655,
+      "gatewayMs": 105.29483299999993,
+      "differenceMs": -1.052624999996624
+    },
+    {
+      "baselineMs": 89.26095799999894,
+      "gatewayMs": 153.87833299999693,
+      "differenceMs": 64.61737499999799
+    },
+    {
+      "baselineMs": 92.64800000000105,
+      "gatewayMs": 152.93141599999944,
+      "differenceMs": 60.2834159999984
+    },
+    {
+      "baselineMs": 118.31070800000089,
+      "gatewayMs": 181.66704200000095,
+      "differenceMs": 63.35633400000006
+    },
+    {
+      "baselineMs": 89.91245899999922,
+      "gatewayMs": 120.27983300000051,
+      "differenceMs": 30.36737400000129
+    },
+    {
+      "baselineMs": 92.65975000000253,
+      "gatewayMs": 107.56475000000137,
+      "differenceMs": 14.904999999998836
+    },
+    {
+      "baselineMs": 103.94629200000054,
+      "gatewayMs": 115.52504200000112,
+      "differenceMs": 11.578750000000582
+    },
+    {
+      "baselineMs": 117.570291,
+      "gatewayMs": 184.1570419999989,
+      "differenceMs": 66.58675099999891
+    },
+    {
+      "baselineMs": 94.4765830000033,
+      "gatewayMs": 116.99770799999897,
+      "differenceMs": 22.521124999995664
+    },
+    {
+      "baselineMs": 103.54391699999906,
+      "gatewayMs": 104.91520899999887,
+      "differenceMs": 1.371291999999812
+    },
+    {
+      "baselineMs": 146.40929200000028,
+      "gatewayMs": 135.70833400000265,
+      "differenceMs": -10.700957999997627
+    },
+    {
+      "baselineMs": 109.95645800000057,
+      "gatewayMs": 104.33274999999776,
+      "differenceMs": -5.623708000002807
+    },
+    {
+      "baselineMs": 99.06937499999913,
+      "gatewayMs": 127.49887500000114,
+      "differenceMs": 28.429500000002008
+    },
+    {
+      "baselineMs": 100.07416699999885,
+      "gatewayMs": 124.70187499999884,
+      "differenceMs": 24.627707999999984
+    },
+    {
+      "baselineMs": 97.87554199999795,
+      "gatewayMs": 159.03637499999968,
+      "differenceMs": 61.16083300000173
+    },
+    {
+      "baselineMs": 93.28637499999968,
+      "gatewayMs": 126.40591700000004,
+      "differenceMs": 33.119542000000365
+    },
+    {
+      "baselineMs": 111.35362499999974,
+      "gatewayMs": 108.63041599999997,
+      "differenceMs": -2.7232089999997697
+    },
+    {
+      "baselineMs": 85.11870899999849,
+      "gatewayMs": 145.6230420000029,
+      "differenceMs": 60.50433300000441
+    },
+    {
+      "baselineMs": 93.49066699999821,
+      "gatewayMs": 104.18570800000089,
+      "differenceMs": 10.695041000002675
+    },
+    {
+      "baselineMs": 89.29608400000143,
+      "gatewayMs": 147.18754099999933,
+      "differenceMs": 57.8914569999979
+    },
+    {
+      "baselineMs": 96.46937500000058,
+      "gatewayMs": 139.29275000000052,
+      "differenceMs": 42.82337499999994
+    },
+    {
+      "baselineMs": 126.67633399999977,
+      "gatewayMs": 100.01299999999901,
+      "differenceMs": -26.66333400000076
+    },
+    {
+      "baselineMs": 122.14187499999753,
+      "gatewayMs": 116.48870799999713,
+      "differenceMs": -5.653167000000394
+    },
+    {
+      "baselineMs": 87.43108299999949,
+      "gatewayMs": 94.26945800000249,
+      "differenceMs": 6.838375000002998
+    },
+    {
+      "baselineMs": 132.03087500000038,
+      "gatewayMs": 118.12320800000089,
+      "differenceMs": -13.907666999999492
+    },
+    {
+      "baselineMs": 96.44333299999926,
+      "gatewayMs": 104.33699999999953,
+      "differenceMs": 7.893667000000278
+    },
+    {
+      "baselineMs": 123.05629199999748,
+      "gatewayMs": 161.9496250000011,
+      "differenceMs": 38.89333300000362
+    },
+    {
+      "baselineMs": 94.59437600000092,
+      "gatewayMs": 107.62033299999894,
+      "differenceMs": 13.025956999998016
+    },
+    {
+      "baselineMs": 86.85324999999648,
+      "gatewayMs": 127.32995799999844,
+      "differenceMs": 40.47670800000196
+    },
+    {
+      "baselineMs": 104.40008300000045,
+      "gatewayMs": 158.23583399999916,
+      "differenceMs": 53.83575099999871
+    },
+    {
+      "baselineMs": 96.02150000000256,
+      "gatewayMs": 126.7467080000024,
+      "differenceMs": 30.72520799999984
+    },
+    {
+      "baselineMs": 113.22183399999994,
+      "gatewayMs": 106.67683400000169,
+      "differenceMs": -6.544999999998254
+    },
+    {
+      "baselineMs": 137.6200830000016,
+      "gatewayMs": 120.25325000000157,
+      "differenceMs": -17.366833000000042
+    },
+    {
+      "baselineMs": 169.96733400000085,
+      "gatewayMs": 105.41875000000073,
+      "differenceMs": -64.54858400000012
+    },
+    {
+      "baselineMs": 191.75283300000228,
+      "gatewayMs": 125.26304099999834,
+      "differenceMs": -66.48979200000394
+    },
+    {
+      "baselineMs": 169.31108400000085,
+      "gatewayMs": 125.97395799999867,
+      "differenceMs": -43.33712600000217
+    },
+    {
+      "baselineMs": 96.43174999999974,
+      "gatewayMs": 130.3533329999991,
+      "differenceMs": 33.92158299999937
+    },
+    {
+      "baselineMs": 128.47420799999963,
+      "gatewayMs": 140.00608400000056,
+      "differenceMs": 11.53187600000092
+    },
+    {
+      "baselineMs": 322.7103749999951,
+      "gatewayMs": 203.10391700000037,
+      "differenceMs": -119.60645799999475
+    },
+    {
+      "baselineMs": 93.65241699999751,
+      "gatewayMs": 128.14024999999674,
+      "differenceMs": 34.48783299999923
+    },
+    {
+      "baselineMs": 307.1882919999989,
+      "gatewayMs": 268.34941600000457,
+      "differenceMs": -38.83887599999434
+    },
+    {
+      "baselineMs": 81.1294579999958,
+      "gatewayMs": 141.99720899999375,
+      "differenceMs": 60.86775099999795
+    },
+    {
+      "baselineMs": 91.7822079999969,
+      "gatewayMs": 98.32404200000019,
+      "differenceMs": 6.541834000003291
+    },
+    {
+      "baselineMs": 121.46774999999616,
+      "gatewayMs": 100.88141600000381,
+      "differenceMs": -20.58633399999235
+    },
+    {
+      "baselineMs": 79.37874999999622,
+      "gatewayMs": 126.50983399999677,
+      "differenceMs": 47.131084000000556
+    },
+    {
+      "baselineMs": 151.07287499999802,
+      "gatewayMs": 131.90162500000588,
+      "differenceMs": -19.171249999992142
+    },
+    {
+      "baselineMs": 151.27358300000196,
+      "gatewayMs": 103.76175000000512,
+      "differenceMs": -47.51183299999684
+    },
+    {
+      "baselineMs": 88.05766700000095,
+      "gatewayMs": 136.37170799999876,
+      "differenceMs": 48.314040999997815
+    },
+    {
+      "baselineMs": 96.04637499999808,
+      "gatewayMs": 122.8125,
+      "differenceMs": 26.76612500000192
+    },
+    {
+      "baselineMs": 129.46274999999878,
+      "gatewayMs": 121.40579200000502,
+      "differenceMs": -8.056957999993756
+    },
+    {
+      "baselineMs": 133.24299999999494,
+      "gatewayMs": 232.0450839999976,
+      "differenceMs": 98.80208400000265
+    },
+    {
+      "baselineMs": 118.58991700000479,
+      "gatewayMs": 144.16258299999754,
+      "differenceMs": 25.57266599999275
+    },
+    {
+      "baselineMs": 88.16033299999981,
+      "gatewayMs": 129.85091600000305,
+      "differenceMs": 41.690583000003244
+    },
+    {
+      "baselineMs": 113.17104100000142,
+      "gatewayMs": 147.04891700000007,
+      "differenceMs": 33.87787599999865
+    },
+    {
+      "baselineMs": 201.05116700000508,
+      "gatewayMs": 167.84595800000534,
+      "differenceMs": -33.20520899999974
+    },
+    {
+      "baselineMs": 98.56762599999638,
+      "gatewayMs": 146.81287500000326,
+      "differenceMs": 48.24524900000688
+    },
+    {
+      "baselineMs": 91.05129099999613,
+      "gatewayMs": 129.16870899999776,
+      "differenceMs": 38.117418000001635
+    },
+    {
+      "baselineMs": 92.44858300000487,
+      "gatewayMs": 109.46162500000355,
+      "differenceMs": 17.013041999998677
+    },
+    {
+      "baselineMs": 119.71954099999857,
+      "gatewayMs": 126.46591700000135,
+      "differenceMs": 6.746376000002783
+    },
+    {
+      "baselineMs": 103.08008299999346,
+      "gatewayMs": 106.85795800000051,
+      "differenceMs": 3.777875000007043
+    },
+    {
+      "baselineMs": 102.21612499999901,
+      "gatewayMs": 126.13579100000061,
+      "differenceMs": 23.919666000001598
+    },
+    {
+      "baselineMs": 119.55999999999767,
+      "gatewayMs": 113.62766600000032,
+      "differenceMs": -5.932333999997354
+    },
+    {
+      "baselineMs": 131.3815420000028,
+      "gatewayMs": 110.56629199999588,
+      "differenceMs": -20.815250000006927
+    },
+    {
+      "baselineMs": 109.5816249999989,
+      "gatewayMs": 111.46095899999636,
+      "differenceMs": 1.8793339999974705
+    },
+    {
+      "baselineMs": 168.7271249999976,
+      "gatewayMs": 156.7604169999977,
+      "differenceMs": -11.966707999999926
+    },
+    {
+      "baselineMs": 110.42341700000543,
+      "gatewayMs": 150.5718330000018,
+      "differenceMs": 40.14841599999636
+    },
+    {
+      "baselineMs": 117.09495900000184,
+      "gatewayMs": 130.3414580000026,
+      "differenceMs": 13.246499000000767
+    },
+    {
+      "baselineMs": 155.07945800000016,
+      "gatewayMs": 137.04891700000007,
+      "differenceMs": -18.030541000000085
+    },
+    {
+      "baselineMs": 222.2337090000001,
+      "gatewayMs": 242.21158399999695,
+      "differenceMs": 19.977874999996857
+    },
+    {
+      "baselineMs": 117.9590840000019,
+      "gatewayMs": 170.63116699999955,
+      "differenceMs": 52.672082999997656
+    },
+    {
+      "baselineMs": 100.96404099999927,
+      "gatewayMs": 121.65800000000309,
+      "differenceMs": 20.693959000003815
+    },
+    {
+      "baselineMs": 202.15366699999868,
+      "gatewayMs": 157.75783299999603,
+      "differenceMs": -44.39583400000265
+    },
+    {
+      "baselineMs": 137.1594580000019,
+      "gatewayMs": 124.73283400000219,
+      "differenceMs": -12.42662399999972
+    },
+    {
+      "baselineMs": 96.86379099999613,
+      "gatewayMs": 175.39712500000314,
+      "differenceMs": 78.53333400000702
+    },
+    {
+      "baselineMs": 92.7871260000029,
+      "gatewayMs": 136.72254199999588,
+      "differenceMs": 43.93541599999298
+    },
+    {
+      "baselineMs": 148.02187499999854,
+      "gatewayMs": 128.23179199999868,
+      "differenceMs": -19.790082999999868
+    },
+    {
+      "baselineMs": 124.8682919999992,
+      "gatewayMs": 125.00758399999904,
+      "differenceMs": 0.1392919999998412
+    },
+    {
+      "baselineMs": 93.87016700000095,
+      "gatewayMs": 123.37058400000387,
+      "differenceMs": 29.500417000002926
+    },
+    {
+      "baselineMs": 97.90454200000386,
+      "gatewayMs": 152.96945799999958,
+      "differenceMs": 55.06491599999572
+    },
+    {
+      "baselineMs": 176.74575000000186,
+      "gatewayMs": 256.7373759999973,
+      "differenceMs": 79.99162599999545
+    },
+    {
+      "baselineMs": 156.08216700000048,
+      "gatewayMs": 198.13587499999994,
+      "differenceMs": 42.05370799999946
+    },
+    {
+      "baselineMs": 116.49608299999818,
+      "gatewayMs": 153.7953750000015,
+      "differenceMs": 37.299292000003334
+    },
+    {
+      "baselineMs": 112.88674999999785,
+      "gatewayMs": 133.64774999999645,
+      "differenceMs": 20.760999999998603
+    },
+    {
+      "baselineMs": 163.276291999995,
+      "gatewayMs": 157.388291999996,
+      "differenceMs": -5.8879999999990105
+    },
+    {
+      "baselineMs": 285.653999999995,
+      "gatewayMs": 214.54775000000518,
+      "differenceMs": -71.10624999998981
+    },
+    {
+      "baselineMs": 180.80575099999987,
+      "gatewayMs": 142.55541600000288,
+      "differenceMs": -38.250334999996994
+    },
+    {
+      "baselineMs": 132.32212499999878,
+      "gatewayMs": 161.52854200000002,
+      "differenceMs": 29.206417000001238
+    },
+    {
+      "baselineMs": 199.89150099999824,
+      "gatewayMs": 217.8244579999955,
+      "differenceMs": 17.93295699999726
+    },
+    {
+      "baselineMs": 125.89070899999933,
+      "gatewayMs": 125.16137500000332,
+      "differenceMs": -0.7293339999960153
+    },
+    {
+      "baselineMs": 101.12091599999985,
+      "gatewayMs": 122.21612499999901,
+      "differenceMs": 21.09520899999916
+    },
+    {
+      "baselineMs": 107.32325000000128,
+      "gatewayMs": 120.05187499999738,
+      "differenceMs": 12.7286249999961
+    },
+    {
+      "baselineMs": 98.98212500000227,
+      "gatewayMs": 152.62804100000358,
+      "differenceMs": 53.64591600000131
+    },
+    {
+      "baselineMs": 109.50091699999757,
+      "gatewayMs": 142.6909169999999,
+      "differenceMs": 33.19000000000233
+    },
+    {
+      "baselineMs": 98.44779199999903,
+      "gatewayMs": 105.45779200000106,
+      "differenceMs": 7.010000000002037
+    },
+    {
+      "baselineMs": 104.15445799999725,
+      "gatewayMs": 147.65033299999777,
+      "differenceMs": 43.495875000000524
+    },
+    {
+      "baselineMs": 151.42408299999806,
+      "gatewayMs": 189.50370800000383,
+      "differenceMs": 38.07962500000576
+    },
+    {
+      "baselineMs": 102.88175000000047,
+      "gatewayMs": 162.7062500000029,
+      "differenceMs": 59.824500000002445
+    },
+    {
+      "baselineMs": 127.16549999999552,
+      "gatewayMs": 119.75995800000237,
+      "differenceMs": -7.405541999993147
+    },
+    {
+      "baselineMs": 210.94225000000006,
+      "gatewayMs": 192.72354199999972,
+      "differenceMs": -18.218708000000333
+    },
+    {
+      "baselineMs": 172.50075100000686,
+      "gatewayMs": 358.9653330000001,
+      "differenceMs": 186.46458199999324
+    },
+    {
+      "baselineMs": 250.89379100000224,
+      "gatewayMs": 138.96337499999936,
+      "differenceMs": -111.93041600000288
+    },
+    {
+      "baselineMs": 98.87000000000262,
+      "gatewayMs": 228.05895800000144,
+      "differenceMs": 129.18895799999882
+    },
+    {
+      "baselineMs": 165.20020899999508,
+      "gatewayMs": 93.59133299999667,
+      "differenceMs": -71.60887599999842
+    },
+    {
+      "baselineMs": 126.29666700000234,
+      "gatewayMs": 108.96050000000105,
+      "differenceMs": -17.336167000001296
+    },
+    {
+      "baselineMs": 86.22204200000124,
+      "gatewayMs": 116.96220799999719,
+      "differenceMs": 30.740165999995952
+    },
+    {
+      "baselineMs": 92.83874999999534,
+      "gatewayMs": 152.1106660000005,
+      "differenceMs": 59.27191600000515
+    },
+    {
+      "baselineMs": 102.19345800000156,
+      "gatewayMs": 170.32854200000293,
+      "differenceMs": 68.13508400000137
+    },
+    {
+      "baselineMs": 112.69891599999391,
+      "gatewayMs": 144.55637500000012,
+      "differenceMs": 31.8574590000062
+    },
+    {
+      "baselineMs": 121.13045799999963,
+      "gatewayMs": 123.22454200000357,
+      "differenceMs": 2.0940840000039316
+    },
+    {
+      "baselineMs": 93.03041700000176,
+      "gatewayMs": 116.8628749999989,
+      "differenceMs": 23.832457999997132
+    },
+    {
+      "baselineMs": 98.34983300000022,
+      "gatewayMs": 162.3637080000044,
+      "differenceMs": 64.01387500000419
+    },
+    {
+      "baselineMs": 110.68966699999874,
+      "gatewayMs": 158.1596669999999,
+      "differenceMs": 47.470000000001164
+    },
+    {
+      "baselineMs": 152.78783299999486,
+      "gatewayMs": 219.52920799999993,
+      "differenceMs": 66.74137500000506
+    },
+    {
+      "baselineMs": 132.23154200000135,
+      "gatewayMs": 170.3385000000053,
+      "differenceMs": 38.10695800000394
+    },
+    {
+      "baselineMs": 171.4677920000031,
+      "gatewayMs": 124.64741700000013,
+      "differenceMs": -46.82037500000297
+    },
+    {
+      "baselineMs": 107.00212499999907,
+      "gatewayMs": 118.89800000000105,
+      "differenceMs": 11.895875000001979
+    },
+    {
+      "baselineMs": 147.52787499999977,
+      "gatewayMs": 129.52429200000188,
+      "differenceMs": -18.00358299999789
+    },
+    {
+      "baselineMs": 114.32954099999915,
+      "gatewayMs": 108.49429199999577,
+      "differenceMs": -5.835249000003387
+    },
+    {
+      "baselineMs": 175.44662499999686,
+      "gatewayMs": 159.9153329999972,
+      "differenceMs": -15.531291999999667
+    },
+    {
+      "baselineMs": 102.00916600000346,
+      "gatewayMs": 116.70137500000419,
+      "differenceMs": 14.69220900000073
+    },
+    {
+      "baselineMs": 126.9273749999993,
+      "gatewayMs": 112.9164579999997,
+      "differenceMs": -14.010916999999608
+    },
+    {
+      "baselineMs": 119.07708300000377,
+      "gatewayMs": 115.48724999999831,
+      "differenceMs": -3.5898330000054557
+    },
+    {
+      "baselineMs": 120.0555830000012,
+      "gatewayMs": 147.35141699999804,
+      "differenceMs": 27.29583399999683
+    },
+    {
+      "baselineMs": 104.65387500000361,
+      "gatewayMs": 135.18108400000347,
+      "differenceMs": 30.527208999999857
+    },
+    {
+      "baselineMs": 85.21775000000343,
+      "gatewayMs": 182.06804199999897,
+      "differenceMs": 96.85029199999553
+    },
+    {
+      "baselineMs": 117.22729200000322,
+      "gatewayMs": 150.58887500000128,
+      "differenceMs": 33.36158299999806
+    }
+  ],
+  "count": 200,
+  "warmup": 10,
+  "baselineP99Ms": 285.653999999995,
+  "gatewayP99Ms": 270.4432509999988,
+  "pairedDifferenceP99Ms": 125.16458300000158,
+  "positiveDifferenceP99Ms": 125.16458300000158,
+  "description": "Alternating paired MCP garrison_start_run calls: administrator control versus current-run fencing and durable intent journal. Includes transport, authorization differences and child admission; shared local cluster, not a production one-region guarantee.",
+  "runId": "run_mvb2n3wc_etIJS5jlbqpb08UxXNx",
+  "timestampUtc": "2026-10-16T14:38:06.143358+00:00",
+  "completedJournalOperations": 210,
+  "targetP99OverheadMs": null,
+  "measurementScope": "Paired full MCP child admission, including transport and admission; not intrinsic gateway middleware cost",
+  "passedLatencyTarget": null,
+  "gatewayMetricDeltas": {
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.0025\"}": 236.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.005\"}": 857.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.01\"}": 996.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.025\"}": 1017.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.05\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.1\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.25\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"0.5\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"1\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"2.5\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"5\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\",le=\"+Inf\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\"}": 3.8598542999999945,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"node_refresh\",result=\"ok\"}": 1019.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.001\"}": 166.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.0025\"}": 728.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.005\"}": 829.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.01\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.025\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.05\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.1\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.25\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"0.5\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"1\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"2.5\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"5\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\",le=\"+Inf\"}": 844.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\"}": 1.471123100000001,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"candidate_query\",result=\"ok\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.001\"}": 227.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.0025\"}": 771.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.005\"}": 835.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.01\"}": 843.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.025\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.05\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.1\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.25\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"0.5\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"1\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"2.5\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"5\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\",le=\"+Inf\"}": 844.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\"}": 1.292771099999999,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\"}": 844.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.005\"}": 183.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.01\"}": 401.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.025\"}": 458.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.05\"}": 464.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.1\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.25\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"0.5\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"1\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"2.5\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"5\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\",le=\"+Inf\"}": 465.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\"}": 3.2557060999999976,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"events\",result=\"ok\"}": 465.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.0001\"}": 419.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.00025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.0005\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.001\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.0025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.005\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.01\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\"}": 0.004891200000000014,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_accept\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.00025\"}": 22.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.0005\"}": 219.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.001\"}": 359.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.0025\"}": 414.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.005\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.01\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\"}": 0.2848484999999998,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"checkpoint_read\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.0001\"}": 419.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.00025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.0005\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.001\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.0025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.005\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.01\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\"}": 0.004757000000000014,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"credential_revoke\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"0.01\"}": 116.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"0.025\"}": 393.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"0.05\"}": 418.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\"}": 5.9506245000000035,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"complete\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.00025\"}": 18.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.0005\"}": 382.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.001\"}": 721.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.0025\"}": 820.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.005\"}": 834.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.01\"}": 841.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.025\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.05\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.1\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.25\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"0.5\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"1\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"2.5\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"5\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\",le=\"+Inf\"}": 842.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\"}": 0.6234801000000012,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"tenant_weight\",result=\"ok\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.005\"}": 217.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.01\"}": 383.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.025\"}": 418.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\"}": 2.637162899999998,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"claim\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.005\"}": 215.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.01\"}": 383.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.025\"}": 418.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\"}": 2.6416826,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"claim\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.00025\"}": 17.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.0005\"}": 224.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.001\"}": 356.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.0025\"}": 411.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.005\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.01\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\"}": 0.2815488999999999,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_prepare\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.00025\"}": 19.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.0005\"}": 215.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.001\"}": 372.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.0025\"}": 410.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.005\"}": 419.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.01\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.025\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.05\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\"}": 0.28097880000000003,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_apply\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"0.05\"}": 260.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"0.1\"}": 410.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\"}": 21.43247530000002,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"compile\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"0.05\"}": 260.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"0.1\"}": 410.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"0.25\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"0.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"1\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"2.5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"5\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\",le=\"+Inf\"}": 421.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\"}": 21.437209400000025,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"scheduler\",operation=\"compile\",result=\"ok\"}": 421.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.0025\"}": 452.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.005\"}": 771.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.01\"}": 832.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.025\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.05\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.1\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.25\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"0.5\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"1\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"2.5\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"5\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\",le=\"+Inf\"}": 842.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\"}": 2.454489200000002,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"started\",result=\"ok\"}": 842.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"0.1\"}": 132.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"0.25\"}": 414.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"0.5\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"1\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"2.5\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"5\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\",le=\"+Inf\"}": 420.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\"}": 51.4221295,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"0.1\"}": 96.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"0.25\"}": 411.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"0.5\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"1\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"2.5\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"5\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\",le=\"+Inf\"}": 420.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\"}": 54.55110039999998,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"gateway\",result=\"ok\"}": 420.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.0005\"}": 66.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.001\"}": 169.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.0025\"}": 206.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.005\"}": 208.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.01\"}": 209.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.025\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.05\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.25\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"0.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"2.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\",le=\"+Inf\"}": 210.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\"}": 0.17568809999999999,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"session_validate\",result=\"ok\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.0025\"}": 114.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.005\"}": 187.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.01\"}": 207.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.025\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.05\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.25\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"0.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"2.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\",le=\"+Inf\"}": 210.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\"}": 0.6466715000000002,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"lease_validate\",result=\"ok\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.0025\"}": 85.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.005\"}": 183.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.01\"}": 205.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.025\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.05\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.25\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"0.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"2.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\",le=\"+Inf\"}": 210.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\"}": 0.7308705999999998,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_authorize\",result=\"ok\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.0025\"}": 71.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.005\"}": 177.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.01\"}": 203.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.025\"}": 209.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.05\"}": 209.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.25\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"0.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"2.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\",le=\"+Inf\"}": 210.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\"}": 0.8312124000000003,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_dispatch\",result=\"ok\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.001\"}": 1.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.0025\"}": 150.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.005\"}": 202.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.01\"}": 207.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.025\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.05\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.25\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"0.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"2.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\",le=\"+Inf\"}": 210.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\"}": 0.5156942999999998,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"gateway\",operation=\"journal_complete\",result=\"ok\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.0025\"}": 44.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.005\"}": 175.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.01\"}": 204.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.025\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.05\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.25\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"0.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"1\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"2.5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"5\"}": 210.0,
+    "garrison_application_operation_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\",le=\"+Inf\"}": 210.0,
+    "garrison_application_operation_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\"}": 0.8226345,
+    "garrison_application_operation_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",component=\"run\",operation=\"continuation_resume\",result=\"ok\"}": 210.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.0001\"}": 209.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.00025\"}": 209.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.0005\"}": 209.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.001\"}": 209.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.0025\"}": 209.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.005\"}": 210.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.01\"}": 269.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.025\"}": 410.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.05\"}": 419.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.1\"}": 419.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.25\"}": 420.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"0.5\"}": 420.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"1\"}": 420.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"2.5\"}": 420.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"5\"}": 420.0,
+    "garrison_gateway_overhead_duration_seconds_bucket{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\",le=\"+Inf\"}": 420.0,
+    "garrison_gateway_overhead_duration_seconds_sum{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\"}": 2.9262662,
+    "garrison_gateway_overhead_duration_seconds_count{otel_scope_name=\"Garrison\",otel_scope_version=\"0.1.0-alpha\",result=\"ok\"}": 420.0
+  },
+  "gatewayOwnedTiming": {
+    "count": 420.0,
+    "meanMs": 6.967300476190476,
+    "p99HistogramUpperBoundMs": 50.0,
+    "scope": "Gateway-owned authorization, fencing and journal stages; excludes awaited tool dispatch. Histogram upper bound is not an exact sample percentile."
+  }
+}

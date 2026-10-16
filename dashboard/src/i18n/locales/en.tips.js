@@ -351,6 +351,7 @@ const tips = {
       Deny: 'Deny: the harness was refused and told why.'
     },
     approvalSource: {
+      DurableResume: "A one-time human approval carried from the previous durable checkpoint. It applies only to the matching resumed tool request.",
       Rule: 'Decided at once by a rule on the deployment. The matched rule is shown next to it.',
       Default: 'No rule matched, so the deployment\'s default action decided it.',
       User: 'A person decided it in the dashboard, over the API, or over MCP.',

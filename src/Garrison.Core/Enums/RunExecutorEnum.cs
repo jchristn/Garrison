@@ -16,6 +16,12 @@ namespace Garrison.Core.Enums
         /// no Kubernetes or Garrison credentials, a hardened security context, and the deployment's resource limits.
         /// Only workers that report the KubernetesJob executor (in a cluster, with RBAC to create Jobs) claim these runs.
         /// </summary>
-        KubernetesJob
+        KubernetesJob,
+
+        /// <summary>Invoke a remote A2A agent over HTTP from the worker.</summary>
+        RemoteA2A,
+
+        /// <summary>Invoke a remote MCP tool over Streamable HTTP from the worker.</summary>
+        RemoteMcp
     }
 }

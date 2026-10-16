@@ -81,6 +81,9 @@ namespace Garrison.Core.Requests
 
         #endregion
 
+        /// <summary>Balance the candidate window across tenants before applying its limit. Default false.</summary>
+        public bool TenantFairWindow { get; set; } = false;
+
         #region Private-Members
 
         private List<HarnessTypeEnum> _HarnessTypes = new List<HarnessTypeEnum>();

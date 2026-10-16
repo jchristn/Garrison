@@ -120,7 +120,7 @@ namespace Test.Shared.Suites
                 }
                 Agent origin = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "run-origin" }, token).ConfigureAwait(false);
                 Deployment deployment = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "run-origin", AgentId = origin.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
-                Run run = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = origin.Id, DeploymentId = deployment.Id, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1 }, token).ConfigureAwait(false);
+                Run run = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = origin.Id, DeploymentId = deployment.Id, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
                 string bearer = await host.Server.Context.Authentication.IssueForRunAsync(run, 1, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
                 using (TestMcpClient client = new TestMcpClient())
                 {
@@ -234,7 +234,7 @@ namespace Test.Shared.Suites
                 }
 
                 Deployment writerDeployment = (await host.Server.Context.Database.Deployments.ListByAgentAsync(host.TenantId, writer.Id, token).ConfigureAwait(false)).First();
-                Run hosted = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = writer.Id, DeploymentId = writerDeployment.Id, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1 }, token).ConfigureAwait(false);
+                Run hosted = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = writer.Id, DeploymentId = writerDeployment.Id, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
                 string bearer = await host.Server.Context.Authentication.IssueForRunAsync(hosted, 1, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
                 using (TestMcpClient runClient = new TestMcpClient())
                 {

@@ -53,7 +53,13 @@ namespace Garrison.Core.Database.Ado
         #region Public-Methods
 
         /// <inheritdoc />
-        public async Task<Run> CreateAsync(Run obj, CancellationToken token = default)
+        public Task<Run> CreateAsync(Run obj, CancellationToken token = default)
+        {
+            return CreateAsync(obj, new QueueDepthLimits(), token);
+        }
+
+        /// <inheritdoc />
+        public async Task<Run> CreateAsync(Run obj, QueueDepthLimits limits, CancellationToken token = default)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.CreatedUtc = DateTime.UtcNow;
@@ -91,6 +97,7 @@ namespace Garrison.Core.Database.Ado
                         return;
                     }
                 }
+                await QueueAdmissionSql.CheckAsync(_Driver, connection, transaction, obj, limits, ct).ConfigureAwait(false);
                 DateTime admittedUtc = DateTime.UtcNow;
                 QuotaExceededException? refusal = await QuotaAccountingSql.LockAndCheckAsync(_Driver, connection, transaction, obj, true, ct, admittedUtc).ConfigureAwait(false);
                 if (refusal != null) throw refusal;
@@ -242,6 +249,10 @@ namespace Garrison.Core.Database.Ado
                 await QuotaAccountingSql.SnapshotBeforeDeleteAsync(_Driver, connection, transaction, id, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_operations") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("run_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("run_database_usage") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -455,6 +466,8 @@ namespace Garrison.Core.Database.Ado
             if (filter.WaitedChildrenOnly) clauses.Add(ChildWaitSql.RunIsWaitedOn(_Driver, _Table + ".id"));
 
             string sql = "SELECT * FROM " + _Table + " WHERE " + String.Join(" AND ", clauses) + " ORDER BY priority DESC, createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";";
+            if (filter.TenantFairWindow)
+                sql = "SELECT * FROM (SELECT " + _Table + ".*, ROW_NUMBER() OVER (PARTITION BY tenantid ORDER BY priority DESC, createdutc ASC, id ASC) AS tenantposition FROM " + _Table + " WHERE " + String.Join(" AND ", clauses) + ") fairwindow ORDER BY tenantposition ASC, priority DESC, createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";";
             List<Run> runs = await _Driver.QueryAsync(sql, command =>
             {
                 for (int i = 0; i < filter.HarnessTypes.Count; i++) AdoDatabaseDriver.Add(command, "h" + i, filter.HarnessTypes[i].ToString());
@@ -617,6 +630,10 @@ namespace Garrison.Core.Database.Ado
                 await QuotaAccountingSql.SnapshotBeforeDeleteAsync(_Driver, connection, transaction, id, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_operations") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("run_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("run_database_usage") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -674,6 +691,20 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(waitId)) throw new ArgumentNullException(nameof(waitId));
             int affected = await _Driver.NonQueryAsync("DELETE FROM " + ChildWaitSql.Table(_Driver) + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", waitId), token).ConfigureAwait(false);
             return affected > 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> IsWaitedChildAsync(string tenantId, string runId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            object? count = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Table + " WHERE tenantid = @tenant AND id = @id AND status = @queued AND " + ChildWaitSql.RunIsWaitedOn(_Driver, _Table + ".id") + ";", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenant", tenantId);
+                AdoDatabaseDriver.Add(command, "id", runId);
+                AdoDatabaseDriver.Add(command, "queued", RunStatusEnum.Queued.ToString());
+            }, token).ConfigureAwait(false);
+            return count != null && Convert.ToInt64(count) > 0;
         }
 
         /// <inheritdoc />

@@ -6,6 +6,7 @@ Requires a running server and a worker able to run the builtin/fake harness prof
 """
 
 import json
+import os
 import re
 import sys
 import time
@@ -681,6 +682,61 @@ def t_notifications():
         client.notification_endpoints.delete(endpoint["id"])
 
 
+def t_effect_operations():
+    usage = client.runs.database_usage(state["run"])
+    require(any(row["statements"] > 0 for row in usage) and all(row["runId"] == state["run"] and row["tenantId"] == state["tenant"] for row in usage), "per-run database attribution")
+    placement = client.runs.placement(state["run"])
+    require(placement["runId"] == state["run"] and "RunNotQueued" in placement["reasons"] and not placement["eligible"], "terminal placement diagnostic")
+    operations = client.runs.operations(state["run"])
+    require(isinstance(operations, list) and all(op["tenantId"] == state["tenant"] for op in operations), "journal metadata")
+    try:
+        client.runs.operations("run_missing_sdk")
+        raise AssertionError("unknown journal accepted")
+    except GarrisonError as error:
+        require(error.status_code == 404, "unknown journal must be 404")
+
+
+def t_control_plane_contracts():
+    administrator = GarrisonClient(BASE)
+    administrator.use_admin_api_key(os.getenv("GARRISON_SDK_ADMIN_API_KEY", "garrisonadmin"), state["tenant"])
+    scratch = administrator.tenants.create({"name": f"sdk-py-weight-{SUFFIX}", "schedulingWeight": 7})
+    try:
+        require(scratch["schedulingWeight"] == 7, "tenant weight create")
+        require(administrator.tenants.update(scratch["id"], {"schedulingWeight": 3})["schedulingWeight"] == 3, "tenant weight update")
+    finally:
+        administrator.tenants.delete(scratch["id"])
+    rotated = administrator.settings.rotate_master_key()
+    require(rotated["keyVersion"] >= 1 and rotated["failed"] == 0 and rotated["conflicts"] == 0, "rotation pass")
+    repeated = administrator.settings.rotate_master_key()
+    require(repeated["rotated"] == 0 and repeated["failed"] == 0, "rotation idempotence")
+    broker_metadata = client.secrets.create({"name": f"sdk-py-broker-{SUFFIX}", "kind": "LeaseBroker", "brokerResource": "tenant-scoped-fixture", "brokerAudience": "fixture"})
+    try:
+        read = client.secrets.get(broker_metadata["id"])
+        require(read["brokerResource"] == "tenant-scoped-fixture" and read["brokerAudience"] == "fixture" and not read.get("valueEncrypted"), "provider metadata round trip")
+        try:
+            client.secrets.set_value(read["id"], "forbidden-static-value")
+            raise AssertionError("broker static value accepted")
+        except GarrisonError as error:
+            require(error.status_code == 400, "broker static values must be rejected")
+    finally:
+        client.secrets.delete(broker_metadata["id"])
+    pinned = client.harness_profiles.create({"name": f"sdk-py-session-{SUFFIX}", "harnessType": "Generic", "executable": "garrison-fake-harness", "sessionFormat": "sdk-fixture-v1"})
+    try:
+        require(client.harness_profiles.get(pinned["id"])["sessionFormat"] == "sdk-fixture-v1", "session format round trip")
+    finally:
+        client.harness_profiles.delete(pinned["id"])
+    remote = client.agents.create({"name": f"sdk-py-remote-{SUFFIX}", "kind": "Remote", "remoteProtocol": "A2A", "remoteEndpointUrl": "http://127.0.0.1:9/a2a"})
+    try:
+        try:
+            client.agents.invoke(remote["id"], "fixture", deployment_id=state["deployment"])
+            raise AssertionError("remote deployment override accepted")
+        except GarrisonError as error:
+            require(error.status_code == 409 and error.error["code"] == "RemoteDeploymentUnsupported", "remote admission")
+    finally:
+        client.agents.delete(remote["id"])
+    require(client.deployments.get(state["deployment"])["suspensionEnabled"] is False, "suspension defaults to opt out")
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -720,7 +776,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

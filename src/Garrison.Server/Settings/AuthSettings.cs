@@ -90,10 +90,43 @@ namespace Garrison.Server.Settings
             }
         }
 
+        /// <summary>
+        /// Lifetime applied to credentials without an explicit expiry, in days. 0 preserves non-expiring credentials;
+        /// minimum 0, maximum 36500, default 0. Applies to API-created credentials, not bootstrap credentials.
+        /// </summary>
+        public int CredentialDefaultLifetimeDays
+        {
+            get { return _CredentialDefaultLifetimeDays; }
+            set { _CredentialDefaultLifetimeDays = Math.Clamp(value, 0, 36500); }
+        }
+
+        /// <summary>
+        /// Maximum lifetime of newly created or updated credentials, in days. 0 means no ceiling; maximum 36500,
+        /// default 0. An explicit expiry beyond the ceiling is rejected rather than silently shortened.
+        /// </summary>
+        public int CredentialMaxLifetimeDays
+        {
+            get { return _CredentialMaxLifetimeDays; }
+            set { _CredentialMaxLifetimeDays = Math.Clamp(value, 0, 36500); }
+        }
+
+        /// <summary>
+        /// Maximum run-token lifetime in minutes, bounded by the run deadline as well. Minimum 1, maximum 10080,
+        /// default 1440. Expired tokens cannot refresh themselves; configure this for the longest permitted run.
+        /// </summary>
+        public int RunTokenLifetimeMinutes
+        {
+            get { return _RunTokenLifetimeMinutes; }
+            set { _RunTokenLifetimeMinutes = Math.Clamp(value, 1, 10080); }
+        }
+
         #endregion
 
         #region Private-Members
 
+        private int _CredentialDefaultLifetimeDays = 0;
+        private int _CredentialMaxLifetimeDays = 0;
+        private int _RunTokenLifetimeMinutes = 1440;
         private int _TokenLifetimeMinutes = 480;
         private int _SignedRequestSkewSeconds = 300;
         private int _RateLimitPerMinute = 60;

@@ -1,0 +1,36 @@
+{
+  "fixture": "Fresh private PostgreSQL stack, three control-plane replicas and six fake CLI workers with sixteen slots each. Shared development host; all other Garrison test/load jobs stopped.",
+  "settings": "RequestHistory.Enabled=true throughout both measured arms; only RequestHistory.CaptureNodeProtocol changes false to true. Two seconds convergence plus five seconds warmup, thirty seconds at concurrency 16 per arm. Seed 42 for both harness runs.",
+  "runs": 2080,
+  "failures": 0,
+  "arms": [
+    {
+      "label": "d062-node-history-off",
+      "succeeded": 1056,
+      "failed": 0,
+      "throughputPerSecond": 34.93619515999114,
+      "p50Ms": 456.14190000000053,
+      "p95Ms": 658.1255000000001,
+      "exactDbUsageRuns": 1056,
+      "exactDbUsageMissingRuns": 0,
+      "estimatedDbStatementsPerSucceededRun": 170.78598484848484,
+      "estimatedBatchedHistoryHeaderInsertsPerSucceededRun": 0.9990530303030303,
+      "report": "20261016-150309-load-synthetic-fleet-d062-node-history-off.json"
+    },
+    {
+      "label": "d062-node-history-on",
+      "succeeded": 1024,
+      "failed": 0,
+      "throughputPerSecond": 33.86644519951771,
+      "p50Ms": 458.5434000000023,
+      "p95Ms": 686.4259999999995,
+      "exactDbUsageRuns": 1024,
+      "exactDbUsageMissingRuns": 0,
+      "estimatedDbStatementsPerSucceededRun": 179.6748046875,
+      "estimatedBatchedHistoryHeaderInsertsPerSucceededRun": 4.8349609375,
+      "report": "20261016-150350-load-synthetic-fleet-d062-node-history-on.json"
+    }
+  ],
+  "settingsRestored": true,
+  "interpretation": "Disabling successful node-protocol capture removes associated header/history database work. This short single-pair measurement is not a statistically established production throughput or latency improvement. Whole-server SQL and header-insert counts come from the first replica and are estimates; exact completed-scope run SQL excludes HTTP request history."
+}

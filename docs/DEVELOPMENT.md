@@ -133,7 +133,7 @@ docker run --rm -v "$PWD/assets/postman:/etc/newman" postman/newman:latest run \
   --env-var baseUrl=http://host.docker.internal:8700 --env-var mcpUrl=http://host.docker.internal:8701/mcp
 ```
 
-The collection creates its own resources with unique names and deletes them at the end.
+The collection creates its own resources with unique names and deletes them at the end. Supply the credentials matching the target server through its environment variables; the bundled defaults are for development fixtures. Docker Desktop exposes `host.docker.internal`; on Linux Docker Engine add `--add-host=host.docker.internal:host-gateway` when using the containerized command.
 
 ## Conventions
 
@@ -169,4 +169,10 @@ Most new CLIs need only a harness profile (see `docs/HARNESSES.md`). A new outpu
 ./build-server.sh v0.1.0-alpha     # and build-worker.sh, build-dashboard.sh, or build-all.sh
 ```
 
-The scripts build multi-architecture images with Docker Build Cloud and push them to Docker Hub as `jchristn77/garrison-*`. For a local image, use the `docker build` line at the top of each Dockerfile.
+These legacy `build-*.sh` scripts publish immediately through Docker Build Cloud and update both the supplied tag and `latest`; they are publishing commands, not local build commands. For local images use `docker build` with the relevant Dockerfile or `docker/update.sh`. For reviewable multi-architecture OCI archives without publishing, use `k8s/scripts/publish-images.sh`; publishing requires its explicit `--push` flag. See the [Kubernetes image workflow](KUBERNETES.md#build-and-publish-multi-architecture-images).
+
+## Deployment features during development
+
+A native source server/worker does not automatically start the observability backend services or bootstrap the three provider-backed sample deployments. The Docker Compose workflow includes Prometheus, Loki, Tempo, Grafana and Alloy by default; Kubernetes includes them through its explicit observability component. See [Docker](DOCKER.md), [Kubernetes](KUBERNETES.md) and [telemetry](TELEMETRY.md).
+
+Optional agent memory is disabled by default. Current source exposes tenant/agent-scoped MCP tools through a replaceable `IAgentMemoryStore`, with a filesystem implementation. Set `GARRISON_AGENT_MEMORY_ENABLE=true` and a persistent `GARRISON_AGENT_MEMORY_ROOT` to use it; multiple replicas require shared storage or another implementation. See [agent memory](AGENT_MEMORY.md). Published image tags reflect the code used when built, so rebuild from the checkout to exercise newer source capabilities.

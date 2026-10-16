@@ -11,6 +11,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
+    using Garrison.Core.Services;
     using Garrison.Core.Protocol;
     using Garrison.Core.Requests;
     using Garrison.Core.Telemetry;
@@ -29,7 +30,17 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class SchedulerService
     {
+        /// <summary>Enable run tokens for optional agent memory independently of delegation. Default false.</summary>
+        public bool AgentMemoryEnabled { get; set; } = false;
+
         #region Public-Members
+
+        /// <summary>Revocable credential provider, or null when disabled.</summary>
+        public CredentialBrokerService? CredentialBroker { get; set; } = null;
+
+        /// <summary>Durable continuation coordinator; null disables portable restore.</summary>
+        public ContinuationService? Continuations { get; set; } = null;
+
 
         /// <summary>
         /// Cancelled when the replica starts shutting down; waiting lease long-polls then return empty at once so the
@@ -58,6 +69,8 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Members
+
+        private readonly TenantFairQueue _TenantFairQueue = new TenantFairQueue();
 
         private readonly DatabaseDriverBase _Database;
         private readonly Func<InvocationCompiler> _Compiler;
@@ -135,7 +148,7 @@ namespace Garrison.Server.Runtime
                     // A long poll holds the node snapshot read when its request arrived. Recheck before every claim,
                     // including after a queue wakeup: a lost, cordoned, deleted, or replaced registration cannot lease
                     // work through an old request (G-28). Use the current capabilities and placement for this pass.
-                    Node? current = await _Database.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false);
+                    Node? current = await ApplicationOperation.MeasureAsync("scheduler", "node_refresh", ct => _Database.Nodes.ReadAsync(node.Id, ct), token).ConfigureAwait(false);
                     if (current == null || !current.Active || current.Status != NodeStatusEnum.Ready || current.RegisteredUtc != registration) return response;
                     node = current;
                     _Signals.Waiters.Update(waiter, node.NodePoolId, HarnessTypes(node));
@@ -201,6 +214,12 @@ namespace Garrison.Server.Runtime
             if (tenant == null || !tenant.Active) return "Tenant " + run.TenantId + " is inactive or was deleted after the run was queued, so the run was rejected before it started.";
             if (agent == null) return "Agent " + run.AgentName + " was deleted after the run was queued, so the run was rejected before it started.";
             if (!agent.Active) return "Agent " + agent.Name + " was deactivated after the run was queued, so the run was rejected before it started.";
+            if (run.Executor == RunExecutorEnum.RemoteA2A || run.Executor == RunExecutorEnum.RemoteMcp)
+            {
+                if (agent.Kind != AgentKindEnum.Remote) return "Remote agent registration changed to a hosted agent after admission.";
+                if (RemoteAgentPolicy.Expired(agent, DateTime.UtcNow)) return "RemoteRegistrationExpired: remote agent must renew its registration before dispatch.";
+                return null;
+            }
             if (deployment == null) return "Deployment " + run.DeploymentId + " was deleted after the run was queued, so the run was rejected before it started.";
             if (!deployment.Active) return "Deployment " + deployment.Name + " was deactivated after the run was queued, so the run was rejected before it started.";
             return null;
@@ -266,7 +285,7 @@ namespace Garrison.Server.Runtime
                 AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null,
                 Limit = 64
             };
-            List<Run> queued = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
+            List<Run> queued = await ApplicationOperation.MeasureAsync("scheduler", "candidate_query", ct => _Database.Runs.ListClaimCandidatesAsync(filter, ct), token).ConfigureAwait(false);
             return queued.Count(r => PlacementRules.MatchesPlacement(node, pool, r));
         }
 
@@ -349,16 +368,27 @@ namespace Garrison.Server.Runtime
             ClaimCandidateFilter filter = CandidateFilter(node, pool, harnessTypes, limit);
             // The child reserve (P12.38) only takes runs whose parent is waiting on them.
             filter.WaitedChildrenOnly = childReserve;
-            List<Run> candidates = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
+            filter.TenantFairWindow = true;
+            List<Run> candidates = await ApplicationOperation.MeasureAsync("scheduler", "candidate_query", ct => _Database.Runs.ListClaimCandidatesAsync(filter, ct), token).ConfigureAwait(false);
             if (!childReserve)
             {
                 // Delegated runs come first even when a backlog of older top-level runs fills the window.
                 ClaimCandidateFilter delegatedFilter = CandidateFilter(node, pool, harnessTypes, limit);
                 delegatedFilter.DelegatedOnly = true;
-                List<Run> delegated = await _Database.Runs.ListClaimCandidatesAsync(delegatedFilter, token).ConfigureAwait(false);
+                delegatedFilter.TenantFairWindow = true;
+                List<Run> delegated = await ApplicationOperation.MeasureAsync("scheduler", "delegated_candidate_query", ct => _Database.Runs.ListClaimCandidatesAsync(delegatedFilter, ct), token).ConfigureAwait(false);
                 candidates = DelegatedFirst(candidates, delegated);
             }
             if (candidates.Count == 0) return assignments;
+            Dictionary<string, int> tenantWeights = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (string tenantId in candidates.Select(r => r.TenantId).Distinct(StringComparer.Ordinal))
+            {
+                Tenant? tenant = await ApplicationOperation.MeasureAsync("scheduler", "tenant_weight", ct => _Database.Tenants.ReadAsync(tenantId, ct), token).ConfigureAwait(false);
+                tenantWeights[tenantId] = tenant?.SchedulingWeight ?? 1;
+            }
+            // Child priority is retained; each band is fair across tenants.
+            candidates = _TenantFairQueue.Order(candidates.Where(r => r.Kind == RunKindEnum.Delegated).ToList(), tenantWeights)
+                .Concat(_TenantFairQueue.Order(candidates.Where(r => r.Kind != RunKindEnum.Delegated).ToList(), tenantWeights)).ToList();
 
             Dictionary<string, long> activeByDeployment = new Dictionary<string, long>(StringComparer.Ordinal);
             Dictionary<string, Deployment?> deployments = new Dictionary<string, Deployment?>(StringComparer.Ordinal);
@@ -369,7 +399,7 @@ namespace Garrison.Server.Runtime
             foreach (Run candidate in candidates)
             {
                 if (assignments.Count >= maxRuns) break;
-                if (!PlacementRules.MatchesPlacement(node, pool, candidate) || !ExecutorCapabilityRules.Supports(node, candidate)) continue;
+                if (!PlacementRules.Supports(node, candidate.HarnessType) || !PlacementRules.MatchesPlacement(node, pool, candidate) || !ExecutorCapabilityRules.Supports(node, candidate)) continue;
 
                 // A conversation turn that resumes a harness session waits (bounded) for the node holding the session
                 // (P12.1); other nodes take it once that node is not Ready or the wait is over, as a fallback.
@@ -426,7 +456,7 @@ namespace Garrison.Server.Runtime
 
                     Stopwatch timer = Stopwatch.StartNew();
                     DateTime leaseExpires = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
-                    ClaimResult result = await _Database.Runs.TryClaimWithinLimitAsync(candidate.Id, node.Id, node.Name, leaseExpires, candidate.DeploymentId, deploymentLimit, ancestors, token).ConfigureAwait(false);
+                    ClaimResult result = await ApplicationOperation.MeasureAsync("scheduler", "claim", ct => RunDatabaseTelemetry.MeasureAsync(_Database, candidate.TenantId, candidate.Id, "claim", dbToken => _Database.Runs.TryClaimWithinLimitAsync(candidate.Id, node.Id, node.Name, leaseExpires, candidate.DeploymentId, deploymentLimit, ancestors, dbToken), ct), token).ConfigureAwait(false);
                     if (result.QuotaId != null)
                     {
                         GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "quota", "harness", candidate.HarnessType.ToString());
@@ -446,6 +476,7 @@ namespace Garrison.Server.Runtime
                         claim?.SetTag("garrison.claim_result", "lost");
                         continue;
                     }
+                    _TenantFairQueue.Claimed(candidate.TenantId, tenantWeights[candidate.TenantId], candidates.Select(r => r.TenantId));
                     long epoch = result.Epoch ?? 0;
                     double claimSeconds = timer.Elapsed.TotalSeconds;
                     if (deploymentLimit > 0 && activeByDeployment.TryGetValue(candidate.DeploymentId, out long counted)) activeByDeployment[candidate.DeploymentId] = counted + 1;
@@ -457,8 +488,8 @@ namespace Garrison.Server.Runtime
                     _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch + (childReserve ? ", child reserve" : String.Empty) + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId)
                         + " " + GarrisonTracing.LogFields("tenant", candidate.TenantId, "agent", candidate.AgentName, "deployment", deployment?.Name, "node", node.Name));
 
-                    RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch, leaseExpires, claim, token).ConfigureAwait(false);
-                    GarrisonMetrics.Observe(GarrisonMetricCatalog.CompileDuration, timer.Elapsed.TotalSeconds, "harness", candidate.HarnessType.ToString(), "agent", candidate.AgentName, "result", assignment != null ? "ok" : "failed");
+                    RunAssignment? assignment = await ApplicationOperation.MeasureAsync("scheduler", "compile", ct => RunDatabaseTelemetry.MeasureAsync(_Database, candidate.TenantId, candidate.Id, "compile", dbToken => PrepareAsync(candidate.TenantId, candidate.Id, node, epoch, leaseExpires, claim, dbToken), ct), token).ConfigureAwait(false);
+                    GarrisonMetrics.Observe(GarrisonMetricCatalog.CompileDuration, Math.Max(0, timer.Elapsed.TotalSeconds - claimSeconds), "harness", candidate.HarnessType.ToString(), "agent", candidate.AgentName, "result", assignment != null ? "ok" : "failed");
                     if (assignment != null)
                     {
                         RunMetricLabels claimLabels = RunMetricLabels.For(candidate, deployment?.Name);
@@ -485,7 +516,7 @@ namespace Garrison.Server.Runtime
 
                 // Admission at start (G-5): a run accepted while its tenant, agent, and deployment were active is
                 // rejected, not started, when one of them was deactivated or deleted while it waited in the queue.
-                Tenant? tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
+                Tenant? tenant = await ApplicationOperation.MeasureAsync("scheduler", "tenant_weight", ct => _Database.Tenants.ReadAsync(tenantId, ct), token).ConfigureAwait(false);
                 string? rejection = AdmissionRejection(tenant, agent, deployment, run);
                 if (rejection != null)
                 {
@@ -498,7 +529,7 @@ namespace Garrison.Server.Runtime
                 DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
                 string? runToken = null;
-                if (agent != null && (agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.ArtifactGlobs.Count > 0))))
+                if (agent != null && (AgentMemoryEnabled || agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.SuspensionEnabled || deployment.ArtifactGlobs.Count > 0 || (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && !String.IsNullOrEmpty(deployment.ArtifactStoreId))))))
                 {
                     runToken = await _Authentication.IssueForRunAsync(run, epoch, deadline, token).ConfigureAwait(false);
                 }
@@ -514,6 +545,7 @@ namespace Garrison.Server.Runtime
                 // A pipeline stage run hands the earlier stages' outputs to its PipelineStage prompt (P12.9).
                 CompilationPipeline? pipeline = Pipelines != null && !String.IsNullOrEmpty(run.PipelineRunId) ? await Pipelines.CompilationInputsAsync(run, token).ConfigureAwait(false) : null;
 
+                if (Continuations != null) await Continuations.PrepareAsync(run, token).ConfigureAwait(false);
                 CompilationResult compiled;
                 using (Activity? compile = RunTracing.Start("run:compile", claim?.Id ?? run.TraceParent))
                 {
@@ -522,6 +554,8 @@ namespace Garrison.Server.Runtime
                     if (pipeline != null) compile?.SetTag("garrison.pipeline_run_id", run.PipelineRunId);
                     compiled = await _Compiler().CompileAsync(run, runToken, transcript, pipeline, node, token).ConfigureAwait(false);
                 }
+
+                if (Continuations != null) await Continuations.ApplyAsync(run, compiled.Spec, token).ConfigureAwait(false);
 
                 // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the
                 // worker a full lease from now so the run is not reclaimed before its first heartbeat.
@@ -576,6 +610,7 @@ namespace Garrison.Server.Runtime
                 failed.SetCompleted = true;
                 await _Database.Runs.TransitionAsync(failed, token).ConfigureAwait(false);
                 await _Database.Sessions.RevokeByRunAsync(run.Id, "Run failed to compile.", token).ConfigureAwait(false);
+                if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, epoch, token).ConfigureAwait(false);
                 _Signals.Complete(run.Id);
                 run.Status = failed.ToStatus;
                 run.Outcome = failed.Outcome ?? RunOutcomeEnum.CompileFailed;

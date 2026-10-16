@@ -84,6 +84,7 @@ type Client struct {
 	AdminAPIKey string
 	TenantID    string
 
+	Settings                   *SettingsClient
 	Tenants                    *GlobalResource
 	Users                      *Resource
 	Credentials                *Resource
@@ -124,6 +125,7 @@ func NewClient(baseURL string) *Client {
 		baseURL = DefaultBaseURL
 	}
 	c := &Client{BaseURL: strings.TrimRight(baseURL, "/"), HTTPClient: &http.Client{Timeout: 5 * time.Minute}}
+	c.Settings = &SettingsClient{c: c}
 	c.Tenants = &GlobalResource{c: c, path: "/v1.0/api/tenants"}
 	c.Users = &Resource{c: c, segment: "users"}
 	c.Credentials = &Resource{c: c, segment: "credentials"}

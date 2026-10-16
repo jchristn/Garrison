@@ -90,6 +90,8 @@ namespace Garrison.Benchmark
             if (context == null) throw new ArgumentNullException(nameof(context));
             switch (context.Args.Command)
             {
+                case "prepare-trace":
+                    return await PrepareTraceRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "validate":
                     return ValidateRunner.Run(context);
                 case "generate":
@@ -104,6 +106,8 @@ namespace Garrison.Benchmark
                     return await LoadRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "resilience":
                     return await ResilienceRunner.RunAsync(context, token).ConfigureAwait(false);
+                case "fairness":
+                    return await FairnessRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "scale":
                     return await ScaleRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "compare":
@@ -141,8 +145,10 @@ namespace Garrison.Benchmark
                 "  ingest      Manifest apply at scale: docs/s, apply latency, idempotent re-apply, reachability.",
                 "  routing     Scheduling correctness: placement, blocked runs, priority, concurrency limits.",
                 "  e2e         Full run flow per probe, with the direct-invocation reference arm (the floor).",
+                "  prepare-trace Convert offsetMs,count CSV into a finite burst-preserving trace (--input, --output, --time-scale).",
                 "  load        Throughput and latency per concurrency (closed) or rate (open), optional scale-out sweep.",
                 "  resilience  Failing and overrunning harnesses; worker, server, and database failures (k3d).",
+                "  fairness    Noisy-neighbor queue p95 across tenant workspaces (--quiet-runs, --noisy-multiplier, --urls).",
                 "  scale       Control plane load to failure: step up offered load across server replicas until a level breaks (P14.15).",
                 "  compare     Paired, significance-gated diff of two reports; exit 1 on regression.",
                 "  history     Headline metrics per round with net change and baselines.",

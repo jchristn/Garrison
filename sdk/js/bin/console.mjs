@@ -34,7 +34,7 @@ try {
     try {
       const requireArgument = () => { if (!argument) throw new Error('Missing arguments. Type help.'); };
       switch (command.toLowerCase()) {
-        case 'help': console.log('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit'); break;
+        case 'help': console.log('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit'); break;
         case 'health': show(await client.health()); break;
         case 'login':
           requireArgument(); if (!rest) throw new Error('Missing email. Type help.');
@@ -46,6 +46,7 @@ try {
         case 'runs': show(await client.runs.list()); break;
         case 'invoke': requireArgument(); if (!rest) throw new Error('Missing input. Type help.'); show(await client.agents.invoke(argument, rest, { wait: false })); break;
         case 'run': requireArgument(); show(await client.runs.get(argument)); break;
+        case 'operations': requireArgument(); show(await client.runs.operations(argument)); break;
         case 'events': requireArgument(); show(await client.runs.events(argument)); break;
         case 'watch': requireArgument(); for await (const frame of client.runs.stream(argument)) show(frame); break;
         case 'triggers': show(await client.triggers.list()); break;

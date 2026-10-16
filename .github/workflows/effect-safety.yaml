@@ -1,0 +1,78 @@
+name: Effect safety
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+  pull_request:
+    paths:
+      - 'src/Garrison.Core/Database/Ado/AdoEffectOperationMethods.cs'
+      - 'src/Garrison.Server/Protocols/GarrisonMcpServer.cs'
+      - 'src/Garrison.Server/Runtime/MaintenanceService.cs'
+      - 'src/Garrison.Server/Runtime/CredentialBrokerService.cs'
+      - 'src/Garrison.Core/Database/Ado/AdoCredentialLeaseMethods.cs'
+      - 'src/Test.Shared/Suites/CredentialBrokerSuite.cs'
+      - 'src/Test.Shared/Infrastructure/FakeCredentialIssuer.cs'
+      - 'src/Test.Shared/Suites/Effect*Suite.cs'
+      - '.github/workflows/effect-safety.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  effect-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: garrison
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: garrison
+        ports:
+          - 55432:5432
+        options: >-
+          --shm-size 256m
+          --health-cmd 'pg_isready -U postgres -d garrison'
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GARRISON_TEST_PROVIDERS: sqlite,postgresql
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Effect fault boundaries and worker-loss policies
+        run: scripts/test-effect-safety.sh results-effect-safety.json
+      - name: Upload effect safety evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: effect-safety
+          path: results-effect-safety.json
+          retention-days: 30
+
+  cluster-effects:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned k3d
+        run: |
+          curl -fsSL https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64 -o /tmp/k3d
+          chmod +x /tmp/k3d
+          sudo mv /tmp/k3d /usr/local/bin/k3d
+      - name: External effect policy matrix with actual worker process loss
+        run: scripts/test-cluster-effects.sh
+      - name: Upload cluster effect evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-effect-safety
+          path: k8s/tests/results/cluster-effects*.json
+          retention-days: 30

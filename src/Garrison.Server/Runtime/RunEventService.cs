@@ -25,6 +25,13 @@ namespace Garrison.Server.Runtime
     {
         #region Public-Members
 
+        /// <summary>Revocable credential provider, or null when disabled.</summary>
+        public CredentialBrokerService? CredentialBroker { get; set; } = null;
+
+        /// <summary>Opt-in durable continuation coordinator.</summary>
+        public ContinuationService? Continuations { get; set; } = null;
+
+
         /// <summary>
         /// Structured output validation and repair. When null, completion reports are recorded without validating
         /// output against the agent's output schema. Default null; the runtime module sets it.
@@ -115,6 +122,11 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown with code StaleLease when the node no longer holds the lease.</exception>
         public async Task StartedAsync(string runId, RunStartedRequest request, CancellationToken token = default)
         {
+            await RunDatabaseTelemetry.MeasureAsync(_Database, string.Empty, runId, "started", ct => StartedMeasuredCoreAsync(runId, request, token), token).ConfigureAwait(false);
+        }
+
+        private async Task StartedMeasuredCoreAsync(string runId, RunStartedRequest request, CancellationToken token = default)
+        {
             if (request == null) throw new ArgumentNullException(nameof(request));
             RunTransition transition = new RunTransition();
             transition.RunId = runId;
@@ -143,6 +155,11 @@ namespace Garrison.Server.Runtime
         /// <returns>Events inserted.</returns>
         /// <exception cref="ConflictException">Thrown with code StaleLease when the node no longer holds the lease.</exception>
         public async Task<int> IngestAsync(string runId, RunEventsRequest request, CancellationToken token = default)
+        {
+            return await RunDatabaseTelemetry.MeasureAsync(_Database, string.Empty, runId, "events", ct => IngestMeasuredCoreAsync(runId, request, token), token).ConfigureAwait(false);
+        }
+
+        private async Task<int> IngestMeasuredCoreAsync(string runId, RunEventsRequest request, CancellationToken token = default)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             // Event batches arrive several times per run; the fencing check needs only the run's row.
@@ -191,8 +208,20 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown with code StaleLease when the node no longer holds the lease.</exception>
         public async Task<RunCompleteResponse> CompleteAsync(string runId, RunCompleteRequest request, CancellationToken token = default)
         {
+            return await RunDatabaseTelemetry.MeasureAsync(_Database, string.Empty, runId, "complete", ct => CompleteMeasuredCoreAsync(runId, request, token), token).ConfigureAwait(false);
+        }
+
+        private async Task<RunCompleteResponse> CompleteMeasuredCoreAsync(string runId, RunCompleteRequest request, CancellationToken token = default)
+        {
             if (request == null) throw new ArgumentNullException(nameof(request));
             Run run = await RequireLeaseAsync(runId, request.NodeId, request.Epoch, true, token).ConfigureAwait(false);
+
+            // Suspension persists this execution separately, so estimate its cost before the checkpoint commits.
+            if (request.Status == RunStatusEnum.Suspended && CostEstimation != null)
+                await CostEstimation.ApplyAsync(run, request, token).ConfigureAwait(false);
+
+            if (Continuations != null && await Continuations.AcceptAsync(run, request, token).ConfigureAwait(false))
+                return new RunCompleteResponse { Message = "Suspended with durable checkpoint." };
 
             if (request.RepairAttempt < run.RepairAttempts && _StructuredOutput != null && !String.IsNullOrEmpty(run.SessionId))
             {
@@ -216,6 +245,7 @@ namespace Garrison.Server.Runtime
             // fresh session seeded with the transcript, on any capable node (P12.1).
             if (Conversations != null && await Conversations.RequeueLostStateAsync(run, request, token).ConfigureAwait(false))
             {
+                if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, request.Epoch, token).ConfigureAwait(false);
                 _Logging?.Info("[Runs] run " + run.Id + " requeued as a conversation fallback: node " + request.NodeId + " no longer has conversation " + run.ConversationId + " " + RunTracing.LogFields(run.Id, run.TraceId));
                 RunCompleteResponse requeued = new RunCompleteResponse();
                 requeued.Message = "Requeued as a conversation fallback (WorkspaceLost).";
@@ -231,7 +261,8 @@ namespace Garrison.Server.Runtime
             if (CostEstimation != null) await CostEstimation.ApplyAsync(run, request, token).ConfigureAwait(false);
 
             bool repairReport = request.RepairAttempt > 0 && run.RepairAttempts > 0;
-            Apply(run, request, repairReport);
+            bool continuationReport = Continuations != null && await Continuations.HasCheckpointAsync(run, token).ConfigureAwait(false);
+            Apply(run, request, repairReport || continuationReport);
 
             StructuredOutputCheck? check = null;
             if (status == RunStatusEnum.Succeeded && _StructuredOutput != null)
@@ -431,7 +462,9 @@ namespace Garrison.Server.Runtime
             if (Approvals != null && run.PendingApprovals > 0) await Approvals.CancelPendingAsync(run.Id, "The run finished (" + status + ").", token).ConfigureAwait(false);
             RunMetricLabels labels = await RunTelemetry.LabelsAsync(_Database, run, token).ConfigureAwait(false);
             RunTelemetry.Finished(run, labels);
+            if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, request.Epoch, token).ConfigureAwait(false);
             _Signals.Complete(run.Id);
+            if (Continuations != null && !String.IsNullOrEmpty(run.ParentRunId)) await Continuations.ResumeAsync(run.TenantId, run.ParentRunId, token).ConfigureAwait(false);
             _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId)
                 + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", labels.Deployment, "model", run.ServedModel, "node", run.LeaseNodeName ?? request.NodeId, "outcome", run.Outcome.ToString()));
 

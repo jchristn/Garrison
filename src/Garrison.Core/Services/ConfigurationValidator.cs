@@ -173,7 +173,7 @@ namespace Garrison.Core.Services
                 if (!Uri.TryCreate(agent.RemoteEndpointUrl, UriKind.Absolute, out Uri? remote) || (remote.Scheme != "http" && remote.Scheme != "https") || remote.UserInfo.Length > 0) errors["remoteEndpointUrl"] = "Use an absolute http or https URL without embedded credentials.";
                 else if (Garrison.Core.Security.OutboundAddressPolicy.LiteralBlockedReason(remote) is string blocked) errors["remoteEndpointUrl"] = blocked;
             }
-            if (!String.IsNullOrWhiteSpace(agent.McpToolName) && !IsValidMcpToolName(agent.McpToolName.Trim())) errors["mcpToolName"] = "MCP tool names are 1 to 64 letters, digits, underscores, dots, and hyphens, not starting with a dot or hyphen, and cannot start with the reserved prefix garrison_.";
+            if (!String.IsNullOrWhiteSpace(agent.McpToolName) && !(agent.Kind == AgentKindEnum.Remote && !agent.ExposeMcpTool ? _McpToolName.IsMatch(agent.McpToolName.Trim()) : IsValidMcpToolName(agent.McpToolName.Trim()))) errors["mcpToolName"] = "MCP tool names are 1 to 64 letters, digits, underscores, dots, and hyphens, not starting with a dot or hyphen, and cannot start with the reserved prefix garrison_.";
             foreach (string name in agent.DelegationAllowList)
             {
                 if (!_AgentName.IsMatch(name ?? String.Empty)) errors["delegationAllowList"] = "'" + name + "' is not a valid agent name.";
@@ -209,6 +209,8 @@ namespace Garrison.Core.Services
             {
                 if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)) return false;
                 if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != "ssh") return false;
+                if (uri.Scheme == Uri.UriSchemeHttps && uri.UserInfo.Length > 0) return false;
+                if (uri.Scheme == "ssh" && uri.UserInfo.Contains(':')) return false;
                 return !String.IsNullOrEmpty(uri.Host) && !uri.Host.StartsWith("-", StringComparison.Ordinal);
             }
             if (url.Contains("://", StringComparison.Ordinal)) return false;
@@ -895,6 +897,13 @@ namespace Garrison.Core.Services
             if (deployment.ApprovalsEnabled && profile != null && !SupportsApprovals(profile))
             {
                 errors["approvalsEnabled"] = "Harness profile " + profile.Name + " cannot relay permission approvals. Approvals need a Claude Code profile (--permission-prompt-tool), a Codex profile with CodexAppServer delivery, or ProviderApi; Codex exec, Mux, Gemini CLI, and generic profiles have no approval hook.";
+            }
+
+            if (deployment.SuspensionEnabled)
+            {
+                if ((deployment.Executor.HasValue && deployment.Executor != RunExecutorEnum.Process) || profile == null || !profile.SupportsResume || !profile.IsolateHome || String.IsNullOrEmpty(profile.SessionFormat))
+                    errors["suspensionEnabled"] = "Suspension requires Process execution, isolated HOME, resume support, and a pinned session format.";
+                if (String.IsNullOrEmpty(deployment.ArtifactStoreId)) errors["artifactStoreId"] = "Suspension requires an artifact store.";
             }
 
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false) == null) errors["workspaceTemplateId"] = "The workspace template does not exist in this tenant.";

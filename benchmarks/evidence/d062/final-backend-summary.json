@@ -1,0 +1,38 @@
+{
+  "net10": {
+    "cases": 149,
+    "passed": 149,
+    "failed": 0,
+    "providers": [
+      "sqlite",
+      "postgresql"
+    ]
+  },
+  "net8": {
+    "cases": 41,
+    "passed": 41,
+    "failed": 0,
+    "providers": [
+      "sqlite",
+      "postgresql"
+    ]
+  },
+  "net10FinalMetadataGuard": {
+    "cases": 4,
+    "passed": 4,
+    "failed": 0,
+    "providers": [
+      "sqlite",
+      "postgresql"
+    ]
+  },
+  "build": {
+    "frameworks": [
+      "net8.0",
+      "net10.0"
+    ],
+    "warnings": 0,
+    "errors": 0
+  },
+  "scope": "Targeted verification. Broad net10 includes delegation guard; final net8 and net10 guard rerun follow two description-only wording corrections. Binary groups are pinned separately. Historical full-suite 909-case results remain D060 evidence."
+}

@@ -1,0 +1,12 @@
+{
+  "sourceFileSha256": "3758fda0dd36186b34511b30671039f49b876068e237040ad152d4d5d2078284",
+  "selectedDataRow": 53,
+  "firstMinute": 781,
+  "minuteCount": 60,
+  "binMs": 1000,
+  "sourceMinuteDurationMs": 60000,
+  "compressionFactor": 60.0,
+  "arrivals": 662,
+  "derivedCsvSha256": "7affbd692b53062f0110d10c1b02da798d297aa40a2e76690c6b90d1969f6a1d",
+  "timingSemantics": "Minute aggregate counts become simultaneous bursts at bin boundaries. Unknown subminute timing is not reconstructed."
+}

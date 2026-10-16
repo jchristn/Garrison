@@ -7,6 +7,9 @@ namespace Garrison.ProviderHarness
     /// <summary>Typed provider MCP protocol contract.</summary>
     public class ProviderToolInfo
     {
+        /// <summary>Optional MCP effect hints. Untrusted third-party hints do not establish complete execution coverage.</summary>
+        [JsonPropertyName("annotations")]
+        public Garrison.Core.Models.EffectToolMetadata? Annotations { get; set; } = null;
         /// <summary>Server tool name.</summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = String.Empty;

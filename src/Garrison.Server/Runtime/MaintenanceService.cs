@@ -37,6 +37,10 @@ namespace Garrison.Server.Runtime
     {
         #region Public-Members
 
+        /// <summary>Revocable credential provider, or null when disabled.</summary>
+        public CredentialBrokerService? CredentialBroker { get; set; } = null;
+
+
         /// <summary>
         /// Whether finished runs and old events are pruned. Default false until the runtime module wires cluster settings.
         /// </summary>
@@ -124,6 +128,9 @@ namespace Garrison.Server.Runtime
         /// leaves them to the leader's sweep.
         /// </summary>
         public ApprovalService? Approvals { get; set; } = null;
+
+        /// <summary>Durable continuation wake-ups, including missed child-completion signals.</summary>
+        public ContinuationService? Continuations { get; set; } = null;
 
         /// <summary>
         /// Pipeline service (P12.9). When set, the leader sweeps pipeline runs every
@@ -333,11 +340,13 @@ namespace Garrison.Server.Runtime
         public async Task RunOnceAsync(CancellationToken token = default)
         {
             await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
+            if (CredentialBroker != null) await CredentialBroker.SweepAsync(token).ConfigureAwait(false);
             await EnforceDeadlinesAsync(token).ConfigureAwait(false);
             await MarkLostNodesAsync(token).ConfigureAwait(false);
             await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
             await CheckBlockedRunsAsync(token).ConfigureAwait(false);
             if (Approvals != null) await Approvals.SweepAsync(token).ConfigureAwait(false);
+            if (Continuations != null) await Continuations.SweepAsync(token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -471,11 +480,14 @@ namespace Garrison.Server.Runtime
                     evaluated = true;
                     // Each step is one background iteration with its own span and metrics (P13.24, P13.25).
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "reap_leases", ReapExpiredLeasesAsync, token).ConfigureAwait(false);
+                    if (CredentialBroker != null && await AwakeAsync(token).ConfigureAwait(false)) await CredentialBroker.SweepAsync(token).ConfigureAwait(false);
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "enforce_deadlines", EnforceDeadlinesAsync, token).ConfigureAwait(false);
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_lost_nodes", MarkLostNodesAsync, token).ConfigureAwait(false);
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_offline_control_nodes", MarkOfflineControlNodesAsync, token).ConfigureAwait(false);
                     ApprovalService? approvals = Approvals;
                     if (approvals != null && await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "approvals", approvals.SweepAsync, token).ConfigureAwait(false);
+                    ContinuationService? continuations = Continuations;
+                    if (continuations != null && await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "continuations", continuations.SweepAsync, token).ConfigureAwait(false);
                     PipelineService? pipelines = Pipelines;
                     if (pipelines != null && (Now - _LastPipelineSweepUtc).TotalMilliseconds >= _Options.PipelineSweepIntervalMs && await AwakeAsync(token).ConfigureAwait(false))
                     {
@@ -739,8 +751,13 @@ namespace Garrison.Server.Runtime
                 Deployment? deployment = await _Database.Deployments.ReadAsync(run.DeploymentId, token).ConfigureAwait(false);
                 // A Leased run never started its harness (the start gate), so it is requeued under every policy. A Running
                 // run follows the effect policy it was admitted under (P12.29): only AtLeastOnce requeues it; AtMostOnce,
-                // and Journaled until the effect journal exists (P12.33), end it with NodeLost.
+                // and Journaled without a trusted safe checkpoint, end it with NodeLost.
                 bool requeue = EffectPolicyRules.RequeueOnLeaseExpiry(run);
+                if (!requeue && run.Status == RunStatusEnum.Running && run.EffectPolicy == DeploymentEffectPolicyEnum.Journaled
+                    && !run.CancelRequested && run.Attempt < Math.Max(run.MaxAttempts, 1))
+                {
+                    requeue = await _Database.EffectOperations.RecoverySafeAsync(run.TenantId, run.Id, run.LeaseEpoch, token).ConfigureAwait(false);
+                }
 
                 RunTransition transition = new RunTransition();
                 transition.RunId = run.Id;
@@ -769,6 +786,7 @@ namespace Garrison.Server.Runtime
 
                 if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
                 {
+                    if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, run.LeaseEpoch, token).ConfigureAwait(false);
                     GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseExpirations, "action", requeue ? "requeued" : "failed");
                     _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " (effect policy " + run.EffectPolicy + ") " + RunTracing.LogFields(run.Id, run.TraceId)
                         + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", deployment?.Name, "node", run.LeaseNodeName ?? run.LeaseNodeId));
@@ -792,6 +810,7 @@ namespace Garrison.Server.Runtime
 
         private async Task FinishedAsync(Run run, RunTransition transition, CancellationToken token)
         {
+            if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, run.LeaseEpoch, token).ConfigureAwait(false);
             run.Status = transition.ToStatus;
             if (transition.Outcome.HasValue) run.Outcome = transition.Outcome.Value;
             run.CompletedUtc = Now;

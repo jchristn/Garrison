@@ -125,6 +125,9 @@ namespace Garrison.Core.Database.Ado
             Nodes = new AdoNodeMethods(this);
             Runs = new AdoRunMethods(this);
             RunEvents = new AdoRunEventMethods(this);
+            RunDatabaseUsage = new AdoRunDatabaseUsageMethods(this);
+            CredentialLeases = new AdoCredentialLeaseMethods(this);
+            EffectOperations = new AdoEffectOperationMethods(this);
             CoordinationLeases = new AdoCoordinationLeaseMethods(this);
             ClusterSettings = new AdoClusterSettingMethods(this);
             ManifestApplies = new AdoManifestApplyMethods(this);

@@ -13,6 +13,36 @@ from urllib.parse import quote, urlencode
 
 import requests
 
+class RunDatabaseUsage(TypedDict):
+    """Exact completed-scope SQL attempts; shared polling and telemetry writes are excluded."""
+    tenantId: str
+    runId: str
+    operation: str
+    statements: int
+    reads: int
+    writes: int
+    errors: int
+    transactions: int
+    durationMicroseconds: int
+
+
+class NodePlacementResponse(TypedDict):
+    """Advisory node eligibility. Reasons contain stable codes, never other tenant run data."""
+    nodeId: str
+    eligible: bool
+    reasons: List[str]
+
+
+class RunPlacementResponse(TypedDict, total=False):
+    """Read-only diagnostic; null optional fields may be omitted by the server. No capacity reservation."""
+    runId: str
+    takenUtc: str
+    admissionRejection: Optional[str]
+    reasons: List[str]
+    nodes: List[NodePlacementResponse]
+    eligible: bool
+
+
 class ExecutorRequirements(TypedDict, total=False):
     """Optional deployment/run placement requirements; absent flags default false."""
     isolation: Literal["Process", "Container", "SandboxedRuntime"]
@@ -131,10 +161,35 @@ class Transcript(TypedDict, total=False):
     turns: List[TranscriptTurn]
 
 
+class EffectOperation(TypedDict):
+    """Gateway intent metadata; does not contain raw arguments or secrets."""
+    id: str
+    tenantId: str
+    runId: str
+    leaseEpoch: int
+    tool: str
+    argumentDigest: str
+    state: str
+    resultReference: Optional[str]
+    createdUtc: str
+
+
+class MasterKeyRotationResponse(TypedDict):
+    """Resumable encryption rotation pass counts, without key material."""
+    keyVersion: int
+    scanned: int
+    rotated: int
+    conflicts: int
+    failed: int
+
+
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
 # Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
-RUN_EXECUTORS = ("Process", "KubernetesJob")
+RUN_EXECUTORS = ("Process", "KubernetesJob", "RemoteA2A", "RemoteMcp")
+RUN_STATUSES = ("Queued", "Leased", "Running", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected", "Suspended")
+EFFECT_OPERATION_STATES = ("Authorized", "Dispatched", "Completed", "Unknown")
+QUEUE_FULL_ERROR = "QueueFull"
 # Deployment and run "trustLevel" (default Trusted). Untrusted runs need at least Container isolation: an unset deployment
 # executor resolves to KubernetesJob, and a run no Ready worker can isolate stays Queued with blockedReason
 # NoIsolatingWorker. Tenant "requireUntrustedDeployments" rejects Trusted deployments (field code TenantRequiresUntrusted).
@@ -145,7 +200,7 @@ TRUST_LEVELS = ("Trusted", "Untrusted")
 EGRESS_PROTOCOLS = ("TCP", "UDP")
 # Deployment and run "effectPolicy" (default AtMostOnce for new deployments): what happens to a run that was already
 # Running when its worker was lost. AtMostOnce fails it with outcome NodeLost, AtLeastOnce requeues it while attempts
-# remain, and Journaled behaves as AtMostOnce until the effect journal exists. The deprecated "retryOnNodeLoss" is still
+# remain, and Journaled requires a safe known-coverage checkpoint. The deprecated "retryOnNodeLoss" is still
 # accepted (true is AtLeastOnce, false is AtMostOnce); sending both with different meanings is a 400 with field code
 # EffectPolicyConflict, so drop "retryOnNodeLoss" from a deployment you read back before changing "effectPolicy".
 EFFECT_POLICIES = ("AtMostOnce", "AtLeastOnce", "Journaled")
@@ -175,7 +230,7 @@ CONVERSATION_FALLBACK_REASONS = ("AffinityNodeLost", "AffinityWaitExpired", "Wor
 # deployment "approvalDefaultAction" and approval rule "action" take APPROVAL_RULE_ACTIONS.
 APPROVAL_STATUSES = ("Pending", "Approved", "Denied", "Expired", "Cancelled")
 APPROVAL_DECISIONS = ("Allow", "Deny")
-APPROVAL_SOURCES = ("Rule", "Default", "User", "Timeout", "Cancelled")
+APPROVAL_SOURCES = ("Rule", "Default", "User", "Timeout", "Cancelled", "DurableResume")
 APPROVAL_RULE_ACTIONS = ("Allow", "Deny", "Ask")
 APPROVAL_KINDS = ("Tool", "Command", "FileChange")
 # Pipelines (ordered agent stages with optional review gates). PipelineRun["status"] and ["outcome"],
@@ -827,6 +882,18 @@ class Runs:
     def get(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._p(f"/{_seg(id)}"))
 
+    def placement(self, id: str) -> RunPlacementResponse:
+        """Explain current placement without leasing or reserving capacity."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/placement"))
+
+    def database_usage(self, id: str) -> List[RunDatabaseUsage]:
+        """Read database statement totals by completed run lifecycle operation."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/database-usage"))
+
+    def operations(self, id: str) -> List[EffectOperation]:
+        """Read tenant-scoped effect intent metadata in creation order."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/operations"))
+
     def list(self, status: Optional[str] = None, agent_id: Optional[str] = None, deployment_id: Optional[str] = None,
              harness_type: Optional[str] = None, node_id: Optional[str] = None, parent_run_id: Optional[str] = None,
              root_run_id: Optional[str] = None, outcome: Optional[str] = None, from_utc: Optional[datetime] = None,
@@ -1108,6 +1175,10 @@ class Settings:
 
     def restart(self) -> Dict[str, Any]:
         return self._t.request("POST", "/v1.0/api/settings/restart")
+
+    def rotate_master_key(self) -> MasterKeyRotationResponse:
+        """Re-encrypt stored credentials and secrets with the configured active key (system administrator only)."""
+        return self._t.request("POST", "/v1.0/api/settings/keys/rotate")
 
     def test_database(self) -> Dict[str, Any]:
         return self._t.request("POST", "/v1.0/api/settings/database/test")

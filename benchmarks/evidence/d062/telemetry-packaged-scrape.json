@@ -1,0 +1,83 @@
+{
+  "timestampUtc": "2026-10-16T14:52:36.215029+00:00",
+  "status": "passed",
+  "traceId": "a88a06c892c78d4917a31ac79d53eae9",
+  "scrapeConfig": "docker/observability/prometheus.yaml",
+  "scrapeConfigSha256": "4f6bb2202fa88eb98a998f1758be06158f9a5fd2ebb951cc780be9aece872603",
+  "target": "garrison-server:9464",
+  "applicationLabelsVerified": [
+    {
+      "component": "memory",
+      "process_component": "server",
+      "operation": "write",
+      "count": "1"
+    },
+    {
+      "component": "memory",
+      "process_component": "server",
+      "operation": "read",
+      "count": "1"
+    },
+    {
+      "component": "memory",
+      "process_component": "server",
+      "operation": "delete",
+      "count": "1"
+    }
+  ],
+  "traceSpans": [
+    {
+      "name": "db select runs",
+      "parent": "stage:collector_probe:inner",
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "db select run_parameters",
+      "parent": "stage:collector_probe:inner",
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "db select run_requirements",
+      "parent": "stage:collector_probe:inner",
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "db select run_template_versions",
+      "parent": "stage:collector_probe:inner",
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "stage:collector_probe:inner",
+      "parent": "stage:collector_probe:outer",
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "stage:collector_probe:outer",
+      "parent": "collector:application-acceptance",
+      "status": {
+        "code": "STATUS_CODE_OK"
+      }
+    },
+    {
+      "name": "collector:application-acceptance",
+      "parent": "root",
+      "status": {}
+    }
+  ],
+  "notes": [
+    "Exact packaged Compose Prometheus configuration mounted unchanged.",
+    "Disposable target resolves garrison-server to the host gateway and uses a loopback scrape proxy to preserve the source-process Radiant listener Host header.",
+    "The source worker shares the process meter in this fixture; only the server target is provisioned, not separate worker-container scrape targets.",
+    "Memory app component stays memory and target process_component stays server; exported_component is absent."
+  ]
+}

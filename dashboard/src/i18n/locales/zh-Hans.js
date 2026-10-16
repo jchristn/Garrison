@@ -159,6 +159,7 @@ const zhHans = {
       Deny: '拒绝'
     },
     approvalSource: {
+      DurableResume: "继承的审批",
       Rule: '规则',
       Default: '部署默认设置',
       User: '人工',
@@ -2555,3 +2556,17 @@ zhHans.components.mcpTest.noWorkers = "没有就绪的工作节点提供 stdio �
   }
  }
 });
+
+// Durable continuation and remote execution.
+zhHans.enums.runStatus.Suspended = "已挂起";
+zhHans.resources.deployments.fields.suspensionEnabled = "等待审批时挂起";
+zhHans.resources.harnessProfiles.fields.sessionFormat = "Harness 会话格式";
+zhHans.enums.auditEventType.QueueFull = "队列已满";
+zhHans.enums.runExecutor.RemoteA2A = "远程 A2A";
+zhHans.enums.runExecutor.RemoteMcp = "远程 MCP";
+zhHans.tips.resources.deployments.suspensionEnabled = "等待时启用持久检查点。需要 Process、隔离的主目录、兼容且可恢复的 Harness，以及产物存储。";
+zhHans.tips.resources.harnessProfiles.sessionFormat = "可移植检查点的版本化会话格式。如果 Harness 升级改变会话兼容性，请更新此值。";
+zhHans.tips.enums.runStatus.Suspended = "运行已有持久会话检查点，等待时不占用工作节点租约或执行槽位。";
+zhHans.tips.enums.runExecutor.RemoteA2A = "通过期限和取消处理执行已认证的注册 A2A 代理。";
+zhHans.tips.enums.runExecutor.RemoteMcp = "使用经过验证的 JSON 输入调用所选的远程 MCP 工具。";
+zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列达到上限，运行接纳被拒绝。";

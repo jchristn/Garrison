@@ -49,13 +49,21 @@ namespace Garrison.Benchmark.Runners
             int durationSeconds = context.Args.GetInt("duration-seconds", 20, 1, 86400);
             int delayMs = context.Args.GetInt("delay-ms", 0, 0, 5000);
             int maxInFlight = context.Args.GetInt("max-in-flight", 2000, 1, 100000);
+            bool databaseAttribution = context.Args.GetBool("database-attribution", false);
+            int attributionSeconds = context.Args.GetInt("database-attribution-seconds", 10, 1, 300);
             int waitSeconds = context.Args.GetInt("wait-seconds", 300, 1, 600);
             string laneLabel = context.Args.GetString("lane-label", "bench.garrison.io/lane=alpha");
             string workerSet = context.Args.GetString("worker-statefulset", "garrison-worker");
             string inputText = context.Args.GetString("input", "load test run");
-            if (mode != "closed" && mode != "open")
+            string? tracePath = context.Args.GetOptional("trace");
+            ArrivalTrace? trace = tracePath == null ? null : ArrivalTrace.Load(context.ResolvePath(tracePath));
+            if (mode == "trace" && trace == null) throw new ArgumentException("--mode trace needs --trace with a prepared arrival trace.");
+            if (mode == "trace" && trace != null && !trace.OffsetsMs.Any(offset => offset < durationSeconds * 1000.0))
+                throw new ArgumentException("The trace has no arrivals inside --duration-seconds.");
+            if (mode != "trace" && trace != null) throw new ArgumentException("--trace requires --mode trace.");
+            if (mode != "closed" && mode != "open" && mode != "trace")
             {
-                Console.Error.WriteLine("--mode must be closed or open.");
+                Console.Error.WriteLine("--mode must be closed, open, or trace.");
                 return 2;
             }
 
@@ -86,6 +94,10 @@ namespace Garrison.Benchmark.Runners
             DateTime startedUtc = DateTime.UtcNow;
             BenchmarkReport report = new BenchmarkReport();
             report.Kind = "load";
+            if (trace != null)
+            {
+                report.Notes.Add("Trace source " + trace.Source + "; source SHA-256 " + trace.SourceSha256 + "; prepared trace SHA-256 " + DatasetLoader.Sha256Hex(System.IO.File.ReadAllBytes(context.ResolvePath(tracePath!))) + "; " + trace.OffsetsMs.Count + " arrivals; offsets beyond the measured duration are not sent; no looping or jitter.");
+            }
             Provisioner provisioner = new Provisioner(context.Client);
             Workspace workspace;
             try
@@ -111,15 +123,16 @@ namespace Garrison.Benchmark.Runners
                 foreach (string arm in arms)
                 {
                     if (arm == "direct" && workers > 0 && workers != sweep[0]) continue;
-                    List<double> loads = mode == "closed" ? concurrency.Select(c => (double)c).ToList() : rates;
+                    List<double> loads = mode == "trace" ? new List<double> { 0 } : mode == "closed" ? concurrency.Select(c => (double)c).ToList() : rates;
                     foreach (double load in loads)
                     {
                         token.ThrowIfCancellationRequested();
                         LevelSettings settings = new LevelSettings();
                         settings.Arm = arm;
                         settings.Mode = mode;
+                        settings.ArrivalOffsetsMs = trace?.OffsetsMs;
                         settings.Concurrency = mode == "closed" ? (int)load : 0;
-                        settings.Rate = mode == "open" ? load : 0;
+                        settings.Rate = mode == "trace" ? trace!.OffsetsMs.Count(offset => offset < durationSeconds * 1000.0) / (double)durationSeconds : mode == "open" ? load : 0;
                         settings.TenantId = workspace.TenantId;
                         settings.Agent = agent;
                         settings.Input = inputText;
@@ -129,7 +142,7 @@ namespace Garrison.Benchmark.Runners
                         settings.MaxInFlight = maxInFlight;
                         settings.Direct = direct;
 
-                        BenchmarkContext.Log("load " + arm + " " + mode + " " + (mode == "closed" ? "c" + settings.Concurrency : load.ToString("0.##", CultureInfo.InvariantCulture) + "/s") + ", " + lane.Count + " lane workers (" + slots + " slots): warmup " + warmupSeconds + " s");
+                        BenchmarkContext.Log("load " + arm + " " + mode + " " + (mode == "trace" ? "trace " + trace!.OffsetsMs.Count + " arrivals" : mode == "closed" ? "c" + settings.Concurrency : load.ToString("0.##", CultureInfo.InvariantCulture) + "/s") + ", " + lane.Count + " lane workers (" + slots + " slots): warmup " + warmupSeconds + " s");
                         if (warmupSeconds > 0) await RunWindowAsync(context.Client, settings, warmupSeconds, token).ConfigureAwait(false);
                         PrometheusSnapshot before = PrometheusSnapshot.Parse(await context.Client.GetMetricsTextAsync(token).ConfigureAwait(false));
                         WindowResult window = await RunWindowAsync(context.Client, settings, durationSeconds, token).ConfigureAwait(false);
@@ -137,7 +150,23 @@ namespace Garrison.Benchmark.Runners
                         LoadLevelResult level = Summarize(window, settings, durationSeconds, context.Resamples, StableHash.Seed(context.Seed, arm + "/" + load.ToString(CultureInfo.InvariantCulture) + "/" + workers.ToString(CultureInfo.InvariantCulture)));
                         level.Workers = arm == "direct" ? 0 : lane.Count;
                         level.Slots = arm == "direct" ? 0 : slots;
-                        if (arm != "direct") level.Stages = after.Since(before, 20);
+                        if (arm != "direct")
+                        {
+                            List<StageDelta> allStages = after.Since(before, 1000);
+                            level.Stages = allStages.Take(20).ToList();
+                            if (level.Succeeded > 0)
+                            {
+                                List<StageDelta> database = after.Counts.Where(s => s.Key.StartsWith("garrison_db_operation_duration_seconds", StringComparison.Ordinal))
+                                    .Select(s => new StageDelta { Series = s.Key, Count = Math.Max(0, s.Value - (before.Counts.TryGetValue(s.Key, out double prior) ? prior : 0)) }).ToList();
+                                if (database.Count > 0)
+                                {
+                                    level.EstimatedDbStatementsPerSucceededRun = database.Sum(s => s.Count) / level.Succeeded;
+                                    level.EstimatedRequestHistoryHeaderInsertsPerSucceededRun = database.Where(s => s.Series.Contains("table=\"request_history_headers\"", StringComparison.Ordinal) && s.Series.Contains("operation=\"insert\"", StringComparison.Ordinal)).Sum(s => s.Count) / level.Succeeded;
+                                }
+                            }
+                        }
+                        if (databaseAttribution && arm != "direct")
+                            await CollectDatabaseUsageAsync(context.Client, workspace.TenantId, window, level, attributionSeconds, token).ConfigureAwait(false);
                         report.LoadLevels.Add(level);
                         BenchmarkContext.Log("  " + level.Succeeded + " ok, " + level.Failed + " failed, " + ReportWriter.N(level.Throughput, "F2") + " ops/s, p50 " + (level.Latency == null ? "n/a" : ReportWriter.N(level.Latency.P50, "F0")) + " ms, p95 " + (level.Latency == null ? "n/a" : ReportWriter.N(level.Latency.P95, "F0")) + " ms");
                     }
@@ -225,10 +254,11 @@ namespace Garrison.Benchmark.Runners
                 List<Task> inFlight = new List<Task>();
                 using (SemaphoreSlim gate = new SemaphoreSlim(settings.MaxInFlight, settings.MaxInFlight))
                 {
-                    double intervalMs = 1000.0 / settings.Rate;
+                    double intervalMs = settings.Rate > 0 ? 1000.0 / settings.Rate : 0;
                     for (int i = 0; ; i++)
                     {
-                        double due = i * intervalMs;
+                        if (settings.ArrivalOffsetsMs != null && i >= settings.ArrivalOffsetsMs.Count) break;
+                        double due = settings.ArrivalOffsetsMs == null ? i * intervalMs : settings.ArrivalOffsetsMs[i];
                         if (due >= windowMs) break;
                         double wait = due - clock.Elapsed.TotalMilliseconds;
                         if (wait > 1) await Task.Delay(TimeSpan.FromMilliseconds(wait), token).ConfigureAwait(false);
@@ -290,10 +320,23 @@ namespace Garrison.Benchmark.Runners
                 request.WaitSeconds = settings.WaitSeconds;
                 request.CancelOnDisconnect = false;
                 ApiResponse<Run> response = await client.InvokeAsync(settings.TenantId, settings.Agent, request, token).ConfigureAwait(false);
-                op.EndMs = clock.Elapsed.TotalMilliseconds;
                 Run? run = response.Body;
+                bool asynchronousFallback = response.StatusCode == 202 && run != null;
+                if (asynchronousFallback)
+                {
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(settings.WaitSeconds);
+                    while (run != null && !Terminal(run.Status) && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(50, token).ConfigureAwait(false);
+                        response = await client.GetRunAsync(settings.TenantId, run.Id, token).ConfigureAwait(false);
+                        if (!response.IsSuccess || response.Body == null) break;
+                        run = response.Body;
+                    }
+                }
+                op.EndMs = clock.Elapsed.TotalMilliseconds;
                 if (run != null)
                 {
+                    op.RunId = run.Id;
                     op.QueueMs = run.QueueMs;
                     op.ExecutionMs = run.ExecutionMs;
                     op.TotalMs = run.TotalMs;
@@ -309,6 +352,53 @@ namespace Garrison.Benchmark.Runners
             }
             op.LatencyMs = op.EndMs - op.ScheduledMs;
             return op;
+        }
+
+        private static bool Terminal(string? status)
+        {
+            return status == "Succeeded" || status == "Failed" || status == "Cancelled" || status == "TimedOut" || status == "Rejected";
+        }
+
+        private static async Task CollectDatabaseUsageAsync(GarrisonClient client, string tenantId, WindowResult window, LoadLevelResult level, int budgetSeconds, CancellationToken token)
+        {
+            long statements = 0;
+            long reads = 0;
+            long writes = 0;
+            List<LoadOperation> operations = window.Operations.Where(o => o.Success && !String.IsNullOrEmpty(o.RunId)).ToList();
+            // One shared flush grace and one global collection budget, never a grace period per run.
+            DateTime graceDeadline = DateTime.UtcNow.AddSeconds(Math.Min(3, budgetSeconds));
+            using (CancellationTokenSource budget = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                budget.CancelAfter(TimeSpan.FromSeconds(budgetSeconds));
+                try
+                {
+                    foreach (LoadOperation operation in operations)
+                    {
+                        budget.Token.ThrowIfCancellationRequested();
+                        List<RunDatabaseUsage>? usage = null;
+                        do
+                        {
+                            ApiResponse<List<RunDatabaseUsage>> response = await client.GetRunDatabaseUsageAsync(tenantId, operation.RunId!, budget.Token).ConfigureAwait(false);
+                            usage = response.IsSuccess ? response.Body : null;
+                            if (usage?.Any(u => u.Operation == "complete") == true || !response.IsSuccess || DateTime.UtcNow >= graceDeadline) break;
+                            await Task.Delay(25, budget.Token).ConfigureAwait(false);
+                        } while (DateTime.UtcNow < graceDeadline);
+                        if (usage == null || !usage.Any(u => u.Operation == "complete")) continue;
+                        level.ExactDbUsageRuns++;
+                        statements += usage.Sum(u => u.Statements);
+                        reads += usage.Sum(u => u.Reads);
+                        writes += usage.Sum(u => u.Writes);
+                    }
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested) { }
+            }
+            level.ExactDbUsageMissingRuns = operations.Count - level.ExactDbUsageRuns;
+            if (level.ExactDbUsageRuns > 0)
+            {
+                level.ExactScopedDbStatementsPerRun = statements / (double)level.ExactDbUsageRuns;
+                level.ExactScopedDbReadsPerRun = reads / (double)level.ExactDbUsageRuns;
+                level.ExactScopedDbWritesPerRun = writes / (double)level.ExactDbUsageRuns;
+            }
         }
 
         private static LoadLevelResult Summarize(WindowResult window, LevelSettings settings, int durationSeconds, int resamples, int seed)

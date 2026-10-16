@@ -1,0 +1,412 @@
+[
+  {
+    "testId": "telemetry.catalog",
+    "suiteId": "telemetry",
+    "caseId": "catalog",
+    "displayName": "Every metric in the catalog is unique, bucketed, documented, and assigned a dashboard",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6,
+    "message": null
+  },
+  {
+    "testId": "telemetry.dashboards",
+    "suiteId": "telemetry",
+    "caseId": "dashboards",
+    "displayName": "Every metric is charted on its dashboard, and every dashboard UID is in server-info",
+    "success": true,
+    "skipped": false,
+    "durationMs": 18,
+    "message": null
+  },
+  {
+    "testId": "telemetry.routes",
+    "suiteId": "telemetry",
+    "caseId": "routes",
+    "displayName": "Every REST route, MCP tool, and A2A method has a row in the coverage matrix",
+    "success": true,
+    "skipped": false,
+    "durationMs": 561,
+    "message": null
+  },
+  {
+    "testId": "telemetry.http-runtime",
+    "suiteId": "telemetry",
+    "caseId": "http-runtime",
+    "displayName": "Requests record route-template metrics, database statements, background iterations, and auth failures",
+    "success": true,
+    "skipped": false,
+    "durationMs": 377,
+    "message": null
+  },
+  {
+    "testId": "telemetry.run-runtime",
+    "suiteId": "telemetry",
+    "caseId": "run-runtime",
+    "displayName": "A run records per-agent lifecycle, stage, token, and worker metrics with tenant, agent, deployment, harness, and model labels",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1068,
+    "message": null
+  },
+  {
+    "testId": "telemetry.mcp-runtime",
+    "suiteId": "telemetry",
+    "caseId": "mcp-runtime",
+    "displayName": "MCP tool calls record duration by tool and result, and sessions are counted",
+    "success": true,
+    "skipped": false,
+    "durationMs": 427,
+    "message": null
+  },
+  {
+    "testId": "telemetry.label-guard",
+    "suiteId": "telemetry",
+    "caseId": "label-guard",
+    "displayName": "The cardinality guard folds values beyond the limit into other and counts them",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "telemetry.telemetry-failure-isolation",
+    "suiteId": "telemetry",
+    "caseId": "telemetry-failure-isolation",
+    "displayName": "Throwing trace and metric consumers cannot change the application result or original exception",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2,
+    "message": null
+  },
+  {
+    "testId": "telemetry.application-stage-runtime",
+    "suiteId": "telemetry",
+    "caseId": "application-stage-runtime",
+    "displayName": "Application spans classify error and cancellation without exception values; intrinsic gateway timing excludes tool execution",
+    "success": true,
+    "skipped": false,
+    "durationMs": 154,
+    "message": null
+  },
+  {
+    "testId": "telemetry.statement-names",
+    "suiteId": "telemetry",
+    "caseId": "statement-names",
+    "displayName": "Database statement names carry the operation and table, never values",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-sqlite.parallel-and-nested",
+    "suiteId": "database-attribution-sqlite",
+    "caseId": "parallel-and-nested",
+    "displayName": "Parallel unrelated queries never contaminate exact counts; nested same-run work is counted once and concurrent scopes atomically accumulate",
+    "success": true,
+    "skipped": false,
+    "durationMs": 52,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-sqlite.errors-and-isolation",
+    "suiteId": "database-attribution-sqlite",
+    "caseId": "errors-and-isolation",
+    "displayName": "Failed SQL attempts persist without SQL text, other tenants cannot read attribution, and run deletion cleans usage",
+    "success": true,
+    "skipped": false,
+    "durationMs": 50,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-postgresql.parallel-and-nested",
+    "suiteId": "database-attribution-postgresql",
+    "caseId": "parallel-and-nested",
+    "displayName": "Parallel unrelated queries never contaminate exact counts; nested same-run work is counted once and concurrent scopes atomically accumulate",
+    "success": true,
+    "skipped": false,
+    "durationMs": 487,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-postgresql.errors-and-isolation",
+    "suiteId": "database-attribution-postgresql",
+    "caseId": "errors-and-isolation",
+    "displayName": "Failed SQL attempts persist without SQL text, other tenants cannot read attribution, and run deletion cleans usage",
+    "success": true,
+    "skipped": false,
+    "durationMs": 357,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-sqlite.shared-wait-budget-admission",
+    "suiteId": "delegation-wait-budget-sqlite",
+    "caseId": "shared-wait-budget-admission",
+    "displayName": "Full external wait budget refuses resident delegation before child creation; cancellation, idempotency and creation failure release resources",
+    "success": true,
+    "skipped": false,
+    "durationMs": 501,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-sqlite.reserved-child-wait",
+    "suiteId": "delegation-wait-budget-sqlite",
+    "caseId": "reserved-child-wait",
+    "displayName": "An admitted resident child wait owns one slot, retains reserve eligibility and completes with a terminal child",
+    "success": true,
+    "skipped": false,
+    "durationMs": 817,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-postgresql.shared-wait-budget-admission",
+    "suiteId": "delegation-wait-budget-postgresql",
+    "caseId": "shared-wait-budget-admission",
+    "displayName": "Full external wait budget refuses resident delegation before child creation; cancellation, idempotency and creation failure release resources",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1217,
+    "message": null
+  },
+  {
+    "testId": "delegation-wait-budget-postgresql.reserved-child-wait",
+    "suiteId": "delegation-wait-budget-postgresql",
+    "caseId": "reserved-child-wait",
+    "displayName": "An admitted resident child wait owns one slot, retains reserve eligibility and completes with a terminal child",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1575,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-sqlite.weighted-single-claims",
+    "suiteId": "tenant-scheduling-sqlite",
+    "caseId": "weighted-single-claims",
+    "displayName": "Fair service persists across single-slot claims; quiet tenant gets bounded service under 100x noisy backlog",
+    "success": true,
+    "skipped": false,
+    "durationMs": 64,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-sqlite.fair-window",
+    "suiteId": "tenant-scheduling-sqlite",
+    "caseId": "fair-window",
+    "displayName": "SQL candidate window includes quiet tenants despite older high-priority noisy backlog",
+    "success": true,
+    "skipped": false,
+    "durationMs": 63,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-sqlite.queue-depth-atomic",
+    "suiteId": "tenant-scheduling-sqlite",
+    "caseId": "queue-depth-atomic",
+    "displayName": "Concurrent queue admission, independent scopes, idempotent retries, and capacity after claim",
+    "success": true,
+    "skipped": false,
+    "durationMs": 51,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-sqlite.queue-http",
+    "suiteId": "tenant-scheduling-sqlite",
+    "caseId": "queue-http",
+    "displayName": "REST QueueFull has Retry-After and an audit event without creating a rejected run",
+    "success": true,
+    "skipped": false,
+    "durationMs": 318,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-sqlite.tenant-weight",
+    "suiteId": "tenant-scheduling-sqlite",
+    "caseId": "tenant-weight",
+    "displayName": "Tenant scheduling weight persists and clamps",
+    "success": true,
+    "skipped": false,
+    "durationMs": 45,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-postgresql.weighted-single-claims",
+    "suiteId": "tenant-scheduling-postgresql",
+    "caseId": "weighted-single-claims",
+    "displayName": "Fair service persists across single-slot claims; quiet tenant gets bounded service under 100x noisy backlog",
+    "success": true,
+    "skipped": false,
+    "durationMs": 48,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-postgresql.fair-window",
+    "suiteId": "tenant-scheduling-postgresql",
+    "caseId": "fair-window",
+    "displayName": "SQL candidate window includes quiet tenants despite older high-priority noisy backlog",
+    "success": true,
+    "skipped": false,
+    "durationMs": 433,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-postgresql.queue-depth-atomic",
+    "suiteId": "tenant-scheduling-postgresql",
+    "caseId": "queue-depth-atomic",
+    "displayName": "Concurrent queue admission, independent scopes, idempotent retries, and capacity after claim",
+    "success": true,
+    "skipped": false,
+    "durationMs": 351,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-postgresql.queue-http",
+    "suiteId": "tenant-scheduling-postgresql",
+    "caseId": "queue-http",
+    "displayName": "REST QueueFull has Retry-After and an audit event without creating a rejected run",
+    "success": true,
+    "skipped": false,
+    "durationMs": 952,
+    "message": null
+  },
+  {
+    "testId": "tenant-scheduling-postgresql.tenant-weight",
+    "suiteId": "tenant-scheduling-postgresql",
+    "caseId": "tenant-weight",
+    "displayName": "Tenant scheduling weight persists and clamps",
+    "success": true,
+    "skipped": false,
+    "durationMs": 305,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-sqlite.remote-admission-and-disabled-quota",
+    "suiteId": "placement-explanation-sqlite",
+    "caseId": "remote-admission-and-disabled-quota",
+    "displayName": "Remote placement requires no hosted deployment and shares registration TTL/active checks; disabled quotas do not reject",
+    "success": true,
+    "skipped": false,
+    "durationMs": 323,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-sqlite.synchronous-wait-headroom",
+    "suiteId": "placement-explanation-sqlite",
+    "caseId": "synchronous-wait-headroom",
+    "displayName": "Bounded waits return accepted run IDs and release budget on completion while worker protocol progresses",
+    "success": true,
+    "skipped": false,
+    "durationMs": 541,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-sqlite.static-privacy-no-mutation",
+    "suiteId": "placement-explanation-sqlite",
+    "caseId": "static-privacy-no-mutation",
+    "displayName": "Dry run shares placement filters, hides dedicated inventory and changes no epoch or lease",
+    "success": true,
+    "skipped": false,
+    "durationMs": 334,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-sqlite.capacity-affinity-and-quota",
+    "suiteId": "placement-explanation-sqlite",
+    "caseId": "capacity-affinity-and-quota",
+    "displayName": "Dry run explains actual node capacity, affinity, deployment and quota gates",
+    "success": true,
+    "skipped": false,
+    "durationMs": 327,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-postgresql.remote-admission-and-disabled-quota",
+    "suiteId": "placement-explanation-postgresql",
+    "caseId": "remote-admission-and-disabled-quota",
+    "displayName": "Remote placement requires no hosted deployment and shares registration TTL/active checks; disabled quotas do not reject",
+    "success": true,
+    "skipped": false,
+    "durationMs": 910,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-postgresql.synchronous-wait-headroom",
+    "suiteId": "placement-explanation-postgresql",
+    "caseId": "synchronous-wait-headroom",
+    "displayName": "Bounded waits return accepted run IDs and release budget on completion while worker protocol progresses",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1307,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-postgresql.static-privacy-no-mutation",
+    "suiteId": "placement-explanation-postgresql",
+    "caseId": "static-privacy-no-mutation",
+    "displayName": "Dry run shares placement filters, hides dedicated inventory and changes no epoch or lease",
+    "success": true,
+    "skipped": false,
+    "durationMs": 984,
+    "message": null
+  },
+  {
+    "testId": "placement-explanation-postgresql.capacity-affinity-and-quota",
+    "suiteId": "placement-explanation-postgresql",
+    "caseId": "capacity-affinity-and-quota",
+    "displayName": "Dry run explains actual node capacity, affinity, deployment and quota gates",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1016,
+    "message": null
+  },
+  {
+    "testId": "agent-memory.filesystem-contract",
+    "suiteId": "agent-memory",
+    "caseId": "filesystem-contract",
+    "displayName": "Durability, tenant/agent isolation, atomic concurrent writes, bounds, links and cancellation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 133,
+    "message": null
+  },
+  {
+    "testId": "agent-memory-sqlite.mcp-roundtrip",
+    "suiteId": "agent-memory-sqlite",
+    "caseId": "mcp-roundtrip",
+    "displayName": "Opt-in MCP memory persists across sessions, isolates agents and accepts an interface replacement",
+    "success": true,
+    "skipped": false,
+    "durationMs": 503,
+    "message": null
+  },
+  {
+    "testId": "agent-memory-sqlite.disabled-discovery",
+    "suiteId": "agent-memory-sqlite",
+    "caseId": "disabled-discovery",
+    "displayName": "Disabled optional memory is hidden and fails closed",
+    "success": true,
+    "skipped": false,
+    "durationMs": 319,
+    "message": null
+  },
+  {
+    "testId": "agent-memory-postgresql.mcp-roundtrip",
+    "suiteId": "agent-memory-postgresql",
+    "caseId": "mcp-roundtrip",
+    "displayName": "Opt-in MCP memory persists across sessions, isolates agents and accepts an interface replacement",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1146,
+    "message": null
+  },
+  {
+    "testId": "agent-memory-postgresql.disabled-discovery",
+    "suiteId": "agent-memory-postgresql",
+    "caseId": "disabled-discovery",
+    "displayName": "Disabled optional memory is hidden and fails closed",
+    "success": true,
+    "skipped": false,
+    "durationMs": 924,
+    "message": null
+  }
+]

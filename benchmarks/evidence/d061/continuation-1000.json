@@ -1,0 +1,12 @@
+[
+  {
+    "testId": "continuation-scale-sqlite.concurrent-cross-node-checkpoints",
+    "suiteId": "continuation-scale-sqlite",
+    "caseId": "concurrent-cross-node-checkpoints",
+    "displayName": "A configurable population of actual fake-harness processes checkpoints, releases every slot, then resumes on another node",
+    "success": true,
+    "skipped": false,
+    "durationMs": 238400,
+    "message": null
+  }
+]

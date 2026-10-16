@@ -1,0 +1,11 @@
+{
+  "uniqueCases": 909,
+  "passed": 909,
+  "failed": [],
+  "originalBothProviderCases": 909,
+  "originalPassed": 874,
+  "freshPostgresqlAndSharedCases": 587,
+  "freshPassed": 587,
+  "infrastructure": "First PostgreSQL container had 64 MiB /dev/shm; two shared-memory allocation failures and native PostgreSQL recovery interrupted 35 PostgreSQL cases. Fresh PostgreSQL container used 256 MiB /dev/shm. Every interrupted case passed in fresh full PostgreSQL run. SQLite had no failures.",
+  "source": "Frozen production/test artifacts, followed by separately recorded post-review scoped regressions."
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "id": "b37a8c6d-ec31-4b1e-8e06-625885a829b1",
+  "title": "Remember GARRISON_RECORDED_SESSION_FIRST_8da3. Reply with that marker only",
+  "titlePinned": false,
+  "createdUtc": "2026-10-16T06:45:00.0997937Z",
+  "updatedUtc": "2026-10-16T06:45:00.0997937Z",
+  "endpointName": "ollama-local",
+  "model": "fixture-model",
+  "workingDirectory": "",
+  "labels": [],
+  "tags": [],
+  "compactionCount": 0,
+  "conversationHistory": [
+    {
+      "role": "User",
+      "content": "Remember GARRISON_RECORDED_SESSION_FIRST_8da3. Reply with that marker only."
+    },
+    {
+      "role": "Assistant",
+      "content": "GARRISON_RECORDED_SESSION_FIRST_8da3"
+    }
+  ],
+  "promptHistory": [
+    "Remember GARRISON_RECORDED_SESSION_FIRST_8da3. Reply with that marker only."
+  ],
+  "jobs": []
+}

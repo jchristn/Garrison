@@ -7,6 +7,9 @@ namespace Garrison.Benchmark.Runners
     /// </summary>
     public class LoadOperation
     {
+        /// <summary>Returned run identifier for optional untimed attribution collection; null for direct harness arms.</summary>
+        public string? RunId { get; set; }
+
         /// <summary>
         /// When the operation was due to start (open loop) or started (closed loop), from the level's stopwatch (ms).
         /// </summary>

@@ -15,6 +15,7 @@
   "killGraceSeconds": 5,
   "isolateHome": true,
   "supportsResume": true,
+  "sessionFormat": "gemini-chat-jsonl-v1",
   "arguments": [
     {
       "template": "-p"

@@ -14,6 +14,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Codex;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
@@ -131,6 +132,11 @@ namespace Garrison.Server.Runtime
 
         #endregion
 
+        /// <summary>
+        /// Optional durable continuation coordinator. Set during server initialization before requests are accepted.
+        /// </summary>
+        public ContinuationService? Continuations { get; set; }
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
@@ -213,6 +219,7 @@ namespace Garrison.Server.Runtime
             approval.Kind = input.Kind;
             approval.ToolName = toolName;
             approval.ToolCallId = String.IsNullOrWhiteSpace(input.ToolCallId) ? null : input.ToolCallId!.Trim();
+            approval.InputDigest = ApprovalInputDigest.Compute(inputJson);
             approval.InputPreview = redactor.RedactAndClip(inputJson, _PreviewLength);
             approval.Summary = redactor.RedactAndClip(Summarize(typed, inputJson), _SummaryLength);
             approval.SuggestedRule = redactor.Redact(ApprovalRuleMatcher.SuggestRule(toolName, typed, cwd));
@@ -227,6 +234,22 @@ namespace Garrison.Server.Runtime
                 Decided(approval, ApprovalStatusEnum.Cancelled, ApprovalDecisionEnum.Deny, ApprovalSourceEnum.Cancelled, "garrison", "The run is not running.");
                 await _Database.Approvals.CreateAsync(approval, token).ConfigureAwait(false);
                 return await OutcomeAsync(approval, deployment, token).ConfigureAwait(false);
+            }
+
+            if (deployment?.SuspensionEnabled == true && action != ApprovalRuleActionEnum.Deny)
+            {
+                Approval? grant = await _Database.Approvals.TryConsumeResumeGrantAsync(run.TenantId, run.Id, run.LeaseEpoch, toolName, input.Kind, approval.InputDigest!, token).ConfigureAwait(false);
+                if (grant != null)
+                {
+                    bool allowGrant = grant.Decision == ApprovalDecisionEnum.Allow;
+                    Decided(approval, allowGrant ? ApprovalStatusEnum.Approved : ApprovalStatusEnum.Denied, grant.Decision!.Value, ApprovalSourceEnum.DurableResume, "approval " + grant.Id, grant.Reason);
+                    await _Database.Approvals.CreateAsync(approval, token).ConfigureAwait(false);
+                    Changed(approval, run.LeaseNodeId);
+                    await _Audit.WriteAsync(new RequestContext { TenantId = run.TenantId, PrincipalType = PrincipalTypeEnum.Run, RunId = run.Id }, AuditEventTypeEnum.ApprovalDecided, "Approval", approval.Id,
+                        "Consumed one-time durable decision " + grant.Id + " for " + toolName + " at run epoch " + run.LeaseEpoch + ".", run.TenantId, token).ConfigureAwait(false);
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.ApprovalsDecided, 1, Tags4("tenant", run.TenantId, "agent", run.AgentName, "source", "durableresume", "decision", approval.Decision!.Value.ToString().ToLowerInvariant()));
+                    return await OutcomeAsync(approval, deployment, token).ConfigureAwait(false);
+                }
             }
 
             if (action != ApprovalRuleActionEnum.Ask)
@@ -257,6 +280,11 @@ namespace Garrison.Server.Runtime
             Changed(approval, run.LeaseNodeId);
             _Logging.Info(_Header + approval.Id + " waiting for a person to decide " + toolName + (String.IsNullOrEmpty(approval.Summary) ? String.Empty : " (" + approval.Summary + ")") + " until " + expires.ToString("o") + " " + RunTracing.LogFields(run.Id, run.TraceId) + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName));
 
+            if (deployment?.SuspensionEnabled == true && Continuations != null)
+            {
+                // Machine protocol marker: unwind the permission call without deciding the persisted approval.
+                return new ApprovalOutcome { Approval = approval, Decision = ApprovalDecisionEnum.Deny, Message = await Continuations.WaitInstructionAsync(run, "Approval", token).ConfigureAwait(false) };
+            }
             Approval final = await WaitAsync(approval, token).ConfigureAwait(false);
             return await OutcomeAsync(final, deployment, CancellationToken.None).ConfigureAwait(false);
         }
@@ -368,7 +396,7 @@ namespace Garrison.Server.Runtime
             {
                 token.ThrowIfCancellationRequested();
                 Run? run = await _Database.Runs.ReadAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false);
-                if (run == null || !IsActive(run, approval.LeaseEpoch))
+                if (run == null || (run.Status != RunStatusEnum.Suspended && !IsActive(run, approval.LeaseEpoch)))
                 {
                     any |= await ResolveAsync(approval, Resolution(approval, ApprovalStatusEnum.Cancelled, ApprovalDecisionEnum.Deny, ApprovalSourceEnum.Cancelled, StopReason(run)), token).ConfigureAwait(false);
                     continue;
@@ -561,6 +589,8 @@ namespace Garrison.Server.Runtime
             approval.DecidedUtc = resolution.DecidedUtc;
             Run? run = await _Database.Runs.ReadAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false);
             Changed(approval, run?.LeaseNodeId);
+            if (run?.Status == RunStatusEnum.Suspended && Continuations != null)
+                await Continuations.ResumeAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false);
             if (resolution.Source != ApprovalSourceEnum.User)
             {
                 _Logging.Info(_Header + approval.Id + " " + approval.ToolName + " " + resolution.Status.ToString().ToLowerInvariant() + " (" + source + "): " + (resolution.Reason ?? String.Empty) + " " + RunTracing.LogFields(approval.RunId, run?.TraceId));

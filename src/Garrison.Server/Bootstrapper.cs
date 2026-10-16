@@ -148,7 +148,7 @@ namespace Garrison.Server
                 logging.Info("[Garrison] database initialized (Postgresql at " + settings.Database.Host + ":" + settings.Database.Port + "/" + settings.Database.DatabaseName + ", schema version " + database.SchemaVersion + ")");
             }
 
-            SecretCipher cipher = new SecretCipher(settings.Security.MasterKey, settings.Security.MasterKeyVersion);
+            SecretCipher cipher = new SecretCipher(settings.Security.MasterKey, settings.Security.MasterKeyVersion, settings.Security.PreviousMasterKeys);
             List<string> insecure = settings.InsecureDefaults();
             if (insecure.Count > 0) logging.Warn("[Garrison] development mode (GARRISON_ALLOW_INSECURE_DEFAULTS): " + String.Join(", ", insecure) + (insecure.Count == 1 ? " is" : " are") + " empty or the public built-in default. Anyone who knows the defaults has administrator access. Never expose this server.");
             if (!SecretCipher.IsStrongKey(settings.Security.MasterKey)) logging.Warn("[Garrison] Security.MasterKey is not base64 of 32 bytes, so it is hashed with SHA-256 without stretching. Use a random key such as the output of openssl rand -base64 32.");

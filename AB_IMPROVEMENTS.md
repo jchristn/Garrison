@@ -1,5 +1,7 @@
 # Garrison Improvements: Amplify Strengths, Close Gaps
 
+Historical architecture proposals against the commit named below, not a current missing-feature inventory. Many proposals are now implemented; the [scope matrix](docs/REMAINING_PLAN_MATRIX.md) records current status and deferrals. Illustrative figures such as the 5 ms gateway example are not approved performance SLOs.
+
 This document comes from an architecture debate that compared Garrison (commit `330be63`, v0.1.0-alpha) with Kubernetes and Google AX. The comparison looked only at how well each runs agentic workloads at scale. It ignored popularity, usage numbers and community support.
 
 **The agreed framing:** Kubernetes and AX are execution substrates. Garrison is an agent control plane. Garrison's lead lies in:

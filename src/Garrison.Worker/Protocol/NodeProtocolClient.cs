@@ -2,6 +2,9 @@ namespace Garrison.Worker.Protocol
 {
     using System;
     using System.Net.Http;
+    using System.Collections.Generic;
+    using System.Globalization;
+    using Garrison.Core.Models;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Protocol;
@@ -183,6 +186,34 @@ namespace Garrison.Worker.Protocol
         public Task<RunCompleteResponse> CompleteAsync(string runId, RunCompleteRequest request, CancellationToken token = default)
         {
             return PostAsync<RunCompleteResponse>("/v1.0/api/node/runs/" + Uri.EscapeDataString(runId) + "/complete", request, runId, _CallTimeoutMs, token);
+        }
+
+        /// <summary>Upload private checkpoint or cache bytes using node credentials held outside the harness specification.</summary>
+        /// <param name="nodeId">Registered node.</param><param name="assignment">Current assignment.</param><param name="name">Reserved archive name.</param><param name="content">Bounded archive.</param><param name="token">Cancellation.</param><returns>Artifact metadata.</returns>
+        public async Task<Artifact> UploadInternalArtifactAsync(string nodeId, RunAssignment assignment, string name, byte[] content, CancellationToken token = default)
+        {
+            Dictionary<string, string?> query = new Dictionary<string, string?>
+            {
+                ["nodeId"] = nodeId, ["tenantId"] = assignment.Spec.TenantId, ["storeId"] = assignment.Spec.Artifacts?.StoreId,
+                ["name"] = name, ["epoch"] = assignment.Epoch.ToString(CultureInfo.InvariantCulture),
+                ["repairAttempt"] = assignment.Spec.RepairAttempt.ToString(CultureInfo.InvariantCulture)
+            };
+            string path = "/v1.0/api/node/runs/" + Uri.EscapeDataString(assignment.RunId) + "/artifacts";
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                await EnsureTokenAsync(attempt > 0, token).ConfigureAwait(false);
+                using CancellationTokenSource timeout = new CancellationTokenSource(_CallTimeoutMs);
+                using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
+                try
+                {
+                    return await _Transport.SendBinaryAsync<Artifact>(HttpMethod.Post, path, content, query, token: linked.Token).ConfigureAwait(false)
+                        ?? throw new NodeProtocolException(0, "Internal archive upload returned no metadata.");
+                }
+                catch (GarrisonException e) when (e.StatusCode == 401 && attempt == 0) { }
+                catch (GarrisonException e) when (e.StatusCode == 409) { throw new StaleLeaseException(assignment.RunId, "Internal archive upload lost its execution lease."); }
+                catch (GarrisonException e) { throw new NodeProtocolException(e.StatusCode, "Internal archive upload was rejected.", e); }
+            }
+            throw new NodeProtocolException(401, "Internal archive upload authentication failed.");
         }
 
         /// <summary>

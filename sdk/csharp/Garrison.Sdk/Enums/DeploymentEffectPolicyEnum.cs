@@ -18,8 +18,8 @@ namespace Garrison.Sdk.Enums
         AtLeastOnce = 1,
 
         /// <summary>
-        /// Requeue only when every effect went through Garrison's effect journal with a known outcome. The journal does
-        /// not exist yet, so today this behaves exactly like AtMostOnce.
+        /// Requeue only from a safe current-epoch checkpoint. Unknown shell/network coverage and uncertain outcomes
+        /// fail closed; completed effects require an accepted resumable session checkpoint.
         /// </summary>
         Journaled = 2
     }

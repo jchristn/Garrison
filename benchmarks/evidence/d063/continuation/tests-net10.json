@@ -1,0 +1,62 @@
+[
+  {
+    "testId": "continuation-archive.explicit-raised-cap",
+    "suiteId": "continuation-archive",
+    "caseId": "explicit-raised-cap",
+    "displayName": "Configuration and C# SDK retain an explicit 96 MiB file cap while preserving default, minimum and maximum guards",
+    "success": true,
+    "skipped": false,
+    "durationMs": 29,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.download-guards",
+    "suiteId": "continuation-archive",
+    "caseId": "download-guards",
+    "displayName": "All store kinds enforce the configured download cap before I/O and database content must match recorded length",
+    "success": true,
+    "skipped": false,
+    "durationMs": 517,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.large-complete-home",
+    "suiteId": "continuation-archive",
+    "caseId": "large-complete-home",
+    "displayName": "An incompressible 80 MiB HOME archive fails default worker/server limits and round-trips through node upload and signed download with an explicit 96 MiB cap",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1936,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.oversize-retention",
+    "suiteId": "continuation-archive",
+    "caseId": "oversize-retention",
+    "displayName": "Oversized checkpoint failure retains KeepOnFailure work and removes HOME/config without uploading an artifact",
+    "success": true,
+    "skipped": false,
+    "durationMs": 110,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.upload-failure-retention",
+    "suiteId": "continuation-archive",
+    "caseId": "upload-failure-retention",
+    "displayName": "Checkpoint storage failure retains failed work and removes private HOME/config",
+    "success": true,
+    "skipped": false,
+    "durationMs": 92,
+    "message": null
+  },
+  {
+    "testId": "continuation-archive.upload-cancellation-retention",
+    "suiteId": "continuation-archive",
+    "caseId": "upload-cancellation-retention",
+    "displayName": "Checkpoint cancellation remains Cancelled and retains failed work while removing HOME/config",
+    "success": true,
+    "skipped": false,
+    "durationMs": 90,
+    "message": null
+  }
+]

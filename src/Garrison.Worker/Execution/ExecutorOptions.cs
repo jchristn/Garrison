@@ -10,9 +10,10 @@ namespace Garrison.Worker.Execution
     {
         #region Public-Members
 
-        /// <summary>
-        /// Root directory for per-run directories.
-        /// </summary>
+        /// <summary>Optional private git mirror cache directory. Null disables caching.</summary>
+        public string? GitCacheRoot { get; set; } = null;
+
+        /// <summary>Root directory for per-run directories.</summary>
         public string WorkRoot { get; set; } = "workspaces";
 
         /// <summary>

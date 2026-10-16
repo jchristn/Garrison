@@ -1,0 +1,18 @@
+{
+  "command": "benchmarks/workspace-cache-network.sh benchmarks/.run/workspace-cache-network-d063.json 512 8192 3 25 16",
+  "build": "net10.0 isolated artifacts; 0 warnings, 0 errors; 1.09 seconds",
+  "versions": {
+    "dotnet": "10.0.401",
+    "git": "2.54.0 (Apple Git-157)",
+    "python": "3.14.8",
+    "openssl": "LibreSSL 3.3.6"
+  },
+  "sourceSha256": {
+    "benchmarks/workspace-cache-network.sh": "074a42953eec26cad12e9515f91dd445f2fbca673455ad8406c9fbcee978a01b",
+    "benchmarks/probes/WorkspaceCacheNetworkProbe.cs": "699540cfd541e1690357a80a6779f07a67f0ec500b0613e5e3bbbb43ee990df1",
+    "benchmarks/probes/CacheNetworkReady.cs": "f599f5c3c45b855863736f9ed93f210c3d8e7c44ccb32cc0b646285f5cc694ec",
+    "benchmarks/probes/CacheNetworkStats.cs": "e9296f6cea957b986da0c0db7de1148fbb254a805fde4b2277ef338dacebde43",
+    "benchmarks/probes/cache-network-server.py": "d0b15a59f45a4461d36033db414c53cdf51f38891f4d77908852d464ef2ef274"
+  },
+  "cleanup": "Ephemeral HTTPS endpoint, repository, probe build, TLS key/certificate and temporary Git configuration removed; no system trust changes; original Compose untouched."
+}

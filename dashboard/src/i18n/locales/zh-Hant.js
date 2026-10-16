@@ -159,6 +159,7 @@ const zhHant = {
       Deny: '拒絕'
     },
     approvalSource: {
+      DurableResume: "繼承的核准",
       Rule: '規則',
       Default: '部署預設值',
       User: '人員',
@@ -2555,3 +2556,17 @@ zhHant.components.mcpTest.noWorkers = "沒有就緒的工作節點提供 stdio �
   }
  }
 });
+
+// Durable continuation and remote execution.
+zhHant.enums.runStatus.Suspended = "已暫停";
+zhHant.resources.deployments.fields.suspensionEnabled = "等待核准時暫停";
+zhHant.resources.harnessProfiles.fields.sessionFormat = "Harness 工作階段格式";
+zhHant.enums.auditEventType.QueueFull = "佇列已滿";
+zhHant.enums.runExecutor.RemoteA2A = "遠端 A2A";
+zhHant.enums.runExecutor.RemoteMcp = "遠端 MCP";
+zhHant.tips.resources.deployments.suspensionEnabled = "等待時啟用持久檢查點。需要 Process、隔離的主目錄、相容且可恢復的 Harness，以及產物儲存。";
+zhHant.tips.resources.harnessProfiles.sessionFormat = "可攜式檢查點的版本化工作階段格式。如果 Harness 升級改變工作階段相容性，請更新此值。";
+zhHant.tips.enums.runStatus.Suspended = "執行已有持久工作階段檢查點，等待時不佔用工作節點租約或執行槽位。";
+zhHant.tips.enums.runExecutor.RemoteA2A = "透過期限與取消處理執行已驗證的註冊 A2A 代理。";
+zhHant.tips.enums.runExecutor.RemoteMcp = "使用經過驗證的 JSON 輸入呼叫所選的遠端 MCP 工具。";
+zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列達到上限，執行接納被拒絕。";

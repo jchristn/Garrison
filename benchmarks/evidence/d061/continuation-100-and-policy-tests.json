@@ -1,0 +1,202 @@
+[
+  {
+    "testId": "continuation-scale-sqlite.concurrent-cross-node-checkpoints",
+    "suiteId": "continuation-scale-sqlite",
+    "caseId": "concurrent-cross-node-checkpoints",
+    "displayName": "A configurable population of actual fake-harness processes checkpoints, releases every slot, then resumes on another node",
+    "success": true,
+    "skipped": false,
+    "durationMs": 48317,
+    "message": null
+  },
+  {
+    "testId": "continuation-scale-postgresql.concurrent-cross-node-checkpoints",
+    "suiteId": "continuation-scale-postgresql",
+    "caseId": "concurrent-cross-node-checkpoints",
+    "displayName": "A configurable population of actual fake-harness processes checkpoints, releases every slot, then resumes on another node",
+    "success": true,
+    "skipped": false,
+    "durationMs": 118664,
+    "message": null
+  },
+  {
+    "testId": "effect-policy.requeue-decision",
+    "suiteId": "effect-policy",
+    "caseId": "requeue-decision",
+    "displayName": "Lease expiry decision: Leased runs requeue under every policy; Running runs only under AtLeastOnce; cancelled runs and runs out of attempts never requeue",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "effect-policy.legacy-input",
+    "suiteId": "effect-policy",
+    "caseId": "legacy-input",
+    "displayName": "Deployment JSON: retryOnNodeLoss alone maps (true AtLeastOnce, false AtMostOnce), effectPolicy wins when both agree, a disagreement is flagged, and output carries both fields",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.transient-control-plane-outage",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "transient-control-plane-outage",
+    "displayName": "A transient full worker/control-plane outage heals before lease expiry without retry or loss",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6851,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.node-loss-at-least-once",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "node-loss-at-least-once",
+    "displayName": "A worker partitioned after its run started: under AtLeastOnce the run is requeued and succeeds on another worker (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 8491,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.node-loss-at-most-once",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "node-loss-at-most-once",
+    "displayName": "A worker partitioned after its run started: under AtMostOnce the run ends Failed with NodeLost and never runs again, even after the deployment is changed to AtLeastOnce mid-run (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 10448,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.node-loss-journaled",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "node-loss-journaled",
+    "displayName": "A worker partitioned after its run started: under Journaled the run ends Failed with NodeLost, because the CLI has unknown effect coverage (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 10868,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.rest",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "rest",
+    "displayName": "REST: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, conflicts are 400 EffectPolicyConflict, responses carry both fields, runs record the policy, and changes are audited (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 758,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.manifests",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "manifests",
+    "displayName": "Manifests: omitted means AtMostOnce, retryOnNodeLoss maps, a conflict fails with EffectPolicyConflict, and export writes effectPolicy and round-trips unchanged (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 756,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.mcp-management",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "mcp-management",
+    "displayName": "MCP management: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, and a conflict is rejected naming effectPolicy (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 571,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-sqlite.delegated-child",
+    "suiteId": "effect-policy-sqlite",
+    "caseId": "delegated-child",
+    "displayName": "A delegated child run follows its own deployment\u0027s effect policy, not its parent\u0027s (Sqlite)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1399,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.transient-control-plane-outage",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "transient-control-plane-outage",
+    "displayName": "A transient full worker/control-plane outage heals before lease expiry without retry or loss",
+    "success": true,
+    "skipped": false,
+    "durationMs": 11191,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.node-loss-at-least-once",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "node-loss-at-least-once",
+    "displayName": "A worker partitioned after its run started: under AtLeastOnce the run is requeued and succeeds on another worker (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 12366,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.node-loss-at-most-once",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "node-loss-at-most-once",
+    "displayName": "A worker partitioned after its run started: under AtMostOnce the run ends Failed with NodeLost and never runs again, even after the deployment is changed to AtLeastOnce mid-run (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 12595,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.node-loss-journaled",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "node-loss-journaled",
+    "displayName": "A worker partitioned after its run started: under Journaled the run ends Failed with NodeLost, because the CLI has unknown effect coverage (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 13418,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.rest",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "rest",
+    "displayName": "REST: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, conflicts are 400 EffectPolicyConflict, responses carry both fields, runs record the policy, and changes are audited (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 7847,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.manifests",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "manifests",
+    "displayName": "Manifests: omitted means AtMostOnce, retryOnNodeLoss maps, a conflict fails with EffectPolicyConflict, and export writes effectPolicy and round-trips unchanged (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 6876,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.mcp-management",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "mcp-management",
+    "displayName": "MCP management: new deployments default to AtMostOnce, retryOnNodeLoss-only input maps, and a conflict is rejected naming effectPolicy (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 9583,
+    "message": null
+  },
+  {
+    "testId": "effect-policy-postgresql.delegated-child",
+    "suiteId": "effect-policy-postgresql",
+    "caseId": "delegated-child",
+    "displayName": "A delegated child run follows its own deployment\u0027s effect policy, not its parent\u0027s (Postgresql)",
+    "success": true,
+    "skipped": false,
+    "durationMs": 9609,
+    "message": null
+  }
+]

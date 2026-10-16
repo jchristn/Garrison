@@ -1,0 +1,31 @@
+{
+  "net10": {
+    "cases": 67,
+    "passed": 67,
+    "failed": 0,
+    "skipped": 0,
+    "providers": [
+      "sqlite",
+      "postgresql"
+    ]
+  },
+  "net8": {
+    "cases": 41,
+    "passed": 41,
+    "failed": 0,
+    "skipped": 0,
+    "providers": [
+      "sqlite",
+      "postgresql"
+    ]
+  },
+  "build": {
+    "frameworks": [
+      "net8.0",
+      "net10.0"
+    ],
+    "warnings": 0,
+    "errors": 0
+  },
+  "scope": "Focused final-source checks for worker execution, artifact storage, cache and continuation. The separate D063 six-case local PostgreSQL recovery matrix and six-case net10 archive suite retain their own reports. Historical D062/D060 broad checks are not implied reruns."
+}

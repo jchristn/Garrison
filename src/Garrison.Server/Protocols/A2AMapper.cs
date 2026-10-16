@@ -54,6 +54,8 @@ namespace Garrison.Server.Protocols
                 case RunStatusEnum.Running:
                 case RunStatusEnum.Cancelling:
                     return TaskState.Working;
+                case RunStatusEnum.Suspended:
+                    return TaskState.InputRequired;
                 case RunStatusEnum.Succeeded:
                     return TaskState.Completed;
                 case RunStatusEnum.Cancelled:

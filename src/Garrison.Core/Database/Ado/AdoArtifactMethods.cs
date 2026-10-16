@@ -32,9 +32,9 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
-        public Task<Artifact?> CreateForExecutionAsync(Artifact artifact, byte[]? content, CancellationToken token = default)
+        public Task<Artifact?> CreateForExecutionAsync(Artifact artifact, byte[]? content, CancellationToken token = default, string? nodeId = null)
         {
-            return InsertAsync(artifact, content, true, token);
+            return InsertAsync(artifact, content, true, token, nodeId);
         }
 
         /// <inheritdoc />
@@ -79,11 +79,12 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
-        public async Task<EnumerationResult<Artifact>> EnumerateAsync(string tenantId, EnumerationQuery query, string? runId = null, string? storeId = null, CancellationToken token = default)
+        public async Task<EnumerationResult<Artifact>> EnumerateAsync(string tenantId, EnumerationQuery query, string? runId = null, string? storeId = null, CancellationToken token = default, bool includeInternal = false)
         {
             RequireTenant(tenantId);
             if (query == null) throw new ArgumentNullException(nameof(query));
             List<string> clauses = new List<string> { "tenantid = @tenant" };
+            if (!includeInternal) clauses.Add("LOWER(name) NOT LIKE '.garrison/%'");
             if (!String.IsNullOrEmpty(runId)) clauses.Add("runid = @run");
             if (!String.IsNullOrEmpty(storeId)) clauses.Add("artifactstoreid = @store");
             if (!String.IsNullOrEmpty(query.Search)) clauses.Add(_Driver.Dialect.CaseInsensitiveLike("name", "search"));
@@ -106,7 +107,7 @@ namespace Garrison.Core.Database.Ado
             return EnumerationResult<Artifact>.Build(query, count == null ? 0 : Convert.ToInt64(count), rows);
         }
 
-        private async Task<Artifact?> InsertAsync(Artifact artifact, byte[]? content, bool fenced, CancellationToken token)
+        private async Task<Artifact?> InsertAsync(Artifact artifact, byte[]? content, bool fenced, CancellationToken token, string? nodeId = null)
         {
             if (artifact == null) throw new ArgumentNullException(nameof(artifact));
             RequireTenant(artifact.TenantId);
@@ -115,11 +116,21 @@ namespace Garrison.Core.Database.Ado
             int inserted = 0;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
+                if (nodeId != null)
+                {
+                    int held = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "UPDATE " + _Driver.Table("runs") + " SET lastupdateutc=lastupdateutc WHERE id=@run AND tenantid=@tenant AND leaseepoch=@epoch AND repairattempts=@repair AND leasenodeid=@node AND leaseexpiresutc>@now AND status IN ('Leased','Running') AND cancelrequested=" + _Driver.Dialect.BooleanLiteral(false), command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "run", artifact.RunId); AdoDatabaseDriver.Add(command, "tenant", artifact.TenantId);
+                        AdoDatabaseDriver.Add(command, "epoch", artifact.LeaseEpoch); AdoDatabaseDriver.Add(command, "repair", artifact.RepairAttempt);
+                        AdoDatabaseDriver.Add(command, "node", nodeId); AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                    }, ct).ConfigureAwait(false);
+                    if (held != 1) return;
+                }
                 string sql = "INSERT INTO " + _Table + " (" + _Metadata + ", content) VALUES (@id, @tenantid, @runid, @artifactstoreid, @name, @mediatype, @sizebytes, @sha256, @location, @leaseepoch, @repairattempt, @createdutc, @lastupdateutc, @content)";
                 if (fenced)
                 {
                     sql = sql.Replace("VALUES (", "SELECT ", StringComparison.Ordinal).TrimEnd(')');
-                    sql += " WHERE EXISTS (SELECT 1 FROM " + _Driver.Table("runs") + " WHERE id = @runid AND tenantid = @tenantid AND leaseepoch = @leaseepoch AND repairattempts = @repairattempt AND status IN ('Leased', 'Running') AND cancelrequested = " + _Driver.Dialect.BooleanLiteral(false) + ")";
+                    sql += " WHERE EXISTS (SELECT 1 FROM " + _Driver.Table("runs") + " WHERE id = @runid AND tenantid = @tenantid AND leaseepoch = @leaseepoch AND repairattempts = @repairattempt AND status IN ('Leased', 'Running') AND cancelrequested = " + _Driver.Dialect.BooleanLiteral(false) + (nodeId == null ? String.Empty : " AND leasenodeid=@node AND leaseexpiresutc>@now") + ")";
                 }
                 inserted = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql + ";",
                     command =>
@@ -134,6 +145,7 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "sha256", artifact.Sha256);
                         AdoDatabaseDriver.Add(command, "location", artifact.Location);
                         AdoDatabaseDriver.Add(command, "leaseepoch", artifact.LeaseEpoch);
+                        if (nodeId != null) { AdoDatabaseDriver.Add(command, "node", nodeId); AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow); }
                         AdoDatabaseDriver.Add(command, "repairattempt", artifact.RepairAttempt);
                         AdoDatabaseDriver.Add(command, "createdutc", artifact.CreatedUtc);
                         AdoDatabaseDriver.Add(command, "lastupdateutc", artifact.LastUpdateUtc);

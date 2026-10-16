@@ -7,6 +7,7 @@ namespace Garrison.Server.Protocols
     using System.Net;
     using System.Net.Sockets;
     using System.Text;
+    using System.Security.Cryptography;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Enumeration;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Manifests;
     using Garrison.Core.Requests;
@@ -385,9 +387,10 @@ namespace Garrison.Server.Protocols
             List<ToolDefinition> tools = new List<ToolDefinition>();
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
+                if (tool.Name.StartsWith("garrison_memory_", StringComparison.Ordinal) && !_Context.Settings.AgentMemory.Enabled) continue;
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
-                tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name]));
+                tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
             if (!String.IsNullOrEmpty(tenantId))
             {
@@ -484,12 +487,18 @@ namespace Garrison.Server.Protocols
             _Server.RegisterTool(tool.Name, "Garrison agent " + tool.Name + ".", _AgentToolAdministratorSchema, (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => DispatchAsync(tool, args, call, ct));
         }
 
-        private static ToolDefinition Definition(string name, string description, JsonElement schema)
+        private static ToolDefinition Definition(string name, string description, JsonElement schema, EffectToolMetadata? annotations = null)
         {
             ToolDefinition definition = new ToolDefinition();
             definition.Name = name;
             definition.Description = description;
             definition.InputSchema = schema;
+            definition.Annotations = new McpAnnotations
+            {
+                ReadOnlyHint = annotations?.ReadOnlyHint,
+                IdempotentHint = annotations?.IdempotentHint,
+                DestructiveHint = annotations?.DestructiveHint
+            };
             return definition;
         }
 
@@ -567,6 +576,55 @@ namespace Garrison.Server.Protocols
         }
 
         private async Task<object> DispatchAsync(McpToolDefinition tool, RpcParameters? args, RpcCallContext? call, CancellationToken token)
+        {
+            return await RunDatabaseTelemetry.MeasureAsync(_Context.Database, PrincipalClaims.Decode(call?.Claims).TenantId ?? string.Empty, PrincipalClaims.Decode(call?.Claims).RunId ?? string.Empty, "gateway", ct => GatewayOperation.MeasureAsync(inner => DispatchMeasuredCoreAsync(tool, args, call, inner), ct, PrincipalClaims.Decode(call?.Claims).PrincipalType == PrincipalTypeEnum.Run ? "run" : "operator"), token).ConfigureAwait(false);
+        }
+
+        private async Task<object> DispatchMeasuredCoreAsync(McpToolDefinition tool, RpcParameters? args, RpcCallContext? call, CancellationToken token)
+        {
+            RequestContext ctx = PrincipalClaims.Decode(call?.Claims);
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run) return await GatewayOperation.DispatchAsync(ct => DispatchCoreAsync(tool, args, call, ct), token).ConfigureAwait(false);
+            // Session claims survive for an MCP session. Re-read the persisted session on every call rather than trusting
+            // the epoch observed when the transport connected.
+            if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId) || String.IsNullOrEmpty(ctx.SessionId)) throw ToolError("Unauthorized", "A current run session is required.");
+            AuthSession? session = await ApplicationOperation.MeasureAsync("gateway", "session_validate", ct => _Context.Database.Sessions.ReadAsync(ctx.TenantId, ctx.SessionId, ct), token).ConfigureAwait(false);
+            Run? run = await ApplicationOperation.MeasureAsync("gateway", "lease_validate", ct => _Context.Database.Runs.ReadRowAsync(ctx.RunId, ct), token).ConfigureAwait(false);
+            if (session == null || session.RevokedUtc.HasValue || session.ExpiresUtc <= DateTime.UtcNow || !session.LeaseEpoch.HasValue
+                || run == null || run.TenantId != ctx.TenantId || session.LeaseEpoch.Value != run.LeaseEpoch || !run.LeaseExpiresUtc.HasValue || run.LeaseExpiresUtc.Value <= DateTime.UtcNow
+                || run.CancelRequested || (run.Status != RunStatusEnum.Running && run.Status != RunStatusEnum.Leased))
+                throw ToolError("LeaseExpired", "The run session no longer holds an active lease.");
+            // Read operations cannot cause external effects. Every other tool is conservatively journaled.
+            if (!EffectClassificationRules.RequiresJournal(tool.Operation, tool.AgentTool, tool.Annotations)) return await GatewayOperation.DispatchAsync(ct => DispatchCoreAsync(tool, args, call, ct), token).ConfigureAwait(false);
+            EffectOperation operation = new EffectOperation
+            {
+                TenantId = ctx.TenantId, RunId = ctx.RunId, LeaseEpoch = session.LeaseEpoch.Value, Tool = tool.Name,
+                ArgumentDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Serializer.Serialize(args))))
+            };
+            if (!await ApplicationOperation.MeasureAsync("gateway", "journal_authorize", ct => _Context.Database.EffectOperations.AuthorizeAsync(operation, ct), token).ConfigureAwait(false)) throw ToolError("LeaseExpired", "The run lease expired before authorization.");
+            if (!await ApplicationOperation.MeasureAsync("gateway", "journal_dispatch", ct => _Context.Database.EffectOperations.TransitionAsync(operation.TenantId, operation.RunId, operation.Id, operation.LeaseEpoch,
+                EffectOperationStateEnum.Authorized, EffectOperationStateEnum.Dispatched, null, ct), token).ConfigureAwait(false)) throw ToolError("LeaseExpired", "The run lease expired before dispatch.");
+            try
+            {
+                object result = await GatewayOperation.DispatchAsync(ct => DispatchCoreAsync(tool, args, call, ct, operation.Id), token).ConfigureAwait(false);
+                if (!await ApplicationOperation.MeasureAsync("gateway", "journal_complete", ct => _Context.Database.EffectOperations.TransitionAsync(operation.TenantId, operation.RunId, operation.Id, operation.LeaseEpoch,
+                    EffectOperationStateEnum.Dispatched, EffectOperationStateEnum.Completed, "mcp:" + operation.Id, ct), token).ConfigureAwait(false))
+                    throw ToolError("EffectOutcomeUnknown", "The gateway could not commit the operation result.");
+                return result;
+            }
+            catch
+            {
+                // The durable Dispatched state is itself unsafe if this best-effort update cannot reach the database.
+                try
+                {
+                    await _Context.Database.EffectOperations.TransitionAsync(operation.TenantId, operation.RunId, operation.Id, operation.LeaseEpoch,
+                        EffectOperationStateEnum.Dispatched, EffectOperationStateEnum.Unknown, null, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e) { _Context.Logging.Warn(_Header + "effect " + operation.Id + " remains Dispatched: " + e.Message); }
+                throw;
+            }
+        }
+
+        private async Task<object> DispatchCoreAsync(McpToolDefinition tool, RpcParameters? args, RpcCallContext? call, CancellationToken token, string? gatewayOperationId = null)
         {
             RequestContext ctx = PrincipalClaims.Decode(call?.Claims);
             if (!ctx.IsAuthenticated) throw ToolError("Unauthorized", "Authentication is required.");
@@ -679,14 +737,19 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_agents":
                         result = await ListAgentsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_memory_read":
+                    case "garrison_memory_write":
+                    case "garrison_memory_delete":
+                        result = await MemoryAsync(ctx, tenantId, tool.Name, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_get_agent":
                         result = await GetAgentAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_invoke_agent":
-                        result = await InvokeAsync(ctx, tenantId, args, true, token).ConfigureAwait(false);
+                        result = await InvokeAsync(ctx, tenantId, args, true, token, gatewayOperationId).ConfigureAwait(false);
                         break;
                     case "garrison_start_run":
-                        result = await InvokeAsync(ctx, tenantId, args, false, token).ConfigureAwait(false);
+                        result = await InvokeAsync(ctx, tenantId, args, false, token, gatewayOperationId).ConfigureAwait(false);
                         break;
                     case "garrison_get_run":
                         result = await SummarizeAsync(await RequireRunAsync(ctx, tenantId, args, OperationTypeEnum.Read, token).ConfigureAwait(false), token).ConfigureAwait(false);
@@ -721,7 +784,7 @@ namespace Garrison.Server.Protocols
                         break;
                     default:
                         if (!tool.AgentTool) throw ToolError("UnknownTool", "Unknown tool " + tool.Name + ".");
-                        result = await AgentToolCallAsync(ctx, tenantId, tool.Name, args, token).ConfigureAwait(false);
+                        result = await AgentToolCallAsync(ctx, tenantId, tool.Name, args, token, gatewayOperationId).ConfigureAwait(false);
                         break;
                 }
                 outcome = "ok";
@@ -1126,6 +1189,55 @@ namespace Garrison.Server.Protocols
             if (!decision.Permitted) throw ToolError("Forbidden", "Not permitted: " + decision.Reason);
         }
 
+        private async Task<object> MemoryAsync(RequestContext ctx, string tenantId, string tool, RpcParameters? args, CancellationToken token)
+        {
+            if (!_Context.Settings.AgentMemory.Enabled) throw ToolError("MemoryDisabled", "Agent memory is disabled on this server.");
+            string? reference = args?.GetString("agent");
+            Agent agent;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                Run? run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId!, token).ConfigureAwait(false);
+                if (run == null) throw ToolError("NotFound", "The active run was not found.");
+                agent = await _Context.Database.Agents.ReadAsync(tenantId, run.AgentId, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotFound", "The run agent was not found.");
+                if (reference != null && reference != agent.Id && reference != agent.Name) throw ToolError("Forbidden", "Run memory is scoped to its own agent.");
+            }
+            else
+            {
+                if (String.IsNullOrWhiteSpace(reference)) throw ToolError("BadRequest", "An agent is required for user memory calls.");
+                agent = await _Invoker.ResolveAgentAsync(tenantId, reference, token).ConfigureAwait(false);
+                await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
+            }
+            string? key = args?.GetString("key");
+            if (String.IsNullOrWhiteSpace(key) || key.Length > 256) throw ToolError("BadRequest", "Memory key must contain 1 to 256 characters.");
+            Garrison.Core.Memory.IAgentMemoryStore store = _Context.Get<Garrison.Core.Memory.IAgentMemoryStore>();
+            return await ApplicationOperation.MeasureAsync("memory", tool.Substring("garrison_memory_".Length), async ct =>
+            {
+                Garrison.Core.Memory.AgentMemoryResult result = new Garrison.Core.Memory.AgentMemoryResult { Key = key };
+                if (tool == "garrison_memory_read")
+                {
+                    result.Value = await store.ReadAsync(tenantId, agent.Id, key, ct).ConfigureAwait(false);
+                    result.Found = result.Value != null;
+                }
+                else if (tool == "garrison_memory_write")
+                {
+                    string? value = args?.GetString("value");
+                    if (value == null || Encoding.UTF8.GetByteCount(value) > _Context.Settings.AgentMemory.MaxValueBytes)
+                        throw ToolError("BadRequest", "A memory value within the configured UTF-8 byte limit is required.");
+                    await store.WriteAsync(tenantId, agent.Id, key, value, ct).ConfigureAwait(false);
+                    result.Found = true;
+                }
+                else
+                {
+                    await store.DeleteAsync(tenantId, agent.Id, key, ct).ConfigureAwait(false);
+                    result.Found = true;
+                }
+                if (tool != "garrison_memory_read")
+                    await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "AgentMemory", agent.Id, tool, tenantId, ct).ConfigureAwait(false);
+                return result;
+            }, token).ConfigureAwait(false);
+        }
+
         private async Task<object> ListAgentsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
         {
             await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
@@ -1150,27 +1262,28 @@ namespace Garrison.Server.Protocols
             return Describe(agent);
         }
 
-        private async Task<object> InvokeAsync(RequestContext ctx, string tenantId, RpcParameters? args, bool wait, CancellationToken token)
+        private async Task<object> InvokeAsync(RequestContext ctx, string tenantId, RpcParameters? args, bool wait, CancellationToken token, string? gatewayOperationId = null)
         {
             Agent agent = await _Invoker.ResolveAgentAsync(tenantId, args?.GetString("agent"), token).ConfigureAwait(false);
             await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
-            return await InvokeAgentAsync(ctx, tenantId, agent, args, wait, wait ? "garrison_invoke_agent" : "garrison_start_run", token).ConfigureAwait(false);
+            return await InvokeAgentAsync(ctx, tenantId, agent, args, wait, wait ? "garrison_invoke_agent" : "garrison_start_run", token, gatewayOperationId).ConfigureAwait(false);
         }
 
-        private async Task<object> AgentToolCallAsync(RequestContext ctx, string tenantId, string toolName, RpcParameters? args, CancellationToken token)
+        private async Task<object> AgentToolCallAsync(RequestContext ctx, string tenantId, string toolName, RpcParameters? args, CancellationToken token, string? gatewayOperationId = null)
         {
             List<Agent> offered = await AgentToolsAsync(ctx, tenantId, token).ConfigureAwait(false);
             Agent agent = offered.FirstOrDefault(a => AgentToolName(a) == toolName) ?? throw ToolError("NotFound", "No agent you may invoke is offered as the MCP tool " + toolName + " in this tenant.");
-            return await InvokeAgentAsync(ctx, tenantId, agent, args, true, toolName, token).ConfigureAwait(false);
+            return await InvokeAgentAsync(ctx, tenantId, agent, args, true, toolName, token, gatewayOperationId).ConfigureAwait(false);
         }
 
-        private async Task<object> InvokeAgentAsync(RequestContext ctx, string tenantId, Agent agent, RpcParameters? args, bool wait, string toolName, CancellationToken token)
+        private async Task<object> InvokeAgentAsync(RequestContext ctx, string tenantId, Agent agent, RpcParameters? args, bool wait, string toolName, CancellationToken token, string? gatewayOperationId = null)
         {
 
             InvocationOptions options = new InvocationOptions();
             options.Input = args?.GetString("input") ?? String.Empty;
             if (String.IsNullOrWhiteSpace(options.Input)) throw ToolError("ValidationFailed", "input is required.");
             options.DeploymentId = args?.GetString("deploymentId");
+            options.IdempotencyKey = args?.GetString("idempotencyKey") ?? gatewayOperationId;
             options.Parameters = ReadParameters(args);
             options.ConversationId = args?.GetString("conversationId");
             options.StartConversation = args?.GetBoolean("startConversation") ?? false;
@@ -1183,7 +1296,30 @@ namespace Garrison.Server.Protocols
             options.CallerGone = () => !_Context.IsDraining;
             options.DisconnectReason = "the MCP client cancelled " + toolName + " or closed its session";
             options.Surface = "mcp";
+            bool durableWait = false;
+            if (wait && ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId))
+            {
+                Run? parent = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+                Deployment? parentDeployment = parent == null ? null : await _Context.Database.Deployments.ReadAsync(tenantId, parent.DeploymentId, token).ConfigureAwait(false);
+                durableWait = parentDeployment?.SuspensionEnabled == true;
+                if (durableWait)
+                {
+                    // Persist the child wait but return the checkpoint boundary instead of holding a resident caller.
+                    options.Wait = false;
+                    options.CallerWaits = true;
+                    options.DurableWait = true;
+                    options.CancelOnDisconnect = false;
+                }
+            }
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, token).ConfigureAwait(false);
+            if (durableWait)
+            {
+                McpRunSummary suspended = await SummarizeAsync(run, token).ConfigureAwait(false);
+                suspended.ContinuationMarker = "GARRISON_CONTINUATION_WAIT";
+                Run parent = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId!, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Parent run not found.");
+                suspended.ContinuationInstruction = await _Context.Get<ContinuationService>().WaitInstructionAsync(parent, "Child", token).ConfigureAwait(false);
+                return suspended;
+            }
             return await SummarizeAsync(run, token).ConfigureAwait(false);
         }
 
@@ -1292,6 +1428,7 @@ namespace Garrison.Server.Protocols
 
             ApprovalOutcome outcome = await approvals.RequestAsync(run, input, token).ConfigureAwait(false);
             PermissionPromptResult result = new PermissionPromptResult();
+            result.Suspended = outcome.Message?.Contains("GARRISON_CONTINUATION_WAIT", StringComparison.Ordinal) == true;
             result.ApprovalId = outcome.Approval?.Id;
             result.ApprovalStatus = outcome.Approval?.Status.ToString();
             if (outcome.Decision == ApprovalDecisionEnum.Allow)

@@ -981,6 +981,66 @@ namespace Garrison.Sdk.Test
                     finally { await client.McpServers.DeleteAsync(server.Id, token).ConfigureAwait(false); }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("effect journal and active suspension status", async () =>
+                {
+                    List<EffectOperation> operations = await client.Runs.GetOperationsAsync(invokedRun?.Id ?? throw new InvalidOperationException("no invoked run"), token).ConfigureAwait(false);
+                    Require(operations.All(operation => operation.TenantId == tenantId), "journal tenant isolation");
+                    RunPlacementResponse placement = await client.Runs.GetPlacementAsync(invokedRun!.Id, token).ConfigureAwait(false);
+                    Require(placement.RunId == invokedRun.Id && placement.Reasons.Contains("RunNotQueued") && !placement.Eligible, "terminal placement diagnostic");
+                    List<RunDatabaseUsage> databaseUsage = await client.Runs.GetDatabaseUsageAsync(invokedRun.Id, token).ConfigureAwait(false);
+                    Require(databaseUsage.Any(usage => usage.Statements > 0) && databaseUsage.All(usage => usage.RunId == invokedRun.Id && usage.TenantId == tenantId), "per-run database attribution");
+                    Require(!new[] { RunStatusEnum.Succeeded, RunStatusEnum.Failed, RunStatusEnum.Cancelled, RunStatusEnum.TimedOut, RunStatusEnum.Rejected }.Contains(RunStatusEnum.Suspended), "Suspended must remain active");
+                    bool missing = false;
+                    try { await client.Runs.GetOperationsAsync("run_missing_sdk", token).ConfigureAwait(false); }
+                    catch (GarrisonException e) when (e.StatusCode == 404) { missing = true; }
+                    Require(missing, "unknown run journal must be 404");
+                }).ConfigureAwait(false);
+
+                await CheckAsync("scheduling, pinned sessions, remote admission, and key rotation", async () =>
+                {
+                    using (GarrisonClient administrator = new GarrisonClient(baseUrl))
+                    {
+                        administrator.UseAdminApiKey(Environment.GetEnvironmentVariable("GARRISON_SDK_ADMIN_API_KEY") ?? "garrisonadmin", tenantId);
+                        Tenant scratch = await administrator.Tenants.CreateAsync(new TenantRequest { Name = "sdk-cs-weight-" + suffix, SchedulingWeight = 7 }, token).ConfigureAwait(false);
+                        try
+                        {
+                            Require(scratch.SchedulingWeight == 7, "tenant weight create");
+                            Tenant updated = await administrator.Tenants.UpdateAsync(scratch.Id, new TenantRequest { SchedulingWeight = 3 }, token).ConfigureAwait(false);
+                            Require(updated.SchedulingWeight == 3, "tenant weight update");
+                        }
+                        finally { await administrator.Tenants.DeleteAsync(scratch.Id, token).ConfigureAwait(false); }
+                        MasterKeyRotationResponse rotated = await administrator.Settings.RotateMasterKeyAsync(token).ConfigureAwait(false);
+                        Require(rotated.KeyVersion >= 1 && rotated.Failed == 0 && rotated.Conflicts == 0, "rotation pass failed");
+                        MasterKeyRotationResponse repeated = await administrator.Settings.RotateMasterKeyAsync(token).ConfigureAwait(false);
+                        Require(repeated.Rotated == 0 && repeated.Failed == 0, "rotation must be resumable and idempotent");
+                    }
+                    Secret brokerMetadata = await client.Secrets.CreateAsync(new SecretRequest { Name = "sdk-cs-broker-" + suffix, Kind = SecretKindEnum.LeaseBroker, BrokerResource = "tenant-scoped-fixture", BrokerAudience = "fixture" }, token).ConfigureAwait(false);
+                    try
+                    {
+                        Secret read = await client.Secrets.GetAsync(brokerMetadata.Id, token).ConfigureAwait(false);
+                        Require(read.BrokerResource == "tenant-scoped-fixture" && read.BrokerAudience == "fixture" && read.ValueEncrypted == null, "provider metadata round trip");
+                        bool refused = false;
+                        try { await client.Secrets.SetValueAsync(read.Id, "forbidden-static-value", token).ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 400) { refused = true; }
+                        Require(refused, "broker metadata rejects reusable static values");
+                    }
+                    finally { await client.Secrets.DeleteAsync(brokerMetadata.Id, token).ConfigureAwait(false); }
+                    HarnessProfile pinned = await client.HarnessProfiles.CreateAsync(new HarnessProfile { Name = "sdk-cs-session-" + suffix, Executable = "garrison-fake-harness", SessionFormat = "sdk-fixture-v1" }, token).ConfigureAwait(false);
+                    try { Require((await client.HarnessProfiles.GetAsync(pinned.Id, token).ConfigureAwait(false)).SessionFormat == "sdk-fixture-v1", "session format round trip"); }
+                    finally { await client.HarnessProfiles.DeleteAsync(pinned.Id, token).ConfigureAwait(false); }
+                    Agent remote = await client.Agents.CreateAsync(new Agent { Name = "sdk-cs-remote-" + suffix, Kind = AgentKindEnum.Remote, RemoteProtocol = RemoteProtocolEnum.A2A, RemoteEndpointUrl = "http://127.0.0.1:9/a2a" }, token).ConfigureAwait(false);
+                    try
+                    {
+                        bool denied = false;
+                        try { await client.Agents.InvokeAsync(remote.Id, new InvokeRequest { Input = "fixture", DeploymentId = deploymentId }, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 409) { denied = e.Error?.Code == "RemoteDeploymentUnsupported"; }
+                        Require(denied, "remote deployment override must be rejected before network I/O");
+                    }
+                    finally { await client.Agents.DeleteAsync(remote.Id, token).ConfigureAwait(false); }
+                    Deployment current = await client.Deployments.GetAsync(deploymentId ?? throw new InvalidOperationException("no deployment"), token).ConfigureAwait(false);
+                    Require(!current.SuspensionEnabled, "suspension defaults to opt out");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

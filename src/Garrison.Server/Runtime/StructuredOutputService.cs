@@ -24,6 +24,9 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class StructuredOutputService
     {
+        /// <summary>Enable run tokens for optional agent memory independently of delegation. Default false.</summary>
+        public bool AgentMemoryEnabled { get; set; } = false;
+
         #region Public-Members
 
         /// <summary>
@@ -129,7 +132,7 @@ namespace Garrison.Server.Runtime
             DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
             string? runToken = null;
-            if (agent != null && (agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.ArtifactGlobs.Count > 0))))
+            if (agent != null && (AgentMemoryEnabled || agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.ArtifactGlobs.Count > 0))))
             {
                 runToken = await _Authentication.IssueForRunAsync(run, run.LeaseEpoch, deadline, token).ConfigureAwait(false);
             }

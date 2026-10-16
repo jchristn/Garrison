@@ -25,6 +25,14 @@ namespace Garrison.Core.Database.Interfaces
         /// <returns>The created record, or the existing run with the same idempotency key.</returns>
         Task<Run> CreateAsync(Run obj, CancellationToken token = default);
 
+        /// <summary>Create a run with atomically enforced queued-run depth limits; idempotent retries bypass admission.</summary>
+        /// <param name="obj">Run.</param>
+        /// <param name="limits">Depth limits; zero disables a limit.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Created or existing idempotent run.</returns>
+        Task<Run> CreateAsync(Run obj, QueueDepthLimits limits, CancellationToken token = default);
+
+
         /// <summary>
         /// Read a Run by identifier without tenant scoping. For internal and system-administrator use.
         /// </summary>
@@ -234,6 +242,14 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Count.</returns>
         Task<long> CountQueuedWaitedChildrenAsync(CancellationToken token = default);
+
+        /// <summary>Whether a queued run is currently the target of an active parent wait. Read-only.</summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="runId">Child run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Whether an active wait targets this run.</returns>
+        Task<bool> IsWaitedChildAsync(string tenantId, string runId, CancellationToken token = default);
+
 
         /// <summary>
         /// Delete wait records that no longer count: the parent is no longer active, the child finished, or the child

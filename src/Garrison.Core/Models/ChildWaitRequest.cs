@@ -10,6 +10,9 @@ namespace Garrison.Core.Models
     {
         #region Public-Members
 
+        /// <summary>The parent will checkpoint and release its slot immediately, so resident-waiter admission does not apply.</summary>
+        public bool Durable { get; set; } = false;
+
         /// <summary>
         /// Tenant identifier.
         /// </summary>

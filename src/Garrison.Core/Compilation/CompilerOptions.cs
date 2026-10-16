@@ -7,6 +7,9 @@ namespace Garrison.Core.Compilation
     /// </summary>
     public class CompilerOptions
     {
+        /// <summary>Include Garrison agent memory tools when an active run token is available. Default false.</summary>
+        public bool AgentMemoryEnabled { get; set; } = false;
+
         /// <summary>
         /// Base URL of the Garrison MCP server as reachable from worker nodes, without the path, for example
         /// http://garrison-server:8701.

@@ -1,0 +1,930 @@
+{
+  "status": "passed",
+  "succeeded": 13714,
+  "failed": 0,
+  "defaultsChanged": false,
+  "rows": [
+    {
+      "trial": 1,
+      "order": 1,
+      "arm": "lease1s",
+      "reportLabel": "timing-lease1s-trial1-order1",
+      "leaseWaitMs": 1000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:10:11.697599+00:00",
+        "loadAverage1_5_15": [
+          2.982421875,
+          6.5185546875,
+          15.79296875
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:10:47.985327+00:00",
+        "loadAverage1_5_15": [
+          4.765625,
+          6.5458984375,
+          15.4267578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151014-load-synthetic-fleet-timing-lease1s-trial1-order1.json",
+          "sha256": "7706306d14d68b9ab84eb727e06000d1a9d050a4c5ba44c17f73515b851abd34",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease1s-trial1-order1",
+            "mode": "closed",
+            "stack-details": "timing ablation lease1s; trial=1, order=1, seed=62026; SQLite; LeaseWaitMs=1000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 896,
+      "failed": 0,
+      "throughput": 35.26862319301346,
+      "p95": 465.91059999999925,
+      "p99": 472.4557999999997,
+      "throughputCi": {
+        "estimate": 34.46153846153846,
+        "lower": 32.80769230769231,
+        "upper": 35.42307692307692,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 465.91059999999925,
+        "lower": 464.25140000000005,
+        "upper": 467.2515000000021,
+        "level": 0.95,
+        "n": 896,
+        "indicative": false
+      },
+      "serverOverheadP95": 377,
+      "throughputVsBaselinePercent": -14.484713208997857,
+      "p95VsBaselinePercent": 15.157683838422642
+    },
+    {
+      "trial": 1,
+      "order": 2,
+      "arm": "poll50",
+      "reportLabel": "timing-poll50-trial1-order2",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 50,
+      "before": {
+        "timestampUtc": "2026-10-16T15:10:48.017526+00:00",
+        "loadAverage1_5_15": [
+          4.765625,
+          6.5458984375,
+          15.4267578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:11:24.298821+00:00",
+        "loadAverage1_5_15": [
+          4.99560546875,
+          6.38232421875,
+          14.95703125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151050-load-synthetic-fleet-timing-poll50-trial1-order2.json",
+          "sha256": "9e0385df63ecf1ce4a88a57c2abc6ef5e001c8b2160e35fd6c64872104026b75",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll50-trial1-order2",
+            "mode": "closed",
+            "stack-details": "timing ablation poll50; trial=1, order=2, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=50; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 955,
+      "failed": 0,
+      "throughput": 37.592102175664365,
+      "p95": 439.2089999999989,
+      "p99": 457.1098000000002,
+      "throughputCi": {
+        "estimate": 36.73076923076923,
+        "lower": 34.76923076923077,
+        "upper": 37.92307692307692,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 439.2089999999989,
+        "lower": 437.7301000000007,
+        "upper": 440.462099999997,
+        "level": 0.95,
+        "n": 955,
+        "indicative": false
+      },
+      "serverOverheadP95": 354,
+      "throughputVsBaselinePercent": -8.85100954932061,
+      "p95VsBaselinePercent": 8.55793184570115
+    },
+    {
+      "trial": 1,
+      "order": 3,
+      "arm": "flush25",
+      "reportLabel": "timing-flush25-trial1-order3",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 25,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:11:24.333698+00:00",
+        "loadAverage1_5_15": [
+          4.99560546875,
+          6.38232421875,
+          14.95703125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:12:00.657352+00:00",
+        "loadAverage1_5_15": [
+          5.75244140625,
+          6.4306640625,
+          14.6279296875
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151126-load-synthetic-fleet-timing-flush25-trial1-order3.json",
+          "sha256": "e61fa47352c2d9e71bec897792f27ca7c0f02485a1202b1d2f81bca7d4b1e197",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush25-trial1-order3",
+            "mode": "closed",
+            "stack-details": "timing ablation flush25; trial=1, order=3, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=25, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1050,
+      "failed": 0,
+      "throughput": 41.415713410394595,
+      "p95": 405.83619999999974,
+      "p99": 419.3283999999985,
+      "throughputCi": {
+        "estimate": 40.38461538461539,
+        "lower": 38.11538461538461,
+        "upper": 41.73076923076923,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 405.83619999999974,
+        "lower": 402.0204,
+        "upper": 409.2952000000005,
+        "level": 0.95,
+        "n": 1050,
+        "indicative": false
+      },
+      "serverOverheadP95": 326,
+      "throughputVsBaselinePercent": 0.42004164895883545,
+      "p95VsBaselinePercent": 0.3092799558260806
+    },
+    {
+      "trial": 1,
+      "order": 4,
+      "arm": "poll100",
+      "reportLabel": "timing-poll100-trial1-order4",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 100,
+      "before": {
+        "timestampUtc": "2026-10-16T15:12:00.692032+00:00",
+        "loadAverage1_5_15": [
+          5.75244140625,
+          6.4306640625,
+          14.6279296875
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:12:36.996217+00:00",
+        "loadAverage1_5_15": [
+          5.75732421875,
+          6.35107421875,
+          14.26708984375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151203-load-synthetic-fleet-timing-poll100-trial1-order4.json",
+          "sha256": "129edd660233f0a4f8040a159e479fb06d078be315f662b85496c149f47b613e",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll100-trial1-order4",
+            "mode": "closed",
+            "stack-details": "timing ablation poll100; trial=1, order=4, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=100; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1054,
+      "failed": 0,
+      "throughput": 41.541763347665146,
+      "p95": 402.66129999999976,
+      "p99": 412.5731999999989,
+      "throughputCi": {
+        "estimate": 40.53846153846154,
+        "lower": 38.23076923076923,
+        "upper": 41.92307692307692,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 402.66129999999976,
+        "lower": 400.20690000000104,
+        "upper": 404.1309999999976,
+        "level": 0.95,
+        "n": 1054,
+        "indicative": false
+      },
+      "serverOverheadP95": 322,
+      "throughputVsBaselinePercent": 0.7256729880867674,
+      "p95VsBaselinePercent": -0.4754502701413199
+    },
+    {
+      "trial": 1,
+      "order": 5,
+      "arm": "baseline",
+      "reportLabel": "timing-baseline-trial1-order5",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:12:37.028661+00:00",
+        "loadAverage1_5_15": [
+          5.75732421875,
+          6.35107421875,
+          14.26708984375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:13:13.329290+00:00",
+        "loadAverage1_5_15": [
+          6.02880859375,
+          6.3701171875,
+          13.9541015625
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151239-load-synthetic-fleet-timing-baseline-trial1-order5.json",
+          "sha256": "96f69ebc4fd3d7ac9d696c04a18918a7ea79121dc13a060d0eb43019efcf414d",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-baseline-trial1-order5",
+            "mode": "closed",
+            "stack-details": "timing ablation baseline; trial=1, order=5, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1046,
+      "failed": 0,
+      "throughput": 41.24247782646085,
+      "p95": 404.58490000000074,
+      "p99": 415.11249999999995,
+      "throughputCi": {
+        "estimate": 40.23076923076923,
+        "lower": 38,
+        "upper": 41.5,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 404.58490000000074,
+        "lower": 402.08859999999913,
+        "upper": 406.90020000000004,
+        "level": 0.95,
+        "n": 1046,
+        "indicative": false
+      },
+      "serverOverheadP95": 323,
+      "throughputVsBaselinePercent": 0.0,
+      "p95VsBaselinePercent": 0.0
+    },
+    {
+      "trial": 1,
+      "order": 6,
+      "arm": "lease5s",
+      "reportLabel": "timing-lease5s-trial1-order6",
+      "leaseWaitMs": 5000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:13:13.360870+00:00",
+        "loadAverage1_5_15": [
+          6.02880859375,
+          6.3701171875,
+          13.9541015625
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:13:49.709314+00:00",
+        "loadAverage1_5_15": [
+          5.9697265625,
+          6.3330078125,
+          13.59228515625
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151315-load-synthetic-fleet-timing-lease5s-trial1-order6.json",
+          "sha256": "c06f6a4664fa9bac79ea8b603eeaacdf74b697b53de544cb032fdd64a8d8eeca",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease5s-trial1-order6",
+            "mode": "closed",
+            "stack-details": "timing ablation lease5s; trial=1, order=6, seed=62026; SQLite; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 978,
+      "failed": 0,
+      "throughput": 38.51956488063195,
+      "p95": 428.7680999999993,
+      "p99": 445.7005,
+      "throughputCi": {
+        "estimate": 37.61538461538461,
+        "lower": 35.65384615384615,
+        "upper": 38.76923076923077,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 428.7680999999993,
+        "lower": 427.9522999999972,
+        "upper": 432.3422999999966,
+        "level": 0.95,
+        "n": 978,
+        "indicative": false
+      },
+      "serverOverheadP95": 346,
+      "throughputVsBaselinePercent": -6.602205030663566,
+      "p95VsBaselinePercent": 5.977286843873442
+    },
+    {
+      "trial": 1,
+      "order": 7,
+      "arm": "flush100",
+      "reportLabel": "timing-flush100-trial1-order7",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 100,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:13:49.743875+00:00",
+        "loadAverage1_5_15": [
+          5.9697265625,
+          6.3330078125,
+          13.59228515625
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:14:26.221644+00:00",
+        "loadAverage1_5_15": [
+          13.0185546875,
+          8.30126953125,
+          14.0302734375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151352-load-synthetic-fleet-timing-flush100-trial1-order7.json",
+          "sha256": "fb31e290fbc64a35266c0d8d9f69594198b27549ece88b185302b484b1286b98",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush100-trial1-order7",
+            "mode": "closed",
+            "stack-details": "timing ablation flush100; trial=1, order=7, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=100, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 887,
+      "failed": 0,
+      "throughput": 34.910733019519824,
+      "p95": 486.1810999999998,
+      "p99": 508.5492999999999,
+      "throughputCi": {
+        "estimate": 34.11538461538461,
+        "lower": 32.34615384615385,
+        "upper": 35.23076923076923,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 486.1810999999998,
+        "lower": 480.721,
+        "upper": 489.3188,
+        "level": 0.95,
+        "n": 887,
+        "indicative": false
+      },
+      "serverOverheadP95": 393,
+      "throughputVsBaselinePercent": -15.35248399376874,
+      "p95VsBaselinePercent": 20.1678807093391
+    },
+    {
+      "trial": 2,
+      "order": 1,
+      "arm": "flush25",
+      "reportLabel": "timing-flush25-trial2-order1",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 25,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:14:26.256590+00:00",
+        "loadAverage1_5_15": [
+          13.0185546875,
+          8.30126953125,
+          14.0302734375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:15:02.563449+00:00",
+        "loadAverage1_5_15": [
+          9.5263671875,
+          7.93701171875,
+          13.66455078125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151428-load-synthetic-fleet-timing-flush25-trial2-order1.json",
+          "sha256": "38dd99411a0daf5569659ba2b92c3ce3f4ff1df183f6949324aa1c39592e0eba",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush25-trial2-order1",
+            "mode": "closed",
+            "stack-details": "timing ablation flush25; trial=2, order=1, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=25, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1003,
+      "failed": 0,
+      "throughput": 39.53809928893429,
+      "p95": 420.4984999999979,
+      "p99": 440.10100000000057,
+      "throughputCi": {
+        "estimate": 38.57692307692308,
+        "lower": 36.53846153846154,
+        "upper": 39.73076923076923,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 420.4984999999979,
+        "lower": 418.9286000000002,
+        "upper": 421.9377999999999,
+        "level": 0.95,
+        "n": 1003,
+        "indicative": false
+      },
+      "serverOverheadP95": 338,
+      "throughputVsBaselinePercent": 13.03151735770931,
+      "p95VsBaselinePercent": -13.90272262880028
+    },
+    {
+      "trial": 2,
+      "order": 2,
+      "arm": "baseline",
+      "reportLabel": "timing-baseline-trial2-order2",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:15:02.597594+00:00",
+        "loadAverage1_5_15": [
+          9.5263671875,
+          7.93701171875,
+          13.66455078125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:15:38.961378+00:00",
+        "loadAverage1_5_15": [
+          7.52294921875,
+          7.61572265625,
+          13.28173828125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151504-load-synthetic-fleet-timing-baseline-trial2-order2.json",
+          "sha256": "f8b97c0689b42f02c310e2d3a4c22297aab4a6738e0183962cfde138a6ba8da2",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-baseline-trial2-order2",
+            "mode": "closed",
+            "stack-details": "timing ablation baseline; trial=2, order=2, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 889,
+      "failed": 0,
+      "throughput": 34.97971204244618,
+      "p95": 488.39930000000004,
+      "p99": 536.8023000000003,
+      "throughputCi": {
+        "estimate": 34.19230769230769,
+        "lower": 32.5,
+        "upper": 35.23076923076923,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 488.39930000000004,
+        "lower": 475.4220999999998,
+        "upper": 498.8719000000001,
+        "level": 0.95,
+        "n": 889,
+        "indicative": false
+      },
+      "serverOverheadP95": 396,
+      "throughputVsBaselinePercent": 0.0,
+      "p95VsBaselinePercent": 0.0
+    },
+    {
+      "trial": 2,
+      "order": 3,
+      "arm": "lease5s",
+      "reportLabel": "timing-lease5s-trial2-order3",
+      "leaseWaitMs": 5000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:15:38.995389+00:00",
+        "loadAverage1_5_15": [
+          7.52294921875,
+          7.61572265625,
+          13.28173828125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:16:15.392015+00:00",
+        "loadAverage1_5_15": [
+          8.13623046875,
+          7.7275390625,
+          13.09130859375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151541-load-synthetic-fleet-timing-lease5s-trial2-order3.json",
+          "sha256": "5b56041c21062dfe227b3530abf743b3a1137bbb983298b2a61f2bc7a8b2c11c",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease5s-trial2-order3",
+            "mode": "closed",
+            "stack-details": "timing ablation lease5s; trial=2, order=3, seed=62026; SQLite; LeaseWaitMs=5000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 875,
+      "failed": 0,
+      "throughput": 34.432144657128894,
+      "p95": 480.59319999999934,
+      "p99": 492.34050000000025,
+      "throughputCi": {
+        "estimate": 33.65384615384615,
+        "lower": 31.96153846153846,
+        "upper": 34.65384615384615,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 480.59319999999934,
+        "lower": 477.6355000000003,
+        "upper": 482.21029999999973,
+        "level": 0.95,
+        "n": 875,
+        "indicative": false
+      },
+      "serverOverheadP95": 391,
+      "throughputVsBaselinePercent": -1.5653856288263324,
+      "p95VsBaselinePercent": -1.5983028640705887
+    },
+    {
+      "trial": 2,
+      "order": 4,
+      "arm": "poll50",
+      "reportLabel": "timing-poll50-trial2-order4",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 50,
+      "before": {
+        "timestampUtc": "2026-10-16T15:16:15.425714+00:00",
+        "loadAverage1_5_15": [
+          8.13623046875,
+          7.7275390625,
+          13.09130859375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:16:51.695134+00:00",
+        "loadAverage1_5_15": [
+          6.705078125,
+          7.40966796875,
+          12.7578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151617-load-synthetic-fleet-timing-poll50-trial2-order4.json",
+          "sha256": "32d95171d6fd972339e04ebed9e2c95388e388a3adbc6ad06e791f3264f9c23d",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll50-trial2-order4",
+            "mode": "closed",
+            "stack-details": "timing ablation poll50; trial=2, order=4, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=50; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 959,
+      "failed": 0,
+      "throughput": 37.77213965027245,
+      "p95": 493.2433999999994,
+      "p99": 558.0581000000002,
+      "throughputCi": {
+        "estimate": 36.88461538461539,
+        "lower": 34.61538461538461,
+        "upper": 38.42307692307692,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 493.2433999999994,
+        "lower": 483.22940000000017,
+        "upper": 521.6093999999994,
+        "level": 0.95,
+        "n": 959,
+        "indicative": false
+      },
+      "serverOverheadP95": 399,
+      "throughputVsBaselinePercent": 7.982991982431975,
+      "p95VsBaselinePercent": 0.9918318883748167
+    },
+    {
+      "trial": 2,
+      "order": 5,
+      "arm": "flush100",
+      "reportLabel": "timing-flush100-trial2-order5",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 100,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:16:51.729497+00:00",
+        "loadAverage1_5_15": [
+          6.705078125,
+          7.40966796875,
+          12.7578125
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:17:27.923867+00:00",
+        "loadAverage1_5_15": [
+          6.8671875,
+          7.3388671875,
+          12.51318359375
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151654-load-synthetic-fleet-timing-flush100-trial2-order5.json",
+          "sha256": "13724b9747add10eb3ca59478a759740f8a202361ff675f2e59e30f5eb0c0a3f",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-flush100-trial2-order5",
+            "mode": "closed",
+            "stack-details": "timing ablation flush100; trial=2, order=5, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=100, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1009,
+      "failed": 0,
+      "throughput": 39.77192735047686,
+      "p95": 412.45820000000094,
+      "p99": 422.0042000000001,
+      "throughputCi": {
+        "estimate": 38.80769230769231,
+        "lower": 36.73076923076923,
+        "upper": 39.96153846153846,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 412.45820000000094,
+        "lower": 410.6003000000019,
+        "upper": 414.46279999999933,
+        "level": 0.95,
+        "n": 1009,
+        "indicative": false
+      },
+      "serverOverheadP95": 333,
+      "throughputVsBaselinePercent": 13.69998501478673,
+      "p95VsBaselinePercent": -15.548978059550677
+    },
+    {
+      "trial": 2,
+      "order": 6,
+      "arm": "lease1s",
+      "reportLabel": "timing-lease1s-trial2-order6",
+      "leaseWaitMs": 1000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 250,
+      "before": {
+        "timestampUtc": "2026-10-16T15:17:27.956375+00:00",
+        "loadAverage1_5_15": [
+          6.8671875,
+          7.3388671875,
+          12.51318359375
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:18:04.132603+00:00",
+        "loadAverage1_5_15": [
+          10.6533203125,
+          8.0224609375,
+          12.51171875
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151730-load-synthetic-fleet-timing-lease1s-trial2-order6.json",
+          "sha256": "e1ebfe53384602eb33db9350ae6ad0062f0425b297cea0f8b153b9ef9ca2a6d8",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-lease1s-trial2-order6",
+            "mode": "closed",
+            "stack-details": "timing ablation lease1s; trial=2, order=6, seed=62026; SQLite; LeaseWaitMs=1000, EventFlushIntervalMs=250, EventPollMs=250; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1074,
+      "failed": 0,
+      "throughput": 42.362880791859276,
+      "p95": 391.52259999999933,
+      "p99": 401.89840000000004,
+      "throughputCi": {
+        "estimate": 41.30769230769231,
+        "lower": 39,
+        "upper": 42.61538461538461,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 391.52259999999933,
+        "lower": 389.36069999999927,
+        "upper": 395.0163999999995,
+        "level": 0.95,
+        "n": 1074,
+        "indicative": false
+      },
+      "serverOverheadP95": 314,
+      "throughputVsBaselinePercent": 21.10700265472163,
+      "p95VsBaselinePercent": -19.835552589858484
+    },
+    {
+      "trial": 2,
+      "order": 7,
+      "arm": "poll100",
+      "reportLabel": "timing-poll100-trial2-order7",
+      "leaseWaitMs": 20000,
+      "eventFlushIntervalMs": 250,
+      "eventPollMs": 100,
+      "before": {
+        "timestampUtc": "2026-10-16T15:18:04.167616+00:00",
+        "loadAverage1_5_15": [
+          10.6533203125,
+          8.0224609375,
+          12.51171875
+        ],
+        "logicalCpuCount": 18
+      },
+      "after": {
+        "timestampUtc": "2026-10-16T15:18:40.397222+00:00",
+        "loadAverage1_5_15": [
+          8.35302734375,
+          7.77294921875,
+          12.24072265625
+        ],
+        "logicalCpuCount": 18
+      },
+      "reports": [
+        {
+          "file": "20261016-151806-load-synthetic-fleet-timing-poll100-trial2-order7.json",
+          "sha256": "a20fa538f63923217986d9f823484ebca7a0c08903100dd4d7b32e9d2f3cf0fe",
+          "options": {
+            "concurrency": "16",
+            "duration-seconds": "25",
+            "label": "timing-poll100-trial2-order7",
+            "mode": "closed",
+            "stack-details": "timing ablation poll100; trial=2, order=7, seed=62026; SQLite; LeaseWaitMs=20000, EventFlushIntervalMs=250, EventPollMs=100; 1 alpha + 1 beta workers x 4 slots",
+            "warmup-seconds": "5"
+          }
+        }
+      ],
+      "succeeded": 1039,
+      "failed": 0,
+      "throughput": 40.97326982352947,
+      "p95": 407.0513000000001,
+      "p99": 424.30150000000003,
+      "throughputCi": {
+        "estimate": 39.96153846153846,
+        "lower": 37.73076923076923,
+        "upper": 41.26923076923077,
+        "level": 0.95,
+        "n": 26,
+        "indicative": false
+      },
+      "p95Ci": {
+        "estimate": 407.0513000000001,
+        "lower": 404.15859999999975,
+        "upper": 412.0505999999998,
+        "level": 0.95,
+        "n": 1039,
+        "indicative": false
+      },
+      "serverOverheadP95": 328,
+      "throughputVsBaselinePercent": 17.134382849722705,
+      "p95VsBaselinePercent": -16.65604352831791
+    }
+  ],
+  "randomSeed": 62026,
+  "repeats": 2,
+  "durationSeconds": 25,
+  "warmupSeconds": 5,
+  "concurrency": 16,
+  "interpretation": "No defensible tuning winner: lease/flush directions failed to reproduce, and the only same-direction poll arm does not exercise its intended streaming path in this no-stream load. Retain existing defaults.",
+  "frozenBinaryManifest": "manifest.json#frozenBinaries",
+  "finalDelegationGuardIncluded": false,
+  "baselineVariation": {
+    "throughputPercent": -15.185231620580586,
+    "p95Percent": 20.71614635148251
+  }
+}

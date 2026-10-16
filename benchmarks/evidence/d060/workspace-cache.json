@@ -1,0 +1,37 @@
+{
+  "measuredUtc": "2026-10-16T06:42:24.937418Z",
+  "files": 10000,
+  "workTreeBytes": 81920000,
+  "transport": "local git-upload-pack over SSH command shim; pack payload bytes, no physical network latency",
+  "sharedHost": true,
+  "measurements": [
+    {
+      "arm": "uncached",
+      "elapsedMs": 4879.6756,
+      "receivedPackBytes": 82308318,
+      "MirrorCacheHit": false,
+      "workTreeSha256": "A701F9BB1C44509609364BF9DB899586B3929D69A34EC62E27653E2392DF47A3"
+    },
+    {
+      "arm": "mirror-cold",
+      "elapsedMs": 2207.2259,
+      "receivedPackBytes": 82308318,
+      "MirrorCacheHit": false,
+      "workTreeSha256": "A701F9BB1C44509609364BF9DB899586B3929D69A34EC62E27653E2392DF47A3"
+    },
+    {
+      "arm": "mirror-warm",
+      "elapsedMs": 1419.4652,
+      "receivedPackBytes": 0,
+      "MirrorCacheHit": true,
+      "workTreeSha256": "A701F9BB1C44509609364BF9DB899586B3929D69A34EC62E27653E2392DF47A3"
+    },
+    {
+      "arm": "prepared-snapshot",
+      "elapsedMs": 3306.7393,
+      "captureMs": 2553.5027,
+      "archiveTransferBytes": 175241080,
+      "workTreeSha256": "A701F9BB1C44509609364BF9DB899586B3929D69A34EC62E27653E2392DF47A3"
+    }
+  ]
+}

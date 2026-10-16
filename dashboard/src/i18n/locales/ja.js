@@ -159,6 +159,7 @@ const ja = {
       Deny: '拒否'
     },
     approvalSource: {
+      DurableResume: "引き継いだ承認",
       Rule: 'ルール',
       Default: 'デプロイメントの既定値',
       User: '人',
@@ -2554,3 +2555,17 @@ ja.components.mcpTest.noWorkers = "準備完了のワーカーで stdio 診断�
   }
  }
 });
+
+// Durable continuation and remote execution.
+ja.enums.runStatus.Suspended = "一時停止中";
+ja.resources.deployments.fields.suspensionEnabled = "承認待ちで一時停止";
+ja.resources.harnessProfiles.fields.sessionFormat = "ハーネスのセッション形式";
+ja.enums.auditEventType.QueueFull = "キューが満杯";
+ja.enums.runExecutor.RemoteA2A = "リモート A2A";
+ja.enums.runExecutor.RemoteMcp = "リモート MCP";
+ja.tips.resources.deployments.suspensionEnabled = "待機中の永続チェックポイントを有効にします。Process、分離されたホーム、互換性のある再開可能なハーネス、アーティファクトストアが必要です。";
+ja.tips.resources.harnessProfiles.sessionFormat = "移植可能なチェックポイントのセッション形式です。ハーネスの更新で互換性が変わる場合は変更してください。";
+ja.tips.enums.runStatus.Suspended = "実行は永続チェックポイントに保存され、待機中はワーカーのリースや実行枠を保持しません。";
+ja.tips.enums.runExecutor.RemoteA2A = "認証済みの登録 A2A エージェントを期限とキャンセル処理付きで実行します。";
+ja.tips.enums.runExecutor.RemoteMcp = "検証済み JSON 入力で、選択した登録リモート MCP ツールを呼び出します。";
+ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、またはエージェントのキュー上限に達したため、実行の受付が拒否されました。";

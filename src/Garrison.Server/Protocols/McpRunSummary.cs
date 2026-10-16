@@ -10,6 +10,12 @@ namespace Garrison.Server.Protocols
     /// </summary>
     public class McpRunSummary
     {
+        /// <summary>Machine checkpoint marker when a resumable parent must yield until this child finishes.</summary>
+        public string? ContinuationMarker { get; set; } = null;
+
+        /// <summary>Template-rendered instruction asking the parent to finish its turn at this checkpoint.</summary>
+        public string? ContinuationInstruction { get; set; } = null;
+
         /// <summary>
         /// Run identifier.
         /// </summary>

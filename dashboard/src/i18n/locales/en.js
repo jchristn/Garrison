@@ -176,6 +176,7 @@ const en = {
       Deny: 'Deny'
     },
     approvalSource: {
+      DurableResume: "Checkpoint approval",
       Rule: 'Rule',
       Default: 'Deployment default',
       User: 'Person',
@@ -2582,3 +2583,17 @@ en.components.mcpTest.noWorkers = "No Ready worker offers stdio diagnostics. Wor
   }
  }
 });
+
+// Durable continuation and remote execution.
+en.enums.runStatus.Suspended = "Suspended";
+en.resources.deployments.fields.suspensionEnabled = "Suspend while awaiting approval";
+en.resources.harnessProfiles.fields.sessionFormat = "Harness session format";
+en.enums.auditEventType.QueueFull = "Queue full";
+en.enums.runExecutor.RemoteA2A = "Remote A2A";
+en.enums.runExecutor.RemoteMcp = "Remote MCP";
+en.tips.resources.deployments.suspensionEnabled = "Opt in to durable checkpoints while waiting. Requires a Process executor, isolated home, compatible resumable harness, and an artifact store.";
+en.tips.resources.harnessProfiles.sessionFormat = "Versioned on-disk session format used for portable checkpoints. Change it when a harness upgrade changes session compatibility.";
+en.tips.enums.runStatus.Suspended = "The run has a durable session checkpoint and holds no worker lease or slot while it waits.";
+en.tips.enums.runExecutor.RemoteA2A = "Executes an authenticated registered A2A agent with deadline and cancellation handling.";
+en.tips.enums.runExecutor.RemoteMcp = "Invokes the selected registered remote MCP tool with validated JSON input.";
+en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a configured cluster, tenant, or agent queue bound was reached.";

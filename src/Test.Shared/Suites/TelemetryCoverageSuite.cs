@@ -46,9 +46,12 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(id, "run-runtime", "A run records per-agent lifecycle, stage, token, and worker metrics with tenant, agent, deployment, harness, and model labels", ct => RunRuntimeAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "mcp-runtime", "MCP tool calls record duration by tool and result, and sessions are counted", ct => McpRuntimeAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "label-guard", "The cardinality guard folds values beyond the limit into other and counts them", ct => LabelGuardAsync(ct)));
+            cases.Add(new TestCaseDescriptor(id, "telemetry-failure-isolation", "Throwing trace and metric consumers cannot change the application result or original exception", ct => TelemetryFailureIsolationAsync(ct)));
+            cases.Add(new TestCaseDescriptor(id, "application-stage-runtime", "Application spans classify error and cancellation without exception values; intrinsic gateway timing excludes tool execution", ct => ApplicationStageAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "statement-names", "Database statement names carry the operation and table, never values", ct => StatementNamesAsync(ct)));
             List<TestSuiteDescriptor> suites = new List<TestSuiteDescriptor>();
             suites.Add(new TestSuiteDescriptor(id, "Telemetry coverage (P13.20)", cases));
+            suites.AddRange(DatabaseAttributionSuite.Build());
             return suites;
         }
 
@@ -127,6 +130,15 @@ namespace Test.Shared.Suites
                 if (!json.Contains(metric.PrometheusName, StringComparison.Ordinal)) uncharted.Add(metric.PrometheusName + " (not on " + metric.Dashboard + ")");
             }
             Assert.True(uncharted.Count == 0, "Metrics without a panel on their dashboard: " + String.Join(", ", uncharted));
+
+            string root = TelemetryCoverageDocument.RepositoryRoot();
+            foreach (string relative in new[] { "docker/observability/prometheus.yaml", "k8s/components/observability/config/prometheus.yaml", "k8s/helm/garrison/files/observability/prometheus.yaml" })
+            {
+                string scrape = File.ReadAllText(Path.Combine(root, relative));
+                Assert.True(scrape.Contains("honor_labels: true", StringComparison.Ordinal), relative + " preserves application component labels instead of renaming them exported_component");
+                Assert.True(scrape.Contains("process_component", StringComparison.Ordinal), relative + " retains process identity separately from application component");
+            }
+            Assert.Equal(File.ReadAllText(Path.Combine(root, "k8s/components/observability/config/prometheus.yaml")), File.ReadAllText(Path.Combine(root, "k8s/helm/garrison/files/observability/prometheus.yaml")), "Kubernetes and Helm scrape contracts stay identical");
 
             ObservabilityDashboards uids = new ObservabilityDashboards();
             HashSet<string> advertised = new HashSet<string>(typeof(ObservabilityDashboards).GetProperties().Select(p => p.GetValue(uids) as string ?? String.Empty), StringComparer.Ordinal);
@@ -259,6 +271,58 @@ namespace Test.Shared.Suites
             guard.MaxLabelValues = 1000000;
             Assert.Equal(10000, guard.MaxLabelValues, "The limit has a maximum of 10000");
             return Task.CompletedTask;
+        }
+
+        private static async Task TelemetryFailureIsolationAsync(CancellationToken token)
+        {
+            using (System.Diagnostics.ActivityListener listener = new System.Diagnostics.ActivityListener())
+            using (System.Diagnostics.Metrics.MeterListener metrics = new System.Diagnostics.Metrics.MeterListener())
+            {
+                listener.ShouldListenTo = source => source.Name == "Garrison";
+                listener.Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> options) => System.Diagnostics.ActivitySamplingResult.AllData;
+                listener.ActivityStopped = activity => throw new InvalidOperationException("trace consumer failed");
+                System.Diagnostics.ActivitySource.AddActivityListener(listener);
+                metrics.InstrumentPublished = (instrument, owner) => { if (instrument.Meter.Name == "Garrison") owner.EnableMeasurementEvents(instrument); };
+                metrics.SetMeasurementEventCallback<double>((instrument, value, tags, state) => throw new InvalidOperationException("metric consumer failed"));
+                metrics.SetMeasurementEventCallback<long>((instrument, value, tags, state) => throw new InvalidOperationException("metric consumer failed"));
+                metrics.Start();
+                int value = await ApplicationOperation.MeasureAsync("test", "throwing_consumers", ct => Task.FromResult(7), token).ConfigureAwait(false);
+                Assert.Equal(7, value, "Successful result survives failed consumers");
+                bool original = false;
+                try { await ApplicationOperation.MeasureAsync("test", "original_failure", ct => Task.FromException<int>(new FormatException("original failure")), token).ConfigureAwait(false); }
+                catch (FormatException exception) { original = exception.Message == "original failure"; }
+                Assert.True(original, "Original exception survives failed consumers");
+                Assert.True(System.Diagnostics.Activity.Current == null, "Failed span callbacks do not leak the stopped activity into application context");
+            }
+        }
+
+        private static async Task ApplicationStageAsync(CancellationToken token)
+        {
+            List<System.Diagnostics.Activity> spans = new List<System.Diagnostics.Activity>();
+            using (System.Diagnostics.ActivityListener listener = new System.Diagnostics.ActivityListener())
+            using (MetricCapture capture = new MetricCapture())
+            {
+                listener.ShouldListenTo = source => source.Name == "Garrison";
+                listener.Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> options) => System.Diagnostics.ActivitySamplingResult.AllData;
+                listener.ActivityStopped = activity => spans.Add(activity);
+                System.Diagnostics.ActivitySource.AddActivityListener(listener);
+                await GatewayOperation.MeasureAsync(async ct =>
+                {
+                    await GatewayOperation.DispatchAsync(async inner => { await Task.Delay(150, inner).ConfigureAwait(false); return true; }, ct).ConfigureAwait(false);
+                    return true;
+                }, token).ConfigureAwait(false);
+                double dispatch = capture.Of("garrison.application.operation.duration").Single(m => m.Tag("component") == "gateway").Value;
+                double overhead = capture.Of("garrison.gateway.overhead.duration").Single().Value;
+                Assert.True(dispatch >= 0.12 && overhead < dispatch / 2, "Intrinsic gateway timing excludes the slow tool dispatch");
+                try { await ApplicationOperation.MeasureAsync("test", "failed", ct => Task.FromException(new InvalidOperationException("sensitive-provider-value")), token).ConfigureAwait(false); }
+                catch (InvalidOperationException) { }
+                try { await ApplicationOperation.MeasureAsync("test", "cancelled", ct => Task.FromCanceled(new CancellationToken(true)), token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { }
+                Assert.True(capture.Of("garrison.application.operations").Any(m => m.Tag("result") == "error"), "Caught errors counted");
+                Assert.True(capture.Of("garrison.application.operations").Any(m => m.Tag("result") == "cancelled"), "Cancellation counted");
+                Assert.True(spans.Any(a => a.OperationName == "stage:test:failed" && a.Status == System.Diagnostics.ActivityStatusCode.Error), "Error status reaches trace exporter");
+                Assert.True(spans.All(a => !(a.StatusDescription ?? string.Empty).Contains("sensitive-provider-value", StringComparison.Ordinal)), "Exception values never reach application spans");
+            }
         }
 
         private static Task StatementNamesAsync(CancellationToken token)

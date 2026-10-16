@@ -1,0 +1,109 @@
+{
+  "sourceHead": "f64960d78a59a1008a58c4c9aa01825f32bd2325",
+  "workingTreeUncommitted": true,
+  "scope": "The 149-case broad net10 run used broadNet10BuildArtifacts. Subsequent changes corrected only two setting-description/XML strings. Final net8 focused cases and net10 guard checks used finalMetadataBuildArtifacts; application behavior was unchanged by these descriptions.",
+  "broadNet10BuildArtifacts": [
+    {
+      "project": "Garrison.Core",
+      "framework": "net8.0",
+      "sha256": "5761f89dea2551803712f9055c6c7d3cfdc55663bcef478bc6dfa9afe00851eb"
+    },
+    {
+      "project": "Garrison.Core",
+      "framework": "net10.0",
+      "sha256": "a80b9434982b563a56108e6e29ad3d8023c2a749de7f6fb5958a45202b17e3e2"
+    },
+    {
+      "project": "Garrison.Server",
+      "framework": "net8.0",
+      "sha256": "c8ead4309337148369b004a363813da40cf3afb579009da516c70bbc9131aa69"
+    },
+    {
+      "project": "Garrison.Server",
+      "framework": "net10.0",
+      "sha256": "311f308e19c3f0aae56371ea149a86752af61149e49af5243c366385f9dfacd7"
+    },
+    {
+      "project": "Garrison.Worker",
+      "framework": "net8.0",
+      "sha256": "aa3f75b2b81e6c456f1e6672c77e224666f0701e59a732cc975a79e72fd0b0db"
+    },
+    {
+      "project": "Garrison.Worker",
+      "framework": "net10.0",
+      "sha256": "ccc09a6cb2dc1a81a210e6d48bbb17ff5402eeea6baaeaa26be85ebe153eaf0a"
+    },
+    {
+      "project": "Test.Shared",
+      "framework": "net8.0",
+      "sha256": "7a9aab9da7be731862defc466a963c4d6de4dac15ae68d7f1c8770d714d65251"
+    },
+    {
+      "project": "Test.Shared",
+      "framework": "net10.0",
+      "sha256": "bfe33642ddac8bb981fca9954dfe6d8f0f116f19fe01594f51bb818d487a1f70"
+    },
+    {
+      "project": "Test.Automated",
+      "framework": "net8.0",
+      "sha256": "b41d9e53d57f798656db7cc97d7d8db23286cbd0de3aea62408f8652fa0586aa"
+    },
+    {
+      "project": "Test.Automated",
+      "framework": "net10.0",
+      "sha256": "fe586e1d7eff7e2156b2b328c69279e77beb7cddce7e95c1c3c96c7993685d84"
+    }
+  ],
+  "finalMetadataBuildArtifacts": [
+    {
+      "project": "Garrison.Core",
+      "framework": "net8.0",
+      "sha256": "5761f89dea2551803712f9055c6c7d3cfdc55663bcef478bc6dfa9afe00851eb"
+    },
+    {
+      "project": "Garrison.Core",
+      "framework": "net10.0",
+      "sha256": "a80b9434982b563a56108e6e29ad3d8023c2a749de7f6fb5958a45202b17e3e2"
+    },
+    {
+      "project": "Garrison.Server",
+      "framework": "net8.0",
+      "sha256": "f4d685e1b6f0b1455be1ffe95616f769968585b2d6e1533073159313320003c8"
+    },
+    {
+      "project": "Garrison.Server",
+      "framework": "net10.0",
+      "sha256": "a4625a66b8b08308ba8b631d8a1d05d19c3a54296caeecb7a1124da5821d71df"
+    },
+    {
+      "project": "Garrison.Worker",
+      "framework": "net8.0",
+      "sha256": "aa3f75b2b81e6c456f1e6672c77e224666f0701e59a732cc975a79e72fd0b0db"
+    },
+    {
+      "project": "Garrison.Worker",
+      "framework": "net10.0",
+      "sha256": "ccc09a6cb2dc1a81a210e6d48bbb17ff5402eeea6baaeaa26be85ebe153eaf0a"
+    },
+    {
+      "project": "Test.Shared",
+      "framework": "net8.0",
+      "sha256": "7a9aab9da7be731862defc466a963c4d6de4dac15ae68d7f1c8770d714d65251"
+    },
+    {
+      "project": "Test.Shared",
+      "framework": "net10.0",
+      "sha256": "bfe33642ddac8bb981fca9954dfe6d8f0f116f19fe01594f51bb818d487a1f70"
+    },
+    {
+      "project": "Test.Automated",
+      "framework": "net8.0",
+      "sha256": "b41d9e53d57f798656db7cc97d7d8db23286cbd0de3aea62408f8652fa0586aa"
+    },
+    {
+      "project": "Test.Automated",
+      "framework": "net10.0",
+      "sha256": "fe586e1d7eff7e2156b2b328c69279e77beb7cddce7e95c1c3c96c7993685d84"
+    }
+  ]
+}

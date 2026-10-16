@@ -1,0 +1,8 @@
+{
+  "status": "Failed",
+  "outcome": "InternalError",
+  "transportCalls": 0,
+  "snapshotReported": false,
+  "privateDirectoriesRemoved": true,
+  "failedWorkRetained": true
+}

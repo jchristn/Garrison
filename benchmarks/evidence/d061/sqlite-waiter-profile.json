@@ -1,0 +1,192 @@
+{
+  "scope": "Shared macOS host, one fresh SQLite server at 37800, two alpha workers with eight slots each. 1000 noisy plus ten runs in each of two quiet tenants. The bounded run includes the wait budget and accepted-202 benchmark monitoring changes.",
+  "rootCause": {
+    "watsonVersion": "7.3.0",
+    "maxConcurrentRequestsDefault": 1024,
+    "originalHeldInvocations": 1020,
+    "workerLongPolls": 4,
+    "observation": "Initial assignments completed claim/compile work, then worker started/events/heartbeat calls made no progress while invocation requests held the listener budget. Both workers were marked Lost during the stalled window. This was listener capacity starvation, not evidence of SQLite admission locking."
+  },
+  "baseline": "20261016-143444-fairness-synthetic-fleet-d061-sqlite-sync-profile.json",
+  "bounded": "20261016-143839-fairness-synthetic-fleet-d061-sqlite-bounded-sync.json",
+  "boundedWaitBudget": 256,
+  "boundedAcceptedFallbacks": 764,
+  "boundedHeldWaits": 256,
+  "boundedLostWorkerCount": 0,
+  "boundedSucceededRuns": 1020,
+  "limits": "The bounded experiment deliberately returns accepted known run IDs when the per-replica wait budget is full. This is not a test holding 1020 synchronous requests until terminal. SSE/watch clients have their own transport capacity and are not covered by this invocation budget.",
+  "stalledWindowStageSamples": [
+    {
+      "sampleIndex": 0,
+      "scheduledSpacingSeconds": 3,
+      "operations": [
+        {
+          "component": "scheduler",
+          "operation": "node_refresh",
+          "count": 159.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "delegated_candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "tenant_weight",
+          "count": 24.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "claim",
+          "count": 26.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "compile",
+          "count": 16.0
+        },
+        {
+          "component": "run",
+          "operation": "started",
+          "count": 32.0
+        }
+      ]
+    },
+    {
+      "sampleIndex": 2,
+      "scheduledSpacingSeconds": 3,
+      "operations": [
+        {
+          "component": "scheduler",
+          "operation": "node_refresh",
+          "count": 185.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "delegated_candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "tenant_weight",
+          "count": 24.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "claim",
+          "count": 26.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "compile",
+          "count": 16.0
+        },
+        {
+          "component": "run",
+          "operation": "started",
+          "count": 32.0
+        }
+      ]
+    },
+    {
+      "sampleIndex": 4,
+      "scheduledSpacingSeconds": 3,
+      "operations": [
+        {
+          "component": "scheduler",
+          "operation": "node_refresh",
+          "count": 209.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "delegated_candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "tenant_weight",
+          "count": 24.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "claim",
+          "count": 26.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "compile",
+          "count": 16.0
+        },
+        {
+          "component": "run",
+          "operation": "started",
+          "count": 32.0
+        }
+      ]
+    },
+    {
+      "sampleIndex": 6,
+      "scheduledSpacingSeconds": 3,
+      "operations": [
+        {
+          "component": "scheduler",
+          "operation": "node_refresh",
+          "count": 235.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "delegated_candidate_query",
+          "count": 64.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "tenant_weight",
+          "count": 24.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "claim",
+          "count": 26.0
+        },
+        {
+          "component": "scheduler",
+          "operation": "compile",
+          "count": 16.0
+        },
+        {
+          "component": "run",
+          "operation": "started",
+          "count": 32.0
+        }
+      ]
+    }
+  ],
+  "boundedBinarySha256": {
+    "Garrison.Server.dll": "f92a3f7e6f9eaf4965223a5ef2cbbb013cd72a1edfb5ebb4ad1d2690926f33d9",
+    "Garrison.Core.dll": "28d243ad7d1059f083ae371230132eefa97ec0d527a5920bd76d36273e9ee814",
+    "Garrison.Worker.dll": "da0db8c15ad9cec28d2191970916247eadf3aa2c6b18b6e699f79be6af07b059",
+    "Garrison.Benchmark.dll": "bbe17da075c32d275c1a1fcc41a6510f9f467bfd4d6571abf97e4a3cbb9e2bc3"
+  },
+  "baselineBinarySha256": null,
+  "baselineHashNote": "Baseline binaries were rebuilt in the private artifact directory before an immutable hash capture. The retained full report records command line, timestamps, dataset hash and dirty-tree provenance; no pristine release baseline is claimed."
+}

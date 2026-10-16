@@ -133,67 +133,24 @@ namespace Garrison.Server.Runtime
                 create.CallerName = ctx.PrincipalName;
             }
 
-            // Wait handshake (P12.38): a run that waits on its child is recorded as waiting before the child exists, so
-            // the scheduler opens a child reserve slot for it and the next delegation sees it.
-            string? waitId = null;
-            if (create.Parent != null && (options.Wait || options.CallerWaits))
+            // A resident parent cannot silently switch to polling after its child is queued: removing its wait
+            // handshake would close the child reserve while the parent still occupies a normal execution slot.
+            bool reserved = create.Parent != null && options.Wait && !options.DurableWait;
+            if (reserved && !_Options.SynchronousWaits.TryEnter(_Options.MaxSynchronousWaiters, true))
             {
-                create.RunId = IdGenerator.NewRunId();
-                waitId = await BeginWaitAsync(create.Parent, create.RunId, token).ConfigureAwait(false);
+                DelegationCapacityExhaustedException refused = new DelegationCapacityExhaustedException(
+                    DelegationCapacityLimitEnum.SynchronousWaiters, create.Parent!.LeaseNodeId,
+                    _Options.SynchronousWaits.Active, _Options.MaxSynchronousWaiters, _Options.DelegationRetryAfterSeconds);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.DelegationDenials, "reason", refused.Code);
+                throw refused;
             }
-
-            Run run;
-            bool created = false;
             try
             {
-                try
-                {
-                    run = await _Runs.CreateAsync(create, token).ConfigureAwait(false);
-                    created = true;
-                }
-                catch (ConflictException e) when (create.Parent != null && e.Code == "DelegationDepthExceeded")
-                {
-                    GarrisonMetrics.Count(GarrisonMetricCatalog.DelegationDenials, "reason", e.Code);
-                    throw;
-                }
+                return await InvokePreparedAsync(create, options, reserved, token).ConfigureAwait(false);
             }
             finally
             {
-                if (!created && waitId != null) await EndWaitAsync(waitId).ConfigureAwait(false);
-            }
-            if (waitId != null && !String.Equals(run.Id, create.RunId, StringComparison.Ordinal))
-            {
-                // An idempotent retry returned the run created earlier: wait on that one.
-                await _Database.Runs.UpdateChildWaitAsync(waitId, run.Id, token).ConfigureAwait(false);
-            }
-            if (!options.Wait)
-            {
-                // A caller that follows the run by itself ends the wait when it stops.
-                options.ChildWaitId = waitId;
-                return run;
-            }
-            long waitStart = Stopwatch.GetTimestamp();
-            string result = "cancelled";
-            try
-            {
-                Run? finished = await _Runs.WaitAsync(tenantId, run.Id, options.WaitSeconds, token).ConfigureAwait(false);
-                result = finished != null && RunService.IsTerminal(finished.Status) ? "completed" : "timeout";
-                return finished ?? run;
-            }
-            catch (OperationCanceledException) when (token.IsCancellationRequested && options.CancelOnDisconnect && !_Runs.ShutdownToken.IsCancellationRequested && (options.CallerGone == null || options.CallerGone()))
-            {
-                // Nobody is waiting for the result any more: stop the harness instead of letting it run to its deadline.
-                result = "disconnected";
-                if (await _Runs.CancelAbandonedAsync(tenantId, run.Id, options.DisconnectReason, CancellationToken.None).ConfigureAwait(false))
-                {
-                    GarrisonMetrics.Count(GarrisonMetricCatalog.DisconnectCancels, "surface", options.Surface);
-                }
-                throw;
-            }
-            finally
-            {
-                if (waitId != null) await EndWaitAsync(waitId).ConfigureAwait(false);
-                GarrisonMetrics.Observe(GarrisonMetricCatalog.InvocationWait, GarrisonMetrics.SecondsSince(waitStart), "surface", options.Surface, "result", result);
+                if (reserved) _Options.SynchronousWaits.Release();
             }
         }
 
@@ -214,11 +171,74 @@ namespace Garrison.Server.Runtime
 
         #region Private-Methods
 
-        private async Task<string> BeginWaitAsync(Run parent, string childRunId, CancellationToken token)
+        private async Task<Run> InvokePreparedAsync(RunCreateContext create, InvocationOptions options, bool waitReserved, CancellationToken token)
+        {
+            string tenantId = create.TenantId;
+            string? waitId = null;
+            bool callerOwnsWait = false;
+            try
+            {
+                // Admission records the handshake before child creation, so the scheduler can open its reserve.
+                if (create.Parent != null && (options.Wait || options.CallerWaits))
+                {
+                    create.RunId = IdGenerator.NewRunId();
+                    waitId = await BeginWaitAsync(create.Parent, create.RunId, options.DurableWait, token).ConfigureAwait(false);
+                }
+                Run run;
+                try
+                {
+                    run = await _Runs.CreateAsync(create, token).ConfigureAwait(false);
+                }
+                catch (ConflictException e) when (create.Parent != null && e.Code == "DelegationDepthExceeded")
+                {
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.DelegationDenials, "reason", e.Code);
+                    throw;
+                }
+                if (waitId != null && !String.Equals(run.Id, create.RunId, StringComparison.Ordinal))
+                {
+                    // An idempotent retry returned earlier work. A failed update must release both resources.
+                    await _Database.Runs.UpdateChildWaitAsync(waitId, run.Id, token).ConfigureAwait(false);
+                }
+                if (!options.Wait)
+                {
+                    options.ChildWaitId = waitId;
+                    callerOwnsWait = true;
+                    return run;
+                }
+                long waitStart = Stopwatch.GetTimestamp();
+                string result = "cancelled";
+                try
+                {
+                    Run? finished = waitReserved
+                        ? await _Runs.WaitReservedAsync(tenantId, run.Id, options.WaitSeconds, token).ConfigureAwait(false)
+                        : await _Runs.WaitAsync(tenantId, run.Id, options.WaitSeconds, token).ConfigureAwait(false);
+                    result = finished != null && RunService.IsTerminal(finished.Status) ? "completed" : "timeout";
+                    return finished ?? run;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested && options.CancelOnDisconnect && !_Runs.ShutdownToken.IsCancellationRequested && (options.CallerGone == null || options.CallerGone()))
+                {
+                    result = "disconnected";
+                    if (await _Runs.CancelAbandonedAsync(tenantId, run.Id, options.DisconnectReason, CancellationToken.None).ConfigureAwait(false))
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.DisconnectCancels, "surface", options.Surface);
+                    throw;
+                }
+                finally
+                {
+                    GarrisonMetrics.Observe(GarrisonMetricCatalog.InvocationWait, GarrisonMetrics.SecondsSince(waitStart), "surface", options.Surface, "result", result);
+                }
+            }
+            finally
+            {
+                if (!callerOwnsWait && waitId != null) await EndWaitAsync(waitId).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<string> BeginWaitAsync(Run parent, string childRunId, bool durable, CancellationToken token)
         {
             ChildWaitRequest request = new ChildWaitRequest();
             request.TenantId = parent.TenantId;
             request.ParentRunId = parent.Id;
+            request.Durable = durable;
             request.ChildRunId = childRunId;
             request.ChildQueueDepth = _Options.DelegationChildQueueDepth;
             ChildWaitAdmission admission = await _Database.Runs.BeginChildWaitAsync(request, token).ConfigureAwait(false);

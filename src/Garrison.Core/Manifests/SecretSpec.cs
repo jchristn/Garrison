@@ -9,6 +9,11 @@ namespace Garrison.Core.Manifests
     /// </summary>
     public class SecretSpec
     {
+        /// <summary>Provider resource identifier when kind is LeaseBroker.</summary>
+        public string? BrokerResource { get; set; }
+        /// <summary>Optional provider audience when kind is LeaseBroker.</summary>
+        public string? BrokerAudience { get; set; }
+
         /// <summary>
         /// Kind.
         /// </summary>

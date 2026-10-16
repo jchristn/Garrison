@@ -110,7 +110,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, valueencrypted = @valueencrypted, valuelast4 = @valuelast4, fingerprint = @fingerprint, keyversion = @keyversion, expiresutc = @expiresutc, rotatedutc = @rotatedutc, active = @active, isprotected = @isprotected, status = @status, statusmessage = @statusmessage, statusutc = @statusutc, refreshedutc = @refreshedutc, accesstokenexpiresutc = @accesstokenexpiresutc, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET brokerresource=@brokerresource, brokeraudience=@brokeraudience, tenantid = @tenantid, name = @name, description = @description, kind = @kind, valueencrypted = @valueencrypted, valuelast4 = @valuelast4, fingerprint = @fingerprint, keyversion = @keyversion, expiresutc = @expiresutc, rotatedutc = @rotatedutc, active = @active, isprotected = @isprotected, status = @status, statusmessage = @statusmessage, statusutc = @statusutc, refreshedutc = @refreshedutc, accesstokenexpiresutc = @accesstokenexpiresutc, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -121,6 +121,8 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "name", obj.Name);
                     AdoDatabaseDriver.Add(command, "description", obj.Description);
                     AdoDatabaseDriver.Add(command, "kind", obj.Kind.ToString());
+                    AdoDatabaseDriver.Add(command, "brokerresource", obj.BrokerResource);
+                    AdoDatabaseDriver.Add(command, "brokeraudience", obj.BrokerAudience);
                     AdoDatabaseDriver.Add(command, "valueencrypted", obj.ValueEncrypted);
                     AdoDatabaseDriver.Add(command, "valuelast4", obj.ValueLast4);
                     AdoDatabaseDriver.Add(command, "fingerprint", obj.Fingerprint);
@@ -247,6 +249,8 @@ namespace Garrison.Core.Database.Ado
             obj.Name = AdoConverters.Str(reader, "name");
             obj.Description = AdoConverters.NullableStr(reader, "description");
             obj.Kind = AdoConverters.Enum<SecretKindEnum>(reader, "kind", SecretKindEnum.GenericEnv);
+            obj.BrokerResource = AdoConverters.NullableStr(reader, "brokerresource");
+            obj.BrokerAudience = AdoConverters.NullableStr(reader, "brokeraudience");
             obj.ValueEncrypted = AdoConverters.NullableStr(reader, "valueencrypted");
             obj.ValueLast4 = AdoConverters.NullableStr(reader, "valuelast4");
             obj.Fingerprint = AdoConverters.NullableStr(reader, "fingerprint");
@@ -280,7 +284,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Secret obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, valueencrypted, valuelast4, fingerprint, keyversion, expiresutc, rotatedutc, active, isprotected, status, statusmessage, statusutc, refreshedutc, accesstokenexpiresutc, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @valueencrypted, @valuelast4, @fingerprint, @keyversion, @expiresutc, @rotatedutc, @active, @isprotected, @status, @statusmessage, @statusutc, @refreshedutc, @accesstokenexpiresutc, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (brokerresource, brokeraudience, id, tenantid, name, description, kind, valueencrypted, valuelast4, fingerprint, keyversion, expiresutc, rotatedutc, active, isprotected, status, statusmessage, statusutc, refreshedutc, accesstokenexpiresutc, createdutc, lastupdateutc) VALUES (@brokerresource, @brokeraudience, @id, @tenantid, @name, @description, @kind, @valueencrypted, @valuelast4, @fingerprint, @keyversion, @expiresutc, @rotatedutc, @active, @isprotected, @status, @statusmessage, @statusutc, @refreshedutc, @accesstokenexpiresutc, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -288,6 +292,8 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "name", obj.Name);
                 AdoDatabaseDriver.Add(command, "description", obj.Description);
                 AdoDatabaseDriver.Add(command, "kind", obj.Kind.ToString());
+                    AdoDatabaseDriver.Add(command, "brokerresource", obj.BrokerResource);
+                    AdoDatabaseDriver.Add(command, "brokeraudience", obj.BrokerAudience);
                 AdoDatabaseDriver.Add(command, "valueencrypted", obj.ValueEncrypted);
                 AdoDatabaseDriver.Add(command, "valuelast4", obj.ValueLast4);
                 AdoDatabaseDriver.Add(command, "fingerprint", obj.Fingerprint);

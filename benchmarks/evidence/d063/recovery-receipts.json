@@ -1,0 +1,143 @@
+{
+  "target": "P12.34 local acceptance under D063; CI is not required",
+  "database": "PostgreSQL 17 disposable dedicated container; separate schema per case",
+  "runtime": "Three control-plane service runtimes with distinct HTTP ports, two worker runtimes; independent Node HTTP mutation sink process",
+  "nodeVersion": "22.23.3",
+  "framework": "net10.0",
+  "result": "6/6 passed",
+  "runtimeMs": 69732,
+  "command": "GARRISON_TEST_PROVIDERS=postgresql GARRISON_TEST_PG_PORT=49937 GARRISON_RECOVERY_EVIDENCE=/tmp/garrison-d063-recovery-receipts.jsonl dotnet <test-build>/Test.Automated.dll --suites recovery-acceptance --results /tmp/garrison-d063-recovery-results.json",
+  "mutationSink": "Intentionally non-deduplicating. Receipts preserve operationId, actual rendered run.attempt and sink commit time.",
+  "cases": [
+    {
+      "policy": "AtMostOnce",
+      "topology": "leader-loss-with-two-survivors-and-worker-partition",
+      "runId": "run_mvb6gll5_ixHwFQOqj89hPAwDkh7",
+      "initialLeader": "replica-c",
+      "initialLeaderEpoch": 1,
+      "replacementLeader": "replica-b",
+      "replacementLeaderEpoch": 2,
+      "finalStatus": "Failed",
+      "attempt": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb6gll5_ixHwFQOqj89hPAwDkh7",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T16:24:02.727Z"
+        }
+      ],
+      "outageOrFailoverSeconds": 7.08512,
+      "passed": true
+    },
+    {
+      "policy": "AtMostOnce",
+      "topology": "all-three-endpoints-offline-and-replaced",
+      "runId": "run_mvb6gscp_kdDkFiZd9ww1xNw6wYL",
+      "initialLeader": "replica-a",
+      "initialLeaderEpoch": 1,
+      "replacementLeader": "replacement-0",
+      "replacementLeaderEpoch": 2,
+      "finalStatus": "Failed",
+      "attempt": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb6gscp_kdDkFiZd9ww1xNw6wYL",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T16:24:11.442Z"
+        }
+      ],
+      "outageOrFailoverSeconds": 10.329894,
+      "passed": true
+    },
+    {
+      "policy": "Journaled",
+      "topology": "leader-loss-with-two-survivors-and-worker-partition",
+      "runId": "run_mvb6h3ot_NJX0mf7eMBeIYMME3QE",
+      "initialLeader": "replica-a",
+      "initialLeaderEpoch": 1,
+      "replacementLeader": "replica-c",
+      "replacementLeaderEpoch": 2,
+      "finalStatus": "Failed",
+      "attempt": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb6h3ot_NJX0mf7eMBeIYMME3QE",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T16:24:26.133Z"
+        }
+      ],
+      "outageOrFailoverSeconds": 7.078917,
+      "passed": true
+    },
+    {
+      "policy": "Journaled",
+      "topology": "all-three-endpoints-offline-and-replaced",
+      "runId": "run_mvb6hafh_e33PofFopnPiz5zxYSz",
+      "initialLeader": "replica-a",
+      "initialLeaderEpoch": 1,
+      "replacementLeader": "replacement-0",
+      "replacementLeaderEpoch": 2,
+      "finalStatus": "Failed",
+      "attempt": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb6hafh_e33PofFopnPiz5zxYSz",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T16:24:34.869Z"
+        }
+      ],
+      "outageOrFailoverSeconds": 10.321445,
+      "passed": true
+    },
+    {
+      "policy": "AtLeastOnce",
+      "topology": "leader-loss-with-two-survivors-and-worker-partition",
+      "runId": "run_mvb6hlbb_LwWUV7gp1GDcgUJgx2Z",
+      "initialLeader": "replica-a",
+      "initialLeaderEpoch": 1,
+      "replacementLeader": "replica-b",
+      "replacementLeaderEpoch": 2,
+      "finalStatus": "Succeeded",
+      "attempt": 2,
+      "receipts": [
+        {
+          "operationId": "run_mvb6hlbb_LwWUV7gp1GDcgUJgx2Z",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T16:24:48.974Z"
+        },
+        {
+          "operationId": "run_mvb6hlbb_LwWUV7gp1GDcgUJgx2Z",
+          "attempt": 2,
+          "timestampUtc": "2026-10-16T16:24:54.085Z"
+        }
+      ],
+      "outageOrFailoverSeconds": 7.162649,
+      "passed": true
+    },
+    {
+      "policy": "AtLeastOnce",
+      "topology": "all-three-endpoints-offline-and-replaced",
+      "runId": "run_mvb6hs4f_1HMzLu5ki9m0m42CwnJ",
+      "initialLeader": "replica-a",
+      "initialLeaderEpoch": 1,
+      "replacementLeader": "replacement-0",
+      "replacementLeaderEpoch": 2,
+      "finalStatus": "Succeeded",
+      "attempt": 2,
+      "receipts": [
+        {
+          "operationId": "run_mvb6hs4f_1HMzLu5ki9m0m42CwnJ",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T16:24:57.803Z"
+        },
+        {
+          "operationId": "run_mvb6hs4f_1HMzLu5ki9m0m42CwnJ",
+          "attempt": 2,
+          "timestampUtc": "2026-10-16T16:25:06.266Z"
+        }
+      ],
+      "outageOrFailoverSeconds": 10.455091,
+      "passed": true
+    }
+  ]
+}

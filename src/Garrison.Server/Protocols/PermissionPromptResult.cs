@@ -13,6 +13,9 @@ namespace Garrison.Server.Protocols
     {
         #region Public-Members
 
+        /// <summary>Whether the harness must finish this turn so the worker can save a durable checkpoint.</summary>
+        public bool Suspended { get; set; } = false;
+
         /// <summary>
         /// allow or deny.
         /// </summary>

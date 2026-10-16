@@ -14,8 +14,9 @@ namespace Garrison.Core.Helpers
         /// <summary>
         /// Whether a run whose lease expired goes back to the queue for another attempt. A cancelled run, or one with no
         /// attempts left, never does. A Leased run never started its harness (the start gate), so it is requeued under every
-        /// policy. A Running run is requeued only when it was admitted under AtLeastOnce; AtMostOnce, and Journaled until the
-        /// effect journal exists (P12.33), end it Failed with outcome NodeLost instead. Any other status is not requeued.
+        /// policy. A Running run is requeued only when it was admitted under AtLeastOnce; AtMostOnce, and Journaled without a
+        /// safe persisted checkpoint, end it Failed with outcome NodeLost instead. The maintenance service separately checks
+        /// the persisted journal for Journaled recovery. Any other status is not requeued.
         /// </summary>
         /// <param name="run">Run whose lease expired. Its stored <see cref="Run.EffectPolicy"/> decides, not the deployment's current policy.</param>
         /// <returns>True to requeue; false to end the run.</returns>
@@ -31,7 +32,7 @@ namespace Garrison.Core.Helpers
 
         /// <summary>
         /// Whether a policy requeues a run that had already started when its worker was lost. True only for AtLeastOnce;
-        /// Journaled returns false until the effect journal exists (P12.33).
+        /// Journaled requires an asynchronous persisted checkpoint check by the maintenance service.
         /// </summary>
         /// <param name="policy">Effect policy.</param>
         /// <returns>True when a lost Running run is requeued.</returns>

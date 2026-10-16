@@ -1,0 +1,144 @@
+{
+  "measuredUtc": "2026-10-16T16:27:03.293781Z",
+  "dataFiles": 512,
+  "treeFiles": 515,
+  "workTreeBytes": 4194413,
+  "rounds": 3,
+  "transport": "real loopback TCP/TLS HTTPS Git smart endpoint; process-local ephemeral CA; no SSH command shim",
+  "responseDelayMs": 25,
+  "targetResponseMiBPerSecondPerConnection": 16,
+  "byteAccounting": "HTTP request/response bodies and received Git pack payload; excludes HTTP headers and TCP/TLS framing",
+  "identity": "SHA256 over sorted relative paths, file lengths, bytes and Unix file modes, excluding .git",
+  "sharedDevelopmentHost": true,
+  "measurements": [
+    {
+      "round": 1,
+      "arm": "uncached",
+      "elapsedMs": 883.9662,
+      "receivedPackBytes": 4214686,
+      "MirrorCacheHit": false,
+      "httpsRequests": 3,
+      "requestBodyBytes": 583,
+      "responseBodyBytes": 4215316,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 1,
+      "arm": "mirror-cold",
+      "elapsedMs": 970.8825,
+      "receivedPackBytes": 4214686,
+      "MirrorCacheHit": false,
+      "httpsRequests": 5,
+      "requestBodyBytes": 733,
+      "responseBodyBytes": 4215599,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 1,
+      "arm": "mirror-warm",
+      "elapsedMs": 372.2343,
+      "receivedPackBytes": 0,
+      "MirrorCacheHit": true,
+      "httpsRequests": 4,
+      "requestBodyBytes": 509,
+      "responseBodyBytes": 566,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 1,
+      "arm": "prepared-snapshot",
+      "captureMs": 73.3941,
+      "transferMs": 578.1822,
+      "restoreMs": 100.3089,
+      "archiveTransferBytes": 8996986,
+      "responseBodyBytes": 8996986,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 2,
+      "arm": "uncached",
+      "elapsedMs": 812.7659,
+      "receivedPackBytes": 4214686,
+      "MirrorCacheHit": false,
+      "httpsRequests": 3,
+      "requestBodyBytes": 583,
+      "responseBodyBytes": 4215316,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 2,
+      "arm": "mirror-cold",
+      "elapsedMs": 991.5819,
+      "receivedPackBytes": 4214686,
+      "MirrorCacheHit": false,
+      "httpsRequests": 5,
+      "requestBodyBytes": 733,
+      "responseBodyBytes": 4215599,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 2,
+      "arm": "mirror-warm",
+      "elapsedMs": 396.8456,
+      "receivedPackBytes": 0,
+      "MirrorCacheHit": true,
+      "httpsRequests": 4,
+      "requestBodyBytes": 509,
+      "responseBodyBytes": 566,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 2,
+      "arm": "prepared-snapshot",
+      "captureMs": 64.8505,
+      "transferMs": 581.9296,
+      "restoreMs": 94.3802,
+      "archiveTransferBytes": 8996958,
+      "responseBodyBytes": 8996958,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 3,
+      "arm": "uncached",
+      "elapsedMs": 827.8167,
+      "receivedPackBytes": 4214686,
+      "MirrorCacheHit": false,
+      "httpsRequests": 3,
+      "requestBodyBytes": 583,
+      "responseBodyBytes": 4215316,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 3,
+      "arm": "mirror-cold",
+      "elapsedMs": 958.7005,
+      "receivedPackBytes": 4214686,
+      "MirrorCacheHit": false,
+      "httpsRequests": 5,
+      "requestBodyBytes": 733,
+      "responseBodyBytes": 4215599,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 3,
+      "arm": "mirror-warm",
+      "elapsedMs": 399.8619,
+      "receivedPackBytes": 0,
+      "MirrorCacheHit": true,
+      "httpsRequests": 4,
+      "requestBodyBytes": 509,
+      "responseBodyBytes": 566,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    },
+    {
+      "round": 3,
+      "arm": "prepared-snapshot",
+      "captureMs": 63.4767,
+      "transferMs": 579.1588,
+      "restoreMs": 94.9345,
+      "archiveTransferBytes": 8996998,
+      "responseBodyBytes": 8996998,
+      "workTreeSha256": "10ACBF1B422E2FA545C3EB03A3F8932FAE5DB2B71B8B677FD3996C2F360A81CF"
+    }
+  ]
+}

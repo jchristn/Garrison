@@ -11,7 +11,7 @@ namespace Garrison.Core.Database.Interfaces
         /// <summary>Create metadata and optional database content.</summary>
         Task<Artifact> CreateAsync(Artifact artifact, byte[]? content, CancellationToken token = default);
         /// <summary>Create only while the matching run epoch and repair phase remain active.</summary>
-        Task<Artifact?> CreateForExecutionAsync(Artifact artifact, byte[]? content, CancellationToken token = default);
+        Task<Artifact?> CreateForExecutionAsync(Artifact artifact, byte[]? content, CancellationToken token = default, string? nodeId = null);
         /// <summary>Read metadata within one tenant.</summary>
         Task<Artifact?> ReadAsync(string tenantId, string id, CancellationToken token = default);
         /// <summary>Read the artifact for one idempotent execution/name upload.</summary>
@@ -21,6 +21,6 @@ namespace Garrison.Core.Database.Interfaces
         /// <summary>Delete an artifact within a tenant.</summary>
         Task<bool> DeleteAsync(string tenantId, string id, CancellationToken token = default);
         /// <summary>Enumerate metadata, optionally restricted to a run or store.</summary>
-        Task<EnumerationResult<Artifact>> EnumerateAsync(string tenantId, EnumerationQuery query, string? runId = null, string? storeId = null, CancellationToken token = default);
+        Task<EnumerationResult<Artifact>> EnumerateAsync(string tenantId, EnumerationQuery query, string? runId = null, string? storeId = null, CancellationToken token = default, bool includeInternal = false);
     }
 }

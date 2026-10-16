@@ -1359,6 +1359,129 @@ func main() {
 		deleted = true
 		return nil
 	})
+	check("effect operation metadata", func(ctx context.Context) error {
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		databaseUsage, err := client.Runs.DatabaseUsage(ctx, finished.ID)
+		if err != nil {
+			return err
+		}
+		if len(databaseUsage) == 0 {
+			return errors.New("missing database attribution")
+		}
+		for _, usage := range databaseUsage {
+			if usage.RunID != finished.ID || usage.TenantID != tenant || usage.Statements == 0 {
+				return errors.New("per-run database attribution")
+			}
+		}
+		placement, err := client.Runs.Placement(ctx, finished.ID)
+		if err != nil {
+			return err
+		}
+		if placement.RunID != finished.ID || placement.Eligible {
+			return errors.New("terminal placement diagnostic")
+		}
+		operations, err := client.Runs.Operations(ctx, finished.ID)
+		if err != nil {
+			return err
+		}
+		for _, operation := range operations {
+			if operation.TenantID != tenant {
+				return errors.New("journal tenant isolation")
+			}
+		}
+		_, err = client.Runs.Operations(ctx, "run_missing_sdk")
+		if !garrison.IsStatus(err, 404) {
+			return errors.New("unknown journal must be 404")
+		}
+		if garrison.IsTerminal(garrison.RunStatusSuspended) {
+			return errors.New("suspended must remain active")
+		}
+		return nil
+	})
+	check("scheduling, pinned sessions, remote admission, and key rotation", func(ctx context.Context) error {
+		administrator := garrison.NewClient(baseURL)
+		key := os.Getenv("GARRISON_SDK_ADMIN_API_KEY")
+		if key == "" {
+			key = "garrisonadmin"
+		}
+		administrator.UseAdminAPIKey(key, tenant)
+		var scratch garrison.Tenant
+		if err := administrator.Tenants.Create(ctx, map[string]any{"name": "sdk-go-weight-" + suffix, "schedulingWeight": 7}, &scratch); err != nil {
+			return err
+		}
+		defer administrator.Tenants.Delete(ctx, scratch.ID)
+		if scratch.SchedulingWeight != 7 {
+			return errors.New("tenant weight create")
+		}
+		weight := 3
+		if err := administrator.Tenants.Update(ctx, scratch.ID, garrison.TenantRequest{SchedulingWeight: &weight}, &scratch); err != nil {
+			return err
+		}
+		if scratch.SchedulingWeight != 3 {
+			return errors.New("tenant weight update")
+		}
+		rotated, err := administrator.Settings.RotateMasterKey(ctx)
+		if err != nil {
+			return err
+		}
+		if rotated.KeyVersion < 1 || rotated.Failed != 0 || rotated.Conflicts != 0 {
+			return errors.New("rotation pass")
+		}
+		repeated, err := administrator.Settings.RotateMasterKey(ctx)
+		if err != nil {
+			return err
+		}
+		if repeated.Rotated != 0 || repeated.Failed != 0 {
+			return errors.New("rotation idempotence")
+		}
+		var brokerMetadata garrison.Secret
+		if err := client.Secrets.Create(ctx, map[string]any{"name": "sdk-go-broker-" + suffix, "kind": "LeaseBroker", "brokerResource": "tenant-scoped-fixture", "brokerAudience": "fixture"}, &brokerMetadata); err != nil {
+			return err
+		}
+		defer client.Secrets.Delete(ctx, brokerMetadata.ID)
+		if err := client.Secrets.Get(ctx, brokerMetadata.ID, &brokerMetadata); err != nil {
+			return err
+		}
+		if brokerMetadata.BrokerResource == nil || *brokerMetadata.BrokerResource != "tenant-scoped-fixture" {
+			return errors.New("provider metadata round trip")
+		}
+		err = client.Do(ctx, http.MethodPut, client.TenantPath("/secrets/"+brokerMetadata.ID+"/value"), nil, map[string]any{"value": "forbidden-static-value"}, nil)
+		if !garrison.IsStatus(err, 400) {
+			return errors.New("broker metadata must reject reusable static values")
+		}
+		var pinned garrison.HarnessProfile
+		if err := client.HarnessProfiles.Create(ctx, map[string]any{"name": "sdk-go-session-" + suffix, "harnessType": "Generic", "executable": "garrison-fake-harness", "sessionFormat": "sdk-fixture-v1"}, &pinned); err != nil {
+			return err
+		}
+		defer client.HarnessProfiles.Delete(ctx, pinned.ID)
+		if err := client.HarnessProfiles.Get(ctx, pinned.ID, &pinned); err != nil {
+			return err
+		}
+		if pinned.SessionFormat == nil || *pinned.SessionFormat != "sdk-fixture-v1" {
+			return errors.New("session format round trip")
+		}
+		protocol, endpoint := "A2A", "http://127.0.0.1:9/a2a"
+		var remote garrison.Agent
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-remote-" + suffix, Kind: "Remote", RemoteProtocol: &protocol, RemoteEndpointURL: &endpoint}, &remote); err != nil {
+			return err
+		}
+		defer client.Agents.Delete(ctx, remote.ID)
+		_, err = client.Agents.Invoke(ctx, remote.ID, garrison.InvokeRequest{Input: "fixture", DeploymentID: deploymentID})
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != 409 || apiErr.Code != "RemoteDeploymentUnsupported" {
+			return fmt.Errorf("remote admission: %v", err)
+		}
+		var current garrison.Deployment
+		if err := client.Deployments.Get(ctx, deploymentID, &current); err != nil {
+			return err
+		}
+		if current.SuspensionEnabled {
+			return errors.New("suspension defaults to opt out")
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {

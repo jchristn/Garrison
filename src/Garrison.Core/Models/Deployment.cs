@@ -211,7 +211,7 @@ namespace Garrison.Core.Models
         /// <summary>
         /// Effect policy (P12.29): what happens to a run that was already Running when its worker was lost. AtMostOnce
         /// (the default for new deployments) ends it Failed with outcome NodeLost; AtLeastOnce requeues it while it has
-        /// attempts left; Journaled behaves as AtMostOnce until the effect journal (P12.33) exists. A run that was still
+        /// attempts left; Journaled requires a safe known-coverage journal checkpoint before automatic replay. A run that was still
         /// Leased never started, so it is requeued under every policy. Copied into runs at admission, so a later change
         /// does not alter how an in-flight run is handled. When a request supplies only the deprecated
         /// <see cref="RetryOnNodeLoss"/>, this reads back the mapped value (true is AtLeastOnce, false is AtMostOnce).
@@ -356,6 +356,9 @@ namespace Garrison.Core.Models
         /// Decision applied when a pending approval expires. Default Deny.
         /// </summary>
         public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Deny;
+
+        /// <summary>Opt into durable suspension at supported permission checkpoints. Default false.</summary>
+        public bool SuspensionEnabled { get; set; } = false;
 
         /// <summary>
         /// Configuration version, incremented on every change.

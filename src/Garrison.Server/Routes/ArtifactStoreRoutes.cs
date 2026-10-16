@@ -100,7 +100,7 @@ namespace Garrison.Server.Routes
             ArtifactStore existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Artifact store " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ArtifactStoreId == existing.Id, "Artifact store " + existing.Name, http.Token).ConfigureAwait(false);
-            if ((await _Server.Database.Artifacts.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1 }, storeId: existing.Id, token: http.Token).ConfigureAwait(false)).TotalRecords > 0) throw new ConflictException("ResourceInUse", "Delete the store artifacts before deleting the store.");
+            if ((await _Server.Database.Artifacts.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1 }, storeId: existing.Id, token: http.Token, includeInternal: true).ConfigureAwait(false)).TotalRecords > 0) throw new ConflictException("ResourceInUse", "Delete the store artifacts before deleting the store.");
             await _Server.Database.ArtifactStores.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "ArtifactStore", existing.Id, "Deleted artifact store " + existing.Name + ".").ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
@@ -126,7 +126,7 @@ namespace Garrison.Server.Routes
             {
                 ArtifactStore? previous = await _Server.Database.ArtifactStores.ReadAsync(tenantId, currentId, http.Token).ConfigureAwait(false);
                 if (previous != null && (previous.Kind != store.Kind || previous.Bucket != store.Bucket || previous.Endpoint != store.Endpoint)
-                    && (await _Server.Database.Artifacts.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1 }, storeId: currentId, token: http.Token).ConfigureAwait(false)).TotalRecords > 0)
+                    && (await _Server.Database.Artifacts.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1 }, storeId: currentId, token: http.Token, includeInternal: true).ConfigureAwait(false)).TotalRecords > 0)
                     errors["kind"] = "A store with artifacts cannot change its kind, bucket, or endpoint; create another store for a new location.";
             }
             if (errors.Count > 0) throw new ValidationException("The artifact store is invalid.", errors);

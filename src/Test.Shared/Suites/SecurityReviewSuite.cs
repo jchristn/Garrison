@@ -166,7 +166,7 @@ namespace Test.Shared.Suites
             {
                 Agent agent = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "retry-origin" }, token).ConfigureAwait(false);
                 Deployment deployment = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "retry-origin", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
-                Run running = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1 }, token).ConfigureAwait(false);
+                Run running = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
                 Run finished = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Succeeded, Outcome = RunOutcomeEnum.Succeeded, CallerType = PrincipalTypeEnum.Administrator, InputText = "again" }, token).ConfigureAwait(false);
                 string bearer = await host.Server.Context.Authentication.IssueForRunAsync(running, 1, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
                 using (HttpClient run = new HttpClient())

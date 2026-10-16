@@ -1,0 +1,36 @@
+{
+  "capturedUtc": "2026-10-16T07:16:04Z",
+  "purpose": "Functional performance tooling smoke on a shared host; not a release baseline",
+  "stack": "private local SQLite REST127.0.0.1:37800, one 4-slot worker; no Compose or original8700 access",
+  "artifacts": {
+    "Garrison.Server": {
+      "resolvedPath": "/private/tmp/garrison-reviewfix-artifacts/bin/Garrison.Server/debug_net10.0/Garrison.Server.dll",
+      "sha256": "982e13fdc5d2f7aab1b5a5751b2021bf18860c098d8a850134de0ba4f978279d"
+    },
+    "Garrison.Worker": {
+      "resolvedPath": "/private/tmp/garrison-reviewfix-artifacts/bin/Garrison.Worker/debug_net10.0/Garrison.Worker.dll",
+      "sha256": "d51447d4af33181e78beafb7c66b2a079bdc27715fb789d4f7b90ebe03a5a43f"
+    },
+    "Garrison.FakeHarness": {
+      "resolvedPath": "/private/tmp/garrison-reviewfix-artifacts/bin/Garrison.FakeHarness/debug_net10.0/garrison-fake-harness.dll",
+      "sha256": "b4ea3139401e0778c6e858ac1b626c5c4dba3d0223de10b403c55aeb47df1d3e"
+    },
+    "Test.Benchmark": {
+      "resolvedPath": "/private/tmp/garrison-perf-artifacts/bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.dll",
+      "sha256": "15f9eb25c57e2092fb2252cdbaa7a0b764e83b1c1afc792f678d814b819946b9"
+    }
+  },
+  "host": {
+    "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+    "logicalCpuCount": 18,
+    "loadAverage": [
+      5.14892578125,
+      6.38623046875,
+      7.66552734375
+    ]
+  },
+  "liveTraceReplays": 2,
+  "verifiedTimingArms": 7,
+  "verifiedStreamingProbes": 7,
+  "verifiedCancellationProbes": 7
+}

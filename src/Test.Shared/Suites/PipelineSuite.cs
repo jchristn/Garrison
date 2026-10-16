@@ -55,6 +55,7 @@ namespace Test.Shared.Suites
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "crud-validation", "Definitions: CRUD by id and name, stage order and parameters, versioning, unique names, validation (empty, too many stages, agent and deployment mismatch, template kind, ranges, parameters), manifest apply and export (" + provider + ")", ct => CrudValidationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "handoff", "Four fake stages hand off through templates: built-in wording, truncation, stage template pinned over the deployment binding, deployment binding, recorded template versions (" + provider + ")", ct => HandoffAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "handoff-input-schema", "Rendered handoffs validate against the next agent schema: valid JSON succeeds, invalid JSON and schema violations fail the stage before execution (" + provider + ")", ct => HandoffInputSchemaAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "reviews", "Reviews: request changes re-runs the stage with feedback, the revision limit answers 409, approve notes reach the next stage, repeat decisions answer 409, RBAC and tenant isolation (" + provider + ")", ct => ReviewsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "reject-timeouts", "Reviews: reject fails ReviewRejected; timeouts approve or expire (ReviewExpired) through the sweep (" + provider + ")", ct => RejectTimeoutsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "retries-resume", "Failures: retries up to maxAttempts then StageFailed, stage run retry 409 PipelineStageRun, continueOnFailure, resume at the failed stage (" + provider + ")", ct => RetriesResumeAsync(provider, ct)));
@@ -403,6 +404,59 @@ namespace Test.Shared.Suites
                 PipelinePreviewResponse preview = await HttpTestHelpers.SendAsync<PipelinePreviewResponse>(host.AdminClient, HttpMethod.Post, T(host) + "/pipelines/" + pipeline.Id + "/preview", new PipelinePreviewRequest { Input = "Preview input", SampleOutputs = new List<string> { "SAMPLE-ONE", "SAMPLE-TWO" } }, 200, token).ConfigureAwait(false);
                 Assert.True(preview.Stages.Count == 4 && preview.Stages.All(s => s.Success), "Every stage previews");
                 Assert.True((preview.Stages[1].Prompt ?? String.Empty).Contains("SAMPLE-ONE", StringComparison.Ordinal) && (preview.Stages[2].Prompt ?? String.Empty).StartsWith("<<PINNED-V1>>", StringComparison.Ordinal), "Previews render the sample outputs through the same templates");
+            }
+        }
+
+        private static async Task HandoffInputSchemaAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await ClusterAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                Agent writer = await AgentAsync(cluster, "schema-writer", token, deployment => deployment.Parameters.Add(new DeploymentParameter { Name = "answer", Value = "{\"topic\":\"handoff\"}" })).ConfigureAwait(false);
+                Agent reader = await AgentAsync(cluster, "schema-reader", token).ConfigureAwait(false);
+                reader.InputSchemaJson = "{\"type\":\"object\",\"required\":[\"topic\"],\"properties\":{\"topic\":{\"type\":\"string\"}}}";
+                await Db(host).Agents.UpdateAsync(reader, token).ConfigureAwait(false);
+                string[] contents = new[] { "{{pipeline.previous.output}}", "plain text", "{\"topic\":42}" };
+                string[] codes = new[] { String.Empty, "InputNotJson", "InputSchemaViolation" };
+                for (int index = 0; index < contents.Length; index++)
+                {
+                    PromptTemplate handoff = await TemplateAsync(host, "schema-handoff-" + index, PromptTemplateKindEnum.Task, contents[index], token).ConfigureAwait(false);
+                    Pipeline pipeline = await CreateAsync(host, Definition("schema-flow-" + index,
+                        Stage(writer, "write"), Stage(reader, "read", stage => stage.HandoffTemplateId = handoff.Id)), token).ConfigureAwait(false);
+                    PipelinePreviewResponse preview = await HttpTestHelpers.SendAsync<PipelinePreviewResponse>(host.AdminClient, HttpMethod.Post,
+                        T(host) + "/pipelines/" + pipeline.Id + "/preview", new PipelinePreviewRequest { Input = "caller text", SampleOutputs = new List<string> { "{\"topic\":\"handoff\"}" } }, 200, token).ConfigureAwait(false);
+                    Assert.Equal(index == 0, preview.Stages[1].Success, "Preview uses the same handoff validation");
+                    if (index > 0) Assert.Equal(codes[index], preview.Stages[1].ErrorCode, "Preview exposes the shared validation code");
+                    if (index == 2) Assert.True((preview.Stages[1].ErrorMessage ?? String.Empty).Contains("input.topic", StringComparison.Ordinal), "Preview identifies the invalid input field");
+                    // Caller input deliberately fails the reader schema: validation must inspect the rendered handoff.
+                    PipelineRun started = await StartAsync(host, pipeline, "caller text", token).ConfigureAwait(false);
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(90);
+                    PipelineRun done;
+                    do
+                    {
+                        token.ThrowIfCancellationRequested();
+                        await host.Server.Context.Get<PipelineService>().AdvanceAsync(host.TenantId, started.Id, "test", token).ConfigureAwait(false);
+                        done = await ReadRunAsync(host, started.Id, token).ConfigureAwait(false);
+                        if (PipelineService.IsTerminal(done.Status)) break;
+                        Assert.True(DateTime.UtcNow < deadline, "Schema pipeline finishes: " + done.Status);
+                        await Task.Delay(100, token).ConfigureAwait(false);
+                    } while (true);
+                    Run second = await StageRunAsync(host, done.Id, 2, 1, token).ConfigureAwait(false);
+                    if (index == 0)
+                    {
+                        Assert.Equal(PipelineRunStatusEnum.Succeeded, done.Status, "Valid rendered JSON succeeds: " + done.ErrorMessage);
+                        Assert.True((second.ResultText ?? String.Empty).Contains("handoff", StringComparison.Ordinal), "The harness received the rendered handoff");
+                    }
+                    else
+                    {
+                        Assert.Equal(PipelineRunStatusEnum.Failed, done.Status, "Invalid handoff fails the pipeline");
+                        Assert.Equal(PipelineRunOutcomeEnum.StageStartFailed, done.Outcome, "Invalid handoff is a permanent stage start failure");
+                        Assert.Equal(PipelineStageStatusEnum.Failed, done.Stages[1].Status, "The receiving stage fails");
+                        Assert.Equal(RunOutcomeEnum.CompileFailed, second.Outcome, "Invalid input fails before harness execution");
+                        Assert.True((second.ErrorMessage ?? String.Empty).StartsWith(codes[index] + ":", StringComparison.Ordinal), "Shared input validation code: " + second.ErrorMessage);
+                        if (index == 2) Assert.True(second.ErrorMessage!.Contains("input.topic", StringComparison.Ordinal), "Schema errors identify the input field");
+                    }
+                }
             }
         }
 

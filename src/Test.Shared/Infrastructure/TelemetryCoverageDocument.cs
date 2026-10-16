@@ -33,6 +33,12 @@ namespace Test.Shared.Infrastructure
                 if (File.Exists(Path.Combine(directory.FullName, "GARRISON_PLAN.md"))) return directory.FullName;
                 directory = directory.Parent;
             }
+            directory = new DirectoryInfo(Environment.CurrentDirectory);
+            while (directory != null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "GARRISON_PLAN.md"))) return directory.FullName;
+                directory = directory.Parent;
+            }
             throw new DirectoryNotFoundException("Could not find the repository root (GARRISON_PLAN.md) above " + AppContext.BaseDirectory + ".");
         }
 

@@ -1,6 +1,6 @@
 # Quick start: a few agents that work together
 
-This walk-through takes a running Garrison and gives it four agents on four different harnesses, one of which is allowed to hand work to the others. You will create half of them from a manifest and one in the dashboard, call each of them over REST, MCP, and A2A, watch a run stream, find a delegated run in the run tree, and read the numbers on the Analytics page. At the end, one script checks all of it and prints PASS or FAIL.
+This walk-through takes a running Garrison and gives it four agents on four different harnesses, one of which is allowed to hand work to the others. You will create three of them from a manifest and one in the dashboard, call each of them over REST, MCP, and A2A, watch a run stream, find a delegated run in the run tree, and read the numbers on the Analytics page. At the end, one script checks all of it and prints PASS or FAIL.
 
 | Agent | Harness | Created from | Needs |
 |---|---|---|---|
@@ -40,9 +40,9 @@ TOKEN=$(jq -n --arg p "$GARRISON_ADMIN_PASSWORD" '{email:"admin@garrison",passwo
 echo ${TOKEN:0:12}
 ```
 
-If that prints `null`, the password is wrong: on Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` was when you ran `generate-secrets.sh`, or the random one it printed. A session token lasts eight hours. Sign in to the dashboard with the same email and password, tenant `default`.
+If that prints `null`, inspect the HTTP response and token error before continuing. A common cause is an incorrect password: on Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` was when you ran `generate-secrets.sh`, or the random one it printed. A session token lasts eight hours. Sign in to the dashboard with the same email and password, tenant `default`.
 
-On Docker and Kubernetes the bootstrap already created three sample agents (`claude-helper`, `codex-coder`, `mux-helper`) from whatever credentials you gave it. They are fine to keep. This guide builds its own set so that you see every step.
+On Docker and Kubernetes bootstrap creates three sample agent records (`claude-helper`, `codex-coder`, `mux-helper`), and creates their deployments only when the required credentials or endpoint were supplied. They are fine to keep. This guide builds its own set so that you see every step.
 
 ## 1. Store the credentials
 
@@ -163,7 +163,7 @@ jq -n --arg a "$AGT" --arg s "$SEC" --arg u "$MUX_BASE_URL" --arg m "$MUX_MODEL"
 
 ## 4. Call each agent three ways
 
-**REST.** `invoke` accepts the agent's name. With `wait` it holds the request until the run finishes or `waitSeconds` (default 60) passes; a run still going comes back with HTTP 202 and `"status":"Running"`, and you follow it by ID.
+**REST.** `invoke` accepts the agent's name. With `wait` it holds the request until the run finishes or `waitSeconds` (default 60) passes; an unfinished run comes back with HTTP 202 and its current status (for example `Queued`, `Leased` or `Running`), and you follow it by ID. When the replica synchronous-wait budget is full, acceptance can return 202 immediately; the run still executes. Poll the returned run ID rather than submitting a duplicate.
 
 ```bash
 for a in planner coder echo researcher; do
@@ -289,3 +289,7 @@ That count is for the three default agents. The script runs ten checks once and 
 The manifest never deletes anything. Remove the quick start records from the dashboard (each row's action menu), or with `DELETE $API/agents/<id>`, `DELETE $API/deployments/<id>`, and `DELETE $API/secrets/<id>`. For a completely fresh start, `docker/factory/reset.sh` or `k8s/scripts/factory-reset.sh` deletes all data.
 
 `docs/MANIFESTS.md` covers every manifest kind, `docs/HARNESSES.md` the harness profiles and their parameters, and `docs/PROMPTS.md` how to replace the prompts these agents run with.
+
+## Next steps
+
+Docker Compose includes Grafana, Prometheus, Loki, Tempo and Alloy by default; Kubernetes enables that component explicitly. See [Docker](DOCKER.md#observability), [Kubernetes](KUBERNETES.md#observability), and [telemetry](TELEMETRY.md) for access and configuration. Optional [agent memory](AGENT_MEMORY.md) is disabled by default and uses a replaceable store interface; it is independent of delegation. For source builds, fake-harness setup and test commands, use the [development guide](DEVELOPMENT.md).

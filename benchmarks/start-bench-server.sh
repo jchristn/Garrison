@@ -40,6 +40,8 @@ start_worker() {
   local lane="$1" n="$2" index="$3"
   local name="bench-${lane}-${n}" dir="${LOCAL_DIR}/worker-${lane}-${n}"
   mkdir -p "${dir}"
+  # Timing experiments use a private settings file instead of changing worker production defaults.
+  printf '{"EventFlushIntervalMs":%s,"LeaseWaitMs":%s}\n' "${BENCH_EVENT_FLUSH_MS:-250}" "${BENCH_LEASE_WAIT_MS:-20000}" > "${dir}/garrison-worker.json"
   (cd "${dir}" && PATH="${LOCAL_DIR}/bin:/usr/bin:/bin" HOME="${dir}" \
     GARRISON_WORKER_SERVER_URL="${LOCAL_URL}" GARRISON_WORKER_NODE_NAME="${name}" \
     GARRISON_WORKER_LABELS="garrison.io/pool=default,bench.garrison.io/lane=${lane}" \
@@ -49,8 +51,8 @@ start_worker() {
   echo $! >> "${LOCAL_DIR}/pids"
 }
 index=1
-for n in $(seq 1 "${LOCAL_ALPHA_WORKERS:-1}"); do start_worker alpha "${n}" "${index}"; index=$((index + 1)); done
-for n in $(seq 1 "${LOCAL_BETA_WORKERS:-1}"); do start_worker beta "${n}" "${index}"; index=$((index + 1)); done
+for ((n=1; n<=${LOCAL_ALPHA_WORKERS:-1}; n++)); do start_worker alpha "${n}" "${index}"; index=$((index + 1)); done
+for ((n=1; n<=${LOCAL_BETA_WORKERS:-1}; n++)); do start_worker beta "${n}" "${index}"; index=$((index + 1)); done
 expected=$((index - 1))
 
 harness wait --url "${LOCAL_URL}" --admin-key "${ADMIN_KEY}" --nodes "${expected}" --timeout-seconds 120 || { tail -20 "${LOCAL_DIR}"/worker-*.log; fail "not every worker became Ready"; }

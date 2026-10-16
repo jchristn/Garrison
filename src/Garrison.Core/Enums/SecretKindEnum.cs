@@ -53,6 +53,9 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// GitCredential.
         /// </summary>
-        GitCredential
+        GitCredential,
+
+        /// <summary>Short-lived revocable credential minted by the operator-configured HTTP broker.</summary>
+        LeaseBroker
     }
 }

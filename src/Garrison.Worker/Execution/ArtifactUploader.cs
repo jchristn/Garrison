@@ -23,6 +23,21 @@ namespace Garrison.Worker.Execution
     /// <summary>Collect and upload selected workspace files before executor cleanup. Uploads never expose local paths or provider credentials.</summary>
     public static class ArtifactUploader
     {
+        /// <summary>Upload a complete portable checkpoint through the run-fenced artifact endpoint.</summary>
+        /// <param name="assignment">Run assignment.</param><param name="content">Bounded ZIP archive.</param><param name="token">Cancellation token.</param><param name="name">Reserved checkpoint or prepared cache name.</param><returns>Artifact metadata.</returns>
+        public static Task<Artifact> StoreSnapshotAsync(RunAssignment assignment, byte[] content, CancellationToken token, string name = ".garrison/continuation.zip")
+        {
+            return Garrison.Core.Telemetry.ApplicationOperation.MeasureAsync("snapshot", "upload", ct => StoreSnapshotCoreAsync(assignment, content, ct, name), token);
+        }
+
+        private static async Task<Artifact> StoreSnapshotCoreAsync(RunAssignment assignment, byte[] content, CancellationToken token, string name)
+        {
+            ExecutionArtifacts settings = assignment.Spec.Artifacts ?? throw new IOException("Continuation has no artifact store.");
+            if (content.LongLength > settings.MaxFileBytes) throw new IOException("Checkpoint contains " + content.LongLength.ToString(CultureInfo.InvariantCulture) + " bytes and exceeds the configured artifact size limit of " + settings.MaxFileBytes.ToString(CultureInfo.InvariantCulture) + " bytes.");
+            if (assignment.SnapshotUploader == null) throw new IOException("No private node-authenticated archive transport is configured.");
+            return await assignment.SnapshotUploader(name, content, token).ConfigureAwait(false);
+        }
+
         /// <summary>Upload explicit files within a bounded timeout. Individual failures warn without failing the harness run.</summary>
         /// <param name="assignment">Current run assignment.</param>
         /// <param name="workspace">Prepared workspace.</param>
@@ -127,7 +142,7 @@ namespace Garrison.Worker.Execution
             if (workspace == null) throw new ArgumentNullException(nameof(workspace));
             if (path == null) throw new ArgumentNullException(nameof(path));
             if (SafePaths.IsLink(path)) throw new IOException("Artifact became a filesystem link.");
-            using (FileStream input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16384, FileOptions.Asynchronous))
+            using (FileStream input = RegularFileReader.Open(path))
             using (MemoryStream output = new MemoryStream())
             {
                 if (!SafePaths.OpenedInside(input.SafeFileHandle, workspace, path)) throw new IOException("Artifact resolved outside the workspace through a filesystem link.");

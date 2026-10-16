@@ -85,7 +85,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET name = @name, description = @description, active = @active, isprotected = @isprotected, requireuntrusted = @requireuntrusted, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET name = @name, description = @description, active = @active, isprotected = @isprotected, requireuntrusted = @requireuntrusted, schedulingweight = @schedulingweight, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -97,6 +97,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                     AdoDatabaseDriver.Add(command, "requireuntrusted", obj.RequireUntrustedDeployments);
+                    AdoDatabaseDriver.Add(command, "schedulingweight", obj.SchedulingWeight);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
                 }, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -170,6 +171,7 @@ namespace Garrison.Core.Database.Ado
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
             obj.RequireUntrustedDeployments = AdoConverters.Bool(reader, "requireuntrusted");
+            obj.SchedulingWeight = AdoConverters.Int(reader, "schedulingweight");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
             return obj;
@@ -191,6 +193,13 @@ namespace Garrison.Core.Database.Ado
                 foreach (string table in Garrison.Core.Database.TableCatalog.AllTables)
                 {
                     if (withoutTenant.Contains(table)) continue;
+                    if (table == "credential_leases")
+                    {
+                        // Keep outstanding provider revocations after tenant/run deletion. The broker removes these
+                        // metadata-only tombstone obligations once the provider confirms revocation.
+                        total += await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table(table) + " WHERE tenantid=@tenantid AND state='Revoked';", command => AdoDatabaseDriver.Add(command, "tenantid", tenantId), ct).ConfigureAwait(false);
+                        continue;
+                    }
                     total += await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table(table) + " WHERE tenantid = @tenantid;", command => AdoDatabaseDriver.Add(command, "tenantid", tenantId), ct).ConfigureAwait(false);
                 }
                 total += await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", tenantId), ct).ConfigureAwait(false);
@@ -204,7 +213,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Tenant obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, name, description, active, isprotected, requireuntrusted, createdutc, lastupdateutc) VALUES (@id, @name, @description, @active, @isprotected, @requireuntrusted, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, name, description, active, isprotected, requireuntrusted, schedulingweight, createdutc, lastupdateutc) VALUES (@id, @name, @description, @active, @isprotected, @requireuntrusted, @schedulingweight, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -213,6 +222,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                 AdoDatabaseDriver.Add(command, "requireuntrusted", obj.RequireUntrustedDeployments);
+                AdoDatabaseDriver.Add(command, "schedulingweight", obj.SchedulingWeight);
                 AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
                 AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
             }, token).ConfigureAwait(false);

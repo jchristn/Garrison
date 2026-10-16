@@ -9,6 +9,9 @@ namespace Garrison.Harnesses.AppServer
     {
         #region Public-Members
 
+        /// <summary>Whether this turn must finish and save a durable checkpoint while approval stays pending.</summary>
+        public bool Suspended { get; set; } = false;
+
         /// <summary>
         /// allow or deny.
         /// </summary>

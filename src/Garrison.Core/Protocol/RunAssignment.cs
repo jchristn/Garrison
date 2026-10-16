@@ -3,12 +3,20 @@ namespace Garrison.Core.Protocol
     using System;
     using System.Collections.Generic;
     using Garrison.Core.Enums;
+    using System.Text.Json.Serialization;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Garrison.Core.Models;
 
     /// <summary>
     /// A leased run with its compiled execution spec.
     /// </summary>
     public class RunAssignment
     {
+        /// <summary>Private worker-owned internal archive transport. Never serialized into the execution spec or harness configuration.</summary>
+        [JsonIgnore]
+        public Func<string, byte[], CancellationToken, Task<Artifact>>? SnapshotUploader { get; set; }
+
         /// <summary>
         /// Run identifier.
         /// </summary>

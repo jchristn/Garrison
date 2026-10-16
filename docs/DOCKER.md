@@ -1,12 +1,12 @@
 # Docker Compose
 
-`docker/compose.yaml` runs the same topology as the Kubernetes overlays on one machine: a control-plane server, two workers, the dashboard, Postgres, and a one-shot bootstrap container that stores your harness credentials and creates sample agents. It is the quickest way to try Garrison with real harnesses when you do not want a cluster.
+`docker/compose.yaml` runs a single-host topology: a control-plane server, two workers, the dashboard, Postgres, and a one-shot bootstrap container that stores your harness credentials and creates sample agents. It is the quickest way to try Garrison with real harnesses when you do not want a cluster.
 
 ## Before you start
 
-You need Docker with Compose v2 (Docker Desktop on macOS and Windows, or Docker Engine with the compose plugin on Linux). The images take about 3 GB, plus a couple of gigabytes of build cache. Docker needs about 4 GB of memory for the stack and a few concurrent harness runs; the stack itself idles at around 200 MB.
+You need Docker with Compose v2 (Docker Desktop on macOS and Windows, or Docker Engine with the Compose plugin on Linux). Allow at least 10 GB of free disk for application and observability images, build cache and retained telemetry. Start with 8 GB allocated to Docker, then size for concurrent harness workloads. The observability containers alone have combined memory limits of about 2.4 GB; these are limits, not an idle-memory measurement.
 
-The first build is mostly downloads: the .NET base images, Node.js, the Claude Code and Codex packages, and Mux with its NuGet dependencies. On a fast connection it takes about 8 minutes; on a slow one, 20 (18 minutes was measured with every layer rebuilt on a home link). The worker image ends up at 2.1 GB. After that, `update.sh` takes about 15 seconds when nothing has changed.
+The first source build downloads .NET base images, Node.js, the Claude Code and Codex packages, and Mux dependencies. Build time and image size depend on architecture, network access and cached layers. `./update.sh --pull` instead uses the image tags in `compose.yaml`; published images contain the source from their build, so rebuild locally to use newer checkout changes.
 
 The worker build runs `claude --version` and `codex --version` after installing them. Both packages fetch their native binaries as optional npm dependencies, which npm skips without an error when a download breaks, so a flaky connection would otherwise produce a worker that cannot run either harness. If the build fails at that step, run `./update.sh` again.
 
@@ -73,7 +73,7 @@ and run `./update.sh` again. Only the host side changes. Inside the Docker netwo
 
 ## Harness credentials
 
-Set any of these in `.env` before starting. The bootstrap container stores each one as a Garrison secret and creates the matching sample agent (`claude-helper`, `codex-coder`, `mux-helper`); agents without credentials are skipped. `claude-helper` is allowed to delegate to the other two.
+Set any of these in `.env` before starting. The bootstrap container stores each one as a Garrison secret and creates all three sample agent records (`claude-helper`, `codex-coder`, `mux-helper`). Only deployments whose credentials or endpoint are present are created. `claude-helper` is allowed to delegate to the other two.
 
 | Variable | Harness |
 |---|---|
@@ -82,7 +82,7 @@ Set any of these in `.env` before starting. The bootstrap container stores each 
 | `MUX_BASE_URL`, `MUX_MODEL`, `MUX_ADAPTER_TYPE` (`openai-compatible` or `ollama`), `MUX_API_KEY` | Mux |
 | `MUX_CONTEXT_WINDOW`, `MUX_MAX_TOKENS` (optional whole numbers) | Mux: the model's context window and the most tokens one response may generate. They become the `contextWindow` and `maxTokens` parameters of `mux-helper-default`. Leave them unset and Mux falls back to a 32,768-token window, which is much smaller than most current models offer, and Garrison adds a warning event to every Mux run. |
 
-Compose does not expand `~`, so write `CODEX_AUTH_JSON_FILE=/Users/you/.codex/auth.json`. The values stay in `.env`, which git ignores and the Docker build context excludes; harness credentials never become environment variables on the workers.
+Compose does not expand `~`, so use an absolute path for `CODEX_AUTH_JSON_FILE`. Use a dedicated Codex login rather than the auth.json from an actively used personal installation; see [credential setup](QUICKSTART.md#1-store-the-credentials). The values stay in `.env`, which git ignores and the Docker build context excludes; harness credentials never become environment variables on the workers.
 
 Bootstrap is idempotent. After adding or changing credentials, apply them without restarting anything else:
 
@@ -122,20 +122,22 @@ docker compose logs garrison-worker-1 | grep harness           # which harness C
 docker compose logs -f garrison-server                         # server log
 ```
 
-Then sign in to the dashboard. Fleet > Worker nodes lists `garrison-worker-1` and `garrison-worker-2` as `Ready`, Fleet > Control plane lists the server replica as the leader, and Invoke runs any of the sample agents. The whole sequence, from `./update.sh` to seeing both workers, takes well under a minute once the images exist.
+Then sign in to the dashboard. Fleet > Worker nodes lists `garrison-worker-1` and `garrison-worker-2` as `Ready`, Fleet > Control plane lists the server replica as the leader, and Invoke runs sample agents that have a configured deployment and usable provider credentials. The whole sequence, from `./update.sh` to seeing both workers, takes well under a minute once the images exist.
 
 ## Observability
 
 Compose workers always run harnesses as subprocesses (the `Process` executor). The pod-per-run `KubernetesJob` executor needs the Kubernetes API, so Compose leaves it off; a deployment set to `executor: KubernetesJob` stays queued with `blockedReason: NoCapableWorker` here. Use the Kubernetes manifests for that (`docs/KUBERNETES.md`, "Pod-per-run executor").
 
-The `observability` profile adds Prometheus, Loki, Tempo, Grafana with the six Garrison dashboards, and Grafana Alloy, the same components and versions as the Kubernetes stack (`docs/KUBERNETES.md`, Observability). `compose.observability.yaml` turns on OTLP trace export on the server and workers and tells the server where the services are, so the dashboard's Home page shows them and runs link to their traces and logs. Use both together:
+The default Compose stack includes Prometheus, Loki, Tempo, Grafana with the domain dashboards, and Grafana Alloy. Server and worker OTLP export is enabled, Prometheus scrapes their metrics, and the dashboard Home page links to the tools. Configurations and dashboards are shared with Kubernetes. Start everything with:
 
 ```bash
 cd docker
-./update.sh --observability          # Windows: update.bat --observability; combines with --pull
+./update.sh                        # Windows: update.bat; combines with --pull
 # or, without rebuilding:
-docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d
+docker compose up -d
 ```
+
+Existing commands using `--observability` and `compose.observability.yaml` remain compatible. Set `GARRISON_OTLP_ENABLE=false` and `GARRISON_WORKER_OTLP_ENABLE=false` only when intentionally disabling trace export.
 
 | What | Default URL or value |
 |---|---|
@@ -144,7 +146,7 @@ docker compose -f compose.yaml -f compose.observability.yaml --profile observabi
 | Loki | http://127.0.0.1:3100 |
 | Tempo | http://127.0.0.1:3200 |
 
-The ports are `GARRISON_GRAFANA_PORT`, `GARRISON_PROMETHEUS_PORT`, `GARRISON_LOKI_PORT`, and `GARRISON_TEMPO_PORT` in `.env`, and `update.sh --observability` checks them along with the others. To get the profile on every plain `docker compose` command, set `COMPOSE_FILE=compose.yaml:compose.observability.yaml` (`;` on Windows) and `COMPOSE_PROFILES=observability` in `.env`.
+The ports are `GARRISON_GRAFANA_PORT`, `GARRISON_PROMETHEUS_PORT`, `GARRISON_LOKI_PORT`, and `GARRISON_TEMPO_PORT` in `.env`, and the services are already in the default Compose file. The optional `--observability` compatibility path also checks those four ports before a fresh start; the ordinary script currently prechecks only application/database ports. Check observability port availability if Compose reports a binding conflict.
 
 How it is wired:
 
@@ -152,7 +154,7 @@ How it is wired:
 - Alloy reads the logs of this project's Garrison containers through the Docker socket (mounted read-only) and ships them to Loki with `app="garrison"`, `component`, `node`, and `level` (`docker/observability/config.alloy`). It also receives OTLP on 4317 and 4318 inside the Compose network and forwards traces to Tempo.
 - Loki, Tempo, the Grafana datasources and dashboard provider, and the dashboards themselves are mounted from `k8s/components/observability`, so Compose and Kubernetes run the same configuration.
 
-Retention is 3 days (or 1 GB) for metrics, 72 hours for logs, and 24 hours for traces. The five containers have memory limits that add up to 2.4 GB; with light traffic they use about 600 MB. Without `--observability`, `update.sh` stops these containers if an earlier run started them; their volumes stay until a factory reset.
+Retention is 3 days (or 1 GB) for metrics, 72 hours for logs, and 24 hours for traces. The five containers have memory limits that add up to 2.4 GB; with light traffic they use about 600 MB. The observability services start by default with the application. Their volumes stay until a factory reset. The `--observability` option remains compatible with existing automation.
 
 ## Stop, update, and reset
 
@@ -160,8 +162,8 @@ Retention is 3 days (or 1 GB) for metrics, 72 hours for logs, and 24 hours for t
 |---|---|---|
 | `docker compose stop` | Stops the containers; `docker compose start` brings them back | Kept |
 | `docker compose down` | Removes the containers and the network | Kept |
-| `./update.sh` (`update.bat`) | Rebuilds the images from source, `down`, `up -d`, status. `--pull` pulls the published images instead of building; `--observability` adds the observability profile | Kept |
-| `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, including the observability data, generates any keys and passwords missing from `.env`, then rebuilds and starts a fresh stack (without the observability profile; run `./update.sh --observability` afterwards to bring it back). `--no-start` only removes | Deleted |
+| `./update.sh` (`update.bat`) | Rebuilds the images from source, `down`, `up -d`, status. `--pull` pulls the published images instead of building; observability starts by default; `--observability` retains the compatible overlay | Kept |
+| `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, including the observability data, generates any keys and passwords missing from `.env`, then rebuilds and starts a fresh stack (including the observability services). `--no-start` only removes | Deleted |
 | `docker compose --profile observability down -v` | Removes containers and volumes, including the observability ones, without rebuilding | Deleted |
 
 Deleting the volumes removes the database (agents, runs, secrets, users) and the worker workspaces. The next start seeds tenant `default`, `admin@garrison`, and the sample agents again from your `.env`. To also reclaim the image space, `docker image rm jchristn77/garrison-server:v0.1.0-alpha jchristn77/garrison-worker:v0.1.0-alpha jchristn77/garrison-dashboard:v0.1.0-alpha`.
@@ -173,3 +175,9 @@ Deleting the volumes removes the database (agents, runs, secrets, users) and the
 - Garrison uses two URLs. Runs get the internal ones (`GARRISON_PUBLIC_BASE_URL=http://garrison-server:8700` and `GARRISON_MCP_PUBLIC_URL=http://garrison-server:8701`). A2A agent cards and server info advertise `GARRISON_EXTERNAL_BASE_URL`, which defaults to `http://127.0.0.1:<GARRISON_REST_PORT>`, the address you use from the host. If other machines or a proxy reach the stack under a different name, set `GARRISON_EXTERNAL_BASE_URL` in `.env` (for example `https://garrison.example.com`) and run `./update.sh`.
 - The containers have fixed names (`garrison-server`, `garrison-worker-1`, and so on), so one machine runs one copy of this stack. A second copy, even under a different Compose project name, collides on those names.
 - Docker Compose is a single-host deployment. For multiple control-plane replicas, autoscaling, and production settings use Kubernetes (`docs/KUBERNETES.md`).
+
+## Optional agent memory
+
+Agent memory is disabled by default and does not require NotDory or an external service. Current source provides a filesystem implementation behind `IAgentMemoryStore`, with tenant/agent-scoped MCP tools. To enable it in a source-built deployment, add `GARRISON_AGENT_MEMORY_ENABLE=true` and `GARRISON_AGENT_MEMORY_ROOT` to the server environment and mount persistent storage at that root. Keep memory storage with the database/master-key backup policy. Multiple control-plane replicas need a shared persistent root or a replacement shared-store implementation. Published image support depends on the source revision used to build that image. See [agent memory](AGENT_MEMORY.md) and [configuration](CONFIGURATION.md).
+
+Continue with the [multi-agent quick start](QUICKSTART.md), [security guidance](SECURITY.md), or [Kubernetes deployment](KUBERNETES.md).

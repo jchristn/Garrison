@@ -61,7 +61,7 @@ export const ENUMS = {
   secretKind: ['AnthropicApiKey', 'ClaudeCodeOAuthToken', 'OpenAiApiKey', 'CodexAuthJson', 'GeminiApiKey', 'GenericEnv', 'GenericFile', 'BearerToken', 'BasicAuth', 'GitCredential'],
   secretStatus: ['Ok', 'NeedsReauthentication'],
   workspaceKind: ['Empty', 'GitRepository', 'Seeded', 'PersistentVolume'],
-  runExecutor: ['Process', 'KubernetesJob'],
+  runExecutor: ['Process', 'KubernetesJob', 'RemoteA2A', 'RemoteMcp'],
   workspaceRetention: ['Delete', 'Keep', 'KeepOnFailure'],
   artifactStoreKind: ['Database', 'Filesystem', 'S3'],
   agentKind: ['Hosted', 'Remote'],
@@ -74,7 +74,7 @@ export const ENUMS = {
   nodeStatus: ['Ready', 'Draining', 'Cordoned', 'Lost', 'Offline'],
   controlNodeStatus: ['Starting', 'Ready', 'Draining', 'Offline'],
   backplane: ['Local', 'Polling', 'PostgresNotify'],
-  runStatus: ['Pending', 'Queued', 'Leased', 'Running', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected'],
+  runStatus: ['Pending', 'Queued', 'Leased', 'Running', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected', 'Suspended'],
   runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker', 'RepetitionDetected', 'NoProgress', 'PodFailed', 'ConversationStateLost'],
   runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool', 'NoIsolatingWorker'],
   // Deployment and run trust level (P11.14): Untrusted runs need at least Container isolation.
@@ -88,11 +88,11 @@ export const ENUMS = {
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
   resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull'],
   // Permission approvals (P12.3).
   approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
   approvalDecision: ['Allow', 'Deny'],
-  approvalSource: ['Rule', 'Default', 'User', 'Timeout', 'Cancelled'],
+  approvalSource: ['Rule', 'Default', 'User', 'Timeout', 'Cancelled', 'DurableResume'],
   approvalRuleAction: ['Allow', 'Deny', 'Ask'],
   approvalKind: ['Tool', 'Command', 'FileChange'],
   // Pipelines (P12.9): ordered agent stages with optional review gates.

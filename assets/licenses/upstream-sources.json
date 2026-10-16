@@ -1,0 +1,152 @@
+[
+  {
+    "package": "AWSSDK.Core",
+    "version": "4.0.102.10",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/aws/aws-sdk-net/main/License.txt",
+        "sha256": "192898453336a3f666e8138988cdda21ee7b858b1184e00c882c531df174d0d1"
+      }
+    ]
+  },
+  {
+    "package": "AWSSDK.S3",
+    "version": "4.0.104.3",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/aws/aws-sdk-net/main/License.txt",
+        "sha256": "192898453336a3f666e8138988cdda21ee7b858b1184e00c882c531df174d0d1"
+      }
+    ]
+  },
+  {
+    "package": "Google.Protobuf",
+    "version": "3.36.2",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/protocolbuffers/protobuf/2c74169b34066ceb8ddb6b882fcb3fb32d737a55/LICENSE",
+        "sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d"
+      }
+    ]
+  },
+  {
+    "package": "Humanizer.Core",
+    "version": "2.14.1",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/Humanizr/Humanizer/3ebc38de585fc641a04b0e78ed69468453b0f8a1/LICENSE",
+        "sha256": "e24ec7f2eea5c5f4b3e2c08308109ba99b49b4b56ea7ff0e0a178f2bdd4bbce8"
+      }
+    ]
+  },
+  {
+    "package": "Humanizer.Core",
+    "version": "3.0.1",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/Humanizr/Humanizer/6e54d3786f4c4fe2cf665fa41d74a6e79bf9a85f/license.txt",
+        "sha256": "e24ec7f2eea5c5f4b3e2c08308109ba99b49b4b56ea7ff0e0a178f2bdd4bbce8"
+      }
+    ]
+  },
+  {
+    "package": "KubernetesClient",
+    "version": "19.0.2",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/kubernetes-client/csharp/f93cab47eb098242347d6f33752b304fd3bb9302/LICENSE",
+        "sha256": "04e85fa5facc79ab9c0056b6ba88aeffd6d901ece5723cf07fc1ca87ab6b5247"
+      }
+    ]
+  },
+  {
+    "package": "Microsoft.Data.Sqlite",
+    "version": "10.0.12",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/dotnet/dotnet/95017c711e6afc1085133d440e42b4bd78155701/src/efcore/LICENSE.txt",
+        "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+      }
+    ]
+  },
+  {
+    "package": "Microsoft.Data.Sqlite.Core",
+    "version": "10.0.12",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/dotnet/dotnet/95017c711e6afc1085133d440e42b4bd78155701/src/efcore/LICENSE.txt",
+        "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b"
+      }
+    ]
+  },
+  {
+    "package": "Npgsql",
+    "version": "10.0.3",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/npgsql/npgsql/d3768398c17877b3a916c3c4d87e8e11698991fc/LICENSE",
+        "sha256": "2e1d9cc6ed4eb7fe6fa82091846c06b4f58571a2c3b54777db6baeca10dd2d74"
+      }
+    ]
+  },
+  {
+    "package": "PolyPrompt",
+    "version": "2.8.0",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/jchristn/PolyPrompt/707872fc1e6b134a0494891a2c7f0f4804d31bdc/LICENSE.md",
+        "sha256": "beb0bf4535ad29baa2274d88103d6c4e2350f3fe6dcafee39a2d96db3f5df08e"
+      }
+    ]
+  },
+  {
+    "package": "SQLitePCLRaw.bundle_e_sqlite3",
+    "version": "2.1.12",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/v2.1.12/LICENSE.TXT",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ]
+  },
+  {
+    "package": "SQLitePCLRaw.core",
+    "version": "2.1.12",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/v2.1.12/LICENSE.TXT",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ]
+  },
+  {
+    "package": "SQLitePCLRaw.lib.e_sqlite3",
+    "version": "2.1.12",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/v2.1.12/LICENSE.TXT",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ]
+  },
+  {
+    "package": "SQLitePCLRaw.provider.e_sqlite3",
+    "version": "2.1.12",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/v2.1.12/LICENSE.TXT",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ]
+  },
+  {
+    "package": "YamlDotNet",
+    "version": "18.1.0",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/aaubry/YamlDotNet/748334a8fa7c227740018b284b71ad95cc6b7fc7/LICENSE.txt",
+        "sha256": "daea8b7f1b2bab48ea12ad50b0ce91634669d99d7dd0cb64aed8dffeeef69ed3"
+      }
+    ]
+  }
+]

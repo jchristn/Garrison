@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "cases": 6,
+  "passed": 6,
+  "modelCalls": 0,
+  "fixture": "deterministic incompressible synthetic Codex-shaped HOME; no account catalog or credential access",
+  "payloadBytes": 83886080,
+  "archiveBytes": 88474189,
+  "uncompressedBytes": 83886374,
+  "explicitCapBytes": 100663296,
+  "defaultUploadGuard": "worker pre-transport rejection and direct ArtifactService validation (not inferred from a transport exception)",
+  "actualWirePath": "node-authenticated fenced upload + signed download + replacement-root restore",
+  "capLoweringCheck": "actual signed GET returns400 below archive size, returns200 with96MiB cap",
+  "remainingGuard": "256MiB uncompressed and100000entries remain unchanged",
+  "cleanupCases": [
+    "oversize Failed/InternalError",
+    "upload fault Failed/InternalError",
+    "cancelled upload Cancelled/Cancelled"
+  ],
+  "allCleanupCases": "KeepOnFailure retains work; HOME/config removed; no snapshot artifact reported"
+}

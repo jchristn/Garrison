@@ -10,6 +10,18 @@ namespace Garrison.Server.Runtime
     {
         #region Public-Members
 
+        /// <summary>Shared run/pipeline synchronous wait budget. It never queues requests for a slot.</summary>
+        public SynchronousWaitBudget SynchronousWaits { get; } = new SynchronousWaitBudget();
+
+        /// <summary>Maximum held synchronous invocation waits per replica. Default 256, minimum 1, maximum 768.
+        /// Excess external waits return the accepted run for polling; resident synchronous delegations fail before child creation, leaving headroom under Watson's 1024 request cap.</summary>
+        public int MaxSynchronousWaiters
+        {
+            get { return _MaxSynchronousWaiters; }
+            set { _MaxSynchronousWaiters = Math.Clamp(value, 1, 768); }
+        }
+
+
         /// <summary>
         /// Run lease duration in milliseconds; heartbeats extend it. Minimum 5000, maximum 600000, default 30000.
         /// </summary>
@@ -436,6 +448,13 @@ namespace Garrison.Server.Runtime
 
         #endregion
 
+        /// <summary>Cluster queued-run admission limit, default 0 (unlimited), minimum 0.</summary>
+        public int QueueDepthCluster { get; set; } = 0;
+        /// <summary>Per-tenant queued-run admission limit, default 0 (unlimited), minimum 0.</summary>
+        public int QueueDepthTenant { get; set; } = 0;
+        /// <summary>Per-agent queued-run admission limit, default 0 (unlimited), minimum 0.</summary>
+        public int QueueDepthAgent { get; set; } = 0;
+
         #region Private-Members
 
         private int _LeaseDurationMs = 30000;
@@ -445,6 +464,7 @@ namespace Garrison.Server.Runtime
         private int _NodeHeartbeatTimeoutMs = 20000;
         private int _EventPollMs = 250;
         private int _InvocationWaitPollMs = 5000;
+        private int _MaxSynchronousWaiters = 256;
         private int _PipelineSweepIntervalMs = 5000;
         private int _PipelineMaxStages = 20;
         private int _MaxDelegationDepth = 3;

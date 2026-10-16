@@ -16,8 +16,8 @@ namespace Garrison.Core.Compilation
         public string StoreId { get; set; } = String.Empty;
         /// <summary>Explicit workspace-relative globs.</summary>
         public List<string> Globs { get; set; } = new List<string>();
-        /// <summary>Maximum bytes per collected file. Default 16 MiB; range 1024 to 64 MiB.</summary>
-        public int MaxFileBytes { get { return _MaxFileBytes; } set { _MaxFileBytes = Math.Clamp(value, 1024, 64 * 1024 * 1024); } }
+        /// <summary>Maximum bytes per collected file. Default 16 MiB; range 1024 to 256 MiB.</summary>
+        public int MaxFileBytes { get { return _MaxFileBytes; } set { _MaxFileBytes = Math.Clamp(value, 1024, 256 * 1024 * 1024); } }
         /// <summary>Maximum aggregate bytes collected per execution. Default 64 MiB; range 1024 to 1 GiB.</summary>
         public long MaxTotalBytes { get { return _MaxTotalBytes; } set { _MaxTotalBytes = Math.Clamp(value, 1024, 1024L * 1024 * 1024); } }
         /// <summary>Maximum selected files. Default 100; range 1 to 10000.</summary>

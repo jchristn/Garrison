@@ -1,0 +1,257 @@
+{
+  "startedUtc": "2026-10-16T14:35:34.812072+00:00",
+  "context": "k3d-garrison-d061-effects",
+  "namespace": "garrison-effects",
+  "cases": [
+    {
+      "policy": "AtMostOnce",
+      "phase": "before",
+      "runId": "run_mvb2l4bx_50yEUjzpNs4c6IL4PXB",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-4gsjh",
+        "uid": "6e7ff174-fb26-4aac-92ff-bd9f2725b9dd",
+        "runtimeContainerId": "0897e1b5448db24f1185495e075e95bf3095eb62d1623cd6dd2e87b5243f936e",
+        "killUtc": "2026-10-16T14:35:35.648200+00:00",
+        "processStoppedUtc": "2026-10-16T14:35:38.259394+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": []
+    },
+    {
+      "policy": "AtMostOnce",
+      "phase": "after",
+      "runId": "run_mvb2ldgy_vzr6zbRg3tnkLSdbfQz",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-qlrkg",
+        "uid": "a2887842-734d-4ee8-ae21-dddac6510e58",
+        "runtimeContainerId": "ae731e4658ace6bade46a85f32f23dff7f955489bb2b45c147473a44c48f743d",
+        "killUtc": "2026-10-16T14:35:47.238664+00:00",
+        "processStoppedUtc": "2026-10-16T14:35:49.512255+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2ldgy_vzr6zbRg3tnkLSdbfQz",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:35:47.130Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtMostOnce",
+      "phase": "complete",
+      "runId": "run_mvb2lmzv_xr3oGQxnYSJpGXOhQJN",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-zrrvg",
+        "uid": "847d24b8-7dd1-40b7-9c5f-f61cb9033d74",
+        "runtimeContainerId": "276390b0c0dcfba50c80564bf700f57a5f57529b886290c11d458e204c7be420",
+        "killUtc": "2026-10-16T14:35:59.916602+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:00.305822+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2lmzv_xr3oGQxnYSJpGXOhQJN",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:35:59.519Z"
+        }
+      ]
+    },
+    {
+      "policy": "Journaled",
+      "phase": "before",
+      "runId": "run_mvb2loz0_ZOGFHulkJdr8PVk4uVV",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-b7kcz",
+        "uid": "066c2b15-d22f-4ee7-950c-6af18884a4d2",
+        "runtimeContainerId": "9f0c6adaea05db7116efc20321fcdae1f63a9e4fb30aa7e621b6a6c8a0086cea",
+        "killUtc": "2026-10-16T14:36:02.140079+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:05.927307+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": []
+    },
+    {
+      "policy": "Journaled",
+      "phase": "after",
+      "runId": "run_mvb2lxtg_WvM6U02nMSUNGDtTwdo",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-rwsnp",
+        "uid": "ebf97f62-a87d-42a9-bdf3-156846abcb29",
+        "runtimeContainerId": "246131b0039f20ac25416db3546cbdb82e2bacef5a09b5acde1f04dbce698128",
+        "killUtc": "2026-10-16T14:36:13.617777+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:16.050657+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2lxtg_WvM6U02nMSUNGDtTwdo",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:36:13.476Z"
+        }
+      ]
+    },
+    {
+      "policy": "Journaled",
+      "phase": "complete",
+      "runId": "run_mvb2m7b9_9G7rN5InAIyemmTTp2a",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-s87mf",
+        "uid": "133c93c9-5d42-4615-bc65-2f0597a9ce4e",
+        "runtimeContainerId": "9103253b1fb0a488ee4bda659ae8a4f7f1ce0fb2da46a68e225e44abc7e9cdeb",
+        "killUtc": "2026-10-16T14:36:25.929095+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:26.222893+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2m7b9_9G7rN5InAIyemmTTp2a",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:36:25.785Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "before",
+      "runId": "run_mvb2m8xn_4byDWeBlesVzLwwAcLN",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-5gmx5",
+        "uid": "d9b4cd04-aff7-4d28-8a26-184cd7630a23",
+        "runtimeContainerId": "38aaf1c8b3be87954108ee58242d6050a34a3fcebae165142e8687f2270a566b",
+        "killUtc": "2026-10-16T14:36:27.996106+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:31.717006+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 2,
+      "receipts": [
+        {
+          "operationId": "run_mvb2m8xn_4byDWeBlesVzLwwAcLN",
+          "attempt": 2,
+          "timestampUtc": "2026-10-16T14:36:39.627Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "after",
+      "runId": "run_mvb2mijf_od8ugVBodZsQcK3IPtM",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-z4kd7",
+        "uid": "b8619f01-953e-4007-91ae-f8894ecc820d",
+        "runtimeContainerId": "5ee8349e37ebdd1f97c5a93b06bf75e814bfd4dd0471cfffd8fc6b7cf7e7a780",
+        "killUtc": "2026-10-16T14:36:40.470352+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:43.164796+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 2,
+      "receipts": [
+        {
+          "operationId": "run_mvb2mijf_od8ugVBodZsQcK3IPtM",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:36:40.297Z"
+        },
+        {
+          "operationId": "run_mvb2mijf_od8ugVBodZsQcK3IPtM",
+          "attempt": 2,
+          "timestampUtc": "2026-10-16T14:36:51.651Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "complete",
+      "runId": "run_mvb2mrtd_UNZG9LynPuXIHewfPcC",
+      "kill": {
+        "pod": "effect-worker-7cf486996d-w75qb",
+        "uid": "75a679fa-ef5c-4664-8eed-8f456f40c8d6",
+        "runtimeContainerId": "8416520b6da82dee0fa66688479b42ffd58823a85d8fc1534629b72c2f96d329",
+        "killUtc": "2026-10-16T14:36:52.750103+00:00",
+        "processStoppedUtc": "2026-10-16T14:36:53.004375+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2mrtd_UNZG9LynPuXIHewfPcC",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:36:52.388Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtMostOnce",
+      "phase": "control-plane-restart-after-effect",
+      "runId": "run_mvb2mtm9_USKiQYthgMnzJWnOSih",
+      "restartSeconds": 2.9797516660764813,
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2mtm9_USKiQYthgMnzJWnOSih",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:36:54.710Z"
+        }
+      ]
+    },
+    {
+      "policy": "Journaled",
+      "phase": "control-plane-restart-after-effect",
+      "runId": "run_mvb2mwke_FiI59lqlMjMeCLUt8me",
+      "restartSeconds": 3.3443047079490498,
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2mwke_FiI59lqlMjMeCLUt8me",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:36:58.590Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "control-plane-restart-after-effect",
+      "runId": "run_mvb2mzuv_sRagQUyjhsnSYRbb7bd",
+      "restartSeconds": 3.467515500029549,
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvb2mzuv_sRagQUyjhsnSYRbb7bd",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T14:37:03.173Z"
+        }
+      ]
+    }
+  ],
+  "finishedUtc": "2026-10-16T14:37:07.126069+00:00",
+  "passed": true
+}

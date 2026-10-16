@@ -159,6 +159,7 @@ const yueHant = {
       Deny: '拒絕'
     },
     approvalSource: {
+      DurableResume: "沿用嘅核准",
       Rule: '規則',
       Default: '部署預設',
       User: '人手',
@@ -2554,3 +2555,17 @@ yueHant.components.mcpTest.noWorkers = "冇一部就緒嘅工作節點提供 std
   }
  }
 });
+
+// Durable continuation and remote execution.
+yueHant.enums.runStatus.Suspended = "已暫停";
+yueHant.resources.deployments.fields.suspensionEnabled = "等批核時暫停";
+yueHant.resources.harnessProfiles.fields.sessionFormat = "Harness 工作階段格式";
+yueHant.enums.auditEventType.QueueFull = "佇列滿咗";
+yueHant.enums.runExecutor.RemoteA2A = "遠端 A2A";
+yueHant.enums.runExecutor.RemoteMcp = "遠端 MCP";
+yueHant.tips.resources.deployments.suspensionEnabled = "等候時啟用持久檢查點。需要 Process、獨立主目錄、相容而可恢復嘅 Harness 同產物儲存。";
+yueHant.tips.resources.harnessProfiles.sessionFormat = "可攜式檢查點嘅版本化工作階段格式。Harness 更新改變相容性時要更新呢個值。";
+yueHant.tips.enums.runStatus.Suspended = "執行有持久工作階段檢查點，等候時唔會佔用工作節點租約或者執行位置。";
+yueHant.tips.enums.runExecutor.RemoteA2A = "執行已驗證嘅註冊 A2A 代理，支援期限同取消。";
+yueHant.tips.enums.runExecutor.RemoteMcp = "用驗證過嘅 JSON 輸入呼叫揀咗嘅遠端 MCP 工具。";
+yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇列滿咗，所以唔接受新執行。";

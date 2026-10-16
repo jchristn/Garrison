@@ -159,6 +159,7 @@ const it = {
       Deny: 'Nega'
     },
     approvalSource: {
+      DurableResume: "Approvazione conservata",
       Rule: 'Regola',
       Default: 'Predefinito della distribuzione',
       User: 'Persona',
@@ -2603,3 +2604,17 @@ it.components.mcpTest.noWorkers = "Nessun worker pronto offre diagnostica stdio.
   }
  }
 });
+
+// Durable continuation and remote execution.
+it.enums.runStatus.Suspended = "Sospesa";
+it.resources.deployments.fields.suspensionEnabled = "Sospendi in attesa dell’approvazione";
+it.resources.harnessProfiles.fields.sessionFormat = "Formato della sessione harness";
+it.enums.auditEventType.QueueFull = "Coda piena";
+it.enums.runExecutor.RemoteA2A = "A2A remoto";
+it.enums.runExecutor.RemoteMcp = "MCP remoto";
+it.tips.resources.deployments.suspensionEnabled = "Abilita checkpoint persistenti durante l’attesa. Richiede Process, home isolata, harness compatibile con ripresa e archivio artefatti.";
+it.tips.resources.harnessProfiles.sessionFormat = "Formato della sessione con versione per checkpoint portabili. Modificarlo se un aggiornamento dell’harness cambia la compatibilità.";
+it.tips.enums.runStatus.Suspended = "L’esecuzione ha un checkpoint persistente e durante l’attesa non occupa un lease o uno slot del worker.";
+it.tips.enums.runExecutor.RemoteA2A = "Esegue un agente A2A registrato e autenticato con scadenza e annullamento.";
+it.tips.enums.runExecutor.RemoteMcp = "Richiama lo strumento MCP remoto selezionato con ingresso JSON convalidato.";
+it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato raggiunto un limite della coda per cluster, tenant o agente.";

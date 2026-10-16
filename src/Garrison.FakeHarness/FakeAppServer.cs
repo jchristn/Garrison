@@ -178,7 +178,7 @@ namespace Garrison.FakeHarness
                 Notify("item/completed", new { threadId = threadId, turnId = turnId, item = new { type = "commandExecution", id = itemId, command = "echo ok " + (i + 1), status = "completed", exitCode = 0, aggregatedOutput = "ok " + (i + 1) } });
             }
 
-            if (_Options.RequestApproval)
+            if (_Options.RequestApproval && !(_Options.PermissionOnce && _Resumed))
             {
                 string command = _Options.ApprovalCommand;
                 Notify("item/started", new { threadId = threadId, turnId = turnId, item = new { type = "commandExecution", id = "call_approval", command = command, cwd = Environment.CurrentDirectory, status = "inProgress" } });

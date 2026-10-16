@@ -115,7 +115,7 @@ namespace Garrison.Core.Database.Ado
                     admission.Maximum = cap;
                     admission.Used = waiting;
                     // A parent that already waits (parallel delegations) is resident already and takes no new place.
-                    if (already == 0 && waiting + 1 > cap)
+                    if (!request.Durable && already == 0 && waiting + 1 > cap)
                     {
                         admission.Limit = DelegationCapacityLimitEnum.ResidentWaiters;
                         return;
@@ -150,8 +150,8 @@ namespace Garrison.Core.Database.Ado
         internal static string PruneStatement(AdoDatabaseDriver driver)
         {
             string runs = driver.Table("runs");
-            return "DELETE FROM " + Table(driver) + " WHERE NOT EXISTS (SELECT 1 FROM " + runs + " p WHERE p.id = " + Table(driver) + ".parentrunid AND p.status IN (" + ActiveStatuses + "))"
-                + " OR EXISTS (SELECT 1 FROM " + runs + " c WHERE c.id = " + Table(driver) + ".childrunid AND c.status NOT IN ('Queued', " + ActiveStatuses + "))"
+            return "DELETE FROM " + Table(driver) + " WHERE NOT EXISTS (SELECT 1 FROM " + runs + " p WHERE p.id = " + Table(driver) + ".parentrunid AND p.status IN ('Suspended', " + ActiveStatuses + "))"
+                + " OR (EXISTS (SELECT 1 FROM " + runs + " c WHERE c.id = " + Table(driver) + ".childrunid AND c.status NOT IN ('Queued', " + ActiveStatuses + ")) AND NOT EXISTS (SELECT 1 FROM " + runs + " p JOIN " + driver.Table("deployments") + " d ON d.id=p.deploymentid AND d.tenantid=p.tenantid WHERE p.id=" + Table(driver) + ".parentrunid AND p.tenantid=" + Table(driver) + ".tenantid AND d.suspensionenabled=" + driver.Dialect.BooleanLiteral(true) + " AND p.status IN ('Suspended', " + ActiveStatuses + ")))"
                 + " OR (createdutc < @cutoff AND NOT EXISTS (SELECT 1 FROM " + runs + " c2 WHERE c2.id = " + Table(driver) + ".childrunid));";
         }
     }

@@ -1,0 +1,502 @@
+[
+  {
+    "testId": "telemetry.catalog",
+    "suiteId": "telemetry",
+    "caseId": "catalog",
+    "displayName": "Every metric in the catalog is unique, bucketed, documented, and assigned a dashboard",
+    "success": true,
+    "skipped": false,
+    "durationMs": 10,
+    "message": null
+  },
+  {
+    "testId": "telemetry.dashboards",
+    "suiteId": "telemetry",
+    "caseId": "dashboards",
+    "displayName": "Every metric is charted on its dashboard, and every dashboard UID is in server-info",
+    "success": true,
+    "skipped": false,
+    "durationMs": 9,
+    "message": null
+  },
+  {
+    "testId": "telemetry.routes",
+    "suiteId": "telemetry",
+    "caseId": "routes",
+    "displayName": "Every REST route, MCP tool, and A2A method has a row in the coverage matrix",
+    "success": true,
+    "skipped": false,
+    "durationMs": 701,
+    "message": null
+  },
+  {
+    "testId": "telemetry.http-runtime",
+    "suiteId": "telemetry",
+    "caseId": "http-runtime",
+    "displayName": "Requests record route-template metrics, database statements, background iterations, and auth failures",
+    "success": true,
+    "skipped": false,
+    "durationMs": 544,
+    "message": null
+  },
+  {
+    "testId": "telemetry.run-runtime",
+    "suiteId": "telemetry",
+    "caseId": "run-runtime",
+    "displayName": "A run records per-agent lifecycle, stage, token, and worker metrics with tenant, agent, deployment, harness, and model labels",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1055,
+    "message": null
+  },
+  {
+    "testId": "telemetry.mcp-runtime",
+    "suiteId": "telemetry",
+    "caseId": "mcp-runtime",
+    "displayName": "MCP tool calls record duration by tool and result, and sessions are counted",
+    "success": true,
+    "skipped": false,
+    "durationMs": 389,
+    "message": null
+  },
+  {
+    "testId": "telemetry.label-guard",
+    "suiteId": "telemetry",
+    "caseId": "label-guard",
+    "displayName": "The cardinality guard folds values beyond the limit into other and counts them",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "telemetry.telemetry-failure-isolation",
+    "suiteId": "telemetry",
+    "caseId": "telemetry-failure-isolation",
+    "displayName": "Throwing trace and metric consumers cannot change the application result or original exception",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1,
+    "message": null
+  },
+  {
+    "testId": "telemetry.application-stage-runtime",
+    "suiteId": "telemetry",
+    "caseId": "application-stage-runtime",
+    "displayName": "Application spans classify error and cancellation without exception values; intrinsic gateway timing excludes tool execution",
+    "success": true,
+    "skipped": false,
+    "durationMs": 152,
+    "message": null
+  },
+  {
+    "testId": "telemetry.statement-names",
+    "suiteId": "telemetry",
+    "caseId": "statement-names",
+    "displayName": "Database statement names carry the operation and table, never values",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-sqlite.parallel-and-nested",
+    "suiteId": "database-attribution-sqlite",
+    "caseId": "parallel-and-nested",
+    "displayName": "Parallel unrelated queries never contaminate exact counts; nested same-run work is counted once and concurrent scopes atomically accumulate",
+    "success": true,
+    "skipped": false,
+    "durationMs": 49,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-sqlite.errors-and-isolation",
+    "suiteId": "database-attribution-sqlite",
+    "caseId": "errors-and-isolation",
+    "displayName": "Failed SQL attempts persist without SQL text, other tenants cannot read attribution, and run deletion cleans usage",
+    "success": true,
+    "skipped": false,
+    "durationMs": 47,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-postgresql.parallel-and-nested",
+    "suiteId": "database-attribution-postgresql",
+    "caseId": "parallel-and-nested",
+    "displayName": "Parallel unrelated queries never contaminate exact counts; nested same-run work is counted once and concurrent scopes atomically accumulate",
+    "success": true,
+    "skipped": false,
+    "durationMs": 540,
+    "message": null
+  },
+  {
+    "testId": "database-attribution-postgresql.errors-and-isolation",
+    "suiteId": "database-attribution-postgresql",
+    "caseId": "errors-and-isolation",
+    "displayName": "Failed SQL attempts persist without SQL text, other tenants cannot read attribution, and run deletion cleans usage",
+    "success": true,
+    "skipped": false,
+    "durationMs": 605,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-classification.annotation-conflicts",
+    "suiteId": "effect-journal-classification",
+    "caseId": "annotation-conflicts",
+    "displayName": "Missing and conflicting hints stay effectful; idempotent mutations still require journaling",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-classification.harness-unknown-coverage",
+    "suiteId": "effect-journal-classification",
+    "caseId": "harness-unknown-coverage",
+    "displayName": "Harness parser metadata never lets optimistic hints hide shell or network effects",
+    "success": true,
+    "skipped": false,
+    "durationMs": 0,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.snapshot-recovery",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "snapshot-recovery",
+    "displayName": "Accepted current-epoch session snapshots cover completed effects; older epochs and new dispatches cannot reuse them",
+    "success": true,
+    "skipped": false,
+    "durationMs": 391,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.sink-at-most-once",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "sink-at-most-once",
+    "displayName": "Actual lease reaping never repeats an external mutation under AtMostOnce",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2295,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.sink-at-least-once",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "sink-at-least-once",
+    "displayName": "Actual lease reaping under AtLeastOnce exposes and tags each duplicate mutation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2287,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.sink-journaled",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "sink-journaled",
+    "displayName": "Actual Journaled recovery never repeats an external mutation with an uncertain outcome",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2310,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.before-dispatch",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "before-dispatch",
+    "displayName": "A crash before dispatch leaves Authorized; only trusted known coverage permits replay",
+    "success": true,
+    "skipped": false,
+    "durationMs": 386,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.after-dispatch",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "after-dispatch",
+    "displayName": "A crash after dispatch leaves an unresolved effect and forbids replay",
+    "success": true,
+    "skipped": false,
+    "durationMs": 376,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.unknown-outcome",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "unknown-outcome",
+    "displayName": "An uncertain destination outcome prevents checkpoint and replay",
+    "success": true,
+    "skipped": false,
+    "durationMs": 371,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.after-completion",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "after-completion",
+    "displayName": "A destination mutation committed before worker reporting is never automatically repeated",
+    "success": true,
+    "skipped": false,
+    "durationMs": 375,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.expired-run-token",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "expired-run-token",
+    "displayName": "A partitioned worker token stops working at lease expiry before the reaper runs",
+    "success": true,
+    "skipped": false,
+    "durationMs": 407,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-sqlite.stale-epoch",
+    "suiteId": "effect-journal-sqlite",
+    "caseId": "stale-epoch",
+    "displayName": "Expired and replaced attempts cannot authorize or dispatch gateway operations",
+    "success": true,
+    "skipped": false,
+    "durationMs": 372,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.snapshot-recovery",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "snapshot-recovery",
+    "displayName": "Accepted current-epoch session snapshots cover completed effects; older epochs and new dispatches cannot reuse them",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1560,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.sink-at-most-once",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "sink-at-most-once",
+    "displayName": "Actual lease reaping never repeats an external mutation under AtMostOnce",
+    "success": true,
+    "skipped": false,
+    "durationMs": 3205,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.sink-at-least-once",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "sink-at-least-once",
+    "displayName": "Actual lease reaping under AtLeastOnce exposes and tags each duplicate mutation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 3329,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.sink-journaled",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "sink-journaled",
+    "displayName": "Actual Journaled recovery never repeats an external mutation with an uncertain outcome",
+    "success": true,
+    "skipped": false,
+    "durationMs": 3272,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.before-dispatch",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "before-dispatch",
+    "displayName": "A crash before dispatch leaves Authorized; only trusted known coverage permits replay",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1571,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.after-dispatch",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "after-dispatch",
+    "displayName": "A crash after dispatch leaves an unresolved effect and forbids replay",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1494,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.unknown-outcome",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "unknown-outcome",
+    "displayName": "An uncertain destination outcome prevents checkpoint and replay",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1434,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.after-completion",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "after-completion",
+    "displayName": "A destination mutation committed before worker reporting is never automatically repeated",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1615,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.expired-run-token",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "expired-run-token",
+    "displayName": "A partitioned worker token stops working at lease expiry before the reaper runs",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1594,
+    "message": null
+  },
+  {
+    "testId": "effect-journal-postgresql.stale-epoch",
+    "suiteId": "effect-journal-postgresql",
+    "caseId": "stale-epoch",
+    "displayName": "Expired and replaced attempts cannot authorize or dispatch gateway operations",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1487,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.metadata-change-retries",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "metadata-change-retries",
+    "displayName": "Broker resource edits revoke credentials and maintenance retries failed revocation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 388,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.tenant-delete-retries",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "tenant-delete-retries",
+    "displayName": "Tenant deletion preserves pending revocation metadata through provider outages and purges it only after confirmation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 368,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.epoch-revocation",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "epoch-revocation",
+    "displayName": "Provider credentials are idempotent within an epoch, revoked before replacement, and revoked at completion",
+    "success": true,
+    "skipped": false,
+    "durationMs": 387,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.retry-before-replacement",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "retry-before-replacement",
+    "displayName": "Provider outage blocks overlapping replacement credentials and maintenance retries confirmed revocation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 376,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.delayed-issuance-tombstone",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "delayed-issuance-tombstone",
+    "displayName": "A provider revoke tombstone fences an issuance response delayed past lease expiry",
+    "success": true,
+    "skipped": false,
+    "durationMs": 372,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.bounded-ttl-and-redirect",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "bounded-ttl-and-redirect",
+    "displayName": "Too-short or overlong TTL and redirected issuance fail closed without returning a credential",
+    "success": true,
+    "skipped": false,
+    "durationMs": 385,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-sqlite.compiler-and-metadata-api",
+    "suiteId": "credential-broker-sqlite",
+    "caseId": "compiler-and-metadata-api",
+    "displayName": "Broker metadata is tenant-managed without static values; compiler injects only ephemeral values and previews do not mint",
+    "success": true,
+    "skipped": false,
+    "durationMs": 405,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.metadata-change-retries",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "metadata-change-retries",
+    "displayName": "Broker resource edits revoke credentials and maintenance retries failed revocation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1674,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.tenant-delete-retries",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "tenant-delete-retries",
+    "displayName": "Tenant deletion preserves pending revocation metadata through provider outages and purges it only after confirmation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1812,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.epoch-revocation",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "epoch-revocation",
+    "displayName": "Provider credentials are idempotent within an epoch, revoked before replacement, and revoked at completion",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1723,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.retry-before-replacement",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "retry-before-replacement",
+    "displayName": "Provider outage blocks overlapping replacement credentials and maintenance retries confirmed revocation",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2088,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.delayed-issuance-tombstone",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "delayed-issuance-tombstone",
+    "displayName": "A provider revoke tombstone fences an issuance response delayed past lease expiry",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1698,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.bounded-ttl-and-redirect",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "bounded-ttl-and-redirect",
+    "displayName": "Too-short or overlong TTL and redirected issuance fail closed without returning a credential",
+    "success": true,
+    "skipped": false,
+    "durationMs": 2509,
+    "message": null
+  },
+  {
+    "testId": "credential-broker-postgresql.compiler-and-metadata-api",
+    "suiteId": "credential-broker-postgresql",
+    "caseId": "compiler-and-metadata-api",
+    "displayName": "Broker metadata is tenant-managed without static values; compiler injects only ephemeral values and previews do not mint",
+    "success": true,
+    "skipped": false,
+    "durationMs": 1771,
+    "message": null
+  }
+]

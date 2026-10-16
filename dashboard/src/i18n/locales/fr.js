@@ -159,6 +159,7 @@ const fr = {
       Deny: 'Refuser'
     },
     approvalSource: {
+      DurableResume: "Approbation conservée",
       Rule: 'Règle',
       Default: 'Valeur par défaut du déploiement',
       User: 'Personne',
@@ -2603,3 +2604,17 @@ fr.components.mcpTest.noWorkers = "Aucun worker prêt ne propose de diagnostic s
   }
  }
 });
+
+// Durable continuation and remote execution.
+fr.enums.runStatus.Suspended = "Suspendue";
+fr.resources.deployments.fields.suspensionEnabled = "Suspendre pendant l’approbation";
+fr.resources.harnessProfiles.fields.sessionFormat = "Format de session du harnais";
+fr.enums.auditEventType.QueueFull = "File d’attente pleine";
+fr.enums.runExecutor.RemoteA2A = "A2A distant";
+fr.enums.runExecutor.RemoteMcp = "MCP distant";
+fr.tips.resources.deployments.suspensionEnabled = "Active les points de reprise durables pendant l’attente. Nécessite Process, un dossier personnel isolé, un harnais compatible et un stockage d’artefacts.";
+fr.tips.resources.harnessProfiles.sessionFormat = "Format de session versionné pour les points de reprise portables. À modifier si une mise à jour du harnais change la compatibilité.";
+fr.tips.enums.runStatus.Suspended = "L’exécution dispose d’un point de reprise durable et ne conserve ni bail ni place de travail pendant l’attente.";
+fr.tips.enums.runExecutor.RemoteA2A = "Exécute un agent A2A enregistré et authentifié avec échéance et annulation.";
+fr.tips.enums.runExecutor.RemoteMcp = "Appelle l’outil MCP distant sélectionné avec une entrée JSON validée.";
+fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une limite de file du cluster, du locataire ou de l’agent est atteinte.";

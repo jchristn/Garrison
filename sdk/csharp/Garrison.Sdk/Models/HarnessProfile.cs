@@ -12,6 +12,9 @@ namespace Garrison.Sdk.Models
     {
         #region Public-Members
 
+        /// <summary>Pinned session format used to validate durable continuation compatibility.</summary>
+        public string? SessionFormat { get; set; } = null;
+
         /// <summary>
         /// Warnings from the create or update request that returned this record (responses only): one entry per value
         /// the server did not store as given, for example code ValueClamped for a number outside its range. Null when

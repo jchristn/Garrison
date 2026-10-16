@@ -416,6 +416,8 @@ spec:
       depth: { type: integer, minimum: 1, maximum: 5, default: 2 }
 ```
 
+The generated form supports primitive fields, enums, arrays of primitives, and one level of nested object fields. More complex properties use a JSON editor; schemas without an object root with properties use the raw JSON editor for the whole input. Invoke also lets you switch between Form and JSON. The server still validates the full schema and returns field errors, including constraints the form does not check locally.
+
 ### Deployment
 
 ```yaml

@@ -39,6 +39,9 @@ namespace Garrison.Server.Settings
         /// </summary>
         public McpSettings Mcp { get; set; } = new McpSettings();
 
+        /// <summary>Optional replaceable agent memory settings.</summary>
+        public AgentMemorySettings AgentMemory { get; set; } = new AgentMemorySettings();
+
         /// <summary>
         /// Database settings.
         /// </summary>
@@ -58,6 +61,9 @@ namespace Garrison.Server.Settings
         /// Security settings.
         /// </summary>
         public SecuritySettings Security { get; set; } = new SecuritySettings();
+
+        /// <summary>Operator-configured revocable credential issuer and revoker. Settings-file only.</summary>
+        public CredentialBrokerSettings CredentialBroker { get; set; } = new CredentialBrokerSettings();
 
         /// <summary>
         /// Request history settings.
@@ -250,6 +256,9 @@ namespace Garrison.Server.Settings
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);
             Int("GARRISON_CODEX_REFRESH_BEFORE_EXPIRY_SECONDS", "Codex.RefreshBeforeExpirySeconds", v => Codex.RefreshBeforeExpirySeconds = v);
             Bool("GARRISON_SETTINGS_READONLY", "Cluster.SettingsFileReadOnly", v => Cluster.SettingsFileReadOnly = v);
+            Bool("GARRISON_AGENT_MEMORY_ENABLE", "AgentMemory.Enabled", v => AgentMemory.Enabled = v);
+            Str("GARRISON_AGENT_MEMORY_ROOT", "AgentMemory.RootDirectory", v => AgentMemory.RootDirectory = v);
+            Int("GARRISON_AGENT_MEMORY_MAX_VALUE_BYTES", "AgentMemory.MaxValueBytes", v => AgentMemory.MaxValueBytes = v);
             Bool("GARRISON_TELEMETRY_ENABLE", "Telemetry.Enabled", v => Telemetry.Enabled = v);
             Str("GARRISON_PROMETHEUS_HOSTNAME", "Telemetry.PrometheusHostname", v => Telemetry.PrometheusHostname = v);
             Bool("GARRISON_OTLP_ENABLE", "Telemetry.OtlpEnable", v => Telemetry.OtlpEnable = v);

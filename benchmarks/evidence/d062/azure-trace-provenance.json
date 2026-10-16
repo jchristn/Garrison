@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/Azure/AzurePublicDataset/releases/download/dataset-functions-2019/azurefunctions_dataset2019_azurefunctions-dataset2019.tar.xz",
+  "documentation": "https://github.com/Azure/AzurePublicDataset/blob/master/AzureFunctionsDataset2019.md",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://github.com/Azure/AzurePublicDataset/blob/master/LICENSE",
+  "attribution": "Mohammad Shahrad et al., Serverless in the Wild: Characterizing and Optimizing the Serverless Workload at a Large Cloud Provider, USENIX ATC 2020. Microsoft AzurePublicDataset.",
+  "archiveSha256": "aff8b3ca7240a41a109e4ee598e0a96e45fcb92e7b8395ac19cb3748cd260d89",
+  "prefixSha256": "3758fda0dd36186b34511b30671039f49b876068e237040ad152d4d5d2078284",
+  "member": "invocations_per_function_md.anon.d01.csv",
+  "selectedRow": 53,
+  "firstMinute": 781,
+  "minuteCount": 60,
+  "arrivals": 662,
+  "conversion": "One-minute aggregate counts become simultaneous bursts at one-second boundaries (60x compression). Unknown intra-minute arrival times are not reconstructed.",
+  "derivedCsvSha256": "7affbd692b53062f0110d10c1b02da798d297aa40a2e76690c6b90d1969f6a1d",
+  "rawDataCommitted": false
+}

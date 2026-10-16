@@ -21,6 +21,24 @@ namespace Garrison.Core.Telemetry
         /// </summary>
         public static readonly string RunLabels = "tenant, agent, deployment, harness, model";
 
+        /// <summary>Workspace cache lookups by deployment, cache layer, and hit or miss.</summary>
+        public static readonly MetricDescriptor WorkspaceCacheRequests = new MetricDescriptor("garrison.worker.workspace.cache", MetricKindEnum.Counter, "{request}", "tenant, agent, deployment, cache, result", "Workspace cache lookups, split by git mirror or prepared archive and hit or miss", "worker", "Workers", "garrison-workers");
+
+        /// <summary>Application operations by bounded component, operation and outcome.</summary>
+        public static readonly MetricDescriptor ApplicationOperations = new MetricDescriptor("garrison.application.operations", MetricKindEnum.Counter, "{operation}", "component, operation, result", "Application stage completions including errors and cancellations; labels contain no run identifiers or input", "server and worker", "Integrations", "garrison-integrations");
+
+        /// <summary>Application operation duration, including failures and cancellations.</summary>
+        public static readonly MetricDescriptor ApplicationOperationDuration = new MetricDescriptor("garrison.application.operation.duration", MetricKindEnum.Histogram, "s", "component, operation, result", "Application stage wall time; use nested traces to separate database, admission and outbound work", "server and worker", "Integrations", "garrison-integrations", TelemetryBuckets.Fast);
+
+        /// <summary>Gateway-owned authorization, fence and journal wall time excluding tool execution and transport.</summary>
+        public static readonly MetricDescriptor GatewayOverheadDuration = new MetricDescriptor("garrison.gateway.overhead.duration", MetricKindEnum.Histogram, "s", "mode, result", "Gateway-owned elapsed time excluding awaited tool dispatch; includes authorization, database statements and lock waits", "server", "Integrations", "garrison-integrations", TelemetryBuckets.Fast);
+
+        /// <summary>Synchronous wait admission outcomes; fallback returns the admitted run without holding an HTTP request.</summary>
+        public static readonly MetricDescriptor SynchronousWaitAdmission = new MetricDescriptor("garrison.synchronous.wait.admission", MetricKindEnum.Counter, "{request}", "result", "Synchronous wait admission, accepted asynchronous fallback, or fail-fast delegation denial protecting worker protocol request capacity", "server", "HTTP", "garrison-http");
+
+        /// <summary>Active synchronous invocation waiters in this control-plane process.</summary>
+        public static readonly MetricDescriptor SynchronousWaiters = new MetricDescriptor("garrison.synchronous.waiters", MetricKindEnum.UpDownCounter, "{request}", "", "Active synchronous invocation waiters admitted by the shared request budget", "server", "HTTP", "garrison-http");
+
         // HTTP
 
         /// <summary>REST requests handled.</summary>
@@ -432,7 +450,7 @@ namespace Garrison.Core.Telemetry
 
         private static readonly List<MetricDescriptor> _All = new List<MetricDescriptor>
         {
-            HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
+            SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
             RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
@@ -442,9 +460,9 @@ namespace Garrison.Core.Telemetry
             SseStreamsActive, SseEvents, WebSocketSessions, WebSocketMessages, DelegationDepth, DelegationDenials, InvocationWait, DisconnectCancels,
             ControlNodes, ControlNodeHeartbeats, ControlNodeTransitions, LeaderChanges, IsLeader, MaintenancePauses,
             BackplanePublished, BackplaneReceived, BackplaneLag, BackgroundDuration, BackgroundIterations, BuildInfo,
-            DbDuration, DbErrors, DbConnections, DbWriteLockWait, DbRetries, RetentionDeleted, RequestHistoryCaptured, ArchiveRuns,
+            GatewayOverheadDuration, ApplicationOperations, ApplicationOperationDuration, DbDuration, DbErrors, DbConnections, DbWriteLockWait, DbRetries, RetentionDeleted, RequestHistoryCaptured, ArchiveRuns,
             OutboundRequests, OutboundDuration, ObservabilityReachable,
-            WorkerLeases, WorkerRuns, WorkerRunDuration, WorkerRunTtft, WorkerRunStreaming, WorkerRunStage,
+            WorkspaceCacheRequests, WorkerLeases, WorkerRuns, WorkerRunDuration, WorkerRunTtft, WorkerRunStreaming, WorkerRunStage,
             WorkerTokens, WorkerCost, WorkerGuardTrips, WorkerCompletionReports, WorkerConversationsSwept, WorkerEvents, WorkerHeartbeats, WorkerPauses, WorkerProbes,
             WorkerRunsActive, WorkerSlotsFree,
             K8sJobs, K8sPodStart, K8sPodFailures, K8sReconciled,

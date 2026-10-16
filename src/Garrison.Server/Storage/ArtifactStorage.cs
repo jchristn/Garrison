@@ -84,20 +84,26 @@ namespace Garrison.Server.Storage
         {
             if (store == null) throw new ArgumentNullException(nameof(store));
             if (artifact == null) throw new ArgumentNullException(nameof(artifact));
+            long limit = _Context.Settings.Artifacts.MaxFileBytes;
+            if (artifact.SizeBytes < 0 || artifact.SizeBytes > limit) throw new ValidationException("Artifact exceeds the configured download size limit of " + limit + " bytes.");
             if (store.Kind == ArtifactStoreKindEnum.Database)
-                return await _Context.Database.Artifacts.ReadContentAsync(artifact.TenantId, artifact.Id, token).ConfigureAwait(false) ?? throw new NotFoundException("Artifact content not found.");
+            {
+                byte[] content = await _Context.Database.Artifacts.ReadContentAsync(artifact.TenantId, artifact.Id, token).ConfigureAwait(false) ?? throw new NotFoundException("Artifact content not found.");
+                if (content.LongLength != artifact.SizeBytes) throw new IOException("Artifact content length differs from recorded metadata.");
+                return content;
+            }
             if (store.Kind == ArtifactStoreKindEnum.Filesystem)
             {
                 string path = FilePath(artifact.Location);
                 if (!File.Exists(path)) throw new NotFoundException("Artifact content not found.");
                 using (FileStream input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16384, FileOptions.Asynchronous))
-                    return await ReadBoundedAsync(input, artifact.SizeBytes, token).ConfigureAwait(false);
+                    return await ReadBoundedAsync(input, artifact.SizeBytes, limit, token).ConfigureAwait(false);
             }
             try
             {
                 using (AmazonS3Client client = await ClientAsync(store, token).ConfigureAwait(false))
                 using (GetObjectResponse response = await client.GetObjectAsync(store.Bucket, artifact.Location, token).ConfigureAwait(false))
-                    return await ReadBoundedAsync(response.ResponseStream, artifact.SizeBytes, token).ConfigureAwait(false);
+                    return await ReadBoundedAsync(response.ResponseStream, artifact.SizeBytes, limit, token).ConfigureAwait(false);
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -166,9 +172,9 @@ namespace Garrison.Server.Storage
             return new AmazonS3Client(resolved, config);
         }
 
-        private static async Task<byte[]> ReadBoundedAsync(Stream input, long size, CancellationToken token)
+        private static async Task<byte[]> ReadBoundedAsync(Stream input, long size, long limit, CancellationToken token)
         {
-            if (size < 0 || size > 64L * 1024 * 1024) throw new ValidationException("Artifact exceeds the supported download size.");
+            if (size < 0 || size > limit) throw new ValidationException("Artifact exceeds the configured download size limit of " + limit + " bytes.");
             using (MemoryStream output = new MemoryStream((int)size))
             {
                 byte[] buffer = new byte[16384];

@@ -13,6 +13,12 @@ namespace Garrison.Core.Compilation
     /// </summary>
     public class ExecutionSpec
     {
+        /// <summary>Opt-in durable continuation settings, or null.</summary>
+        public ExecutionContinuation? Continuation { get; set; } = null;
+
+        /// <summary>Resolved remote invocation, present only for RemoteA2A and RemoteMcp executors.</summary>
+        public ExecutionRemoteAgent? RemoteAgent { get; set; } = null;
+
         /// <summary>
         /// Run identifier.
         /// </summary>

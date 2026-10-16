@@ -1,13 +1,5 @@
-# Observability settings for the Garrison services. Use together with the observability profile:
-#
-#   docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d
-#
-# or ./update.sh --observability (update.bat --observability). The server and workers export traces over OTLP to
-# garrison-alloy, and the server learns where Grafana, Prometheus, Loki, and Tempo are: the browser-facing URLs on
-# 127.0.0.1 (the published ports) and the internal URLs it probes for the dashboard's observability cards.
-# To make this the default for plain `docker compose` commands, put these lines in .env:
-#   COMPOSE_FILE=compose.yaml:compose.observability.yaml     (use ; instead of : on Windows)
-#   COMPOSE_PROFILES=observability
+# Compatible explicit observability settings overlay. The base compose.yaml already enables the complete stack.
+# Existing commands using this file and --profile observability continue to work.
 
 x-worker-observability: &worker-observability
   GARRISON_WORKER_OTLP_ENABLE: 'true'

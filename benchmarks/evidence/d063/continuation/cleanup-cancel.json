@@ -1,0 +1,8 @@
+{
+  "status": "Cancelled",
+  "outcome": "Cancelled",
+  "transportCalls": 1,
+  "snapshotReported": false,
+  "privateDirectoriesRemoved": true,
+  "failedWorkRetained": true
+}

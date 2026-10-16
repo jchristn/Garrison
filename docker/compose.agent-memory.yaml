@@ -1,0 +1,8 @@
+# Optional provider-neutral persistent agent memory; no additional service or public port.
+# The base server-data volume is already mounted at /app/data.
+services:
+  garrison-server:
+    environment:
+      GARRISON_AGENT_MEMORY_ENABLE: 'true'
+      GARRISON_AGENT_MEMORY_ROOT: '${GARRISON_AGENT_MEMORY_ROOT:-/app/data/agent-memory}'
+      GARRISON_AGENT_MEMORY_MAX_VALUE_BYTES: '${GARRISON_AGENT_MEMORY_MAX_VALUE_BYTES:-65536}'

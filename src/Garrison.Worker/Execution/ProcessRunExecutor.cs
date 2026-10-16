@@ -5,6 +5,9 @@ namespace Garrison.Worker.Execution
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Net.Http;
+    using System.Security.Cryptography;
+    using Garrison.Core.Models;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
@@ -48,6 +51,7 @@ namespace Garrison.Worker.Execution
         {
             _Options = options ?? throw new ArgumentNullException(nameof(options));
             _Log = log;
+            _Workspace.GitCacheRoot = options.GitCacheRoot;
         }
 
         #endregion
@@ -66,10 +70,55 @@ namespace Garrison.Worker.Execution
             RunCompleteRequest complete = new RunCompleteRequest();
             HarnessTiming timing = new HarnessTiming();
             bool succeeded = false;
+            int suspensionRequested = 0;
 
             try
             {
                 ExecutionConversation? conversation = spec.Conversation;
+                bool portableRestore = spec.Continuation?.DownloadUrl != null;
+                bool preparedRestore = !portableRestore && spec.Workspace.DownloadUrl != null;
+                string? restoreUrl = portableRestore ? spec.Continuation!.DownloadUrl : spec.Workspace.DownloadUrl;
+                string? restoreHash = portableRestore ? spec.Continuation!.Sha256 : spec.Workspace.Sha256;
+                if (portableRestore || preparedRestore)
+                {
+                    try
+                    {
+                    if (Directory.Exists(directories.Root)) Directory.Delete(directories.Root, true);
+                    using (HttpClient download = new HttpClient { Timeout = TimeSpan.FromSeconds(spec.Artifacts?.TimeoutSeconds ?? 30) })
+                    using (HttpResponseMessage response = await Garrison.Core.Telemetry.ApplicationOperation.MeasureAsync("snapshot", "download-headers", ct => download.GetAsync(restoreUrl, HttpCompletionOption.ResponseHeadersRead, ct), token).ConfigureAwait(false))
+                    {
+                        response.EnsureSuccessStatusCode();
+                        long limit = spec.Artifacts?.MaxFileBytes ?? 16 * 1024 * 1024;
+                        if (response.Content.Headers.ContentLength > limit) throw new IOException("Checkpoint download exceeds the configured limit.");
+                        using (Stream source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
+                        using (MemoryStream archive = new MemoryStream())
+                        {
+                            await Garrison.Core.Telemetry.ApplicationOperation.MeasureAsync("snapshot", "download-body", async ct =>
+                            {
+                                byte[] buffer = new byte[16384];
+                                while (true)
+                                {
+                                    int read = await source.ReadAsync(buffer, ct).ConfigureAwait(false);
+                                    if (read == 0) break;
+                                    if (archive.Length + read > limit) throw new IOException("Checkpoint download exceeds the configured limit.");
+                                    await archive.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                                }
+                            }, token).ConfigureAwait(false);
+                            string hash = Convert.ToHexString(SHA256.HashData(archive.ToArray())).ToLowerInvariant();
+                            if (String.IsNullOrEmpty(restoreHash) || !String.Equals(hash, restoreHash, StringComparison.Ordinal)) throw new IOException("Checkpoint integrity check failed.");
+                            archive.Position = 0;
+                            await new WorkspaceSnapshot { IncludeSession = !preparedRestore }.RestoreAsync(archive, directories, token).ConfigureAwait(false);
+                            if (portableRestore) await SessionSnapshotPaths.RestoreAsync(directories, spec.HarnessType, spec.Continuation!.SessionFormat, spec.Continuation.SessionId, token).ConfigureAwait(false);
+                        }
+                    }
+                    }
+                    catch (Exception ex) when (preparedRestore && (ex is IOException || ex is HttpRequestException || (ex is OperationCanceledException && !token.IsCancellationRequested)))
+                    {
+                        preparedRestore = false;
+                        Lifecycle(reporter, "WorkspaceCacheUnavailable", "Prepared archive unavailable; preparing a fresh workspace.");
+                        if (Directory.Exists(directories.Root)) Directory.Delete(directories.Root, true);
+                    }
+                }
                 bool resuming = conversation != null && conversation.Resume && spec.RepairAttempt == 0;
                 if (conversation != null && spec.RepairAttempt == 0)
                 {
@@ -82,7 +131,7 @@ namespace Garrison.Worker.Execution
                         _Log?.Invoke("run " + assignment.RunId + ": " + lost + " " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
                         return Fail(complete, RunOutcomeEnum.ConversationStateLost, lost);
                     }
-                    if (!resuming && Directory.Exists(directories.Root))
+                    if (!resuming && !portableRestore && !preparedRestore && Directory.Exists(directories.Root))
                     {
                         // A turn that starts a new session (the first turn, or a fallback) starts from fresh directories.
                         Directory.Delete(directories.Root, true);
@@ -100,7 +149,28 @@ namespace Garrison.Worker.Execution
                     {
                         // A structured output repair, or a conversation turn that resumes, continues the session in the
                         // workspace the earlier execution left.
-                        if (spec.RepairAttempt == 0 && !resuming) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
+                        if (spec.RepairAttempt == 0 && !resuming && !portableRestore && !preparedRestore) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
+                        if (spec.Workspace.CacheKey != null && !portableRestore && !preparedRestore && spec.RepairAttempt == 0)
+                        {
+                            try
+                            {
+                                using (MemoryStream prepared = new MemoryStream())
+                                {
+                                    await new WorkspaceSnapshot { IncludeSession = false }.CaptureAsync(directories, prepared, token).ConfigureAwait(false);
+                                    await ArtifactUploader.StoreSnapshotAsync(assignment, prepared.ToArray(), token, ".garrison/prepared-" + spec.Workspace.CacheKey + ".zip").ConfigureAwait(false);
+                                }
+                            }
+                            catch (Exception ex) when (ex is IOException || ex is HttpRequestException || ex is Garrison.Sdk.GarrisonException)
+                            {
+                                Lifecycle(reporter, "WorkspaceCacheUnavailable", "Prepared workspace cache could not be stored (" + ex.GetType().Name + ").");
+                            }
+                        }
+                        if (spec.Workspace.Kind == WorkspaceKindEnum.GitRepository)
+                        {
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkspaceCacheRequests, 1, WorkspaceCacheTags(spec, "mirror", spec.Workspace.MirrorCacheHit && !preparedRestore));
+                            if (spec.Workspace.CacheKey != null) GarrisonMetrics.Count(GarrisonMetricCatalog.WorkspaceCacheRequests, 1, WorkspaceCacheTags(spec, "prepared", preparedRestore));
+                        }
+                        if (preparedRestore) Lifecycle(reporter, "WorkspaceCacheHit", "Restored prepared workspace snapshot for immutable commit " + spec.Workspace.GitRef + ".");
                         if (conversation != null) DeleteStaleResult(spec, directories);
                         foreach (ExecutionFile file in spec.Files) await FileMaterializer.WriteAsync(file, directories, token).ConfigureAwait(false);
                         GarrisonTracing.Ok(workspaceSpan);
@@ -161,7 +231,7 @@ namespace Garrison.Worker.Execution
 
                 // Codex app-server delivery (P12.2a): the driver holds stdin open, sends the prompt as one turn over
                 // JSON-RPC, and returns when the turn completes so stdin closes and the app-server exits.
-                CodexAppServerDriver? appServer = spec.AppServer != null ? AppServerDriver(spec, environment, directories, _Log == null ? null : line => _Log("run " + assignment.RunId + " " + line)) : null;
+                CodexAppServerDriver? appServer = spec.AppServer != null ? AppServerDriver(spec, environment, directories, _Log == null ? null : line => _Log("run " + assignment.RunId + " " + line), () => Interlocked.Exchange(ref suspensionRequested, 1)) : null;
                 if (appServer != null)
                 {
                     request.Stdin = null;
@@ -201,6 +271,7 @@ namespace Garrison.Worker.Execution
                                 parser.ParseLine(line, state);
                                 foreach (RunEventReport report in state.Drain())
                                 {
+                                    if (spec.Continuation != null && (report.Text?.Contains("GARRISON_CONTINUATION_WAIT", StringComparison.Ordinal) == true || report.RawEventJson?.Contains("GARRISON_CONTINUATION_WAIT", StringComparison.Ordinal) == true)) Interlocked.Exchange(ref suspensionRequested, 1);
                                     timing.Observe(report);
                                     EmitScrubbed(reporter, scrubber, report);
                                     onTrip(guard.Observe(report));
@@ -253,6 +324,25 @@ namespace Garrison.Worker.Execution
                 timing.ApplyTo(complete);
                 complete.CompletedUtc = DateTime.UtcNow;
                 succeeded = complete.Status == RunStatusEnum.Succeeded;
+                if (spec.Continuation != null && Volatile.Read(ref suspensionRequested) == 1 && complete.Status == RunStatusEnum.Succeeded)
+                {
+                    if (process.Killed || process.TimedOut || process.Cancelled || String.IsNullOrEmpty(complete.SessionId ?? appServer?.ThreadId))
+                        return Fail(complete, RunOutcomeEnum.InternalError, "ContinuationUnsupported: harness did not reach a durable session boundary.");
+                    complete.SessionId ??= appServer?.ThreadId;
+                    await SessionSnapshotPaths.WriteAsync(directories, complete.SessionId!, spec.Continuation.SessionFormat, token).ConfigureAwait(false);
+                    using (MemoryStream archive = new MemoryStream())
+                    {
+                        Stopwatch snapshotTimer = Stopwatch.StartNew();
+                        long bytes = await new WorkspaceSnapshot().CaptureAsync(directories, archive, token).ConfigureAwait(false);
+                        Artifact artifact = await ArtifactUploader.StoreSnapshotAsync(assignment, archive.ToArray(), token).ConfigureAwait(false);
+                        complete.SnapshotArtifactId = artifact.Id;
+                        complete.SessionFormat = spec.Continuation.SessionFormat;
+                        complete.Status = RunStatusEnum.Suspended;
+                        complete.CompletedUtc = default;
+                        snapshotTimer.Stop();
+                        Lifecycle(reporter, "RunSuspended", "Stored portable checkpoint (" + bytes + " uncompressed bytes, " + archive.Length + " archive bytes, " + snapshotTimer.ElapsedMilliseconds + " ms capture and upload). Slot and lease will be released after acceptance.");
+                    }
+                }
 
                 Lifecycle(reporter, "HarnessExited", "Harness exited" + (process.ExitCode.HasValue ? " with code " + process.ExitCode.Value : String.Empty) + ": " + complete.Status + " (" + complete.Outcome + ").");
                 if (spec.Artifacts != null && !token.IsCancellationRequested)
@@ -281,6 +371,9 @@ namespace Garrison.Worker.Execution
                 // Keep the directories when the control plane may ask for a repair in them; the worker host
                 // releases them once the run is finally reported. A conversation keeps its directories for the next turn
                 // until the conversation sweep removes them.
+                // Checkpoint capture/upload can fail after a successful harness exit. Retention follows the final
+                // execution result; failed checkpoints must preserve KeepOnFailure work while scrubbing HOME/config.
+                succeeded = complete.Status == RunStatusEnum.Succeeded || complete.Status == RunStatusEnum.Suspended;
                 bool keepForRepair = (spec.RetainForRepair && succeeded) || spec.RepairAttempt > 0;
                 if (spec.Conversation != null) TouchConversation(directories);
                 else if (!keepForRepair) Cleanup(directories, spec.Workspace, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
@@ -336,6 +429,13 @@ namespace Garrison.Worker.Execution
 
         #region Private-Methods
 
+        private static TagList WorkspaceCacheTags(ExecutionSpec spec, string cache, bool hit)
+        {
+            TagList tags = GarrisonMetrics.Tags("tenant", spec.TenantId, "agent", spec.AgentName, "deployment", spec.DeploymentId, "cache", cache);
+            tags.Add("result", hit ? "hit" : "miss");
+            return tags;
+        }
+
         private static async Task WatchIdleAsync(RunGuard guard, Action<RunGuardTrip?> onTrip, CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -350,7 +450,7 @@ namespace Garrison.Worker.Execution
             }
         }
 
-        private static CodexAppServerDriver AppServerDriver(ExecutionSpec spec, Dictionary<string, string> environment, RunDirectories directories, Action<string>? log)
+        private static CodexAppServerDriver AppServerDriver(ExecutionSpec spec, Dictionary<string, string> environment, RunDirectories directories, Action<string>? log, Action suspendRequested)
         {
             ExecutionAppServer settings = spec.AppServer ?? new ExecutionAppServer();
             CodexAppServerOptions options = new CodexAppServerOptions();
@@ -368,6 +468,7 @@ namespace Garrison.Worker.Execution
                 // run token; everything else keeps the headless answer.
                 CodexApprovalRelay relay = new CodexApprovalRelay(spec.ApprovalRelay);
                 relay.Log = log;
+                if (spec.Continuation != null) relay.SuspendRequested = suspendRequested;
                 relay.Attach(driver);
             }
             return driver;

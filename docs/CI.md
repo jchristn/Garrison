@@ -1,6 +1,6 @@
 # Continuous Integration
 
-GitHub Actions runs the smoke workflows only on pushes, without scheduled, pull-request, or manual triggers. Path filters avoid unrelated backend, dashboard, and Kubernetes jobs. Each workflow cancels an older run on the same branch. One workflow is an exception: `Isolation` also runs on demand (D-053). `Security scans` runs on pushes only like the rest (D-055), so an advisory published between pushes shows up on the next push.
+General backend, dashboard, Kubernetes-rendering, text-hygiene and security workflows run on path-filtered pushes. Dedicated isolation, recorded-session and effect-safety workflows have the additional triggers listed below. Workflow configuration is the source of truth; a configured job is not evidence that its latest hosted run passed. Local P12.34 acceptance does not require hosted CI.
 
 | Workflow | Commit checks | Timeout |
 |---|---|---|
@@ -10,7 +10,16 @@ GitHub Actions runs the smoke workflows only on pushes, without scheduled, pull-
 | Text hygiene | Repository punctuation check | 3 minutes |
 | Security scans | Vulnerable NuGet packages (transitive), `npm audit` for the dashboard and JavaScript SDK, `pip-audit` for the Python SDK, `govulncheck` for the Go SDK, and Trivy over the server, worker, and dashboard images built from the commit. Fails on High or Critical findings with a fix available | 10 minutes per job, 30 for images |
 
-Backend results are retained for three days. No PostgreSQL services, framework matrix, duplicate xUnit/NUnit adapters, Docker image builds, K3S deployment, browser/contract tests, SDK harnesses, or benchmarks run automatically. This policy reduces Actions usage; passing smoke checks does not imply full regression coverage.
+Additional targeted workflows:
+
+| Workflow | Triggers | Checks | Timeout |
+| --- | --- | --- | --- |
+| Isolation | Filtered pushes and manual dispatch | Build candidate images, disposable k3d cluster, per-run isolation and egress attacks | 30 minutes |
+| Recorded session compatibility | Filtered pull requests and manual dispatch | Build pinned candidate worker images with and without Gemini; installed CLI readers resume sanitized recordings without external network or provider credentials | 30 minutes per variant |
+| Effect safety: effect boundaries | Filtered pull requests, weekly schedule and manual dispatch | .NET 10 suites across SQLite and disposable PostgreSQL | 15 minutes |
+| Effect safety: cluster effects | Weekly schedule and manual dispatch | Disposable Kubernetes external-effect policy matrix and actual worker loss | 40 minutes |
+
+Backend smoke results are retained for three days; effect-safety artifacts for 30 days. Dedicated workflows build images or start PostgreSQL/Kubernetes where listed. There is no general .NET 8/10 framework matrix, full backend suite, full browser suite, SDK harness run or capacity benchmark on every push. Passing a smoke or targeted workflow does not imply full regression coverage. Workflow-built images are not published by these checks.
 
 Run broader checks locally when the change warrants them:
 

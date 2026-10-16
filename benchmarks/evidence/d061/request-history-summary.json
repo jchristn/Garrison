@@ -1,0 +1,67 @@
+{
+  "fixture": "Three PostgreSQL control-plane replicas, six fake CLI workers with 16 slots each; concurrency 16 closed loop; five seconds warmup plus thirty seconds measurement per arm; seed 42 initial A/B selection produces off/on/on/off ABBA. Shared development host, root isolated backend tests overlap first arm.",
+  "scope": "No intrinsic latency SLO or universal request-history cost claim. Whole-server SQL deltas are estimates, while completed lifecycle scope counters are exact inside those scopes and exclude HTTP history capture.",
+  "historyOriginalAndRestored": true,
+  "runs": 4093,
+  "failures": 0,
+  "arms": [
+    {
+      "label": "d062-history-off1",
+      "succeeded": 1018,
+      "failed": 0,
+      "throughputPerSecond": 33.629498437635604,
+      "p50Ms": 473.8462999999974,
+      "p95Ms": 678.7562999999973,
+      "exactDbUsageRuns": 1018,
+      "exactDbUsageMissingRuns": 0,
+      "exactScopedDbStatementsPerRun": 150.55893909626718,
+      "estimatedDbStatementsPerSucceededRun": 166.38998035363457,
+      "estimatedBatchedHistoryHeaderInsertsPerSucceededRun": 0,
+      "report": "20261016-145710-load-synthetic-fleet-d062-history-off1.json"
+    },
+    {
+      "label": "d062-history-on1",
+      "succeeded": 1037,
+      "failed": 0,
+      "throughputPerSecond": 34.247496551760925,
+      "p50Ms": 455.0877999999975,
+      "p95Ms": 678.6900999999998,
+      "exactDbUsageRuns": 1037,
+      "exactDbUsageMissingRuns": 0,
+      "exactScopedDbStatementsPerRun": 150.5814850530376,
+      "estimatedDbStatementsPerSucceededRun": 167.58052073288331,
+      "estimatedBatchedHistoryHeaderInsertsPerSucceededRun": 0.9990356798457087,
+      "report": "20261016-145751-load-synthetic-fleet-d062-history-on1.json"
+    },
+    {
+      "label": "d062-history-on2",
+      "succeeded": 1021,
+      "failed": 0,
+      "throughputPerSecond": 33.755050620112016,
+      "p50Ms": 466.1474999999991,
+      "p95Ms": 696.703800000003,
+      "exactDbUsageRuns": 1021,
+      "exactDbUsageMissingRuns": 0,
+      "exactScopedDbStatementsPerRun": 150.43486777668952,
+      "estimatedDbStatementsPerSucceededRun": 169.56317335945153,
+      "estimatedBatchedHistoryHeaderInsertsPerSucceededRun": 1,
+      "report": "20261016-145832-load-synthetic-fleet-d062-history-on2.json"
+    },
+    {
+      "label": "d062-history-off2",
+      "succeeded": 1017,
+      "failed": 0,
+      "throughputPerSecond": 33.609085025443086,
+      "p50Ms": 467.3159999999998,
+      "p95Ms": 686.5155999999988,
+      "exactDbUsageRuns": 1017,
+      "exactDbUsageMissingRuns": 0,
+      "exactScopedDbStatementsPerRun": 150.64601769911505,
+      "estimatedDbStatementsPerSucceededRun": 165.58308751229106,
+      "estimatedBatchedHistoryHeaderInsertsPerSucceededRun": 0,
+      "report": "20261016-145914-load-synthetic-fleet-d062-history-off2.json"
+    }
+  ],
+  "interpretation": "Throughput and p95 differences lie within the short counterbalanced shared-host bracket. No reliable throughput penalty or speedup is established. Header inserts are batched once per captured HTTP request, rather than one SQL statement per header.",
+  "benchmarkSha256": "a25e4e614b368f6e67b7f70e843bf7111ed73ed1468e9ff0782196b4450c7e0b"
+}

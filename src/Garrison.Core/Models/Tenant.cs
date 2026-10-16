@@ -99,8 +99,16 @@ namespace Garrison.Core.Models
 
         #endregion
 
+        /// <summary>Relative scheduling share, default 1, minimum 1, maximum 1000. Fairness is approximate across replicas.</summary>
+        public int SchedulingWeight
+        {
+            get { return _SchedulingWeight; }
+            set { _SchedulingWeight = Math.Clamp(value, 1, 1000); }
+        }
+
         #region Private-Members
 
+        private int _SchedulingWeight = 1;
         private string _Id = IdGenerator.NewTenantId();
         private string _Name = String.Empty;
         private DateTime _CreatedUtc = DateTime.UtcNow;

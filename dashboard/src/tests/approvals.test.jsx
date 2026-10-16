@@ -86,7 +86,7 @@ describe('approvals navigation and enums', () => {
   it('mirrors the server enums and the new audit event', () => {
     expect(ENUMS.approvalStatus).toEqual(['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled']);
     expect(ENUMS.approvalRuleAction).toEqual(['Allow', 'Deny', 'Ask']);
-    expect(ENUMS.approvalSource).toEqual(['Rule', 'Default', 'User', 'Timeout', 'Cancelled']);
+    expect(ENUMS.approvalSource).toEqual(['Rule', 'Default', 'User', 'Timeout', 'Cancelled', 'DurableResume']);
     expect(ENUMS.approvalKind).toEqual(['Tool', 'Command', 'FileChange']);
     expect(ENUMS.auditEventType).toContain('ApprovalDecided');
     expect(ENUMS.resourceType).toContain('Approval');
@@ -253,7 +253,7 @@ describe('deployment editor approvals', () => {
   it('adds an Approvals step with the settings, ordered rules, and the tester', () => {
     expect(deploymentsConfig.steps.at(-1)).toBe('approvals');
     const fields = deploymentsConfig.fields(deploymentsConfig.toForm(record), { t, i18n, mode: 'edit', options: {} }).filter((f) => f.step === 6);
-    expect(fields.map((f) => f.name)).toEqual(['approvalsEnabled', 'approvalDefaultAction', 'approvalTimeoutSeconds', 'approvalTimeoutDecision', 'approvalRules', 'approvalTest']);
+    expect(fields.map((f) => f.name)).toEqual(['approvalsEnabled', 'suspensionEnabled', 'approvalDefaultAction', 'approvalTimeoutSeconds', 'approvalTimeoutDecision', 'approvalRules', 'approvalTest']);
     const rules = fields.find((f) => f.name === 'approvalRules');
     expect(rules.ordered).toBe(true);
     expect(rules.fields.map((f) => f.name)).toEqual(['action', 'pattern', 'inputPattern', 'description']);

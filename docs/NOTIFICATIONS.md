@@ -33,7 +33,7 @@ An endpoint only ever receives events that happened after it was created. Creati
 | `PipelineFailed` | A pipeline run finished `Failed`, `TimedOut`, or `Cancelled` |
 | `ApprovalRequested` | A permission approval is waiting for a person, or a pipeline stage review was requested |
 
-Every run counts, including delegated child runs and pipeline stage runs, so an endpoint that subscribes to `RunFailed` for a busy agent should expect traffic. `ApprovalRequested` skips permission requests that a deployment rule or the deployment default decided on the spot; those never waited for anyone. A seventh value, `Test`, is used by the test action and cannot be subscribed to.
+Every run counts, including delegated child runs and pipeline stage runs, so an endpoint that subscribes to `RunFailed` for a busy agent should expect traffic. `ApprovalRequested` skips permission requests that a deployment rule or the deployment default decided on the spot; those never waited for anyone. The additional value `Test` is used by the test action and cannot be subscribed to.
 
 The `agentId` and `deploymentId` filters narrow run events, permission approvals, and stage reviews to runs of that agent or that deployment. Pipeline runs have no single agent, so an endpoint with either filter set receives no pipeline events at all. Use a separate unfiltered endpoint for those.
 

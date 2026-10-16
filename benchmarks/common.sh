@@ -16,7 +16,7 @@ set -euo pipefail
 BENCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${BENCH_DIR}/.." && pwd)"
 RUN_DIR="${BENCH_DIR}/.run"
-BUILD_DIR="${RUN_DIR}/build"
+BUILD_DIR="${BENCH_BUILD_DIR:-${RUN_DIR}/build}"
 LOCAL_DIR="${RUN_DIR}/local"
 
 CLUSTER_NAME="garrison-bench"

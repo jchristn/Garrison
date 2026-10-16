@@ -26,6 +26,10 @@ namespace Garrison.Server.Runtime
     {
         #region Public-Members
 
+        /// <summary>Revocable credential provider, or null when disabled.</summary>
+        public CredentialBrokerService? CredentialBroker { get; set; } = null;
+
+
         /// <summary>
         /// Cancelled when the replica starts shutting down; synchronous waits then return the run as it is.
         /// Default <see cref="CancellationToken.None"/>.
@@ -131,11 +135,22 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown with ConversationBusy when the requested conversation's previous turn is unfinished, or with ConversationAgentMismatch, ConversationDeploymentMismatch, or ConversationDeploymentUnavailable.</exception>
         public async Task<Run> CreateAsync(RunCreateContext create, CancellationToken token = default)
         {
+            return await RunDatabaseTelemetry.MeasureCreatedAsync(_Database, create?.TenantId ?? string.Empty, ct => CreateMeasuredCoreAsync(create!, token), token).ConfigureAwait(false);
+        }
+
+        private async Task<Run> CreateMeasuredCoreAsync(RunCreateContext create, CancellationToken token = default)
+        {
             if (create == null) throw new ArgumentNullException(nameof(create));
             if (String.IsNullOrEmpty(create.TenantId)) throw new ValidationException("A tenant is required.");
             if (create.Agent == null || String.IsNullOrEmpty(create.Agent.Id)) throw new ValidationException("An agent is required.");
             if (!create.Agent.Active) throw new ConflictException("AgentInactive", "Agent " + create.Agent.Name + " is inactive.");
-            if (create.Agent.Kind != AgentKindEnum.Hosted) throw new ConflictException("RemoteAgentNotSupported", "Invoking remote agents is not available yet (plan Phase 12).");
+            bool remote = create.Agent.Kind == AgentKindEnum.Remote;
+            if (remote)
+            {
+                RemoteAgentPolicy.Require(create.Agent);
+                if (create.StartConversation || !String.IsNullOrEmpty(create.ConversationId) || !String.IsNullOrEmpty(create.DeploymentId))
+                    throw new ConflictException("RemoteDeploymentUnsupported", "Remote registrations do not use hosted deployments or harness conversations.");
+            }
 
             if (!String.IsNullOrEmpty(create.IdempotencyKey))
             {
@@ -146,8 +161,10 @@ namespace Garrison.Server.Runtime
             // A conversation turn runs on the conversation's deployment (P12.1).
             ConversationTurnPlan? plan = _Conversations != null ? await _Conversations.ResolveAsync(create, token).ConfigureAwait(false) : null;
 
-            Deployment deployment = await SelectDeploymentAsync(create, token).ConfigureAwait(false);
-            HarnessProfile profile = await _Database.HarnessProfiles.ReadAsync(create.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false)
+            if (remote && (!String.IsNullOrEmpty(create.DeploymentId) || plan != null))
+                throw new ConflictException("RemoteDeploymentUnsupported", "Remote registrations define their own endpoint and do not use hosted deployments or harness conversations.");
+            Deployment deployment = remote ? new Deployment { Id = create.Agent.Id, TenantId = create.TenantId, AgentId = create.Agent.Id, Name = create.Agent.Name, MaxAttempts = 1 } : await SelectDeploymentAsync(create, token).ConfigureAwait(false);
+            HarnessProfile profile = remote ? new HarnessProfile { HarnessType = HarnessTypeEnum.Generic } : await _Database.HarnessProfiles.ReadAsync(create.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Harness profile " + deployment.HarnessProfileId + " for deployment " + deployment.Name + " was not found.");
 
             Run run = new Run();
@@ -160,7 +177,8 @@ namespace Garrison.Server.Runtime
             run.HarnessType = profile.HarnessType;
             run.NodePoolId = deployment.NodePoolId;
             NodePool? pool = !deployment.Executor.HasValue && !String.IsNullOrEmpty(deployment.NodePoolId) ? await _Database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false) : null;
-            ExecutorCapabilityRules.Admit(run, deployment, pool);
+            if (remote) run.Executor = create.Agent.RemoteProtocol == RemoteProtocolEnum.A2A ? RunExecutorEnum.RemoteA2A : RunExecutorEnum.RemoteMcp;
+            else ExecutorCapabilityRules.Admit(run, deployment, pool);
             // P12.29: the run keeps the policy it was admitted under; the lease reaper reads it from the run.
             run.EffectPolicy = deployment.EffectPolicy;
             run.Kind = create.Kind;
@@ -233,7 +251,13 @@ namespace Garrison.Server.Runtime
                 Run stored;
                 try
                 {
-                    stored = await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                    stored = await _Database.Runs.CreateAsync(run, new QueueDepthLimits { Cluster = _Options.QueueDepthCluster, Tenant = _Options.QueueDepthTenant, Agent = _Options.QueueDepthAgent }, token).ConfigureAwait(false);
+                }
+                catch (QueueFullException e)
+                {
+                    if (plan != null) await _Conversations!.ReleaseTurnAsync(plan, run, CancellationToken.None).ConfigureAwait(false);
+                    await _Database.Audit.CreateAsync(new AuditRecord { TenantId = run.TenantId, EventType = AuditEventTypeEnum.QueueFull, ResourceType = "Agent", ResourceId = run.AgentId, PrincipalId = run.CallerId, Description = e.Message }, token).ConfigureAwait(false);
+                    throw;
                 }
                 catch (Exception)
                 {
@@ -270,6 +294,11 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown when the run already finished.</exception>
         public async Task<Run> CancelAsync(Run run, CancellationToken token = default)
         {
+            return await RunDatabaseTelemetry.MeasureAsync(_Database, run.TenantId, run.Id, "cancel", ct => CancelMeasuredCoreAsync(run, token), token).ConfigureAwait(false);
+        }
+
+        private async Task<Run> CancelMeasuredCoreAsync(Run run, CancellationToken token = default)
+        {
             if (run == null) throw new ArgumentNullException(nameof(run));
             return await CancelAsync(run, "request", token).ConfigureAwait(false);
         }
@@ -284,6 +313,11 @@ namespace Garrison.Server.Runtime
         /// <returns>True when a cancellation was requested.</returns>
         /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
         public async Task<bool> CancelForPipelineAsync(Run run, CancellationToken token = default)
+        {
+            return await RunDatabaseTelemetry.MeasureAsync(_Database, run.TenantId, run.Id, "pipeline_cancel", ct => CancelForPipelineMeasuredCoreAsync(run, token), token).ConfigureAwait(false);
+        }
+
+        private async Task<bool> CancelForPipelineMeasuredCoreAsync(Run run, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (TerminalStatuses.Contains(run.Status) || run.Status == RunStatusEnum.Cancelling) return false;
@@ -339,6 +373,7 @@ namespace Garrison.Server.Runtime
             queued.RunId = run.Id;
             queued.FromStatuses.Add(RunStatusEnum.Queued);
             queued.FromStatuses.Add(RunStatusEnum.Pending);
+            queued.FromStatuses.Add(RunStatusEnum.Suspended);
             queued.ToStatus = RunStatusEnum.Cancelled;
             queued.Outcome = RunOutcomeEnum.Cancelled;
             queued.SetCompleted = true;
@@ -363,6 +398,7 @@ namespace Garrison.Server.Runtime
             }
 
             // A queued run is finished now, so its completion waiters wake too; an active run finishes when its worker reports.
+            if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, run.LeaseEpoch, token).ConfigureAwait(false);
             if (finished) _Signals.Complete(run.Id);
             else _Signals.Notify(run.Id);
             if (Approvals != null) await Approvals.CancelPendingAsync(run.Id, "The run was cancelled.", token).ConfigureAwait(false);
@@ -454,6 +490,36 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>Run, or null when it no longer exists.</returns>
         public async Task<Run?> WaitAsync(string tenantId, string runId, int waitSeconds, CancellationToken token = default)
+        {
+            return await RunDatabaseTelemetry.MeasureAsync(_Database, tenantId, runId, "wait", ct => WaitMeasuredCoreAsync(tenantId, runId, waitSeconds, ct), token).ConfigureAwait(false);
+        }
+
+        private async Task<Run?> WaitMeasuredCoreAsync(string tenantId, string runId, int waitSeconds, CancellationToken token = default)
+        {
+            if (!_Options.SynchronousWaits.TryEnter(_Options.MaxSynchronousWaiters))
+                return await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
+            try
+            {
+                return await WaitReservedCoreAsync(tenantId, runId, waitSeconds, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _Options.SynchronousWaits.Release();
+            }
+        }
+
+        /// <summary>Wait using a budget slot already owned by the caller. The caller releases it in its outer finally.</summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="waitSeconds">Maximum wait in seconds.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Latest run state.</returns>
+        internal async Task<Run?> WaitReservedAsync(string tenantId, string runId, int waitSeconds, CancellationToken token)
+        {
+            return await RunDatabaseTelemetry.MeasureAsync(_Database, tenantId, runId, "wait", ct => WaitReservedCoreAsync(tenantId, runId, waitSeconds, ct), token).ConfigureAwait(false);
+        }
+
+        private async Task<Run?> WaitReservedCoreAsync(string tenantId, string runId, int waitSeconds, CancellationToken token)
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(Math.Clamp(waitSeconds, 0, 600));
             using (RunSignalSubscription signal = _Signals.SubscribeCompletion(runId))

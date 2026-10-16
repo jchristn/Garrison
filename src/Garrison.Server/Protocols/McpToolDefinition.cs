@@ -43,6 +43,9 @@ namespace Garrison.Server.Protocols
         /// </summary>
         public Garrison.Core.Enums.OperationTypeEnum Operation { get; set; } = Garrison.Core.Enums.OperationTypeEnum.Read;
 
+        /// <summary>Trusted hosted-tool effect annotations; missing hints classify the tool as effectful.</summary>
+        public Garrison.Core.Models.EffectToolMetadata? Annotations { get; set; } = null;
+
         /// <summary>Tenant configuration tool. Hidden from and denied to hosted run tokens.</summary>
         public bool ManagementTool { get; set; } = false;
 

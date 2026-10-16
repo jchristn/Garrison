@@ -51,6 +51,9 @@ namespace Garrison.Core.Compilation
         /// </summary>
         public ISecretPreparer? SecretPreparer { get; set; } = null;
 
+        /// <summary>Epoch-aware provider credential resolver, invoked only for actual run and repair compiles.</summary>
+        public ILeaseSecretPreparer? LeaseSecretPreparer { get; set; } = null;
+
         /// <summary>
         /// Deployment prompt role used for the structured output repair prompt.
         /// </summary>
@@ -201,8 +204,11 @@ namespace Garrison.Core.Compilation
         public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CompilationConversation? conversation, CompilationPipeline? pipeline, Node? node, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
+            if (run.Executor == RunExecutorEnum.RemoteA2A || run.Executor == RunExecutorEnum.RemoteMcp)
+                return await CompileRemoteAsync(run, token).ConfigureAwait(false);
             bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline).ConfigureAwait(false);
+            await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -225,6 +231,7 @@ namespace Garrison.Core.Compilation
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (repair == null) throw new ArgumentNullException(nameof(repair));
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token).ConfigureAwait(false);
+            await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, null, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, repair);
@@ -336,6 +343,50 @@ namespace Garrison.Core.Compilation
             return leased?.Containerized == true;
         }
 
+        private async Task<CompilationResult> CompileRemoteAsync(Run run, CancellationToken token)
+        {
+            Agent agent = await _Database.Agents.ReadAsync(run.TenantId, run.AgentId, token).ConfigureAwait(false)
+                ?? throw new CompilationException("ReferenceNotFound", "Remote agent was deleted before claim.");
+            try { RemoteAgentPolicy.Require(agent); }
+            catch (ConflictException e) { throw new CompilationException(e.Code, e.Message, e); }
+            RunExecutorEnum executor = agent.RemoteProtocol == RemoteProtocolEnum.A2A ? RunExecutorEnum.RemoteA2A : RunExecutorEnum.RemoteMcp;
+            if (executor != run.Executor) throw new CompilationException("RemoteRegistrationChanged", "Remote agent protocol changed after admission.");
+            ExecutionRemoteAgent remote = new ExecutionRemoteAgent
+            {
+                Protocol = agent.RemoteProtocol!.Value,
+                EndpointUrl = agent.RemoteEndpointUrl!,
+                ToolName = agent.McpToolName,
+                Input = run.InputText ?? String.Empty,
+                ExpiresUtc = agent.RegistrationTtlSeconds > 0 ? agent.LastRegisteredUtc!.Value.AddSeconds(agent.RegistrationTtlSeconds) : null
+            };
+            ExecutionSpec spec = new ExecutionSpec { RunId = run.Id, TenantId = run.TenantId, AgentName = run.AgentName, DeploymentId = run.DeploymentId, Executor = executor, RemoteAgent = remote };
+            if (!String.IsNullOrEmpty(agent.RemoteCredentialSecretId))
+            {
+                Secret secret = await _Database.Secrets.ReadAsync(run.TenantId, agent.RemoteCredentialSecretId, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Remote credential secret was not found in the run's tenant.");
+                if (!secret.Active) throw new CompilationException("SecretInactive", "Remote credential secret is inactive.");
+                if (secret.Kind == SecretKindEnum.LeaseBroker) secret = await PrepareLeaseSecretAsync(secret, run, token).ConfigureAwait(false);
+                remote.BearerToken = Decrypt(secret);
+                if (!String.IsNullOrEmpty(remote.BearerToken)) spec.ScrubValues.Add(remote.BearerToken);
+            }
+            return new CompilationResult { Spec = spec, TaskPrompt = remote.Input };
+        }
+
+        private async Task PrepareLeaseSecretsAsync(CompilationInputs inputs, Run run, CancellationToken token)
+        {
+            foreach (string alias in inputs.Secrets.Keys.ToList())
+                if (inputs.Secrets[alias].Kind == SecretKindEnum.LeaseBroker)
+                    inputs.Secrets[alias] = await PrepareLeaseSecretAsync(inputs.Secrets[alias], run, token).ConfigureAwait(false);
+            if (inputs.WorkspaceSecret?.Kind == SecretKindEnum.LeaseBroker)
+                inputs.WorkspaceSecret = await PrepareLeaseSecretAsync(inputs.WorkspaceSecret, run, token).ConfigureAwait(false);
+        }
+
+        private Task<Secret> PrepareLeaseSecretAsync(Secret secret, Run run, CancellationToken token)
+        {
+            if (LeaseSecretPreparer == null) throw new CredentialUnavailableException("CredentialBrokerDisabled", secret.Id, secret.Name, "No operator credential broker is configured.");
+            return LeaseSecretPreparer.PrepareAsync(secret, run, token);
+        }
+
         private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false, CompilationPipeline? pipeline = null)
         {
             CompilationInputs inputs = new CompilationInputs();
@@ -386,7 +437,7 @@ namespace Garrison.Core.Compilation
                 }
             }
 
-            if (!String.IsNullOrEmpty(inputs.Deployment.ArtifactStoreId) && inputs.Deployment.ArtifactGlobs.Count > 0)
+            if (!String.IsNullOrEmpty(inputs.Deployment.ArtifactStoreId) && (inputs.Deployment.ArtifactGlobs.Count > 0 || inputs.Deployment.SuspensionEnabled || !String.IsNullOrEmpty(inputs.Deployment.WorkspaceTemplateId)))
                 inputs.ArtifactStore = await _Database.ArtifactStores.ReadAsync(tenantId, inputs.Deployment.ArtifactStoreId, token).ConfigureAwait(false)
                     ?? throw new CompilationException("ReferenceNotFound", "Artifact store was not found.");
 
@@ -539,7 +590,7 @@ namespace Garrison.Core.Compilation
             spec.DeploymentId = deployment.Id;
             spec.DeploymentName = deployment.Name;
             spec.HarnessType = profile.HarnessType;
-            if (deployment.ArtifactGlobs.Count > 0 && inputs.ArtifactStore?.Active == true)
+            if ((deployment.ArtifactGlobs.Count > 0 || deployment.SuspensionEnabled || inputs.Workspace?.Kind == WorkspaceKindEnum.GitRepository) && inputs.ArtifactStore?.Active == true)
             {
                 spec.Artifacts = new ExecutionArtifacts
                 {
@@ -548,6 +599,13 @@ namespace Garrison.Core.Compilation
                     MaxTotalBytes = _Options.ArtifactCollection.MaxTotalBytes, MaxFiles = _Options.ArtifactCollection.MaxFiles,
                     MaxScanEntries = _Options.ArtifactCollection.MaxScanEntries, TimeoutSeconds = _Options.ArtifactCollection.TimeoutSeconds
                 };
+            }
+
+            if (deployment.SuspensionEnabled)
+            {
+                if (run.Executor != RunExecutorEnum.Process || !profile.SupportsResume || !profile.IsolateHome || String.IsNullOrEmpty(profile.SessionFormat) || spec.Artifacts == null)
+                    throw new CompilationException("ContinuationUnsupported", "Suspension requires a Process harness with isolated HOME, resume support, a pinned session format, and an active artifact store.");
+                spec.Continuation = new ExecutionContinuation { SessionFormat = profile.SessionFormat };
             }
 
             Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
@@ -604,6 +662,18 @@ namespace Garrison.Core.Compilation
                 context.Set("pipeline", pipelineMap);
                 task = RenderPrompt(inputs, PipelineStageRole, context, includes, usedIncludes);
             }
+            if (repair == null && pipeline != null && !String.IsNullOrWhiteSpace(inputs.Agent.InputSchemaJson))
+            {
+                List<InputSchemaViolation> violations = new InputSchemaValidator().Validate(inputs.Agent.InputSchemaJson, task);
+                if (violations.Count > 0)
+                {
+                    string code = violations.Any(violation => violation.Code == InputSchemaValidator.NotJsonCode)
+                        ? InputSchemaValidator.NotJsonCode : InputSchemaValidator.ViolationCode;
+                    throw new CompilationException(code, "Pipeline stage " + pipeline.Position + " (" + pipeline.StageName + ") input does not match the agent's input schema: "
+                        + String.Join(" ", violations.Select(violation => violation.Field + ": " + violation.Message)));
+                }
+            }
+            if (run.ContinuationPrompt != null) task = run.ContinuationPrompt;
             string taskPrompt = task;
             if (repair == null && profile.SystemPromptDelivery == SystemPromptDeliveryEnum.PrependToPrompt && system.Length > 0)
             {
@@ -991,7 +1061,7 @@ namespace Garrison.Core.Compilation
             runMap["conversationId"] = run.ConversationId;
             // Harnesses that keep no session unless asked (Mux print mode) persist one when a later execution may resume
             // it: a structured output repair or the next conversation turn.
-            runMap["persistSession"] = !String.IsNullOrWhiteSpace(agent.OutputSchemaJson) || !String.IsNullOrEmpty(run.ConversationId);
+            runMap["persistSession"] = inputs.Deployment.SuspensionEnabled || !String.IsNullOrWhiteSpace(agent.OutputSchemaJson) || !String.IsNullOrEmpty(run.ConversationId);
             context.Set("run", runMap);
 
             Dictionary<string, object?> conversationMap = TemplateContext.NewMap();
@@ -1122,7 +1192,7 @@ namespace Garrison.Core.Compilation
             List<McpServerEntry> servers = new List<McpServerEntry>();
             int index = 0;
 
-            if (delegationEnabled || approvalsEnabled)
+            if (delegationEnabled || approvalsEnabled || (_Options.AgentMemoryEnabled && !String.IsNullOrEmpty(runToken)))
             {
                 McpServerEntry garrison = new McpServerEntry();
                 garrison.Name = Constants.McpServerName;
@@ -1434,6 +1504,7 @@ namespace Garrison.Core.Compilation
             if (inputs.Workspace == null) return workspace;
             WorkspaceTemplate template = inputs.Workspace;
             workspace.Kind = template.Kind;
+            if (inputs.ArtifactStore != null) workspace.CacheKey = WorkspaceCacheKey.For(inputs.Deployment.TenantId, template, inputs.WorkspaceSecret);
             workspace.GitUrl = template.GitUrl;
             workspace.GitRef = template.GitRef;
             workspace.GitDepth = template.GitDepth;
@@ -1551,9 +1622,11 @@ namespace Garrison.Core.Compilation
             {
                 foreach (ExecutionEnvironmentVariable header in check.Headers) header.Value = Redacted;
             }
+            if (spec.Workspace.DownloadUrl != null) spec.Workspace.DownloadUrl = Redacted;
             if (spec.Workspace.GitPassword != null) spec.Workspace.GitPassword = Redacted;
             if (spec.ApprovalRelay != null) spec.ApprovalRelay.BearerToken = Redacted;
             if (spec.Artifacts != null) spec.Artifacts.BearerToken = Redacted;
+            if (spec.Continuation != null && spec.Continuation.DownloadUrl != null) spec.Continuation.DownloadUrl = Redacted;
             spec.Stdin = Clean(spec.Stdin);
             spec.ScrubValues = secrets.Select(s => Redacted).ToList();
         }

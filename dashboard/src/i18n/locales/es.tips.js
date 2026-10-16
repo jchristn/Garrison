@@ -353,6 +353,7 @@ const tips = {
       Deny: 'Denegar: el harness recibió un rechazo con el motivo.'
     },
     approvalSource: {
+      DurableResume: "Una aprobación humana de un solo uso conservada desde el punto de control anterior. Solo se aplica a la solicitud de herramienta reanudada que coincida.",
       Rule: 'La decidió al instante una regla del despliegue. La regla coincidente se muestra al lado.',
       Default: 'Ninguna regla coincidió, así que la decidió la acción predeterminada del despliegue.',
       User: 'La decidió una persona en el panel, mediante la API o mediante MCP.',

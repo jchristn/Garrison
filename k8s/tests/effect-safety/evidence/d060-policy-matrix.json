@@ -1,0 +1,209 @@
+{
+  "startedUtc": "2026-10-16T06:42:12.915109+00:00",
+  "context": "k3d-garrison-effects-d060",
+  "namespace": "garrison-effects",
+  "cases": [
+    {
+      "policy": "AtMostOnce",
+      "phase": "before",
+      "runId": "run_mvalod5x_HejLijapDHBdz3Xjej8",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-kllxf",
+        "uid": "86ad6ff9-7f93-4e13-be5c-77e925dcabec",
+        "runtimeContainerId": "e514ec387176979b115f4672444f1095c2ce8f0c32014092e7c27250b3230671",
+        "killUtc": "2026-10-16T06:42:13.386028+00:00",
+        "processStoppedUtc": "2026-10-16T06:42:15.856620+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": []
+    },
+    {
+      "policy": "AtMostOnce",
+      "phase": "after",
+      "runId": "run_mvalolk6_6R7Ha7fhAQdXILV6gcM",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-2tj7d",
+        "uid": "1396c63a-27ae-4555-99ad-7f43939dd6f5",
+        "runtimeContainerId": "7d2700bac9585bde0c85ddd14cf46e2d6e9e2ea491f8793b35258180f5cb8ce4",
+        "killUtc": "2026-10-16T06:42:24.205743+00:00",
+        "processStoppedUtc": "2026-10-16T06:42:26.568387+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvalolk6_6R7Ha7fhAQdXILV6gcM",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T06:42:24.062Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtMostOnce",
+      "phase": "complete",
+      "runId": "run_mvalousw_mWzU10CejrC356vdzz7",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-dpfjw",
+        "uid": "c5b947d4-654f-4fd9-b3a2-47e1190f1aca",
+        "runtimeContainerId": "07ee89138ec51de1e3962b473b12a9355c63e4f6f5ffe76f650d74c95c4ca162",
+        "killUtc": "2026-10-16T06:42:36.201273+00:00",
+        "processStoppedUtc": "2026-10-16T06:42:36.527952+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvalousw_mWzU10CejrC356vdzz7",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T06:42:36.055Z"
+        }
+      ]
+    },
+    {
+      "policy": "Journaled",
+      "phase": "before",
+      "runId": "run_mvalowpn_ChyluaRl2vebZhwmZou",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-wq6mm",
+        "uid": "a3f3a8a6-d1b3-4c6d-8c97-941ae6548ae0",
+        "runtimeContainerId": "ad74e61955c1eef16a3ab6aa7a7e72b7a9e0437d76e268c2c30900063a56cd80",
+        "killUtc": "2026-10-16T06:42:38.915011+00:00",
+        "processStoppedUtc": "2026-10-16T06:42:43.646451+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": []
+    },
+    {
+      "policy": "Journaled",
+      "phase": "after",
+      "runId": "run_mvalp8sw_nF4L4m9kClNxAPG9mRz",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-r2fxj",
+        "uid": "0e4becb0-7817-44c3-ba3c-06390c7d4660",
+        "runtimeContainerId": "6832c5a26eddb7017f096d39c872ae47ebb8881409da1018d076e0dd7b4b6528",
+        "killUtc": "2026-10-16T06:42:54.309521+00:00",
+        "processStoppedUtc": "2026-10-16T06:42:56.747760+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Failed",
+      "outcome": "NodeLost",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvalp8sw_nF4L4m9kClNxAPG9mRz",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T06:42:54.156Z"
+        }
+      ]
+    },
+    {
+      "policy": "Journaled",
+      "phase": "complete",
+      "runId": "run_mvalpi04_ZTBF0sgrdeDSNiFsjK8",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-74lwb",
+        "uid": "c96523b3-f1b6-4213-99d8-6d7290b29384",
+        "runtimeContainerId": "9762fe65393617d5aba57a24df49d804c09d86d284ce8384ea19faea41afa19d",
+        "killUtc": "2026-10-16T06:43:06.220843+00:00",
+        "processStoppedUtc": "2026-10-16T06:43:06.375550+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvalpi04_ZTBF0sgrdeDSNiFsjK8",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T06:43:06.040Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "before",
+      "runId": "run_mvalpjbi_hQcgJ7rjEXN1fovklLR",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-ftn9r",
+        "uid": "ed301607-16b0-40e9-b95d-78a6becf095d",
+        "runtimeContainerId": "df6e5fb22f1186716ad471c4b667545f233b72df28a25e6ee977cbb627a91e39",
+        "killUtc": "2026-10-16T06:43:07.910211+00:00",
+        "processStoppedUtc": "2026-10-16T06:43:12.050757+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 2,
+      "receipts": [
+        {
+          "operationId": "run_mvalpjbi_hQcgJ7rjEXN1fovklLR",
+          "attempt": 2,
+          "timestampUtc": "2026-10-16T06:43:17.994Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "after",
+      "runId": "run_mvalprka_KOGCWiVgMDdoK3qsnLT",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-q5577",
+        "uid": "a72dac27-6645-485b-ad0e-a19032e0558f",
+        "runtimeContainerId": "6d031e45e7ee1a3e2fca0be06d68a4bf91c900863902b0e83786a46253b12c43",
+        "killUtc": "2026-10-16T06:43:18.621083+00:00",
+        "processStoppedUtc": "2026-10-16T06:43:21.020770+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 2,
+      "receipts": [
+        {
+          "operationId": "run_mvalprka_KOGCWiVgMDdoK3qsnLT",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T06:43:18.422Z"
+        },
+        {
+          "operationId": "run_mvalprka_KOGCWiVgMDdoK3qsnLT",
+          "attempt": 2,
+          "timestampUtc": "2026-10-16T06:43:30.046Z"
+        }
+      ]
+    },
+    {
+      "policy": "AtLeastOnce",
+      "phase": "complete",
+      "runId": "run_mvalq0wh_e2HWi6KqdwfKPM3t6og",
+      "kill": {
+        "pod": "effect-worker-75949c8f5b-t254n",
+        "uid": "68218758-b5a1-4599-b5fd-76f67bb845e7",
+        "runtimeContainerId": "27489ded6d0999c034b1231ee50fc85b319fc2a5675e1a923ea4113bd1486378",
+        "killUtc": "2026-10-16T06:43:30.742361+00:00",
+        "processStoppedUtc": "2026-10-16T06:43:30.934722+00:00"
+      },
+      "passed": true,
+      "finalStatus": "Succeeded",
+      "outcome": "Succeeded",
+      "attempts": 1,
+      "receipts": [
+        {
+          "operationId": "run_mvalq0wh_e2HWi6KqdwfKPM3t6og",
+          "attempt": 1,
+          "timestampUtc": "2026-10-16T06:43:30.589Z"
+        }
+      ]
+    }
+  ],
+  "finishedUtc": "2026-10-16T06:43:32.260837+00:00",
+  "passed": true
+}

@@ -1,8 +1,10 @@
 namespace Garrison.Server.Runtime
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
 
     /// <summary>
@@ -40,8 +42,55 @@ namespace Garrison.Server.Runtime
         {
             if (node == null) throw new ArgumentNullException(nameof(node));
             if (run == null) throw new ArgumentNullException(nameof(run));
-            if (!String.IsNullOrEmpty(run.NodePoolId) && run.NodePoolId != node.NodePoolId) return false;
-            if (pool != null && pool.Tenants.Count > 0 && !pool.Tenants.Contains(run.TenantId)) return false;
+            return MatchesPool(node, run) && MatchesTenant(pool, run) && MatchesSelectors(node, run);
+        }
+
+        /// <summary>Explain pool, dedication and selector constraints using the claim predicate.</summary>
+        /// <param name="node">Worker node.</param>
+        /// <param name="pool">Worker pool, if any.</param>
+        /// <param name="run">Admitted run.</param>
+        /// <returns>Stable placement rejection codes. Label keys and values are not exposed.</returns>
+        public static List<string> PlacementRejections(Node node, NodePool? pool, Run run)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            List<string> reasons = new List<string>();
+            if (!MatchesPool(node, run)) reasons.Add("NodePoolMismatch");
+            if (!MatchesTenant(pool, run)) reasons.Add("TenantDedicationMismatch");
+            if (!MatchesSelectors(node, run)) reasons.Add("NodeSelectorMismatch");
+            return reasons;
+        }
+
+        /// <summary>Shared static claim filters as stable rejection codes. Capacity and affinity need database reads.</summary>
+        /// <param name="node">Worker node.</param>
+        /// <param name="pool">Worker pool, if any.</param>
+        /// <param name="run">Admitted run.</param>
+        /// <returns>All static reasons this node cannot claim this run.</returns>
+        public static List<string> Rejections(Node node, NodePool? pool, Run run)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            List<string> reasons = new List<string>();
+            if (!node.Active) reasons.Add("NodeInactive");
+            if (node.Status != NodeStatusEnum.Ready) reasons.Add("NodeNotReady");
+            if (!Supports(node, run.HarnessType)) reasons.Add("HarnessUnavailable");
+            if (!ExecutorCapabilityRules.Supports(node, run)) reasons.Add("ExecutorCapabilitiesUnsatisfied");
+            reasons.AddRange(PlacementRejections(node, pool, run));
+            return reasons;
+        }
+
+        private static bool MatchesPool(Node node, Run run)
+        {
+            return String.IsNullOrEmpty(run.NodePoolId) || run.NodePoolId == node.NodePoolId;
+        }
+
+        private static bool MatchesTenant(NodePool? pool, Run run)
+        {
+            return pool == null || pool.Tenants.Count == 0 || pool.Tenants.Contains(run.TenantId);
+        }
+
+        private static bool MatchesSelectors(Node node, Run run)
+        {
             foreach (RunRequirement requirement in run.Requirements)
             {
                 NodeLabel? label = node.Labels.FirstOrDefault(l => String.Equals(l.Key, requirement.Key, StringComparison.Ordinal));

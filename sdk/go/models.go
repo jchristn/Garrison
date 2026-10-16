@@ -70,6 +70,10 @@ const (
 	RunExecutorProcess = "Process"
 	// RunExecutorKubernetesJob runs the harness in its own Kubernetes Job (pod per run).
 	RunExecutorKubernetesJob = "KubernetesJob"
+	// RunExecutorRemoteA2A invokes a remote A2A agent.
+	RunExecutorRemoteA2A = "RemoteA2A"
+	// RunExecutorRemoteMcp invokes a remote MCP tool.
+	RunExecutorRemoteMcp = "RemoteMcp"
 )
 
 // Trust levels (Deployment.TrustLevel, Run.TrustLevel). An empty Deployment.TrustLevel means TrustLevelTrusted.
@@ -111,7 +115,7 @@ const (
 	EffectPolicyAtMostOnce = "AtMostOnce"
 	// EffectPolicyAtLeastOnce requeues a lost started run while attempts remain; its effects may repeat.
 	EffectPolicyAtLeastOnce = "AtLeastOnce"
-	// EffectPolicyJournaled behaves as EffectPolicyAtMostOnce until the effect journal exists.
+	// EffectPolicyJournaled requires a safe current-epoch checkpoint; unknown CLI effects fail closed.
 	EffectPolicyJournaled = "Journaled"
 )
 
@@ -137,18 +141,20 @@ const (
 
 // Secret is secret metadata. The value is write-only and never returned. Decode a Client.Secrets response into it.
 type Secret struct {
-	ID          string `json:"id"`
-	TenantID    string `json:"tenantId"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Kind        string `json:"kind"`
-	ValueLast4  string `json:"valueLast4,omitempty"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-	KeyVersion  int    `json:"keyVersion"`
-	ExpiresUTC  string `json:"expiresUtc,omitempty"`
-	RotatedUTC  string `json:"rotatedUtc,omitempty"`
-	Active      bool   `json:"active"`
-	IsProtected bool   `json:"isProtected"`
+	BrokerResource *string `json:"brokerResource,omitempty"`
+	BrokerAudience *string `json:"brokerAudience,omitempty"`
+	ID             string  `json:"id"`
+	TenantID       string  `json:"tenantId"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description,omitempty"`
+	Kind           string  `json:"kind"`
+	ValueLast4     string  `json:"valueLast4,omitempty"`
+	Fingerprint    string  `json:"fingerprint,omitempty"`
+	KeyVersion     int     `json:"keyVersion"`
+	ExpiresUTC     string  `json:"expiresUtc,omitempty"`
+	RotatedUTC     string  `json:"rotatedUtc,omitempty"`
+	Active         bool    `json:"active"`
+	IsProtected    bool    `json:"isProtected"`
 	// Status is SecretStatusOk or SecretStatusNeedsReauthentication.
 	Status string `json:"status"`
 	// StatusMessage explains the status (the provider error), or is empty when Ok.
@@ -318,14 +324,22 @@ type ListOptions struct {
 
 // Agent is an agent definition.
 type Agent struct {
-	ID             string   `json:"id,omitempty"`
-	TenantID       string   `json:"tenantId,omitempty"`
-	Name           string   `json:"name"`
-	DisplayName    string   `json:"displayName,omitempty"`
-	Description    string   `json:"description,omitempty"`
-	Kind           string   `json:"kind,omitempty"`
-	DelegationMode string   `json:"delegationMode,omitempty"`
-	Tags           []string `json:"tags,omitempty"`
+	// RemoteProtocol is A2A or Mcp for Kind Remote.
+	RemoteProtocol           *string  `json:"remoteProtocol,omitempty"`
+	RemoteEndpointURL        *string  `json:"remoteEndpointUrl,omitempty"`
+	RemoteCredentialSecretID *string  `json:"remoteCredentialSecretId,omitempty"`
+	McpToolName              *string  `json:"mcpToolName,omitempty"`
+	RegistrationTTLSeconds   int      `json:"registrationTtlSeconds,omitempty"`
+	LastRegisteredUTC        *string  `json:"lastRegisteredUtc,omitempty"`
+	ExposeMcpTool            bool     `json:"exposeMcpTool,omitempty"`
+	ID                       string   `json:"id,omitempty"`
+	TenantID                 string   `json:"tenantId,omitempty"`
+	Name                     string   `json:"name"`
+	DisplayName              string   `json:"displayName,omitempty"`
+	Description              string   `json:"description,omitempty"`
+	Kind                     string   `json:"kind,omitempty"`
+	DelegationMode           string   `json:"delegationMode,omitempty"`
+	Tags                     []string `json:"tags,omitempty"`
 	// InputMode is "Text" (default) or "Structured".
 	InputMode string `json:"inputMode,omitempty"`
 	// InputSchemaJSON is JSON Schema text for the input. When set, every invocation's input must be a JSON document
@@ -340,6 +354,8 @@ type Agent struct {
 
 // Deployment binds an agent to a harness profile and model.
 type Deployment struct {
+	// SuspensionEnabled opts in to durable suspension on resumable harnesses.
+	SuspensionEnabled    bool                         `json:"suspensionEnabled,omitempty"`
 	ArgumentOverrides    []DeploymentArgumentOverride `json:"argumentOverrides,omitempty"`
 	ArtifactGlobs        []string                     `json:"artifactGlobs,omitempty"`
 	ArtifactStoreID      string                       `json:"artifactStoreId,omitempty"`
@@ -393,11 +409,12 @@ const (
 
 // Permission approval decision sources (Approval.DecisionSource, ApprovalCheckResponse.Source).
 const (
-	ApprovalSourceRule      = "Rule"
-	ApprovalSourceDefault   = "Default"
-	ApprovalSourceUser      = "User"
-	ApprovalSourceTimeout   = "Timeout"
-	ApprovalSourceCancelled = "Cancelled"
+	ApprovalSourceRule          = "Rule"
+	ApprovalSourceDefault       = "Default"
+	ApprovalSourceUser          = "User"
+	ApprovalSourceTimeout       = "Timeout"
+	ApprovalSourceCancelled     = "Cancelled"
+	ApprovalSourceDurableResume = "DurableResume"
 )
 
 // Approval rule actions (DeploymentApprovalRule.Action, Deployment.ApprovalDefaultAction).
@@ -517,11 +534,13 @@ type ApprovalCheckResponse struct {
 
 // HarnessProfile describes how to run a harness CLI.
 type HarnessProfile struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	HarnessType string `json:"harnessType"`
-	Executable  string `json:"executable"`
-	BuiltIn     bool   `json:"builtIn"`
+	// SessionFormat pins the durable continuation format.
+	SessionFormat *string `json:"sessionFormat,omitempty"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	HarnessType   string  `json:"harnessType"`
+	Executable    string  `json:"executable"`
+	BuiltIn       bool    `json:"builtIn"`
 	// Warnings is set on create and update responses only; see FieldWarning.
 	Warnings []FieldWarning `json:"warnings,omitempty"`
 }

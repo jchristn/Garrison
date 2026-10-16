@@ -6,6 +6,12 @@ namespace Garrison.Core
     /// </summary>
     public static class Constants
     {
+        /// <summary>Brokered provider credential lease prefix.</summary>
+        public const string CredentialLeaseIdPrefix = "crl_";
+
+        /// <summary>Effect intent identifier prefix.</summary>
+        public const string EffectOperationIdPrefix = "eop_";
+
         /// <summary>Prefix for tenant-owned model price records.</summary>
         public const string ModelPriceIdPrefix = "mpr_";
 

@@ -1,0 +1,13 @@
+{
+  "harness": "claude",
+  "installedVersion": "2.1.296 (Claude Code)",
+  "accountPluginSyncDisabled": false,
+  "sameSession": true,
+  "originalWorkerStopped": true,
+  "effectsExactlyOnce": true,
+  "resumeToCompletionMs": 11174.605958978646,
+  "checkpointUncompressedBytes": 110074,
+  "checkpointArchiveBytes": 40959,
+  "checkpointCaptureAndUploadMs": 39,
+  "latencyIncludes": "queueing, restore, provider inference, tools, artifact collection, and completion observation"
+}

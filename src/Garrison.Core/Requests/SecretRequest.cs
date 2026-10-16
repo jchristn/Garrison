@@ -9,6 +9,11 @@ namespace Garrison.Core.Requests
     /// </summary>
     public class SecretRequest
     {
+        /// <summary>Provider resource identifier for LeaseBroker secrets; not a credential value. Maximum 512 characters.</summary>
+        public string? BrokerResource { get; set; } = null;
+        /// <summary>Optional provider audience for LeaseBroker secrets. Maximum 512 characters.</summary>
+        public string? BrokerAudience { get; set; } = null;
+
         /// <summary>
         /// Name, unique per tenant.
         /// </summary>

@@ -48,12 +48,23 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.GET, "/v1.0/api/settings", ResourceTypeEnum.Settings, OperationTypeEnum.Read, ReadAsync, "Read settings with source, apply mode, and editability metadata", "Settings", null, typeof(SettingsView));
             routes.Scoped(HttpMethod.PUT, "/v1.0/api/settings", ResourceTypeEnum.Settings, OperationTypeEnum.Update, UpdateAsync, "Update settings", "Settings", typeof(SettingsUpdateRequest), typeof(SettingsSaveResponse));
             routes.Scoped(HttpMethod.POST, "/v1.0/api/settings/restart", ResourceTypeEnum.Settings, OperationTypeEnum.Admin, RestartAsync, "Restart this server process (the container runtime restarts it)", "Settings", null, typeof(RestartResponse));
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/settings/keys/rotate", ResourceTypeEnum.Settings, OperationTypeEnum.Admin, RotateKeysAsync, "Re-encrypt persisted secret material with the configured active master key", "Settings", null, typeof(MasterKeyRotationResponse));
             routes.Scoped(HttpMethod.POST, "/v1.0/api/settings/database/test", ResourceTypeEnum.Settings, OperationTypeEnum.Admin, TestDatabaseAsync, "Test database connectivity", "Settings", null, typeof(DatabaseTestResponse));
         }
 
         #endregion
 
         #region Private-Methods
+
+        private async Task RotateKeysAsync(HttpContextBase context)
+        {
+            MasterKeyRotationResponse result = await new MasterKeyRotationService(_Context.Database, _Context.Cipher).RotateAsync(context.Token).ConfigureAwait(false);
+            _Context.Authentication.Cache.ClearLocal();
+            _Context.Authorization.Invalidate();
+            await _Context.Audit.WriteAsync(RouteHelpers.Context(context), AuditEventTypeEnum.SettingsChanged, "Settings", null,
+                "Master-key rotation pass: version " + result.KeyVersion + ", rotated " + result.Rotated + ", conflicts " + result.Conflicts + ", unreadable " + result.Failed + ".", null, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, result).ConfigureAwait(false);
+        }
 
         private async Task ReadAsync(HttpContextBase context)
         {

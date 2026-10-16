@@ -1,0 +1,11 @@
+{
+  "harness": "Production WorkerHost and snapshot/session protocol with the deterministic garrison-fake-harness process speaking Claude-format permission MCP",
+  "population": 1000,
+  "provider": "SQLite",
+  "checkpointConcurrency": 8,
+  "approvalTimeoutSeconds": 3600,
+  "assertions": ["All 1000 simultaneously Suspended before replacement", "Every checkpoint owns no lease", "Original worker stopped", "All 1000 resumed successfully on another node", "Session identity retained", "Exactly one reviewed durable grant per session"],
+  "command": "GARRISON_TEST_PROVIDERS=sqlite GARRISON_CONTINUATION_SCALE=1000 dotnet run --project src/Test.Automated -f net10.0 -- --suites continuation-scale --results /tmp/garrison-d061-continuation-1000-final.json",
+  "runtimeMs": 238400,
+  "limitations": ["Not 1000 simultaneous paid-model conversations", "PostgreSQL process population tested at 100", "10000 passive database wait records are a separate existing test"]
+}
