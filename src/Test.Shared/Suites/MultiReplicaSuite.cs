@@ -61,6 +61,7 @@ namespace Test.Shared.Suites
                     cases.Add(new TestCaseDescriptor(id, "idempotent-invoke", "Invokes with one Idempotency-Key sent to two replicas at once create one run (" + provider + ")", ct => IdempotentInvokeAsync(provider, ct)));
                 }
                 cases.Add(new TestCaseDescriptor(id, "control-node-lifecycle", "A replica's control node row is Ready with its activity (streams, long polls), Draining once shutdown begins, and Offline after a clean stop (" + provider + ")", ct => ControlNodeLifecycleAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "mcp-descriptions-seed-once", "Two replicas seeding missing MCP tool description templates at the same moment create each one once, with one version, and never collide (" + provider + ")", ct => McpDescriptionsSeedOnceAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "drain", "Stopping a replica turns readiness off, ends SSE streams, and finishes promptly; liveness stays 200 (" + provider + ")", ct => DrainAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Multiple replicas (" + provider + ")", cases));
             }
@@ -625,6 +626,45 @@ namespace Test.Shared.Suites
                 }
                 Assert.True(after.Objects.Any(n => n.Id == "replica-a" && n.IsLeader && n.Status == ControlNodeStatusEnum.Ready), "Replica A leads after B stops");
                 Assert.Equal(1, after.Objects.Count(n => n.IsLeader), "Leaders after B stops");
+            }
+        }
+
+        private static async Task McpDescriptionsSeedOnceAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, 2, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
+            {
+                Garrison.Core.Database.DatabaseDriverBase database = cluster.Replicas[0].Server.Context.Database;
+                List<string> ids = McpToolCatalog.All().Select(t => "tpl_builtin_mcp_tool_" + t.Name.Replace("garrison_", String.Empty)).ToList();
+                for (int round = 0; round < 3; round++)
+                {
+                    // Remove the seeded descriptions so both replicas find every one missing, then seed on both at once.
+                    foreach (string templateId in ids)
+                    {
+                        await database.PromptTemplateVersions.DeleteByTemplateAsync(templateId, token).ConfigureAwait(false);
+                        Assert.True(await database.PromptTemplates.DeleteAsync(templateId, token).ConfigureAwait(false), templateId + " removed before round " + round);
+                    }
+                    List<Task<Dictionary<string, string>>> seeding = new List<Task<Dictionary<string, string>>>();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        foreach (TestServerHost replica in cluster.Replicas)
+                        {
+                            // Task.Run puts each pass on its own thread; Sqlite completes its async calls synchronously.
+                            GarrisonMcpServer mcp = replica.Server.Context.Get<GarrisonMcpServer>();
+                            seeding.Add(Task.Run(() => mcp.LoadDescriptionsAsync(token), token));
+                        }
+                    }
+                    Dictionary<string, string>[] loaded = await Task.WhenAll(seeding).ConfigureAwait(false);
+                    foreach (Dictionary<string, string> descriptions in loaded)
+                    {
+                        Assert.Equal(ids.Count, descriptions.Count, "Descriptions loaded in round " + round);
+                    }
+                    foreach (string templateId in ids)
+                    {
+                        Assert.True(await database.PromptTemplates.ExistsAsync(templateId, token).ConfigureAwait(false), templateId + " seeded in round " + round);
+                        List<PromptTemplateVersion> versions = await database.PromptTemplateVersions.ListByTemplateAsync(templateId, token).ConfigureAwait(false);
+                        Assert.Equal(1, versions.Count, "Versions of " + templateId + " in round " + round);
+                    }
+                }
             }
         }
 

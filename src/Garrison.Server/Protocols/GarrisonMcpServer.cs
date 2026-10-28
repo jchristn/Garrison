@@ -334,7 +334,23 @@ namespace Garrison.Server.Protocols
 
         #region Private-Methods
 
-        private async Task<Dictionary<string, string>> LoadDescriptionsAsync(CancellationToken token)
+        /// <summary>
+        /// Seed any missing MCP tool description templates, refresh changed built-in ones, and return the description
+        /// of every tool keyed by tool name. Runs under the database startup lock. Internal so tests can drive it.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Descriptions keyed by tool name.</returns>
+        internal async Task<Dictionary<string, string>> LoadDescriptionsAsync(CancellationToken token)
+        {
+            // Replicas starting together on one database seed the tool description templates one at a time, so
+            // the read-then-create below cannot insert the same built-in twice (P10.9).
+            await using (DatabaseLockHandle startupLock = await _Context.Database.AcquireStartupLockAsync(token).ConfigureAwait(false))
+            {
+                return await LoadDescriptionsLockedAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<Dictionary<string, string>> LoadDescriptionsLockedAsync(CancellationToken token)
         {
             Dictionary<string, string> descriptions = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (McpToolDefinition tool in McpToolCatalog.All())
