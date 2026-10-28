@@ -349,11 +349,17 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .topbar { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: var(--spacing-md); }
 .topbar-left { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; flex-wrap: nowrap; overflow: hidden; }
 .topbar-right { display: flex; align-items: center; gap: var(--spacing-xs); flex-shrink: 0; }
+/* Every topbar badge (server through live) shares one fixed border-box height so the row lines up. */
 .topbar-chip {
+  --topbar-chip-height: 28px;
   display: inline-flex;
   align-items: center;
+  box-sizing: border-box;
+  height: var(--topbar-chip-height);
   gap: 0.35rem;
-  padding: 0.2rem 0.5rem;
+  padding: 0 0.5rem;
+  line-height: 1;
+  white-space: nowrap;
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -363,7 +369,11 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   min-width: 0;
 }
 .topbar-chip code { color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.topbar-chip.role { white-space: nowrap; color: var(--color-primary); border-color: var(--color-primary-soft); }
+.topbar-chip > * { flex-shrink: 0; }
+.topbar-chip > code { flex-shrink: 1; min-width: 0; }
+.topbar-chip .copy-btn { width: 20px; height: 20px; }
+.topbar-chip svg { display: block; }
+.topbar-chip.role { color: var(--color-primary); border-color: var(--color-primary-soft); }
 .topbar-lang select { padding: 0.25rem 0.4rem; font-size: var(--font-size-xs); width: auto; }
 
 /* Main */
@@ -887,7 +897,7 @@ a.button { text-decoration: none; }
 .sidebar-version { font-size: var(--font-size-xs); color: var(--color-text-muted); padding: var(--spacing-xs) var(--spacing-sm); }
 .sidebar-collapsed .sidebar-utility span, .sidebar-collapsed .sidebar-version { display: none; }
 .topbar-tenant { width: auto; max-width: 220px; font-size: var(--font-size-sm); }
-.topbar-tenant select { border: none; background: transparent; color: var(--color-text); padding: 0 var(--spacing-xs); font-size: var(--font-size-xs); width: auto; min-width: 0; max-width: 140px; }
+.topbar-tenant select { flex-shrink: 1; height: 100%; line-height: 1; border: none; background: transparent; color: var(--color-text); padding: 0 var(--spacing-xs); font-size: var(--font-size-xs); width: auto; min-width: 0; max-width: 140px; }
 .topbar-truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-chip { gap: 6px; }
 .live-chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); }

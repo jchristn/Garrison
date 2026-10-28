@@ -264,6 +264,38 @@ test('theme and language toggles persist', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 });
 
+for (const vp of [...VIEWPORTS, { name: 'narrow-desktop', width: 1000, height: 800 }]) {
+  test(`topbar badges share one rendered height and centered contents (${vp.name})`, async ({ page }) => {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await login(page);
+    const chips = page.locator('.topbar-left .topbar-chip');
+    await expect(chips.last()).toBeVisible();
+    const boxes = await chips.evaluateAll((els) =>
+      els
+        .filter((el) => getComputedStyle(el).display !== 'none')
+        .map((el) => {
+          const box = el.getBoundingClientRect();
+          const center = box.top + box.height / 2;
+          const offsets = [...el.children]
+            .filter((child) => getComputedStyle(child).display !== 'none')
+            .map((child) => {
+              const c = child.getBoundingClientRect();
+              return Math.abs(c.top + c.height / 2 - center);
+            });
+          return { cls: el.className, height: box.height, top: box.top, maxOffset: Math.max(0, ...offsets) };
+        })
+    );
+    // Server (when visible), tenant, role (when visible), and live badges must all render.
+    expect(boxes.length).toBeGreaterThanOrEqual(2);
+    expect(boxes.some((b) => b.cls.includes('live-chip'))).toBe(true);
+    for (const b of boxes) {
+      expect(b.height, b.cls).toBeCloseTo(boxes[0].height, 1);
+      expect(b.top, b.cls).toBeCloseTo(boxes[0].top, 1);
+      expect(b.maxOffset, b.cls).toBeLessThanOrEqual(1);
+    }
+  });
+}
+
 test('setup wizard opens for an empty tenant', async ({ page }) => {
   await page.route(/\/tenants\/[^/]+\/agents(\?|$)/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: [], totalRecords: 0, skip: 0, maxResults: 1, endOfResults: true }) })
