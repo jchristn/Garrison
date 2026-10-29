@@ -65,5 +65,10 @@ namespace Garrison.Server.Runtime
         private string _Mode = "first";
 
         #endregion
+
+        /// <summary>
+        /// Studio draft to link to a conversation this run starts (AD7.10), or null.
+        /// </summary>
+        public string? StudioDraftId { get; set; } = null;
     }
 }

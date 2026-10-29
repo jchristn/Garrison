@@ -243,7 +243,7 @@ test('the architect chat starts a conversation that names the draft and shows th
   await page.getByTestId('studio-chat-message').fill('Add a writer that turns notes into a report.');
   await page.getByTestId('studio-chat-send').click();
   await expect(page.getByTestId('studio-chat-answer')).toContainText('I added a writer to the draft.');
-  expect(invokes[0]).toEqual({ input: '[Studio draft drf_0001: Research app]\n\nAdd a writer that turns notes into a report.', deploymentId: 'dep_arch', startConversation: true });
+  expect(invokes[0]).toEqual({ input: 'Add a writer that turns notes into a report.', deploymentId: 'dep_arch', startConversation: true, studioDraftId: 'drf_0001' });
   // The prefix is not shown back to the person.
   await expect(page.locator('.studio-turn-text').first()).toHaveText('Add a writer that turns notes into a report.');
   await expect(page.getByTestId('studio-chat-conversation')).toHaveAttribute('href', '/dashboard/conversations/cnv_arch');

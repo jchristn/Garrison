@@ -89,6 +89,25 @@ namespace Garrison.Core.Database.Interfaces
         Task<bool> TransitionAsync(string tenantId, string draftId, int expectedVersion, StudioDraftStatusEnum from, StudioDraftStatusEnum to, string? approvalId, string? manifestApplyId, CancellationToken token = default);
 
         /// <summary>
+        /// Link a draft to its architect conversation (AD7.10) when it has none, without changing its version.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <param name="conversationId">Conversation identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when linked; false when the draft already has a conversation or does not exist.</returns>
+        Task<bool> LinkConversationAsync(string tenantId, string draftId, string conversationId, CancellationToken token = default);
+
+        /// <summary>
+        /// The draft linked to a conversation, without items, or null.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="conversationId">Conversation identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Draft or null.</returns>
+        Task<StudioDraft?> ReadByConversationAsync(string tenantId, string conversationId, CancellationToken token = default);
+
+        /// <summary>
         /// Delete a draft with its items and layout.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

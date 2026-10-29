@@ -14,7 +14,7 @@ import { TERMINAL_RUN_STATUSES, runStatusTone } from '../../utils/constants';
 import { errorMessage } from '../../utils/errors';
 import { enumLabel } from '../../utils/enums';
 import { enumTip } from '../../utils/tips';
-import { TURN_POLL_MS, conversationStorageKey, firstArchitectMessage, readStored, stripDraftPrefix, writeStored } from '../../utils/studio';
+import { TURN_POLL_MS, conversationStorageKey, readStored, stripDraftPrefix, writeStored } from '../../utils/studio';
 
 /** A run status pill. */
 export function TurnStatus({ status }) {
@@ -98,7 +98,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
     setSending(true);
     setError(null);
     try {
-      const body = conversationId ? { input: text, conversationId } : { input: firstArchitectMessage(draft, text), deploymentId: architect.id, startConversation: true };
+      const body = conversationId ? { input: text, conversationId } : { input: text, deploymentId: architect.id, startConversation: true, studioDraftId: draft.id };
       const created = await apiClient.invokeAgent(tenantId, architect.agentId, body, { wait: false });
       const run = created?.run || created;
       if (unmounted.current) return;

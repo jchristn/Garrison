@@ -129,5 +129,10 @@ namespace Garrison.Server.Runtime
         /// (<see cref="CallerWaits"/>), or null.
         /// </summary>
         public string? ChildWaitId { get; set; } = null;
+
+        /// <summary>
+        /// Studio draft to link to a conversation this run starts (AD7.10), or null.
+        /// </summary>
+        public string? StudioDraftId { get; set; } = null;
     }
 }

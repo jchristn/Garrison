@@ -145,6 +145,7 @@ namespace Garrison.Server.Runtime
             ConversationTurnPlan plan = new ConversationTurnPlan();
             plan.Conversation = conversation;
             plan.IsNew = isNew;
+            plan.StudioDraftId = create.StudioDraftId;
             return plan;
         }
 
@@ -179,6 +180,7 @@ namespace Garrison.Server.Runtime
                 conversation.ActiveRunId = run.Id;
                 conversation.LastActivityUtc = now;
                 await _Database.Conversations.CreateAsync(conversation, token).ConfigureAwait(false);
+                if (!String.IsNullOrEmpty(plan.StudioDraftId)) await _Database.StudioDrafts.LinkConversationAsync(run.TenantId, plan.StudioDraftId, conversation.Id, token).ConfigureAwait(false);
                 plan.Acquired = true;
             }
             else

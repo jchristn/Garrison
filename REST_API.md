@@ -5725,6 +5725,7 @@ Request to invoke an agent.
 | `cancelOnDisconnect` | `bool?` | When waiting, whether the run is cancelled if the client disconnects before it finishes. Null means true; false keeps the run going. The query parameter `cancelOnDisconnect` overrides it. |
 | `conversationId` | `string?` | Conversation to continue: the run becomes its next turn and resumes the harness session of the earlier turns. 404 when it names no conversation of the tenant, 409 `ConversationAgentMismatch` for another agent's conversation, 409 `ConversationDeploymentMismatch` when `deploymentId` names another deployment, 409 `ConversationBusy` while the previous turn is unfinished. |
 | `startConversation` | `bool` | Start a new conversation with this run as its first turn; the run's `conversationId` names it. Ignored when `conversationId` is set. Default false. |
+| `studioDraftId` | `string?` | Studio draft this conversation works on (AD7.10): when the run starts a conversation, the draft is linked to it, and every turn renders the draft as `studio.draftId`, `studio.draftTitle`, and `studio.draftVersion` in the prompt. Needs Update on the draft. |
 
 #### `ManifestApply`
 

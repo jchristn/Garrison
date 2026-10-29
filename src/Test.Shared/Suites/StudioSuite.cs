@@ -437,7 +437,12 @@ namespace Test.Shared.Suites
                 Deployment defaulted = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "architect-default", AgentId = architectAgent.Id, HarnessProfileId = "hrn_builtin_fake" }, 201, token).ConfigureAwait(false);
                 Assert.True(defaulted.PromptBindings.Any(b => b.Role == "System" && b.TemplateId == "tpl_builtin_agent_architect"), "No selection binds builtin/agent-architect");
 
-                Run first = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/agent-architect/invoke", new InvokeRequest { Input = "Design an app.", DeploymentId = architect.Id, Wait = true, WaitSeconds = 120 }, 200, token).ConfigureAwait(false);
+                StudioDraft linked = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Linked desk" }, 201, token).ConfigureAwait(false);
+                Run first = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/agent-architect/invoke", new InvokeRequest { Input = "Design an app.", DeploymentId = architect.Id, StartConversation = true, StudioDraftId = linked.Id, Wait = true, WaitSeconds = 120 }, 200, token).ConfigureAwait(false);
+                StudioDraft afterLink = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Get, D(host) + "/" + linked.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(!String.IsNullOrEmpty(first.ConversationId) && afterLink.ConversationId == first.ConversationId, "Invoking with studioDraftId links the draft to the new conversation");
+                Garrison.Core.Compilation.CompilationResult compiled = await host.Server.Context.Get<Garrison.Core.Compilation.InvocationCompiler>().CompileAsync(first, null, token).ConfigureAwait(false);
+                Assert.True(Serializer.Serialize(compiled.Spec).Contains("Linked desk", StringComparison.Ordinal) && Serializer.Serialize(compiled.Spec).Contains(linked.Id, StringComparison.Ordinal), "The architect's prompt names the linked draft, rendered from its template");
                 Run firstRead = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Get, T(host) + "/runs/" + first.Id, null, 200, token).ConfigureAwait(false);
                 Assert.True(firstRead.TemplateVersions.Any(v => v.TemplateId == clone.Id && v.Version == 2), "The run records the clone at version 2: " + Serializer.Serialize(firstRead.TemplateVersions));
 

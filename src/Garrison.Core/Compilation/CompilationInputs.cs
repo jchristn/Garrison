@@ -25,6 +25,11 @@ namespace Garrison.Core.Compilation
         public Agent Agent { get; set; } = new Agent();
 
         /// <summary>
+        /// Studio draft linked to the run's conversation (AD7.10), rendered as studio.*; null when there is none.
+        /// </summary>
+        public StudioDraft? StudioDraft { get; set; } = null;
+
+        /// <summary>
         /// Agent revision whose content was applied to <see cref="Agent"/> (AD1.3), or null when the agent has none.
         /// </summary>
         public AgentRevision? AgentRevision { get; set; } = null;

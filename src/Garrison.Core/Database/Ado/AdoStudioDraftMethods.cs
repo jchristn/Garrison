@@ -201,6 +201,32 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<bool> LinkConversationAsync(string tenantId, string draftId, string conversationId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(conversationId)) throw new ArgumentNullException(nameof(conversationId));
+            int affected = await _Driver.NonQueryAsync("UPDATE " + _Drafts + " SET conversationid = @conversation WHERE id = @id AND tenantid = @tenantid AND conversationid IS NULL;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "conversation", conversationId);
+                AdoDatabaseDriver.Add(command, "id", draftId);
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+            }, token).ConfigureAwait(false);
+            return affected == 1;
+        }
+
+        /// <inheritdoc />
+        public async Task<StudioDraft?> ReadByConversationAsync(string tenantId, string conversationId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(conversationId)) return null;
+            return await _Driver.QuerySingleAsync("SELECT * FROM " + _Drafts + " WHERE tenantid = @tenantid AND conversationid = @conversation ORDER BY lastupdateutc DESC" + _Driver.Dialect.LimitOffsetClause() + ";", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "conversation", conversationId);
+                AdoDatabaseDriver.Add(command, "max", 1);
+                AdoDatabaseDriver.Add(command, "skip", 0);
+            }, Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> DeleteAsync(string tenantId, string id, CancellationToken token = default)
         {
             int deleted = 0;

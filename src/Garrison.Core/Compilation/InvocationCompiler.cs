@@ -209,6 +209,7 @@ namespace Garrison.Core.Compilation
             bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline, run.AgentRevisionId).ConfigureAwait(false);
             await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(run.ConversationId)) inputs.StudioDraft = await _Database.StudioDrafts.ReadByConversationAsync(run.TenantId, run.ConversationId, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -655,6 +656,11 @@ namespace Garrison.Core.Compilation
             TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled, repair, conversation);
             context.Set("pipeline", PipelineContext(pipeline));
             context.Set("approval", ApprovalContext(deployment, approvalsEnabled));
+            Dictionary<string, object?> studio = TemplateContext.NewMap();
+            studio["draftId"] = inputs.StudioDraft?.Id;
+            studio["draftTitle"] = inputs.StudioDraft?.Title;
+            studio["draftVersion"] = inputs.StudioDraft == null ? null : (object)(long)inputs.StudioDraft.Version;
+            context.Set("studio", studio);
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
 

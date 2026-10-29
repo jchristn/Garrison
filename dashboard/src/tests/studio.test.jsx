@@ -25,7 +25,6 @@ import {
   entryAgent,
   filterDrafts,
   findArchitectAgent,
-  firstArchitectMessage,
   graphApps,
   inUseDeployments,
   isDraftOpen,
@@ -78,12 +77,9 @@ describe('studio helpers', () => {
     expect(moved.statusChanged).toBe(true);
   });
 
-  it('prefixes the first architect message with the draft and strips it for display', () => {
-    const text = firstArchitectMessage(studioDraft(1), '  Add a writer ');
-    expect(text).toBe('[Studio draft drf_0001: Research app]\n\nAdd a writer');
-    expect(stripDraftPrefix(text)).toBe('Add a writer');
+  it('strips the draft prefix earlier builds put on architect messages', () => {
+    expect(stripDraftPrefix('[Studio draft drf_0001: Research app]\n\nAdd a writer')).toBe('Add a writer');
     expect(stripDraftPrefix('No prefix')).toBe('No prefix');
-    expect(firstArchitectMessage(null, 'hi')).toBe('hi');
   });
 
   it('finds architect deployments, the agent-architect agent, and orders architect prompts', () => {

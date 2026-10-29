@@ -63,5 +63,12 @@ namespace Garrison.Core.Requests
         /// conversationId is set. Default false.
         /// </summary>
         public bool StartConversation { get; set; } = false;
+
+        /// <summary>
+        /// Studio draft this conversation works on (AD7.10). When the invocation starts a conversation, the draft is linked
+        /// to it, and every turn renders the draft into the prompt as studio.draftId, studio.draftTitle, and
+        /// studio.draftVersion. Needs Update on the draft. Null for none.
+        /// </summary>
+        public string? StudioDraftId { get; set; } = null;
     }
 }

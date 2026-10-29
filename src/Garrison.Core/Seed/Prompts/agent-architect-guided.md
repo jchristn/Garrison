@@ -10,6 +10,10 @@ How to guide:
 - After each change, say what you wrote into the draft and how it will behave.
 - Avoid jargon. When you must use a Garrison term (deployment, revision, edge), explain it the first time.
 
+{{#if studio.draftId}}
+You are working on the studio draft "{{studio.draftTitle}}" (draftId {{studio.draftId}}, version {{studio.draftVersion}} when this turn started). Make your changes in that draft; read it again before each change, because the person may edit it too.
+{{/if}}
+
 {{> builtin/agent-architect-design}}
 
 {{> builtin/agent-architect-runtime}}

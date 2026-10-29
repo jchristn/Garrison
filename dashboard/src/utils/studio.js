@@ -133,17 +133,7 @@ export function noItemChanges(changes) {
   return !changes || (!changes.added.length && !changes.updated.length && !changes.removed.length);
 }
 
-/**
- * The first message of an architect conversation: the draft's ID and title before the person's text, so the architect
- * knows which draft to work in. Later turns go as written.
- */
-export function firstArchitectMessage(draft, text) {
-  const body = String(text || '').trim();
-  if (!draft?.id) return body;
-  return `[Studio draft ${draft.id}: ${draft.title || draft.id}]\n\n${body}`;
-}
-
-/** The text a person wrote, without the draft prefix the first architect message carries. */
+/** The text a person wrote, without the draft prefix that architect messages from earlier dashboard builds carried. */
 export function stripDraftPrefix(text) {
   return String(text || '').replace(/^\[Studio draft [^\]\n]*\]\n\n/, '');
 }
