@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds and pushes the multi-arch jchristn77/garrison-dashboard image with Docker Build Cloud, then pulls it back locally.
-# Usage: ./build-dashboard.sh <tag>   (for example v0.1.0-alpha)
+# Usage: ./build-dashboard.sh <tag>   (for example v0.2.0)
 set -euo pipefail
 if [ $# -lt 1 ] || [ -z "$1" ]; then
   echo "usage: $0 <tag>" >&2

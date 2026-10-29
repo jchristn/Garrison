@@ -16,7 +16,7 @@
 # Cluster:
 #   CLUSTER_NAME (garrison-scale), K3S_IMAGE (rancher/k3s:v1.31.4-k3s1), AGENTS (0 extra k3d agent nodes),
 #   API_PORT (6560), HTTP_PORT (18870, the server's NodePort 30870 on 127.0.0.1)
-#   IMAGE_TAG: tag of the jchristn77/garrison-* images (default: what cluster-up.sh imported, else v0.1.0-alpha)
+#   IMAGE_TAG: tag of the jchristn77/garrison-* images (default: what cluster-up.sh imported, else v0.2.0)
 #   WORK_DIR (k8s/tests/.work), RESULTS_DIR (k8s/tests/results)
 # Another cluster: KUBECONFIG_FILE, CONTEXT, and BASE_URL (how this machine reaches the server's REST port) override
 # the k3d defaults for deploy.sh and the tests; cluster-up.sh and cluster-down.sh only manage k3d.
@@ -44,7 +44,7 @@ WORK_DIR="${WORK_DIR:-${TEST_DIR}/.work}"
 RESULTS_DIR="${RESULTS_DIR:-${TEST_DIR}/results}"
 KUBECONFIG_FILE="${KUBECONFIG_FILE:-${WORK_DIR}/kubeconfig}"
 # The tag cluster-up.sh imported, unless IMAGE_TAG is set.
-IMAGE_TAG="${IMAGE_TAG:-$(cat "${WORK_DIR}/image-tag" 2>/dev/null || echo v0.1.0-alpha)}"
+IMAGE_TAG="${IMAGE_TAG:-$(cat "${WORK_DIR}/image-tag" 2>/dev/null || echo v0.2.0)}"
 CONTEXT="${CONTEXT:-k3d-${CLUSTER_NAME}}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:${HTTP_PORT}}"
 

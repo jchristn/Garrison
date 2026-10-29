@@ -11,11 +11,11 @@ cleanup() {
 }
 trap cleanup EXIT
 # A caller may supply a current locally built image. Default does not rebuild or pull the large worker image.
-IMAGE="${GARRISON_CONFORMANCE_IMAGE:-jchristn77/garrison-worker:v0.1.0-alpha}"
+IMAGE="${GARRISON_CONFORMANCE_IMAGE:-jchristn77/garrison-worker:v0.2.0}"
 docker image inspect "$IMAGE" >/dev/null
 dotnet run --project src/Test.Automated -f net10.0 -- --suites executor-conformance
 dotnet run --project src/Test.Automated -f net10.0 --no-build -- --executor-conformance-manifests "$WORK"
-if [ "$IMAGE" != jchristn77/garrison-worker:v0.1.0-alpha ]; then
+if [ "$IMAGE" != jchristn77/garrison-worker:v0.2.0 ]; then
   python3 - "$WORK" "$IMAGE" <<'PY'
 import json,sys
 from pathlib import Path

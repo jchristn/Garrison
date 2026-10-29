@@ -47,8 +47,8 @@ configMapGenerator:
 
 images:
   - name: jchristn77/garrison-server
-    newTag: v0.1.0-alpha
+    newTag: v0.2.0
   - name: jchristn77/garrison-worker
-    newTag: v0.1.0-alpha
+    newTag: v0.2.0
   - name: jchristn77/garrison-dashboard
-    newTag: v0.1.0-alpha
+    newTag: v0.2.0

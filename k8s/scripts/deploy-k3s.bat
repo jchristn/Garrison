@@ -4,7 +4,7 @@ rem K3S container named by K3S_CONTAINER (K3S in Docker), or the k3d cluster nam
 rem set OBSERVABILITY=1 to deploy overlays\k3s-observability (Prometheus, Loki, Tempo, Grafana, Alloy). Observability
 rem images are pulled by K3S; k3d image import them first if Docker already has them.
 setlocal
-if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.1.0-alpha
+if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.2.0
 set K8S=%~dp0..
 set REPO=%~dp0..\..
 if "%1"=="--build" (

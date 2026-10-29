@@ -2,7 +2,7 @@
 rem Deploys Garrison to minikube. See deploy-minikube.sh for details.
 rem set OBSERVABILITY=1 to deploy overlays\minikube-observability (Prometheus, Loki, Tempo, Grafana, Alloy).
 setlocal
-if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.1.0-alpha
+if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.2.0
 set K8S=%~dp0..
 set REPO=%~dp0..\..
 minikube status >nul 2>&1 || minikube start --cpus=4 --memory=8g || exit /b 1

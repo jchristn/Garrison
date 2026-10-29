@@ -7,7 +7,7 @@
 # reported, to show what the isolated path takes away.
 #
 #   k8s/tests/isolation-test.sh                    # build images from this checkout, test, delete the cluster
-#   BUILD=0 IMAGE_TAG=v0.1.0-alpha k8s/tests/isolation-test.sh    # use existing jchristn77/garrison-* images
+#   BUILD=0 IMAGE_TAG=v0.2.0 k8s/tests/isolation-test.sh    # use existing jchristn77/garrison-* images
 #   KEEP_CLUSTER=1 k8s/tests/isolation-test.sh     # keep the cluster for inspection (delete with cluster-down.sh)
 #
 # How the probes work: the fake harness in the worker image has a probe mode (--probe-prompt). The test applies a

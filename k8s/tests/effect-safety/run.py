@@ -22,7 +22,7 @@ def main():
     parser.add_argument('--results', default='k8s/tests/results/effect-safety-d060.json')
     parser.add_argument('--deploy', action='store_true')
     parser.add_argument('--deploy-only', action='store_true')
-    parser.add_argument('--server-image', default='jchristn77/garrison-server:v0.1.0-alpha')
+    parser.add_argument('--server-image', default='jchristn77/garrison-server:v0.2.0')
     parser.add_argument('--worker-image', default='garrison-effect-worker:d060')
     options = parser.parse_args()
     key = os.environ.get('GARRISON_EFFECT_ADMIN_KEY', 'garrison-effect-chaos-development-key')

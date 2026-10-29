@@ -3,7 +3,7 @@
 set -euo pipefail
 
 GARRISON_NAMESPACE="${GARRISON_NAMESPACE:-garrison}"
-GARRISON_TAG="${GARRISON_TAG:-v0.1.0-alpha}"
+GARRISON_TAG="${GARRISON_TAG:-v0.2.0}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 K8S_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${K8S_DIR}/.." && pwd)"

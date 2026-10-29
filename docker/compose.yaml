@@ -6,7 +6,7 @@
 # Dashboard http://127.0.0.1:8080 (tenant default, admin@garrison, the GARRISON_ADMIN_PASSWORD from .env), REST
 # http://127.0.0.1:8700, MCP http://127.0.0.1:8701/mcp. Every port is overridable in .env.
 #
-# Each Garrison service names its image (jchristn77/garrison-*:v0.1.0-alpha) AND has a build stanza, so
+# Each Garrison service names its image (jchristn77/garrison-*:v0.2.0) AND has a build stanza, so
 # `docker compose up` uses or pulls the named image and `docker compose up --build` (or update.sh) rebuilds it from
 # this repository. Third-party images are pinned. Host ports bind 127.0.0.1 only. The keys, passwords, and seeded
 # credentials have no defaults: Compose refuses to start until they are set in .env. update.sh, update.bat, and
@@ -22,7 +22,7 @@
 name: 'garrison'
 
 x-worker: &worker
-  image: 'jchristn77/garrison-worker:v0.1.0-alpha'
+  image: 'jchristn77/garrison-worker:v0.2.0'
   build:
     context: '..'
     dockerfile: 'src/Garrison.Worker/Dockerfile'
@@ -82,7 +82,7 @@ services:
     # The metrics listener (9464) answers only requests addressed to the container's host name, so Prometheus
     # scrapes garrison-server:9464. /metrics is not served on the REST port (Telemetry.ServeMetricsOnServicePort).
     hostname: 'garrison-server'
-    image: 'jchristn77/garrison-server:v0.1.0-alpha'
+    image: 'jchristn77/garrison-server:v0.2.0'
     build:
       context: '..'
       dockerfile: 'src/Garrison.Server/Dockerfile'
@@ -173,7 +173,7 @@ services:
   # ------------------------------------------------------------------
   garrison-dashboard:
     container_name: 'garrison-dashboard'
-    image: 'jchristn77/garrison-dashboard:v0.1.0-alpha'
+    image: 'jchristn77/garrison-dashboard:v0.2.0'
     build:
       context: '../dashboard'
     restart: 'unless-stopped'

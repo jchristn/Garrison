@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Creates a throwaway k3d cluster for the scale tests and imports the Garrison images into it.
 #
-#   k8s/tests/cluster-up.sh                 # import the existing jchristn77/garrison-*:v0.1.0-alpha images
+#   k8s/tests/cluster-up.sh                 # import the existing jchristn77/garrison-*:v0.2.0 images
 #   BUILD=1 k8s/tests/cluster-up.sh         # build the images from this checkout first (tag scaletest-local)
 #
 # The cluster is sized not to disturb anything else running in Docker:

@@ -1,6 +1,6 @@
 @echo off
 rem Builds and pushes the multi-arch jchristn77/garrison-worker image with Docker Build Cloud, then pulls it back locally.
-rem Usage: build-worker.bat ^<tag^>   (for example v0.1.0-alpha)
+rem Usage: build-worker.bat ^<tag^>   (for example v0.2.0)
 setlocal
 if "%~1"=="" (
   echo usage: %~nx0 ^<tag^>

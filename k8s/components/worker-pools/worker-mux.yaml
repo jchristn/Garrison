@@ -84,7 +84,7 @@ spec:
         - name: worker
           # Tagged here because the base images: block does not reach resources added by a component. An images:
           # entry in your overlay still overrides it.
-          image: jchristn77/garrison-worker:v0.1.0-alpha
+          image: jchristn77/garrison-worker:v0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: health
