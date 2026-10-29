@@ -452,6 +452,9 @@ const es = {
     subtitle: 'Inicia sesión en el plano de control de agentes',
     tabs: { password: 'Correo electrónico y contraseña', accessKey: 'Clave de acceso' },
     serverUrl: 'URL del servidor',
+    serverInUse: 'Servidor en uso:',
+    useDifferentServer: 'Usar otro servidor',
+    useDefaultServer: 'Usar el servidor predeterminado',
     tenantId: 'ID del inquilino',
     email: 'Correo electrónico',
     password: 'Contraseña',
@@ -460,7 +463,7 @@ const es = {
     submit: 'Iniciar sesión',
     connecting: 'Iniciando sesión...',
     restoring: 'Restaurando tu sesión...',
-    errorGeneric: 'No se pudo iniciar sesión. Comprueba la URL del servidor y tus credenciales.',
+    errorGeneric: 'No se pudo iniciar sesión. Comprueba tus credenciales y que el servidor esté accesible.',
     footerHint: 'Valor predeterminado en desarrollo local: admin@garrison en el inquilino default.'
   },
   topbar: {
@@ -1821,6 +1824,7 @@ const es = {
       bucketStart: 'Inicio del intervalo'
     },
     serverInfo: {
+      serverInUse: 'Servidor en uso',
       title: 'Información del servidor',
       subtitle: 'Endpoints, versiones y la identidad con la que has iniciado sesión.',
       endpoints: 'Endpoints',

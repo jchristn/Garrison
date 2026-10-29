@@ -146,6 +146,11 @@ curl -s --resolve garrison.local:8080:127.0.0.1 http://garrison.local:8080/v1.0/
 
 Sign in as `admin@garrison` in tenant `default` with the password `generate-secrets.sh` printed (a random one, unless you set `GARRISON_ADMIN_PASSWORD`; there is no default, and the server refuses the public built-in defaults). From there, `docs/QUICKSTART.md` builds a set of agents that delegate to each other and checks them with `examples/validate.sh`.
 
+The dashboard talks to the server through its own origin, whichever way you reach it: nginx in the dashboard pod proxies `/v1.0` to `garrison-server`, and the sign-in page has no server field. The server in use is shown under the sign-in form and on System > About. Two environment variables on the dashboard Deployment change that (Helm: `dashboard.apiUrl` and `dashboard.cspConnectSrc`, both empty by default):
+
+- `GARRISON_API_URL` points the browser at a different API origin, such as `https://garrison-api.example.com`. Its origin is added to the dashboard's Content-Security-Policy.
+- `GARRISON_CSP_CONNECT_SRC` allows extra space-separated origins, for example a second cluster's API. When it is set, the sign-in page shows a "Use a different server" link that opens a Server URL field; when it is empty, the link is not there and a server URL remembered by the browser is ignored.
+
 A note on A2A agent cards: cards advertise the external URL, not the in-cluster address runs use. The base leaves `GARRISON_EXTERNAL_BASE_URL` unset, so a card shows whatever host the caller used: `http://127.0.0.1:8700/...` through a port-forward, `http://garrison.local/...` through the K3S Ingress. The production overlay and `values-production.yaml` set it to `https://garrison.example.com`; change that to your Ingress host.
 
 ## Checking that it works

@@ -150,7 +150,12 @@ workerPdb:
 dashboard:
   enabled: true
   replicas: 1
+  # GARRISON_API_URL: the API URL the browser calls. Empty means the dashboard's own origin, which proxies /v1.0 to
+  # the server.
   apiUrl: ""
+  # GARRISON_CSP_CONNECT_SRC: extra space-separated origins the browser may call. Non-empty also shows "Use a
+  # different server" on the sign-in page; empty hides it.
+  cspConnectSrc: ""
   service:
     type: ClusterIP
     nodePort: null

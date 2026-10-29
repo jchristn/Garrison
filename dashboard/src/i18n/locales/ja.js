@@ -421,6 +421,9 @@ const ja = {
     subtitle: 'エージェントコントロールプレーンにサインイン',
     tabs: { password: 'メールとパスワード', accessKey: 'アクセスキー' },
     serverUrl: 'サーバー URL',
+    serverInUse: '使用するサーバー:',
+    useDifferentServer: '別のサーバーを使用',
+    useDefaultServer: '既定のサーバーを使用',
     tenantId: 'テナント ID',
     email: 'メールアドレス',
     password: 'パスワード',
@@ -429,7 +432,7 @@ const ja = {
     submit: 'サインイン',
     connecting: 'サインイン中...',
     restoring: 'セッションを復元しています...',
-    errorGeneric: 'サインインできません。サーバー URL と認証情報を確認してください。',
+    errorGeneric: 'サインインできません。認証情報と、サーバーに接続できるかを確認してください。',
     footerHint: 'ローカル開発の既定値: テナント default の admin@garrison。'
   },
   topbar: {
@@ -1772,6 +1775,7 @@ const ja = {
       bucketStart: '区間の開始'
     },
     serverInfo: {
+      serverInUse: '使用中のサーバー',
       title: 'サーバー情報',
       subtitle: 'エンドポイント、バージョン、サインイン中の ID です。',
       endpoints: 'エンドポイント',

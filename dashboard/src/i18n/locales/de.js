@@ -442,6 +442,9 @@ const de = {
     subtitle: 'Bei der Agenten-Steuerungsebene anmelden',
     tabs: { password: 'E-Mail und Passwort', accessKey: 'Zugangsschlüssel' },
     serverUrl: 'Server-URL',
+    serverInUse: 'Verwendeter Server:',
+    useDifferentServer: 'Anderen Server verwenden',
+    useDefaultServer: 'Standardserver verwenden',
     tenantId: 'Mandanten-ID',
     email: 'E-Mail',
     password: 'Passwort',
@@ -450,7 +453,7 @@ const de = {
     submit: 'Anmelden',
     connecting: 'Anmeldung läuft...',
     restoring: 'Ihre Sitzung wird wiederhergestellt...',
-    errorGeneric: 'Anmeldung nicht möglich. Prüfen Sie die Server-URL und Ihre Zugangsdaten.',
+    errorGeneric: 'Anmeldung nicht möglich. Prüfen Sie Ihre Zugangsdaten und ob der Server erreichbar ist.',
     footerHint: 'Standard für lokale Entwicklung: admin@garrison im Mandanten default.'
   },
   topbar: {
@@ -1805,6 +1808,7 @@ const de = {
       bucketStart: 'Intervallbeginn'
     },
     serverInfo: {
+      serverInUse: 'Verwendeter Server',
       title: 'Serverinfo',
       subtitle: 'Endpunkte, Versionen und die Identität, mit der Sie angemeldet sind.',
       endpoints: 'Endpunkte',

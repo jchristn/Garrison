@@ -35,14 +35,67 @@ export const STUDIO_DOCS_URL = `${GITHUB_URL}/blob/main/docs/STUDIO.md`;
  */
 export const ARCHITECT_AGENT_NAME = 'agent-architect';
 
-/** Default API URL: runtime config from /config.js, else the page origin (nginx or Vite proxy). */
+/**
+ * The server the console talks to by default: window.GARRISON_CONFIG.apiUrl from /config.js when the operator set
+ * GARRISON_API_URL, else the page's own origin (nginx or the Vite dev server proxies /v1.0). The 127.0.0.1:8700
+ * fallback is only for contexts without an http origin, such as unit tests.
+ */
 export function defaultServerUrl() {
   const configured = typeof window !== 'undefined' ? window.GARRISON_CONFIG?.apiUrl : '';
-  if (configured) return configured;
+  if (configured) return String(configured).replace(/\/$/, '');
   if (typeof window !== 'undefined' && window.location?.origin && window.location.origin.startsWith('http')) {
     return window.location.origin;
   }
   return 'http://127.0.0.1:8700';
+}
+
+/**
+ * Whether the sign-in page may offer "Use a different server". Always in a development build; in the shipped image
+ * only when the operator allowed extra origins with GARRISON_CSP_CONNECT_SRC, which makes the entrypoint write
+ * allowCustomServer: true into /config.js. Without it the Content-Security-Policy would block any other origin anyway.
+ * The dev argument exists so tests can check the production behavior.
+ */
+export function customServerAllowed(dev = import.meta.env.DEV) {
+  if (dev) return true;
+  return typeof window !== 'undefined' && window.GARRISON_CONFIG?.allowCustomServer === true;
+}
+
+/** True for an absolute http or https URL. */
+export function isHttpUrl(value) {
+  try {
+    const u = new URL(String(value || ''));
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The server URL remembered from an earlier sign-in, or '' when there is none. A remembered value counts only while
+ * the override is available; otherwise the stale entry is removed so nothing can reuse it.
+ */
+export function storedServerUrl(dev = import.meta.env.DEV) {
+  let saved = '';
+  try {
+    saved = localStorage.getItem(STORAGE_KEYS.serverUrl) || '';
+  } catch {
+    return '';
+  }
+  if (!saved) return '';
+  if (!customServerAllowed(dev) || !isHttpUrl(saved)) {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.serverUrl);
+    } catch {
+      // Storage unavailable: nothing to clean up.
+    }
+    return '';
+  }
+  return saved.replace(/\/$/, '');
+}
+
+/** The server to use: a remembered override when the override is available, else defaultServerUrl(). */
+export function resolveServerUrl(dev = import.meta.env.DEV) {
+  return storedServerUrl(dev) || defaultServerUrl();
 }
 
 // Development defaults pre-filled into the login form.

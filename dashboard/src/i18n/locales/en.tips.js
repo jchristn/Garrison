@@ -163,7 +163,10 @@ const tips = {
   login: {
     passwordTab: 'Sign in as a person with a tenant, email, and password.',
     keyTab: 'Sign in with an access key and secret key, the same pair scripts and SDKs use.',
-    serverUrl: 'Base address of the Garrison REST API, for example the port-forwarded server on 127.0.0.1:8700.',
+    serverUrl: 'Base address of another Garrison server, for example 127.0.0.1:9700. The browser can reach it only if the dashboard allows its origin (GARRISON_CSP_CONNECT_SRC).',
+    useDifferentServer: 'Sign in to a server other than the one this console was deployed with. Its origin has to be allowed in GARRISON_CSP_CONNECT_SRC.',
+    useDefaultServer: 'Hide the Server URL field and sign in to the server this console was deployed with.',
+    serverInUse: 'The Garrison server this console signs in to: GARRISON_API_URL when it is set, otherwise this page\'s own origin, which proxies the API.',
     tenantId: 'The tenant your account belongs to. The local default tenant is called default.',
     email: 'The email address of your user account in this tenant.',
     password: 'Your account password. It is sent once to get a session token and never stored by the browser app.',
@@ -1281,6 +1284,7 @@ const tips = {
       restore: 'Make this version current again. The current content stays in history.'
     },
     serverInfo: {
+      serverInUse: 'The address this console sends API calls to. It is GARRISON_API_URL when that is set, otherwise the dashboard\'s own origin.',
       rest: 'Base address for REST API calls and SDKs.',
       mcp: 'Address MCP clients connect to. Each agent exposed as a tool appears there.',
       a2a: 'Base address of the A2A gateway for this tenant. Each agent has its own card below it.',

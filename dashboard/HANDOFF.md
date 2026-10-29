@@ -54,6 +54,10 @@ Fleet > Control plane (P10.19) lists the control-plane replicas from `GET /v1.0/
 
 Home shows "Control plane ready x / y" next to "Nodes ready" (from the overview's `controlNodesByStatus`; the tooltip names the leader from `leaderNodeId`, and the card turns amber when no replica leads). The Nodes panel has two sections, Control plane and Worker nodes, each with a link to its Fleet tab. System > About links the answering replica (`nodeId`) to the Control plane tab; the top bar does not show it, because server info is cached once per session and a load balancer can send the next request elsewhere.
 
+## Sign-in and the server
+
+The sign-in page has no Server URL field. The console uses `window.GARRISON_CONFIG.apiUrl` from `/config.js` when the image sets `GARRISON_API_URL`, otherwise the page's own origin, which nginx (or the Vite dev server) proxies to the API; `defaultServerUrl()` in `src/utils/constants.js` decides. The server in use is shown in small text under the form and as Server in use on System > About. A "Use a different server" link reveals the field only when the override is available (`customServerAllowed()`): always in a development build, and in the image only when `GARRISON_CSP_CONNECT_SRC` is non-empty, which makes the entrypoint write `allowCustomServer: true` into both `config.js` files. A remembered URL (`garrison_server_url` in `localStorage`) is used only while the override is available; otherwise it is removed, and `AuthContext` restores a session and signs in against the default server, so a stale value can no longer send the console to an origin the Content-Security-Policy blocks. Tests: `src/tests/serverUrl.test.jsx` and `tests/e2e/signin.spec.js`.
+
 ## What every page has
 
 - An explainer panel for pages whose objects relate to others (agents and deployments, profiles, prompts, secrets and aliases, nodes and pools, control nodes and worker nodes, users and credentials, roles and assignments, runs and queue, manifests). It can be dismissed and reopened.

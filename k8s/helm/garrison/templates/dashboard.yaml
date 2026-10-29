@@ -29,6 +29,7 @@ spec:
             - { name: http, containerPort: 80 }
           env:
             - { name: GARRISON_API_URL, value: {{ .Values.dashboard.apiUrl | quote }} }
+            - { name: GARRISON_CSP_CONNECT_SRC, value: {{ .Values.dashboard.cspConnectSrc | quote }} }
             - { name: GARRISON_API_UPSTREAM, value: {{ printf "http://%s:8700" (include "garrison.serverHost" .) | quote }} }
           resources:
             {{- toYaml .Values.dashboard.resources | nindent 12 }}

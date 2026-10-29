@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { DEV_DEFAULTS, STORAGE_KEYS, defaultServerUrl } from '../utils/constants';
+import { DEV_DEFAULTS, customServerAllowed, defaultServerUrl, storedServerUrl } from '../utils/constants';
 import { errorMessage } from '../utils/errors';
 import LanguageSelector from './LanguageSelector';
 import { EyeIcon, EyeOffIcon, SunIcon, MoonIcon } from './Icons';
 import { tip } from './Tooltip';
 
-/** Login: server URL plus email and password, or access key and secret key. */
+/**
+ * Login: email and password, or access key and secret key. The server is the configured API URL or the page origin
+ * and is shown read-only in the footer. "Use a different server" reveals a Server URL field only when the override is
+ * available (a development build, or allowCustomServer in /config.js); otherwise there is no way to type a URL.
+ */
 export default function Login() {
   const { t } = useTranslation();
   const { login, theme, toggleTheme } = useAuth();
   const [tab, setTab] = useState('password');
-  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem(STORAGE_KEYS.serverUrl) || defaultServerUrl());
+  const [allowCustom] = useState(() => customServerAllowed());
+  const [stored] = useState(() => storedServerUrl());
+  const [defaultUrl] = useState(() => defaultServerUrl());
+  const [custom, setCustom] = useState(() => allowCustom && !!stored && stored !== defaultUrl);
+  const [serverUrl, setServerUrl] = useState(() => stored || defaultUrl);
   const [tenantId, setTenantId] = useState(DEV_DEFAULTS.tenantId);
   const [email, setEmail] = useState(DEV_DEFAULTS.email);
   const [password, setPassword] = useState('');
@@ -22,13 +30,20 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const effectiveUrl = allowCustom && custom ? serverUrl.trim().replace(/\/$/, '') || defaultUrl : defaultUrl;
+
+  const useDefault = () => {
+    setCustom(false);
+    setServerUrl(defaultUrl);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      if (tab === 'password') await login(serverUrl, 'password', { tenantId, email, password });
-      else await login(serverUrl, 'key', { accessKey, secretKey });
+      if (tab === 'password') await login(effectiveUrl, 'password', { tenantId, email, password });
+      else await login(effectiveUrl, 'key', { accessKey, secretKey });
     } catch (err) {
       setError(err?.code ? errorMessage(t, err) : t('login.errorGeneric'));
     } finally {
@@ -67,10 +82,12 @@ export default function Login() {
         </div>
 
         <form className="login-form" onSubmit={submit}>
-          <div className="field">
-            <label htmlFor="serverUrl" {...tip(t('tips.login.serverUrl'))}>{t('login.serverUrl')}</label>
-            <input id="serverUrl" {...tip(t('tips.login.serverUrl'))} type="url" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} required disabled={loading} />
-          </div>
+          {allowCustom && custom && (
+            <div className="field">
+              <label htmlFor="serverUrl" {...tip(t('tips.login.serverUrl'))}>{t('login.serverUrl')}</label>
+              <input id="serverUrl" {...tip(t('tips.login.serverUrl'))} type="url" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} required disabled={loading} />
+            </div>
+          )}
           {tab === 'password' ? (
             <>
               <div className="field">
@@ -108,7 +125,23 @@ export default function Login() {
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
         </div>
+        {allowCustom && (
+          <div className="login-server-toggle">
+            {custom ? (
+              <button type="button" className="button-link" data-testid="login-use-default-server" onClick={useDefault} disabled={loading} {...tip(t('tips.login.useDefaultServer'))}>
+                {t('login.useDefaultServer')}
+              </button>
+            ) : (
+              <button type="button" className="button-link" data-testid="login-use-different-server" onClick={() => setCustom(true)} disabled={loading} {...tip(t('tips.login.useDifferentServer'))}>
+                {t('login.useDifferentServer')}
+              </button>
+            )}
+          </div>
+        )}
         <div className="login-footer">{t('login.footerHint')}</div>
+        <div className="login-footer login-server" data-testid="login-server" {...tip(t('tips.login.serverInUse'))}>
+          {t('login.serverInUse')} <code>{effectiveUrl}</code>
+        </div>
       </div>
     </main>
   );

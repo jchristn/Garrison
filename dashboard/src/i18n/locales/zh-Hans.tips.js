@@ -162,7 +162,10 @@ const tips = {
   login: {
     passwordTab: '以人员身份使用租户、电子邮件和密码登录。',
     keyTab: '使用访问密钥和私密密钥登录，与脚本和 SDK 使用的密钥对相同。',
-    serverUrl: 'Garrison REST API 的基础地址，例如端口转发到 127.0.0.1:8700 的服务器。',
+    serverUrl: '另一台 Garrison 服务器的基础地址，例如 127.0.0.1:9700。只有仪表板允许其来源 (GARRISON_CSP_CONNECT_SRC) 时，浏览器才能访问它。',
+    useDifferentServer: '登录到与此控制台部署时所用服务器不同的服务器。它的来源必须已在 GARRISON_CSP_CONNECT_SRC 中允许。',
+    useDefaultServer: '隐藏服务器 URL 字段，并登录到此控制台部署时所用的服务器。',
+    serverInUse: '此控制台登录的 Garrison 服务器：设置了 GARRISON_API_URL 时使用它，否则使用此页面自身的来源，由它代理 API。',
     tenantId: '你的账户所属的租户。本地默认租户名为 default。',
     email: '你在此租户中的用户账户的电子邮件地址。',
     password: '你的账户密码。它只会发送一次用于获取会话令牌，浏览器应用不会保存它。',
@@ -1280,6 +1283,7 @@ const tips = {
       restore: '将此版本重新设为当前版本。当前内容会保留在历史记录中。'
     },
     serverInfo: {
+      serverInUse: '此控制台发送 API 调用的地址。设置了 GARRISON_API_URL 时就是它，否则是仪表板自身的来源。',
       rest: 'REST API 调用和 SDK 使用的基础地址。',
       mcp: 'MCP 客户端连接的地址。每个作为工具公开的智能体都会出现在那里。',
       a2a: '此租户的 A2A 网关基础地址。每个智能体在其下都有自己的卡片。',

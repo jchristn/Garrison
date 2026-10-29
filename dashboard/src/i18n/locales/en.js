@@ -444,6 +444,9 @@ const en = {
     subtitle: 'Sign in to the agent control plane',
     tabs: { password: 'Email and password', accessKey: 'Access key' },
     serverUrl: 'Server URL',
+    serverInUse: 'Server in use:',
+    useDifferentServer: 'Use a different server',
+    useDefaultServer: 'Use the default server',
     tenantId: 'Tenant ID',
     email: 'Email',
     password: 'Password',
@@ -452,7 +455,7 @@ const en = {
     submit: 'Sign in',
     connecting: 'Signing in...',
     restoring: 'Restoring your session...',
-    errorGeneric: 'Could not sign in. Check the server URL and your credentials.',
+    errorGeneric: 'Could not sign in. Check your credentials and that the server is reachable.',
     footerHint: 'Local development default: admin@garrison in tenant default.'
   },
   topbar: {
@@ -1798,6 +1801,7 @@ const en = {
       bucketStart: 'Bucket start'
     },
     serverInfo: {
+      serverInUse: 'Server in use',
       title: 'Server Info',
       subtitle: 'Endpoints, versions, and the identity you are signed in with.',
       endpoints: 'Endpoints',

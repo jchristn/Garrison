@@ -164,7 +164,10 @@ const tips = {
   login: {
     passwordTab: 'Inicia sesión como persona con un inquilino, un correo electrónico y una contraseña.',
     keyTab: 'Inicia sesión con una clave de acceso y una clave secreta, el mismo par que usan los scripts y los SDK.',
-    serverUrl: 'Dirección base de la API REST de Garrison, por ejemplo el servidor con reenvío de puertos en 127.0.0.1:8700.',
+    serverUrl: 'Dirección base de otro servidor de Garrison, por ejemplo 127.0.0.1:9700. El navegador solo puede llegar a él si el panel permite su origen (GARRISON_CSP_CONNECT_SRC).',
+    useDifferentServer: 'Inicia sesión en un servidor distinto de aquel con el que se desplegó esta consola. Su origen debe estar permitido en GARRISON_CSP_CONNECT_SRC.',
+    useDefaultServer: 'Oculta el campo URL del servidor e inicia sesión en el servidor con el que se desplegó esta consola.',
+    serverInUse: 'El servidor de Garrison en el que inicia sesión esta consola: GARRISON_API_URL si está definido; si no, el origen de esta página, que hace de proxy de la API.',
     tenantId: 'El inquilino al que pertenece tu cuenta. El inquilino local predeterminado se llama default.',
     email: 'La dirección de correo electrónico de tu cuenta de usuario en este inquilino.',
     password: 'La contraseña de tu cuenta. Se envía una sola vez para obtener un token de sesión y la aplicación del navegador nunca la guarda.',
@@ -1283,6 +1286,7 @@ const tips = {
       restore: 'Vuelve a hacer actual esta versión. El contenido actual se queda en el historial.'
     },
     serverInfo: {
+      serverInUse: 'La dirección a la que esta consola envía las llamadas a la API. Es GARRISON_API_URL si está definido; si no, el origen del propio panel.',
       rest: 'Dirección base para las llamadas a la API REST y los SDK.',
       mcp: 'Dirección a la que se conectan los clientes MCP. Ahí aparece cada agente expuesto como herramienta.',
       a2a: 'Dirección base de la pasarela A2A para este inquilino. Cada agente tiene su propia tarjeta debajo de ella.',

@@ -184,6 +184,7 @@ Harness credentials such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` do not belon
 |---|---|---|
 | `GARRISON_API_UPSTREAM` | Where nginx proxies `/v1.0` and `/openapi.json` | `http://garrison-server:8700` |
 | `GARRISON_API_URL` | API URL the browser calls; empty means same origin through the proxy | empty |
+| `GARRISON_CSP_CONNECT_SRC` | Extra space-separated origins the browser may call; non-empty also shows "Use a different server" on the sign-in page | empty |
 
 ## Health
 

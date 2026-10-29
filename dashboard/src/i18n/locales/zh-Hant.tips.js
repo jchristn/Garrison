@@ -162,7 +162,10 @@ const tips = {
   login: {
     passwordTab: '以人員身分使用租用戶、電子郵件與密碼登入。',
     keyTab: '使用存取金鑰與祕密金鑰登入，也就是指令碼與 SDK 使用的同一組金鑰。',
-    serverUrl: 'Garrison REST API 的基底位址，例如透過連接埠轉送的伺服器 127.0.0.1:8700。',
+    serverUrl: '另一台 Garrison 伺服器的基底位址，例如 127.0.0.1:9700。只有儀表板允許其來源 (GARRISON_CSP_CONNECT_SRC) 時，瀏覽器才能連線。',
+    useDifferentServer: '登入與此主控台部署時所用伺服器不同的伺服器。其來源必須已在 GARRISON_CSP_CONNECT_SRC 中允許。',
+    useDefaultServer: '隱藏伺服器 URL 欄位，並登入此主控台部署時所用的伺服器。',
+    serverInUse: '此主控台登入的 Garrison 伺服器：設定了 GARRISON_API_URL 時使用它，否則使用此頁面自身的來源，由它代理 API。',
     tenantId: '你的帳戶所屬的租用戶。本機預設租用戶名為 default。',
     email: '你在此租用戶中的使用者帳戶電子郵件地址。',
     password: '你的帳戶密碼。只會傳送一次以取得工作階段權杖，瀏覽器應用程式不會儲存它。',
@@ -1280,6 +1283,7 @@ const tips = {
       restore: '讓此版本重新成為目前版本。目前的內容會保留在歷程中。'
     },
     serverInfo: {
+      serverInUse: '此主控台傳送 API 呼叫的位址。設定了 GARRISON_API_URL 時就是它，否則是儀表板自身的來源。',
       rest: 'REST API 呼叫與 SDK 使用的基底位址。',
       mcp: 'MCP 用戶端連線的位址。每個以工具形式公開的代理程式都會出現在那裡。',
       a2a: '此租用戶的 A2A 閘道基底位址。每個代理程式在其下都有自己的卡片。',

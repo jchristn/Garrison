@@ -421,6 +421,9 @@ const yueHant = {
     subtitle: '登入代理程式控制平面',
     tabs: { password: '電郵同密碼', accessKey: '存取金鑰' },
     serverUrl: '伺服器 URL',
+    serverInUse: '用緊嘅伺服器：',
+    useDifferentServer: '用另一部伺服器',
+    useDefaultServer: '用預設伺服器',
     tenantId: '租用戶 ID',
     email: '電郵',
     password: '密碼',
@@ -429,7 +432,7 @@ const yueHant = {
     submit: '登入',
     connecting: '登入緊...',
     restoring: '還原緊你嘅工作階段...',
-    errorGeneric: '登入唔到。請檢查伺服器 URL 同你嘅憑證。',
+    errorGeneric: '登入唔到。請檢查你嘅憑證，同埋伺服器係咪連得到。',
     footerHint: '本機開發預設：租用戶 default 入面嘅 admin@garrison。'
   },
   topbar: {
@@ -1770,6 +1773,7 @@ const yueHant = {
       bucketStart: '時段開始'
     },
     serverInfo: {
+      serverInUse: '使用緊嘅伺服器',
       title: '伺服器資訊',
       subtitle: '端點、版本，同你而家登入緊嘅身份。',
       endpoints: '端點',

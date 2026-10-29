@@ -164,7 +164,10 @@ const tips = {
   login: {
     passwordTab: 'Se connecter en tant que personne avec un locataire, une adresse e-mail et un mot de passe.',
     keyTab: 'Se connecter avec une clé d\'accès et une clé secrète, la même paire que celle utilisée par les scripts et les SDK.',
-    serverUrl: 'Adresse de base de l\'API REST de Garrison, par exemple le serveur redirigé par port sur 127.0.0.1:8700.',
+    serverUrl: 'Adresse de base d\'un autre serveur Garrison, par exemple 127.0.0.1:9700. Le navigateur ne peut le joindre que si le tableau de bord autorise son origine (GARRISON_CSP_CONNECT_SRC).',
+    useDifferentServer: 'Se connecter à un autre serveur que celui avec lequel cette console a été déployée. Son origine doit être autorisée dans GARRISON_CSP_CONNECT_SRC.',
+    useDefaultServer: 'Masquer le champ URL du serveur et se connecter au serveur avec lequel cette console a été déployée.',
+    serverInUse: 'Le serveur Garrison auquel cette console se connecte : GARRISON_API_URL s\'il est défini, sinon l\'origine de cette page, qui sert de proxy à l\'API.',
     tenantId: 'Le locataire auquel appartient votre compte. Le locataire local par défaut s\'appelle default.',
     email: 'L\'adresse e-mail de votre compte utilisateur dans ce locataire.',
     password: 'Le mot de passe de votre compte. Il est envoyé une seule fois pour obtenir un jeton de session et n\'est jamais stocké par l\'application du navigateur.',
@@ -1283,6 +1286,7 @@ const tips = {
       restore: 'Rendre cette version à nouveau courante. Le contenu actuel reste dans l\'historique.'
     },
     serverInfo: {
+      serverInUse: 'L\'adresse à laquelle cette console envoie les appels d\'API. C\'est GARRISON_API_URL s\'il est défini, sinon l\'origine du tableau de bord.',
       rest: 'Adresse de base pour les appels à l\'API REST et les SDK.',
       mcp: 'Adresse à laquelle se connectent les clients MCP. Chaque agent exposé comme outil y apparaît.',
       a2a: 'Adresse de base de la passerelle A2A pour ce locataire. Chaque agent a sa propre carte sous cette adresse.',

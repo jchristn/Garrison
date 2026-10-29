@@ -164,7 +164,10 @@ const tips = {
   login: {
     passwordTab: 'Accedi come persona con tenant, email e password.',
     keyTab: 'Accedi con una chiave di accesso e una chiave segreta, la stessa coppia usata da script e SDK.',
-    serverUrl: 'Indirizzo base della REST API di Garrison, per esempio il server con port-forward su 127.0.0.1:8700.',
+    serverUrl: 'Indirizzo base di un altro server Garrison, per esempio 127.0.0.1:9700. Il browser lo raggiunge solo se la dashboard ne consente l\'origine (GARRISON_CSP_CONNECT_SRC).',
+    useDifferentServer: 'Accedi a un server diverso da quello con cui è stata distribuita questa console. La sua origine deve essere consentita in GARRISON_CSP_CONNECT_SRC.',
+    useDefaultServer: 'Nascondi il campo URL del server e accedi al server con cui è stata distribuita questa console.',
+    serverInUse: 'Il server Garrison a cui accede questa console: GARRISON_API_URL se impostato, altrimenti l\'origine di questa pagina, che fa da proxy per l\'API.',
     tenantId: 'Il tenant a cui appartiene il tuo account. Il tenant predefinito locale si chiama default.',
     email: 'L\'indirizzo email del tuo account utente in questo tenant.',
     password: 'La password del tuo account. Viene inviata una sola volta per ottenere un token di sessione e non viene mai salvata dall\'app nel browser.',
@@ -1283,6 +1286,7 @@ const tips = {
       restore: 'Rendi di nuovo corrente questa versione. Il contenuto attuale resta nella cronologia.'
     },
     serverInfo: {
+      serverInUse: 'L\'indirizzo a cui questa console invia le chiamate API. È GARRISON_API_URL se impostato, altrimenti l\'origine della dashboard.',
       rest: 'Indirizzo base per le chiamate alla REST API e per gli SDK.',
       mcp: 'Indirizzo a cui si connettono i client MCP. Ogni agente esposto come strumento compare lì.',
       a2a: 'Indirizzo base del gateway A2A per questo tenant. Ogni agente ha la propria card sotto questo indirizzo.',

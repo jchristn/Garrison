@@ -163,7 +163,10 @@ const tips = {
   login: {
     passwordTab: 'Als Person mit Mandant, E-Mail und Passwort anmelden.',
     keyTab: 'Mit Zugangsschlüssel und geheimem Schlüssel anmelden, demselben Paar, das Skripte und SDKs verwenden.',
-    serverUrl: 'Basisadresse der Garrison-REST-API, zum Beispiel der per Port-Forwarding erreichbare Server auf 127.0.0.1:8700.',
+    serverUrl: 'Basisadresse eines anderen Garrison-Servers, zum Beispiel 127.0.0.1:9700. Der Browser erreicht ihn nur, wenn das Dashboard seinen Ursprung erlaubt (GARRISON_CSP_CONNECT_SRC).',
+    useDifferentServer: 'Bei einem anderen Server anmelden als dem, mit dem diese Konsole bereitgestellt wurde. Sein Ursprung muss in GARRISON_CSP_CONNECT_SRC erlaubt sein.',
+    useDefaultServer: 'Das Feld Server-URL ausblenden und beim Server anmelden, mit dem diese Konsole bereitgestellt wurde.',
+    serverInUse: 'Der Garrison-Server, bei dem sich diese Konsole anmeldet: GARRISON_API_URL, wenn gesetzt, sonst der Ursprung dieser Seite, der die API weiterleitet.',
     tenantId: 'Der Mandant, zu dem Ihr Konto gehört. Der lokale Standardmandant heißt default.',
     email: 'Die E-Mail-Adresse Ihres Benutzerkontos in diesem Mandanten.',
     password: 'Ihr Kontopasswort. Es wird einmal gesendet, um ein Sitzungstoken zu erhalten, und von der Browser-Anwendung nie gespeichert.',
@@ -1281,6 +1284,7 @@ const tips = {
       restore: 'Diese Version wieder zur aktuellen machen. Der aktuelle Inhalt bleibt im Verlauf erhalten.'
     },
     serverInfo: {
+      serverInUse: 'Die Adresse, an die diese Konsole API-Aufrufe sendet. Das ist GARRISON_API_URL, wenn gesetzt, sonst der Ursprung des Dashboards.',
       rest: 'Basisadresse für REST-API-Aufrufe und SDKs.',
       mcp: 'Adresse, mit der sich MCP-Clients verbinden. Jeder als Werkzeug bereitgestellte Agent erscheint dort.',
       a2a: 'Basisadresse des A2A-Gateways für diesen Mandanten. Jeder Agent hat darunter seine eigene Karte.',

@@ -27,7 +27,12 @@ spec:
               containerPort: 80
           env:
             # Empty means the browser calls the API on the dashboard origin; nginx proxies /v1.0 to the server.
+            # Set it to a full URL (https://api.example.com) to send the browser to another API origin instead.
             - name: GARRISON_API_URL
+              value: ""
+            # Extra space-separated origins the browser may call (CSP connect-src). Setting it also shows "Use a
+            # different server" on the sign-in page; empty hides it.
+            - name: GARRISON_CSP_CONNECT_SRC
               value: ""
             # nginx does not apply DNS search domains, so the upstream must be fully qualified.
             - name: GARRISON_API_UPSTREAM

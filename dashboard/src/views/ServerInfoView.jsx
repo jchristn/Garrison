@@ -90,6 +90,7 @@ export default function ServerInfoView() {
       <div className="info-grid">
         <section className="panel">
           <h2 className="section-title">{t('views.serverInfo.endpoints')}</h2>
+          <Row label={t('views.serverInfo.serverInUse')} tip={t('tips.views.serverInfo.serverInUse')} value={serverUrl ? <code data-testid="about-server-in-use">{serverUrl}</code> : null} copy={serverUrl} />
           <Row label={t('views.serverInfo.rest')} tip={t('tips.views.serverInfo.rest')} value={<code>{restUrl}</code>} copy={restUrl} />
           <Row label={t('views.serverInfo.mcp')} tip={t('tips.views.serverInfo.mcp')} value={mcpUrl ? <code>{mcpUrl}</code> : null} copy={mcpUrl} />
           <Row label={t('views.serverInfo.a2a')} tip={t('tips.views.serverInfo.a2a')} value={a2aUrl ? <code>{a2aUrl}</code> : null} copy={a2aUrl} />

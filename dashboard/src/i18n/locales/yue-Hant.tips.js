@@ -163,7 +163,10 @@ const tips = {
   login: {
     passwordTab: '以個人身份，用租用戶、電郵同密碼登入。',
     keyTab: '用存取金鑰同密鑰登入，即係腳本同 SDK 用嘅同一對金鑰。',
-    serverUrl: 'Garrison REST API 嘅基本地址，例如經過連接埠轉發、喺 127.0.0.1:8700 嘅伺服器。',
+    serverUrl: '另一部 Garrison 伺服器嘅基本地址，例如 127.0.0.1:9700。要儀表板允許佢嘅來源 (GARRISON_CSP_CONNECT_SRC)，瀏覽器先連得到。',
+    useDifferentServer: '登入一部唔係呢個控制台部署時所用嘅伺服器。佢嘅來源一定要喺 GARRISON_CSP_CONNECT_SRC 度允許咗。',
+    useDefaultServer: '收埋伺服器 URL 欄，登入呢個控制台部署時所用嘅伺服器。',
+    serverInUse: '呢個控制台登入嘅 Garrison 伺服器：有設定 GARRISON_API_URL 就用佢，冇就用呢個頁面自己嘅來源，由佢代理 API。',
     tenantId: '你個帳戶所屬嘅租用戶。本機預設租用戶叫做 default。',
     email: '你喺呢個租用戶嘅用戶帳戶電郵地址。',
     password: '你嘅帳戶密碼。佢只會傳送一次嚟攞工作階段權杖，瀏覽器應用程式永遠唔會儲存佢。',
@@ -1281,6 +1284,7 @@ const tips = {
       restore: '將呢個版本再設為目前版本。目前內容會保留喺歷史入面。'
     },
     serverInfo: {
+      serverInUse: '呢個控制台傳送 API 呼叫嘅地址。有設定 GARRISON_API_URL 就係佢，冇就係儀表板自己嘅來源。',
       rest: 'REST API 呼叫同 SDK 用嘅基本地址。',
       mcp: 'MCP 用戶端連接嘅地址。每個以工具形式公開嘅代理程式都會喺度出現。',
       a2a: '呢個租用戶 A2A 閘道嘅基本地址。每個代理程式喺佢下面都有自己嘅卡。',

@@ -1,12 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import ApiClient from '../utils/api';
-import { STORAGE_KEYS } from '../utils/constants';
+import { STORAGE_KEYS, customServerAllowed, defaultServerUrl, resolveServerUrl } from '../utils/constants';
 
 const AuthContext = createContext(null);
 
 /**
  * Authentication and session provider. Owns the ApiClient, server URL, token, the resolved principal (from
- * GET /v1.0/token/details), and the theme. Restores a saved session on load.
+ * GET /v1.0/token/details), and the theme. Restores a saved session on load. The server is always resolveServerUrl():
+ * the configured API URL or the page origin, or a remembered override only while the override is available, so a
+ * stale remembered URL can never redirect the session.
  */
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -22,9 +24,9 @@ export function AuthProvider({ children }) {
   }, [theme]);
 
   useEffect(() => {
-    const savedUrl = localStorage.getItem(STORAGE_KEYS.serverUrl);
+    const savedUrl = resolveServerUrl();
     const savedToken = localStorage.getItem(STORAGE_KEYS.token);
-    if (!savedUrl || !savedToken) {
+    if (!savedToken) {
       setIsLoading(false);
       return;
     }
@@ -61,10 +63,12 @@ export function AuthProvider({ children }) {
   }, [logout]);
 
   /**
-   * Log in. mode 'password' uses { tenantId, email, password }; mode 'key' uses { accessKey, secretKey }.
+   * Log in. mode 'password' uses { tenantId, email, password }; mode 'key' uses { accessKey, secretKey }. url is the
+   * server typed on the sign-in page; it is used only while the override is available (customServerAllowed()), and
+   * the default server is used otherwise.
    */
   const login = useCallback(async (url, mode, creds) => {
-    const base = (url || '').replace(/\/$/, '');
+    const base = ((customServerAllowed() && url) || defaultServerUrl()).replace(/\/$/, '');
     const temp = new ApiClient(base, null);
     const result =
       mode === 'password'
@@ -76,7 +80,9 @@ export function AuthProvider({ children }) {
     const client = new ApiClient(base, newToken);
     const p = await client.getTokenDetails();
 
-    localStorage.setItem(STORAGE_KEYS.serverUrl, base);
+    // Remember the server only when it is an override the person may choose again; otherwise drop any old entry.
+    if (customServerAllowed() && base !== defaultServerUrl()) localStorage.setItem(STORAGE_KEYS.serverUrl, base);
+    else localStorage.removeItem(STORAGE_KEYS.serverUrl);
     localStorage.setItem(STORAGE_KEYS.token, newToken);
     setServerUrl(base);
     setToken(newToken);

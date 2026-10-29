@@ -125,6 +125,15 @@ docker compose logs -f garrison-server                         # server log
 
 Then sign in to the dashboard. Fleet > Worker nodes lists `garrison-worker-1` and `garrison-worker-2` as `Ready`, Fleet > Control plane lists the server replica as the leader, and Invoke runs sample agents that have a configured deployment and usable provider credentials. The whole sequence, from `./update.sh` to seeing both workers, takes well under a minute once the images exist.
 
+## Dashboard and the API origin
+
+The dashboard talks to the server through its own origin. The browser sends API calls to `http://127.0.0.1:8080/v1.0/...` and nginx in the dashboard container passes them to `garrison-server:8700`, so the sign-in page has no server field and needs no setup. The server it uses appears in small text under the sign-in form and on System > About.
+
+Two settings in `.env` change that. Run `./update.sh` (or `docker compose up -d garrison-dashboard`) after editing either one.
+
+- `GARRISON_API_URL` sends the browser to a different API origin, for example `https://garrison-api.example.com` when the API sits behind its own proxy. The dashboard adds that origin to its Content-Security-Policy for you.
+- `GARRISON_CSP_CONNECT_SRC` lists extra space-separated origins the browser may call, for example `http://127.0.0.1:9700 ws://127.0.0.1:9700` for a second Garrison stack. Setting it also puts a "Use a different server" link on the sign-in page, which opens a Server URL field. Leave it empty and the link does not appear, so nobody can point the console at a server the policy would block. A server URL remembered from an earlier sign-in is ignored and removed while the link is off.
+
 ## Observability
 
 Compose workers always run harnesses as subprocesses (the `Process` executor). The pod-per-run `KubernetesJob` executor needs the Kubernetes API, so Compose leaves it off; a deployment set to `executor: KubernetesJob` stays queued with `blockedReason: NoCapableWorker` here. Use the Kubernetes manifests for that (`docs/KUBERNETES.md`, "Pod-per-run executor").

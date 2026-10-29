@@ -421,6 +421,9 @@ const zhHans = {
     subtitle: '登录智能体控制平面',
     tabs: { password: '电子邮件和密码', accessKey: '访问密钥' },
     serverUrl: '服务器 URL',
+    serverInUse: '使用的服务器：',
+    useDifferentServer: '使用其他服务器',
+    useDefaultServer: '使用默认服务器',
     tenantId: '租户 ID',
     email: '电子邮件',
     password: '密码',
@@ -429,7 +432,7 @@ const zhHans = {
     submit: '登录',
     connecting: '正在登录...',
     restoring: '正在恢复你的会话...',
-    errorGeneric: '无法登录。请检查服务器 URL 和你的凭据。',
+    errorGeneric: '无法登录。请检查你的凭据，并确认服务器可以访问。',
     footerHint: '本地开发默认账户：租户 default 中的 admin@garrison。'
   },
   topbar: {
@@ -1771,6 +1774,7 @@ const zhHans = {
       bucketStart: '时间段开始'
     },
     serverInfo: {
+      serverInUse: '当前使用的服务器',
       title: '服务器信息',
       subtitle: '端点、版本以及你当前登录所用的身份。',
       endpoints: '端点',

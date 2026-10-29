@@ -143,6 +143,17 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+test('the sign-in server override has useful tooltips', async ({ page }) => {
+  await page.route(/\/config\.js$/, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.GARRISON_CONFIG = { apiUrl: "", allowCustomServer: true };' }));
+  const before = failures.length;
+  await page.goto('/');
+  await audit(page, 'login, server override available');
+  await page.getByTestId('login-use-different-server').click();
+  await expect(page.locator('#serverUrl')).toBeVisible();
+  await audit(page, 'login, Server URL field shown');
+  expect(failures.slice(before)).toEqual([]);
+});
+
 test('every interactive and labeled element has a useful tooltip', async ({ page }) => {
   test.setTimeout(600000);
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -583,7 +594,7 @@ test('tooltips show on hover and keyboard focus, are described, portaled, and di
   await expect(bubble).not.toHaveClass(/is-visible/);
 
   await page.mouse.move(0, 0);
-  await page.locator('#serverUrl').focus();
+  await page.locator('#tenantId').focus();
   await page.keyboard.press('Tab');
   await expect(bubble).toHaveClass(/is-visible/);
   await expect(page.locator(':focus')).toHaveAttribute('aria-describedby', /garrison-tooltip/);

@@ -421,6 +421,9 @@ const zhHant = {
     subtitle: '登入代理程式控制平面',
     tabs: { password: '電子郵件與密碼', accessKey: '存取金鑰' },
     serverUrl: '伺服器 URL',
+    serverInUse: '使用的伺服器：',
+    useDifferentServer: '使用其他伺服器',
+    useDefaultServer: '使用預設伺服器',
     tenantId: '租用戶 ID',
     email: '電子郵件',
     password: '密碼',
@@ -429,7 +432,7 @@ const zhHant = {
     submit: '登入',
     connecting: '登入中...',
     restoring: '正在還原你的工作階段...',
-    errorGeneric: '無法登入。請檢查伺服器 URL 與你的憑證。',
+    errorGeneric: '無法登入。請檢查你的憑證，並確認伺服器可以連線。',
     footerHint: '本機開發預設值：租用戶 default 中的 admin@garrison。'
   },
   topbar: {
@@ -1771,6 +1774,7 @@ const zhHant = {
       bucketStart: '區間開始'
     },
     serverInfo: {
+      serverInUse: '目前使用的伺服器',
       title: '伺服器資訊',
       subtitle: '端點、版本，以及你目前登入的身分。',
       endpoints: '端點',

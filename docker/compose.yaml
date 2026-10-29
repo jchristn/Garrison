@@ -183,6 +183,10 @@ services:
       - '127.0.0.1:${GARRISON_DASHBOARD_PORT:-8080}:80'
     environment:
       GARRISON_API_UPSTREAM: 'http://garrison-server:8700'
+      # Empty: the browser calls the API through this origin. See docs/DOCKER.md, "Dashboard and the API origin".
+      GARRISON_API_URL: '${GARRISON_API_URL:-}'
+      # Extra origins the browser may call; non-empty also shows "Use a different server" on the sign-in page.
+      GARRISON_CSP_CONNECT_SRC: '${GARRISON_CSP_CONNECT_SRC:-}'
     depends_on:
       garrison-server:
         condition: service_healthy

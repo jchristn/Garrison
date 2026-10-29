@@ -448,6 +448,9 @@ const it = {
     subtitle: 'Accedi al piano di controllo degli agenti',
     tabs: { password: 'Email e password', accessKey: 'Chiave di accesso' },
     serverUrl: 'URL del server',
+    serverInUse: 'Server in uso:',
+    useDifferentServer: 'Usa un altro server',
+    useDefaultServer: 'Usa il server predefinito',
     tenantId: 'ID tenant',
     email: 'Email',
     password: 'Password',
@@ -456,7 +459,7 @@ const it = {
     submit: 'Accedi',
     connecting: 'Accesso in corso...',
     restoring: 'Ripristino della sessione...',
-    errorGeneric: 'Impossibile accedere. Controlla l\'URL del server e le tue credenziali.',
+    errorGeneric: 'Impossibile accedere. Controlla le tue credenziali e che il server sia raggiungibile.',
     footerHint: 'Predefinito per lo sviluppo locale: admin@garrison nel tenant default.'
   },
   topbar: {
@@ -1817,6 +1820,7 @@ const it = {
       bucketStart: 'Inizio intervallo'
     },
     serverInfo: {
+      serverInUse: 'Server in uso',
       title: 'Info server',
       subtitle: 'Endpoint, versioni e l\'identità con cui hai effettuato l\'accesso.',
       endpoints: 'Endpoint',

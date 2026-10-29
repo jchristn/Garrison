@@ -448,6 +448,9 @@ const fr = {
     subtitle: 'Connectez-vous au plan de contrôle des agents',
     tabs: { password: 'E-mail et mot de passe', accessKey: 'Clé d\'accès' },
     serverUrl: 'URL du serveur',
+    serverInUse: 'Serveur utilisé :',
+    useDifferentServer: 'Utiliser un autre serveur',
+    useDefaultServer: 'Utiliser le serveur par défaut',
     tenantId: 'ID du locataire',
     email: 'E-mail',
     password: 'Mot de passe',
@@ -456,7 +459,7 @@ const fr = {
     submit: 'Se connecter',
     connecting: 'Connexion...',
     restoring: 'Restauration de votre session...',
-    errorGeneric: 'Connexion impossible. Vérifiez l\'URL du serveur et vos identifiants.',
+    errorGeneric: 'Connexion impossible. Vérifiez vos identifiants et que le serveur est joignable.',
     footerHint: 'Valeur par défaut en développement local : admin@garrison dans le locataire default.'
   },
   topbar: {
@@ -1817,6 +1820,7 @@ const fr = {
       bucketStart: 'Début de l\'intervalle'
     },
     serverInfo: {
+      serverInUse: 'Serveur utilisé',
       title: 'Infos serveur',
       subtitle: 'Points de terminaison, versions et identité avec laquelle vous êtes connecté.',
       endpoints: 'Points de terminaison',
