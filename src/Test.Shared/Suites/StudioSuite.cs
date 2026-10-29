@@ -55,6 +55,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "playground", "Playground runs execute an agent's draft revision on an ephemeral draft-environment deployment, from an agent or from a studio draft, without publishing; apps cannot select the draft environment (" + provider + ")", ct => PlaygroundAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "deploy-dev", "From an empty draft to a running dev app: agent, dev deployment, and app drafted, approved, applied, and answering at its app URL through the gateway; a pinned dev deployment moves to the new revision (" + provider + ")", ct => DeployDevAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "tenancy-rbac", "Another tenant's drafts and architect prompts are 404 or absent; a user without design permissions gets 403 on drafts, architect prompts, and the 0.2.0 routes for capabilities, file spaces, fan-out groups, assets, and apps (" + provider + ")", ct => TenancyAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "build-deploy-chat", "From an empty tenant: an architect on the guided prompt builds a two-agent app through draft tools, a person approves, the app answers two turns at its URL and writes a file, which downloads; the app is promoted to staging and rolled back (" + provider + ")", ct => BuildDeployChatAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Studio drafts (" + provider + ")", cases));
             }
             return suites;
@@ -828,6 +829,112 @@ spec:
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Nope" }, token).ConfigureAwait(false)).StatusCode, "No permission: create a draft");
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/nope", new StudioDraftItemRequest { Version = draft.Version, Document = AgentYaml("nope", "No.") }, token).ConfigureAwait(false)).StatusCode, "No permission: edit a draft");
                 }
+            }
+        }
+
+        private static async Task BuildDeployChatAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                Tenant tenant = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Fresh Studio" }, 201, token).ConfigureAwait(false);
+                string t = "/v1.0/api/tenants/" + tenant.Id;
+                await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, t + "/users", new UserRequest { Email = "builder@example.com", Password = "password123", IsTenantAdmin = true }, 201, token).ConfigureAwait(false);
+                using (HttpClient builder = await host.UserClientAsync("builder@example.com", "password123", tenant.Id, token).ConfigureAwait(false))
+                {
+                    EnumerationResult<Agent> before = await HttpTestHelpers.SendAsync<EnumerationResult<Agent>>(builder, HttpMethod.Get, t + "/agents", null, 200, token).ConfigureAwait(false);
+                    Assert.True(before.Objects.Count == 1 && before.Objects[0].Name == "agent-architect", "An empty tenant has only the architect");
+
+                    string steps = String.Join("\n", Enumerable.Range(1, 6).Select(i =>
+                        "    - template: --mcp-invoke\n      condition: \"{{deployment.parameters.step" + i + "}}\"\n    - template: \"{{deployment.parameters.step" + i + "}}\"\n      condition: \"{{deployment.parameters.step" + i + "}}\""));
+                    string profileYaml = "apiVersion: garrison/v1\nkind: HarnessProfile\nmetadata:\n  name: architect-script\nspec:\n  harnessType: Generic\n  executable: garrison-fake-harness\n  promptDelivery: Stdin\n  mcpConfigFormat: ClaudeJson\n  mcpConfigFileName: mcp.json\n  outputParser: ClaudeStreamJson\n  resultSource: ParserFinalEvent\n  defaultTimeoutSeconds: 300\n  files:\n    - baseDirectory: Config\n      pathTemplate: mcp.json\n      contentTemplate: \"{{> builtin/claude-code-mcp-config}}\"\n      isSecret: true\n      condition: \"{{resources.hasMcpServers}}\"\n      mode: \"600\"\n  arguments:\n    - template: --format\n    - template: claude\n    - template: --mcp-config\n      condition: \"{{resources.hasMcpServers}}\"\n    - template: $GARRISON_CONFIG_DIR/mcp.json\n      condition: \"{{resources.hasMcpServers}}\"\n" + steps + "\n";
+                    using (StringContent content = new StringContent(profileYaml, Encoding.UTF8, "application/yaml"))
+                    using (HttpResponseMessage response = await builder.PostAsync(t + "/manifests/apply", content, token).ConfigureAwait(false))
+                    {
+                        Assert.Equal(200, (int)response.StatusCode, "Script profile: " + await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+                    }
+                    HarnessProfile profile = Assert.NotNull((await host.Server.Context.Database.HarnessProfiles.EnumerateAsync(tenant.Id, new EnumerationQuery { MaxResults = 1000 }, token).ConfigureAwait(false)).Objects.FirstOrDefault(p => p.Name == "architect-script"), "Profile");
+
+                    // The person opens a draft and picks the guided architect prompt (the wizard's choice).
+                    StudioDraft draft = await HttpTestHelpers.SendAsync<StudioDraft>(builder, HttpMethod.Post, t + "/studio/drafts", new StudioDraftCreateRequest { Title = "Desk app" }, 201, token).ConfigureAwait(false);
+                    string agentA = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: desk-front\n  description: Talks to people\nspec:\n  displayName: Front desk\n  delegation:\n    allow: [desk-helper]\n    maxDepth: 1\n";
+                    string agentB = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: desk-helper\n  description: Helps the front desk\nspec:\n  displayName: Helper\n";
+                    string depA = "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: desk-front-dev\nspec:\n  agent: desk-front\n  harnessProfile: builtin/fake\n  environment: dev\n  argumentOverrides:\n    - { position: 0, operation: Append, template: --output-last-message }\n    - { position: 1, operation: Append, template: files/answer.txt }\n";
+                    string depB = "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: desk-helper-dev\nspec:\n  agent: desk-helper\n  harnessProfile: builtin/fake\n  environment: dev\n";
+                    string app = "apiVersion: garrison/v1\nkind: AgenticApp\nmetadata:\n  name: desk-app\nspec:\n  entry: desk-front\n  members:\n    - { agent: desk-front }\n    - { agent: desk-helper }\n  edges:\n    - { from: desk-front, to: desk-helper, fanOut: false }\n  environments:\n    - { environment: dev, deployment: desk-front-dev }\n  liveEnvironment: dev\n  authMode: Anonymous\n  anonymousEnabled: true\n";
+                    string[][] items = { new[] { "Agent", "desk-front", agentA }, new[] { "Agent", "desk-helper", agentB }, new[] { "Deployment", "desk-front-dev", depA }, new[] { "Deployment", "desk-helper-dev", depB }, new[] { "AgenticApp", "desk-app", app } };
+                    List<DeploymentParameter> parameters = new List<DeploymentParameter>();
+                    for (int i = 0; i < items.Length; i++)
+                    {
+                        parameters.Add(new DeploymentParameter { Name = "step" + (i + 1), Value = "garrison,garrison_studio_put_item," + Serializer.Serialize(new { draftId = draft.Id, version = draft.Version + i, kind = items[i][0], name = items[i][1], document = items[i][2] }) });
+                    }
+                    parameters.Add(new DeploymentParameter { Name = "step6", Value = "garrison,garrison_studio_request_apply," + Serializer.Serialize(new { draftId = draft.Id, version = draft.Version + 5 }) });
+                    Agent architectAgent = (await HttpTestHelpers.SendAsync<EnumerationResult<Agent>>(builder, HttpMethod.Get, t + "/agents", null, 200, token).ConfigureAwait(false)).Objects.Single();
+                    Deployment architect = await HttpTestHelpers.SendAsync<Deployment>(builder, HttpMethod.Post, t + "/deployments", new Deployment { Name = "architect", AgentId = architectAgent.Id, HarnessProfileId = profile.Id, ArchitectPromptTemplateId = "builtin/agent-architect-guided", Parameters = parameters }, 201, token).ConfigureAwait(false);
+                    Assert.True(architect.ManagementAccess == ManagementAccessEnum.Drafts && architect.PromptBindings.Any(b => b.Role == "System" && b.TemplateId == "tpl_builtin_agent_architect_guided"), "Architect on the guided prompt with Drafts access");
+
+                    Run designed = await HttpTestHelpers.SendAsync<Run>(builder, HttpMethod.Post, t + "/agents/agent-architect/invoke", new InvokeRequest { Input = "Build me a front desk with a helper.", DeploymentId = architect.Id, StartConversation = true, StudioDraftId = draft.Id, Wait = true, WaitSeconds = 120 }, 200, token).ConfigureAwait(false);
+                    Assert.Equal(RunStatusEnum.Succeeded, designed.Status, "The architect turn succeeds: " + designed.ErrorMessage);
+                    StudioDraft pending = await HttpTestHelpers.SendAsync<StudioDraft>(builder, HttpMethod.Get, t + "/studio/drafts/" + draft.Id, null, 200, token).ConfigureAwait(false);
+                    Assert.True(pending.Status == StudioDraftStatusEnum.PendingApproval && pending.Items.Count == 5 && pending.ConversationId == designed.ConversationId, "The architect built five items and asked for approval: " + designed.ResultText);
+                    Approval decided = await HttpTestHelpers.SendAsync<Approval>(builder, HttpMethod.Post, t + "/approvals/" + pending.ApprovalId + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, 200, token).ConfigureAwait(false);
+                    Assert.Equal(ApprovalStatusEnum.Approved, decided.Status, "Approved");
+                    Deployment frontDev = (await HttpTestHelpers.SendAsync<EnumerationResult<Deployment>>(builder, HttpMethod.Get, t + "/deployments?search=desk-front-dev", null, 200, token).ConfigureAwait(false)).Objects.Single();
+                    Assert.Equal("dev", frontDev.Environment, "Deployed to dev");
+
+                    using (HttpClient end = new HttpClient { BaseAddress = host.AdminClient.BaseAddress })
+                    {
+                        Assert.Equal(200, (int)(await end.GetAsync("/v1.0/apps/desk-app", token).ConfigureAwait(false)).StatusCode, "The app URL answers");
+                        string session;
+                        using (StringContent content = new StringContent("{}", Encoding.UTF8, "application/json"))
+                        using (HttpResponseMessage response = await end.PostAsync("/v1.0/apps/desk-app/session", content, token).ConfigureAwait(false))
+                        {
+                            session = Assert.NotNull(Serializer.Deserialize<AppSessionResponse>(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false)), "Session").Token;
+                        }
+                        end.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", session);
+                        string conversationId;
+                        using (StringContent content = new StringContent("{\"message\":\"First question\"}", Encoding.UTF8, "application/json"))
+                        using (HttpResponseMessage started = await end.PostAsync("/v1.0/apps/desk-app/conversations", content, token).ConfigureAwait(false))
+                        {
+                            conversationId = Assert.NotNull(Serializer.Deserialize<Dictionary<string, object>>(await started.Content.ReadAsStringAsync(token).ConfigureAwait(false))?["conversationId"]?.ToString(), "Conversation id");
+                        }
+                        await WaitTurnsAsync(end, conversationId, 1, token).ConfigureAwait(false);
+                        using (StringContent content = new StringContent("{\"message\":\"Second question\"}", Encoding.UTF8, "application/json"))
+                        using (HttpResponseMessage next = await end.PostAsync("/v1.0/apps/desk-app/conversations/" + conversationId + "/messages", content, token).ConfigureAwait(false))
+                        {
+                            Assert.Equal(201, (int)next.StatusCode, "Second turn: " + await next.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+                        }
+                        AppConversationView view = await WaitTurnsAsync(end, conversationId, 2, token).ConfigureAwait(false);
+                        Assert.True(view.Turns.All(x => x.Status == RunStatusEnum.Succeeded), "Two turns answered");
+                        string file = await end.GetStringAsync("/v1.0/apps/desk-app/conversations/" + conversationId + "/files/content?path=answer.txt", token).ConfigureAwait(false);
+                        Assert.True(file.Contains("Second question", StringComparison.Ordinal), "The file the agent wrote downloads with the latest answer: " + file);
+                    }
+
+                    // Promote to staging and roll back.
+                    foreach (string agentName in new[] { "desk-front", "desk-helper" })
+                    {
+                        Agent agent = await HttpTestHelpers.SendAsync<Agent>(builder, HttpMethod.Get, t + "/agents/" + agentName, null, 200, token).ConfigureAwait(false);
+                        await HttpTestHelpers.SendAsync<Deployment>(builder, HttpMethod.Post, t + "/deployments", new Deployment { Name = agentName + "-staging", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "staging" }, 201, token).ConfigureAwait(false);
+                    }
+                    await HttpTestHelpers.SendAsync<AppRevision>(builder, HttpMethod.Post, t + "/apps/desk-app/revisions", new AppRevisionRequest { ChangeNote = "First" }, 201, token).ConfigureAwait(false);
+                    await HttpTestHelpers.SendAsync<AppRevision>(builder, HttpMethod.Post, t + "/apps/desk-app/revisions/1/publish", null, 200, token).ConfigureAwait(false);
+                    PromotionRecord promoted = await HttpTestHelpers.SendAsync<PromotionRecord>(builder, HttpMethod.Post, t + "/apps/desk-app/promote", new AppPromotionRequest { SourceEnvironment = "dev" }, 201, token).ConfigureAwait(false);
+                    Assert.True(promoted.TargetEnvironment == "staging" && promoted.Items.Count == 2, "Both members promoted to staging");
+                    PromotionRecord rolled = await HttpTestHelpers.SendAsync<PromotionRecord>(builder, HttpMethod.Post, t + "/promotions/" + promoted.Id + "/rollback", new PromotionRollbackRequest(), 201, token).ConfigureAwait(false);
+                    Assert.Equal(promoted.Id, rolled.RollbackOfId ?? String.Empty, "The rollback record points at the promotion");
+                }
+            }
+        }
+
+        private static async Task<AppConversationView> WaitTurnsAsync(HttpClient client, string conversationId, int turns, CancellationToken token)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(90);
+            while (true)
+            {
+                AppConversationView view = Assert.NotNull(Serializer.Deserialize<AppConversationView>(await client.GetStringAsync("/v1.0/apps/desk-app/conversations/" + conversationId, token).ConfigureAwait(false)), "Conversation");
+                if (view.Turns.Count >= turns && view.Turns.All(x => Garrison.Server.Runtime.RunService.IsTerminal(x.Status))) return view;
+                if (DateTime.UtcNow > deadline) throw new TestAssertionException("Turn " + turns + " did not finish: " + Serializer.Serialize(view));
+                await Task.Delay(250, token).ConfigureAwait(false);
             }
         }
 
