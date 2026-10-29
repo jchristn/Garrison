@@ -18,5 +18,17 @@ namespace Garrison.Core.Requests
         /// Sample run parameters.
         /// </summary>
         public Dictionary<string, string> Parameters { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Agent revision to compile with (AD9.3), for example a draft revision before it is published. Null for the
+        /// revision the deployment would run.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// Environment to preview (AD9.3): compiles the same agent's deployment in that environment instead of this one.
+        /// Null for this deployment.
+        /// </summary>
+        public string? Environment { get; set; } = null;
     }
 }

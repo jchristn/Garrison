@@ -25,6 +25,7 @@ namespace Garrison.Server.Routes
         private readonly ServerContext _Server;
         private readonly TenantConfigurationService _Mutations;
         private readonly InvocationCompiler _Compiler;
+        private RouteRegistrar? _Routes = null;
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/deployments";
 
         #endregion
@@ -54,6 +55,7 @@ namespace Garrison.Server.Routes
         /// <param name="routes">Registrar.</param>
         public void Register(RouteRegistrar routes)
         {
+            _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ListAsync, "List deployments", "Deployments", null, typeof(EnumerationResult<Deployment>));
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Deployment, OperationTypeEnum.Create, CreateAsync, "Create a deployment", "Deployments", typeof(Deployment), typeof(Deployment));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ReadAsync, "Read a deployment", "Deployments", null, typeof(Deployment));
@@ -100,10 +102,28 @@ namespace Garrison.Server.Routes
         {
             Deployment deployment = await LoadAsync(http).ConfigureAwait(false);
             CompilePreviewRequest request = RouteHelpers.Body<CompilePreviewRequest>(http) ?? new CompilePreviewRequest();
+            string tenantId = RouteHelpers.Tenant(http);
+            if (!String.IsNullOrWhiteSpace(request.Environment) && !String.Equals(request.Environment, deployment.Environment, StringComparison.Ordinal))
+            {
+                List<Deployment> sameAgent = await ConfigurationSupport.DeploymentsAsync(_Server, tenantId, d => d.AgentId == deployment.AgentId && String.Equals(d.Environment, request.Environment, StringComparison.Ordinal), http.Token).ConfigureAwait(false);
+                if (sameAgent.Count == 0)
+                {
+                    await RouteHelpers.ErrorAsync(http, 400, "NoDeploymentInEnvironment", "Agent " + deployment.AgentId + " has no deployment in environment " + request.Environment + ".").ConfigureAwait(false);
+                    return;
+                }
+                deployment = sameAgent.OrderBy(d => d.Name, StringComparer.Ordinal).First();
+            }
+            if (!String.IsNullOrEmpty(request.AgentRevisionId))
+            {
+                // Read on revisions of this agent is needed to preview one of them (AD9.3).
+                if (_Routes != null && !await _Routes.RequireAsync(http, tenantId, ResourceTypeEnum.AgentRevision, OperationTypeEnum.Read, deployment.AgentId).ConfigureAwait(false)) return;
+            }
             try
             {
-                CompilationResult result = await _Compiler.PreviewAsync(RouteHelpers.Tenant(http), deployment.Id, request.Input, request.Parameters, http.Token).ConfigureAwait(false);
+                CompilationResult result = await _Compiler.PreviewAsync(tenantId, deployment.Id, request.Input, request.Parameters, null, request.AgentRevisionId, http.Token).ConfigureAwait(false);
                 CompilePreviewResponse response = new CompilePreviewResponse();
+                response.DeploymentId = deployment.Id;
+                response.AgentRevisionId = result.AgentRevisionId;
                 response.Spec = result.Spec;
                 response.TemplateVersions = result.TemplateVersions;
                 response.CommandLine = CommandLine(result.Spec);

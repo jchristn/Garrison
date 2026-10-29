@@ -265,10 +265,28 @@ namespace Garrison.Core.Compilation
         /// <exception cref="CompilationException">Thrown when the deployment cannot be compiled.</exception>
         public async Task<CompilationResult> PreviewAsync(string tenantId, string deploymentId, string input, Dictionary<string, string>? parameters, CompilationPipeline? pipeline, CancellationToken token = default)
         {
+            return await PreviewAsync(tenantId, deploymentId, input, parameters, pipeline, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Compile a preview for a deployment with secret values redacted, optionally with another revision of its agent
+        /// (AD9.3), such as a draft revision before it is published.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deploymentId">Deployment identifier.</param>
+        /// <param name="input">Sample input message.</param>
+        /// <param name="parameters">Sample run parameters.</param>
+        /// <param name="pipeline">Sample pipeline inputs, or null.</param>
+        /// <param name="agentRevisionId">Agent revision to compile with, or null for the deployment's own.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result with redacted secrets.</returns>
+        /// <exception cref="CompilationException">Thrown when the deployment cannot be compiled.</exception>
+        public async Task<CompilationResult> PreviewAsync(string tenantId, string deploymentId, string input, Dictionary<string, string>? parameters, CompilationPipeline? pipeline, string? agentRevisionId, CancellationToken token = default)
+        {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
 
-            CompilationInputs inputs = await LoadCoreAsync(tenantId, deploymentId, false, false, token, false, pipeline).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(tenantId, deploymentId, false, false, token, false, pipeline, agentRevisionId).ConfigureAwait(false);
             Run run = new Run();
             run.Id = "run_preview";
             run.TenantId = tenantId;
@@ -847,6 +865,7 @@ namespace Garrison.Core.Compilation
             CompilationResult result = new CompilationResult();
             result.Spec = spec;
             result.TemplateVersions = TemplateVersions(inputs, run, usedIncludes);
+            result.AgentRevisionId = inputs.AgentRevision?.Id;
             result.TaskPrompt = taskPrompt;
             return result;
         }

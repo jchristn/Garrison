@@ -106,7 +106,7 @@ Release order for this plan (AD-028):
 | AD6 | Agentic app resource and per-app chat UI | AD1, AD3 | In progress (dashboard Apps tab, Compose end to end) | 10 / 12 |
 | AD7 | Studio agent and management tools | AD1, AD2, AD4, AD6 | In progress (dashboard Studio view and architect prompt panel) | 15 / 17 |
 | AD8 | Studio visual editor | AD7 | In progress (canvas UI) | 1 / 7 |
-| AD9 | Playground, deploy, and promote experience | AD7 | Not started | 0 / 9 |
+| AD9 | Playground, deploy, and promote experience | AD7 | In progress | 0 / 9 |
 | AD10 | Reference converter agent, MCP binding, and research example | AD2, AD4, AD5, AD6 | Not started | 0 / 7 |
 | AD11 | Later: eval sets and promotion gates | AD9 | Later (AD-007) | 0 / 6 |
 | AD12 | Garrison Agent Studio product rebrand and release (last) | AD0 to AD10 (AD12.20 needs every other active task) | Not started | 0 / 20 |
@@ -607,7 +607,7 @@ Touches: run service (`Playground` run kind), studio service, `src/Garrison.Serv
 
 - [ ] AD9.1 Playground runs: invoke draft revisions through ephemeral deployments in a reserved `draft` environment, run kind `Playground`, excluded from app UIs, catalog hints, and analytics defaults, with conversations and a file space like any run.  Accept: a playground run uses the draft's unpublished system prompt; it never appears in an app UI or in capability hints.
 - [ ] AD9.2 Playground UI in the studio: chat with the draft entry agent over multiple turns, run tree with fan-out groups, file panel, and transcript export.  Accept: browser test runs a two-turn playground conversation on the fake harness and downloads a file.
-- [ ] AD9.3 Compile preview for revision and environment: `compile-preview` accepts `agentRevisionId` and `environment`, and the studio shows the exact command line, placed asset paths, and file space mount before deploy.  Accept: preview of a draft revision shows asset target paths; secrets stay redacted.
+- [~] AD9.3 Compile preview for revision and environment: `compile-preview` accepts `agentRevisionId` and `environment`, and the studio shows the exact command line, placed asset paths, and file space mount before deploy.  Accept: preview of a draft revision shows asset target paths; secrets stay redacted.  | claude 2026-10-28 compile-preview accepts agentRevisionId (needs Read on AgentRevision) and environment (NoDeploymentInEnvironment) and returns deploymentId and agentRevisionId; studio preview case shows a draft revision's placed skill path with secrets redacted. Outstanding: the studio UI showing it
 - [ ] AD9.4 Deploy from the studio: apply the approved draft to `dev` (publish revisions, create or repin dev deployments).  Accept: end-to-end test goes from empty draft to a running dev app reachable at its app URL.
 - [ ] AD9.5 SetupWizard step `studio` (after `secret`): choose harness profile and model for the agent architect and create its deployment with `managementAccess: Drafts`. The architect prompt choice in this step is AD9.9.  Accept: wizard browser test creates the architect deployment; skipping the step leaves the wizard working as today.
 - [ ] AD9.6 Promote and rollback UI in the studio and app detail: show the per-environment diff (revisions and environment overrides), require Execute on Promotion for the target, and offer rollback from history.  Accept: browser test promotes dev to staging and rolls back; a user without permission sees the action disabled with a tooltip explaining why.

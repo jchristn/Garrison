@@ -51,6 +51,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "architect-prompt-flow", "Clone a built-in architect prompt, edit it, spawn an architect on the clone, see the edit on the next turn, pin and reset, refuse deleting it while in use, then switch and delete (" + provider + ")", ct => ArchitectPromptAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-script", "A scripted fake-harness architect turn sets a deployment's model, timeout, and approval rule, and binds all three capability sources (agent edge, MCP server, host tool), all through studio tools; the diff shows exactly those changes (" + provider + ")", ct => ScriptAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-seed-replicas", "Replicas seeding the architect at the same time, including for a new tenant, leave exactly one agent and one skill asset and raise no unique constraint failure (" + provider + ")", ct => SeedReplicasAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "preview", "Compile preview of a draft revision shows its new asset's placed path, previews another environment's deployment, and keeps secrets redacted (" + provider + ")", ct => PreviewAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Studio drafts (" + provider + ")", cases));
             }
             return suites;
@@ -658,6 +659,33 @@ spec:
                     AgentAsset skill = Assert.NotNull(assets.Objects.SingleOrDefault(a => a.Name == "agent-architect-skills"), "One skill asset in " + tenantId);
                     Assert.Equal(1, skill.CurrentVersion, "Seeding again adds no version: " + tenantId);
                 }
+            }
+        }
+
+        private static async Task PreviewAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                RequestContext system = new RequestContext { IsAuthenticated = true, TenantId = host.TenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = "test" };
+                AgentAssetService assets = host.Server.Context.Get<AgentAssetService>();
+                AgentAsset skill = await assets.CreateAsync(system, host.TenantId, new AgentAsset { Name = "prev-skill", Kind = AgentAssetKindEnum.Skill }, token).ConfigureAwait(false);
+                await assets.UploadVersionAsync(system, host.TenantId, skill, new List<AgentAssetFile> { new AgentAssetFile { Path = "SKILL.md", MediaType = "text/markdown" } }, new Dictionary<string, byte[]> { ["SKILL.md"] = Encoding.UTF8.GetBytes("# Preview skill") }, null, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, T(host) + "/secrets", new SecretRequest { Name = "prev-key", Value = "super-secret-preview-value" }, 201, token).ConfigureAwait(false);
+                Agent agent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "prev-agent", Description = "Previewed." }, 201, token).ConfigureAwait(false);
+                Deployment dev = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "prev-dev", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev" }, 201, token).ConfigureAwait(false);
+                Deployment staging = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "prev-staging", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "staging", Model = "staging-model" }, 201, token).ConfigureAwait(false);
+                AgentRevision draft = await HttpTestHelpers.SendAsync<AgentRevision>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/" + agent.Id + "/revisions", new AgentRevision { Description = "Previewed, with a skill.", AssetPins = new List<AgentRevisionAssetPin> { new AgentRevisionAssetPin { AssetId = skill.Id, Version = 1 } } }, 201, token).ConfigureAwait(false);
+
+                string preview = T(host) + "/deployments/" + dev.Id + "/compile-preview";
+                CompilePreviewResponse current = await HttpTestHelpers.SendAsync<CompilePreviewResponse>(host.AdminClient, HttpMethod.Post, preview, new CompilePreviewRequest(), 200, token).ConfigureAwait(false);
+                Assert.True(!Serializer.Serialize(current.Spec).Contains("prev-skill", StringComparison.Ordinal), "The published revision has no skill");
+                CompilePreviewResponse drafted = await HttpTestHelpers.SendAsync<CompilePreviewResponse>(host.AdminClient, HttpMethod.Post, preview, new CompilePreviewRequest { AgentRevisionId = draft.Id }, 200, token).ConfigureAwait(false);
+                string draftedText = Serializer.Serialize(drafted.Spec);
+                Assert.True(drafted.AgentRevisionId == draft.Id && draftedText.Contains("prev-skill", StringComparison.Ordinal), "The draft revision places its skill: " + draftedText.Substring(0, Math.Min(400, draftedText.Length)));
+                Assert.True(!draftedText.Contains("super-secret-preview-value", StringComparison.Ordinal), "Secrets stay redacted");
+                CompilePreviewResponse other = await HttpTestHelpers.SendAsync<CompilePreviewResponse>(host.AdminClient, HttpMethod.Post, preview, new CompilePreviewRequest { Environment = "staging" }, 200, token).ConfigureAwait(false);
+                Assert.Equal(staging.Id, other.DeploymentId, "Staging's deployment is compiled");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, preview, new CompilePreviewRequest { Environment = "prod" }, token).ConfigureAwait(false), 400, "NoDeploymentInEnvironment", "No prod deployment");
             }
         }
 

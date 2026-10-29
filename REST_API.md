@@ -2275,7 +2275,12 @@ curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{i
 
 #### `POST /v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview`
 
-Compile the deployment with sample input; secret values are redacted.
+Compile the deployment with sample input; secret values are redacted. The body takes `input`, `parameters`, and two options from the studio (AD9.3):
+
+- `agentRevisionId` compiles with another revision of the agent, such as a draft before it is published, so you can see its placed asset paths and system prompt. It also needs Read on `AgentRevision`.
+- `environment` compiles the same agent's deployment in that environment instead (400 `NoDeploymentInEnvironment` when there is none).
+
+The response has the `spec`, `commandLine`, `templateVersions`, the `deploymentId` that was compiled, and the `agentRevisionId` used.
 
 | | |
 |---|---|

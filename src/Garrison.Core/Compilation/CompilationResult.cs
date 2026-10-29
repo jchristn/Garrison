@@ -21,6 +21,11 @@ namespace Garrison.Core.Compilation
         public List<RunTemplateVersion> TemplateVersions { get; set; } = new List<RunTemplateVersion>();
 
         /// <summary>
+        /// Agent revision the compilation used, or null when the agent has no revisions.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
+
+        /// <summary>
         /// Rendered task prompt before delivery (before a system prompt is prepended for profiles that prepend it). Used by
         /// previews (for example the pipeline preview, P12.9); not serialized. Prompts never contain secret values.
         /// </summary>
