@@ -1,5 +1,6 @@
 # The dashboard proxies /v1.0 and /openapi.json to the server, so one host serves the console and the REST API.
-# MCP has its own listener (port 8701) and its own path.
+# MCP has its own listener (port 8701) and its own path. Agentic apps need no extra rules: the app UI at
+# /apps/{slug}/ falls under / (the dashboard image serves it) and the app gateway at /v1.0/apps/ under /v1.0.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -42,7 +42,7 @@ if [ "${BUILD}" = "1" ]; then
   log "building images (tag ${GARRISON_TAG})"
   docker build -t "jchristn77/garrison-server:${GARRISON_TAG}" -f "${REPO_DIR}/src/Garrison.Server/Dockerfile" "${REPO_DIR}"
   docker build -t "jchristn77/garrison-worker:${GARRISON_TAG}" -f "${REPO_DIR}/src/Garrison.Worker/Dockerfile" "${REPO_DIR}"
-  docker build -t "jchristn77/garrison-dashboard:${GARRISON_TAG}" "${REPO_DIR}/dashboard"
+  docker build -t "jchristn77/garrison-dashboard:${GARRISON_TAG}" -f "${REPO_DIR}/dashboard/Dockerfile" "${REPO_DIR}"
   for image in garrison-server garrison-worker garrison-dashboard; do import_image "jchristn77/${image}:${GARRISON_TAG}"; done
   # Third-party images the manifests use. Importing the ones Docker already has saves K3S from pulling them
   # (postgres:17 alone is about 160 MB); anything missing is pulled by K3S as usual.

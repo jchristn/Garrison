@@ -56,7 +56,7 @@ if [ "${BUILD:-0}" = "1" ]; then
     case "${image}" in
       garrison-server) docker build -t "jchristn77/garrison-server:${IMAGE_TAG}" -f "${REPO_DIR}/src/Garrison.Server/Dockerfile" "${REPO_DIR}" ;;
       garrison-worker) docker build -t "jchristn77/garrison-worker:${IMAGE_TAG}" -f "${REPO_DIR}/src/Garrison.Worker/Dockerfile" "${REPO_DIR}" ;;
-      garrison-dashboard) docker build -t "jchristn77/garrison-dashboard:${IMAGE_TAG}" "${REPO_DIR}/dashboard" ;;
+      garrison-dashboard) docker build -t "jchristn77/garrison-dashboard:${IMAGE_TAG}" -f "${REPO_DIR}/dashboard/Dockerfile" "${REPO_DIR}" ;;
       *) fail "unknown image ${image} in IMAGES" ;;
     esac
   done

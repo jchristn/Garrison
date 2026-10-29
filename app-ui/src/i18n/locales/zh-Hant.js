@@ -1,0 +1,148 @@
+// Traditional Chinese (Taiwan) catalog for the Garrison app UI. Mirrors en.js key for key.
+
+const zhHant = {
+  common: {
+    loading: '載入中',
+    close: '關閉',
+    cancel: '取消',
+    retry: '重試',
+    defaultTitle: 'Garrison 應用程式'
+  },
+  app: {
+    notFoundTitle: '找不到應用程式',
+    notFoundBody: '這個網址沒有任何應用程式。請檢查你收到的連結。',
+    noSlugTitle: '尚未選擇應用程式',
+    noSlugBody: '請開啟特定應用程式的連結。應用程式連結的格式類似 /apps/your-app/。',
+    loadErrorTitle: '無法載入應用程式',
+    loadErrorBody: '伺服器沒有回應。請檢查網路連線後再試一次。',
+    skipToChat: '跳至對話'
+  },
+  signIn: {
+    title: '登入 {{name}}',
+    email: '電子郵件',
+    password: '密碼',
+    submit: '登入',
+    submitting: '登入中',
+    anonymous: '不登入，直接繼續',
+    anonymousNote: '未登入時開始的對話只會保留在這個瀏覽器分頁中。',
+    or: '或',
+    sessionEnded: '你的工作階段已結束。請重新登入以繼續。'
+  },
+  header: {
+    conversations: '對話',
+    files: '檔案',
+    signOut: '登出',
+    signedInAs: '目前登入：{{name}}',
+    guest: '訪客',
+    themeLight: '切換為淺色主題',
+    themeDark: '切換為深色主題',
+    language: '語言',
+    logoAlt: '{{name}} 標誌'
+  },
+  conversations: {
+    title: '對話',
+    new: '新對話',
+    empty: '目前還沒有對話。傳送一則訊息就能開始。',
+    untitled: '{{date}} 的對話',
+    messages: '訊息：{{count}} 則',
+    working: '處理中',
+    loadError: '無法載入你的對話。'
+  },
+  chat: {
+    welcomeDefault: '提出一個問題就能開始。',
+    composerLabel: '訊息',
+    composerPlaceholder: '輸入訊息',
+    composerHint: '按 Enter 傳送，按 Shift 加 Enter 換行。',
+    send: '傳送',
+    sending: '傳送中',
+    you: '你',
+    waiting: '代理程式正在處理',
+    approval: '正在等候操作人員核准某個步驟',
+    reconnecting: '連線中斷，正在重新連線',
+    failed: '這次回覆沒有完成。',
+    details: '代理程式活動',
+    loadError: '無法載入這段對話。',
+    missing: '找不到這段對話，它可能屬於其他工作階段。',
+    busyComposer: '代理程式仍在回覆。等它完成後，你就能傳送下一則訊息。',
+    dismiss: '關閉'
+  },
+  statuses: {
+    Pending: '等待開始',
+    Queued: '等待開始',
+    Leased: '啟動中',
+    Running: '處理中',
+    Cancelling: '停止中',
+    Succeeded: '已完成',
+    Failed: '失敗',
+    Cancelled: '已取消',
+    TimedOut: '已逾時',
+    Rejected: '不允許',
+    Suspended: '已暫停'
+  },
+  detailTypes: {
+    Thinking: '思考',
+    ToolCall: '工具呼叫',
+    ToolResult: '工具結果',
+    Progress: '進度',
+    Warning: '警告'
+  },
+  files: {
+    title: '檔案',
+    empty: '代理程式尚未在這段對話中寫入任何檔案。',
+    noConversation: '對話開始後，代理程式寫入的檔案會顯示在這裡。',
+    summary: '檔案：{{count}} 個（{{size}}）',
+    download: '下載',
+    versions: '版本',
+    versionsTitle: '{{path}} 的版本',
+    version: '版本 {{number}}',
+    current: '目前版本',
+    updated: '更新於 {{when}}',
+    size: '大小',
+    newBadge: '新',
+    downloadFailed: '無法開始下載，請再試一次。',
+    loadError: '無法載入檔案。',
+    versionsError: '無法載入版本。',
+    close: '關閉檔案'
+  },
+  errors: {
+    InvalidCredentials: '電子郵件或密碼不正確。',
+    AppSignInRequired: '請登入後使用這個應用程式。',
+    AnonymousDisabled: '這個應用程式已停用匿名使用，請登入。',
+    AppAccessDenied: '這個帳號沒有這個應用程式的存取權。請向應用程式擁有者申請存取權。',
+    AppSessionRequired: '你的工作階段已結束。請重新登入以繼續。',
+    ConversationBusy: '代理程式仍在回覆上一則訊息。請等它完成後再傳送。',
+    AppRateLimited: '你傳送訊息的速度太快了。請等一分鐘後再試。',
+    AppNotDeployed: '這個應用程式尚未就緒，請稍後再試。',
+    NetworkError: '無法連上伺服器。請檢查網路連線後再試一次。',
+    generic: '發生問題（HTTP {{status}}），請再試一次。'
+  },
+  tips: {
+    email: '在這裡填寫你在這個應用程式中註冊帳號時使用的電子郵件地址。',
+    password: '你的帳號密碼。它只會傳送到這台伺服器，用來開始你的工作階段。',
+    submit: '核對你填寫的電子郵件和密碼，驗證通過後就會開啟這個應用程式。',
+    anonymous: '以訪客身分使用應用程式。你的對話只會在這個瀏覽器分頁開啟期間保留。',
+    language: '選擇應用程式的顯示語言。你的選擇會儲存在這個瀏覽器中。',
+    themeLight: '使用淺色配色。你的選擇會儲存在這個瀏覽器中，並優先於系統設定。',
+    themeDark: '使用深色配色。你的選擇會儲存在這個瀏覽器中，並優先於系統設定。',
+    signOut: '結束你在這台裝置上的工作階段，並返回登入畫面重新開始。',
+    conversationsToggle: '顯示或隱藏左側的對話清單，方便你在不同的對話之間來回切換。',
+    filesToggle: '顯示或隱藏代理程式在目前這段對話中寫入的所有檔案的清單。',
+    newConversation: '開始一段全新的對話。你之前的對話仍會保留在清單中。',
+    conversation: '開啟這段對話，從你上次停下來的地方繼續和代理程式交談。',
+    composer: '在這裡輸入要給代理程式的訊息。按 Enter 傳送，按 Shift 加 Enter 換行。',
+    send: '把你的訊息傳送給代理程式。回覆會在下方一邊產生一邊顯示。',
+    dismiss: '隱藏這則提示訊息，之後它就不會再顯示在目前的頁面上了。',
+    retry: '重新載入整個應用程式，再次嘗試開啟頁面並顯示內容。',
+    download: '把這個檔案目前的最新版本下載並儲存到你正在使用的裝置上。',
+    versions: '查看這個檔案儲存過的所有版本，你也可以從中下載較早的版本。',
+    downloadVersion: '把這個檔案的這一個歷史版本下載並儲存到你正在使用的裝置上。',
+    closeDialog: '關閉這個對話方塊，然後回到你剛才正在進行的那段對話畫面。',
+    closeFiles: '隱藏右側的檔案面板，然後回到你剛才正在進行的那段對話畫面。',
+    details: '顯示代理程式在回覆過程中執行的步驟，包括工具呼叫、進度和警告。',
+    answerLink: '在新分頁中開啟回覆裡的這個連結，網址為：{{href}}',
+    tableHeader: '這是回覆中某個表格的欄位標題，內容為：{{text}}',
+    skipToChat: '略過頁首和對話清單，直接把焦點移到下方的訊息輸入框裡。'
+  }
+};
+
+export default zhHant;

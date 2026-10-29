@@ -50,6 +50,10 @@ dashboard/src/utils/constants.js|APP_VERSION = '@V@'
 dashboard/tests/e2e/controlPlane.spec.js|toContainText\('@V@'\)
 dashboard/tests/e2e/mocks.js|(nodeVersion|[^a-zA-Z]version): '@V@'
 
+# App UI (agentic app chat, served by the dashboard image at /apps/)
+app-ui/package.json|^  "version": "@V@"
+app-ui/package-lock.json|^  "version": "@V@"
+
 # SDKs
 sdk/README.md|SDKs are version `@V@`
 sdk/csharp/Garrison.Sdk/Garrison.Sdk.csproj|<Version>@V@</Version>

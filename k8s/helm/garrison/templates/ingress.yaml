@@ -18,6 +18,7 @@ spec:
   tls:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  # /v1.0 covers the app gateway (/v1.0/apps/...) and / covers the app UI (/apps/{slug}/, served by the dashboard).
   rules:
     - host: {{ .Values.ingress.host | quote }}
       http:

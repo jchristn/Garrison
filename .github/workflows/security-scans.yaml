@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        directory: [dashboard, sdk/js]
+        directory: [dashboard, app-ui, sdk/js]
     defaults:
       run:
         working-directory: ${{ matrix.directory }}
@@ -116,7 +116,7 @@ jobs:
             context: .
           - name: dashboard
             dockerfile: dashboard/Dockerfile
-            context: dashboard
+            context: .
     steps:
       - uses: actions/checkout@v4
       - name: Build image

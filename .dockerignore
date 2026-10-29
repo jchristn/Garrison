@@ -6,6 +6,9 @@ artifacts/
 # Node / dashboard
 **/node_modules/
 dashboard/dist/
+app-ui/dist/
+app-ui/test-results/
+dashboard/test-results/
 sdk/js/node_modules/
 
 # Python

@@ -1,5 +1,7 @@
 # ingress-nginx with TLS. Replace garrison.example.com and provide Secret garrison-tls (for example with cert-manager).
 # Buffering is off and timeouts are long because runs stream events over SSE and workers long-poll for leases.
+# Agentic apps need no extra rules: the app UI at /apps/{slug}/ falls under / (the dashboard image serves it) and the
+# app gateway at /v1.0/apps/ (including its turn and file event streams) under /v1.0.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

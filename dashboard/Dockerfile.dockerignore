@@ -1,0 +1,12 @@
+# Build context for dashboard/Dockerfile, which builds from the repository root: only the dashboard and the app UI
+# are sent, without local installs, build output, or test results. BuildKit reads this file in place of the root
+# .dockerignore when the Dockerfile is dashboard/Dockerfile.
+*
+!dashboard
+!app-ui
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+**/.vite
+**/*.local

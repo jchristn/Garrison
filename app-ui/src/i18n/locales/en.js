@@ -1,0 +1,149 @@
+// English source catalog for the Garrison app UI. Every other locale mirrors these keys.
+// tips.* are tooltips: they say what a control does and how to use it, never just the label again.
+
+const en = {
+  common: {
+    loading: 'Loading',
+    close: 'Close',
+    cancel: 'Cancel',
+    retry: 'Try again',
+    defaultTitle: 'Garrison app'
+  },
+  app: {
+    notFoundTitle: 'App not found',
+    notFoundBody: 'There is no app at this address. Check the link you were given.',
+    noSlugTitle: 'No app selected',
+    noSlugBody: 'Open the link to a specific app. App links look like /apps/your-app/.',
+    loadErrorTitle: 'The app could not be loaded',
+    loadErrorBody: 'The server did not answer. Check your connection and try again.',
+    skipToChat: 'Skip to the conversation'
+  },
+  signIn: {
+    title: 'Sign in to {{name}}',
+    email: 'Email',
+    password: 'Password',
+    submit: 'Sign in',
+    submitting: 'Signing in',
+    anonymous: 'Continue without signing in',
+    anonymousNote: 'Conversations you start without signing in stay in this browser tab.',
+    or: 'or',
+    sessionEnded: 'Your session ended. Sign in again to continue.'
+  },
+  header: {
+    conversations: 'Conversations',
+    files: 'Files',
+    signOut: 'Sign out',
+    signedInAs: 'Signed in as {{name}}',
+    guest: 'Guest',
+    themeLight: 'Switch to the light theme',
+    themeDark: 'Switch to the dark theme',
+    language: 'Language',
+    logoAlt: '{{name}} logo'
+  },
+  conversations: {
+    title: 'Conversations',
+    new: 'New conversation',
+    empty: 'No conversations yet. Send a message to start one.',
+    untitled: 'Conversation from {{date}}',
+    messages: 'Messages: {{count}}',
+    working: 'Working',
+    loadError: 'Your conversations could not be loaded.'
+  },
+  chat: {
+    welcomeDefault: 'Ask a question to get started.',
+    composerLabel: 'Message',
+    composerPlaceholder: 'Write a message',
+    composerHint: 'Enter sends the message. Shift and Enter start a new line.',
+    send: 'Send',
+    sending: 'Sending',
+    you: 'You',
+    waiting: 'The agent is working on it',
+    approval: 'Waiting for an operator to approve a step',
+    reconnecting: 'The connection dropped. Reconnecting',
+    failed: 'This turn did not finish.',
+    details: 'Agent activity',
+    loadError: 'This conversation could not be loaded.',
+    missing: 'That conversation was not found. It may belong to another session.',
+    busyComposer: 'The agent is still answering. You can send your next message when it finishes.',
+    dismiss: 'Dismiss'
+  },
+  statuses: {
+    Pending: 'Waiting to start',
+    Queued: 'Waiting to start',
+    Leased: 'Starting',
+    Running: 'Working',
+    Cancelling: 'Stopping',
+    Succeeded: 'Done',
+    Failed: 'Failed',
+    Cancelled: 'Cancelled',
+    TimedOut: 'Timed out',
+    Rejected: 'Not allowed',
+    Suspended: 'Paused'
+  },
+  detailTypes: {
+    Thinking: 'Thinking',
+    ToolCall: 'Tool call',
+    ToolResult: 'Tool result',
+    Progress: 'Progress',
+    Warning: 'Warning'
+  },
+  files: {
+    title: 'Files',
+    empty: 'The agent has not written any files in this conversation yet.',
+    noConversation: 'Files the agent writes show up here once a conversation starts.',
+    summary: 'Files: {{count}} ({{size}})',
+    download: 'Download',
+    versions: 'Versions',
+    versionsTitle: 'Versions of {{path}}',
+    version: 'Version {{number}}',
+    current: 'Current',
+    updated: 'Updated {{when}}',
+    size: 'Size',
+    newBadge: 'New',
+    downloadFailed: 'The download could not start. Try again.',
+    loadError: 'The files could not be loaded.',
+    versionsError: 'The versions could not be loaded.',
+    close: 'Close files'
+  },
+  errors: {
+    InvalidCredentials: 'The email or password is not correct.',
+    AppSignInRequired: 'Sign in to use this app.',
+    AnonymousDisabled: 'Anonymous use of this app is turned off. Sign in instead.',
+    AppAccessDenied: 'This account does not have access to this app. Ask the app owner for access.',
+    AppSessionRequired: 'Your session ended. Sign in again to continue.',
+    ConversationBusy: 'The agent is still answering the previous message. Wait for it to finish, then send again.',
+    AppRateLimited: 'You are sending messages too quickly. Wait a minute, then try again.',
+    AppNotDeployed: 'This app is not ready yet. Try again later.',
+    NetworkError: 'The server could not be reached. Check your connection and try again.',
+    generic: 'Something went wrong (HTTP {{status}}). Try again.'
+  },
+  tips: {
+    email: 'The email address of your account for this app.',
+    password: 'The password of your account. It is sent only to this server to start your session.',
+    submit: 'Check your email and password and open the app.',
+    anonymous: 'Use the app as a guest. Your conversations last only as long as this browser tab session.',
+    language: 'Choose the language of the app. Your choice is saved in this browser.',
+    themeLight: 'Use light colors. Your choice is saved in this browser and overrides the system setting.',
+    themeDark: 'Use dark colors. Your choice is saved in this browser and overrides the system setting.',
+    signOut: 'End your session on this device and return to the sign-in screen.',
+    conversationsToggle: 'Show or hide your list of conversations.',
+    filesToggle: 'Show or hide the files the agent wrote in this conversation.',
+    newConversation: 'Start a fresh conversation. Your earlier conversations stay in the list.',
+    conversation: 'Open this conversation and continue where you left off.',
+    composer: 'Type your message to the agent. Enter sends it; Shift and Enter start a new line.',
+    send: 'Send your message to the agent. The answer appears below as it is written.',
+    dismiss: 'Hide this error message. You can still send again.',
+    retry: 'Ask the server for the app again and reload this page.',
+    download: 'Save the current version of this file to your device.',
+    versions: 'See every version of this file and download an earlier one.',
+    downloadVersion: 'Save this version of the file to your device.',
+    closeDialog: 'Close this dialog and return to the conversation.',
+    closeFiles: 'Hide the files panel and return to the conversation.',
+    details: 'Show the steps the agent took while answering: tool calls, progress, and warnings.',
+    answerLink: 'Opens a link from the answer in a new tab: {{href}}',
+    tableHeader: 'Column of a table in the answer: {{text}}',
+    skipToChat: 'Jump past the header and conversation list to the message box.'
+  }
+};
+
+export default en;

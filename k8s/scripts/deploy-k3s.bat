@@ -10,7 +10,7 @@ set REPO=%~dp0..\..
 if "%1"=="--build" (
   docker build -t jchristn77/garrison-server:%GARRISON_TAG% -f "%REPO%\src\Garrison.Server\Dockerfile" "%REPO%" || exit /b 1
   docker build -t jchristn77/garrison-worker:%GARRISON_TAG% -f "%REPO%\src\Garrison.Worker\Dockerfile" "%REPO%" || exit /b 1
-  docker build -t jchristn77/garrison-dashboard:%GARRISON_TAG% "%REPO%\dashboard" || exit /b 1
+  docker build -t jchristn77/garrison-dashboard:%GARRISON_TAG% -f "%REPO%\dashboard\Dockerfile" "%REPO%" || exit /b 1
   if not "%K3D_CLUSTER%"=="" (
     for %%i in (garrison-server garrison-worker garrison-dashboard) do (
       k3d image import -c %K3D_CLUSTER% jchristn77/%%i:%GARRISON_TAG% || exit /b 1

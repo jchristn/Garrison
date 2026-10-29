@@ -1,5 +1,6 @@
 @echo off
-rem Builds and pushes the multi-arch jchristn77/garrison-dashboard image with Docker Build Cloud, then pulls it back locally.
+rem Builds and pushes the multi-arch jchristn77/garrison-dashboard image (operator console plus the app UI at /apps/) with
+rem Docker Build Cloud, then pulls it back locally. The build context is the repository root.
 rem Usage: build-dashboard.bat ^<tag^>   (for example v0.2.0)
 setlocal
 if "%~1"=="" (
@@ -9,7 +10,7 @@ if "%~1"=="" (
 set TAG=%~1
 set IMAGE_NAME=jchristn77/garrison-dashboard
 set DOCKERFILE_PATH=dashboard/Dockerfile
-set BUILD_CONTEXT=dashboard
+set BUILD_CONTEXT=.
 if "%BUILDER%"=="" set BUILDER=cloud-jchristn77-jchristn77
 if "%PLATFORMS%"=="" set PLATFORMS=linux/amd64,linux/arm64/v8
 pushd "%~dp0"

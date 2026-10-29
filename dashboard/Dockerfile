@@ -1,11 +1,20 @@
-# Garrison dashboard image. Build from the dashboard directory:
-#   docker build -t jchristn77/garrison-dashboard:<tag> dashboard
+# Garrison dashboard image: the operator console at / and the agentic app UI (app-ui/) at /apps/{slug}/ (AD-020).
+# Build from the repository root, because the image holds both apps:
+#   docker build -f dashboard/Dockerfile -t jchristn77/garrison-dashboard:<tag> .
+# dashboard/Dockerfile.dockerignore keeps the build context to dashboard/ and app-ui/.
 
 FROM node:22-alpine AS build
 WORKDIR /app
-COPY package*.json ./
+COPY dashboard/package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-COPY . .
+COPY dashboard/ .
+RUN npm run build
+
+FROM node:22-alpine AS app-ui
+WORKDIR /app
+COPY app-ui/package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+COPY app-ui/ .
 RUN npm run build
 
 FROM nginx:alpine
@@ -18,9 +27,10 @@ LABEL org.opencontainers.image.title="garrison-dashboard" \
 RUN apk upgrade --no-cache
 RUN apk add --no-cache curl
 COPY --from=build /app/dist/ /usr/share/nginx/html/
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY nginx-security-headers.conf /etc/nginx/garrison-security-headers.inc
-COPY docker-entrypoint.sh /docker-entrypoint.d/40-garrison-config.sh
+COPY --from=app-ui /app/dist/ /usr/share/nginx/html/apps/
+COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+COPY dashboard/nginx-security-headers.conf /etc/nginx/garrison-security-headers.inc
+COPY dashboard/docker-entrypoint.sh /docker-entrypoint.d/40-garrison-config.sh
 RUN chmod 755 /docker-entrypoint.d/40-garrison-config.sh
 ENV GARRISON_API_URL="" \
     GARRISON_CSP_CONNECT_SRC="" \

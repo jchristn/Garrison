@@ -174,8 +174,10 @@ services:
   garrison-dashboard:
     container_name: 'garrison-dashboard'
     image: 'jchristn77/garrison-dashboard:v0.2.0'
+    # Serves the operator console at / and the agentic app UI at /apps/{slug}/; builds from the repository root.
     build:
-      context: '../dashboard'
+      context: '..'
+      dockerfile: 'dashboard/Dockerfile'
     restart: 'unless-stopped'
     ports:
       - '127.0.0.1:${GARRISON_DASHBOARD_PORT:-8080}:80'

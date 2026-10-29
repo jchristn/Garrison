@@ -1,0 +1,148 @@
+// Japanese catalog for the Garrison app UI. Mirrors en.js key for key.
+
+const ja = {
+  common: {
+    loading: '読み込み中',
+    close: '閉じる',
+    cancel: 'キャンセル',
+    retry: 'もう一度試す',
+    defaultTitle: 'Garrison アプリ'
+  },
+  app: {
+    notFoundTitle: 'アプリが見つかりません',
+    notFoundBody: 'このアドレスにはアプリがありません。受け取ったリンクを確認してください。',
+    noSlugTitle: 'アプリが選択されていません',
+    noSlugBody: '特定のアプリへのリンクを開いてください。アプリのリンクは /apps/your-app/ のような形式です。',
+    loadErrorTitle: 'アプリを読み込めませんでした',
+    loadErrorBody: 'サーバーから応答がありません。接続を確認して、もう一度お試しください。',
+    skipToChat: '会話へ移動'
+  },
+  signIn: {
+    title: '{{name}} にサインイン',
+    email: 'メールアドレス',
+    password: 'パスワード',
+    submit: 'サインイン',
+    submitting: 'サインインしています',
+    anonymous: 'サインインせずに続ける',
+    anonymousNote: 'サインインせずに始めた会話は、このブラウザーのタブにだけ残ります。',
+    or: 'または',
+    sessionEnded: 'セッションが終了しました。続けるにはもう一度サインインしてください。'
+  },
+  header: {
+    conversations: '会話',
+    files: 'ファイル',
+    signOut: 'サインアウト',
+    signedInAs: '{{name}} としてサインイン中',
+    guest: 'ゲスト',
+    themeLight: 'ライトテーマに切り替える',
+    themeDark: 'ダークテーマに切り替える',
+    language: '言語',
+    logoAlt: '{{name}} のロゴ'
+  },
+  conversations: {
+    title: '会話',
+    new: '新しい会話',
+    empty: 'まだ会話はありません。メッセージを送ると会話が始まります。',
+    untitled: '{{date}} の会話',
+    messages: 'メッセージ: {{count}} 件',
+    working: '処理中',
+    loadError: '会話を読み込めませんでした。'
+  },
+  chat: {
+    welcomeDefault: '質問を入力して始めましょう。',
+    composerLabel: 'メッセージ',
+    composerPlaceholder: 'メッセージを入力',
+    composerHint: 'Enter で送信、Shift と Enter で改行します。',
+    send: '送信',
+    sending: '送信中',
+    you: 'あなた',
+    waiting: 'エージェントが対応しています',
+    approval: 'オペレーターによる手順の承認を待っています',
+    reconnecting: '接続が切れました。再接続しています',
+    failed: 'この応答は完了しませんでした。',
+    details: 'エージェントのアクティビティ',
+    loadError: 'この会話を読み込めませんでした。',
+    missing: 'その会話は見つかりませんでした。別のセッションのものかもしれません。',
+    busyComposer: 'エージェントがまだ回答中です。終わったら次のメッセージを送信できます。',
+    dismiss: '閉じる'
+  },
+  statuses: {
+    Pending: '開始待ち',
+    Queued: '開始待ち',
+    Leased: '開始中',
+    Running: '処理中',
+    Cancelling: '停止中',
+    Succeeded: '完了',
+    Failed: '失敗',
+    Cancelled: 'キャンセル済み',
+    TimedOut: 'タイムアウト',
+    Rejected: '許可されていません',
+    Suspended: '一時停止中'
+  },
+  detailTypes: {
+    Thinking: '思考',
+    ToolCall: 'ツール呼び出し',
+    ToolResult: 'ツールの結果',
+    Progress: '進行状況',
+    Warning: '警告'
+  },
+  files: {
+    title: 'ファイル',
+    empty: 'この会話では、エージェントはまだファイルを書き込んでいません。',
+    noConversation: '会話が始まると、エージェントが書き込んだファイルがここに表示されます。',
+    summary: 'ファイル: {{count}} 件 ({{size}})',
+    download: 'ダウンロード',
+    versions: 'バージョン',
+    versionsTitle: '{{path}} のバージョン',
+    version: 'バージョン {{number}}',
+    current: '最新',
+    updated: '更新: {{when}}',
+    size: 'サイズ',
+    newBadge: '新規',
+    downloadFailed: 'ダウンロードを開始できませんでした。もう一度お試しください。',
+    loadError: 'ファイルを読み込めませんでした。',
+    versionsError: 'バージョンを読み込めませんでした。',
+    close: 'ファイルを閉じる'
+  },
+  errors: {
+    InvalidCredentials: 'メールアドレスまたはパスワードが正しくありません。',
+    AppSignInRequired: 'このアプリを使うにはサインインしてください。',
+    AnonymousDisabled: 'このアプリは匿名では利用できません。サインインしてください。',
+    AppAccessDenied: 'このアカウントにはこのアプリへのアクセス権がありません。アプリの所有者にアクセスを依頼してください。',
+    AppSessionRequired: 'セッションが終了しました。続けるにはもう一度サインインしてください。',
+    ConversationBusy: 'エージェントはまだ前のメッセージに回答中です。終わるのを待ってから、もう一度送信してください。',
+    AppRateLimited: 'メッセージの送信が速すぎます。1 分ほど待ってから、もう一度お試しください。',
+    AppNotDeployed: 'このアプリはまだ準備ができていません。しばらくしてからもう一度お試しください。',
+    NetworkError: 'サーバーに接続できませんでした。接続を確認して、もう一度お試しください。',
+    generic: '問題が発生しました (HTTP {{status}})。もう一度お試しください。'
+  },
+  tips: {
+    email: 'このアプリで使うアカウントのメールアドレスを入力します。',
+    password: 'アカウントのパスワードです。セッションを開始するためにこのサーバーにだけ送信されます。',
+    submit: 'メールアドレスとパスワードを確認して、アプリを開きます。',
+    anonymous: 'ゲストとしてアプリを使います。会話はこのブラウザーのタブを開いている間だけ残ります。',
+    language: 'アプリの表示言語を選びます。選んだ言語はこのブラウザーに保存されます。',
+    themeLight: '明るい配色を使います。この設定はブラウザーに保存され、システムの設定より優先されます。',
+    themeDark: '暗い配色を使います。この設定はブラウザーに保存され、システムの設定より優先されます。',
+    signOut: 'このデバイスでのセッションを終了し、サインイン画面に戻ります。',
+    conversationsToggle: 'あなたの会話の一覧を表示したり、非表示にしたりします。',
+    filesToggle: 'この会話でエージェントが書き込んだファイルの一覧を表示したり、非表示にしたりします。',
+    newConversation: '新しい会話を始めます。これまでの会話は一覧にそのまま残ります。',
+    conversation: 'この会話を開いて、前回やり取りを止めたところから続きを再開します。',
+    composer: 'エージェントへのメッセージを入力します。Enter で送信、Shift と Enter で改行します。',
+    send: 'メッセージをエージェントに送ります。回答は書かれると同時に下に表示されます。',
+    dismiss: 'このお知らせを画面から消して、表示しないようにします。',
+    retry: 'アプリをもう一度最初から読み込み直して、表示を試みます。',
+    download: 'このファイルの最新バージョンをお使いのデバイスに保存します。',
+    versions: 'このファイルのすべてのバージョンを表示し、以前のものをダウンロードできます。',
+    downloadVersion: 'このバージョンのファイルをお使いのデバイスに保存します。',
+    closeDialog: 'このダイアログを閉じて、元の会話の画面にそのまま戻ります。',
+    closeFiles: 'ファイルのパネルを閉じて、元の会話の画面にそのまま戻ります。',
+    details: 'エージェントが回答中に行った手順 (ツール呼び出し、進行状況、警告) を表示します。',
+    answerLink: '回答内のリンクを新しいタブで開きます: {{href}}',
+    tableHeader: '回答に含まれる表の列見出しです: {{text}}',
+    skipToChat: 'ヘッダーと会話一覧を飛ばして、メッセージの入力欄へ直接移動します。'
+  }
+};
+
+export default ja;

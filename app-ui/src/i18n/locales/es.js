@@ -1,0 +1,148 @@
+// Spanish catalog for the Garrison app UI. Mirrors en.js key for key.
+
+const es = {
+  common: {
+    loading: 'Cargando',
+    close: 'Cerrar',
+    cancel: 'Cancelar',
+    retry: 'Volver a intentarlo',
+    defaultTitle: 'App de Garrison'
+  },
+  app: {
+    notFoundTitle: 'No se encontró la app',
+    notFoundBody: 'No hay ninguna app en esta dirección. Revisa el enlace que te dieron.',
+    noSlugTitle: 'No hay ninguna app seleccionada',
+    noSlugBody: 'Abre el enlace de una app concreta. Los enlaces de las apps tienen este aspecto: /apps/your-app/.',
+    loadErrorTitle: 'No se pudo cargar la app',
+    loadErrorBody: 'El servidor no respondió. Revisa tu conexión y vuelve a intentarlo.',
+    skipToChat: 'Ir a la conversación'
+  },
+  signIn: {
+    title: 'Inicia sesión en {{name}}',
+    email: 'Correo electrónico',
+    password: 'Contraseña',
+    submit: 'Iniciar sesión',
+    submitting: 'Iniciando sesión',
+    anonymous: 'Continuar sin iniciar sesión',
+    anonymousNote: 'Las conversaciones que empieces sin iniciar sesión solo se guardan en esta pestaña del navegador.',
+    or: 'o',
+    sessionEnded: 'Tu sesión ha terminado. Vuelve a iniciar sesión para continuar.'
+  },
+  header: {
+    conversations: 'Conversaciones',
+    files: 'Archivos',
+    signOut: 'Cerrar sesión',
+    signedInAs: 'Sesión iniciada como {{name}}',
+    guest: 'Invitado',
+    themeLight: 'Cambiar al tema claro',
+    themeDark: 'Cambiar al tema oscuro',
+    language: 'Idioma',
+    logoAlt: 'Logotipo de {{name}}'
+  },
+  conversations: {
+    title: 'Conversaciones',
+    new: 'Nueva conversación',
+    empty: 'Todavía no hay conversaciones. Envía un mensaje para empezar una.',
+    untitled: 'Conversación del {{date}}',
+    messages: 'Mensajes: {{count}}',
+    working: 'Trabajando',
+    loadError: 'No se pudieron cargar tus conversaciones.'
+  },
+  chat: {
+    welcomeDefault: 'Haz una pregunta para empezar.',
+    composerLabel: 'Mensaje',
+    composerPlaceholder: 'Escribe un mensaje',
+    composerHint: 'Intro envía el mensaje. Mayús e Intro crean una línea nueva.',
+    send: 'Enviar',
+    sending: 'Enviando',
+    you: 'Tú',
+    waiting: 'El agente está trabajando en ello',
+    approval: 'Esperando a que un operador apruebe un paso',
+    reconnecting: 'Se perdió la conexión. Reconectando',
+    failed: 'Esta respuesta no terminó.',
+    details: 'Actividad del agente',
+    loadError: 'No se pudo cargar esta conversación.',
+    missing: 'No se encontró esa conversación. Puede que pertenezca a otra sesión.',
+    busyComposer: 'El agente sigue respondiendo. Podrás enviar tu siguiente mensaje cuando termine.',
+    dismiss: 'Descartar'
+  },
+  statuses: {
+    Pending: 'Esperando para empezar',
+    Queued: 'Esperando para empezar',
+    Leased: 'Iniciando',
+    Running: 'Trabajando',
+    Cancelling: 'Deteniendo',
+    Succeeded: 'Listo',
+    Failed: 'Falló',
+    Cancelled: 'Cancelado',
+    TimedOut: 'Tiempo agotado',
+    Rejected: 'No permitido',
+    Suspended: 'En pausa'
+  },
+  detailTypes: {
+    Thinking: 'Razonamiento',
+    ToolCall: 'Llamada a herramienta',
+    ToolResult: 'Resultado de herramienta',
+    Progress: 'Progreso',
+    Warning: 'Aviso'
+  },
+  files: {
+    title: 'Archivos',
+    empty: 'El agente todavía no ha escrito ningún archivo en esta conversación.',
+    noConversation: 'Los archivos que escriba el agente aparecerán aquí cuando empiece una conversación.',
+    summary: 'Archivos: {{count}} ({{size}})',
+    download: 'Descargar',
+    versions: 'Versiones',
+    versionsTitle: 'Versiones de {{path}}',
+    version: 'Versión {{number}}',
+    current: 'Actual',
+    updated: 'Actualizado {{when}}',
+    size: 'Tamaño',
+    newBadge: 'Nuevo',
+    downloadFailed: 'No se pudo iniciar la descarga. Vuelve a intentarlo.',
+    loadError: 'No se pudieron cargar los archivos.',
+    versionsError: 'No se pudieron cargar las versiones.',
+    close: 'Cerrar archivos'
+  },
+  errors: {
+    InvalidCredentials: 'El correo electrónico o la contraseña no son correctos.',
+    AppSignInRequired: 'Inicia sesión para usar esta app.',
+    AnonymousDisabled: 'El uso anónimo de esta app está desactivado. Inicia sesión.',
+    AppAccessDenied: 'Esta cuenta no tiene acceso a esta app. Pide acceso al propietario de la app.',
+    AppSessionRequired: 'Tu sesión ha terminado. Vuelve a iniciar sesión para continuar.',
+    ConversationBusy: 'El agente sigue respondiendo al mensaje anterior. Espera a que termine y vuelve a enviarlo.',
+    AppRateLimited: 'Estás enviando mensajes demasiado rápido. Espera un minuto y vuelve a intentarlo.',
+    AppNotDeployed: 'Esta app aún no está lista. Inténtalo más tarde.',
+    NetworkError: 'No se pudo conectar con el servidor. Revisa tu conexión y vuelve a intentarlo.',
+    generic: 'Algo salió mal (HTTP {{status}}). Vuelve a intentarlo.'
+  },
+  tips: {
+    email: 'La dirección de correo de tu cuenta en esta app.',
+    password: 'La contraseña de tu cuenta. Solo se envía a este servidor para iniciar tu sesión.',
+    submit: 'Comprueba tu correo y tu contraseña y abre la app.',
+    anonymous: 'Usa la app como invitado. Tus conversaciones solo duran lo que dure esta pestaña del navegador.',
+    language: 'Elige el idioma de la app. Tu elección se guarda en este navegador.',
+    themeLight: 'Usa colores claros. Tu elección se guarda en este navegador y tiene prioridad sobre la del sistema.',
+    themeDark: 'Usa colores oscuros. Tu elección se guarda en este navegador y tiene prioridad sobre la del sistema.',
+    signOut: 'Cierra tu sesión en este dispositivo y vuelve a la pantalla de inicio de sesión.',
+    conversationsToggle: 'Muestra u oculta tu lista de conversaciones.',
+    filesToggle: 'Muestra u oculta los archivos que el agente escribió en esta conversación.',
+    newConversation: 'Empieza una conversación nueva. Las anteriores siguen en la lista.',
+    conversation: 'Abre esta conversación y sigue donde la dejaste.',
+    composer: 'Escribe tu mensaje para el agente. Intro lo envía; Mayús e Intro crean una línea nueva.',
+    send: 'Envía tu mensaje al agente. La respuesta aparece debajo a medida que se escribe.',
+    dismiss: 'Oculta este mensaje de la pantalla.',
+    retry: 'Vuelve a cargar la app desde el principio.',
+    download: 'Guarda la versión actual de este archivo en tu dispositivo.',
+    versions: 'Muestra todas las versiones de este archivo para descargar una anterior.',
+    downloadVersion: 'Guarda esta versión del archivo en tu dispositivo.',
+    closeDialog: 'Cierra este cuadro de diálogo y vuelve a la conversación.',
+    closeFiles: 'Oculta el panel de archivos y vuelve a la conversación.',
+    details: 'Muestra los pasos que siguió el agente al responder: llamadas a herramientas, progreso y avisos.',
+    answerLink: 'Abre un enlace de la respuesta en una pestaña nueva: {{href}}',
+    tableHeader: 'Columna de una tabla de la respuesta: {{text}}',
+    skipToChat: 'Salta el encabezado y la lista de conversaciones para ir al cuadro de mensaje.'
+  }
+};
+
+export default es;

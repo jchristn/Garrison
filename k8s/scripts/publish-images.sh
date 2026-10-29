@@ -30,7 +30,7 @@ for image in "${IMAGES[@]}"; do
   case "$image" in
     server) FILE="$ROOT/src/Garrison.Server/Dockerfile"; CONTEXT="$ROOT" ;;
     worker) FILE="$ROOT/src/Garrison.Worker/Dockerfile"; CONTEXT="$ROOT" ;;
-    dashboard) FILE="$ROOT/dashboard/Dockerfile"; CONTEXT="$ROOT/dashboard" ;;
+    dashboard) FILE="$ROOT/dashboard/Dockerfile"; CONTEXT="$ROOT" ;;
     *) echo "Unknown image: $image" >&2; exit 2 ;;
   esac
   OPTIONS=(--output "type=oci,dest=$OUTPUT/garrison-$image.oci.tar")

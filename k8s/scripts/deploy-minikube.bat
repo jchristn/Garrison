@@ -10,9 +10,7 @@ if not "%SKIP_BUILD%"=="1" (
   pushd "%REPO%"
   minikube image build -t jchristn77/garrison-server:%GARRISON_TAG% -f src/Garrison.Server/Dockerfile . || exit /b 1
   minikube image build -t jchristn77/garrison-worker:%GARRISON_TAG% -f src/Garrison.Worker/Dockerfile . || exit /b 1
-  popd
-  pushd "%REPO%\dashboard"
-  minikube image build -t jchristn77/garrison-dashboard:%GARRISON_TAG% . || exit /b 1
+  minikube image build -t jchristn77/garrison-dashboard:%GARRISON_TAG% -f dashboard/Dockerfile . || exit /b 1
   popd
 )
 call "%~dp0generate-secrets.bat" || exit /b 1

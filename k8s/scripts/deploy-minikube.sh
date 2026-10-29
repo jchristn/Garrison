@@ -15,7 +15,7 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
   log "building images into minikube (tag ${GARRISON_TAG})"
   (cd "${REPO_DIR}" && minikube image build -t "jchristn77/garrison-server:${GARRISON_TAG}" -f src/Garrison.Server/Dockerfile .)
   (cd "${REPO_DIR}" && minikube image build -t "jchristn77/garrison-worker:${GARRISON_TAG}" -f src/Garrison.Worker/Dockerfile .)
-  (cd "${REPO_DIR}/dashboard" && minikube image build -t "jchristn77/garrison-dashboard:${GARRISON_TAG}" .)
+  (cd "${REPO_DIR}" && minikube image build -t "jchristn77/garrison-dashboard:${GARRISON_TAG}" -f dashboard/Dockerfile .)
 fi
 
 "${SCRIPT_DIR}/generate-secrets.sh"

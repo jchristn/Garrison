@@ -17,6 +17,7 @@ A multi-tenant control plane that runs headless agent harnesses (Claude Code, Co
 | `src/Garrison.FakeHarness` | Deterministic harness used by tests and smoke tests. |
 | `src/Test.*` | Touchstone suites and runners. |
 | `dashboard/` | React 19 + Vite 6 operator console. |
+| `app-ui/` | React 19 + Vite 6 end-user chat UI for agentic apps, served by the dashboard image at `/apps/{slug}/`. |
 | `sdk/{csharp,python,js,go}` | SDKs, each with a README and a test harness. |
 | `docker/` | Docker Compose stack (`compose.yaml`), `update.{sh,bat}`, `factory/reset.{sh,bat}`. |
 | `k8s/` | Kustomize base, components, overlays (minikube, k3s, production), Helm chart, scripts. |
@@ -31,6 +32,7 @@ GARRISON_TEST_PROVIDERS=sqlite,postgresql dotnet run --project src/Test.Automate
 dotnet test src/Test.Xunit -f net10.0
 dotnet test src/Test.Nunit -f net10.0
 cd dashboard && npm install && npm run lint && npm run build && npm test
+cd app-ui && npm install && npm run lint && npm run build && npm test
 scripts/run-sdk-harnesses.sh
 scripts/check-em-dash.sh
 scripts/check-version.sh

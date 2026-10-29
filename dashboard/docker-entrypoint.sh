@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs before nginx starts (nginx image /docker-entrypoint.d hook).
-# GARRISON_API_URL: URL the browser uses for the API; empty means same origin (nginx proxies /v1.0).
+# GARRISON_API_URL: URL the browser uses for the API, in the console and the app UI; empty means same origin (nginx
+#   proxies /v1.0).
 # GARRISON_API_UPSTREAM: where nginx proxies /v1.0 and /openapi.json. Default http://garrison-server:8700.
 # GARRISON_CSP_CONNECT_SRC: extra space-separated origins the browser may call (Content-Security-Policy connect-src),
 #   for example a second Garrison server typed into the login form. The origin of GARRISON_API_URL is added for you.
@@ -29,6 +30,11 @@ resolver ${RESOLVER:-127.0.0.11} valid=30s ipv6=off;
 set \$garrison_api "${UPSTREAM}";
 set \$garrison_csp_connect "${CONNECT}";
 INC
-cat > /usr/share/nginx/html/config.js <<CONFIG
+# The operator console and the app UI (/apps/) read the same runtime configuration.
+for CONFIG_FILE in /usr/share/nginx/html/config.js /usr/share/nginx/html/apps/config.js; do
+  if [ -d "$(dirname "${CONFIG_FILE}")" ]; then
+    cat > "${CONFIG_FILE}" <<CONFIG
 window.GARRISON_CONFIG = { apiUrl: "${GARRISON_API_URL:-}" };
 CONFIG
+  fi
+done
