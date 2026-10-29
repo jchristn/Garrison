@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1925,6 +1926,84 @@ func main() {
 		}
 		if _, err := client.FanOutGroups.Cancel(ctx, "fog_missing"); !garrison.IsStatus(err, http.StatusNotFound) {
 			return fmt.Errorf("missing group cancel should be 404, got %v", err)
+		}
+		return nil
+	})
+	check("agentic app, delegation plan, and app revision", func(ctx context.Context) (err error) {
+		if agentID == "" {
+			return errors.New("no scratch agent")
+		}
+		name := "sdk-go-app-" + suffix
+		description := "Go SDK harness app."
+		role := "Talks to people"
+		app, err := client.Apps.Create(ctx, garrison.AgenticApp{
+			Name: name, Description: &description, EntryAgentID: agentID,
+			Members:  []garrison.AgenticAppMember{{AgentID: agentID, Role: &role}},
+			AuthMode: garrison.AppAuthModeAnonymous, AnonymousEnabled: true,
+		})
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if derr := client.Apps.Delete(ctx, app.ID); derr != nil && err == nil {
+				err = derr
+			}
+		}()
+		if !strings.HasPrefix(app.ID, "app_") || app.Slug != name {
+			return fmt.Errorf("app id %s slug %s", app.ID, app.Slug)
+		}
+		byName, err := client.Apps.Get(ctx, name)
+		if err != nil {
+			return err
+		}
+		if byName.ID != app.ID || byName.AuthMode != garrison.AppAuthModeAnonymous || !byName.AnonymousEnabled || len(byName.Members) != 1 || byName.Members[0].AgentID != agentID {
+			return fmt.Errorf("read by name: %+v", byName)
+		}
+		plan, err := client.Apps.Delegation(ctx, app.ID)
+		if err != nil {
+			return err
+		}
+		if plan.AppID != app.ID || len(plan.Members) != 1 {
+			return fmt.Errorf("delegation plan: %+v", plan)
+		}
+		draft, err := client.Apps.CreateRevision(ctx, app.ID, "sdk harness")
+		if err != nil {
+			return err
+		}
+		if draft.State != garrison.AgentRevisionStateDraft || len(draft.Members) != 1 {
+			return fmt.Errorf("app revision: %+v", draft)
+		}
+		published, err := client.Apps.PublishRevision(ctx, app.ID, strconv.Itoa(draft.Number))
+		if err != nil {
+			return err
+		}
+		if published.State != garrison.AgentRevisionStatePublished || published.ID != draft.ID {
+			return fmt.Errorf("published: %+v", published)
+		}
+		read, err := client.Apps.GetRevision(ctx, app.ID, published.ID)
+		if err != nil {
+			return err
+		}
+		if read.Number != published.Number {
+			return fmt.Errorf("revision read number %d", read.Number)
+		}
+		revisions, err := client.Apps.Revisions(ctx, app.ID)
+		if err != nil {
+			return err
+		}
+		listed := false
+		for _, r := range revisions {
+			listed = listed || r.ID == published.ID
+		}
+		if !listed {
+			return errors.New("published revision not listed")
+		}
+		after, err := client.Apps.Get(ctx, app.ID)
+		if err != nil {
+			return err
+		}
+		if after.LatestPublishedRevisionID == nil || *after.LatestPublishedRevisionID != published.ID {
+			return fmt.Errorf("latestPublishedRevisionId %v", after.LatestPublishedRevisionID)
 		}
 		return nil
 	})

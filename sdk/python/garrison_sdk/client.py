@@ -390,6 +390,109 @@ class FanOutGroup(TypedDict, total=False):
     continuationInstruction: Optional[str]
 
 
+class AgenticAppMember(TypedDict, total=False):
+    """One agent in an agentic app. agentId accepts an agent name on create and update; agentName is filled in on read.
+    role is optional free text."""
+    agentId: str
+    agentName: Optional[str]
+    role: Optional[str]
+
+
+class AgenticAppEdge(TypedDict, total=False):
+    """A call one member may make to another (a name is accepted for either end on create and update). fanOutAllowed
+    (default True) lets the caller reach the callee through garrison_fan_out."""
+    callerAgentId: str
+    calleeAgentId: str
+    fanOutAllowed: bool
+
+
+class AgenticAppEnvironment(TypedDict, total=False):
+    """The entry deployment the app uses in one environment (deploymentId None when none is assigned)."""
+    environment: str
+    deploymentId: Optional[str]
+
+
+class AgenticApp(TypedDict, total=False):
+    """A group of agents behind one chat UI at /apps/{slug}/. id has the prefix app_. name is unique in the tenant (1 to
+    64 lowercase letters, digits, and hyphens); slug is unique across the cluster (409 AppSlugTaken) and defaults to the
+    name. entryAgentId (an agent name is accepted on write) talks to end users. authMode is one of APP_AUTH_MODES
+    (default AppUsers); Anonymous also needs anonymousEnabled. liveEnvironment (default dev) is the environment the app
+    UI uses. The server checks that the entry agent is a member, edges connect members, every member is reachable from
+    the entry agent, and the edges have no cycle."""
+    id: str
+    tenantId: str
+    name: str
+    slug: str
+    description: Optional[str]
+    entryAgentId: str
+    liveEnvironment: str
+    authMode: str
+    anonymousEnabled: bool
+    showOperatorDetail: bool
+    displayName: Optional[str]
+    logoAssetId: Optional[str]
+    primaryColor: Optional[str]
+    accentColor: Optional[str]
+    welcomeText: Optional[str]
+    members: List[AgenticAppMember]
+    edges: List[AgenticAppEdge]
+    environments: List[AgenticAppEnvironment]
+    latestPublishedRevisionId: Optional[str]
+    active: bool
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class AppRevisionMember(TypedDict, total=False):
+    """One member of an app revision with the published agent revision it pins."""
+    agentId: str
+    agentName: Optional[str]
+    agentRevisionId: str
+    agentRevisionNumber: Optional[int]
+
+
+class AppRevision(TypedDict, total=False):
+    """An app revision: every member's published agent revision pinned, with a copy of the edges. id has the prefix
+    apv_; state is one of AGENT_REVISION_STATES."""
+    id: str
+    tenantId: str
+    appId: str
+    number: int
+    state: str
+    members: List[AppRevisionMember]
+    edges: List[AgenticAppEdge]
+    authorName: Optional[str]
+    changeNote: Optional[str]
+    publishedByName: Optional[str]
+    publishedUtc: Optional[str]
+    createdUtc: str
+
+
+class AppDelegationMember(TypedDict, total=False):
+    """One member's delegation policy derived from the app graph (desired*) next to its latest published revision's
+    (published*, None when it has none). desiredMode is AllowList, or None for a member that calls nobody. drift marks a
+    difference. After an apply, draftRevisionNumber names the draft written, or skippedReason (for example DraftConflict)
+    says why the member was left alone."""
+    agentId: str
+    agentName: str
+    desiredMode: str
+    desiredAllowList: List[str]
+    desiredMaxDepth: int
+    publishedMode: Optional[str]
+    publishedAllowList: List[str]
+    publishedMaxDepth: Optional[int]
+    drift: bool
+    draftRevisionNumber: Optional[int]
+    skippedReason: Optional[str]
+
+
+class AppDelegationPlan(TypedDict, total=False):
+    """Each member's delegation policy derived from the app graph. applied is True on the answer to an apply."""
+    appId: str
+    applied: bool
+    members: List[AppDelegationMember]
+
+
 class HarnessToolProbe(TypedDict, total=False):
     """A harness profile "toolProbes" entry. name is 1 to 63 lowercase letters, digits, dots, and hyphens; executable is
     a bare file name on the worker's PATH; arguments holds at most one of HARNESS_TOOL_PROBE_ARGUMENTS."""
@@ -607,6 +710,14 @@ HARNESS_TOOL_PROBE_ARGUMENTS = ("--version", "-version", "-v", "-V", "version", 
 # to (absent for runs garrison_fan_out did not start).
 FAN_OUT_GROUP_STATUSES = ("Running", "Joined", "TimedOut", "BudgetExceeded", "Cancelled")
 FAN_OUT_JOIN_POLICIES = ("All", "Any", "Quorum")
+
+# Agentic apps. AgenticApp["authMode"]: TenantUsers (any active tenant user), AppUsers (users holding the built-in
+# APP_USER_ROLE on the app; the default), or Anonymous (anyone, when anonymousEnabled is also true).
+APP_AUTH_MODES = ("TenantUsers", "AppUsers", "Anonymous")
+# Built-in role that lets a user use one app's chat UI. Assign it with resource scope on the app identifier; it grants
+# nothing in the management API. Permissions name the app resource type as APP_RESOURCE_TYPE.
+APP_USER_ROLE = "AppUser"
+APP_RESOURCE_TYPE = "AgenticApp"
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -1244,6 +1355,53 @@ class Capabilities(Resource):
         return self._t.request("POST", self._base() + "/refresh", {"mcpServerId": mcp_server_id})
 
 
+class Apps(Resource):
+    """Agentic apps: groups of agents behind one chat UI. list, get (identifier or name), create, update, and delete need
+    Read, Create, Update, and Delete on AgenticApp. An agent that belongs to an app cannot be deleted (409 AgentInUse)."""
+
+    def delegation(self, id: str) -> AppDelegationPlan:
+        """Each member's delegation policy derived from the graph, with drift against its latest published revision."""
+        return self._t.request("GET", self._item(id) + "/delegation")
+
+    def apply_delegation(self, id: str) -> AppDelegationPlan:
+        """Write the graph's policy into a draft revision of each drifting member (nothing is published). A member whose
+        open draft already changes its delegation another way is skipped with skippedReason DraftConflict."""
+        return self._t.request("POST", self._item(id) + "/delegation")
+
+    def revisions(self, id: str) -> List[AppRevision]:
+        """The app's revisions, newest first."""
+        return self._t.request("GET", self._item(id) + "/revisions") or []
+
+    def create_revision(self, id: str, change_note: Optional[str] = None) -> AppRevision:
+        """Take a draft app revision pinning every member's latest published revision and copying the edges (201).
+        Raises GarrisonError 409 NoPublishedRevision when a member has none."""
+        return self._t.request("POST", self._item(id) + "/revisions", body={"changeNote": change_note} if change_note else {})
+
+    def get_revision(self, id: str, revision: Union[str, int]) -> AppRevision:
+        """Read an app revision by identifier (apv_) or number."""
+        return self._t.request("GET", self._item(id) + f"/revisions/{_seg(str(revision))}")
+
+    def publish_revision(self, id: str, revision: Union[str, int]) -> AppRevision:
+        """Publish a draft app revision (identifier or number). Raises GarrisonError 409 RevisionPublished when it already
+        is."""
+        return self._t.request("POST", self._item(id) + f"/revisions/{_seg(str(revision))}/publish")
+
+    def promote(self, id: str, source_environment: str, target_environment: Optional[str] = None,
+                app_revision: Optional[Union[str, int]] = None, allow_skip: bool = False, note: Optional[str] = None) -> PromotionRecord:
+        """Promote a published app revision (default the latest) from source_environment to the next environment (or
+        target_environment). Every member's pin moves to every deployment of that member in the target environment
+        together, under one promotion record; roll it back with promotions.rollback. Raises GarrisonError 409
+        NoTargetDeployments naming a member without a deployment there. Needs Execute on Promotion for the target."""
+        body: Dict[str, Any] = {"sourceEnvironment": source_environment, "allowSkip": allow_skip}
+        if target_environment:
+            body["targetEnvironment"] = target_environment
+        if app_revision is not None:
+            body["appRevision"] = str(app_revision)
+        if note:
+            body["note"] = note
+        return self._t.request("POST", self._item(id) + "/promote", body=body)
+
+
 class FanOutGroups:
     """Fan-out groups: child runs a run started with the garrison_fan_out MCP tool. Groups are only created by runs, so
     this client reads and cancels them. A group that does not exist or belongs to another tenant raises GarrisonError
@@ -1814,6 +1972,7 @@ class GarrisonClient:
         self.file_spaces = FileSpaces(t)
         self.capabilities = Capabilities(t, "capabilities")
         self.fan_out_groups = FanOutGroups(t)
+        self.apps = Apps(t, "apps")
 
     @property
     def tenant_id(self) -> Optional[str]:

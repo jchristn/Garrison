@@ -66,7 +66,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `fanOutGroups`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `fanOutGroups`, `apps`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -315,6 +315,52 @@ const cancelled = await client.fanOutGroups.cancel(group.fanOutGroupId); // canc
 ```
 
 A group that does not exist, or belongs to another tenant, rejects with a `GarrisonError` whose `statusCode` is 404.
+
+## Agentic apps
+
+An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.apps` offers `list`, `get` (identifier or name), `create`, `update`, and `delete`, plus the delegation plan, app revisions, and promotion. An `AgenticApp` has `id` (`app_...`), `name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `description`, `entryAgentId`, `members` (`agentId`, `agentName`, `role`), `edges` (`callerAgentId`, `calleeAgentId`, `fanOutAllowed`, default true), `environments` (`environment`, `deploymentId`), `liveEnvironment` (default `dev`), `authMode` (`AppAuthMode`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `anonymousEnabled`, `showOperatorDetail`, the branding fields `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, and `welcomeText`, and `latestPublishedRevisionId`. Agents may be given by name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
+
+```ts
+const app = await client.apps.create({
+  name: "research", entryAgentId: "orchestrator",
+  members: [{ agentId: "orchestrator" }, { agentId: "researcher" }],
+  edges: [{ callerAgentId: "orchestrator", calleeAgentId: "researcher" }],
+});
+const plan = await client.apps.delegation(app.id);         // drift marks members whose published policy differs
+const applied = await client.apps.applyDelegation(app.id); // writes drafts; nothing is published
+const draft = await client.apps.createRevision(app.id, "first cut");
+const published = await client.apps.publishRevision(app.id, draft.number);
+const record = await client.apps.promote(app.id, { sourceEnvironment: "dev" }); // PromotionRecord
+```
+
+Each `AppDelegationMember` in `plan.members` has the graph's `desiredMode` (`AllowList`, or `None` for a member that calls nobody), `desiredAllowList`, and `desiredMaxDepth`, the latest published revision's `publishedMode`, `publishedAllowList`, and `publishedMaxDepth`, `drift`, and after an apply `draftRevisionNumber` or `skippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `createRevision` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `revisions` lists them newest first and `getRevision` reads one by identifier (`apv_...`) or number. `promote` moves every member's pin to every deployment of that member in the target environment under one promotion record (409 `NoTargetDeployments` names a member without one; roll back with `client.promotions.rollback`) and needs Execute on `Promotion` for the target environment.
+
+`APP_RESOURCE_TYPE` (`AgenticApp`) names apps in permissions, and `APP_USER_ROLE` (`AppUser`) is the built-in role that lets a user use one app's chat UI when assigned with resource scope on the app identifier. `Conversation.appId` names the app whose chat UI started a conversation.
+
+### App gateway client
+
+`AppGatewayClient` is for an app's end users. It takes the server base URL and the app slug and needs no management credentials. `startSession` signs in with an email and password, or with no argument for an anonymous session (only when the app's `authMode` is `Anonymous` and anonymous use is enabled); it keeps the session token (prefix `gas_`) in `token` and sends it as `Authorization: Bearer` on every later call. The token works only on that app's gateway, and the management API refuses it with 401, just as the gateway refuses a management token.
+
+```ts
+import { AppGatewayClient } from "@garrison/sdk";
+
+const gateway = new AppGatewayClient("http://127.0.0.1:8700", "research");
+const info = await gateway.info();                       // AppInfo: displayName, colors, logoUrl, authMode, anonymousAllowed
+await gateway.startSession({ email: "reader@example.com", password: "..." }); // or startSession() for anonymous use
+const { conversationId, turn } = await gateway.startConversation("Give me an overview of decision models.");
+const done = await gateway.streamTurn(conversationId, turn.runId, (e) => {
+  if (e.event === "turn.event") console.log(e.data.eventType, e.data.text ?? "");
+});
+console.log(done.status, done.answer);
+const next = await gateway.send(conversationId, "Now shorten it.");   // 409 ConversationBusy while a turn runs
+const listing = await gateway.files(conversationId);
+const bytes = await gateway.readFile(conversationId, "notes.md");    // optional version argument
+const versions = await gateway.fileVersions(conversationId, "notes.md");
+const link = await gateway.downloadUrl(conversationId, "notes.md");
+await gateway.endSession();
+```
+
+`conversations()` lists the session owner's conversations and `conversation(id)` reads one with its turns (`AppTurnView`: `runId`, `turn`, `message`, `status`, `answer`, `error`, `awaitingApproval`). `streamTurn` reads the server-sent event stream with `fetch` and calls the callback for each `turn.event` (a visible `RunEvent`), `turn.status`, and `turn.completed`, and resolves with the completed turn. When the connection drops first it reconnects and resumes after the last event id with `Last-Event-ID`; `maxReconnects` (default 5) and `reconnectDelayMs` (default 1000) tune that. Errors reject with `GarrisonError`: 401 `InvalidCredentials`, `AppSignInRequired`, or `AnonymousDisabled`, 403 `AppAccessDenied`, and 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`.
 
 ## Manifests
 

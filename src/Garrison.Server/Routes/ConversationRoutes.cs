@@ -75,6 +75,7 @@ namespace Garrison.Server.Routes
             filter.AgentId = RouteHelpers.Query(context, "agentId");
             filter.ContextId = RouteHelpers.Query(context, "contextId");
             filter.CallerId = RouteHelpers.Query(context, "callerId");
+            filter.AppId = RouteHelpers.Query(context, "appId");
             EnumerationQuery query = RouteHelpers.Enumeration(context);
             filter.Search = query.Search;
             filter.Skip = query.Skip;

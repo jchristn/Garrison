@@ -1,7 +1,7 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
 import { createHash } from "node:crypto";
-import { EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
+import { AppGatewayClient, EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
 const suffix = Math.random().toString(16).slice(2, 10);
@@ -785,6 +785,46 @@ await check("fan-out groups", async () => {
   require(Array.isArray(groups) && groups.length === 0, `expected no fan-out groups, got ${JSON.stringify(groups)}`);
   await expectStatus(404, () => client.fanOutGroups.get("fog_missing"));
   await expectStatus(404, () => client.fanOutGroups.cancel("fog_missing"));
+});
+await check("agentic app, delegation plan, app revision, and gateway", async () => {
+  require(state.agent, "no scratch agent");
+  const name = `sdk-js-app-${suffix}`;
+  const app = await client.apps.create({
+    name, description: "JavaScript SDK harness app.", entryAgentId: state.agent,
+    members: [{ agentId: state.agent, role: "Talks to people" }], authMode: "Anonymous", anonymousEnabled: true,
+  });
+  try {
+    require(app.id.startsWith("app_"), `app id ${app.id}`);
+    require(app.slug === name, `slug ${app.slug} should default to the name`);
+    const byName = await client.apps.get(name);
+    require(byName.id === app.id && byName.authMode === "Anonymous" && byName.anonymousEnabled === true, `read by name ${JSON.stringify(byName)}`);
+    require(byName.members.length === 1 && byName.members[0].agentId === state.agent, `members ${JSON.stringify(byName.members)}`);
+    const plan = await client.apps.delegation(app.id);
+    require(plan.appId === app.id && plan.members.length === 1, `delegation plan ${JSON.stringify(plan)}`);
+    const draft = await client.apps.createRevision(app.id, "sdk harness");
+    require(draft.state === "Draft" && draft.members.length === 1, `app revision ${JSON.stringify(draft)}`);
+    const published = await client.apps.publishRevision(app.id, draft.number);
+    require(published.state === "Published" && published.id === draft.id, `published ${JSON.stringify(published)}`);
+    require((await client.apps.getRevision(app.id, published.id)).number === published.number, "revision read failed");
+    require((await client.apps.revisions(app.id)).some((r) => r.id === published.id), "published revision not listed");
+    require((await client.apps.get(app.id)).latestPublishedRevisionId === published.id, "latestPublishedRevisionId not set");
+
+    const gateway = new AppGatewayClient(baseUrl, app.slug);
+    const info = await gateway.info();
+    require(info.slug === app.slug && info.authMode === "Anonymous" && info.anonymousAllowed === true, `app info ${JSON.stringify(info)}`);
+    const session = await gateway.startSession();
+    require(session.anonymous === true && session.token.startsWith("gas_") && gateway.token === session.token, `session ${JSON.stringify(session)}`);
+    const conversations = await gateway.conversations();
+    require(Array.isArray(conversations) && conversations.length === 0, `expected no conversations, got ${JSON.stringify(conversations)}`);
+    const refused = new AppGatewayClient(baseUrl, app.slug);
+    refused.token = client.transport.token;
+    require(refused.token, "no management token to test with");
+    await expectStatus(401, () => refused.conversations());
+    await gateway.endSession();
+    require(gateway.token === undefined, "endSession kept the token");
+  } finally {
+    await client.apps.delete(app.id);
+  }
 });
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);

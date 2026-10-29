@@ -1283,6 +1283,43 @@ namespace Garrison.Sdk.Test
                     Require(cancelStatus == 404, "expected 404 cancelling a missing fan-out group");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("agentic app, delegation plan, and app revision", async () =>
+                {
+                    string entryId = agentId ?? throw new InvalidOperationException("no scratch agent");
+                    AgenticApp request = new AgenticApp();
+                    request.Name = "sdk-cs-app-" + suffix;
+                    request.Description = "C# SDK harness app.";
+                    request.EntryAgentId = entryId;
+                    request.Members = new List<AgenticAppMember> { new AgenticAppMember { AgentId = entryId, Role = "Talks to people" } };
+                    request.AuthMode = AppAuthModeEnum.Anonymous;
+                    request.AnonymousEnabled = true;
+                    AgenticApp app = await client.Apps.CreateAsync(request, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require(app.Id.StartsWith("app_", StringComparison.Ordinal), "app id " + app.Id);
+                        Require(app.Slug == request.Name, "slug defaults to the name, got " + app.Slug);
+                        AgenticApp byName = await client.Apps.GetAsync(request.Name, token).ConfigureAwait(false);
+                        Require(byName.Id == app.Id && byName.AuthMode == AppAuthModeEnum.Anonymous && byName.AnonymousEnabled, "read by name");
+                        Require(byName.Members.Count == 1 && byName.Members[0].AgentId == entryId, "members " + byName.Members.Count);
+                        AppDelegationPlan plan = await client.Apps.GetDelegationAsync(app.Id, token).ConfigureAwait(false);
+                        Require(plan.AppId == app.Id && plan.Members.Count == 1 && !plan.Applied, "delegation plan members " + plan.Members.Count);
+                        AppRevision draft = await client.Apps.CreateRevisionAsync(app.Id, new AppRevisionRequest { ChangeNote = "sdk harness" }, token).ConfigureAwait(false);
+                        Require(draft.State == AgentRevisionStateEnum.Draft && draft.Members.Count == 1, "app revision state " + draft.State);
+                        AppRevision published = await client.Apps.PublishRevisionAsync(app.Id, draft.Number.ToString(System.Globalization.CultureInfo.InvariantCulture), token).ConfigureAwait(false);
+                        Require(published.State == AgentRevisionStateEnum.Published && published.Id == draft.Id, "published state " + published.State);
+                        AppRevision read = await client.Apps.GetRevisionAsync(app.Id, published.Id, token).ConfigureAwait(false);
+                        Require(read.Number == published.Number, "revision read");
+                        List<AppRevision> revisions = await client.Apps.ListRevisionsAsync(app.Id, token).ConfigureAwait(false);
+                        Require(revisions.Any(r => r.Id == published.Id), "published revision not listed");
+                        AgenticApp afterPublish = await client.Apps.GetAsync(app.Id, token).ConfigureAwait(false);
+                        Require(afterPublish.LatestPublishedRevisionId == published.Id, "latestPublishedRevisionId " + afterPublish.LatestPublishedRevisionId);
+                    }
+                    finally
+                    {
+                        await client.Apps.DeleteAsync(app.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

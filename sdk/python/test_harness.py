@@ -898,6 +898,30 @@ def t_fan_out_groups():
     _expect_status(404, client.fan_out_groups.cancel, "fog_missing")
 
 
+def t_apps():
+    name = f"sdk-py-app-{SUFFIX}"
+    app = client.apps.create({"name": name, "description": "Python SDK harness app.", "entryAgentId": state["agent"],
+                              "members": [{"agentId": state["agent"], "role": "Talks to people"}],
+                              "authMode": "Anonymous", "anonymousEnabled": True})
+    try:
+        require(app["id"].startswith("app_"), f"app id {app['id']}")
+        require(app["slug"] == name, f"slug {app['slug']!r} should default to the name")
+        by_name = client.apps.get(name)
+        require(by_name["id"] == app["id"] and by_name["authMode"] == "Anonymous" and by_name["anonymousEnabled"] is True, f"read by name {by_name}")
+        require([m["agentId"] for m in by_name["members"]] == [state["agent"]], f"members {by_name['members']}")
+        plan = client.apps.delegation(app["id"])
+        require(plan["appId"] == app["id"] and len(plan["members"]) == 1, f"delegation plan {plan}")
+        draft = client.apps.create_revision(app["id"], change_note="sdk harness")
+        require(draft["state"] == "Draft" and len(draft["members"]) == 1, f"app revision {draft}")
+        published = client.apps.publish_revision(app["id"], draft["number"])
+        require(published["state"] == "Published" and published["id"] == draft["id"], f"published {published}")
+        require(client.apps.get_revision(app["id"], published["id"])["number"] == published["number"], "revision read failed")
+        require(any(r["id"] == published["id"] for r in client.apps.revisions(app["id"])), "published revision not listed")
+        require(client.apps.get(app["id"]).get("latestPublishedRevisionId") == published["id"], "latestPublishedRevisionId not set")
+    finally:
+        client.apps.delete(app["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -937,7 +961,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

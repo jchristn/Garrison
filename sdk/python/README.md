@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `fan_out_groups`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `fan_out_groups`, `apps`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -387,6 +387,25 @@ cancelled = client.fan_out_groups.cancel(group["fanOutGroupId"])  # cancels memb
 ```
 
 A group that does not exist, or belongs to another tenant, raises `GarrisonError` with status 404.
+
+## Agentic apps
+
+An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.apps` offers `list`, `get` (identifier or name), `create`, `update`, and `delete`, plus the delegation plan, app revisions, and promotion. An `AgenticApp` has `id` (`app_...`), `name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `description`, `entryAgentId`, `members` (`agentId`, `agentName`, `role`), `edges` (`callerAgentId`, `calleeAgentId`, `fanOutAllowed`, default true), `environments` (`environment`, `deploymentId`), `liveEnvironment` (default `dev`), `authMode` (`APP_AUTH_MODES`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `anonymousEnabled`, `showOperatorDetail`, the branding fields `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, and `welcomeText`, and `latestPublishedRevisionId`. Agents may be given by name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
+
+```python
+app = client.apps.create({"name": "research", "entryAgentId": "orchestrator",
+                          "members": [{"agentId": "orchestrator"}, {"agentId": "researcher"}],
+                          "edges": [{"callerAgentId": "orchestrator", "calleeAgentId": "researcher"}]})
+plan = client.apps.delegation(app["id"])            # "drift" marks members whose published policy differs
+applied = client.apps.apply_delegation(app["id"])   # writes drafts; nothing is published
+draft = client.apps.create_revision(app["id"], change_note="first cut")
+published = client.apps.publish_revision(app["id"], draft["number"])
+record = client.apps.promote(app["id"], "dev")      # PromotionRecord; roll back with client.promotions.rollback
+```
+
+Each `AppDelegationMember` in `plan["members"]` has the graph's `desiredMode` (`AllowList`, or `None` for a member that calls nobody), `desiredAllowList`, and `desiredMaxDepth`, the latest published revision's `publishedMode`, `publishedAllowList`, and `publishedMaxDepth`, `drift`, and after an apply `draftRevisionNumber` or `skippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `create_revision` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `revisions` lists them newest first and `get_revision` reads one by identifier (`apv_...`) or number. `promote` moves every member's pin to every deployment of that member in the target environment under one promotion record (409 `NoTargetDeployments` names a member without one) and needs Execute on `Promotion` for the target environment.
+
+`APP_RESOURCE_TYPE` (`AgenticApp`) names apps in permissions, and `APP_USER_ROLE` (`AppUser`) is the built-in role that lets a user use one app's chat UI when assigned with resource scope on the app identifier. A conversation's `appId` names the app whose chat UI started it.
 
 ## Errors
 

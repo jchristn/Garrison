@@ -204,6 +204,11 @@ namespace Garrison.Sdk
         public FanOutGroupsClient FanOutGroups { get; }
 
         /// <summary>
+        /// Agentic apps: groups of agents behind one chat UI, their delegation plan, app revisions, and promotion.
+        /// </summary>
+        public AgenticAppsClient Apps { get; }
+
+        /// <summary>
         /// Tenant environments and promotions of agent revisions between them.
         /// </summary>
         public PromotionsClient Promotions { get; }
@@ -294,6 +299,7 @@ namespace Garrison.Sdk
             FileSpaces = new FileSpacesClient(Transport);
             Capabilities = new CapabilitiesClient(Transport);
             FanOutGroups = new FanOutGroupsClient(Transport);
+            Apps = new AgenticAppsClient(Transport);
             Promotions = new PromotionsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);

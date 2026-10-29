@@ -684,6 +684,8 @@ type Conversation struct {
 	HarnessType  string `json:"harnessType"`
 	// ContextID is the client-supplied A2A context identifier the conversation was created for; nil otherwise.
 	ContextID *string `json:"contextId"`
+	// AppID is the agentic app whose chat UI started the conversation; nil otherwise.
+	AppID *string `json:"appId,omitempty"`
 	// Title is the first line of the first turn's input (at most 200 characters); nil before the first turn.
 	Title      *string `json:"title"`
 	CallerType string  `json:"callerType"`

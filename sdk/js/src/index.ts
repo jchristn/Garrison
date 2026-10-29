@@ -208,6 +208,122 @@ export interface CapabilityDescriptor extends Json {
   hints: CapabilityHints; refreshWarning?: string | null; lastRefreshedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
 }
 
+/**
+ * Who may use an agentic app's chat UI. TenantUsers: any active user of the app's tenant. AppUsers (the default): tenant
+ * users holding the built-in {@link APP_USER_ROLE} role on the app. Anonymous: anyone with the URL, but only when
+ * anonymousEnabled is also true; signed-in users still work.
+ */
+export const APP_AUTH_MODES = ["TenantUsers", "AppUsers", "Anonymous"] as const;
+/** One of {@link APP_AUTH_MODES}. */
+export type AppAuthMode = typeof APP_AUTH_MODES[number];
+/**
+ * Built-in role that lets a user use one agentic app's chat UI. Assign it with resource scope on the app identifier; it
+ * grants nothing in the management API.
+ */
+export const APP_USER_ROLE = "AppUser";
+/** Resource type name of agentic apps in permissions and the operation scope map. */
+export const APP_RESOURCE_TYPE = "AgenticApp";
+
+/** One agent in an agentic app. agentId accepts an agent name on create and update; agentName is filled in on read. */
+export interface AgenticAppMember { agentId: string; agentName?: string | null; role?: string | null; }
+
+/**
+ * A call one member may make to another (a name is accepted for either end on create and update). fanOutAllowed
+ * (default true) lets the caller reach the callee through garrison_fan_out.
+ */
+export interface AgenticAppEdge { callerAgentId: string; calleeAgentId: string; fanOutAllowed?: boolean; }
+
+/** The entry deployment the app uses in one environment (deploymentId null when none is assigned). */
+export interface AgenticAppEnvironment { environment: string; deploymentId?: string | null; }
+
+/**
+ * A group of agents behind one chat UI at /apps/{slug}/. id has the prefix app_. name is unique in the tenant (1 to 64
+ * lowercase letters, digits, and hyphens); slug is unique across the cluster (409 AppSlugTaken) and defaults to the
+ * name. entryAgentId (a name is accepted on write) talks to end users. liveEnvironment (default dev) is the environment
+ * the app UI uses. The server checks that the entry agent is a member, edges connect members, every member is reachable
+ * from the entry agent, and the edges have no cycle.
+ */
+export interface AgenticApp extends Json {
+  id: string; tenantId: string; name: string; slug: string; description?: string | null; entryAgentId: string;
+  liveEnvironment: string; authMode: AppAuthMode; anonymousEnabled: boolean; showOperatorDetail: boolean;
+  displayName?: string | null; logoAssetId?: string | null; primaryColor?: string | null; accentColor?: string | null; welcomeText?: string | null;
+  members: AgenticAppMember[]; edges: AgenticAppEdge[]; environments: AgenticAppEnvironment[];
+  latestPublishedRevisionId?: string | null; active: boolean; createdUtc: string; lastUpdateUtc: string;
+}
+
+/** One member of an app revision with the published agent revision it pins. */
+export interface AppRevisionMember { agentId: string; agentName?: string | null; agentRevisionId: string; agentRevisionNumber?: number | null; }
+
+/** An app revision: every member's published agent revision pinned, with a copy of the edges. id has the prefix apv_. */
+export interface AppRevision extends Json {
+  id: string; tenantId: string; appId: string; number: number; state: AgentRevisionState;
+  members: AppRevisionMember[]; edges: AgenticAppEdge[]; authorName?: string | null; changeNote?: string | null;
+  publishedByName?: string | null; publishedUtc?: string | null; createdUtc: string;
+}
+
+/**
+ * One member's delegation policy derived from the app graph (desired*) next to its latest published revision's
+ * (published*, absent when it has none). desiredMode is AllowList, or None for a member that calls nobody. drift marks a
+ * difference. After an apply, draftRevisionNumber names the draft written, or skippedReason (for example DraftConflict)
+ * says why the member was left alone.
+ */
+export interface AppDelegationMember {
+  agentId: string; agentName: string; desiredMode: string; desiredAllowList: string[]; desiredMaxDepth: number;
+  publishedMode?: string | null; publishedAllowList: string[]; publishedMaxDepth?: number | null; drift: boolean;
+  draftRevisionNumber?: number | null; skippedReason?: string | null;
+}
+
+/** Each member's delegation policy derived from the app graph. applied is true on the answer to an apply. */
+export interface AppDelegationPlan { appId: string; applied: boolean; members: AppDelegationMember[]; }
+
+/** Body of an app promotion. appRevision is an identifier or number (default the latest published app revision). */
+export interface AppPromotionRequest {
+  sourceEnvironment: string; targetEnvironment?: string; appRevision?: string | number; allowSkip?: boolean; note?: string;
+}
+
+/** Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. */
+export interface AppInfo {
+  slug: string; displayName: string; description?: string | null; welcomeText?: string | null; primaryColor?: string | null;
+  accentColor?: string | null; logoUrl?: string | null; authMode: AppAuthMode; anonymousAllowed: boolean; showOperatorDetail: boolean;
+}
+
+/** An app session. token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app. */
+export interface AppSessionResponse { token: string; expiresUtc: string; principalName: string; anonymous: boolean; }
+
+/** One turn of an app conversation as an end user sees it. */
+export interface AppTurnView {
+  runId: string; turn: number; message: string; status: RunStatus; answer?: string | null; error?: string | null;
+  awaitingApproval: boolean; createdUtc: string; completedUtc?: string | null;
+}
+
+/** An app conversation as its owner sees it. turns is empty in listings and filled when one conversation is read. */
+export interface AppConversationView {
+  id: string; title?: string | null; turnCount: number; busy: boolean; lastRunId?: string | null;
+  createdUtc: string; lastActivityUtc?: string | null; turns: AppTurnView[];
+}
+
+/** Answer to starting an app conversation. */
+export interface AppConversationStart { conversationId: string; turn: AppTurnView; }
+
+/**
+ * One server-sent event of an app turn stream. turn.event carries a visible run event (its id is the event sequence);
+ * turn.status and turn.completed carry the turn. turn.completed is the last event.
+ */
+export type AppTurnStreamEvent =
+  | { event: "turn.event"; id?: string; data: RunEvent }
+  | { event: "turn.status"; id?: string; data: AppTurnView }
+  | { event: "turn.completed"; id?: string; data: AppTurnView };
+
+/** Options for {@link AppGatewayClient.streamTurn}. */
+export interface AppTurnStreamOptions {
+  /** Resume after this event id (a turn.event sequence) instead of from the start. */
+  lastEventId?: string;
+  /** Reconnect attempts in a row without receiving an event before giving up. Default 5; 0 disables reconnecting. */
+  maxReconnects?: number;
+  /** Milliseconds to wait before reconnecting. Default 1000. */
+  reconnectDelayMs?: number;
+}
+
 /** States of a fan-out group. Every state other than Running is final. */
 export const FAN_OUT_GROUP_STATUSES = ["Running", "Joined", "TimedOut", "BudgetExceeded", "Cancelled"] as const;
 /** One of {@link FAN_OUT_GROUP_STATUSES}. */
@@ -1026,6 +1142,8 @@ export interface Conversation extends Json {
   harnessType: string;
   /** Client-supplied A2A context identifier the conversation was created for, or null. */
   contextId?: string | null;
+  /** Agentic app whose chat UI started the conversation, or null. */
+  appId?: string | null;
   /** First line of the first turn's input (at most 200 characters), or null. */
   title?: string | null;
   callerType: string; callerId?: string | null; callerName?: string | null;
@@ -1422,12 +1540,19 @@ export class Transport {
   async *stream(path: string, params?: Record<string, any>): AsyncGenerator<{ event: string; id?: string; data: string }> {
     const response = await this.send("GET", path, params, undefined, undefined, "text/event-stream");
     if (!response.body) return;
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let event: string | undefined;
-    let id: string | undefined;
-    let data: string[] = [];
+    yield* readServerSentEvents(response.body);
+  }
+}
+
+/** Parse a server-sent event stream into events until the body ends. */
+async function* readServerSentEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; id?: string; data: string }> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let event: string | undefined;
+  let id: string | undefined;
+  let data: string[] = [];
+  try {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -1453,6 +1578,8 @@ export class Transport {
       }
     }
     if (data.length > 0) yield { event: event ?? "message", id, data: data.join("\n") };
+  } finally {
+    await reader.cancel().catch(() => undefined);
   }
 }
 
@@ -1534,6 +1661,182 @@ export class Capabilities extends Resource<CapabilityDescriptor> {
   update(id: string, body: CapabilityDescriptorInput): Promise<CapabilityDescriptor> { return this.t.request("PUT", this.item(id), undefined, body); }
   /** Refresh derived descriptors now, or only one MCP server's tools (404 when it names no active server). */
   refresh(mcpServerId?: string): Promise<CapabilityRefreshResult> { return this.t.request("POST", this.base() + "/refresh", { mcpServerId }); }
+}
+
+/**
+ * Agentic apps: groups of agents behind one chat UI. list, get (identifier or name), create, update, and delete need
+ * Read, Create, Update, and Delete on AgenticApp. An agent that belongs to an app cannot be deleted (409 AgentInUse).
+ * End users reach an app through {@link AppGatewayClient}.
+ */
+export class Apps extends Resource<AgenticApp> {
+  /** Each member's delegation policy derived from the graph, with drift against its latest published revision. */
+  delegation(id: string): Promise<AppDelegationPlan> { return this.t.request("GET", this.item(id) + "/delegation"); }
+  /**
+   * Write the graph's policy into a draft revision of each drifting member (nothing is published). A member whose open
+   * draft already changes its delegation another way is skipped with skippedReason DraftConflict.
+   */
+  applyDelegation(id: string): Promise<AppDelegationPlan> { return this.t.request("POST", this.item(id) + "/delegation"); }
+  /** The app's revisions, newest first. */
+  async revisions(id: string): Promise<AppRevision[]> { return (await this.t.request("GET", this.item(id) + "/revisions")) ?? []; }
+  /**
+   * Take a draft app revision pinning every member's latest published revision and copying the edges. Rejects with 409
+   * NoPublishedRevision when a member has none.
+   */
+  createRevision(id: string, changeNote?: string): Promise<AppRevision> {
+    return this.t.request("POST", this.item(id) + "/revisions", undefined, changeNote ? { changeNote } : {});
+  }
+  /** Read an app revision by identifier (apv_) or number. */
+  getRevision(id: string, revision: string | number): Promise<AppRevision> {
+    return this.t.request("GET", `${this.item(id)}/revisions/${seg(String(revision))}`);
+  }
+  /** Publish a draft app revision (identifier or number). Rejects with 409 RevisionPublished when it already is. */
+  publishRevision(id: string, revision: string | number): Promise<AppRevision> {
+    return this.t.request("POST", `${this.item(id)}/revisions/${seg(String(revision))}/publish`);
+  }
+  /**
+   * Promote a published app revision between environments: every member's pin moves to every deployment of that member
+   * in the target environment together, under one promotion record (roll back with promotions.rollback). Rejects with
+   * 409 NoTargetDeployments naming a member without a deployment there. Needs Execute on Promotion for the target.
+   */
+  promote(id: string, request: AppPromotionRequest): Promise<PromotionRecord> {
+    const body = { ...request, appRevision: request.appRevision === undefined ? undefined : String(request.appRevision) };
+    return this.t.request("POST", this.item(id) + "/promote", undefined, body);
+  }
+}
+
+/**
+ * Client for an agentic app's end-user gateway at /v1.0/apps/{slug}/. It needs no management credentials: start a
+ * session with an email and password, or anonymously when the app allows it, and the session token (prefix gas_) is
+ * kept and sent as a bearer token. The token works only on this app's gateway and reaches only the conversations its
+ * owner started (anything else is 404). Errors reject with {@link GarrisonError}: 401 InvalidCredentials,
+ * AppSignInRequired, AnonymousDisabled, or an expired session; 403 AppAccessDenied; 409 AppNotDeployed,
+ * ConversationBusy, or AppRateLimited.
+ */
+export class AppGatewayClient {
+  /** Server base URL without a trailing slash. */
+  readonly baseUrl: string;
+  /** App URL name. */
+  readonly slug: string;
+  /** Session token sent as Authorization: Bearer; set by startSession and cleared by endSession. */
+  token?: string;
+  /** The last session started, or undefined. */
+  session?: AppSessionResponse;
+  /** Optional cancellation for requests and streams. */
+  abortSignal?: AbortSignal;
+
+  constructor(baseUrl: string, slug: string) {
+    if (!slug) throw new Error("slug is required");
+    this.baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.slug = slug;
+  }
+
+  private path(suffix = ""): string { return `/v1.0/apps/${seg(this.slug)}${suffix}`; }
+  private conversationPath(id: string, suffix = ""): string { return this.path(`/conversations/${seg(id)}${suffix}`); }
+
+  private async request(method: string, path: string, params?: Record<string, any>, body?: unknown, headers: Record<string, string> = {}): Promise<Response> {
+    const query = queryString(params);
+    const all: Record<string, string> = { ...headers };
+    if (this.token) all["Authorization"] = `Bearer ${this.token}`;
+    let text: string | undefined;
+    if (body !== undefined) { text = JSON.stringify(body); all["Content-Type"] = "application/json"; }
+    const response = await fetch(this.baseUrl + path + (query ? `?${query}` : ""), { method, headers: all, body: text, signal: this.abortSignal });
+    if (!response.ok) throw new GarrisonError(response.status, await response.text());
+    return response;
+  }
+
+  private async json<T>(method: string, path: string, params?: Record<string, any>, body?: unknown): Promise<T> {
+    const text = await (await this.request(method, path, params, body)).text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }
+
+  /** Branding and how to sign in. Needs no session. */
+  info(): Promise<AppInfo> { return this.json("GET", this.path()); }
+  /** Absolute URL of the app's logo image (404 when the app has none). */
+  logoUrl(): string { return this.baseUrl + this.path("/logo"); }
+
+  /**
+   * Start a session with an email and password, or with no credentials for an anonymous session (only when the app's
+   * authMode is Anonymous and anonymous use is enabled). The token is kept for later calls.
+   */
+  async startSession(credentials?: { email: string; password: string }): Promise<AppSessionResponse> {
+    const previous = this.token;
+    this.token = undefined;
+    try {
+      const session = await this.json<AppSessionResponse>("POST", this.path("/session"), undefined, credentials ? { email: credentials.email, password: credentials.password } : undefined);
+      this.token = session.token;
+      this.session = session;
+      return session;
+    } catch (e) {
+      this.token = previous;
+      throw e;
+    }
+  }
+
+  /** Sign out and forget the token. */
+  async endSession(): Promise<void> {
+    await this.request("DELETE", this.path("/session"));
+    this.token = undefined;
+    this.session = undefined;
+  }
+
+  /** The session owner's conversations in the app. */
+  async conversations(): Promise<AppConversationView[]> { return (await this.json<AppConversationView[]>("GET", this.path("/conversations"))) ?? []; }
+  /** Start a conversation with the app's entry agent on the live environment's entry deployment. */
+  startConversation(message: string): Promise<AppConversationStart> { return this.json("POST", this.path("/conversations"), undefined, { message }); }
+  /** One of the owner's conversations with its turns. */
+  conversation(id: string): Promise<AppConversationView> { return this.json("GET", this.conversationPath(id)); }
+  /** Send the next message; rejects with 409 ConversationBusy while the previous turn runs. */
+  send(id: string, message: string): Promise<AppTurnView> { return this.json("POST", this.conversationPath(id, "/messages"), undefined, { message }); }
+
+  /**
+   * Stream a turn's visible events until turn.completed, calling onEvent for each. When the connection drops before
+   * then, it reconnects and resumes after the last event id it saw (Last-Event-ID). Resolves with the completed turn.
+   * HTTP errors reject at once; repeated connection failures reject after options.maxReconnects attempts.
+   */
+  async streamTurn(id: string, runId: string, onEvent: (event: AppTurnStreamEvent) => void | Promise<void>, options: AppTurnStreamOptions = {}): Promise<AppTurnView> {
+    const maxReconnects = options.maxReconnects ?? 5;
+    const delayMs = options.reconnectDelayMs ?? 1000;
+    let lastEventId = options.lastEventId;
+    let failures = 0;
+    while (true) {
+      let received = false;
+      let failure: unknown = new Error("The turn stream closed before turn.completed.");
+      try {
+        const headers: Record<string, string> = { Accept: "text/event-stream" };
+        if (lastEventId) headers["Last-Event-ID"] = lastEventId;
+        const response = await this.request("GET", this.conversationPath(id, `/turns/${seg(runId)}/stream`), undefined, undefined, headers);
+        if (response.body) {
+          for await (const message of readServerSentEvents(response.body)) {
+            received = true;
+            if (message.id) lastEventId = message.id;
+            if (message.event !== "turn.event" && message.event !== "turn.status" && message.event !== "turn.completed") continue;
+            const data = message.data ? JSON.parse(message.data) : undefined;
+            await onEvent({ event: message.event, id: message.id, data } as AppTurnStreamEvent);
+            if (message.event === "turn.completed") return data as AppTurnView;
+          }
+        }
+      } catch (e) {
+        if (e instanceof GarrisonError || this.abortSignal?.aborted) throw e;
+        failure = e;
+      }
+      failures = received ? 1 : failures + 1;
+      if (failures > maxReconnects) throw failure;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  /** List the conversation's files. */
+  files(id: string): Promise<FileSpaceListing> { return this.json("GET", this.conversationPath(id, "/files")); }
+  /** Read a file's content (the current version, or the given version). */
+  async readFile(id: string, path: string, version?: number): Promise<Uint8Array> {
+    return new Uint8Array(await (await this.request("GET", this.conversationPath(id, "/files/content"), { path, version })).arrayBuffer());
+  }
+  /** A file's versions, newest first. */
+  fileVersions(id: string, path: string): Promise<ConversationFileVersion[]> { return this.json("GET", this.conversationPath(id, "/files/versions"), { path }); }
+  /** A short-lived download URL for a file (the current version, or the given version). */
+  downloadUrl(id: string, path: string, version?: number): Promise<FileDownloadUrl> {
+    return this.json("POST", this.conversationPath(id, "/files/download-url"), { path, version });
+  }
 }
 
 /**
@@ -2053,6 +2356,8 @@ export class GarrisonClient {
   readonly capabilities: Capabilities;
   /** Fan-out groups: read and cancel the groups of child runs a run started with garrison_fan_out. */
   readonly fanOutGroups: FanOutGroups;
+  /** Agentic apps: definitions, delegation plans, app revisions, and promotion. */
+  readonly apps: Apps;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
@@ -2097,6 +2402,7 @@ export class GarrisonClient {
     this.fileSpaces = new FileSpaces(t);
     this.capabilities = new Capabilities(t, "capabilities");
     this.fanOutGroups = new FanOutGroups(t);
+    this.apps = new Apps(t, "apps");
     this.harnessProfiles = new HarnessProfiles(t, "harness-profiles");
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");

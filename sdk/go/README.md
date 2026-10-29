@@ -221,6 +221,27 @@ cancelled, err := client.FanOutGroups.Cancel(ctx, group.ID) // cancels members s
 
 A group that does not exist, or belongs to another tenant, is a 404.
 
+## Agentic apps
+
+An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.Apps` lists, reads (by identifier or name), creates, replaces, and deletes them, and adds the delegation plan, app revisions, and promotion. A `garrison.AgenticApp` has `ID` (`app_...`), `Name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `Slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `Description`, `EntryAgentID`, `Members` (`AgentID`, `AgentName`, `Role`), `Edges` (`CallerAgentID`, `CalleeAgentID`, `FanOutAllowed`, nil meaning the default true), `Environments` (`Environment`, `DeploymentID`), `LiveEnvironment` (default `dev`), `AuthMode` (`AppAuthModeTenantUsers`, `AppAuthModeAppUsers` (default), `AppAuthModeAnonymous`), `AnonymousEnabled`, `ShowOperatorDetail`, the branding fields `DisplayName`, `LogoAssetID`, `PrimaryColor`, `AccentColor`, and `WelcomeText`, and `LatestPublishedRevisionID`. Agents may be given by name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
+
+```go
+app, err := client.Apps.Create(ctx, garrison.AgenticApp{
+	Name: "research", EntryAgentID: "orchestrator",
+	Members: []garrison.AgenticAppMember{{AgentID: "orchestrator"}, {AgentID: "researcher"}},
+	Edges:   []garrison.AgenticAppEdge{{CallerAgentID: "orchestrator", CalleeAgentID: "researcher"}},
+})
+plan, err := client.Apps.Delegation(ctx, app.ID)         // Drift marks members whose published policy differs
+applied, err := client.Apps.ApplyDelegation(ctx, app.ID) // writes drafts; nothing is published
+draft, err := client.Apps.CreateRevision(ctx, app.ID, "first cut")
+published, err := client.Apps.PublishRevision(ctx, app.ID, strconv.Itoa(draft.Number))
+record, err := client.Apps.Promote(ctx, app.ID, garrison.AppPromotionRequest{SourceEnvironment: "dev"})
+```
+
+Each `garrison.AppDelegationMember` has the graph's `DesiredMode` (`AllowList`, or `None` for a member that calls nobody), `DesiredAllowList`, and `DesiredMaxDepth`, the latest published revision's `PublishedMode`, `PublishedAllowList`, and `PublishedMaxDepth`, `Drift`, and after an apply `DraftRevisionNumber` or `SkippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `CreateRevision` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `Revisions` lists them newest first and `GetRevision` reads one by identifier (`apv_...`) or number. `Promote` returns a `PromotionRecord`: every member's pin moves to every deployment of that member in the target environment together (409 `NoTargetDeployments` names a member without one); roll it back with `client.Promotions.Rollback`. Promotion needs Execute on `Promotion` for the target environment.
+
+`garrison.ResourceTypeAgenticApp` names apps in permissions, and `garrison.AppUserRole` (`AppUser`) is the built-in role that lets a user use one app's chat UI when assigned with resource scope on the app identifier. `Conversation.AppID` names the app whose chat UI started a conversation.
+
 ## Streaming run events
 
 ```go

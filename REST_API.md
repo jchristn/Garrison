@@ -2890,6 +2890,7 @@ List conversations, newest first.
 | `agentId` | Only conversations with this agent (ID) |
 | `contextId` | Only the conversation created for this client-supplied A2A context identifier |
 | `callerId` | Only conversations started by this principal |
+| `appId` | Only conversations started through this agentic app ([docs/APPS.md](docs/APPS.md)) |
 | `search` | Case-insensitive part of the title |
 
 | | |

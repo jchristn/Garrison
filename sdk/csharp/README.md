@@ -79,7 +79,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -234,6 +234,30 @@ FanOutGroup cancelled = await client.FanOutGroups.CancelAsync(group.FanOutGroupI
 ```
 
 A group that does not exist, or belongs to another tenant, throws `GarrisonException` with status 404.
+
+## Agentic apps
+
+An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.Apps` lists, reads (by identifier or name), creates, replaces, and deletes them, and adds the delegation plan, app revisions, and promotion. An `AgenticApp` has `Id` (`app_...`), `Name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `Slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `Description`, `EntryAgentId`, `Members` (`AgenticAppMember`: `AgentId`, `AgentName`, `Role`), `Edges` (`AgenticAppEdge`: `CallerAgentId`, `CalleeAgentId`, `FanOutAllowed`, default true), `Environments` (`AgenticAppEnvironment`: `Environment`, `DeploymentId`), `LiveEnvironment` (default `dev`), `AuthMode` (`AppAuthModeEnum`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `AnonymousEnabled`, `ShowOperatorDetail`, the branding fields `DisplayName`, `LogoAssetId`, `PrimaryColor`, `AccentColor`, and `WelcomeText`, and `LatestPublishedRevisionId`. Members, the entry agent, and edge ends may be given by agent name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
+
+```csharp
+AgenticApp app = await client.Apps.CreateAsync(new AgenticApp
+{
+    Name = "research",
+    EntryAgentId = "orchestrator",
+    Members = new List<AgenticAppMember> { new AgenticAppMember { AgentId = "orchestrator" }, new AgenticAppMember { AgentId = "researcher" } },
+    Edges = new List<AgenticAppEdge> { new AgenticAppEdge { CallerAgentId = "orchestrator", CalleeAgentId = "researcher" } },
+    AuthMode = AppAuthModeEnum.AppUsers
+});
+AppDelegationPlan plan = await client.Apps.GetDelegationAsync(app.Id);   // Drift marks members whose published policy differs
+AppDelegationPlan applied = await client.Apps.ApplyDelegationAsync(app.Id); // writes drafts; nothing is published
+AppRevision draft = await client.Apps.CreateRevisionAsync(app.Id, new AppRevisionRequest { ChangeNote = "first cut" });
+AppRevision published = await client.Apps.PublishRevisionAsync(app.Id, draft.Number.ToString());
+PromotionRecord record = await client.Apps.PromoteAsync(app.Id, new AppPromotionRequest { SourceEnvironment = "dev" });
+```
+
+`AppDelegationPlan.Members` holds one `AppDelegationMember` per member: the graph's `DesiredMode` (`AllowList`, or `None` for a member that calls nobody), `DesiredAllowList`, and `DesiredMaxDepth`, the latest published revision's `PublishedMode`, `PublishedAllowList`, and `PublishedMaxDepth`, `Drift`, and after an apply `DraftRevisionNumber` or `SkippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `CreateRevisionAsync` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `ListRevisionsAsync` returns them newest first and `GetRevisionAsync` reads one by identifier (`apv_...`) or number. `PromoteAsync` moves every member's pin to every deployment of that member in the target environment under one `PromotionRecord` (409 `NoTargetDeployments` names a member without one); roll it back with `client.Promotions.RollbackAsync`. Promotion needs Execute on `Promotion` for the target environment.
+
+`ResourceTypeEnum.AgenticApp` names apps in permissions. The built-in role `AppUser` lets a user use one app's chat UI when assigned with resource scope on the app identifier, and grants nothing in the management API. `Conversation.AppId` names the app whose chat UI started a conversation.
 
 ## Streaming run events
 
