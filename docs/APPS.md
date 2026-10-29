@@ -23,7 +23,7 @@ An agentic app is a group of agents that work together behind one chat UI. One m
 | `entryAgentId` | The member that talks to end users |
 | `members` | The agents in the app (`agentId`, optional `role`). Agents may be given by name |
 | `edges` | Calls members may make (`callerAgentId`, `calleeAgentId`, `fanOutAllowed`) |
-| `environments` | The entry deployment per environment (`environment`, optional `deploymentId`) |
+| `environments` | The entry deployment per environment (`environment`, optional `deploymentId`). Without a `deploymentId`, or when that deployment is inactive, the app uses the entry agent's first active deployment in that environment by name |
 | `liveEnvironment` | The environment the app UI uses. Default `dev` |
 | `authMode`, `anonymousEnabled` | Who may use the app UI (see [Sign-in](#sign-in)) |
 | `showOperatorDetail` | Whether end users see tool calls and thinking. Default false |
