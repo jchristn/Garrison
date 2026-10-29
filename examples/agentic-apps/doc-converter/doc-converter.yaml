@@ -1,0 +1,117 @@
+# Reference converter agent (AD10.1). Converts Markdown to Word or PDF, and Word to PDF, with a reference document
+# for styling. Copy this bundle as a template for your own converter.
+#
+# Needs a worker with pandoc and LibreOffice: build the worker image with --build-arg INCLUDE_DOC_TOOLS=true. The agent
+# names both tools as capabilities, so its runs wait for such a worker (blockedReason NoToolWorker) instead of failing.
+#
+# Input (JSON): {"source": "files/report.md", "target": "files/report.pdf", "template": "assets/report-template/reference.docx"}
+# Output (JSON): {"resultPath": "files/report.pdf", "warnings": []}
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: pandoc-converter
+  description: Runs a fixed conversion script with pandoc and LibreOffice; the input fields are passed as arguments, never as shell text
+spec:
+  harnessType: Generic
+  executable: sh
+  promptDelivery: Stdin
+  outputParser: PlainText
+  resultSource: Stdout
+  defaultTimeoutSeconds: 300
+  arguments:
+    - template: -c
+    - template: |
+        # Converter script run by the pandoc-converter harness profile (see doc-converter.yaml). Arguments, in order:
+        # source path, target path, reference document path (may be empty), base font size (may be empty). Paths are relative to
+        # the run's working directory; the conversation file space is mounted at files/.
+        set -eu
+        src="$1"; out="$2"; ref="${3:-}"; size="${4:-}"
+        warnings=""
+        if [ ! -f "$src" ]; then
+          printf '{"resultPath":"","warnings":["Source %s does not exist."]}\n' "$src"
+          exit 2
+        fi
+        mkdir -p "$(dirname "$out")"
+        if [ -n "$size" ] && [ -z "$ref" ]; then
+          warnings="\"baseFontSize needs a reference document with that size; it was ignored.\""
+        fi
+        case "$out" in
+          *.pdf)
+            tmp="${out%.pdf}.docx"
+            if [ -n "$ref" ]; then pandoc "$src" -o "$tmp" --reference-doc="$ref"; else pandoc "$src" -o "$tmp"; fi
+            soffice --headless --convert-to pdf --outdir "$(dirname "$out")" "$tmp" > /dev/null
+            rm -f "$tmp"
+            ;;
+          *)
+            if [ -n "$ref" ]; then pandoc "$src" -o "$out" --reference-doc="$ref"; else pandoc "$src" -o "$out"; fi
+            ;;
+        esac
+        printf '{"resultPath":"%s","warnings":[%s]}\n' "$out" "$warnings"
+    - template: convert
+    - template: "{{input.fields.source}}"
+    - template: "{{input.fields.target}}"
+    - template: "{{input.fields.template}}"
+    - template: "{{input.fields.baseFontSize}}"
+  assetPlacements:
+    - kind: DocumentTemplate
+      pathTemplate: "assets/{{asset.name}}"
+    - kind: Skill
+      pathTemplate: "assets/{{asset.name}}"
+---
+apiVersion: garrison/v1
+kind: AgentAsset
+metadata:
+  name: report-template
+spec:
+  kind: DocumentTemplate
+  description: Reference document with the report styles (pandoc's default reference.docx; edit its styles to restyle every report)
+  files:
+    - path: reference.docx
+      mediaType: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      contentBase64: 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
+---
+apiVersion: garrison/v1
+kind: AgentAsset
+metadata:
+  name: doc-converter-skills
+spec:
+  kind: Skill
+  description: How to convert documents with pandoc and LibreOffice, for an agent that converts with its own harness tools
+  files:
+    - path: SKILL.md
+      content: |
+        ---
+        name: document-conversion
+        description: Convert Markdown to Word or PDF with a reference document, and convert Word to PDF, using pandoc and LibreOffice.
+        ---
+
+        # Document conversion
+
+        - Markdown to Word: `pandoc report.md -o report.docx --reference-doc=assets/report-template/reference.docx`. The reference document carries fonts, sizes, and heading styles; change those in the reference document, not in the Markdown.
+        - Word to PDF: `soffice --headless --convert-to pdf --outdir out report.docx`.
+        - Markdown to PDF: convert to Word with the reference document first, then to PDF, so the PDF keeps the Word styling.
+        - Write results into the conversation file space (`files/`), so the person and other agents can download them.
+        - Report the result path and anything you could not honor (for example a font size with no reference document) as warnings.
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: doc-converter
+  description: Converts a Markdown file to Word or PDF, or Word to PDF, with an optional reference document for styling
+spec:
+  displayName: Document converter
+  inputSchema: {"type": "object", "properties": {"source": {"type": "string", "description": "Source file path, for example files/report.md"}, "target": {"type": "string", "description": "Result path ending in .docx or .pdf, for example files/report.pdf"}, "template": {"type": "string", "description": "Optional reference document path, for example assets/report-template/reference.docx"}, "baseFontSize": {"type": "string", "description": "Optional base font size in points; honored only through a reference document"}}, "required": ["source", "target"]}
+  outputSchema: {"type": "object", "properties": {"resultPath": {"type": "string"}, "warnings": {"type": "array", "items": {"type": "string"}}}, "required": ["resultPath", "warnings"]}
+  capabilities: [pandoc, libreoffice]
+  assets:
+    - asset: report-template
+    - asset: doc-converter-skills
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: doc-converter-dev
+spec:
+  agent: doc-converter
+  harnessProfile: pandoc-converter
+  environment: dev

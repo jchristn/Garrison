@@ -1,0 +1,140 @@
+# Research overview example app (AD10.5, the walkthrough in section 11 of AGENT_DESIGN_DEPLOY_PLAN.md).
+#
+# An orchestrator talks to people. It fans out to two researchers, has a writer draft report.md in the conversation file
+# space, and has the doc-converter agent turn it into report.pdf. Apply ../doc-converter/doc-converter.yaml first.
+#
+# This bundle drives the whole walkthrough with the fake harness, so it runs with no model and no credentials: each of
+# the orchestrator's Garrison tool calls is scripted in its deployment parameters. Swap the harness profiles for
+# builtin/claude-code (or another harness) and give the agents real prompts to run it for real.
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: research-script
+  description: The fake harness, calling the Garrison MCP tools named in deployment parameters step1 to step4 in order
+spec:
+  harnessType: Generic
+  executable: garrison-fake-harness
+  promptDelivery: Stdin
+  mcpConfigFormat: ClaudeJson
+  mcpConfigFileName: mcp.json
+  outputParser: ClaudeStreamJson
+  resultSource: ParserFinalEvent
+  defaultTimeoutSeconds: 600
+  files:
+    - baseDirectory: Config
+      pathTemplate: mcp.json
+      contentTemplate: "{{> builtin/claude-code-mcp-config}}"
+      isSecret: true
+      condition: "{{resources.hasMcpServers}}"
+      mode: "600"
+  arguments:
+    - template: --format
+    - template: claude
+    - template: --mcp-config
+      condition: "{{resources.hasMcpServers}}"
+    - template: $GARRISON_CONFIG_DIR/mcp.json
+      condition: "{{resources.hasMcpServers}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step1}}"
+    - template: "{{deployment.parameters.step1}}"
+      condition: "{{deployment.parameters.step1}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step2}}"
+    - template: "{{deployment.parameters.step2}}"
+      condition: "{{deployment.parameters.step2}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step3}}"
+    - template: "{{deployment.parameters.step3}}"
+      condition: "{{deployment.parameters.step3}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step4}}"
+    - template: "{{deployment.parameters.step4}}"
+      condition: "{{deployment.parameters.step4}}"
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: research-researcher
+  description: Finds sources on one part of a topic and summarizes them
+spec:
+  displayName: Researcher
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: research-writer
+  description: Writes the research overview as Markdown into the conversation file space
+spec:
+  displayName: Writer
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: research-orchestrator
+  description: Plans a research overview, delegates the research and writing, and delivers a PDF
+spec:
+  displayName: Research desk
+  delegation:
+    allow: [research-researcher, research-writer, doc-converter]
+    maxDepth: 1
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: research-researcher-dev
+spec:
+  agent: research-researcher
+  harnessProfile: builtin/fake
+  environment: dev
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: research-writer-dev
+spec:
+  agent: research-writer
+  harnessProfile: builtin/fake
+  environment: dev
+  argumentOverrides:
+    - { position: 0, operation: Append, template: --output-last-message }
+    - { position: 1, operation: Append, template: files/report.md }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: research-orchestrator-dev
+spec:
+  agent: research-orchestrator
+  harnessProfile: research-script
+  environment: dev
+  parameters:
+    step1: 'garrison,garrison_fan_out,{"members":[{"agent":"research-researcher","input":"Find sources on the history of decision models","label":"history"},{"agent":"research-researcher","input":"Find sources on decision models in practice","label":"practice"}],"joinPolicy":"All","timeoutSeconds":300}'
+    step2: 'garrison,garrison_gather,{"waitSeconds":280}'
+    step3: 'garrison,garrison_invoke_agent,{"agent":"research-writer","input":"# Research overview: decision models\n\nDecision models turn evidence into choices. This overview covers their history and their use in practice.\n"}'
+    step4: 'garrison,garrison_invoke_agent,{"agent":"doc-converter","input":"{\"source\":\"files/report.md\",\"target\":\"files/report.pdf\",\"template\":\"assets/report-template/reference.docx\"}"}'
+---
+apiVersion: garrison/v1
+kind: AgenticApp
+metadata:
+  name: research-overview
+  description: Research overviews delivered as a PDF
+spec:
+  entry: research-orchestrator
+  members:
+    - { agent: research-orchestrator, role: Talks to people and plans the work }
+    - { agent: research-researcher, role: Finds and summarizes sources }
+    - { agent: research-writer, role: Writes the overview }
+    - { agent: doc-converter, role: Converts the overview to PDF }
+  edges:
+    - { from: research-orchestrator, to: research-researcher }
+    - { from: research-orchestrator, to: research-writer, fanOut: false }
+    - { from: research-orchestrator, to: doc-converter, fanOut: false }
+  environments:
+    - { environment: dev, deployment: research-orchestrator-dev }
+  liveEnvironment: dev
+  authMode: Anonymous
+  anonymousEnabled: true
+  branding:
+    displayName: Research Desk
+    primaryColor: "#1F6FEB"
+    welcomeText: Ask for an overview of any topic and get it back as a PDF.

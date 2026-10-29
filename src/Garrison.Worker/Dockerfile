@@ -37,6 +37,9 @@ ARG INCLUDE_OPENCODE=false
 ARG OPENCODE_VERSION=1.19.5
 ARG INCLUDE_PI=false
 ARG PI_VERSION=1.4.0
+# Document tools (AD10.2): pandoc for Markdown and Word, and headless LibreOffice for Word to PDF. Off by default; the
+# seeded tool probes (pandoc, libreoffice) make workers built with them advertise the tools, so runs that need them go there.
+ARG INCLUDE_DOC_TOOLS=false
 LABEL org.opencontainers.image.title="garrison-worker" \
       org.opencontainers.image.version="${GARRISON_VERSION}" \
       org.opencontainers.image.source="https://github.com/jchristn/Garrison" \
@@ -47,12 +50,14 @@ LABEL org.opencontainers.image.title="garrison-worker" \
       io.garrison.harness.mux-ref="${MUX_REF}" \
       io.garrison.harness.gemini-cli="${INCLUDE_GEMINI}:${GEMINI_CLI_VERSION}" \
       io.garrison.harness.opencode="${INCLUDE_OPENCODE}:${OPENCODE_VERSION}" \
-      io.garrison.harness.pi="${INCLUDE_PI}:${PI_VERSION}"
+      io.garrison.harness.pi="${INCLUDE_PI}:${PI_VERSION}" \
+      io.garrison.tools.docs="${INCLUDE_DOC_TOOLS}"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git ripgrep gnupg \
  && curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - \
  && apt-get install -y --no-install-recommends nodejs \
+ && if [ "${INCLUDE_DOC_TOOLS}" = "true" ]; then apt-get install -y --no-install-recommends pandoc libreoffice-writer-nogui fonts-dejavu-core && pandoc --version && soffice --version; fi \
  && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
  && if [ "${INCLUDE_GEMINI}" = "true" ]; then npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}"; fi \
  && if [ "${INCLUDE_OPENCODE}" = "true" ]; then npm install -g "opencode-ai@${OPENCODE_VERSION}"; fi \

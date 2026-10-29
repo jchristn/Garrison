@@ -85,6 +85,7 @@ namespace Test.Shared
                 suites.AddRange(FanOutSuite.Build());
                 suites.AddRange(AppSuite.Build());
                 suites.AddRange(StudioSuite.Build());
+                suites.AddRange(ExamplesSuite.Build());
                 suites.AddRange(ManifestBundleSuite.Build());
                 suites.AddRange(InputSchemaSuite.Build());
                 suites.AddRange(KeyLifecycleSuite.Build());

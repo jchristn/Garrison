@@ -317,6 +317,7 @@ The variables available when a run is compiled (`tenant`, `agent`, `deployment`,
 |---|---|
 | `input.message` | The caller's message |
 | `input.parameters.<name>`, `input.parameterList` | Run parameters as a map and as a list of `name` and `value` |
+| `input.fields.<name>` | When the input is a JSON object (for example one checked against the agent's input schema), its fields; absent for text input |
 | `agent.name`, `agent.displayName`, `agent.description`, `agent.outputSchema` | The agent |
 | `agent.delegation.allowList`, `agent.delegation.maxDepth` | Delegation rules |
 | `deployment.parameters.<name>` | Deployment parameters, after allowed run overrides |

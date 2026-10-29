@@ -1228,6 +1228,23 @@ namespace Garrison.Core.Compilation
             }
             inputMap["parameters"] = runParameters;
             inputMap["parameterList"] = parameterList;
+            string trimmed = (run.InputText ?? String.Empty).TrimStart();
+            if (trimmed.StartsWith("{", StringComparison.Ordinal))
+            {
+                // A JSON object input (for example one checked against the agent's input schema) is also available field by
+                // field as input.fields, so a profile can pass fields as arguments (AD10.1).
+                try
+                {
+                    using (System.Text.Json.JsonDocument parsed = System.Text.Json.JsonDocument.Parse(trimmed))
+                    {
+                        if (parsed.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object) inputMap["fields"] = Garrison.Core.Templates.TemplateSampleContext.FromJson(parsed.RootElement);
+                    }
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // Not JSON after all: the input stays text only.
+                }
+            }
             context.Set("input", inputMap);
 
             Dictionary<string, object?> caller = TemplateContext.NewMap();

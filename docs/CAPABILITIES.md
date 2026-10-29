@@ -55,6 +55,20 @@ curl -s -X POST "$B/agents/report-writer/revisions/2/publish" -H "Authorization:
 
 On KubernetesJob workers, probes run in the worker container, not in the run pod image. Label those workers by hand (`garrison.io/tool-pandoc=true` in the worker's labels) when the run image has tools the worker image lacks.
 
+## Choosing a source
+
+The same job can come from three places. Converting a Markdown report to PDF is a good example, and `examples/agentic-apps` shows all three:
+
+| Source | How it is bound | Use it when |
+|---|---|---|
+| Another agent | An edge in the app (or the caller's delegation allow list) to `doc-converter`, which has its own input and output schema | The job deserves its own prompt, revision history, budget, and runs you can inspect, or several agents share it |
+| An MCP server's tool | An `McpServer` bound to the caller's deployment, with its credential from a secret in a header template and `requiredTools` checked before the run starts | A service already does the job, often run by someone else; Garrison keeps its token out of events and transcripts |
+| A tool on the worker host | The agent names it in `capabilities` (for example `pandoc` and `libreoffice`), and its harness runs it with its own shell or a skill | The tool is installed where the harness runs and the harness can drive it; runs wait for a worker that reports it |
+
+All three produce the same `.docx` or `.pdf` from the same input: the doc-converter agent runs pandoc and LibreOffice through a fixed script, an MCP converter would call the same tools behind its own API, and an orchestrator on a worker with the tools can run `pandoc report.md -o report.docx --reference-doc=...` itself, guided by the `doc-converter-skills` asset. Pick the cheapest one that does the job well, and say why in the agent's description so the architect and other agents choose the same way.
+
+The worker image has no document tools by default. Build it with `--build-arg INCLUDE_DOC_TOOLS=true` to add pandoc and headless LibreOffice; the seeded probes then report `garrison.io/tool-pandoc` and `garrison.io/tool-libreoffice`. A run that needs a tool no worker has stays queued with `blockedReason` `NoToolWorker`.
+
 ## Cost and latency hints
 
 For Agent entries, the leader's maintenance loop summarizes finished runs (Succeeded or Failed) of the last `Capabilities.HintWindowDays` days:

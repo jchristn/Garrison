@@ -223,7 +223,7 @@ Other settings:
 - `OPENCODE_DISABLE_AUTOUPDATE=1` and `OPENCODE_DISABLE_LSP_DOWNLOAD=1` keep a run from updating opencode or downloading language servers.
 - `agent` selects an opencode agent other than the default `build` (`--agent`).
 
-Credentials: a secret of kind `AnthropicApiKey` becomes `ANTHROPIC_API_KEY`, `OpenAiApiKey` becomes `OPENAI_API_KEY`, and `GeminiApiKey` becomes `GOOGLE_GENERATIVE_AI_API_KEY`. The credential allowlist also has `OPENROUTER_API_KEY`, so a deployment can add an environment override such as `OPENROUTER_API_KEY` = `{{secret.openrouter}}`. For any other provider, or a custom base URL, clone the profile and extend the configuration template. opencode is not in the worker image unless it is built with `INCLUDE_OPENCODE=true` (version `OPENCODE_VERSION`, default 1.19.5, the npm package `opencode-ai`).
+Credentials: a secret of kind `AnthropicApiKey` becomes `ANTHROPIC_API_KEY`, `OpenAiApiKey` becomes `OPENAI_API_KEY`, and `GeminiApiKey` becomes `GOOGLE_GENERATIVE_AI_API_KEY`. The credential allowlist also has `OPENROUTER_API_KEY`, so a deployment can add an environment override such as `OPENROUTER_API_KEY` = `{{secret.openrouter}}`. For any other provider, or a custom base URL, clone the profile and extend the configuration template. opencode is not in the worker image unless it is built with `INCLUDE_OPENCODE=true` (version `OPENCODE_VERSION`, default 1.19.5, the npm package `opencode-ai`). Document tools for the harnesses to drive, pandoc and headless LibreOffice, are added with `INCLUDE_DOC_TOOLS=true` ([CAPABILITIES.md](CAPABILITIES.md#choosing-a-source)).
 
 `opencode run --format json` prints one JSON object per line with `type`, `timestamp`, `sessionID`, and a `part` or an `error`:
 
