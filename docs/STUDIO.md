@@ -70,7 +70,7 @@ A run can never decide a draft approval: 403, whatever its permissions.
 
 ## The graph
 
-`GET .../graph` draws a draft's apps: a node per app and per agent (agents the draft holds, plus members its apps refer to), each app's call edges, the apps each agent belongs to or is the entry of, and canvas positions.
+`GET .../graph` draws a draft's apps: a node per app and per agent (agents the draft holds, plus members its apps refer to), each app's call edges, the apps each agent belongs to or is the entry of, the capabilities each drafted agent names, and canvas positions. Each edge carries its fan-out flag and the delegation depth it needs: one plus the longest chain of calls below the called member.
 
 `POST .../graph-operations` changes the graph with one operation at a time:
 

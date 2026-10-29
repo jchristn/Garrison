@@ -260,7 +260,13 @@ namespace Garrison.Server.Services
                     if (!node.MemberOf.Contains(item.Name)) node.MemberOf.Add(item.Name);
                     if (member.Agent == spec.Entry && !node.EntryOf.Contains(item.Name)) node.EntryOf.Add(item.Name);
                 }
-                foreach (AppEdgeSpec edge in spec.Edges) graph.Edges.Add(new StudioGraphEdge { App = item.Name, From = edge.From, To = edge.To, FanOut = edge.FanOut ?? true });
+                foreach (AppEdgeSpec edge in spec.Edges) graph.Edges.Add(new StudioGraphEdge { App = item.Name, From = edge.From, To = edge.To, FanOut = edge.FanOut ?? true, Depth = 1 + Below(spec, edge.To, new HashSet<string>(StringComparer.Ordinal)) });
+            }
+            foreach (StudioDraftItem item in draft.Items.Where(i => i.Kind == "Agent" && i.Operation == StudioDraftOperationEnum.Upsert))
+            {
+                List<ManifestDocument> parsed = ManifestParser.Parse(item.Document);
+                if (parsed.Count == 1 && parsed[0].Spec.TryGetValue("capabilities", out object? capabilities) && capabilities is List<object?> names)
+                    nodes["Agent/" + item.Name].Capabilities = names.Where(n => n != null).Select(n => TemplateValues.ToText(n)).ToList();
             }
             foreach (StudioDraftNode position in draft.Layout)
             {
@@ -585,6 +591,15 @@ namespace Garrison.Server.Services
                 ["apiVersion"] = String.IsNullOrEmpty(document.ApiVersion) ? "garrison/v1" : document.ApiVersion, ["kind"] = document.Kind, ["metadata"] = metadata, ["spec"] = document.Spec
             };
             return ManifestParser.ToYaml(new[] { wrapped });
+        }
+
+        private static int Below(AgenticAppSpec spec, string member, HashSet<string> seen)
+        {
+            if (!seen.Add(member)) return 0;
+            int deepest = 0;
+            foreach (AppEdgeSpec edge in spec.Edges.Where(e => e.From == member)) deepest = Math.Max(deepest, 1 + Below(spec, edge.To, seen));
+            seen.Remove(member);
+            return deepest;
         }
 
         private static AgenticAppSpec AppSpec(string documentText)

@@ -214,6 +214,8 @@ namespace Test.Shared.Suites
                 graph = await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.RemoveMember, App = "grf", Agent = "grf-orchestrator" }).ConfigureAwait(false);
                 Assert.True(!graph.Edges.Any(e => e.From == "grf-orchestrator" || e.To == "grf-orchestrator") && graph.Nodes.All(n => n.Name != "grf-orchestrator"), "Member and its edges removed: " + Serializer.Serialize(graph));
                 graph = await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.MoveNode, NodeKey = "Agent/grf-writer", X = 120, Y = 80 }).ConfigureAwait(false);
+                StudioGraphEdge chain = graph.Edges.Single(e => e.From == "grf-researcher" && e.To == "grf-writer");
+                Assert.True(chain.Depth == 2 && graph.Edges.Single(e => e.From == "grf-writer").Depth == 1, "Edge depth counts the calls below: " + Serializer.Serialize(graph.Edges));
                 StudioGraphNode moved = graph.Nodes.Single(n => n.Key == "Agent/grf-writer");
                 Assert.True(moved.X == 120 && moved.Y == 80, "Placed");
 
@@ -622,6 +624,7 @@ spec:
                     Assert.True(writerDiff.Change == "Update" && fields.SequenceEqual(new[] { "approvalRules", "model", "timeoutSeconds" }), "Exactly model, timeout, and the approval rule: " + String.Join(", ", fields));
                     StudioGraph graph = StudioService.Graph(after);
                     Assert.True(graph.Edges.Any(e => e.App == "scr" && e.From == "scr-writer" && e.To == "scr-reviewer"), "Agent edge binding");
+                    Assert.True(graph.Nodes.Single(n => n.Key == "Agent/scr-writer").Capabilities.SequenceEqual(new[] { "pandoc" }), "The graph shows the writer's host tool");
                     Assert.True(diff.Items.Single(i => i.Kind == "Deployment" && i.Name == "scr-reviewer-dev").Change == "Update", "MCP server binding on the reviewer's deployment");
                     StudioDraftDiffItem writerAgentDiff = diff.Items.Single(i => i.Kind == "Agent" && i.Name == "scr-writer");
                     Assert.True(writerAgentDiff.Change == "Update" && (writerAgentDiff.Changes ?? new List<ManifestFieldChange>()).Any(c => c.Field.StartsWith("capabilities", StringComparison.Ordinal)), "Host tool requirement on the writer: " + Serializer.Serialize(writerAgentDiff));

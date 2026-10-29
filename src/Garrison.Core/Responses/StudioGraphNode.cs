@@ -44,6 +44,11 @@ namespace Garrison.Core.Responses
         public List<string> MemberOf { get; set; } = new List<string>();
 
         /// <summary>
+        /// For an agent the draft holds: the capabilities its document names (host tools such as pandoc, AD7.8).
+        /// </summary>
+        public List<string> Capabilities { get; set; } = new List<string>();
+
+        /// <summary>
         /// Canvas X, or null when the node has not been placed.
         /// </summary>
         public double? X { get; set; } = null;

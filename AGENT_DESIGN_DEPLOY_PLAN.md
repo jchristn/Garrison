@@ -105,7 +105,7 @@ Release order for this plan (AD-028):
 | AD5 | Parallel fan-out and gather | AD3, AD4 | Done | 9 / 9 |
 | AD6 | Agentic app resource and per-app chat UI | AD1, AD3 | In progress (dashboard Apps tab, Compose end to end) | 10 / 12 |
 | AD7 | Studio agent and management tools | AD1, AD2, AD4, AD6 | In progress (dashboard Studio view and architect prompt panel) | 15 / 17 |
-| AD8 | Studio visual editor | AD7 | Not started | 0 / 7 |
+| AD8 | Studio visual editor | AD7 | In progress (canvas UI) | 1 / 7 |
 | AD9 | Playground, deploy, and promote experience | AD7 | Not started | 0 / 9 |
 | AD10 | Reference converter agent, MCP binding, and research example | AD2, AD4, AD5, AD6 | Not started | 0 / 7 |
 | AD11 | Later: eval sets and promotion gates | AD9 | Later (AD-007) | 0 / 6 |
@@ -592,7 +592,7 @@ Touches: `src/Garrison.Core/Models` (`StudioDraft`, items, layout), `src/Garriso
 Depends on: AD7.
 Touches: `src/Garrison.Server` studio service (graph projection and operations), `dashboard/package.json` (new dependency `@xyflow/react`, AD-024), `dashboard/src/views/StudioView.jsx` and new components under `dashboard/src/components/studio/`, dashboard i18n files, docs.
 
-- [ ] AD8.1 Graph projection: server builds nodes (agents, entry marker, capability bindings) and edges (delegation, with depth and fan-out flags) from the draft, and applies graph operations (add agent, connect, disconnect, set entry, remove) as draft item edits.  Accept: unit tests round-trip graph operations to draft items and back with no drift.
+- [x] AD8.1 Graph projection: server builds nodes (agents, entry marker, capability bindings) and edges (delegation, with depth and fan-out flags) from the draft, and applies graph operations (add agent, connect, disconnect, set entry, remove) as draft item edits.  Accept: unit tests round-trip graph operations to draft items and back with no drift.  | claude 2026-10-28 StudioService.Graph projects agent and app nodes (entry marker, membership, capabilities, positions) and edges (fan-out flag, depth = 1 + longest chain below the callee); graph-operations add, remove, connect, disconnect, set entry, and move as edits of the AgenticApp item and layout; the studio graph case round-trips every operation and reads back the same graph
 - [ ] AD8.2 Canvas component with `@xyflow/react`: render the graph, drag to connect, keyboard operation for every action, and layout persistence in `studio_draft_layout`.  Accept: browser test adds two agents and an edge by keyboard alone; positions survive reload.
 - [ ] AD8.3 Property panels for agent (description, schemas, system prompt template version, assets, capabilities), edge (depth, fan-out allowed), and app (entry agent, branding, auth mode).  Accept: each panel edit appears in the diff panel; invalid values show the server's field error.
 - [ ] AD8.4 Deployment and runtime panel per environment (experience b) on the canvas.  Accept: editing a staging timeout produces one draft item change for the staging deployment only.

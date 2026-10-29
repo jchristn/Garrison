@@ -26,5 +26,10 @@ namespace Garrison.Core.Responses
         /// Whether the edge allows fan-out.
         /// </summary>
         public bool FanOut { get; set; } = true;
+
+        /// <summary>
+        /// Delegation depth the edge needs: one plus the longest chain of calls below the called member. Minimum 1.
+        /// </summary>
+        public int Depth { get; set; } = 1;
     }
 }
