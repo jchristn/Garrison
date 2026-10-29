@@ -5,8 +5,12 @@
  * commonly used fields; every object may carry additional fields documented in REST_API.md.
  */
 
-export const DEFAULT_BASE_URL = "http://127.0.0.1:8700";
-export const TERMINAL_STATUSES = ["Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"];
+import { AppGatewayClient, DEFAULT_BASE_URL, TERMINAL_STATUSES } from "./gateway.js";
+import type { AppGatewayClientOptions } from "./gateway.js";
+import { GarrisonError } from "./errors.js";
+import { queryString, readServerSentEvents, seg } from "./http.js";
+
+export * from "./gateway.js";
 
 export type Json = Record<string, any>;
 
@@ -279,54 +283,6 @@ export interface AppDelegationPlan { appId: string; applied: boolean; members: A
 /** Body of an app promotion. appRevision is an identifier or number (default the latest published app revision). */
 export interface AppPromotionRequest {
   sourceEnvironment: string; targetEnvironment?: string; appRevision?: string | number; allowSkip?: boolean; note?: string;
-}
-
-/** Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. */
-export interface AppInfo {
-  slug: string; displayName: string; description?: string | null; welcomeText?: string | null; primaryColor?: string | null;
-  accentColor?: string | null; logoUrl?: string | null; authMode: AppAuthMode; anonymousAllowed: boolean; showOperatorDetail: boolean;
-}
-
-/** An app session. token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app. */
-export interface AppSessionResponse { token: string; expiresUtc: string; principalName: string; anonymous: boolean; }
-
-/** One turn of an app conversation as an end user sees it. */
-export interface AppTurnView {
-  runId: string; turn: number; message: string; status: RunStatus; answer?: string | null; error?: string | null;
-  awaitingApproval: boolean; createdUtc: string; completedUtc?: string | null;
-}
-
-/** An app conversation as its owner sees it. turns is empty in listings and filled when one conversation is read. */
-export interface AppConversationView {
-  id: string; title?: string | null; turnCount: number; busy: boolean; lastRunId?: string | null;
-  createdUtc: string; lastActivityUtc?: string | null; turns: AppTurnView[];
-}
-
-/** Answer to starting an app conversation. */
-export interface AppConversationStart { conversationId: string; turn: AppTurnView; }
-
-/**
- * One server-sent event of an app turn stream. turn.event carries a visible run event (its id is the event sequence);
- * turn.status and turn.completed carry the turn. turn.completed is the last event.
- */
-export type AppTurnStreamEvent =
-  | { event: "turn.event"; id?: string; data: RunEvent }
-  | { event: "turn.status"; id?: string; data: AppTurnView }
-  | { event: "turn.completed"; id?: string; data: AppTurnView };
-
-/** One changed file in a files.changed event. */
-export interface AppFileChange { path: string; version: number; deleted: boolean; sha256?: string | null; sizeBytes: number; }
-/** A files.changed event of an app conversation. The first event of a stream lists every current file. */
-export interface AppFilesChanged { conversationId: string; changed: AppFileChange[]; }
-
-/** Options for {@link AppGatewayClient.streamTurn}. */
-export interface AppTurnStreamOptions {
-  /** Resume after this event id (a turn.event sequence) instead of from the start. */
-  lastEventId?: string;
-  /** Reconnect attempts in a row without receiving an event before giving up. Default 5; 0 disables reconnecting. */
-  maxReconnects?: number;
-  /** Milliseconds to wait before reconnecting. Default 1000. */
-  reconnectDelayMs?: number;
 }
 
 /** Draft states. Open is editable; PendingApproval is frozen while its DraftApply approval waits; Applied and Discarded are final. */
@@ -1527,47 +1483,7 @@ export interface ManifestApply extends Json {
   items: ManifestApplyItem[];
 }
 
-export class GarrisonError extends Error {
-  readonly statusCode: number;
-  readonly body: string;
-  readonly error?: Json;
-
-  constructor(statusCode: number, body: string) {
-    let parsed: Json | undefined;
-    try { parsed = body ? JSON.parse(body) : undefined; } catch { parsed = undefined; }
-    super(`Garrison API returned ${statusCode}` + (parsed ? ` ${parsed.code ?? ""}: ${parsed.message ?? ""}` : body ? `: ${body.slice(0, 300)}` : ""));
-    this.name = "GarrisonError";
-    this.statusCode = statusCode;
-    this.body = body;
-    this.error = parsed;
-  }
-
-  get code(): string | undefined { return this.error?.code; }
-  /** Field-level validation details keyed by field path, when the server returned them. */
-  get fields(): Record<string, string> | undefined { return this.error?.fields; }
-  /** Machine codes of validation errors keyed by field path (for example url: DestinationBlocked). */
-  get fieldCodes(): Record<string, string> | undefined { return this.error?.fieldCodes; }
-  /** Per-setting validation errors keyed by setting path (settings routes, HTTP 400). */
-  get errors(): Record<string, string> | undefined { return this.error?.errors; }
-}
-
 type AuthMode = "none" | "token" | "keys" | "signed" | "admin";
-
-function seg(value: string): string {
-  if (!value) throw new Error("identifier is required");
-  return encodeURIComponent(value);
-}
-
-function queryString(params?: Record<string, any>): string {
-  if (!params) return "";
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null || value === "") continue;
-    const text = value instanceof Date ? value.toISOString() : typeof value === "boolean" ? (value ? "true" : "false") : String(value);
-    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(text)}`);
-  }
-  return parts.join("&");
-}
 
 function hex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -1671,45 +1587,6 @@ export class Transport {
     const response = await this.send("GET", path, params, undefined, undefined, "text/event-stream");
     if (!response.body) return;
     yield* readServerSentEvents(response.body);
-  }
-}
-
-/** Parse a server-sent event stream into events until the body ends. */
-async function* readServerSentEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; id?: string; data: string }> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let event: string | undefined;
-  let id: string | undefined;
-  let data: string[] = [];
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let index: number;
-      while ((index = buffer.indexOf("\n")) >= 0) {
-        let line = buffer.slice(0, index);
-        buffer = buffer.slice(index + 1);
-        if (line.endsWith("\r")) line = line.slice(0, -1);
-        if (line === "") {
-          if (data.length > 0 || event) yield { event: event ?? "message", id, data: data.join("\n") };
-          event = undefined; id = undefined; data = [];
-          continue;
-        }
-        if (line.startsWith(":")) continue;
-        const colon = line.indexOf(":");
-        const field = colon < 0 ? line : line.slice(0, colon);
-        let fieldValue = colon < 0 ? "" : line.slice(colon + 1);
-        if (fieldValue.startsWith(" ")) fieldValue = fieldValue.slice(1);
-        if (field === "event") event = fieldValue;
-        else if (field === "id") id = fieldValue;
-        else if (field === "data") data.push(fieldValue);
-      }
-    }
-    if (data.length > 0) yield { event: event ?? "message", id, data: data.join("\n") };
-  } finally {
-    await reader.cancel().catch(() => undefined);
   }
 }
 
@@ -1898,177 +1775,6 @@ export class StudioDrafts {
    */
   setArchitectPrompt(deploymentId: string, templateId: string, version?: number): Promise<ArchitectPromptSelection> {
     return this.t.request("PUT", this.t.tenantPath(`/studio/architects/${seg(deploymentId)}/prompt`), undefined, { architectPromptTemplateId: templateId, architectPromptVersion: version ?? null });
-  }
-}
-
-/**
- * Client for an agentic app's end-user gateway at /v1.0/apps/{slug}/. It needs no management credentials: start a
- * session with an email and password, or anonymously when the app allows it, and the session token (prefix gas_) is
- * kept and sent as a bearer token. The token works only on this app's gateway and reaches only the conversations its
- * owner started (anything else is 404). Errors reject with {@link GarrisonError}: 401 InvalidCredentials,
- * AppSignInRequired, AnonymousDisabled, or an expired session; 403 AppAccessDenied; 409 AppNotDeployed,
- * ConversationBusy, or AppRateLimited.
- */
-export class AppGatewayClient {
-  /** Server base URL without a trailing slash. */
-  readonly baseUrl: string;
-  /** App URL name. */
-  readonly slug: string;
-  /** Session token sent as Authorization: Bearer; set by startSession and cleared by endSession. */
-  token?: string;
-  /** The last session started, or undefined. */
-  session?: AppSessionResponse;
-  /** Optional cancellation for requests and streams. */
-  abortSignal?: AbortSignal;
-
-  constructor(baseUrl: string, slug: string) {
-    if (!slug) throw new Error("slug is required");
-    this.baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.slug = slug;
-  }
-
-  private path(suffix = ""): string { return `/v1.0/apps/${seg(this.slug)}${suffix}`; }
-  private conversationPath(id: string, suffix = ""): string { return this.path(`/conversations/${seg(id)}${suffix}`); }
-
-  private async request(method: string, path: string, params?: Record<string, any>, body?: unknown, headers: Record<string, string> = {}): Promise<Response> {
-    const query = queryString(params);
-    const all: Record<string, string> = { ...headers };
-    if (this.token) all["Authorization"] = `Bearer ${this.token}`;
-    let text: string | undefined;
-    if (body !== undefined) { text = JSON.stringify(body); all["Content-Type"] = "application/json"; }
-    const response = await fetch(this.baseUrl + path + (query ? `?${query}` : ""), { method, headers: all, body: text, signal: this.abortSignal });
-    if (!response.ok) throw new GarrisonError(response.status, await response.text());
-    return response;
-  }
-
-  private async json<T>(method: string, path: string, params?: Record<string, any>, body?: unknown): Promise<T> {
-    const text = await (await this.request(method, path, params, body)).text();
-    return (text ? JSON.parse(text) : undefined) as T;
-  }
-
-  /** Branding and how to sign in. Needs no session. */
-  info(): Promise<AppInfo> { return this.json("GET", this.path()); }
-  /** Absolute URL of the app's logo image (404 when the app has none). */
-  logoUrl(): string { return this.baseUrl + this.path("/logo"); }
-  /** The app's logo image bytes; rejects with 404 when the app has none. */
-  async logo(): Promise<Uint8Array> { return new Uint8Array(await (await this.request("GET", this.path("/logo"))).arrayBuffer()); }
-
-  /**
-   * Start a session with an email and password, or with no credentials for an anonymous session (only when the app's
-   * authMode is Anonymous and anonymous use is enabled). The token is kept for later calls.
-   */
-  async startSession(credentials?: { email: string; password: string }): Promise<AppSessionResponse> {
-    const previous = this.token;
-    this.token = undefined;
-    try {
-      const session = await this.json<AppSessionResponse>("POST", this.path("/session"), undefined, credentials ? { email: credentials.email, password: credentials.password } : undefined);
-      this.token = session.token;
-      this.session = session;
-      return session;
-    } catch (e) {
-      this.token = previous;
-      throw e;
-    }
-  }
-
-  /** Sign out and forget the token. */
-  async endSession(): Promise<void> {
-    await this.request("DELETE", this.path("/session"));
-    this.token = undefined;
-    this.session = undefined;
-  }
-
-  /** The session owner's conversations in the app. */
-  async conversations(): Promise<AppConversationView[]> { return (await this.json<AppConversationView[]>("GET", this.path("/conversations"))) ?? []; }
-  /** Start a conversation with the app's entry agent on the live environment's entry deployment. */
-  startConversation(message: string): Promise<AppConversationStart> { return this.json("POST", this.path("/conversations"), undefined, { message }); }
-  /** One of the owner's conversations with its turns. */
-  conversation(id: string): Promise<AppConversationView> { return this.json("GET", this.conversationPath(id)); }
-  /** Send the next message; rejects with 409 ConversationBusy while the previous turn runs. */
-  send(id: string, message: string): Promise<AppTurnView> { return this.json("POST", this.conversationPath(id, "/messages"), undefined, { message }); }
-
-  /**
-   * Stream a turn's visible events until turn.completed, calling onEvent for each. When the connection drops before
-   * then, it reconnects and resumes after the last event id it saw (Last-Event-ID). Resolves with the completed turn.
-   * HTTP errors reject at once; repeated connection failures reject after options.maxReconnects attempts.
-   */
-  async streamTurn(id: string, runId: string, onEvent: (event: AppTurnStreamEvent) => void | Promise<void>, options: AppTurnStreamOptions = {}): Promise<AppTurnView> {
-    const maxReconnects = options.maxReconnects ?? 5;
-    const delayMs = options.reconnectDelayMs ?? 1000;
-    let lastEventId = options.lastEventId;
-    let failures = 0;
-    while (true) {
-      let received = false;
-      let failure: unknown = new Error("The turn stream closed before turn.completed.");
-      try {
-        const headers: Record<string, string> = { Accept: "text/event-stream" };
-        if (lastEventId) headers["Last-Event-ID"] = lastEventId;
-        const response = await this.request("GET", this.conversationPath(id, `/turns/${seg(runId)}/stream`), undefined, undefined, headers);
-        if (response.body) {
-          for await (const message of readServerSentEvents(response.body)) {
-            received = true;
-            if (message.id) lastEventId = message.id;
-            if (message.event !== "turn.event" && message.event !== "turn.status" && message.event !== "turn.completed") continue;
-            const data = message.data ? JSON.parse(message.data) : undefined;
-            await onEvent({ event: message.event, id: message.id, data } as AppTurnStreamEvent);
-            if (message.event === "turn.completed") return data as AppTurnView;
-          }
-        }
-      } catch (e) {
-        if (e instanceof GarrisonError || this.abortSignal?.aborted) throw e;
-        failure = e;
-      }
-      failures = received ? 1 : failures + 1;
-      if (failures > maxReconnects) throw failure;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-  }
-
-  /**
-   * Poll the conversation until the turn with runId reaches a terminal status or timeoutMs elapses (default 120000);
-   * resolves with the turn as it stands then. Rejects when the turn is not listed before the timeout.
-   */
-  async waitForTurn(id: string, runId: string, timeoutMs = 120000, pollMs = 500): Promise<AppTurnView> {
-    const deadline = Date.now() + timeoutMs;
-    while (true) {
-      const view = await this.conversation(id);
-      const turn = (view.turns ?? []).find((t) => t.runId === runId);
-      if (turn && (TERMINAL_STATUSES.includes(turn.status) || Date.now() >= deadline)) return turn;
-      if (Date.now() >= deadline) throw new Error(`Turn ${runId} was not listed in conversation ${id} before the timeout.`);
-      await new Promise((resolve) => setTimeout(resolve, pollMs));
-    }
-  }
-
-  /**
-   * Stream files.changed events for the conversation (the first lists every current file), calling onEvent for each.
-   * Resolves when onEvent returns false, the server closes the stream, or abortSignal aborts (which rejects).
-   */
-  async streamFiles(id: string, onEvent: (event: AppFilesChanged) => boolean | void | Promise<boolean | void>): Promise<void> {
-    const response = await this.request("GET", this.conversationPath(id, "/files/stream"), undefined, undefined, { Accept: "text/event-stream" });
-    if (!response.body) return;
-    const reader = readServerSentEvents(response.body);
-    try {
-      for await (const message of reader) {
-        if (message.event !== "files.changed" || !message.data) continue;
-        if ((await onEvent(JSON.parse(message.data) as AppFilesChanged)) === false) return;
-      }
-    } finally {
-      await reader.return(undefined);
-      await response.body.cancel().catch(() => undefined);
-    }
-  }
-
-  /** List the conversation's files. */
-  files(id: string): Promise<FileSpaceListing> { return this.json("GET", this.conversationPath(id, "/files")); }
-  /** Read a file's content (the current version, or the given version). */
-  async readFile(id: string, path: string, version?: number): Promise<Uint8Array> {
-    return new Uint8Array(await (await this.request("GET", this.conversationPath(id, "/files/content"), { path, version })).arrayBuffer());
-  }
-  /** A file's versions, newest first. */
-  fileVersions(id: string, path: string): Promise<ConversationFileVersion[]> { return this.json("GET", this.conversationPath(id, "/files/versions"), { path }); }
-  /** A short-lived download URL for a file (the current version, or the given version). */
-  downloadUrl(id: string, path: string, version?: number): Promise<FileDownloadUrl> {
-    return this.json("POST", this.conversationPath(id, "/files/download-url"), { path, version });
   }
 }
 
@@ -2681,7 +2387,7 @@ export class GarrisonClient {
    * An end-user gateway client for the app with this slug, on the same server. It starts with no session and never
    * sends this client's management credentials.
    */
-  appGateway(slug: string): AppGatewayClient { return new AppGatewayClient(this.transport.baseUrl, slug); }
+  appGateway(slug: string, options?: Omit<AppGatewayClientOptions, "slug" | "baseUrl">): AppGatewayClient { return new AppGatewayClient(this.transport.baseUrl, slug, options); }
 
   private async issue(body: Json): Promise<TokenResponse> {
     const previous = this.transport.mode;

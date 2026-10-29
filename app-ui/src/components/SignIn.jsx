@@ -34,7 +34,7 @@ export default function SignIn({ client, info, logoUrl, notice, onSignedIn, them
   const submit = (e) => {
     e.preventDefault();
     if (!email.trim() || !password) return;
-    run('password', () => client.signIn(email.trim(), password));
+    run('password', () => client.startSession({ email: email.trim(), password }));
   };
 
   return (
@@ -77,7 +77,7 @@ export default function SignIn({ client, info, logoUrl, notice, onSignedIn, them
             <p className="divider">
               <span>{t('signIn.or')}</span>
             </p>
-            <button type="button" className="button secondary block" disabled={!!busy} onClick={() => run('anonymous', () => client.continueAnonymously())} {...tip(t('tips.anonymous'))} data-testid="signin-anonymous">
+            <button type="button" className="button secondary block" disabled={!!busy} onClick={() => run('anonymous', () => client.startSession())} {...tip(t('tips.anonymous'))} data-testid="signin-anonymous">
               {t('signIn.anonymous')}
             </button>
             <p className="hint">{t('signIn.anonymousNote')}</p>

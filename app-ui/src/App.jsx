@@ -4,7 +4,7 @@ import { TooltipLayer } from './components/Tooltip.jsx';
 import ChatShell from './components/ChatShell.jsx';
 import SignIn from './components/SignIn.jsx';
 import StatusScreen from './components/StatusScreen.jsx';
-import GatewayClient from './api/client.js';
+import { createGatewayClient } from './api/gateway.js';
 import { applyBranding } from './utils/branding.js';
 import { appPath, parseAppPath } from './utils/location.js';
 import { applyTheme, resolveTheme, saveTheme, watchSystemTheme } from './utils/theme.js';
@@ -27,7 +27,7 @@ export default function App({ fetchImpl }) {
   const client = useMemo(
     () =>
       slug
-        ? new GatewayClient({
+        ? createGatewayClient({
             slug,
             fetchImpl,
             onUnauthorized: (err) => {
@@ -56,7 +56,7 @@ export default function App({ fetchImpl }) {
     let cancelled = false;
     setInfo(null);
     setLoadError(null);
-    setSession(client.session());
+    setSession(client.session || null);
     client
       .info()
       .then((value) => {
@@ -88,7 +88,8 @@ export default function App({ fetchImpl }) {
   };
 
   const signOut = async () => {
-    await client.signOut();
+    // Best effort: the session is forgotten here even when the server call fails.
+    await client.endSession().catch(() => {});
     setSession(null);
     setNotice(null);
     navigate(null, { replace: true });

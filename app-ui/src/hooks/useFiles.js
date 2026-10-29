@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { openFileStream } from '../api/stream.js';
+import { openFileStream } from '../api/gateway.js';
 
 // The conversation's file listing, kept current by the files.changed stream. Each change refetches the listing
 // (the stream's first message lists everything, so a reconnect also catches up). A path whose version differs from

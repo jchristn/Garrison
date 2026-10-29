@@ -1,7 +1,7 @@
 # Garrison dashboard image: the operator console at / and the agentic app UI (app-ui/) at /apps/{slug}/ (AD-020).
 # Build from the repository root, because the image holds both apps:
 #   docker build -f dashboard/Dockerfile -t jchristn77/garrison-dashboard:<tag> .
-# dashboard/Dockerfile.dockerignore keeps the build context to dashboard/ and app-ui/.
+# dashboard/Dockerfile.dockerignore keeps the build context to dashboard/, app-ui/, and sdk/js/ (the app UI's gateway client).
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -10,9 +10,13 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY dashboard/ .
 RUN npm run build
 
+# The app UI's gateway client is the JavaScript SDK's @garrison/sdk/gateway entry point, a file:../sdk/js dependency,
+# so the SDK sits next to it at /src/sdk/js. npm ci runs app-ui's postinstall, which builds the SDK first.
 FROM node:22-alpine AS app-ui
-WORKDIR /app
+WORKDIR /src/app-ui
+COPY sdk/js/ /src/sdk/js/
 COPY app-ui/package*.json ./
+COPY app-ui/scripts/ ./scripts/
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY app-ui/ .
 RUN npm run build
@@ -27,7 +31,7 @@ LABEL org.opencontainers.image.title="garrison-dashboard" \
 RUN apk upgrade --no-cache
 RUN apk add --no-cache curl
 COPY --from=build /app/dist/ /usr/share/nginx/html/
-COPY --from=app-ui /app/dist/ /usr/share/nginx/html/apps/
+COPY --from=app-ui /src/app-ui/dist/ /usr/share/nginx/html/apps/
 COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
 COPY dashboard/nginx-security-headers.conf /etc/nginx/garrison-security-headers.inc
 COPY dashboard/docker-entrypoint.sh /docker-entrypoint.d/40-garrison-config.sh

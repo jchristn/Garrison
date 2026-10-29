@@ -5,7 +5,10 @@
   "description": "End-user chat UI for Garrison agentic apps, served at /apps/{slug}/.",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/build-sdk.mjs",
+    "build:sdk": "node scripts/build-sdk.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/build-sdk.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src tests --max-warnings 0",
@@ -13,6 +16,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@garrison/sdk": "file:../sdk/js",
     "dompurify": "^3.4.16",
     "i18next": "^24.2.0",
     "i18next-browser-languagedetector": "^8.0.2",

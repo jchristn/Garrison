@@ -341,10 +341,10 @@ Each `AppDelegationMember` in `plan.members` has the graph's `desiredMode` (`All
 
 ### App gateway client
 
-`AppGatewayClient` is for an app's end users. It takes the server base URL and the app slug and needs no management credentials. `startSession` signs in with an email and password, or with no argument for an anonymous session (only when the app's `authMode` is `Anonymous` and anonymous use is enabled); it keeps the session token (prefix `gas_`) in `token` and sends it as `Authorization: Bearer` on every later call. The token works only on that app's gateway, and the management API refuses it with 401, just as the gateway refuses a management token.
+`AppGatewayClient` is for an app's end users. It takes the server base URL and the app slug (`new AppGatewayClient(baseUrl, slug, options?)` or `new AppGatewayClient({ slug, baseUrl, ... })`) and needs no management credentials. An omitted base URL means `http://127.0.0.1:8700`; an empty string makes every URL relative (`/v1.0/apps/...`), so a browser page talks to its own origin. `startSession` signs in with an email and password, or with no argument for an anonymous session (only when the app's `authMode` is `Anonymous` and anonymous use is enabled); it keeps the session token (prefix `gas_`) in `token` and sends it as `Authorization: Bearer` on every later call. The token works only on that app's gateway, and the management API refuses it with 401, just as the gateway refuses a management token.
 
 ```ts
-import { AppGatewayClient } from "@garrison/sdk";
+import { AppGatewayClient } from "@garrison/sdk/gateway";   // or from "@garrison/sdk"
 
 const gateway = new AppGatewayClient("http://127.0.0.1:8700", "research");
 const info = await gateway.info();                       // AppInfo: displayName, colors, logoUrl, authMode, anonymousAllowed
@@ -362,9 +362,42 @@ const link = await gateway.downloadUrl(conversationId, "notes.md");
 await gateway.endSession();
 ```
 
-`conversations()` lists the session owner's conversations and `conversation(id)` reads one with its turns (`AppTurnView`: `runId`, `turn`, `message`, `status`, `answer`, `error`, `awaitingApproval`). `streamTurn` reads the server-sent event stream with `fetch` and calls the callback for each `turn.event` (a visible `RunEvent`), `turn.status`, and `turn.completed`, and resolves with the completed turn. When the connection drops first it reconnects and resumes after the last event id with `Last-Event-ID`; `maxReconnects` (default 5) and `reconnectDelayMs` (default 1000) tune that. Errors reject with `GarrisonError`: 401 `InvalidCredentials`, `AppSignInRequired`, or `AnonymousDisabled`, 403 `AppAccessDenied`, and 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`.
+`conversations()` lists the session owner's conversations and `conversation(id)` reads one with its turns (`AppTurnView`: `runId`, `turn`, `message`, `status`, `answer`, `error`, `awaitingApproval`). `streamTurn` reads the server-sent event stream with `fetch` and calls the callback for each `turn.event` (a visible `RunEvent`), `turn.status`, and `turn.completed`, and resolves with the completed turn. When the connection drops first it reconnects and resumes after the last event id with `Last-Event-ID`, and drops a replayed `turn.event` whose sequence it already delivered. `maxReconnects` (default 5 attempts in a row; `0` turns reconnecting off and `Infinity` never gives up) and `backoff` (`initialMs` 500, doubling by `factor` 2 up to `maxMs` 15000) tune that; `reconnectDelayMs` sets a fixed delay instead, and `signal` cancels the stream. HTTP errors reject at once. Errors reject with `AppGatewayError`, a `GarrisonError` that adds `status` (the HTTP status, or `0` with code `NetworkError` when the server could not be reached): 401 `InvalidCredentials`, `AppSignInRequired`, or `AnonymousDisabled`, 403 `AppAccessDenied`, and 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`.
 
-`client.appGateway(slug)` returns a gateway client for the same server without the management credentials. `waitForTurn(conversationId, runId, timeoutMs?)` polls the conversation until the turn is terminal (default 120 seconds). `streamFiles(conversationId, onEvent)` reads the `files.changed` stream (the first event lists every current file) until the callback returns `false`. `logo()` returns the logo bytes and rejects with 404 when the app has none.
+`client.appGateway(slug, options?)` returns a gateway client for the same server without the management credentials (`options` as below, without `slug` and `baseUrl`). `waitForTurn(conversationId, runId, timeoutMs?)` polls the conversation until the turn is terminal (default 120 seconds). `streamFiles(conversationId, onEvent)` reads the `files.changed` stream (the first event lists every current file) until the callback returns `false`. `logo()` returns the logo bytes and rejects with 404 when the app has none; `logoUrl()` is the logo route's URL, and `logoUrl(info)` resolves the `logoUrl` of an `info()` answer against the base URL (`null` when the app has no logo). `readFileBlob` returns a file as a `Blob` with the server's media type.
+
+#### Gateway entry point for browsers
+
+`@garrison/sdk/gateway` exports the gateway client and its types without the management client, so a page that only talks to an app stays small (the app UI in `app-ui/` uses it and adds about 5 kB, 1.7 kB gzipped). `@garrison/sdk` re-exports everything in it. Beyond what is above, it gives a browser what it needs:
+
+| Option or call | What it does |
+| --- | --- |
+| `storage` | Where to keep the session so it survives a reload: pass `window.sessionStorage` (or `browserSessionStorage()`, which returns it or `null`). One entry per app under `storageKeyPrefix` plus the slug (default prefix `garrison.app.session.`). Omitted or `null`: memory only. When storage throws (blocked site data), the session stays in memory. |
+| `session`, `setSession`, `clearSession` | The current session (`undefined` when there is none). An expired session (`expiresUtc` in the past by the `now` clock) is dropped when read. `token` reads it; setting `token` replaces it. |
+| `onUnauthorized(error)` | Called after a request that carried the session got 401; the session is already dropped by then. `info`, `logo`, and `startSession` never call it, so a wrong password is not a lost session. |
+| `fetch` | The `fetch` to use (tests pass a mock). Default: `globalThis.fetch` at call time. |
+| `signal` on each call | Every call takes a last `{ signal }` argument that cancels that call; `abortSignal` on the client covers calls without one. An abort rejects with the `AbortError` itself, not an `AppGatewayError`. |
+| `endSession()` | Ends the session on the server and forgets it here even when that call fails (the failure still rejects). Without a session it sends nothing. |
+| `turnStreamUrl(id, runId, afterSequence?)`, `fileStreamUrl(id)` | Stream URLs for `EventSource`, which cannot send headers: the session goes in `?session=` and the resume point in `?afterSequence=`. |
+| `openTurnStream(client, id, runId, options)`, `openFileStream(client, id, options)` | `EventSource` streams that reconnect without limit, with backoff (500 ms doubling to 15 s, reset once a connection works), resume after the last sequence, and drop events they already delivered. A turn stream calls `onEvent`, `onStatus`, and `onCompleted` and closes itself on `turn.completed`; a file stream calls `onChanged`. Both return a `ReconnectingEventStream` with `close()`, and take `onOpen`, `onReconnecting({ attempt, delayMs })`, `backoff`, and `EventSourceImpl` (a fake in tests). |
+
+```js
+import { AppGatewayClient, browserSessionStorage, openTurnStream } from "@garrison/sdk/gateway";
+
+const gateway = new AppGatewayClient({
+  slug: "research",
+  baseUrl: "",                                  // same origin
+  storage: browserSessionStorage(),
+  onUnauthorized: () => showSignIn(),
+});
+if (!gateway.session) await gateway.startSession();
+const { conversationId, turn } = await gateway.startConversation("Hello");
+const stream = openTurnStream(gateway, conversationId, turn.runId, {
+  onEvent: (event) => render(event),
+  onCompleted: (view) => finish(view),
+});
+// stream.close() when the page no longer needs it
+```
 
 ## Studio drafts
 
@@ -497,7 +530,7 @@ npm run build
 node test-harness.mjs http://127.0.0.1:8700 access_garrison_default secret_garrison_default_change_me
 ```
 
-`npm run build` writes both module formats: ESM to `dist/esm` (with the type declarations) and CommonJS to `dist/cjs`, which gets its own `package.json` with `"type": "commonjs"`. The `exports` map in `package.json` sends `import` to the first and `require` to the second.
+`npm run build` writes both module formats: ESM to `dist/esm` (with the type declarations) and CommonJS to `dist/cjs`, which gets its own `package.json` with `"type": "commonjs"`. The `exports` map in `package.json` sends `import` to the first and `require` to the second, for both entry points: `@garrison/sdk` (`dist/*/index.js`) and `@garrison/sdk/gateway` (`dist/*/gateway.js`, which never loads `index.js`).
 
 The harness arguments are the base URL, an access key, and a secret key. The values above are the Docker Compose and source-build defaults; on Kubernetes pass the keys from Secret `garrison-secrets` (see "Where the credentials come from"). When the server rejects the keys, the harness stops after the token check with one message that says so.
 

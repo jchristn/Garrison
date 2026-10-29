@@ -5,7 +5,7 @@ import i18n from '../i18n';
 import App from '../App.jsx';
 import FilePanel from '../components/FilePanel.jsx';
 import TurnView from '../components/TurnView.jsx';
-import GatewayClient from '../api/client.js';
+import { createGatewayClient } from '../api/gateway.js';
 import { newTurnState } from '../utils/turns.js';
 import { FakeEventSource, mockFetch } from './fakes.js';
 
@@ -192,7 +192,7 @@ describe('TurnView', () => {
 
 describe('FilePanel', () => {
   it('lists files with their version and marks fresh ones', async () => {
-    const client = new GatewayClient({ slug: 'demo', baseUrl: '', fetchImpl: mockFetch({}) });
+    const client = createGatewayClient({ slug: 'demo', baseUrl: '', fetchImpl: mockFetch({}) });
     const files = {
       loading: false,
       error: null,

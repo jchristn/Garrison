@@ -19,8 +19,22 @@
       "types": "./dist/esm/index.d.ts",
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js"
+    },
+    "./gateway": {
+      "types": "./dist/esm/gateway.d.ts",
+      "import": "./dist/esm/gateway.js",
+      "require": "./dist/cjs/gateway.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "gateway": [
+        "./dist/esm/gateway.d.ts"
+      ]
     }
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "README.md",

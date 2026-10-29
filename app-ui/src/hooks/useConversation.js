@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { openTurnStream } from '../api/stream.js';
+import { openTurnStream } from '../api/gateway.js';
 import { applyEvent, applyView, isTerminal, newTurnState } from '../utils/turns.js';
 
 // One conversation's turns, with live streaming for any turn that is still running.
@@ -84,7 +84,7 @@ export default function useConversation(client, conversationId, { onStarted, onT
 
   useEffect(() => closeAll, [closeAll]);
 
-  /** Send a message; resolves true when the server accepted it. Throws the GatewayError otherwise. */
+  /** Send a message; resolves true when the server accepted it. Throws the AppGatewayError otherwise. */
   const send = useCallback(
     async (message) => {
       setSending(true);
@@ -97,7 +97,7 @@ export default function useConversation(client, conversationId, { onStarted, onT
           follow(res.conversationId, turn);
           if (callbacks.current.onStarted) callbacks.current.onStarted(res.conversationId);
         } else {
-          const view = await client.sendMessage(conversationId, message);
+          const view = await client.send(conversationId, message);
           const turn = newTurnState(view);
           setState((s) => ({ ...s, turns: [...s.turns, turn] }));
           follow(conversationId, turn);

@@ -52,8 +52,7 @@ The supplied ingresses (`k8s/overlays/k3s`, `k8s/overlays/production`, and the H
 
 | File | Role |
 | --- | --- |
-| `src/api/client.js` | `GatewayClient`: every gateway route, the session token, error codes |
-| `src/api/stream.js` | `ReconnectingStream`: server-sent events with resume and backoff |
+| `src/api/gateway.js` | Creates the JS SDK's `AppGatewayClient` (`@garrison/sdk/gateway`) for the app: same-origin API, the session kept in `sessionStorage`, and the 401 handler. The SDK client covers every gateway route, error codes, and server-sent event streams with resume, backoff, and duplicate dropping |
 | `src/hooks/useConversation.js` | Loads a conversation, sends messages, follows running turns |
 | `src/hooks/useFiles.js` | The file listing, refreshed on `files.changed` |
 | `src/utils/turns.js` | Folds stream events into a turn (text, status, operator detail) |

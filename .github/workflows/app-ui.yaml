@@ -5,6 +5,7 @@ on:
     branches: ["**"]
     paths:
       - 'app-ui/**'
+      - 'sdk/js/**'
       - '.github/workflows/app-ui.yaml'
 
 permissions:
@@ -27,7 +28,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app-ui/package-lock.json
+          cache-dependency-path: |
+            app-ui/package-lock.json
+            sdk/js/package-lock.json
+      # postinstall builds the JavaScript SDK (sdk/js), whose gateway entry point is the app UI's gateway client.
       - name: Install
         run: npm ci
       - name: Lint

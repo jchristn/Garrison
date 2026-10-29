@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import GatewayClient, { GatewayError, queryString } from '../api/client.js';
+import { AppGatewayError, createGatewayClient as GatewayClient } from '../api/gateway.js';
 import { mockFetch } from './fakes.js';
 
 const SESSION = { token: 'gas_abc', expiresUtc: '2099-01-01T00:00:00Z', principalName: 'ana@example.com', anonymous: false };
@@ -9,23 +9,23 @@ beforeEach(() => {
   window.GARRISON_CONFIG = { apiUrl: '' };
 });
 
-describe('GatewayClient', () => {
+describe('app gateway client (SDK)', () => {
   it('builds app-scoped URLs from the configured API origin', () => {
     window.GARRISON_CONFIG = { apiUrl: 'https://api.example.com/' };
     const client = new GatewayClient({ slug: 'demo', fetchImpl: mockFetch({}) });
     expect(client.url('/conversations')).toBe('https://api.example.com/v1.0/apps/demo/conversations');
     expect(new GatewayClient({ slug: 'demo', baseUrl: '' }).url('', { a: 1, b: null, c: '' })).toBe('/v1.0/apps/demo?a=1');
-    expect(queryString({ path: 'out/a b.txt', version: 2 })).toBe('?path=out%2Fa+b.txt&version=2');
+    expect(new GatewayClient({ slug: 'demo', baseUrl: '' }).url('/x', { path: 'out/a b.txt', version: 2 })).toBe('/v1.0/apps/demo/x?path=out%2Fa%20b.txt&version=2');
   });
 
   it('signs in, stores the session per tab and per app, and sends it as a bearer token', async () => {
     const fetchImpl = mockFetch({ 'POST /v1.0/apps/demo/session': [201, SESSION], 'GET /v1.0/apps/demo/conversations': [] });
     const client = new GatewayClient({ slug: 'demo', fetchImpl });
-    await client.signIn('ana@example.com', 'pw');
+    await client.startSession({ email: 'ana@example.com', password: 'pw' });
     expect(fetchImpl.calls[0].body).toEqual({ email: 'ana@example.com', password: 'pw' });
     expect(fetchImpl.calls[0].init.headers.Authorization).toBeUndefined();
     expect(JSON.parse(sessionStorage.getItem('garrison.app.session.demo')).token).toBe('gas_abc');
-    expect(new GatewayClient({ slug: 'other', fetchImpl }).session()).toBeNull();
+    expect(new GatewayClient({ slug: 'other', fetchImpl }).session).toBeUndefined();
     await client.conversations();
     expect(fetchImpl.calls[1].init.headers.Authorization).toBe('Bearer gas_abc');
   });
@@ -33,7 +33,7 @@ describe('GatewayClient', () => {
   it('starts an anonymous session with an empty body', async () => {
     const fetchImpl = mockFetch({ 'POST /v1.0/apps/demo/session': [201, { ...SESSION, anonymous: true, principalName: 'anonymous' }] });
     const client = new GatewayClient({ slug: 'demo', fetchImpl });
-    const session = await client.continueAnonymously();
+    const session = await client.startSession();
     expect(fetchImpl.calls[0].body).toEqual({});
     expect(session.anonymous).toBe(true);
   });
@@ -41,7 +41,7 @@ describe('GatewayClient', () => {
   it('drops an expired session', () => {
     const client = new GatewayClient({ slug: 'demo', fetchImpl: mockFetch({}), now: () => Date.parse('2030-01-01T00:00:00Z') });
     client.setSession({ ...SESSION, expiresUtc: '2029-12-31T23:59:59Z' });
-    expect(client.session()).toBeNull();
+    expect(client.session).toBeUndefined();
     expect(sessionStorage.getItem('garrison.app.session.demo')).toBeNull();
   });
 
@@ -51,16 +51,16 @@ describe('GatewayClient', () => {
     const client = new GatewayClient({ slug: 'demo', fetchImpl, onUnauthorized });
     client.setSession(SESSION);
     await expect(client.conversations()).rejects.toMatchObject({ status: 401, code: 'AppSessionRequired' });
-    expect(client.session()).toBeNull();
+    expect(client.session).toBeUndefined();
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
-    expect(onUnauthorized.mock.calls[0][0]).toBeInstanceOf(GatewayError);
+    expect(onUnauthorized.mock.calls[0][0]).toBeInstanceOf(AppGatewayError);
   });
 
   it('does not treat a failed sign-in as a lost session', async () => {
     const onUnauthorized = vi.fn();
     const fetchImpl = mockFetch({ 'POST /v1.0/apps/demo/session': [401, { code: 'InvalidCredentials', message: 'The email or password is not correct.' }] });
     const client = new GatewayClient({ slug: 'demo', fetchImpl, onUnauthorized });
-    await expect(client.signIn('a@b.c', 'x')).rejects.toMatchObject({ status: 401, code: 'InvalidCredentials' });
+    await expect(client.startSession({ email: 'a@b.c', password: 'x' })).rejects.toMatchObject({ status: 401, code: 'InvalidCredentials' });
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 
@@ -71,9 +71,9 @@ describe('GatewayClient', () => {
     });
     const client = new GatewayClient({ slug: 'demo', fetchImpl });
     client.setSession(SESSION);
-    await expect(client.sendMessage('cnv_1', 'hi')).rejects.toMatchObject({ status: 409, code: 'ConversationBusy' });
-    await expect(client.sendMessage('cnv_2', 'hi')).rejects.toMatchObject({ status: 409, code: 'AppRateLimited' });
-    expect(client.session()).not.toBeNull();
+    await expect(client.send('cnv_1', 'hi')).rejects.toMatchObject({ status: 409, code: 'ConversationBusy' });
+    await expect(client.send('cnv_2', 'hi')).rejects.toMatchObject({ status: 409, code: 'AppRateLimited' });
+    expect(client.session).toBeDefined();
   });
 
   it('reports a network failure as status 0', async () => {
@@ -85,10 +85,10 @@ describe('GatewayClient', () => {
     const fetchImpl = mockFetch({ 'DELETE /v1.0/apps/demo/session': [500, { code: 'Boom' }] });
     const client = new GatewayClient({ slug: 'demo', fetchImpl });
     client.setSession(SESSION);
-    await client.signOut();
+    await expect(client.endSession()).rejects.toMatchObject({ status: 500 });
     expect(fetchImpl.calls[0].method).toBe('DELETE');
     expect(fetchImpl.calls[0].init.headers.Authorization).toBe('Bearer gas_abc');
-    expect(client.session()).toBeNull();
+    expect(client.session).toBeUndefined();
   });
 
   it('puts the session and resume point in stream URLs', () => {
@@ -119,5 +119,39 @@ describe('GatewayClient', () => {
     const client = new GatewayClient({ slug: 'demo', baseUrl: 'https://api.example.com' });
     expect(client.logoUrl({ logoUrl: '/v1.0/apps/demo/logo' })).toBe('https://api.example.com/v1.0/apps/demo/logo');
     expect(client.logoUrl({})).toBeNull();
+  });
+
+  it('passes a per-call abort signal to fetch and rejects with the AbortError', async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn(async (_url, init) => {
+      expect(init.signal).toBe(controller.signal);
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      throw err;
+    });
+    const client = new GatewayClient({ slug: 'demo', baseUrl: '', fetchImpl });
+    client.setSession(SESSION);
+    controller.abort();
+    await expect(client.conversation('cnv_1', { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(client.session).toBeDefined();
+  });
+
+  it('keeps the session in memory when sessionStorage throws', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const getSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    try {
+      const fetchImpl = mockFetch({ 'POST /v1.0/apps/demo/session': [201, SESSION], 'GET /v1.0/apps/demo/conversations': [] });
+      const client = new GatewayClient({ slug: 'demo', baseUrl: '', fetchImpl });
+      await client.startSession({ email: 'ana@example.com', password: 'pw' });
+      await client.conversations();
+      expect(fetchImpl.calls[1].init.headers.Authorization).toBe('Bearer gas_abc');
+    } finally {
+      spy.mockRestore();
+      getSpy.mockRestore();
+    }
   });
 });

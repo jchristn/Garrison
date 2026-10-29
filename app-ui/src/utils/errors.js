@@ -1,4 +1,4 @@
-// Turns a GatewayError into translated text. Known server codes have their own message (errors.<code>); anything
+// Turns an AppGatewayError into translated text. Known server codes have their own message (errors.<code>); anything
 // else shows the HTTP status, and a network failure says the server could not be reached.
 
 /** Translated message for an error. t is i18next's t. */

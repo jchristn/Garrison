@@ -32,7 +32,7 @@ export async function downloadFile(client, conversationId, path, version) {
   } catch (err) {
     if (err && err.status === 401) throw err;
   }
-  const blob = await client.fileContent(conversationId, path, version);
+  const blob = await client.readFileBlob(conversationId, path, version);
   const href = URL.createObjectURL(blob);
   clickLink(href, name);
   setTimeout(() => URL.revokeObjectURL(href), 30000);

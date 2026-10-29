@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ReconnectingStream, backoffDelay, openTurnStream, openFileStream } from '../api/stream.js';
+import { ReconnectingEventStream as ReconnectingStream, backoffDelay, openTurnStream, openFileStream } from '@garrison/sdk/gateway';
 import { FakeEventSource } from './fakes.js';
 
 function timers() {
