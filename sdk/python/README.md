@@ -2,6 +2,8 @@
 
 Python client for the Garrison REST API. Requires Python 3.9+ and `requests`.
 
+**Garrison Agent Studio.** Garrison is a runtime for headless agent harnesses: a multi-tenant control plane with pull-based workers, exposed over REST, MCP, and A2A. Since 0.2.0 it is also an agent studio built on that runtime, so one platform covers an agentic app from start to finish. You build it with the agent architect (chat) or the canvas, test it in the playground, apply it through an approval, promote it between environments, run and scale it on the workers, and give its end users their own chat at `/apps/{slug}/`. This SDK reaches both halves: the management API for the runtime and the studio, and the end-user gateway of each app.
+
 ## Install
 
 The package is not published to PyPI yet, so `pip install garrison-sdk` fails with "No matching distribution found". Install it from your checkout of the repository instead:
@@ -497,13 +499,183 @@ The usage-quota module provides CRUD operations and `client.usage_quotas.usage(i
 
 Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to `true` (Go: `EnforcementEnabled`, C#: `EnforcementEnabled`) on an active quota to enforce limits. Disabled enforcement does not reject runs or lower harness budgets.
 
+## Agent Studio walkthrough
+
+[`examples/agent_studio.py`](examples/agent_studio.py) runs these steps end to end against a server, and the studio commands of the [interactive console](#interactive-console) do the same one step at a time:
+
+```bash
+GARRISON_ACCESS_KEY=... GARRISON_SECRET_KEY=... python examples/agent_studio.py http://127.0.0.1:8700
+```
+
+```python
+# 1. Create an app from a bundle (applying again changes nothing).
+with open("examples/agentic-apps/support-triage/support-triage.yaml") as f:
+    applied = client.manifests.apply(f.read())
+
+# 2. Open a studio draft holding the app and everything it references.
+draft = client.studio_drafts.create("Support triage changes", from_app="support-triage")
+
+# 3. List architect prompts and select one for an architect deployment.
+prompts = client.studio_drafts.list_architect_prompts()
+architect_id = next((d for p in prompts for d in p.get("deployments", [])), None)
+if architect_id is None:
+    architect = client.agents.get("agent-architect")
+    architect_id = client.deployments.create({"name": "agent-architect-sdk", "agentId": architect["id"],
+                                              "harnessProfileId": "hrn_builtin_fake"})["id"]
+client.studio_drafts.set_architect_prompt(architect_id, prompts[0]["id"])
+
+# 4. Chat with the app through its gateway as an anonymous end user.
+gateway = client.app_gateway("support-triage")
+gateway.start_session()
+started = gateway.start_conversation("My invoice was charged twice.")
+for item in gateway.stream_turn(started["conversationId"], started["turn"]["runId"]):
+    print(item["event"])
+turn = gateway.wait_for_turn(started["conversationId"], started["turn"]["runId"])
+print(turn["status"], turn.get("answer"))
+```
+
+The support triage bundle runs on the fake harness, so the server needs a worker with `garrison-fake-harness` on its `PATH`.
+
+## App gateway client
+
+`AppGateway` is for an app's end users. Create one with `client.app_gateway(slug)` (same server, no management credentials) or `AppGateway(base_url, slug)`. `start_session(email, password)` signs in, and `start_session()` with no arguments starts an anonymous session, which works only when the app's `authMode` is `Anonymous` and anonymous use is enabled. The session token (prefix `gas_`) is kept in `token` and sent as `Authorization: Bearer`; it works only on that app's gateway.
+
+| Method | Returns |
+|---|---|
+| `info` | `AppInfo`: display name, colors, logo URL, `authMode`, `anonymousAllowed` (needs no session) |
+| `logo`, `logo_url` | The logo bytes or its URL (404 when the app has none) |
+| `start_session`, `end_session` | `AppSessionResponse`; ending forgets the token |
+| `conversations`, `conversation` | `AppConversationView` dictionaries, with `turns` filled when one is read |
+| `start_conversation`, `send` | `AppConversationStart` (`conversationId` and the first turn), `AppTurnView` |
+| `stream_turn` | `{"event", "id", "data"}` items until `turn.completed`; `after_sequence` resumes |
+| `wait_for_turn` | Polls until the turn is terminal (`timeout_seconds` default 120) |
+| `files`, `read_file`, `file_versions`, `download_url` | The conversation's file space |
+| `stream_files` | `AppFilesChanged` events; the first lists every current file |
+
+Errors raise `GarrisonError`: 401 `InvalidCredentials`, `AppSignInRequired`, `AnonymousDisabled`, or an expired session; 403 `AppAccessDenied`; 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`. A conversation another session started is 404.
+
+## 0.2.0 route coverage
+
+Every route added in 0.2.0, with the method that calls it. Tenant routes are relative to `/v1.0/api/tenants/{tenantId}`; the app gateway routes are absolute. Two anonymous routes have no method on purpose: `GET /v1.0/asset-download/{assetId}` is for leased runs on workers, and `GET /v1.0/file-download/{fileSpaceId}` is the plain URL that the `download-url` methods return.
+
+| Route | Method |
+|---|---|
+| **Agent revisions** | |
+| `GET /agents/{id}/revisions` | `agents.revisions` |
+| `POST /agents/{id}/revisions` | `agents.save_draft` |
+| `GET /agents/{id}/revisions/diff` | `agents.diff_revisions` |
+| `GET /agents/{id}/revisions/{revId}` | `agents.get_revision` |
+| `DELETE /agents/{id}/revisions/{revId}` | `agents.delete_revision` |
+| `POST /agents/{id}/revisions/{revId}/publish` | `agents.publish_revision` |
+| **Environments and promotions** | |
+| `GET /environments` | `environments.get` |
+| `PUT /environments` | `environments.update` |
+| `GET /promotions` | `promotions.list` |
+| `POST /promotions` | `promotions.promote` |
+| `GET /promotions/{id}` | `promotions.get` |
+| `POST /promotions/{id}/rollback` | `promotions.rollback` |
+| **Agent assets** | |
+| `GET /agent-assets` | `agent_assets.list` |
+| `POST /agent-assets` | `agent_assets.create` |
+| `GET /agent-assets/{id}` | `agent_assets.get` |
+| `PUT /agent-assets/{id}` | `agent_assets.update` |
+| `DELETE /agent-assets/{id}` | `agent_assets.delete` |
+| `GET /agent-assets/{id}/versions` | `agent_assets.versions` |
+| `POST /agent-assets/{id}/versions` | `agent_assets.upload`, `upload_raw` |
+| `GET /agent-assets/{id}/versions/{n}` | `agent_assets.get_version` |
+| `GET /agent-assets/{id}/versions/{n}/files` | `agent_assets.download_file` |
+| **File spaces (`conversations` or `runs` as the owner)** | |
+| `GET /{owner}/{id}/files` | `file_spaces.list` |
+| `GET /{owner}/{id}/files/content` | `file_spaces.read`, `read_text` |
+| `GET /{owner}/{id}/files/versions` | `file_spaces.versions` |
+| `POST /{owner}/{id}/files` | `file_spaces.write`, `write_raw` |
+| `DELETE /{owner}/{id}/files` | `file_spaces.delete` |
+| `POST /{owner}/{id}/files/download-url` | `file_spaces.download_url` |
+| **Capabilities** | |
+| `GET /capabilities` | `capabilities.list` |
+| `POST /capabilities` | `capabilities.create` |
+| `POST /capabilities/refresh` | `capabilities.refresh` |
+| `GET /capabilities/{id}` | `capabilities.get` |
+| `PUT /capabilities/{id}` | `capabilities.update` |
+| `DELETE /capabilities/{id}` | `capabilities.delete` |
+| **Fan-out groups** | |
+| `GET /runs/{id}/fan-out-groups` | `fan_out_groups.list_by_run` |
+| `GET /fan-out-groups/{id}` | `fan_out_groups.get` |
+| `POST /fan-out-groups/{id}/cancel` | `fan_out_groups.cancel` |
+| **Agentic apps** | |
+| `GET /apps` | `apps.list` |
+| `POST /apps` | `apps.create` |
+| `GET /apps/{id}` | `apps.get` |
+| `PUT /apps/{id}` | `apps.update` |
+| `DELETE /apps/{id}` | `apps.delete` |
+| `GET /apps/{id}/delegation` | `apps.delegation` |
+| `POST /apps/{id}/delegation` | `apps.apply_delegation` |
+| `GET /apps/{id}/revisions` | `apps.revisions` |
+| `POST /apps/{id}/revisions` | `apps.create_revision` |
+| `GET /apps/{id}/revisions/{revId}` | `apps.get_revision` |
+| `POST /apps/{id}/revisions/{revId}/publish` | `apps.publish_revision` |
+| `POST /apps/{id}/promote` | `apps.promote` |
+| **App gateway (absolute paths; `gateway` is `client.AppGateway(slug)` in C#, `client.app_gateway(slug)` in Python, `client.appGateway(slug)` or `new AppGatewayClient(baseUrl, slug)` in JavaScript, `client.AppGateway(slug)` or `garrison.NewAppGatewayClient(baseURL, slug)` in Go)** | |
+| `GET /v1.0/apps/{slug}` | `gateway.info` |
+| `GET /v1.0/apps/{slug}/logo` | `gateway.logo`, `logo_url` |
+| `POST /v1.0/apps/{slug}/session` | `gateway.start_session` |
+| `DELETE /v1.0/apps/{slug}/session` | `gateway.end_session` |
+| `GET /v1.0/apps/{slug}/conversations` | `gateway.conversations` |
+| `POST /v1.0/apps/{slug}/conversations` | `gateway.start_conversation` |
+| `GET /v1.0/apps/{slug}/conversations/{id}` | `gateway.conversation`, `wait_for_turn` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `gateway.send` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `gateway.stream_turn` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files` | `gateway.files` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/content` | `gateway.read_file` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/versions` | `gateway.file_versions` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/files/download-url` | `gateway.download_url` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/stream` | `gateway.stream_files` |
+| **Studio drafts** | |
+| `GET /studio/drafts` | `studio_drafts.list` |
+| `POST /studio/drafts` | `studio_drafts.create` |
+| `GET /studio/drafts/{id}` | `studio_drafts.get` |
+| `DELETE /studio/drafts/{id}` | `studio_drafts.delete` |
+| `PUT /studio/drafts/{id}/items/{kind}/{name}` | `studio_drafts.put_item` |
+| `DELETE /studio/drafts/{id}/items/{kind}/{name}` | `studio_drafts.remove_item` |
+| `GET /studio/drafts/{id}/diff` | `studio_drafts.diff` |
+| `POST /studio/drafts/{id}/validate` | `studio_drafts.validate` |
+| `POST /studio/drafts/{id}/request-apply` | `studio_drafts.request_apply` |
+| `GET /studio/drafts/{id}/graph` | `studio_drafts.graph` |
+| `POST /studio/drafts/{id}/graph-operations` | `studio_drafts.graph_operation` |
+| **Architect prompts** | |
+| `GET /studio/architect-prompts` | `studio_drafts.list_architect_prompts` |
+| `GET /studio/architects/{deploymentId}/prompt` | `studio_drafts.get_architect_prompt` |
+| `PUT /studio/architects/{deploymentId}/prompt` | `studio_drafts.set_architect_prompt` |
+| `POST /deployments` (architect fields) | `deployments.create` |
+| `POST /prompt-templates/{id}/clone` | `prompt_templates.clone` |
+| `PUT /prompt-templates/{id}` | `prompt_templates.update` |
+| `POST /prompt-templates/{id}/reset` | `prompt_templates.reset` |
+| `POST /prompt-templates/{id}/render` | `prompt_templates.render` |
+| `POST /prompt-templates/render` | `prompt_templates.render_content` |
+| `DELETE /prompt-templates/{id}` (409 `PromptTemplateInUse`) | `prompt_templates.delete` |
+| **Playground and compile preview** | |
+| `POST /studio/drafts/{id}/playground/invoke` | `studio_drafts.playground_invoke` |
+| `POST /agents/{agentId}/playground/invoke` | `agents.playground_invoke` |
+| `POST /deployments/{id}/compile-preview` (`agentRevisionId`, `environment`) | `deployments.compile_preview` |
+
 ## Interactive console
 
 ```sh
 python -m garrison_sdk http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+
+```text
+keys
+apply examples/agentic-apps/support-triage/support-triage.yaml
+studio-draft support-triage
+architect-prompts
+architect
+chat support-triage My invoice was charged twice.
+```
 
 ## Executor capabilities
 

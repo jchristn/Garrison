@@ -493,6 +493,74 @@ class AppDelegationPlan(TypedDict, total=False):
     members: List[AppDelegationMember]
 
 
+class AppInfo(TypedDict, total=False):
+    """Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials."""
+    slug: str
+    displayName: str
+    description: Optional[str]
+    welcomeText: Optional[str]
+    primaryColor: Optional[str]
+    accentColor: Optional[str]
+    logoUrl: Optional[str]
+    authMode: str
+    anonymousAllowed: bool
+    showOperatorDetail: bool
+
+
+class AppSessionResponse(TypedDict, total=False):
+    """An app session. token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app."""
+    token: str
+    expiresUtc: str
+    principalName: str
+    anonymous: bool
+
+
+class AppTurnView(TypedDict, total=False):
+    """One turn of an app conversation as an end user sees it."""
+    runId: str
+    turn: int
+    message: str
+    status: str
+    answer: Optional[str]
+    error: Optional[str]
+    awaitingApproval: bool
+    createdUtc: str
+    completedUtc: Optional[str]
+
+
+class AppConversationView(TypedDict, total=False):
+    """An app conversation as its owner sees it. turns is empty in listings and filled when one conversation is read."""
+    id: str
+    title: Optional[str]
+    turnCount: int
+    busy: bool
+    lastRunId: Optional[str]
+    createdUtc: str
+    lastActivityUtc: Optional[str]
+    turns: List[AppTurnView]
+
+
+class AppConversationStart(TypedDict, total=False):
+    """Answer to starting an app conversation."""
+    conversationId: str
+    turn: AppTurnView
+
+
+class AppFileChange(TypedDict, total=False):
+    """One changed file in a files.changed event."""
+    path: str
+    version: int
+    deleted: bool
+    sha256: Optional[str]
+    sizeBytes: int
+
+
+class AppFilesChanged(TypedDict, total=False):
+    """A files.changed event of an app conversation. The first event lists every current file."""
+    conversationId: str
+    changed: List[AppFileChange]
+
+
 class StudioDraftItem(TypedDict, total=False):
     """One manifest document in a studio draft, keyed by kind and name. operation is one of STUDIO_DRAFT_OPERATIONS
     (Upsert creates or updates the resource; Delete deletes it when the draft is applied). document is the manifest YAML
@@ -975,6 +1043,27 @@ def _seg(value: str) -> str:
     return quote(str(value), safe="")
 
 
+def _sse_lines(response: requests.Response) -> Iterator[str]:
+    """Yield the lines of a server-sent event stream as soon as each arrives. iter_lines waits for a full chunk, which
+    holds back small events on streams that stay open without chunked encoding."""
+    raw = response.raw
+    read = getattr(raw, "read1", None)
+    buffer = b""
+    while True:
+        chunk = read(65536) if read is not None else raw.read(1)
+        if not chunk:
+            break
+        buffer += chunk
+        while True:
+            index = buffer.find(b"\n")
+            if index < 0:
+                break
+            line, buffer = buffer[:index], buffer[index + 1:]
+            yield line.rstrip(b"\r").decode("utf-8", errors="replace")
+    if buffer:
+        yield buffer.rstrip(b"\r").decode("utf-8", errors="replace")
+
+
 class Transport:
     """HTTP transport: authentication, signing, JSON, errors, and server-sent events."""
 
@@ -1062,7 +1151,7 @@ class Transport:
             if response.status_code >= 400:
                 raise GarrisonError(response.status_code, response.text)
             event: Dict[str, Any] = {"event": None, "id": None, "data": []}
-            for line in response.iter_lines(decode_unicode=True):
+            for line in _sse_lines(response):
                 if line is None:
                     continue
                 if line == "":
@@ -1564,6 +1653,143 @@ class Apps(Resource):
         if note:
             body["note"] = note
         return self._t.request("POST", self._item(id) + "/promote", body=body)
+
+
+class AppGateway:
+    """Client for an agentic app's end-user gateway at /v1.0/apps/{slug}/.
+
+    It needs no management credentials: start a session with an email and password, or anonymously when the app
+    allows it, and the session token (prefix gas_) is kept and sent as a bearer token. The token works only on this
+    app's gateway and reaches only the conversations its owner started (anything else is 404). Errors raise
+    GarrisonError: 401 InvalidCredentials, AppSignInRequired, AnonymousDisabled, or an expired session; 403
+    AppAccessDenied; 409 AppNotDeployed, ConversationBusy, or AppRateLimited. Not thread-safe while a session starts.
+
+    Example:
+        gateway = AppGateway("http://127.0.0.1:8700", "support-triage")
+        gateway.start_session()
+        started = gateway.start_conversation("My invoice was charged twice.")
+        turn = gateway.wait_for_turn(started["conversationId"], started["turn"]["runId"])
+        print(turn["answer"])
+    """
+
+    def __init__(self, base_url: str = DEFAULT_BASE_URL, slug: str = "", timeout: float = 600.0,
+                 session: Optional[requests.Session] = None):
+        if not slug:
+            raise ValueError("slug is required")
+        self.slug = slug
+        self.transport = Transport(base_url, timeout, session)
+        self.session: Optional[AppSessionResponse] = None
+
+    @property
+    def token(self) -> Optional[str]:
+        """The session token sent as Authorization: Bearer, or None before a session starts."""
+        return self.transport.token
+
+    @token.setter
+    def token(self, value: Optional[str]) -> None:
+        self.transport.token = value
+        self.transport.mode = "token" if value else "none"
+
+    def _p(self, suffix: str = "") -> str:
+        return f"/v1.0/apps/{_seg(self.slug)}{suffix}"
+
+    def _c(self, id: str, suffix: str = "") -> str:
+        return self._p(f"/conversations/{_seg(id)}{suffix}")
+
+    def info(self) -> AppInfo:
+        """Branding and how to sign in. Needs no session."""
+        return self.transport.request("GET", self._p())
+
+    def logo_url(self) -> str:
+        """Absolute URL of the app's logo image (404 when the app has none)."""
+        return self.transport.base_url + self._p("/logo")
+
+    def logo(self) -> bytes:
+        """The app's logo image bytes. Raises GarrisonError 404 when the app has none."""
+        return self.transport.request_bytes(self._p("/logo"))
+
+    def start_session(self, email: Optional[str] = None, password: Optional[str] = None) -> AppSessionResponse:
+        """Start a session with an email and password, or with neither for an anonymous session (only when the app's
+        authMode is Anonymous and anonymous use is enabled). The token is kept for later calls."""
+        previous = self.token
+        self.token = None
+        try:
+            body = {"email": email, "password": password} if email is not None else None
+            started: AppSessionResponse = self.transport.request("POST", self._p("/session"), body=body)
+        except Exception:
+            self.token = previous
+            raise
+        self.token = started["token"]
+        self.session = started
+        return started
+
+    def end_session(self) -> None:
+        """Sign out and forget the token."""
+        self.transport.request("DELETE", self._p("/session"))
+        self.token = None
+        self.session = None
+
+    def conversations(self) -> List[AppConversationView]:
+        """The session owner's conversations in the app."""
+        return self.transport.request("GET", self._p("/conversations")) or []
+
+    def start_conversation(self, message: str) -> AppConversationStart:
+        """Start a conversation with the app's entry agent on the live environment's entry deployment."""
+        return self.transport.request("POST", self._p("/conversations"), body={"message": message})
+
+    def conversation(self, id: str) -> AppConversationView:
+        """One of the owner's conversations with its turns."""
+        return self.transport.request("GET", self._c(id))
+
+    def send(self, id: str, message: str) -> AppTurnView:
+        """Send the next message; raises GarrisonError 409 ConversationBusy while the previous turn runs."""
+        return self.transport.request("POST", self._c(id, "/messages"), body={"message": message})
+
+    def stream_turn(self, id: str, run_id: str, after_sequence: int = 0) -> Iterator[Dict[str, Any]]:
+        """Yield {'event', 'id', 'data'} items for a turn until turn.completed. data is the parsed JSON: a run event for
+        turn.event, a turn for turn.status and turn.completed. after_sequence resumes after a turn.event id."""
+        for message in self.transport.stream(self._c(id, f"/turns/{_seg(run_id)}/stream"), {"afterSequence": after_sequence}):
+            if message["event"] not in ("turn.event", "turn.status", "turn.completed"):
+                continue
+            yield {"event": message["event"], "id": message["id"], "data": json.loads(message["data"]) if message["data"] else None}
+            if message["event"] == "turn.completed":
+                return
+
+    def wait_for_turn(self, id: str, run_id: str, timeout_seconds: float = 120.0, poll_seconds: float = 0.5) -> AppTurnView:
+        """Poll the conversation until the turn with run_id reaches a terminal status or the timeout elapses; returns the
+        turn as it stands then."""
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            view = self.conversation(id)
+            turn = next((t for t in view.get("turns", []) if t.get("runId") == run_id), None)
+            if turn is not None and (turn.get("status") in TERMINAL_STATUSES or time.monotonic() >= deadline):
+                return turn
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"turn {run_id} was not listed in conversation {id}")
+            time.sleep(poll_seconds)
+
+    def files(self, id: str) -> FileSpaceListing:
+        """List the conversation's files."""
+        return self.transport.request("GET", self._c(id, "/files"))
+
+    def read_file(self, id: str, path: str, version: Optional[int] = None) -> bytes:
+        """Read a file's content (the current version, or the given version)."""
+        return self.transport.request_bytes(self._c(id, "/files/content"), {"path": path, "version": version})
+
+    def file_versions(self, id: str, path: str) -> List[ConversationFileVersion]:
+        """A file's versions, newest first."""
+        return self.transport.request("GET", self._c(id, "/files/versions"), {"path": path}) or []
+
+    def download_url(self, id: str, path: str, version: Optional[int] = None) -> FileDownloadUrl:
+        """A short-lived download URL for a file (the current version, or the given version)."""
+        return self.transport.request("POST", self._c(id, "/files/download-url"), {"path": path, "version": version})
+
+    def stream_files(self, id: str) -> Iterator[AppFilesChanged]:
+        """Yield files.changed events for the conversation; the first lists every current file. The stream stays open
+        until the caller stops iterating or the server closes it."""
+        for message in self.transport.stream(self._c(id, "/files/stream")):
+            if message["event"] == "files.changed" and message["data"]:
+                yield json.loads(message["data"])
 
 
 class StudioDrafts:
@@ -2277,6 +2503,11 @@ class GarrisonClient:
             raise
         self.use_token(issued["token"], issued.get("tenantId"))
         return issued
+
+    def app_gateway(self, slug: str) -> AppGateway:
+        """An end-user gateway client for the app with this slug, on the same server. It starts with no session and never
+        sends this client's management credentials."""
+        return AppGateway(self.transport.base_url, slug, self.transport.timeout)
 
     def login(self, email: str, password: str, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         return self._issue({"email": email, "password": password, "tenantId": tenant_id})

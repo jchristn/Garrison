@@ -3,6 +3,7 @@ namespace Garrison.Sdk.Test
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Net.Http;
     using System.Security.Cryptography;
@@ -1424,6 +1425,66 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("app gateway chat with the support triage bundle", async () =>
+                {
+                    string bundle = await File.ReadAllTextAsync(FindExample("support-triage/support-triage.yaml"), token).ConfigureAwait(false);
+                    ManifestApply applied = await client.Manifests.ApplyAsync(bundle, false, false, token).ConfigureAwait(false);
+                    Require(applied.FailedCount == 0, "bundle apply failed " + applied.FailedCount);
+                    AgenticApp app = await client.Apps.GetAsync("support-triage", token).ConfigureAwait(false);
+                    using (AppGatewayClient gateway = client.AppGateway(app.Slug))
+                    {
+                        AppInfo info = await gateway.InfoAsync(token).ConfigureAwait(false);
+                        Require(info.Slug == app.Slug && info.AuthMode == AppAuthModeEnum.Anonymous && info.AnonymousAllowed, "info " + info.Slug + " " + info.AuthMode);
+                        Require(gateway.LogoUrl().EndsWith("/v1.0/apps/" + app.Slug + "/logo", StringComparison.Ordinal), "logo URL " + gateway.LogoUrl());
+                        int logoStatus = 0;
+                        try
+                        {
+                            await gateway.GetLogoAsync(token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 404)
+                        {
+                            logoStatus = 404;
+                        }
+                        Require(logoStatus == 404, "an app without a logo served one");
+                        AppSessionResponse session = await gateway.StartSessionAsync(null, token).ConfigureAwait(false);
+                        Require(session.Anonymous && session.Token.StartsWith("gas_", StringComparison.Ordinal) && gateway.Token == session.Token, "session " + session.PrincipalName);
+                        AppConversationStart started = await gateway.StartConversationAsync("My invoice was charged twice.", token).ConfigureAwait(false);
+                        List<string> names = new List<string>();
+                        await foreach (AppTurnStreamEvent frame in gateway.StreamTurnAsync(started.ConversationId, started.Turn.RunId, 0, token).ConfigureAwait(false)) names.Add(frame.Name);
+                        Require(names.Count > 0 && names[names.Count - 1] == "turn.completed", "turn stream " + String.Join(",", names));
+                        AppTurnView turn = await gateway.WaitForTurnAsync(started.ConversationId, started.Turn.RunId, TimeSpan.FromSeconds(120), token).ConfigureAwait(false);
+                        Require(turn.Status == RunStatusEnum.Succeeded && !String.IsNullOrEmpty(turn.Answer), "turn " + turn.Status + " " + turn.Error);
+                        AppConversationView view = await gateway.GetConversationAsync(started.ConversationId, token).ConfigureAwait(false);
+                        Require(view.Id == started.ConversationId && view.Turns.Count == 1, "conversation turns " + view.Turns.Count);
+                        List<AppConversationView> listed = await gateway.ListConversationsAsync(token).ConfigureAwait(false);
+                        Require(listed.Any(c => c.Id == started.ConversationId), "conversation not listed");
+                        FileSpaceListing files = await gateway.ListFilesAsync(started.ConversationId, token).ConfigureAwait(false);
+                        Require(files.Files != null, "file listing");
+                        using (CancellationTokenSource streamCts = CancellationTokenSource.CreateLinkedTokenSource(token))
+                        {
+                            AppFilesChanged? first = null;
+                            await foreach (AppFilesChanged changed in gateway.StreamFilesAsync(started.ConversationId, streamCts.Token).ConfigureAwait(false))
+                            {
+                                first = changed;
+                                break;
+                            }
+                            Require(first != null && first.ConversationId == started.ConversationId, "files.changed");
+                        }
+                        await gateway.EndSessionAsync(token).ConfigureAwait(false);
+                        Require(gateway.Token == null, "EndSessionAsync kept the token");
+                        int status = 0;
+                        try
+                        {
+                            await gateway.ListConversationsAsync(token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 401)
+                        {
+                            status = 401;
+                        }
+                        Require(status == 401, "conversations without a session were served");
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("playground and compile preview of a draft revision", async () =>
                 {
                     Agent agent = new Agent();
@@ -1505,6 +1566,21 @@ namespace Garrison.Sdk.Test
                 _Failures.Add(name + ": " + e.Message);
                 Console.WriteLine("FAIL  " + name + " (" + timer.ElapsedMilliseconds + "ms): " + e.Message);
             }
+        }
+
+        private static string FindExample(string relative, [System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "")
+        {
+            foreach (string? start in new[] { Path.GetDirectoryName(sourceFile), Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+            {
+                string? directory = start;
+                while (!String.IsNullOrEmpty(directory))
+                {
+                    string candidate = Path.Combine(directory, "examples", "agentic-apps", relative);
+                    if (File.Exists(candidate)) return candidate;
+                    directory = Path.GetDirectoryName(directory);
+                }
+            }
+            throw new FileNotFoundException("examples/agentic-apps/" + relative + " was not found above the source, working, or base directory.");
         }
 
         private static void Require(bool condition, string message)

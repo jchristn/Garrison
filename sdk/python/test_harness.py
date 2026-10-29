@@ -994,6 +994,46 @@ def t_architect_prompts():
         client.prompt_templates.delete(clone["id"])
 
 
+def t_app_gateway():
+    bundle_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "examples", "agentic-apps", "support-triage", "support-triage.yaml")
+    with open(bundle_path, encoding="utf-8") as handle:
+        applied = client.manifests.apply(handle.read())
+    require(applied["failedCount"] == 0, f"bundle apply {applied}")
+    app = client.apps.get("support-triage")
+    gateway = client.app_gateway(app["slug"])
+    info = gateway.info()
+    require(info["slug"] == app["slug"] and info["authMode"] == "Anonymous" and info["anonymousAllowed"] is True, f"info {info}")
+    require(gateway.logo_url().endswith(f"/v1.0/apps/{app['slug']}/logo"), gateway.logo_url())
+    try:
+        gateway.logo()
+        raise AssertionError("an app without a logo served one")
+    except GarrisonError as e:
+        require(e.status_code == 404, f"logo status {e.status_code}")
+    session = gateway.start_session()
+    require(session["anonymous"] is True and session["token"].startswith("gas_") and gateway.token == session["token"], f"session {session}")
+    started = gateway.start_conversation("My invoice was charged twice.")
+    conversation_id, run_id = started["conversationId"], started["turn"]["runId"]
+    events = [item["event"] for item in gateway.stream_turn(conversation_id, run_id)]
+    require(events and events[-1] == "turn.completed", f"turn stream {events}")
+    turn = gateway.wait_for_turn(conversation_id, run_id)
+    require(turn["status"] == "Succeeded" and turn.get("answer"), f"turn {turn}")
+    view = gateway.conversation(conversation_id)
+    require(view["id"] == conversation_id and len(view["turns"]) == 1, f"conversation {view}")
+    require(any(c["id"] == conversation_id for c in gateway.conversations()), "conversation not listed")
+    require("files" in gateway.files(conversation_id), "file listing")
+    stream = gateway.stream_files(conversation_id)
+    first = next(stream)
+    stream.close()
+    require(first["conversationId"] == conversation_id and isinstance(first["changed"], list), f"files.changed {first}")
+    gateway.end_session()
+    require(gateway.token is None, "end_session kept the token")
+    try:
+        gateway.conversations()
+        raise AssertionError("conversations without a session succeeded")
+    except GarrisonError as e:
+        require(e.status_code == 401, f"status without a session {e.status_code}")
+
+
 def t_playground():
     agent = client.agents.create({"name": f"sdk-py-playground-{SUFFIX}", "description": "Python SDK harness playground agent."})
     dev = None
@@ -1059,7 +1099,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

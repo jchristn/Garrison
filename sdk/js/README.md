@@ -2,6 +2,8 @@
 
 Client for the Garrison REST API, written in TypeScript and published as ESM and CommonJS with type declarations. It uses `fetch` and Web Crypto, so it runs on Node 18+ and in modern browsers.
 
+**Garrison Agent Studio.** Garrison is a runtime for headless agent harnesses: a multi-tenant control plane with pull-based workers, exposed over REST, MCP, and A2A. Since 0.2.0 it is also an agent studio built on that runtime, so one platform covers an agentic app from start to finish. You build it with the agent architect (chat) or the canvas, test it in the playground, apply it through an approval, promote it between environments, run and scale it on the workers, and give its end users their own chat at `/apps/{slug}/`. This SDK reaches both halves: the management API for the runtime and the studio, and the end-user gateway of each app.
+
 ## Install
 
 The package is not published to npm yet, so `npm install @garrison/sdk` fails. Build it from your checkout of the repository and install it by path:
@@ -362,6 +364,8 @@ await gateway.endSession();
 
 `conversations()` lists the session owner's conversations and `conversation(id)` reads one with its turns (`AppTurnView`: `runId`, `turn`, `message`, `status`, `answer`, `error`, `awaitingApproval`). `streamTurn` reads the server-sent event stream with `fetch` and calls the callback for each `turn.event` (a visible `RunEvent`), `turn.status`, and `turn.completed`, and resolves with the completed turn. When the connection drops first it reconnects and resumes after the last event id with `Last-Event-ID`; `maxReconnects` (default 5) and `reconnectDelayMs` (default 1000) tune that. Errors reject with `GarrisonError`: 401 `InvalidCredentials`, `AppSignInRequired`, or `AnonymousDisabled`, 403 `AppAccessDenied`, and 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`.
 
+`client.appGateway(slug)` returns a gateway client for the same server without the management credentials. `waitForTurn(conversationId, runId, timeoutMs?)` polls the conversation until the turn is terminal (default 120 seconds). `streamFiles(conversationId, onEvent)` reads the `files.changed` stream (the first event lists every current file) until the callback returns `false`. `logo()` returns the logo bytes and rejects with 404 when the app has none.
+
 ## Studio drafts
 
 A studio draft holds manifest documents for agents and apps while they are being designed, and nothing changes in live configuration until a person approves applying it (see [docs/STUDIO.md](../../docs/STUDIO.md)). `client.studioDrafts` lists drafts (`mine: true` for your own, plus the usual `search`, `maxResults`, and `skip`), creates one (empty, or from an existing app with `fromApp`), reads, and deletes them. A `StudioDraft` has `id` (`sdr_...`), `title`, `ownerUserId`, `ownerName`, `targetApp`, `version`, `status` (`StudioDraftStatus`: `Open`, `PendingApproval`, `Applied`, `Discarded`), `approvalId`, `manifestApplyId`, `items` (`StudioDraftItem`: `kind`, `name`, `operation` (`Upsert` or `Delete`), `document`, `baseHash`), and `layout` (canvas positions).
@@ -493,6 +497,8 @@ npm run build
 node test-harness.mjs http://127.0.0.1:8700 access_garrison_default secret_garrison_default_change_me
 ```
 
+`npm run build` writes both module formats: ESM to `dist/esm` (with the type declarations) and CommonJS to `dist/cjs`, which gets its own `package.json` with `"type": "commonjs"`. The `exports` map in `package.json` sends `import` to the first and `require` to the second.
+
 The harness arguments are the base URL, an access key, and a secret key. The values above are the Docker Compose and source-build defaults; on Kubernetes pass the keys from Secret `garrison-secrets` (see "Where the credentials come from"). When the server rejects the keys, the harness stops after the token check with one message that says so.
 
 ## Model prices
@@ -505,13 +511,161 @@ The usage-quota module provides CRUD operations and `client.usageQuotas.usage(id
 
 Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to `true` (Go: `EnforcementEnabled`, C#: `EnforcementEnabled`) on an active quota to enforce limits. Disabled enforcement does not reject runs or lower harness budgets.
 
+## Agent Studio walkthrough
+
+The studio commands of the [interactive console](#interactive-console) run these steps end to end. In code:
+
+```ts
+import { readFileSync } from "node:fs";
+
+// 1. Create an app from a bundle (applying again changes nothing).
+const applied = await client.manifests.apply(readFileSync("examples/agentic-apps/support-triage/support-triage.yaml", "utf8"));
+
+// 2. Open a studio draft holding the app and everything it references.
+const draft = await client.studioDrafts.create({ title: "Support triage changes", fromApp: "support-triage" });
+
+// 3. List architect prompts and select one for an architect deployment.
+const prompts = await client.studioDrafts.listArchitectPrompts();
+let architectId = prompts.flatMap((p) => p.deployments ?? [])[0];
+if (!architectId) {
+  const architect = await client.agents.get("agent-architect");
+  architectId = (await client.deployments.create({ name: "agent-architect-sdk", agentId: architect.id, harnessProfileId: "hrn_builtin_fake" })).id;
+}
+await client.studioDrafts.setArchitectPrompt(architectId, prompts[0].id);
+
+// 4. Chat with the app through its gateway as an anonymous end user.
+const gateway = client.appGateway("support-triage");
+await gateway.startSession();
+const { conversationId, turn } = await gateway.startConversation("My invoice was charged twice.");
+await gateway.streamTurn(conversationId, turn.runId, (e) => console.log(e.event));
+const done = await gateway.waitForTurn(conversationId, turn.runId);
+console.log(done.status, done.answer);
+```
+
+The support triage bundle runs on the fake harness, so the server needs a worker with `garrison-fake-harness` on its `PATH`.
+
+## 0.2.0 route coverage
+
+Every route added in 0.2.0, with the method that calls it. Tenant routes are relative to `/v1.0/api/tenants/{tenantId}`; the app gateway routes are absolute. Two anonymous routes have no method on purpose: `GET /v1.0/asset-download/{assetId}` is for leased runs on workers, and `GET /v1.0/file-download/{fileSpaceId}` is the plain URL that the `download-url` methods return.
+
+| Route | Method |
+|---|---|
+| **Agent revisions** | |
+| `GET /agents/{id}/revisions` | `agents.listRevisions` |
+| `POST /agents/{id}/revisions` | `agents.saveDraft` |
+| `GET /agents/{id}/revisions/diff` | `agents.diffRevisions` |
+| `GET /agents/{id}/revisions/{revId}` | `agents.getRevision` |
+| `DELETE /agents/{id}/revisions/{revId}` | `agents.deleteRevision` |
+| `POST /agents/{id}/revisions/{revId}/publish` | `agents.publishRevision` |
+| **Environments and promotions** | |
+| `GET /environments` | `environments.get` |
+| `PUT /environments` | `environments.update` |
+| `GET /promotions` | `promotions.list` |
+| `POST /promotions` | `promotions.promote` |
+| `GET /promotions/{id}` | `promotions.get` |
+| `POST /promotions/{id}/rollback` | `promotions.rollback` |
+| **Agent assets** | |
+| `GET /agent-assets` | `agentAssets.list` |
+| `POST /agent-assets` | `agentAssets.create` |
+| `GET /agent-assets/{id}` | `agentAssets.get` |
+| `PUT /agent-assets/{id}` | `agentAssets.update` |
+| `DELETE /agent-assets/{id}` | `agentAssets.delete` |
+| `GET /agent-assets/{id}/versions` | `agentAssets.listVersions` |
+| `POST /agent-assets/{id}/versions` | `agentAssets.uploadVersion`, `uploadRaw` |
+| `GET /agent-assets/{id}/versions/{n}` | `agentAssets.getVersion` |
+| `GET /agent-assets/{id}/versions/{n}/files` | `agentAssets.downloadFile` |
+| **File spaces (`conversations` or `runs` as the owner)** | |
+| `GET /{owner}/{id}/files` | `fileSpaces.list` |
+| `GET /{owner}/{id}/files/content` | `fileSpaces.read`, `readText` |
+| `GET /{owner}/{id}/files/versions` | `fileSpaces.versions` |
+| `POST /{owner}/{id}/files` | `fileSpaces.write`, `writeRaw` |
+| `DELETE /{owner}/{id}/files` | `fileSpaces.delete` |
+| `POST /{owner}/{id}/files/download-url` | `fileSpaces.downloadUrl` |
+| **Capabilities** | |
+| `GET /capabilities` | `capabilities.list` |
+| `POST /capabilities` | `capabilities.create` |
+| `POST /capabilities/refresh` | `capabilities.refresh` |
+| `GET /capabilities/{id}` | `capabilities.get` |
+| `PUT /capabilities/{id}` | `capabilities.update` |
+| `DELETE /capabilities/{id}` | `capabilities.delete` |
+| **Fan-out groups** | |
+| `GET /runs/{id}/fan-out-groups` | `fanOutGroups.listByRun` |
+| `GET /fan-out-groups/{id}` | `fanOutGroups.get` |
+| `POST /fan-out-groups/{id}/cancel` | `fanOutGroups.cancel` |
+| **Agentic apps** | |
+| `GET /apps` | `apps.list` |
+| `POST /apps` | `apps.create` |
+| `GET /apps/{id}` | `apps.get` |
+| `PUT /apps/{id}` | `apps.update` |
+| `DELETE /apps/{id}` | `apps.delete` |
+| `GET /apps/{id}/delegation` | `apps.delegation` |
+| `POST /apps/{id}/delegation` | `apps.applyDelegation` |
+| `GET /apps/{id}/revisions` | `apps.revisions` |
+| `POST /apps/{id}/revisions` | `apps.createRevision` |
+| `GET /apps/{id}/revisions/{revId}` | `apps.getRevision` |
+| `POST /apps/{id}/revisions/{revId}/publish` | `apps.publishRevision` |
+| `POST /apps/{id}/promote` | `apps.promote` |
+| **App gateway (absolute paths; `gateway` is `client.AppGateway(slug)` in C#, `client.app_gateway(slug)` in Python, `client.appGateway(slug)` or `new AppGatewayClient(baseUrl, slug)` in JavaScript, `client.AppGateway(slug)` or `garrison.NewAppGatewayClient(baseURL, slug)` in Go)** | |
+| `GET /v1.0/apps/{slug}` | `gateway.info` |
+| `GET /v1.0/apps/{slug}/logo` | `gateway.logo`, `logoUrl` |
+| `POST /v1.0/apps/{slug}/session` | `gateway.startSession` |
+| `DELETE /v1.0/apps/{slug}/session` | `gateway.endSession` |
+| `GET /v1.0/apps/{slug}/conversations` | `gateway.conversations` |
+| `POST /v1.0/apps/{slug}/conversations` | `gateway.startConversation` |
+| `GET /v1.0/apps/{slug}/conversations/{id}` | `gateway.conversation`, `waitForTurn` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `gateway.send` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `gateway.streamTurn` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files` | `gateway.files` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/content` | `gateway.readFile` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/versions` | `gateway.fileVersions` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/files/download-url` | `gateway.downloadUrl` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/stream` | `gateway.streamFiles` |
+| **Studio drafts** | |
+| `GET /studio/drafts` | `studioDrafts.list` |
+| `POST /studio/drafts` | `studioDrafts.create` |
+| `GET /studio/drafts/{id}` | `studioDrafts.get` |
+| `DELETE /studio/drafts/{id}` | `studioDrafts.delete` |
+| `PUT /studio/drafts/{id}/items/{kind}/{name}` | `studioDrafts.putItem` |
+| `DELETE /studio/drafts/{id}/items/{kind}/{name}` | `studioDrafts.removeItem` |
+| `GET /studio/drafts/{id}/diff` | `studioDrafts.diff` |
+| `POST /studio/drafts/{id}/validate` | `studioDrafts.validate` |
+| `POST /studio/drafts/{id}/request-apply` | `studioDrafts.requestApply` |
+| `GET /studio/drafts/{id}/graph` | `studioDrafts.graph` |
+| `POST /studio/drafts/{id}/graph-operations` | `studioDrafts.graphOperation` |
+| **Architect prompts** | |
+| `GET /studio/architect-prompts` | `studioDrafts.listArchitectPrompts` |
+| `GET /studio/architects/{deploymentId}/prompt` | `studioDrafts.getArchitectPrompt` |
+| `PUT /studio/architects/{deploymentId}/prompt` | `studioDrafts.setArchitectPrompt` |
+| `POST /deployments` (architect fields) | `deployments.create` |
+| `POST /prompt-templates/{id}/clone` | `promptTemplates.clone` |
+| `PUT /prompt-templates/{id}` | `promptTemplates.update` |
+| `POST /prompt-templates/{id}/reset` | `promptTemplates.reset` |
+| `POST /prompt-templates/{id}/render` | `promptTemplates.render` |
+| `POST /prompt-templates/render` | `promptTemplates.renderContent` |
+| `DELETE /prompt-templates/{id}` (409 `PromptTemplateInUse`) | `promptTemplates.delete` |
+| **Playground and compile preview** | |
+| `POST /studio/drafts/{id}/playground/invoke` | `studioDrafts.playgroundInvoke` |
+| `POST /agents/{agentId}/playground/invoke` | `agents.playgroundInvoke` |
+| `POST /deployments/{id}/compile-preview` (`agentRevisionId`, `environment`) | `deployments.compilePreview` |
+
 ## Interactive console
 
 ```sh
 node sdk/js/bin/console.mjs http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+
+```text
+keys
+apply examples/agentic-apps/support-triage/support-triage.yaml
+studio-draft support-triage
+architect-prompts
+architect
+chat support-triage My invoice was charged twice.
+```
 
 The npm package installs the `garrison` console command. Set `client.transport.abortSignal` to an AbortSignal to cancel SDK HTTP calls and streams; leave it unset for ordinary use.
 

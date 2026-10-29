@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -2185,6 +2186,118 @@ func main() {
 		if _, err := client.PromptTemplates.Reset(ctx, clone.ID); err != nil {
 			return err
 		}
+		rendered, err := client.PromptTemplates.RenderContent(ctx, "Architect for {{agent.displayName}}", map[string]any{"agent": map[string]any{"displayName": "Render Bot"}})
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(rendered.Rendered, "Render Bot") {
+			return fmt.Errorf("ad hoc render %q", rendered.Rendered)
+		}
+		return nil
+	})
+	check("app gateway chat with the support triage bundle", func(ctx context.Context) error {
+		bundlePath := findExample("support-triage/support-triage.yaml")
+		if bundlePath == "" {
+			fmt.Println("      (examples/agentic-apps not found above the working directory; gateway chat skipped)")
+			return nil
+		}
+		bundle, err := os.ReadFile(bundlePath)
+		if err != nil {
+			return err
+		}
+		applied, err := client.Manifests.Apply(ctx, string(bundle), false, false)
+		if err != nil {
+			return err
+		}
+		if applied.FailedCount != 0 {
+			return fmt.Errorf("bundle apply failed %d", applied.FailedCount)
+		}
+		app, err := client.Apps.Get(ctx, "support-triage")
+		if err != nil {
+			return err
+		}
+		gateway := client.AppGateway(app.Slug)
+		info, err := gateway.Info(ctx)
+		if err != nil {
+			return err
+		}
+		if info.Slug != app.Slug || info.AuthMode != garrison.AppAuthModeAnonymous || !info.AnonymousAllowed {
+			return fmt.Errorf("app info %+v", info)
+		}
+		if !strings.HasSuffix(gateway.LogoURL(), "/v1.0/apps/"+app.Slug+"/logo") {
+			return fmt.Errorf("logo URL %s", gateway.LogoURL())
+		}
+		if _, err := gateway.Logo(ctx); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("logo of an app without one: %v", err)
+		}
+		session, err := gateway.StartSession(ctx, "", "")
+		if err != nil {
+			return err
+		}
+		if !session.Anonymous || !strings.HasPrefix(session.Token, "gas_") || gateway.Token() != session.Token {
+			return fmt.Errorf("session %+v", session)
+		}
+		started, err := gateway.StartConversation(ctx, "My invoice was charged twice.")
+		if err != nil {
+			return err
+		}
+		var names []string
+		if err := gateway.StreamTurn(ctx, started.ConversationID, started.Turn.RunID, 0, func(item garrison.AppTurnStreamItem) bool {
+			names = append(names, item.Name)
+			return true
+		}); err != nil {
+			return err
+		}
+		if len(names) == 0 || names[len(names)-1] != "turn.completed" {
+			return fmt.Errorf("turn stream %v", names)
+		}
+		turn, err := gateway.WaitForTurn(ctx, started.ConversationID, started.Turn.RunID)
+		if err != nil {
+			return err
+		}
+		if turn.Status != "Succeeded" || turn.Answer == nil || *turn.Answer == "" {
+			return fmt.Errorf("turn %+v", turn)
+		}
+		view, err := gateway.Conversation(ctx, started.ConversationID)
+		if err != nil {
+			return err
+		}
+		if view.ID != started.ConversationID || len(view.Turns) != 1 {
+			return fmt.Errorf("conversation %+v", view)
+		}
+		listed, err := gateway.Conversations(ctx)
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, c := range listed {
+			found = found || c.ID == started.ConversationID
+		}
+		if !found {
+			return fmt.Errorf("conversation not listed")
+		}
+		if _, err := gateway.Files(ctx, started.ConversationID); err != nil {
+			return err
+		}
+		var first *garrison.AppFilesChanged
+		if err := gateway.StreamFiles(ctx, started.ConversationID, func(changed garrison.AppFilesChanged) bool {
+			first = &changed
+			return false
+		}); err != nil {
+			return err
+		}
+		if first == nil || first.ConversationID != started.ConversationID {
+			return fmt.Errorf("files.changed %+v", first)
+		}
+		if err := gateway.EndSession(ctx); err != nil {
+			return err
+		}
+		if gateway.Token() != "" {
+			return fmt.Errorf("EndSession kept the token")
+		}
+		if _, err := gateway.Conversations(ctx); !garrison.IsStatus(err, http.StatusUnauthorized) {
+			return fmt.Errorf("conversations without a session: %v", err)
+		}
 		return nil
 	})
 	check("playground and compile preview of a draft revision", func(ctx context.Context) (err error) {
@@ -2292,5 +2405,24 @@ func waitPipelineRun(ctx context.Context, client *garrison.Client, id, status st
 			return nil, fmt.Errorf("pipeline run %s is %s (%s), expected %s", id, run.Status, message, status)
 		}
 		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+// findExample looks for examples/agentic-apps/<relative> in the working directory and each directory above it.
+func findExample(relative string) string {
+	directory, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		candidate := filepath.Join(directory, "examples", "agentic-apps", filepath.FromSlash(relative))
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return ""
+		}
+		directory = parent
 	}
 }

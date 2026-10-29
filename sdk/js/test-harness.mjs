@@ -1,6 +1,7 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { AppGatewayClient, EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
@@ -892,6 +893,33 @@ await check("architect prompts", async () => {
     if (deploymentId) await client.deployments.delete(deploymentId);
     await client.promptTemplates.delete(clone.id);
   }
+});
+await check("app gateway chat with the support triage bundle", async () => {
+  const bundle = readFileSync(new URL("../../examples/agentic-apps/support-triage/support-triage.yaml", import.meta.url), "utf8");
+  const applied = await client.manifests.apply(bundle);
+  require(applied.failedCount === 0, `bundle apply ${JSON.stringify(applied)}`);
+  const app = await client.apps.get("support-triage");
+  const gateway = client.appGateway(app.slug);
+  const info = await gateway.info();
+  require(info.slug === app.slug && info.authMode === "Anonymous" && info.anonymousAllowed === true, `info ${JSON.stringify(info)}`);
+  require(gateway.logoUrl().endsWith(`/v1.0/apps/${app.slug}/logo`), gateway.logoUrl());
+  await expectStatus(404, () => gateway.logo());
+  await gateway.startSession();
+  const started = await gateway.startConversation("My invoice was charged twice.");
+  const names = [];
+  const completed = await gateway.streamTurn(started.conversationId, started.turn.runId, (event) => { names.push(event.event); });
+  require(names.at(-1) === "turn.completed" && completed.runId === started.turn.runId, `turn stream ${names}`);
+  const turn = await gateway.waitForTurn(started.conversationId, started.turn.runId);
+  require(turn.status === "Succeeded" && turn.answer, `turn ${JSON.stringify(turn)}`);
+  const view = await gateway.conversation(started.conversationId);
+  require(view.id === started.conversationId && view.turns.length === 1, `conversation ${JSON.stringify(view)}`);
+  require((await gateway.conversations()).some((c) => c.id === started.conversationId), "conversation not listed");
+  require(Array.isArray((await gateway.files(started.conversationId)).files), "file listing");
+  let first;
+  await gateway.streamFiles(started.conversationId, (changed) => { first = changed; return false; });
+  require(first && first.conversationId === started.conversationId && Array.isArray(first.changed), `files.changed ${JSON.stringify(first)}`);
+  await gateway.endSession();
+  await expectStatus(401, () => gateway.conversations());
 });
 await check("playground and compile preview of a draft revision", async () => {
   const agent = await client.agents.create({ name: `sdk-js-playground-${suffix}`, description: "JavaScript SDK harness playground agent." });

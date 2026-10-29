@@ -314,6 +314,11 @@ export type AppTurnStreamEvent =
   | { event: "turn.status"; id?: string; data: AppTurnView }
   | { event: "turn.completed"; id?: string; data: AppTurnView };
 
+/** One changed file in a files.changed event. */
+export interface AppFileChange { path: string; version: number; deleted: boolean; sha256?: string | null; sizeBytes: number; }
+/** A files.changed event of an app conversation. The first event of a stream lists every current file. */
+export interface AppFilesChanged { conversationId: string; changed: AppFileChange[]; }
+
 /** Options for {@link AppGatewayClient.streamTurn}. */
 export interface AppTurnStreamOptions {
   /** Resume after this event id (a turn.event sequence) instead of from the start. */
@@ -1945,6 +1950,8 @@ export class AppGatewayClient {
   info(): Promise<AppInfo> { return this.json("GET", this.path()); }
   /** Absolute URL of the app's logo image (404 when the app has none). */
   logoUrl(): string { return this.baseUrl + this.path("/logo"); }
+  /** The app's logo image bytes; rejects with 404 when the app has none. */
+  async logo(): Promise<Uint8Array> { return new Uint8Array(await (await this.request("GET", this.path("/logo"))).arrayBuffer()); }
 
   /**
    * Start a session with an email and password, or with no credentials for an anonymous session (only when the app's
@@ -2014,6 +2021,40 @@ export class AppGatewayClient {
       failures = received ? 1 : failures + 1;
       if (failures > maxReconnects) throw failure;
       await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  /**
+   * Poll the conversation until the turn with runId reaches a terminal status or timeoutMs elapses (default 120000);
+   * resolves with the turn as it stands then. Rejects when the turn is not listed before the timeout.
+   */
+  async waitForTurn(id: string, runId: string, timeoutMs = 120000, pollMs = 500): Promise<AppTurnView> {
+    const deadline = Date.now() + timeoutMs;
+    while (true) {
+      const view = await this.conversation(id);
+      const turn = (view.turns ?? []).find((t) => t.runId === runId);
+      if (turn && (TERMINAL_STATUSES.includes(turn.status) || Date.now() >= deadline)) return turn;
+      if (Date.now() >= deadline) throw new Error(`Turn ${runId} was not listed in conversation ${id} before the timeout.`);
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
+  }
+
+  /**
+   * Stream files.changed events for the conversation (the first lists every current file), calling onEvent for each.
+   * Resolves when onEvent returns false, the server closes the stream, or abortSignal aborts (which rejects).
+   */
+  async streamFiles(id: string, onEvent: (event: AppFilesChanged) => boolean | void | Promise<boolean | void>): Promise<void> {
+    const response = await this.request("GET", this.conversationPath(id, "/files/stream"), undefined, undefined, { Accept: "text/event-stream" });
+    if (!response.body) return;
+    const reader = readServerSentEvents(response.body);
+    try {
+      for await (const message of reader) {
+        if (message.event !== "files.changed" || !message.data) continue;
+        if ((await onEvent(JSON.parse(message.data) as AppFilesChanged)) === false) return;
+      }
+    } finally {
+      await reader.return(undefined);
+      await response.body.cancel().catch(() => undefined);
     }
   }
 
@@ -2635,6 +2676,12 @@ export class GarrisonClient {
 
   get tenantId(): string | undefined { return this.transport.tenantId; }
   set tenantId(value: string | undefined) { this.transport.tenantId = value; }
+
+  /**
+   * An end-user gateway client for the app with this slug, on the same server. It starts with no session and never
+   * sends this client's management credentials.
+   */
+  appGateway(slug: string): AppGatewayClient { return new AppGatewayClient(this.transport.baseUrl, slug); }
 
   private async issue(body: Json): Promise<TokenResponse> {
     const previous = this.transport.mode;

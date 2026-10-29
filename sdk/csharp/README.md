@@ -2,6 +2,8 @@
 
 C# client for the Garrison REST API. Targets .NET 8 and .NET 10.
 
+**Garrison Agent Studio.** Garrison is a runtime for headless agent harnesses: a multi-tenant control plane with pull-based workers, exposed over REST, MCP, and A2A. Since 0.2.0 it is also an agent studio built on that runtime, so one platform covers an agentic app from start to finish. You build it with the agent architect (chat) or the canvas, test it in the playground, apply it through an approval, promote it between environments, run and scale it on the workers, and give its end users their own chat at `/apps/{slug}/`. This SDK reaches both halves: the management API for the runtime and the studio, and the end-user gateway of each app.
+
 ## Install
 
 The package is not published to NuGet yet, so `dotnet add package Garrison.Sdk` finds nothing. Reference the project from your checkout of the repository instead:
@@ -560,13 +562,185 @@ The usage-quota module provides CRUD operations and `client.UsageQuotas.UsageAsy
 
 Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to `true` (Go: `EnforcementEnabled`, C#: `EnforcementEnabled`) on an active quota to enforce limits. Disabled enforcement does not reject runs or lower harness budgets.
 
+## Agent Studio walkthrough
+
+The studio commands of the [interactive console](#interactive-console) run these steps end to end. In code:
+
+```csharp
+// 1. Create an app from a bundle (applying again changes nothing).
+ManifestApply applied = await client.Manifests.ApplyAsync(File.ReadAllText("examples/agentic-apps/support-triage/support-triage.yaml"));
+
+// 2. Open a studio draft holding the app and everything it references.
+StudioDraftCreateRequest draftRequest = new StudioDraftCreateRequest();
+draftRequest.FromApp = "support-triage";
+StudioDraft draft = await client.StudioDrafts.CreateAsync(draftRequest);
+
+// 3. List architect prompts and select one for an architect deployment.
+List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync();
+string? architectId = prompts.SelectMany(p => p.Deployments).FirstOrDefault();
+if (architectId == null)
+{
+    Deployment architect = new Deployment();
+    architect.Name = "agent-architect-sdk";
+    architect.AgentId = (await client.Agents.GetAsync("agent-architect")).Id;
+    architect.HarnessProfileId = "hrn_builtin_fake";
+    architectId = (await client.Deployments.CreateAsync(architect)).Id;
+}
+ArchitectPromptSelection selected = await client.StudioDrafts.SetArchitectPromptAsync(architectId, prompts[0].Id);
+
+// 4. Chat with the app through its gateway as an anonymous end user.
+using (AppGatewayClient gateway = client.AppGateway("support-triage"))
+{
+    await gateway.StartSessionAsync();
+    AppConversationStart started = await gateway.StartConversationAsync("My invoice was charged twice.");
+    await foreach (AppTurnStreamEvent frame in gateway.StreamTurnAsync(started.ConversationId, started.Turn.RunId)) Console.WriteLine(frame.Name);
+    AppTurnView turn = await gateway.WaitForTurnAsync(started.ConversationId, started.Turn.RunId, TimeSpan.FromMinutes(2));
+    Console.WriteLine(turn.Status + ": " + turn.Answer);
+}
+```
+
+The support triage bundle runs on the fake harness, so the server needs a worker with `garrison-fake-harness` on its `PATH`.
+
+## App gateway client
+
+`AppGatewayClient` is for an app's end users. Create one with `client.AppGateway(slug)` (same server, no management credentials) or `new AppGatewayClient(baseUrl, slug)`, and dispose it when done. `StartSessionAsync` signs in with an `AppSessionRequest` (email and password), or with no request for an anonymous session, which works only when the app's `AuthMode` is `Anonymous` and anonymous use is enabled. The session token (prefix `gas_`) is kept in `Token` and sent as `Authorization: Bearer`; it works only on that app's gateway.
+
+| Method | Returns |
+|---|---|
+| `InfoAsync` | `AppInfo`: display name, colors, logo URL, `AuthMode`, `AnonymousAllowed` (needs no session) |
+| `GetLogoAsync`, `LogoUrl` | The logo bytes or its URL (404 when the app has none) |
+| `StartSessionAsync`, `EndSessionAsync` | `AppSessionResponse`; ending forgets the token |
+| `ListConversationsAsync`, `GetConversationAsync` | `AppConversationView`, with `Turns` filled when one is read |
+| `StartConversationAsync`, `SendAsync` | `AppConversationStart` (conversation identifier and first turn), `AppTurnView` |
+| `StreamTurnAsync` | `AppTurnStreamEvent` items (`turn.event` with a `RunEvent`, `turn.status`, `turn.completed` with the turn); `afterSequence` resumes |
+| `WaitForTurnAsync` | Polls until the turn is terminal (`PollIntervalMs`, default 500) |
+| `ListFilesAsync`, `ReadFileAsync`, `ListFileVersionsAsync`, `DownloadUrlAsync` | The conversation's file space |
+| `StreamFilesAsync` | `AppFilesChanged` events; the first lists every current file |
+
+Errors throw `GarrisonException`: 401 `InvalidCredentials`, `AppSignInRequired`, `AnonymousDisabled`, or an expired session; 403 `AppAccessDenied`; 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`. A conversation another session started is 404.
+
+## 0.2.0 route coverage
+
+Every route added in 0.2.0, with the method that calls it. Tenant routes are relative to `/v1.0/api/tenants/{tenantId}`; the app gateway routes are absolute. Two anonymous routes have no method on purpose: `GET /v1.0/asset-download/{assetId}` is for leased runs on workers, and `GET /v1.0/file-download/{fileSpaceId}` is the plain URL that the `download-url` methods return.
+
+| Route | Method |
+|---|---|
+| **Agent revisions** | |
+| `GET /agents/{id}/revisions` | `AgentRevisions.ListAsync` |
+| `POST /agents/{id}/revisions` | `AgentRevisions.SaveDraftAsync` |
+| `GET /agents/{id}/revisions/diff` | `AgentRevisions.DiffAsync` |
+| `GET /agents/{id}/revisions/{revId}` | `AgentRevisions.GetAsync` |
+| `DELETE /agents/{id}/revisions/{revId}` | `AgentRevisions.DiscardDraftAsync` |
+| `POST /agents/{id}/revisions/{revId}/publish` | `AgentRevisions.PublishAsync` |
+| **Environments and promotions** | |
+| `GET /environments` | `Promotions.GetEnvironmentsAsync` |
+| `PUT /environments` | `Promotions.UpdateEnvironmentsAsync` |
+| `GET /promotions` | `Promotions.ListAsync` |
+| `POST /promotions` | `Promotions.PromoteAsync` |
+| `GET /promotions/{id}` | `Promotions.GetAsync` |
+| `POST /promotions/{id}/rollback` | `Promotions.RollbackAsync` |
+| **Agent assets** | |
+| `GET /agent-assets` | `AgentAssets.ListAsync` |
+| `POST /agent-assets` | `AgentAssets.CreateAsync` |
+| `GET /agent-assets/{id}` | `AgentAssets.GetAsync` |
+| `PUT /agent-assets/{id}` | `AgentAssets.UpdateAsync` |
+| `DELETE /agent-assets/{id}` | `AgentAssets.DeleteAsync` |
+| `GET /agent-assets/{id}/versions` | `AgentAssets.ListVersionsAsync` |
+| `POST /agent-assets/{id}/versions` | `AgentAssets.UploadVersionAsync`, `UploadFilesAsync`, `UploadRawAsync` |
+| `GET /agent-assets/{id}/versions/{n}` | `AgentAssets.GetVersionAsync` |
+| `GET /agent-assets/{id}/versions/{n}/files` | `AgentAssets.DownloadFileAsync` |
+| **File spaces (`conversations` or `runs` as the owner)** | |
+| `GET /{owner}/{id}/files` | `FileSpaces.ListAsync` |
+| `GET /{owner}/{id}/files/content` | `FileSpaces.ReadAsync`, `ReadTextAsync` |
+| `GET /{owner}/{id}/files/versions` | `FileSpaces.ListVersionsAsync` |
+| `POST /{owner}/{id}/files` | `FileSpaces.WriteAsync`, `WriteBytesAsync`, `WriteTextAsync` |
+| `DELETE /{owner}/{id}/files` | `FileSpaces.DeleteAsync` |
+| `POST /{owner}/{id}/files/download-url` | `FileSpaces.DownloadUrlAsync` |
+| **Capabilities** | |
+| `GET /capabilities` | `Capabilities.ListAsync` |
+| `POST /capabilities` | `Capabilities.CreateAsync` |
+| `POST /capabilities/refresh` | `Capabilities.RefreshAsync` |
+| `GET /capabilities/{id}` | `Capabilities.GetAsync` |
+| `PUT /capabilities/{id}` | `Capabilities.UpdateAsync` |
+| `DELETE /capabilities/{id}` | `Capabilities.DeleteAsync` |
+| **Fan-out groups** | |
+| `GET /runs/{id}/fan-out-groups` | `FanOutGroups.ListByRunAsync` |
+| `GET /fan-out-groups/{id}` | `FanOutGroups.GetAsync` |
+| `POST /fan-out-groups/{id}/cancel` | `FanOutGroups.CancelAsync` |
+| **Agentic apps** | |
+| `GET /apps` | `Apps.ListAsync` |
+| `POST /apps` | `Apps.CreateAsync` |
+| `GET /apps/{id}` | `Apps.GetAsync` |
+| `PUT /apps/{id}` | `Apps.UpdateAsync` |
+| `DELETE /apps/{id}` | `Apps.DeleteAsync` |
+| `GET /apps/{id}/delegation` | `Apps.GetDelegationAsync` |
+| `POST /apps/{id}/delegation` | `Apps.ApplyDelegationAsync` |
+| `GET /apps/{id}/revisions` | `Apps.ListRevisionsAsync` |
+| `POST /apps/{id}/revisions` | `Apps.CreateRevisionAsync` |
+| `GET /apps/{id}/revisions/{revId}` | `Apps.GetRevisionAsync` |
+| `POST /apps/{id}/revisions/{revId}/publish` | `Apps.PublishRevisionAsync` |
+| `POST /apps/{id}/promote` | `Apps.PromoteAsync` |
+| **App gateway (absolute paths; `gateway` is `client.AppGateway(slug)` in C#, `client.app_gateway(slug)` in Python, `client.appGateway(slug)` or `new AppGatewayClient(baseUrl, slug)` in JavaScript, `client.AppGateway(slug)` or `garrison.NewAppGatewayClient(baseURL, slug)` in Go)** | |
+| `GET /v1.0/apps/{slug}` | `gateway.InfoAsync` |
+| `GET /v1.0/apps/{slug}/logo` | `gateway.GetLogoAsync`, `LogoUrl` |
+| `POST /v1.0/apps/{slug}/session` | `gateway.StartSessionAsync` |
+| `DELETE /v1.0/apps/{slug}/session` | `gateway.EndSessionAsync` |
+| `GET /v1.0/apps/{slug}/conversations` | `gateway.ListConversationsAsync` |
+| `POST /v1.0/apps/{slug}/conversations` | `gateway.StartConversationAsync` |
+| `GET /v1.0/apps/{slug}/conversations/{id}` | `gateway.GetConversationAsync`, `WaitForTurnAsync` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `gateway.SendAsync` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `gateway.StreamTurnAsync` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files` | `gateway.ListFilesAsync` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/content` | `gateway.ReadFileAsync` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/versions` | `gateway.ListFileVersionsAsync` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/files/download-url` | `gateway.DownloadUrlAsync` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/stream` | `gateway.StreamFilesAsync` |
+| **Studio drafts** | |
+| `GET /studio/drafts` | `StudioDrafts.ListAsync` |
+| `POST /studio/drafts` | `StudioDrafts.CreateAsync` |
+| `GET /studio/drafts/{id}` | `StudioDrafts.GetAsync` |
+| `DELETE /studio/drafts/{id}` | `StudioDrafts.DeleteAsync` |
+| `PUT /studio/drafts/{id}/items/{kind}/{name}` | `StudioDrafts.PutItemAsync` |
+| `DELETE /studio/drafts/{id}/items/{kind}/{name}` | `StudioDrafts.RemoveItemAsync` |
+| `GET /studio/drafts/{id}/diff` | `StudioDrafts.DiffAsync` |
+| `POST /studio/drafts/{id}/validate` | `StudioDrafts.ValidateAsync` |
+| `POST /studio/drafts/{id}/request-apply` | `StudioDrafts.RequestApplyAsync` |
+| `GET /studio/drafts/{id}/graph` | `StudioDrafts.GetGraphAsync` |
+| `POST /studio/drafts/{id}/graph-operations` | `StudioDrafts.ApplyGraphOperationAsync` |
+| **Architect prompts** | |
+| `GET /studio/architect-prompts` | `StudioDrafts.ListArchitectPromptsAsync` |
+| `GET /studio/architects/{deploymentId}/prompt` | `StudioDrafts.GetArchitectPromptAsync` |
+| `PUT /studio/architects/{deploymentId}/prompt` | `StudioDrafts.SetArchitectPromptAsync` |
+| `POST /deployments` (architect fields) | `Deployments.CreateAsync` |
+| `POST /prompt-templates/{id}/clone` | `PromptTemplates.CloneAsync` |
+| `PUT /prompt-templates/{id}` | `PromptTemplates.UpdateAsync` |
+| `POST /prompt-templates/{id}/reset` | `PromptTemplates.ResetAsync` |
+| `POST /prompt-templates/{id}/render` | `PromptTemplates.RenderAsync` |
+| `POST /prompt-templates/render` | `PromptTemplates.RenderContentAsync` |
+| `DELETE /prompt-templates/{id}` (409 `PromptTemplateInUse`) | `PromptTemplates.DeleteAsync` |
+| **Playground and compile preview** | |
+| `POST /studio/drafts/{id}/playground/invoke` | `StudioDrafts.PlaygroundInvokeAsync` |
+| `POST /agents/{agentId}/playground/invoke` | `Agents.PlaygroundInvokeAsync` |
+| `POST /deployments/{id}/compile-preview` (`agentRevisionId`, `environment`) | `Deployments.CompilePreviewAsync` |
+
 ## Interactive console
 
 ```sh
 dotnet run --project sdk/csharp/Garrison.Sdk.Console -f net10.0 -- http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+
+```text
+keys
+apply examples/agentic-apps/support-triage/support-triage.yaml
+studio-draft support-triage
+architect-prompts
+architect
+chat support-triage My invoice was charged twice.
+```
 
 ## Executor capabilities
 

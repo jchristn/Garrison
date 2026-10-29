@@ -68,13 +68,13 @@ func main() {
 }
 
 func execute(ctx context.Context, client *garrison.Client, command, argument, rest string, secret func(string) (string, error)) (any, error) {
-	needsArgument := command == "login" || command == "tenant" || command == "invoke" || command == "run" || command == "events" || command == "watch" || command == "start-pipeline" || command == "fire-trigger"
+	needsArgument := command == "login" || command == "tenant" || command == "invoke" || command == "run" || command == "events" || command == "watch" || command == "start-pipeline" || command == "fire-trigger" || command == "apply" || command == "studio-draft" || command == "chat"
 	if needsArgument && argument == "" {
 		return nil, fmt.Errorf("missing arguments; type help")
 	}
 	switch command {
 	case "help":
-		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit")
+		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architect [prompt] | chat <slug> <message> | quit")
 		return nil, nil
 	case "health":
 		return client.Health(ctx)
@@ -148,7 +148,97 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 			return nil, fmt.Errorf("missing input; type help")
 		}
 		return client.Pipelines.Start(ctx, argument, garrison.PipelineStartRequest{Input: rest}, "")
+	case "apply":
+		content, err := os.ReadFile(argument)
+		if err != nil {
+			return nil, err
+		}
+		applied, err := client.Manifests.Apply(ctx, string(content), false, false)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"id": applied.ID, "documentCount": applied.DocumentCount, "createdCount": applied.CreatedCount, "updatedCount": applied.UpdatedCount, "unchangedCount": applied.UnchangedCount, "failedCount": applied.FailedCount}, nil
+	case "apps":
+		return client.Apps.List(ctx, nil)
+	case "studio-draft":
+		return client.StudioDrafts.Create(ctx, "Console draft of "+argument, argument)
+	case "architect-prompts":
+		prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range prompts {
+			_ = json.NewEncoder(os.Stdout).Encode(entry)
+		}
+		return nil, nil
+	case "architect":
+		return selectArchitectPrompt(ctx, client, argument)
+	case "chat":
+		if rest == "" {
+			return nil, fmt.Errorf("missing message; type help")
+		}
+		return chat(ctx, client, argument, rest)
 	default:
 		return nil, fmt.Errorf("unknown command; type help")
 	}
+}
+
+const (
+	architectAgent      = "agent-architect"
+	architectDeployment = "agent-architect-sdk"
+	fakeHarnessProfile  = "hrn_builtin_fake"
+)
+
+// selectArchitectPrompt selects an architect prompt (identifier or name; default the first listed, the built-in) for an
+// architect deployment, creating a deployment of the seeded agent-architect agent on the fake harness when none exists.
+func selectArchitectPrompt(ctx context.Context, client *garrison.Client, prompt string) (*garrison.ArchitectPromptSelection, error) {
+	prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(prompts) == 0 {
+		return nil, fmt.Errorf("the server lists no architect prompts")
+	}
+	deploymentID := ""
+	for _, entry := range prompts {
+		if len(entry.Deployments) > 0 {
+			deploymentID = entry.Deployments[0]
+			break
+		}
+	}
+	if deploymentID == "" {
+		var architect garrison.Agent
+		if err := client.Agents.Get(ctx, architectAgent, &architect); err != nil {
+			return nil, err
+		}
+		var created garrison.Deployment
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: architectDeployment, AgentID: architect.ID, HarnessProfileID: fakeHarnessProfile}, &created); err != nil {
+			return nil, err
+		}
+		deploymentID = created.ID
+	}
+	if prompt == "" {
+		prompt = prompts[0].ID
+	}
+	return client.StudioDrafts.SetArchitectPrompt(ctx, deploymentID, prompt, nil)
+}
+
+// chat starts an anonymous session with the app, sends one message, waits for the turn, and ends the session.
+func chat(ctx context.Context, client *garrison.Client, slug, message string) (*garrison.AppTurnView, error) {
+	gateway := client.AppGateway(slug)
+	if _, err := gateway.StartSession(ctx, "", ""); err != nil {
+		return nil, err
+	}
+	started, err := gateway.StartConversation(ctx, message)
+	if err != nil {
+		return nil, err
+	}
+	if err := gateway.StreamTurn(ctx, started.ConversationID, started.Turn.RunID, 0, func(garrison.AppTurnStreamItem) bool { return true }); err != nil {
+		return nil, err
+	}
+	turn, err := gateway.WaitForTurn(ctx, started.ConversationID, started.Turn.RunID)
+	if err != nil {
+		return nil, err
+	}
+	return turn, gateway.EndSession(ctx)
 }

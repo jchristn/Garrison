@@ -321,6 +321,18 @@ namespace Garrison.Sdk
         #region Public-Methods
 
         /// <summary>
+        /// Create an end-user gateway client for the app with this slug, on the same server. It starts with no session and
+        /// never sends this client's management credentials. The caller disposes it.
+        /// </summary>
+        /// <param name="slug">App URL name.</param>
+        /// <returns>Gateway client.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when slug is null or empty.</exception>
+        public AppGatewayClient AppGateway(string slug)
+        {
+            return new AppGatewayClient(Transport.BaseUrl, slug);
+        }
+
+        /// <summary>
         /// Log in with a user's email and password and use the issued bearer token.
         /// </summary>
         /// <param name="email">Email.</param>

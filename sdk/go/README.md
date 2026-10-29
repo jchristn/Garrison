@@ -2,6 +2,8 @@
 
 Go client for the Garrison REST API. The SDK library uses only the standard library; Go 1.21+. The optional interactive console uses golang.org/x/term to hide terminal credentials.
 
+**Garrison Agent Studio.** Garrison is a runtime for headless agent harnesses: a multi-tenant control plane with pull-based workers, exposed over REST, MCP, and A2A. Since 0.2.0 it is also an agent studio built on that runtime, so one platform covers an agentic app from start to finish. You build it with the agent architect (chat) or the canvas, test it in the playground, apply it through an approval, promote it between environments, run and scale it on the workers, and give its end users their own chat at `/apps/{slug}/`. This SDK reaches both halves: the management API for the runtime and the studio, and the end-user gateway of each app.
+
 ## Install
 
 There is no tagged release of the Go module yet. Until there is, point your module at your checkout of the repository with a `replace` directive:
@@ -522,13 +524,190 @@ The usage-quota module provides CRUD operations and `client.UsageQuotas.Usage(ct
 
 Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to `true` (Go: `EnforcementEnabled`, C#: `EnforcementEnabled`) on an active quota to enforce limits. Disabled enforcement does not reject runs or lower harness budgets.
 
+## Agent Studio walkthrough
+
+The studio commands of the [interactive console](#interactive-console) run these steps end to end. In code:
+
+```go
+// 1. Create an app from a bundle (applying again changes nothing).
+bundle, _ := os.ReadFile("examples/agentic-apps/support-triage/support-triage.yaml")
+applied, err := client.Manifests.Apply(ctx, string(bundle), false, false)
+
+// 2. Open a studio draft holding the app and everything it references.
+draft, err := client.StudioDrafts.Create(ctx, "Support triage changes", "support-triage")
+
+// 3. List architect prompts and select one for an architect deployment.
+prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+architectID := ""
+for _, p := range prompts {
+	if len(p.Deployments) > 0 {
+		architectID = p.Deployments[0]
+		break
+	}
+}
+if architectID == "" {
+	var architect garrison.Agent
+	_ = client.Agents.Get(ctx, "agent-architect", &architect)
+	var created garrison.Deployment
+	_ = client.Deployments.Create(ctx, garrison.Deployment{Name: "agent-architect-sdk", AgentID: architect.ID, HarnessProfileID: "hrn_builtin_fake"}, &created)
+	architectID = created.ID
+}
+selection, err := client.StudioDrafts.SetArchitectPrompt(ctx, architectID, prompts[0].ID, nil)
+
+// 4. Chat with the app through its gateway as an anonymous end user.
+gateway := client.AppGateway("support-triage")
+_, err = gateway.StartSession(ctx, "", "")
+started, err := gateway.StartConversation(ctx, "My invoice was charged twice.")
+err = gateway.StreamTurn(ctx, started.ConversationID, started.Turn.RunID, 0, func(item garrison.AppTurnStreamItem) bool {
+	fmt.Println(item.Name)
+	return true
+})
+turn, err := gateway.WaitForTurn(ctx, started.ConversationID, started.Turn.RunID)
+fmt.Println(turn.Status, *turn.Answer)
+```
+
+The support triage bundle runs on the fake harness, so the server needs a worker with `garrison-fake-harness` on its `PATH`.
+
+## App gateway client
+
+`AppGatewayClient` is for an app's end users. Create one with `client.AppGateway(slug)` (same server and HTTP client, no management credentials) or `garrison.NewAppGatewayClient(baseURL, slug)`. `StartSession(ctx, email, password)` signs in, and empty strings start an anonymous session, which works only when the app's `AuthMode` is `Anonymous` and anonymous use is enabled. The session token (prefix `gas_`) is returned by `Token()` and sent as `Authorization: Bearer`; it works only on that app's gateway. `SetToken` uses a token issued elsewhere.
+
+| Method | Returns |
+|---|---|
+| `Info` | `AppInfo`: display name, colors, logo URL, `AuthMode`, `AnonymousAllowed` (needs no session) |
+| `Logo`, `LogoURL` | The logo bytes or its URL (404 when the app has none) |
+| `StartSession`, `EndSession` | `AppSessionResponse`; ending forgets the token |
+| `Conversations`, `Conversation` | `AppConversationView`, with `Turns` filled when one is read |
+| `StartConversation`, `Send` | `AppConversationStart` (conversation identifier and first turn), `AppTurnView` |
+| `StreamTurn` | Calls back with `AppTurnStreamItem` (`turn.event` with a `RunEvent`, `turn.status`, `turn.completed` with the turn); `afterSequence` resumes |
+| `WaitForTurn` | Polls until the turn is terminal (`PollInterval`, default 500 milliseconds) |
+| `Files`, `ReadFile`, `FileVersions`, `DownloadURL` | The conversation's file space |
+| `StreamFiles` | Calls back with `AppFilesChanged`; the first lists every current file; return false to stop |
+
+Errors are `*garrison.Error` values (check with `garrison.IsStatus`): 401 `InvalidCredentials`, `AppSignInRequired`, `AnonymousDisabled`, or an expired session; 403 `AppAccessDenied`; 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`. A conversation another session started is 404.
+
+## 0.2.0 route coverage
+
+Every route added in 0.2.0, with the method that calls it. Tenant routes are relative to `/v1.0/api/tenants/{tenantId}`; the app gateway routes are absolute. Two anonymous routes have no method on purpose: `GET /v1.0/asset-download/{assetId}` is for leased runs on workers, and `GET /v1.0/file-download/{fileSpaceId}` is the plain URL that the `download-url` methods return.
+
+| Route | Method |
+|---|---|
+| **Agent revisions** | |
+| `GET /agents/{id}/revisions` | `Agents.ListRevisions` |
+| `POST /agents/{id}/revisions` | `Agents.SaveDraft` |
+| `GET /agents/{id}/revisions/diff` | `Agents.DiffRevisions` |
+| `GET /agents/{id}/revisions/{revId}` | `Agents.GetRevision` |
+| `DELETE /agents/{id}/revisions/{revId}` | `Agents.DeleteRevision` |
+| `POST /agents/{id}/revisions/{revId}/publish` | `Agents.PublishRevision` |
+| **Environments and promotions** | |
+| `GET /environments` | `Environments.Get` |
+| `PUT /environments` | `Environments.Update` |
+| `GET /promotions` | `Promotions.List` |
+| `POST /promotions` | `Promotions.Promote` |
+| `GET /promotions/{id}` | `Promotions.Get` |
+| `POST /promotions/{id}/rollback` | `Promotions.Rollback` |
+| **Agent assets** | |
+| `GET /agent-assets` | `AgentAssets.List` |
+| `POST /agent-assets` | `AgentAssets.Create` |
+| `GET /agent-assets/{id}` | `AgentAssets.Get` |
+| `PUT /agent-assets/{id}` | `AgentAssets.Update` |
+| `DELETE /agent-assets/{id}` | `AgentAssets.Delete` |
+| `GET /agent-assets/{id}/versions` | `AgentAssets.ListVersions` |
+| `POST /agent-assets/{id}/versions` | `AgentAssets.UploadVersion`, `UploadRaw` |
+| `GET /agent-assets/{id}/versions/{n}` | `AgentAssets.GetVersion` |
+| `GET /agent-assets/{id}/versions/{n}/files` | `AgentAssets.DownloadFile` |
+| **File spaces (`conversations` or `runs` as the owner)** | |
+| `GET /{owner}/{id}/files` | `FileSpaces.List` |
+| `GET /{owner}/{id}/files/content` | `FileSpaces.Read` |
+| `GET /{owner}/{id}/files/versions` | `FileSpaces.Versions` |
+| `POST /{owner}/{id}/files` | `FileSpaces.WriteText`, `WriteBytes`, `WriteRaw` |
+| `DELETE /{owner}/{id}/files` | `FileSpaces.Delete` |
+| `POST /{owner}/{id}/files/download-url` | `FileSpaces.DownloadURL` |
+| **Capabilities** | |
+| `GET /capabilities` | `Capabilities.List` |
+| `POST /capabilities` | `Capabilities.Create` |
+| `POST /capabilities/refresh` | `Capabilities.Refresh` |
+| `GET /capabilities/{id}` | `Capabilities.Get` |
+| `PUT /capabilities/{id}` | `Capabilities.Update` |
+| `DELETE /capabilities/{id}` | `Capabilities.Delete` |
+| **Fan-out groups** | |
+| `GET /runs/{id}/fan-out-groups` | `FanOutGroups.ListByRun` |
+| `GET /fan-out-groups/{id}` | `FanOutGroups.Get` |
+| `POST /fan-out-groups/{id}/cancel` | `FanOutGroups.Cancel` |
+| **Agentic apps** | |
+| `GET /apps` | `Apps.List` |
+| `POST /apps` | `Apps.Create` |
+| `GET /apps/{id}` | `Apps.Get` |
+| `PUT /apps/{id}` | `Apps.Update` |
+| `DELETE /apps/{id}` | `Apps.Delete` |
+| `GET /apps/{id}/delegation` | `Apps.Delegation` |
+| `POST /apps/{id}/delegation` | `Apps.ApplyDelegation` |
+| `GET /apps/{id}/revisions` | `Apps.Revisions` |
+| `POST /apps/{id}/revisions` | `Apps.CreateRevision` |
+| `GET /apps/{id}/revisions/{revId}` | `Apps.GetRevision` |
+| `POST /apps/{id}/revisions/{revId}/publish` | `Apps.PublishRevision` |
+| `POST /apps/{id}/promote` | `Apps.Promote` |
+| **App gateway (absolute paths; `gateway` is `client.AppGateway(slug)` in C#, `client.app_gateway(slug)` in Python, `client.appGateway(slug)` or `new AppGatewayClient(baseUrl, slug)` in JavaScript, `client.AppGateway(slug)` or `garrison.NewAppGatewayClient(baseURL, slug)` in Go)** | |
+| `GET /v1.0/apps/{slug}` | `gateway.Info` |
+| `GET /v1.0/apps/{slug}/logo` | `gateway.Logo`, `LogoURL` |
+| `POST /v1.0/apps/{slug}/session` | `gateway.StartSession` |
+| `DELETE /v1.0/apps/{slug}/session` | `gateway.EndSession` |
+| `GET /v1.0/apps/{slug}/conversations` | `gateway.Conversations` |
+| `POST /v1.0/apps/{slug}/conversations` | `gateway.StartConversation` |
+| `GET /v1.0/apps/{slug}/conversations/{id}` | `gateway.Conversation`, `WaitForTurn` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `gateway.Send` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `gateway.StreamTurn` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files` | `gateway.Files` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/content` | `gateway.ReadFile` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/versions` | `gateway.FileVersions` |
+| `POST /v1.0/apps/{slug}/conversations/{id}/files/download-url` | `gateway.DownloadURL` |
+| `GET /v1.0/apps/{slug}/conversations/{id}/files/stream` | `gateway.StreamFiles` |
+| **Studio drafts** | |
+| `GET /studio/drafts` | `StudioDrafts.List` |
+| `POST /studio/drafts` | `StudioDrafts.Create` |
+| `GET /studio/drafts/{id}` | `StudioDrafts.Get` |
+| `DELETE /studio/drafts/{id}` | `StudioDrafts.Delete` |
+| `PUT /studio/drafts/{id}/items/{kind}/{name}` | `StudioDrafts.PutItem` |
+| `DELETE /studio/drafts/{id}/items/{kind}/{name}` | `StudioDrafts.RemoveItem` |
+| `GET /studio/drafts/{id}/diff` | `StudioDrafts.Diff` |
+| `POST /studio/drafts/{id}/validate` | `StudioDrafts.Validate` |
+| `POST /studio/drafts/{id}/request-apply` | `StudioDrafts.RequestApply` |
+| `GET /studio/drafts/{id}/graph` | `StudioDrafts.Graph` |
+| `POST /studio/drafts/{id}/graph-operations` | `StudioDrafts.GraphOperation` |
+| **Architect prompts** | |
+| `GET /studio/architect-prompts` | `StudioDrafts.ArchitectPrompts` |
+| `GET /studio/architects/{deploymentId}/prompt` | `StudioDrafts.ArchitectPrompt` |
+| `PUT /studio/architects/{deploymentId}/prompt` | `StudioDrafts.SetArchitectPrompt` |
+| `POST /deployments` (architect fields) | `Deployments.Create` |
+| `POST /prompt-templates/{id}/clone` | `PromptTemplates.Clone` |
+| `PUT /prompt-templates/{id}` | `PromptTemplates.Update` |
+| `POST /prompt-templates/{id}/reset` | `PromptTemplates.Reset` |
+| `POST /prompt-templates/{id}/render` | `PromptTemplates.Render` |
+| `POST /prompt-templates/render` | `PromptTemplates.RenderContent` |
+| `DELETE /prompt-templates/{id}` (409 `PromptTemplateInUse`) | `PromptTemplates.Delete` |
+| **Playground and compile preview** | |
+| `POST /studio/drafts/{id}/playground/invoke` | `StudioDrafts.PlaygroundInvoke` |
+| `POST /agents/{agentId}/playground/invoke` | `Agents.PlaygroundInvoke` |
+| `POST /deployments/{id}/compile-preview` (`agentRevisionId`, `environment`) | `Deployments.CompilePreview` |
+
 ## Interactive console
 
 ```sh
 cd sdk/go && go run ./cmd/console http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+
+```text
+keys
+apply examples/agentic-apps/support-triage/support-triage.yaml
+studio-draft support-triage
+architect-prompts
+architect
+chat support-triage My invoice was charged twice.
+```
 
 ## Executor capabilities
 

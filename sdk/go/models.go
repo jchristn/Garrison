@@ -818,10 +818,14 @@ type RunFilter struct {
 // ManifestApply is the result of applying manifests. Items is kept raw for forward compatibility; call
 // ParsedItems for the typed per-document results.
 type ManifestApply struct {
-	ID          string          `json:"id"`
-	DryRun      bool            `json:"dryRun"`
-	FailedCount int             `json:"failedCount"`
-	Items       json.RawMessage `json:"items"`
+	ID             string          `json:"id"`
+	DryRun         bool            `json:"dryRun"`
+	DocumentCount  int             `json:"documentCount"`
+	CreatedCount   int             `json:"createdCount"`
+	UpdatedCount   int             `json:"updatedCount"`
+	UnchangedCount int             `json:"unchangedCount"`
+	FailedCount    int             `json:"failedCount"`
+	Items          json.RawMessage `json:"items"`
 }
 
 // ManifestApplyItem is the result for one manifest document.

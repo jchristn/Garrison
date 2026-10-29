@@ -168,6 +168,16 @@ func (p *PromptTemplatesClient) Render(ctx context.Context, id string, renderCon
 	return &out, nil
 }
 
+// RenderContent renders ad hoc template content with sample data (nothing is stored); renderContext may be nil. The
+// studio uses it to preview an architect prompt before saving it.
+func (p *PromptTemplatesClient) RenderContent(ctx context.Context, content string, renderContext map[string]any) (*PromptRenderResponse, error) {
+	var out PromptRenderResponse
+	if err := p.c.Do(ctx, http.MethodPost, p.base()+"/render", nil, map[string]any{"content": content, "context": renderContext}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // GlobalResource is a platform-level collection (tenants, nodes, node pools).
 type GlobalResource struct {
 	c    *Client
