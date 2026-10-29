@@ -310,8 +310,10 @@ MIT. See [LICENSE.md](LICENSE.md) and [third-party notices](THIRD_PARTY_NOTICES.
 
 ## Dashboard preview
 
-These screenshots use synthetic test fixtures. They show the operator console rather than a measured production workload.
+These screenshots use synthetic test fixtures from the fake-harness example, not a measured production workload.
 
-![Garrison home, light theme](assets/screenshots/home-light.png)
+![The Agent Studio canvas: an app's agents, their calls, and a property panel](docs/images/studio-canvas.png)
+
+![The Agent Studio runtime panel: one environment's deployment settings for an agent](docs/images/studio-canvas-runtime.png)
 
 ![Garrison deployments, dark theme](assets/screenshots/deployments-dark.png)
