@@ -6,7 +6,7 @@
 
 > **Alpha (v0.2.0).** APIs, schema, settings, and image layout can change without notice.
 
-**Turn agent harnesses into managed services on your own infrastructure.** Garrison runs Claude Code, Codex, Mux, Gemini CLI and configurable command-line agents on pull-based workers. Publish specialists through REST, MCP and A2A, control their tools and credentials, and follow execution from a shared operator console. Tenant-scoped permissions, approvals and audit records let teams share an execution platform with explicit boundaries.
+**Turn agent harnesses into managed services on your own infrastructure.** Garrison runs Claude Code, Codex, Mux, Gemini CLI, opencode, pi, and configurable command-line agents on pull-based workers. Publish specialists through REST, MCP and A2A, control their tools and credentials, and follow execution from a shared operator console. Tenant-scoped permissions, approvals and audit records let teams share an execution platform with explicit boundaries.
 
 Build agent-to-agent delegation and multi-stage pipelines with human review, start work from schedules or signed webhooks, and collect artifacts and transcripts. Current source also supports remote A2A/MCP agents, direct compatible model API execution, tenant queue bounds and scheduling weights, opt-in durable checkpoints, workspace caches, placement explanations, scoped SQL diagnostics and application telemetry.
 
@@ -21,7 +21,7 @@ Source and documentation: https://github.com/jchristn/Garrison. Start with `docs
 | Image | Contents | Ports |
 |---|---|---|
 | `jchristn77/garrison-server` | Control plane: REST, A2A, WebSocket, MCP, scheduler | 8700 (REST, A2A, WebSocket), 8701 (MCP), 9464 (Prometheus) |
-| `jchristn77/garrison-worker` | Worker node with Claude Code, Codex, Mux, the provider API harness, and the fake test harness installed (Gemini CLI optional at build time) | 8710 (health), 9465 (Prometheus) |
+| `jchristn77/garrison-worker` | Worker node with Claude Code, Codex, Mux, the provider API harness, and the fake test harness installed (Gemini CLI, opencode, and pi optional at build time) | 8710 (health), 9465 (Prometheus) |
 | `jchristn77/garrison-dashboard` | React operator console served by nginx, proxying `/v1.0` to the server | 80 |
 
 The image build/publish tooling targets `linux/amd64` and `linux/arm64` with `latest` and version tags such as `v0.2.0`. Server and worker run as UID 10001; the dashboard uses nginx. Tags describe a published build, not necessarily this checkout. The worker image records the bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`). The current worker Dockerfile pins Claude Code 2.1.296, Codex 0.159.3, and Mux 1.3.0.

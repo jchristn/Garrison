@@ -1965,6 +1965,12 @@ es.views.settings.fields.Leases = {"Provider": "Proveedor", "ClutchEndpoint": "E
 
 es.enums.harnessType.ProviderApi = "API del proveedor";
 es.enums.outputParser.ProviderApiJsonl = "JSONL de API del proveedor";
+es.enums.harnessType.OpenCode = "opencode";
+es.enums.harnessType.Pi = "pi";
+es.enums.outputParser.OpenCodeJsonl = "opencode JSONL";
+es.enums.outputParser.PiJsonl = "pi JSONL";
+es.enums.mcpConfigFormat.OpenCodeJson = "opencode JSON";
+es.enums.mcpConfigFormat.PiJson = "pi JSON";
 
 // Pipelines (P12.9): definiciones (Agentes > Canalizaciones), ejecuciones de canalización (Ejecuciones > Ejecuciones de canalización)
 // y revisiones de etapa (Aprobaciones > Revisiones de etapa).

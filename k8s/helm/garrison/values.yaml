@@ -109,7 +109,7 @@ server:
 #                        node pool on first registration), and the first worker label garrison.io/pool=<name>.
 #   labels               Extra worker labels, a map or "k=v,k=v" string, appended to garrison.io/pool=<name>
 #                        (a later key wins). Deployments select workers with nodeSelector on these labels.
-#   harnesses            Optional list of claude, codex, mux, gemini, fake, provider-api: probe only these, so the pool advertises
+#   harnesses            Optional list of claude, codex, mux, gemini, opencode, pi, fake, provider-api: probe only these, so the pool advertises
 #                        only these harness types. Empty probes everything the image has.
 #   probes               Optional full probe entries ({ harnessType, executable, arguments, label }) for custom CLIs,
 #                        added after harnesses. Either one gives the pool its own settings ConfigMap.

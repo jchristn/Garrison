@@ -52,6 +52,10 @@ namespace Test.Shared.Suites
                 Case("parsers", "mux-1.3.0-failed-other", "Mux 1.3.0 JSONL: status failed without a credential error is HarnessFailed with the last error", Mux130FailedOther),
                 Case("parsers", "mux-1.3.0-schema-violation", "Mux 1.3.0 JSONL (recorded): Mux's own schema rejection defers to Garrison's validation and repair", Mux130SchemaViolation),
                 Case("parsers", "gemini-success", "Gemini stream-json: served model from result stats", GeminiSuccess),
+                Case("parsers", "opencode-success", "opencode 1.19.5 JSON (recorded): last step's text, tool call and result, summed usage and cost, session id", OpenCodeSuccess),
+                Case("parsers", "opencode-failures", "opencode JSON: 401 and missing key are NotCredentialed, length finish and missing final step fail, failed tools", OpenCodeFailures),
+                Case("parsers", "pi-success", "pi 1.4.0 JSON (recorded): streamed text, tools, usage, served model, session id; system prompt ignored", PiSuccess),
+                Case("parsers", "pi-failures", "pi JSON: 401 with exit 0 is NotCredentialed, retries recover, length and abort fail, agent_end fallback", PiFailures),
                 Case("parsers", "generic-jsonl", "Generic JSONL: dotted path mappings", GenericJsonl),
                 Case("parsers", "plain-text", "Plain text: every line is assistant text", PlainText),
                 Case("parsers", "non-json-lines", "JSON parsers turn non-JSON lines into stdout events", NonJsonLines),
@@ -590,6 +594,130 @@ namespace Test.Shared.Suites
             Assert.Equal("gemini-3-flash", state.ServedModel, "Served model comes from result stats");
             Assert.Equal(25L, state.InputTokens, "Input tokens");
             Assert.Equal(10L, state.CachedTokens, "Cached tokens");
+        }
+
+        private static void OpenCodeSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.OpenCodeJsonl, "opencode/v1.19.5-success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.SawSuccess && state.SawFinalResult && state.DetectedFailure == null, "Expected success: " + state.DetectedFailure);
+            Assert.Equal("FIXTURE_ANSWER_42", state.FinalText, "The answer is the text of the last step only");
+            Assert.Equal("Running a command.\nFIXTURE_ANSWER_42", state.AssistantText.ToString(), "Assistant text keeps every step");
+            Assert.True(state.SessionId != null && state.SessionId.StartsWith("ses_", StringComparison.Ordinal), "Session id: " + state.SessionId);
+            Assert.Equal(240L, state.InputTokens, "Input tokens summed over steps");
+            Assert.Equal(38L, state.OutputTokens, "Output tokens summed over steps");
+            Assert.Equal(14L, state.CachedTokens, "Cache reads summed over steps");
+            Assert.True(state.CostUsd.HasValue && Math.Abs(state.CostUsd.Value - 0.0012942) < 1e-9, "Cost summed over steps: " + state.CostUsd);
+            Assert.Equal(2, events.Count(e => e.EventType == RunEventTypeEnum.Usage), "One usage event per step");
+            RunEventReport call = events.Single(e => e.EventType == RunEventTypeEnum.ToolCall);
+            Assert.Equal("bash", call.ToolName, "Tool name");
+            Assert.Equal("toolu_fixture1", call.ToolCallId, "Tool call id");
+            Assert.True(call.Text != null && call.Text.Contains("echo fixture-tool-output", StringComparison.Ordinal), "Tool input");
+            RunEventReport result = events.Single(e => e.EventType == RunEventTypeEnum.ToolResult);
+            Assert.True(result.Success == true && result.ToolCallId == "toolu_fixture1" && result.Text == "fixture-tool-output\n", "Tool result");
+            Assert.Equal(1, events.Count(e => e.EventType == RunEventTypeEnum.Result), "One result event");
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.OpenCodeJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, state).Status, "Succeeded with exit 0");
+        }
+
+        private static void OpenCodeFailures()
+        {
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.OpenCodeJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+
+            HarnessRunState unauthorized = Parse(OutputParserEnum.OpenCodeJsonl, "opencode/v1.19.5-api-401.jsonl");
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, unauthorized);
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, outcome.Outcome, "A 401 APIError is NotCredentialed");
+            Assert.True(outcome.ErrorMessage != null && outcome.ErrorMessage.Contains("invalid x-api-key", StringComparison.Ordinal), "Error detail: " + outcome.ErrorMessage);
+            Assert.True(unauthorized.Drain().Any(e => e.EventType == RunEventTypeEnum.Error), "Error event");
+
+            HarnessRunState missing = Parse(OutputParserEnum.OpenCodeJsonl, "opencode/v1.19.5-missing-key.jsonl");
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, missing).Outcome, "ProviderAuthError is NotCredentialed");
+
+            HarnessRunState length = ParseLines(OutputParserEnum.OpenCodeJsonl, new[]
+            {
+                "{\"type\":\"text\",\"sessionID\":\"ses_a\",\"part\":{\"type\":\"text\",\"messageID\":\"msg_1\",\"text\":\"partial\",\"time\":{\"start\":1,\"end\":2}}}",
+                "{\"type\":\"step_finish\",\"sessionID\":\"ses_a\",\"part\":{\"type\":\"step-finish\",\"reason\":\"length\",\"messageID\":\"msg_1\",\"tokens\":{\"input\":5,\"output\":9,\"reasoning\":3,\"cache\":{\"read\":0,\"write\":0}},\"cost\":0}}"
+            });
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, length).Outcome, "Finish reason length fails the run");
+            Assert.Equal(12L, length.OutputTokens, "Output tokens include reasoning tokens");
+            Assert.Equal(3L, length.ReasoningTokens, "Reasoning tokens");
+
+            HarnessRunState unfinished = ParseLines(OutputParserEnum.OpenCodeJsonl, new[]
+            {
+                "{\"type\":\"tool_use\",\"sessionID\":\"ses_b\",\"part\":{\"type\":\"tool\",\"tool\":\"read\",\"callID\":\"call_1\",\"state\":{\"status\":\"error\",\"input\":{\"filePath\":\"/missing\"},\"error\":\"File not found\",\"time\":{\"start\":1,\"end\":2}}}}",
+                "{\"type\":\"step_finish\",\"sessionID\":\"ses_b\",\"part\":{\"type\":\"step-finish\",\"reason\":\"tool-calls\",\"tokens\":{\"input\":1,\"output\":1,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0}},\"cost\":0}}"
+            });
+            List<RunEventReport> events = unfinished.Drain();
+            RunEventReport failedTool = events.Single(e => e.EventType == RunEventTypeEnum.ToolResult);
+            Assert.True(failedTool.Success == false && failedTool.Text == "File not found", "A failed tool is an unsuccessful tool result");
+            Assert.True(!unfinished.SawFinalResult && !unfinished.SawSuccess, "A tool-calls step is not a final event");
+            Assert.Equal(RunStatusEnum.Failed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, unfinished).Status, "No final step is a failure");
+        }
+
+        private static void PiSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.PiJsonl, "pi/v1.4.0-success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.SawSuccess && state.SawFinalResult && state.DetectedFailure == null, "Expected success: " + state.DetectedFailure);
+            Assert.Equal("FIXTURE_ANSWER_42", state.FinalText, "The answer is the last assistant message");
+            Assert.Equal("Running a command.\nFIXTURE_ANSWER_42", state.AssistantText.ToString(), "Assistant text from deltas, one message per line");
+            Assert.True(state.SessionId != null && state.SessionId.StartsWith("01a18633", StringComparison.Ordinal), "Session id from the header: " + state.SessionId);
+            Assert.Equal("claude-sonnet-4-5", state.ServedModel, "Served model");
+            Assert.Equal(240L, state.InputTokens, "Input tokens");
+            Assert.Equal(38L, state.OutputTokens, "Output tokens");
+            Assert.Equal(14L, state.CachedTokens, "Cache reads");
+            Assert.True(state.CostUsd.HasValue && Math.Abs(state.CostUsd.Value - 0.0012942) < 1e-9, "Cost: " + state.CostUsd);
+            Assert.True(!events.Any(e => e.Text != null && e.Text.Contains("expert coding assistant", StringComparison.Ordinal)), "The system message is not reported");
+            Assert.Equal(2, events.Count(e => e.EventType == RunEventTypeEnum.AssistantText), "One text delta per message");
+            RunEventReport call = events.Single(e => e.EventType == RunEventTypeEnum.ToolCall);
+            Assert.True(call.ToolName == "bash" && call.ToolCallId == "toolu_fixture1" && call.Text != null && call.Text.Contains("echo fixture-tool-output", StringComparison.Ordinal), "Tool call");
+            RunEventReport result = events.Single(e => e.EventType == RunEventTypeEnum.ToolResult);
+            Assert.True(result.Success == true && result.Text == "fixture-tool-output\n", "Tool result");
+            Assert.Equal(1, events.Count(e => e.EventType == RunEventTypeEnum.Result), "One result event");
+        }
+
+        private static void PiFailures()
+        {
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.PiJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            string settled = "{\"type\":\"agent_settled\",\"aborted\":false}";
+
+            HarnessRunState unauthorized = Parse(OutputParserEnum.PiJsonl, "pi/v1.4.0-api-401.jsonl");
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, unauthorized);
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, outcome.Outcome, "pi exits 0 after a 401; the stop reason makes it NotCredentialed");
+
+            HarnessRunState retried = ParseLines(OutputParserEnum.PiJsonl, new[]
+            {
+                "{\"type\":\"session\",\"version\":3,\"id\":\"s1\",\"cwd\":\"/work\"}",
+                PiAssistant(String.Empty, "error", "529 overloaded"),
+                "{\"type\":\"auto_retry_start\",\"attempt\":1,\"maxAttempts\":3,\"delayMs\":2000,\"errorMessage\":\"529 overloaded\"}",
+                PiAssistant("Recovered", "stop", null),
+                "{\"type\":\"auto_retry_end\",\"success\":true,\"attempt\":2}",
+                settled
+            });
+            Assert.True(retried.SawSuccess && retried.DetectedFailure == null, "A retried error that recovers succeeds");
+            Assert.Equal("Recovered", retried.FinalText, "Final text after the retry");
+            Assert.True(retried.Drain().Any(e => e.EventType == RunEventTypeEnum.Warning && e.Text != null && e.Text.Contains("529 overloaded", StringComparison.Ordinal)), "Retry warning");
+
+            HarnessRunState length = ParseLines(OutputParserEnum.PiJsonl, new[] { PiAssistant("cut", "length", null), settled });
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, length).Outcome, "Stop reason length fails the run");
+
+            HarnessRunState aborted = ParseLines(OutputParserEnum.PiJsonl, new[] { PiAssistant("x", "stop", null), "{\"type\":\"agent_settled\",\"aborted\":true}" });
+            Assert.True(!aborted.SawSuccess && aborted.DetectedFailure != null, "An aborted run fails");
+
+            HarnessRunState noSettle = ParseLines(OutputParserEnum.PiJsonl, new[] { PiAssistant("Done", "stop", null), "{\"type\":\"agent_end\",\"messages\":[],\"willRetry\":false}" });
+            Assert.True(noSettle.SawSuccess && noSettle.FinalText == "Done", "Without agent_settled the last assistant message decides at the end of output");
+
+            HarnessRunState empty = ParseLines(OutputParserEnum.PiJsonl, new[] { "{\"type\":\"session\",\"version\":3,\"id\":\"s2\",\"cwd\":\"/work\"}" });
+            Assert.True(!empty.SawSuccess && !empty.SawFinalResult, "No assistant message is no final result");
+
+            HarnessRunState thinking = ParseLines(OutputParserEnum.PiJsonl, new[] { "{\"type\":\"message_update\",\"assistantMessageEvent\":{\"type\":\"thinking_delta\",\"contentIndex\":0,\"delta\":\"hmm\"}}" });
+            Assert.True(thinking.Drain().Any(e => e.EventType == RunEventTypeEnum.Thinking && e.Text == "hmm"), "Thinking deltas");
+        }
+
+        private static string PiAssistant(string text, string stopReason, string? errorMessage)
+        {
+            string error = errorMessage == null ? String.Empty : ",\"errorMessage\":\"" + errorMessage + "\"";
+            return "{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"" + text + "\"}],\"model\":\"m\",\"usage\":{\"input\":1,\"output\":2,\"cacheRead\":0,\"cost\":{\"total\":0}},\"stopReason\":\"" + stopReason + "\"" + error + "}}";
         }
 
         private static void GenericJsonl()

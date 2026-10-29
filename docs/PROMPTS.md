@@ -41,6 +41,8 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/claude-code-mcp-config` | ConfigFile | Claude Code `--mcp-config` file |
 | `builtin/mux-mcp-config`, `builtin/mux-endpoints`, `builtin/mux-settings`, `builtin/mux-subagents` | ConfigFile | Mux configuration directory |
 | `builtin/gemini-settings` | ConfigFile | Gemini CLI `settings.json` with MCP servers |
+| `builtin/opencode-config` | ConfigFile | opencode configuration file named by `OPENCODE_CONFIG`: the system prompt file as an `instructions` entry, and MCP servers |
+| `builtin/pi-mcp-config` | ConfigFile | pi `mcp.json` in the run's private `PI_CODING_AGENT_DIR`; header and environment values are references to variables the worker sets |
 | `builtin/agent-architect` | System | Default prompt of the agent architect: designs agents and apps in a studio draft and asks a person to approve applying it (see [Architect prompts](#architect-prompts)) |
 | `builtin/agent-architect-guided` | System | Architect prompt for first-time builders: one question at a time, each step explained |
 | `builtin/agent-architect-design`, `builtin/agent-architect-runtime` | Fragment | The architect's instructions for designing in a draft and for deployment settings; both architect prompts include them |

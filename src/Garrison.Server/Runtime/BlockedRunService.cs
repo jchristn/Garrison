@@ -307,6 +307,10 @@ namespace Garrison.Server.Runtime
                     return "Claude Code";
                 case HarnessTypeEnum.GeminiCli:
                     return "Gemini CLI";
+                case HarnessTypeEnum.OpenCode:
+                    return "opencode";
+                case HarnessTypeEnum.Pi:
+                    return "pi";
                 default:
                     return harness.ToString();
             }

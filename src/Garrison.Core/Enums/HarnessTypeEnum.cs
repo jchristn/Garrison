@@ -31,6 +31,16 @@ namespace Garrison.Core.Enums
         Generic,
 
         /// <summary>Bundled optional provider API agent loop.</summary>
-        ProviderApi
+        ProviderApi,
+
+        /// <summary>
+        /// OpenCode (<c>opencode run --format json</c>).
+        /// </summary>
+        OpenCode,
+
+        /// <summary>
+        /// Pi coding agent (<c>pi --mode json</c>).
+        /// </summary>
+        Pi
     }
 }

@@ -9,7 +9,7 @@ What the worker reports to Garrison:
   labels     GARRISON_WORKER_LABELS = garrison.io/pool=<name>, then the pool's labels (a later key wins)
   harnesses  whatever the probes find; harnesses or probes limit them per pool (otherwise the image's defaults)
 */ -}}
-{{- $harnessProbes := dict "claude" (dict "HarnessType" "ClaudeCode" "Executable" "claude" "Label" "claude") "codex" (dict "HarnessType" "Codex" "Executable" "codex" "Label" "codex") "mux" (dict "HarnessType" "Mux" "Executable" "mux" "Label" "mux") "gemini" (dict "HarnessType" "GeminiCli" "Executable" "gemini" "Label" "gemini") "fake" (dict "HarnessType" "Generic" "Executable" "garrison-fake-harness" "Label" "fake") "provider-api" (dict "HarnessType" "ProviderApi" "Executable" "garrison-provider-api" "Label" "provider-api") }}
+{{- $harnessProbes := dict "claude" (dict "HarnessType" "ClaudeCode" "Executable" "claude" "Label" "claude") "codex" (dict "HarnessType" "Codex" "Executable" "codex" "Label" "codex") "mux" (dict "HarnessType" "Mux" "Executable" "mux" "Label" "mux") "gemini" (dict "HarnessType" "GeminiCli" "Executable" "gemini" "Label" "gemini") "opencode" (dict "HarnessType" "OpenCode" "Executable" "opencode" "Label" "opencode") "pi" (dict "HarnessType" "Pi" "Executable" "pi" "Label" "pi") "fake" (dict "HarnessType" "Generic" "Executable" "garrison-fake-harness" "Label" "fake") "provider-api" (dict "HarnessType" "ProviderApi" "Executable" "garrison-provider-api" "Label" "provider-api") }}
 {{- range $pool := .Values.workerPools }}
 {{- $name := ternary "garrison-worker" (printf "garrison-worker-%s" $pool.name) (eq $pool.name "default") }}
 {{- $labels := printf "garrison.io/pool=%s" $pool.name }}
@@ -23,7 +23,7 @@ What the worker reports to Garrison:
 {{- $probes := list }}
 {{- range $h := ($pool.harnesses | default list) }}
 {{- if not (hasKey $harnessProbes $h) }}
-{{- fail (printf "workerPools[%s].harnesses: unknown harness %q (use claude, codex, mux, gemini, fake, provider-api, or probes)" $pool.name $h) }}
+{{- fail (printf "workerPools[%s].harnesses: unknown harness %q (use claude, codex, mux, gemini, opencode, pi, fake, provider-api, or probes)" $pool.name $h) }}
 {{- end }}
 {{- $probes = append $probes (merge (dict "Arguments" (list "--version")) (get $harnessProbes $h)) }}
 {{- end }}

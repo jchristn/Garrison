@@ -81,6 +81,22 @@
       "Label": "gemini"
     },
     {
+      "HarnessType": "OpenCode",
+      "Executable": "opencode",
+      "Arguments": [
+        "--version"
+      ],
+      "Label": "opencode"
+    },
+    {
+      "HarnessType": "Pi",
+      "Executable": "pi",
+      "Arguments": [
+        "--version"
+      ],
+      "Label": "pi"
+    },
+    {
       "HarnessType": "Generic",
       "Executable": "garrison-fake-harness",
       "Arguments": [

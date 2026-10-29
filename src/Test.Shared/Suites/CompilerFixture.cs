@@ -134,6 +134,8 @@ namespace Test.Shared.Suites
                 "codex-app-server" => SecretKindEnum.OpenAiApiKey,
                 "mux" => SecretKindEnum.OpenAiApiKey,
                 "gemini-cli" => SecretKindEnum.GeminiApiKey,
+                "opencode" => SecretKindEnum.AnthropicApiKey,
+                "pi" => SecretKindEnum.AnthropicApiKey,
                 _ => SecretKindEnum.GenericEnv
             };
             Secret credential = await SecretAsync("sec_" + suffix, kind, "credential-" + suffix, token).ConfigureAwait(false);

@@ -1680,6 +1680,8 @@ tips.views.settings.groups.Leases = "可選協調設定；所有副本要用相�
 tips.views.settings.fields.Leases = {"Provider": "可選協調設定；所有副本要用相同設定再重新啟動。預設用 Database。", "ClutchEndpoint": "透過密鑰或環境變數提供 Clutch 存取金鑰；端點唔可以包含憑證。", "ClutchAccessKey": "透過密鑰或環境變數提供 Clutch 存取金鑰；端點唔可以包含憑證。", "KeyPrefix": "可選協調設定；所有副本要用相同設定再重新啟動。預設用 Database。", "RequestTimeoutMs": "可選協調設定；所有副本要用相同設定再重新啟動。預設用 Database。", "SweepIntervalMs": "可選協調設定；所有副本要用相同設定再重新啟動。預設用 Database。", "MaxLeaseMs": "可選協調設定；所有副本要用相同設定再重新啟動。預設用 Database。", "MaxHoldMs": "可選協調設定；所有副本要用相同設定再重新啟動。預設用 Database。"};
 
 tips.enums.harnessType.ProviderApi = "透過 PolyPrompt 執行可選直接 API 循環。要設定端點同模型；CLI 部署照常可用。";
+tips.enums.harnessType.OpenCode = "用 opencode run 無介面執行 opencode CLI，輸出 JSON 事件。支援 Anthropic、OpenAI、Google 同其他模型供應方。";
+tips.enums.harnessType.Pi = "用 JSON 模式執行 pi 編程代理。支援 Anthropic、OpenAI、Google 同其他模型供應方。";
 
 // Pipelines (P12.9).
 tips.nav.hubs.approvals = '所有等緊有人處理嘅嘢：代理程式要求做嘅工具呼叫、需要審閱嘅管線階段，同埋每個決定嘅歷史。';

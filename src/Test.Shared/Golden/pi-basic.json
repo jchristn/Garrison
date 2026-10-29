@@ -1,0 +1,108 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-pi-basic",
+    "deploymentId": "dep_pi_basic",
+    "deploymentName": "helper-pi-basic-default",
+    "harnessType": "Pi",
+    "executable": "pi",
+    "arguments": [
+      "--mode",
+      "json",
+      "--no-approve",
+      "--no-skills",
+      "--no-prompt-templates",
+      "--model",
+      "test-model",
+      "--append-system-prompt",
+      "$GARRISON_CONFIG_DIR/system-prompt.md",
+      "--no-session"
+    ],
+    "environment": [
+      {
+        "name": "ANTHROPIC_API_KEY",
+        "value": "credential-pi_basic",
+        "isSecret": true
+      },
+      {
+        "name": "PI_CODING_AGENT_DIR",
+        "value": "$GARRISON_CONFIG_DIR/pi-agent",
+        "isSecret": false
+      },
+      {
+        "name": "PI_SKIP_VERSION_CHECK",
+        "value": "1",
+        "isSecret": false
+      },
+      {
+        "name": "PI_TELEMETRY",
+        "value": "0",
+        "isSecret": false
+      }
+    ],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n",
+        "isSecret": false
+      }
+    ],
+    "stdin": "Summarize the repository.\n",
+    "workspace": {
+      "kind": "Empty",
+      "gitDepth": 1,
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "PiJsonl",
+    "parserOptions": {
+      "approvalsRelayed": false
+    },
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEventAndExitCode",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
+    "isolateHome": true,
+    "mcpPreflight": [],
+    "scrubValues": [
+      "credential-pi_basic"
+    ],
+    "assetFiles": [],
+    "fileSpace": {
+      "mountPath": "files",
+      "maxFileBytes": 33554432,
+      "maxFiles": 1000,
+      "files": []
+    },
+    "retainForRepair": false,
+    "repairAttempt": 0,
+    "executor": "Process",
+    "egressRules": []
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    }
+  ]
+}

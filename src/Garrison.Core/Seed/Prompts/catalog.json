@@ -21,6 +21,8 @@
   { "key": "mux-settings", "kind": "ConfigFile", "description": "Mux settings.json for headless runs." },
   { "key": "mux-subagents", "kind": "ConfigFile", "description": "Mux subagents.json (no subagents)." },
   { "key": "gemini-settings", "kind": "ConfigFile", "description": "Gemini CLI settings.json with MCP servers." },
+  { "key": "opencode-config", "kind": "ConfigFile", "description": "opencode config file named by OPENCODE_CONFIG: the system prompt as an instructions file, and MCP servers." },
+  { "key": "pi-mcp-config", "kind": "ConfigFile", "description": "pi mcp.json in the run's private PI_CODING_AGENT_DIR; header and environment values are referenced from the environment." },
   { "key": "approval-denied", "kind": "Other", "description": "Message a harness receives when Garrison denies a permission request (P12.3). A tenant template named approval-denied of kind Other replaces it for that tenant." },
   { "key": "provider-api-config", "kind": "ConfigFile", "description": "Optional provider API harness configuration, compiled from deployment parameters and resolved MCP servers." },
   { "key": "continuation-resume", "kind": "Task", "description": "Resumes a suspended harness session with reviewed permission decisions; configurable per tenant." },

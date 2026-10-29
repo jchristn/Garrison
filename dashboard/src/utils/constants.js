@@ -48,11 +48,11 @@ export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'];
 
 // Enumerations mirrored from Garrison.Core.Enums (string values on the wire).
 export const ENUMS = {
-  harnessType: ['ClaudeCode', 'Codex', 'Mux', 'GeminiCli', 'Generic', 'ProviderApi'],
+  harnessType: ['ClaudeCode', 'Codex', 'Mux', 'GeminiCli', 'Generic', 'ProviderApi', 'OpenCode', 'Pi'],
   promptDelivery: ['Stdin', 'Argument', 'File', 'CodexAppServer'],
   systemPromptDelivery: ['File', 'Argument', 'Environment', 'PrependToPrompt', 'None'],
-  mcpConfigFormat: ['None', 'ClaudeJson', 'CodexToml', 'MuxJson', 'GeminiSettings'],
-  outputParser: ['ClaudeStreamJson', 'CodexJsonl', 'CodexAppServer', 'MuxJsonl', 'GeminiStreamJson', 'GenericJsonl', 'PlainText', 'ProviderApiJsonl'],
+  mcpConfigFormat: ['None', 'ClaudeJson', 'CodexToml', 'MuxJson', 'GeminiSettings', 'OpenCodeJson', 'PiJson'],
+  outputParser: ['ClaudeStreamJson', 'CodexJsonl', 'CodexAppServer', 'MuxJsonl', 'GeminiStreamJson', 'GenericJsonl', 'PlainText', 'ProviderApiJsonl', 'OpenCodeJsonl', 'PiJsonl'],
   resultSource: ['ParserFinalEvent', 'LastMessageFile', 'Stdout'],
   successPolicy: ['FinalEvent', 'ExitCode', 'FinalEventAndExitCode'],
   fileBaseDirectory: ['Config', 'Workspace', 'Home'],

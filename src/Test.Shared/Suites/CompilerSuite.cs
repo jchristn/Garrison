@@ -25,8 +25,8 @@ namespace Test.Shared.Suites
     {
         #region Private-Members
 
-        private static readonly string[] _Profiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli", "generic-jsonl", "fake" };
-        private static readonly string[] _FullProfiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli" };
+        private static readonly string[] _Profiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli", "opencode", "pi", "generic-jsonl", "fake" };
+        private static readonly string[] _FullProfiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli", "opencode", "pi" };
 
         #endregion
 
@@ -70,6 +70,7 @@ namespace Test.Shared.Suites
                 Run run = CompilerFixture.RunFor(deployment, full);
                 CompilationResult result = await fixture.Compiler.CompileAsync(run, full ? "run-token-golden" : null, token).ConfigureAwait(false);
                 for (int i = 0; i < result.TemplateVersions.Count; i++) result.TemplateVersions[i].Id = "rtv_golden_" + i;
+                result.AgentRevisionId = null;
                 string actual = JsonSerializer.Serialize(result, new JsonSerializerOptions(Serializer.Options) { WriteIndented = true });
                 string file = Path.Combine(GoldenDirectory(), profile + (full ? "-full" : "-basic") + ".json");
 

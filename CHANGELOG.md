@@ -118,6 +118,7 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 ### Configuration
 
 - Harness profiles that describe a headless invocation as data, with built-in profiles for Claude Code, Codex, Mux, Gemini CLI, a generic JSON-lines CLI, and a fake harness.
+- Built-in profiles `builtin/opencode` (`opencode run --format json`) and `builtin/pi` (`pi --mode json`), with the harness types `OpenCode` and `Pi`, the parsers `OpenCodeJsonl` and `PiJsonl`, the MCP configuration formats `OpenCodeJson` and `PiJson`, the configuration templates `builtin/opencode-config` and `builtin/pi-mcp-config`, worker probes, and optional worker image installs (`INCLUDE_OPENCODE`, `INCLUDE_PI`). Both resume sessions for structured output repairs and conversation turns; neither has a `sessionFormat` yet, so durable suspension stays off for them (D-064).
 - Versioned prompt templates with a logic-light template language, live render preview, built-ins that can be cloned and reset, and recorded template versions on every run.
 - MCP servers, encrypted secrets, workspace templates, artifact stores, agents with A2A cards, and deployments that bind them with overrides, placement, limits, and per-run parameters.
 - Declarative manifests (`garrison/v1`) with dry run, apply, and export.

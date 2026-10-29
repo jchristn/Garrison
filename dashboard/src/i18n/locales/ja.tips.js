@@ -1680,6 +1680,8 @@ tips.views.settings.groups.Leases = "任意の協調設定です。すべての�
 tips.views.settings.fields.Leases = {"Provider": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "ClutchEndpoint": "Clutch キーはシークレットまたは環境変数で渡します。エンドポイントに認証情報を含めないでください。", "ClutchAccessKey": "Clutch キーはシークレットまたは環境変数で渡します。エンドポイントに認証情報を含めないでください。", "KeyPrefix": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "RequestTimeoutMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "SweepIntervalMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "MaxLeaseMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "MaxHoldMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。"};
 
 tips.enums.harnessType.ProviderApi = "PolyPrompt による任意の直接 API ループです。エンドポイントとモデルが必要です。CLI デプロイは引き続き利用できます。";
+tips.enums.harnessType.OpenCode = "opencode CLI を opencode run でヘッドレス実行し、JSON イベントを出力します。Anthropic、OpenAI、Google などのモデルプロバイダーで動作します。";
+tips.enums.harnessType.Pi = "pi コーディングエージェントを JSON モードで実行します。Anthropic、OpenAI、Google などのモデルプロバイダーで動作します。";
 
 // Pipelines (P12.9).
 tips.nav.hubs.approvals = '人を待っているすべての項目です。エージェントが要求したツール呼び出しと、レビューが必要なパイプラインのステージ、およびすべての決定の履歴を表示します。';

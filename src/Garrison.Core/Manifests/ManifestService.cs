@@ -296,7 +296,11 @@ namespace Garrison.Core.Manifests
             foreach (McpServer server in plan.Selected<McpServer>()) documents.Add(Wrap("McpServer", server.Name, Tree(server)));
             foreach (WorkspaceTemplate workspace in plan.Selected<WorkspaceTemplate>()) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
             foreach (AgentAsset asset in plan.Selected<AgentAsset>()) documents.Add(Wrap("AgentAsset", asset.Name, await AgentAssetTreeAsync(asset, resolver, true, token).ConfigureAwait(false)));
-            foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token, await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false), await PublishedCapabilitiesAsync(agent, token).ConfigureAwait(false)).ConfigureAwait(false)));
+            foreach (Agent agent in plan.Selected<Agent>())
+            {
+                AgentRevision? published = await PublishedRevisionAsync(agent, token).ConfigureAwait(false);
+                documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token, published?.AssetPins ?? new List<AgentRevisionAssetPin>(), published?.Capabilities ?? new List<string>()).ConfigureAwait(false)));
+            }
             foreach (Deployment deployment in plan.Selected<Deployment>()) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
             foreach (Pipeline pipeline in plan.Selected<Pipeline>()) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
             foreach (AgenticApp app in plan.Selected<AgenticApp>()) documents.Add(Wrap("AgenticApp", app.Name, await AppTreeAsync(app, resolver, token).ConfigureAwait(false)));
@@ -708,8 +712,9 @@ namespace Garrison.Core.Manifests
             }
             else
             {
-                List<AgentRevisionAssetPin> currentPins = await PublishedAssetPinsAsync(existing, token).ConfigureAwait(false);
-                List<string> currentCapabilities = await PublishedCapabilitiesAsync(existing, token).ConfigureAwait(false);
+                AgentRevision? published = await PublishedRevisionAsync(existing, token).ConfigureAwait(false);
+                List<AgentRevisionAssetPin> currentPins = published?.AssetPins ?? new List<AgentRevisionAssetPin>();
+                List<string> currentCapabilities = published?.Capabilities ?? new List<string>();
                 Dictionary<string, object?> agentBefore = await AgentTreeAsync(existing, resolver, token, currentPins, currentCapabilities).ConfigureAwait(false);
                 Dictionary<string, object?> agentAfter = await AgentTreeAsync(agent, resolver, token, planned.AgentAssetPins ?? currentPins, planned.AgentCapabilities ?? currentCapabilities).ConfigureAwait(false);
                 planned.Result = Same(agentBefore, agentAfter) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated;
@@ -1576,8 +1581,9 @@ namespace Garrison.Core.Manifests
                     if (planned.AgentDraftOnly)
                     {
                         AgentRevision draft = AgentRevisionContent.FromAgent(agent);
-                        draft.AssetPins = planned.AgentAssetPins ?? await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false);
-                        draft.Capabilities = planned.AgentCapabilities ?? await PublishedCapabilitiesAsync(agent, token).ConfigureAwait(false);
+                        AgentRevision? current = await PublishedRevisionAsync(agent, token).ConfigureAwait(false);
+                        draft.AssetPins = planned.AgentAssetPins ?? current?.AssetPins ?? new List<AgentRevisionAssetPin>();
+                        draft.Capabilities = planned.AgentCapabilities ?? current?.Capabilities ?? new List<string>();
                         draft.ChangeNote = planned.AgentChangeNote;
                         draft.AuthorName = "manifest";
                         await _Database.AgentRevisions.SaveDraftAsync(draft, token).ConfigureAwait(false);
@@ -1840,18 +1846,11 @@ namespace Garrison.Core.Manifests
             return tree;
         }
 
-        private async Task<List<AgentRevisionAssetPin>> PublishedAssetPinsAsync(Agent agent, CancellationToken token)
-        {
-            if (String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return new List<AgentRevisionAssetPin>();
-            AgentRevision? revision = await _Database.AgentRevisions.ReadAsync(agent.TenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
-            return revision?.AssetPins ?? new List<AgentRevisionAssetPin>();
-        }
 
-        private async Task<List<string>> PublishedCapabilitiesAsync(Agent agent, CancellationToken token)
+        private async Task<AgentRevision?> PublishedRevisionAsync(Agent agent, CancellationToken token)
         {
-            if (String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return new List<string>();
-            AgentRevision? revision = await _Database.AgentRevisions.ReadAsync(agent.TenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
-            return revision?.Capabilities ?? new List<string>();
+            if (String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return null;
+            return await _Database.AgentRevisions.ReadAsync(agent.TenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
         }
 
         private async Task<Dictionary<string, object?>> AgentTreeAsync(Agent agent, Resolver resolver, CancellationToken token, List<AgentRevisionAssetPin>? assetPins = null, List<string>? capabilities = null)

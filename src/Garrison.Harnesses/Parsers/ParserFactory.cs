@@ -32,6 +32,8 @@ namespace Garrison.Harnesses.Parsers
                 case OutputParserEnum.GeminiStreamJson: return new GeminiStreamJsonParser();
                 case OutputParserEnum.GenericJsonl: return new GenericJsonlParser(options ?? new ExecutionParserOptions());
                 case OutputParserEnum.ProviderApiJsonl: return new ProviderApiJsonlParser();
+                case OutputParserEnum.OpenCodeJsonl: return new OpenCodeJsonlParser();
+                case OutputParserEnum.PiJsonl: return new PiJsonlParser();
                 case OutputParserEnum.PlainText: return new PlainTextParser();
                 default: throw new ArgumentException("Unknown output parser " + parser + ".", nameof(parser));
             }
