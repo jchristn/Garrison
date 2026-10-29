@@ -416,6 +416,24 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate an app session identifier (prefix aps_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAppSessionId()
+        {
+            return New(Constants.AppSessionIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a studio draft identifier (prefix sdr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewStudioDraftId()
+        {
+            return New(Constants.StudioDraftIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a notification endpoint event row identifier (prefix nev_).
         /// </summary>
         /// <returns>Identifier.</returns>

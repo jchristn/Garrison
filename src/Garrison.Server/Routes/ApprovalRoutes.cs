@@ -1,6 +1,7 @@
 namespace Garrison.Server.Routes
 {
     using System;
+    using System.Collections.Generic;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
@@ -9,6 +10,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Responses;
     using Garrison.Core.Services;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -94,6 +96,13 @@ namespace Garrison.Server.Routes
         {
             Approval approval = await RequireAsync(context).ConfigureAwait(false);
             ApprovalDecideRequest request = RouteHelpers.RequiredBody<ApprovalDecideRequest>(context);
+            if (approval.Kind == ApprovalKindEnum.DraftApply)
+            {
+                if (!request.Decision.HasValue) throw new ValidationException("decision is required (Allow or Deny).", new Dictionary<string, string> { { "decision", "Allow or Deny." } });
+                Approval draftDecided = await _Context.Get<StudioService>().DecideAsync(RouteHelpers.Context(context), approval, request.Decision.Value == ApprovalDecisionEnum.Allow, request.Reason, context.Token).ConfigureAwait(false);
+                await RouteHelpers.JsonAsync(context, 200, draftDecided).ConfigureAwait(false);
+                return;
+            }
             if (request.Remember && _Routes != null && !await _Routes.RequireAsync(context, approval.TenantId, ResourceTypeEnum.Deployment, OperationTypeEnum.Update, approval.DeploymentId).ConfigureAwait(false)) return;
             Approval decided = await _Approvals.DecideAsync(RouteHelpers.Context(context), approval, request, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, decided).ConfigureAwait(false);

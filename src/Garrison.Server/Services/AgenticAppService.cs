@@ -116,6 +116,30 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
+        /// The checks create and update run, for manifest documents (AD6.11): members, entry, edges, graph, environments,
+        /// branding, and slug uniqueness. Agent references are already identifiers.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="app">App.</param>
+        /// <param name="appId">Existing app identifier, or null for a new app.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ValidationException">Thrown when the app is not valid.</exception>
+        /// <exception cref="ValidationException">Thrown with AppSlugTaken when the slug is taken.</exception>
+        public async Task ValidateForManifestAsync(string tenantId, AgenticApp app, string? appId, CancellationToken token)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+            await ValidateAsync(tenantId, app, appId, token).ConfigureAwait(false);
+            if (await _Server.Database.Apps.SlugTakenAsync(app.Slug, appId, token).ConfigureAwait(false))
+            {
+                ValidationException taken = new ValidationException("The URL slug " + app.Slug + " is taken. Slugs are unique across the cluster; choose another.",
+                    new Dictionary<string, string> { ["slug"] = "Taken." }, new Dictionary<string, string> { ["slug"] = "AppSlugTaken" });
+                taken.Code = "AppSlugTaken";
+                throw taken;
+            }
+        }
+
+        /// <summary>
         /// Delete an app with its revisions. Its members, deployments, and conversations stay.
         /// </summary>
         /// <param name="ctx">Caller.</param>

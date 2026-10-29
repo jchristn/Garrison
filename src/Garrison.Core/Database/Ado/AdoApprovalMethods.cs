@@ -21,7 +21,7 @@ namespace Garrison.Core.Database.Ado
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
-        private static readonly string _Columns = "id, tenantid, runid, rootrunid, agentid, agentname, deploymentid, leaseepoch, harnesstype, kind, toolname, toolcallid, inputpreview, summary, suggestedrule, status, decision, decisionsource, ruleid, rulepattern, rememberedruleid, decidedby, decidedbyid, reason, timeoutdecision, requestedutc, decidedutc, expiresutc, createdutc, lastupdateutc, inputdigest, resumeepoch";
+        private static readonly string _Columns = "id, tenantid, runid, rootrunid, agentid, agentname, deploymentid, leaseepoch, harnesstype, kind, toolname, toolcallid, inputpreview, summary, suggestedrule, status, decision, decisionsource, ruleid, rulepattern, rememberedruleid, decidedby, decidedbyid, reason, timeoutdecision, requestedutc, decidedutc, expiresutc, createdutc, lastupdateutc, inputdigest, resumeepoch, draftid";
 
         #endregion
 
@@ -88,6 +88,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "inputpreview", obj.InputPreview);
                 AdoDatabaseDriver.Add(command, "inputdigest", obj.InputDigest);
                 AdoDatabaseDriver.Add(command, "resumeepoch", obj.ResumeEpoch);
+                AdoDatabaseDriver.Add(command, "draftid", obj.DraftId);
                 AdoDatabaseDriver.Add(command, "summary", obj.Summary);
                 AdoDatabaseDriver.Add(command, "suggestedrule", Truncate(obj.SuggestedRule, 1024));
                 AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
@@ -300,6 +301,7 @@ namespace Garrison.Core.Database.Ado
             obj.ToolCallId = AdoConverters.NullableStr(reader, "toolcallid");
             obj.InputPreview = AdoConverters.NullableStr(reader, "inputpreview");
             obj.InputDigest = AdoConverters.NullableStr(reader, "inputdigest");
+            obj.DraftId = AdoConverters.NullableStr(reader, "draftid");
             obj.ResumeEpoch = AdoConverters.NullableLong(reader, "resumeepoch");
             obj.Summary = AdoConverters.NullableStr(reader, "summary");
             obj.SuggestedRule = AdoConverters.NullableStr(reader, "suggestedrule");

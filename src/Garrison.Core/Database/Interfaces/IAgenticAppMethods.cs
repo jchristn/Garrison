@@ -125,5 +125,37 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>True when a draft was published.</returns>
         Task<bool> PublishRevisionAsync(string tenantId, string revisionId, string? publishedByName, CancellationToken token = default);
+
+        /// <summary>
+        /// Store a new app session.
+        /// </summary>
+        /// <param name="session">Session with its token hash.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The stored session.</returns>
+        Task<AppSession> CreateSessionAsync(AppSession session, CancellationToken token = default);
+
+        /// <summary>
+        /// Read a session by its token hash, whether or not it is expired or revoked.
+        /// </summary>
+        /// <param name="tokenHash">SHA-256 of the token, lowercase hex.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Session or null.</returns>
+        Task<AppSession?> ReadSessionByHashAsync(string tokenHash, CancellationToken token = default);
+
+        /// <summary>
+        /// Revoke a session.
+        /// </summary>
+        /// <param name="id">Session identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when revoked.</returns>
+        Task<bool> RevokeSessionAsync(string id, CancellationToken token = default);
+
+        /// <summary>
+        /// Delete sessions that expired before a time (retention).
+        /// </summary>
+        /// <param name="beforeUtc">Cutoff (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Sessions deleted.</returns>
+        Task<int> DeleteExpiredSessionsAsync(System.DateTime beforeUtc, CancellationToken token = default);
     }
 }

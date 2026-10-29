@@ -363,6 +363,19 @@ Partial results are always returned. When the parent's deployment has `suspensio
 
 Run objects carry `fanOutGroupId`. The REST routes and the `fan-out:{groupId}` WebSocket channel show groups to people (see [REST_API.md](REST_API.md#fan-out-groups) and [WEBSOCKETS_API.md](WEBSOCKETS_API.md)). [examples/fan-out.yaml](examples/fan-out.yaml) runs a fan-out of three on the fake harness.
 
+## Agentic apps
+
+Management tools for apps (AD6), for users and credentials only:
+
+| Tool | Permission | Arguments |
+|---|---|---|
+| `garrison_list_apps` | AgenticApp.Read | optional `search`, `maxResults` |
+| `garrison_get_app` | AgenticApp.Read on the resolved ID | `app` (name or ID) |
+| `garrison_create_app` | AgenticApp.Create | `configuration` (REST app fields; agents by name or ID) |
+| `garrison_update_app` | AgenticApp.Update on the resolved ID | `app`, `configuration` |
+
+Validation errors use the REST field codes. See [docs/APPS.md](docs/APPS.md).
+
 ## Capability catalog
 
 When delegation is on, runs also get the catalog tools (AD4). See [docs/CAPABILITIES.md](docs/CAPABILITIES.md).

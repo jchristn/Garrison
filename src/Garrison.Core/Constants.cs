@@ -111,6 +111,15 @@ namespace Garrison.Core
         /// <summary>App revision identifier prefix (AD6).</summary>
         public const string AppRevisionIdPrefix = "apv_";
 
+        /// <summary>Studio draft identifier prefix (AD7).</summary>
+        public const string StudioDraftIdPrefix = "sdr_";
+
+        /// <summary>App session identifier prefix (AD6.5).</summary>
+        public const string AppSessionIdPrefix = "aps_";
+
+        /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
+        public const string AppSessionTokenPrefix = "gas_";
+
         /// <summary>
         /// Node label prefix a worker uses to report a harness tool probe that succeeded (AD4.4), for example
         /// garrison.io/tool-pandoc=true. A HarnessBuiltIn capability requires its label, so runs that need the tool are

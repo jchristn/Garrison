@@ -351,6 +351,16 @@ Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example 
 
 An asset upload over a limit answers 413 naming the setting. Files kept in an external artifact store are also bounded by `Artifacts.MaxFileBytes` when they are read back. See [ASSETS.md](ASSETS.md).
 
+### Agentic app UI
+
+| Setting | Default | Range | Environment |
+|---|---|---|---|
+| `Apps.SessionMinutes` | 480 | 5 to 10080 | `GARRISON_APPS_SESSION_MINUTES` |
+| `Apps.AnonymousSessionMinutes` | 60 | 5 to 1440 | `GARRISON_APPS_ANONYMOUS_SESSION_MINUTES` |
+| `Apps.MessagesPerMinute` | 30 | 1 to 1000 | `GARRISON_APPS_MESSAGES_PER_MINUTE` |
+
+App sessions are kept a day after they expire and then removed. See [APPS.md](APPS.md).
+
 ### Capability catalog
 
 | Setting | Default | Range | Environment |

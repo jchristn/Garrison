@@ -399,6 +399,8 @@ namespace Garrison.Server.Runtime
             int spaces = FileSpaces != null ? await FileSpaces.RemoveOrphansAsync(token).ConfigureAwait(false) : 0;
             // A fan-out group follows its parent run (AD5).
             if (FanOuts != null) await _Database.FanOuts.RemoveOrphansAsync(token).ConfigureAwait(false);
+            // App sessions are kept a day past expiry, then removed (AD6.5).
+            await _Database.Apps.DeleteExpiredSessionsAsync(Now.AddDays(-1), token).ConfigureAwait(false);
             if (spaces > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, spaces, GarrisonMetrics.Tags("kind", "file_spaces"));
             if (runs > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, runs, GarrisonMetrics.Tags("kind", "runs"));
             if (events > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, events, GarrisonMetrics.Tags("kind", "run_events"));

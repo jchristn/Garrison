@@ -343,6 +343,10 @@ namespace Garrison.Server.Routes
             {
                 await RouteHelpers.ErrorAsync(context, 409, e.Code, e.Message).ConfigureAwait(false);
             }
+            catch (AppAccessException e)
+            {
+                await RouteHelpers.ErrorAsync(context, e.StatusCode, e.Code, e.Message).ConfigureAwait(false);
+            }
             catch (PayloadTooLargeException e)
             {
                 await RouteHelpers.ErrorAsync(context, 413, e.Code, e.Message).ConfigureAwait(false);

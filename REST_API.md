@@ -3861,6 +3861,29 @@ A single file can be sent as raw bytes with `Content-Type: application/octet-str
 
 Agent revisions pin assets in `assetPins` (`assetId` as an identifier or name, optional `version`); see [Agent revisions](#agent-revisions).
 
+### Agentic apps
+
+Groups of agents behind one end-user chat UI (AD6). [docs/APPS.md](docs/APPS.md) explains members, edges, delegation from the graph, app revisions and promotion, sign-in, and the app gateway.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /apps` | Read on `AgenticApp` | `EnumerationResult<AgenticApp>`, 200 |
+| `POST /apps` | Create on `AgenticApp` | `AgenticApp`, 201 |
+| `GET /apps/{idOrName}` | Read on `AgenticApp` | `AgenticApp`, 200 |
+| `PUT /apps/{idOrName}` | Update on `AgenticApp` | `AgenticApp`, 200 |
+| `DELETE /apps/{idOrName}` | Delete on `AgenticApp` | Empty, 204 |
+| `GET /apps/{idOrName}/delegation` | Read on `AgenticApp` | `AppDelegationPlan`: each member's desired and published policy and drift, 200 |
+| `POST /apps/{idOrName}/delegation` | Update on `AgenticApp` | `AppDelegationPlan` with the draft revisions written, 200 |
+| `GET /apps/{idOrName}/revisions` | Read on `AgenticApp` | `AppRevision[]`, newest first, 200 |
+| `POST /apps/{idOrName}/revisions` | Update on `AgenticApp` | `AppRevision` (draft) pinning every member's published revision, 201 |
+| `GET /apps/{idOrName}/revisions/{idOrNumber}` | Read on `AgenticApp` | `AppRevision`, 200 |
+| `POST /apps/{idOrName}/revisions/{idOrNumber}/publish` | Execute on `AgenticApp` | `AppRevision`, 200; 409 `RevisionPublished` |
+| `POST /apps/{idOrName}/promote` | Execute on `Promotion` for the target | `PromotionRecord`, 201 |
+
+Errors: 400 `ValidationFailed` with field codes `InvalidName`, `InvalidSlug`, `UnknownAgent`, `DuplicateMember`, `EntryNotMember`, `EdgeNotMember`, `SelfEdge`, `AppGraphCycle`, `UnreachableMember`, `UnknownEnvironment`, `InvalidEntryDeployment`, `InvalidColor`, `UnknownAsset`; 409 `NameConflict`, `AppSlugTaken`, `NoPublishedRevision`, `NoTargetDeployments`. Deleting an agent that belongs to an app answers 409 `AgentInUse`.
+
+The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
+
 ### Fan-out groups
 
 Groups of child runs a run started with `garrison_fan_out` (AD5); see [MCP_API.md](MCP_API.md#fan-out-and-gather) for how they are started, joined, and bounded.

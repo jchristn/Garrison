@@ -123,6 +123,15 @@ namespace Garrison.Server.Settings
         }
 
         /// <summary>
+        /// Agentic app UI settings (AD6).
+        /// </summary>
+        public AppSettings Apps
+        {
+            get { return _Apps; }
+            set { _Apps = value ?? new AppSettings(); }
+        }
+
+        /// <summary>
         /// Control-plane refresh of ChatGPT logins stored in CodexAuthJson secrets (G-22).
         /// </summary>
         public CodexSettings Codex
@@ -172,6 +181,7 @@ namespace Garrison.Server.Settings
         private AssetSettings _Assets = new AssetSettings();
         private FileSpaceSettings _FileSpaces = new FileSpaceSettings();
         private CapabilitySettings _Capabilities = new CapabilitySettings();
+        private AppSettings _Apps = new AppSettings();
 
         private CodexSettings _Codex = new CodexSettings();
 
@@ -290,6 +300,9 @@ namespace Garrison.Server.Settings
             Int("GARRISON_CAPABILITIES_HINT_WINDOW_DAYS", "Capabilities.HintWindowDays", v => Capabilities.HintWindowDays = v);
             Int("GARRISON_CAPABILITIES_HINT_MINIMUM_SAMPLES", "Capabilities.HintMinimumSamples", v => Capabilities.HintMinimumSamples = v);
             Int("GARRISON_CAPABILITIES_HINT_MAX_SAMPLES", "Capabilities.HintMaxSamples", v => Capabilities.HintMaxSamples = v);
+            Int("GARRISON_APPS_SESSION_MINUTES", "Apps.SessionMinutes", v => Apps.SessionMinutes = v);
+            Int("GARRISON_APPS_ANONYMOUS_SESSION_MINUTES", "Apps.AnonymousSessionMinutes", v => Apps.AnonymousSessionMinutes = v);
+            Int("GARRISON_APPS_MESSAGES_PER_MINUTE", "Apps.MessagesPerMinute", v => Apps.MessagesPerMinute = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);

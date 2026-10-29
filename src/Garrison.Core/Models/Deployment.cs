@@ -398,6 +398,12 @@ namespace Garrison.Core.Models
         public bool SuspensionEnabled { get; set; } = false;
 
         /// <summary>
+        /// What this deployment's run tokens may do in the management plane (AD7.4, AD-017). Default None. Drafts lets the
+        /// agent architect edit studio drafts for the person who started the conversation, and never apply them.
+        /// </summary>
+        public ManagementAccessEnum ManagementAccess { get; set; } = ManagementAccessEnum.None;
+
+        /// <summary>
         /// Configuration version, incremented on every change.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;

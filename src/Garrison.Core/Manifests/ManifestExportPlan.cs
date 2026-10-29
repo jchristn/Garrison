@@ -47,6 +47,7 @@ namespace Garrison.Core.Manifests
         private readonly Dictionary<string, AgentAsset> _Assets = new Dictionary<string, AgentAsset>(StringComparer.Ordinal);
         private readonly Dictionary<string, Deployment> _Deployments = new Dictionary<string, Deployment>(StringComparer.Ordinal);
         private readonly Dictionary<string, Pipeline> _Pipelines = new Dictionary<string, Pipeline>(StringComparer.Ordinal);
+        private readonly Dictionary<string, AgenticApp> _Apps = new Dictionary<string, AgenticApp>(StringComparer.Ordinal);
         private readonly Dictionary<string, Trigger> _Triggers = new Dictionary<string, Trigger>(StringComparer.Ordinal);
         private readonly Dictionary<string, NotificationEndpoint> _Endpoints = new Dictionary<string, NotificationEndpoint>(StringComparer.Ordinal);
         private readonly Dictionary<string, Secret> _Secrets = new Dictionary<string, Secret>(StringComparer.Ordinal);
@@ -97,6 +98,7 @@ namespace Garrison.Core.Manifests
             foreach (AgentAsset item in await AllAsync(q => database.AgentAssets.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false)) plan._Assets[item.Id] = item;
             foreach (Deployment item in await AllAsync(q => database.Deployments.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Deployments[item.Id] = item;
             foreach (Pipeline item in await AllAsync(q => database.Pipelines.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Pipelines[item.Id] = item;
+            foreach (AgenticApp item in await AllAsync(q => database.Apps.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Apps[item.Id] = item;
             foreach (Trigger item in await AllAsync(q => database.Triggers.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false)) plan._Triggers[item.Id] = item;
             foreach (NotificationEndpoint item in await AllAsync(q => database.NotificationEndpoints.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Endpoints[item.Id] = item;
             foreach (Secret item in await AllAsync(q => database.Secrets.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Secrets[item.Id] = item;
@@ -204,6 +206,12 @@ namespace Garrison.Core.Manifests
                             await TemplateAsync(stage.HandoffTemplateId, token).ConfigureAwait(false);
                         }
                         foreach (Trigger trigger in _Triggers.Values.Where(t => t.TargetType == TriggerTargetTypeEnum.Pipeline && t.PipelineId == pipeline.Id)) Include("Trigger", trigger.Id);
+                        break;
+                    case "AgenticApp":
+                        AgenticApp app = _Apps[id];
+                        foreach (AgenticAppMember member in app.Members) Include("Agent", member.AgentId);
+                        foreach (AgenticAppEnvironment env in app.Environments) Include("Deployment", env.DeploymentId);
+                        Include("AgentAsset", app.LogoAssetId);
                         break;
                     case "Trigger":
                         Trigger fired = _Triggers[id];
@@ -320,6 +328,7 @@ namespace Garrison.Core.Manifests
                 case "AgentAsset": return _Assets.Keys.ToList();
                 case "Deployment": return _Deployments.Keys.ToList();
                 case "Pipeline": return _Pipelines.Keys.ToList();
+                case "AgenticApp": return _Apps.Keys.ToList();
                 case "Trigger": return _Triggers.Keys.ToList();
                 case "NotificationEndpoint": return _Endpoints.Keys.ToList();
                 default: return new List<string>();
@@ -338,6 +347,7 @@ namespace Garrison.Core.Manifests
                 case "AgentAsset": return _Assets.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Deployment": return _Deployments.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Pipeline": return _Pipelines.Values.FirstOrDefault(r => r.Name == name)?.Id;
+                case "AgenticApp": return _Apps.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Trigger": return _Triggers.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "NotificationEndpoint": return _Endpoints.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 default: return null;
@@ -360,6 +370,7 @@ namespace Garrison.Core.Manifests
                 case "AgentAsset": return _Assets.TryGetValue(id, out AgentAsset? asset) ? asset : null;
                 case "Deployment": return _Deployments.TryGetValue(id, out Deployment? deployment) ? deployment : null;
                 case "Pipeline": return _Pipelines.TryGetValue(id, out Pipeline? pipeline) ? pipeline : null;
+                case "AgenticApp": return _Apps.TryGetValue(id, out AgenticApp? app) ? app : null;
                 case "Trigger": return _Triggers.TryGetValue(id, out Trigger? trigger) ? trigger : null;
                 case "NotificationEndpoint": return _Endpoints.TryGetValue(id, out NotificationEndpoint? endpoint) ? endpoint : null;
                 default: return null;
@@ -452,6 +463,7 @@ namespace Garrison.Core.Manifests
                 case AgentAsset asset: return asset.Name;
                 case Deployment deployment: return deployment.Name;
                 case Pipeline pipeline: return pipeline.Name;
+                case AgenticApp app: return app.Name;
                 case Trigger trigger: return trigger.Name;
                 case NotificationEndpoint endpoint: return endpoint.Name;
                 default: return String.Empty;

@@ -8314,6 +8314,425 @@
       ]
     },
     {
+      "name": "Agentic Apps",
+      "description": "Agentic apps (AD6): apps, delegation from the graph, app revisions, and the app gateway. See docs/APPS.md.",
+      "item": [
+        {
+          "name": "Create agentic app",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps"
+              ]
+            },
+            "description": "An app with one member as its entry agent. Anonymous sessions are allowed so the gateway requests below can run without a user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\",\n      \"role\": \"Talks to people\"\n    }\n  ],\n  \"authMode\": \"Anonymous\",\n  \"anonymousEnabled\": true,\n  \"displayName\": \"Postman Desk\",\n  \"primaryColor\": \"#1F6FEB\",\n  \"welcomeText\": \"Ask me anything.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('app', function () { pm.expect(json.id).to.match(/^app_/); pm.expect(json.slug).to.eql(json.name); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('appId', json.id); }",
+                  "if (json.name !== undefined && json.name !== null) { pm.collectionVariables.set('appName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unreachable member is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps"
+              ]
+            },
+            "description": "Every member must be reachable from the entry agent: 400 UnreachableMember.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-bad-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\"\n    },\n    {\n      \"agentId\": \"{{nodeAgentId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('UnreachableMember', function () { pm.expect(JSON.stringify(json)).to.include('UnreachableMember'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read app by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appName}}"
+              ]
+            },
+            "description": "Apps are addressed by identifier or name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same app', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('appId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "App delegation plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/delegation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "delegation"
+              ]
+            },
+            "description": "Each member's delegation policy derived from the app graph, with drift."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('one member', function () { pm.expect(json.members.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Take app revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "revisions"
+              ]
+            },
+            "description": "Pins every member's published revision.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changeNote\": \"From Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('draft revision 1', function () { pm.expect(json.number).to.eql(1); pm.expect(json.state).to.eql('Draft'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish app revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/revisions/1/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "revisions",
+                "1",
+                "publish"
+              ]
+            },
+            "description": "Publishing makes it the app's latest revision."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: app info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}"
+              ]
+            },
+            "description": "Branding and sign-in for the app UI; no credentials needed.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('branding', function () { pm.expect(json.displayName).to.eql('Postman Desk'); pm.expect(json.anonymousAllowed).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: anonymous session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "session"
+              ]
+            },
+            "description": "An anonymous app session, allowed by the app.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('token', function () { pm.expect(json.token).to.match(/^gas_/); pm.expect(json.anonymous).to.eql(true); });",
+                  "if (json.token !== undefined && json.token !== null) { pm.collectionVariables.set('appSessionToken', json.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: conversations need an app session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations"
+              ]
+            },
+            "description": "Management tokens are not app sessions: 401 AppSessionRequired.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('AppSessionRequired', function () { pm.expect(JSON.stringify(json)).to.include('AppSessionRequired'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete app",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}"
+              ]
+            },
+            "description": "Deletes the app and its revisions; its agents stay."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Conversations",
       "description": "A conversation is a multi-turn session with one agent. Each turn is a run; every turn after the first resumes the harness session the earlier turns built. Start one with `startConversation` on invoke, create run, or a deployment test, then send `conversationId` with each later turn.",
       "item": [
@@ -18530,6 +18949,18 @@
     },
     {
       "key": "derivedCapabilityId",
+      "value": ""
+    },
+    {
+      "key": "appId",
+      "value": ""
+    },
+    {
+      "key": "appName",
+      "value": ""
+    },
+    {
+      "key": "appSessionToken",
       "value": ""
     }
   ]

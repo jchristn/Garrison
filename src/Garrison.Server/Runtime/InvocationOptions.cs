@@ -68,6 +68,11 @@ namespace Garrison.Server.Runtime
         public string? FanOutGroupId { get; set; } = null;
 
         /// <summary>
+        /// Agentic app whose chat UI started the run (AD6); a conversation it starts records the app. Null otherwise.
+        /// </summary>
+        public string? AppId { get; set; } = null;
+
+        /// <summary>
         /// Run identifier to use for the new run, or null to generate one. Fan-out sets it so the group can name its
         /// members before they exist.
         /// </summary>

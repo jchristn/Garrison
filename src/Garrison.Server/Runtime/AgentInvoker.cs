@@ -105,6 +105,7 @@ namespace Garrison.Server.Runtime
             create.StartConversation = options.StartConversation;
             create.ContextId = String.IsNullOrWhiteSpace(options.ContextId) ? null : options.ContextId.Trim();
             create.FanOutGroupId = options.FanOutGroupId;
+            create.AppId = options.AppId;
             if (!String.IsNullOrEmpty(options.RunId)) create.RunId = options.RunId;
             create.Surface = options.Surface;
 

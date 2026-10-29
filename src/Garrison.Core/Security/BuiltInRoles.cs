@@ -93,6 +93,12 @@ namespace Garrison.Core.Security
         public const string Releaser = "Releaser";
 
         /// <summary>
+        /// AppUser role name (AD6.5, AD-021): use one agentic app's chat UI. Assign it with resource scope on the app; it
+        /// grants nothing in the management API.
+        /// </summary>
+        public const string AppUser = "AppUser";
+
+        /// <summary>
         /// All built-in role definitions.
         /// </summary>
         public static IReadOnlyList<BuiltInRole> All
@@ -342,6 +348,17 @@ namespace Garrison.Core.Security
             p_releaser_read.Operations = new List<string> { "Read" };
             releaser.Permissions.Add(p_releaser_read);
             roles.Add(releaser);
+
+            BuiltInRole appUser = new BuiltInRole();
+            appUser.Id = "rol_builtin_appuser";
+            appUser.Name = AppUser;
+            appUser.Description = "Use an agentic app's chat UI. Assign it with resource scope on the app.";
+            BuiltInPermission p_appuser_execute = new BuiltInPermission();
+            p_appuser_execute.Name = "AppUser.Execute";
+            p_appuser_execute.ResourceTypes = new List<string> { "AgenticApp" };
+            p_appuser_execute.Operations = new List<string> { "Execute" };
+            appUser.Permissions.Add(p_appuser_execute);
+            roles.Add(appUser);
 
             return roles;
         }

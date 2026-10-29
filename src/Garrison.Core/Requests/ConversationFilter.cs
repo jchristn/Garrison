@@ -29,6 +29,11 @@ namespace Garrison.Core.Requests
         public string? CallerId { get; set; } = null;
 
         /// <summary>
+        /// Only conversations started through this agentic app (AD6), or null for all.
+        /// </summary>
+        public string? AppId { get; set; } = null;
+
+        /// <summary>
         /// Case-insensitive substring of the title.
         /// </summary>
         public string? Search { get; set; } = null;

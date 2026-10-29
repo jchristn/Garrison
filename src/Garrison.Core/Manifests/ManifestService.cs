@@ -34,13 +34,13 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint", "Bundle" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "NotificationEndpoint", "Bundle" };
 
         /// <summary>
         /// Kinds an export can select (P12.21), in apply order. Secrets are never exported as documents (only as bundle
         /// requirements), and the Bundle document is written by every export.
         /// </summary>
-        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "NotificationEndpoint" };
 
         /// <summary>
         /// Name written to the Bundle document of an export.
@@ -74,6 +74,13 @@ namespace Garrison.Core.Manifests
         /// documents that carry file content are refused with AssetStorageUnavailable.
         /// </summary>
         public IAssetContentStore? AssetContent { get; set; } = null;
+
+        /// <summary>
+        /// Validates an AgenticApp document before it is written (AD6.11): tenant, app, the existing app's identifier or
+        /// null. The control plane sets it to the app service's checks (graph, environments, slug); with none set, only
+        /// references are checked.
+        /// </summary>
+        public Func<string, AgenticApp, string?, CancellationToken, Task>? AppValidator { get; set; } = null;
 
         #endregion
 
@@ -292,6 +299,7 @@ namespace Garrison.Core.Manifests
             foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token, await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false)).ConfigureAwait(false)));
             foreach (Deployment deployment in plan.Selected<Deployment>()) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
             foreach (Pipeline pipeline in plan.Selected<Pipeline>()) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
+            foreach (AgenticApp app in plan.Selected<AgenticApp>()) documents.Add(Wrap("AgenticApp", app.Name, await AppTreeAsync(app, resolver, token).ConfigureAwait(false)));
             foreach (Trigger trigger in plan.Selected<Trigger>()) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
             foreach (NotificationEndpoint endpoint in plan.Selected<NotificationEndpoint>()) documents.Add(Wrap("NotificationEndpoint", endpoint.Name, await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false)));
 
@@ -372,6 +380,9 @@ namespace Garrison.Core.Manifests
                     break;
                 case "pipeline":
                     await PlanPipelineAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "agenticapp":
+                    await PlanAgenticAppAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
                     break;
                 case "trigger":
                     await PlanTriggerAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
@@ -1134,6 +1145,127 @@ namespace Garrison.Core.Manifests
             resolver.Add("Pipeline", pipeline.Name, pipeline.Id);
         }
 
+        private async Task PlanAgenticAppAsync(string tenantId, ManifestDocument document, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            AgenticAppSpec spec = Deserialize<AgenticAppSpec>(document);
+            AgenticApp app = new AgenticApp();
+            app.TenantId = tenantId;
+            app.Name = document.Metadata.Name;
+            app.Description = document.Metadata.Description ?? spec.Description;
+            app.Slug = String.IsNullOrWhiteSpace(spec.Slug) ? app.Name : spec.Slug.Trim();
+            if (String.IsNullOrWhiteSpace(spec.Entry)) throw new ValidationException("AgenticApp " + app.Name + " needs an entry agent.", new Dictionary<string, string> { ["entry"] = "Name the entry agent." });
+            app.EntryAgentId = await resolver.RequireAsync("Agent", spec.Entry, "entry", token).ConfigureAwait(false);
+            if (!spec.Members.Any(m => String.Equals(m.Agent, spec.Entry, StringComparison.Ordinal))) spec.Members.Insert(0, new AppMemberSpec { Agent = spec.Entry });
+            for (int i = 0; i < spec.Members.Count; i++)
+            {
+                string agentId = await resolver.RequireAsync("Agent", spec.Members[i].Agent, "members[" + i + "].agent", token).ConfigureAwait(false);
+                app.Members.Add(new AgenticAppMember { AgentId = agentId, Role = String.IsNullOrWhiteSpace(spec.Members[i].Role) ? null : spec.Members[i].Role });
+            }
+            for (int i = 0; i < spec.Edges.Count; i++)
+            {
+                string caller = await resolver.RequireAsync("Agent", spec.Edges[i].From, "edges[" + i + "].from", token).ConfigureAwait(false);
+                string callee = await resolver.RequireAsync("Agent", spec.Edges[i].To, "edges[" + i + "].to", token).ConfigureAwait(false);
+                app.Edges.Add(new AgenticAppEdge { CallerAgentId = caller, CalleeAgentId = callee, FanOutAllowed = spec.Edges[i].FanOut ?? true });
+            }
+            for (int i = 0; i < spec.Environments.Count; i++)
+            {
+                AgenticAppEnvironment env = new AgenticAppEnvironment { Environment = spec.Environments[i].Environment };
+                if (!String.IsNullOrWhiteSpace(spec.Environments[i].Deployment)) env.DeploymentId = await resolver.RequireAsync("Deployment", spec.Environments[i].Deployment!, "environments[" + i + "].deployment", token).ConfigureAwait(false);
+                app.Environments.Add(env);
+            }
+            app.LiveEnvironment = String.IsNullOrWhiteSpace(spec.LiveEnvironment) ? "dev" : spec.LiveEnvironment.Trim();
+            AppAuthModeEnum authMode = AppAuthModeEnum.AppUsers;
+            if (!String.IsNullOrWhiteSpace(spec.AuthMode) && !Enum.TryParse(spec.AuthMode, true, out authMode))
+                throw new ValidationException("authMode is TenantUsers, AppUsers, or Anonymous.", new Dictionary<string, string> { ["authMode"] = "TenantUsers, AppUsers, or Anonymous." });
+            app.AuthMode = authMode;
+            app.AnonymousEnabled = spec.AnonymousEnabled ?? false;
+            app.ShowOperatorDetail = spec.ShowOperatorDetail ?? false;
+            app.Active = spec.Active ?? true;
+            if (spec.Branding != null)
+            {
+                app.DisplayName = String.IsNullOrWhiteSpace(spec.Branding.DisplayName) ? null : spec.Branding.DisplayName;
+                if (!String.IsNullOrWhiteSpace(spec.Branding.Logo)) app.LogoAssetId = await resolver.RequireAsync("AgentAsset", spec.Branding.Logo, "branding.logo", token).ConfigureAwait(false);
+                app.PrimaryColor = String.IsNullOrWhiteSpace(spec.Branding.PrimaryColor) ? null : spec.Branding.PrimaryColor;
+                app.AccentColor = String.IsNullOrWhiteSpace(spec.Branding.AccentColor) ? null : spec.Branding.AccentColor;
+                app.WelcomeText = String.IsNullOrWhiteSpace(spec.Branding.WelcomeText) ? null : spec.Branding.WelcomeText;
+            }
+
+            AgenticApp? existing = await _Database.Apps.ReadByNameAsync(tenantId, app.Name, token).ConfigureAwait(false);
+            if (existing != null)
+            {
+                app.Id = existing.Id;
+                app.CreatedUtc = existing.CreatedUtc;
+                app.LatestPublishedRevisionId = existing.LatestPublishedRevisionId;
+            }
+            planned.Model = app;
+            planned.ResourceId = app.Id;
+            bool unchanged = false;
+            if (existing != null)
+            {
+                Dictionary<string, object?> before = await AppTreeAsync(existing, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> after = await AppTreeAsync(app, resolver, token).ConfigureAwait(false);
+                unchanged = Same(before, after);
+                if (!unchanged) planned.Changes = Diff(before, after);
+            }
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            resolver.Add("AgenticApp", app.Name, app.Id);
+        }
+
+        private async Task<Dictionary<string, object?>> AppTreeAsync(AgenticApp app, Resolver resolver, CancellationToken token)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (app.Description != null) tree["description"] = app.Description;
+            if (app.Slug != app.Name) tree["slug"] = app.Slug;
+            tree["entry"] = await resolver.NameAsync("Agent", app.EntryAgentId, token).ConfigureAwait(false) ?? app.EntryAgentId;
+            List<object?> members = new List<object?>();
+            foreach (AgenticAppMember member in app.Members)
+            {
+                Dictionary<string, object?> item = new Dictionary<string, object?>();
+                item["agent"] = await resolver.NameAsync("Agent", member.AgentId, token).ConfigureAwait(false) ?? member.AgentId;
+                if (member.Role != null) item["role"] = member.Role;
+                members.Add(item);
+            }
+            tree["members"] = members;
+            if (app.Edges.Count > 0)
+            {
+                List<object?> edges = new List<object?>();
+                foreach (AgenticAppEdge edge in app.Edges)
+                {
+                    Dictionary<string, object?> item = new Dictionary<string, object?>();
+                    item["from"] = await resolver.NameAsync("Agent", edge.CallerAgentId, token).ConfigureAwait(false) ?? edge.CallerAgentId;
+                    item["to"] = await resolver.NameAsync("Agent", edge.CalleeAgentId, token).ConfigureAwait(false) ?? edge.CalleeAgentId;
+                    if (!edge.FanOutAllowed) item["fanOut"] = false;
+                    edges.Add(item);
+                }
+                tree["edges"] = edges;
+            }
+            if (app.Environments.Count > 0)
+            {
+                List<object?> environments = new List<object?>();
+                foreach (AgenticAppEnvironment env in app.Environments)
+                {
+                    Dictionary<string, object?> item = new Dictionary<string, object?>();
+                    item["environment"] = env.Environment;
+                    if (!String.IsNullOrEmpty(env.DeploymentId)) item["deployment"] = await resolver.NameAsync("Deployment", env.DeploymentId, token).ConfigureAwait(false) ?? env.DeploymentId;
+                    environments.Add(item);
+                }
+                tree["environments"] = environments;
+            }
+            if (app.LiveEnvironment != "dev") tree["liveEnvironment"] = app.LiveEnvironment;
+            if (app.AuthMode != AppAuthModeEnum.AppUsers) tree["authMode"] = app.AuthMode.ToString();
+            if (app.AnonymousEnabled) tree["anonymousEnabled"] = true;
+            if (app.ShowOperatorDetail) tree["showOperatorDetail"] = true;
+            if (!app.Active) tree["active"] = false;
+            Dictionary<string, object?> branding = new Dictionary<string, object?>();
+            if (app.DisplayName != null) branding["displayName"] = app.DisplayName;
+            if (app.LogoAssetId != null) branding["logo"] = await resolver.NameAsync("AgentAsset", app.LogoAssetId, token).ConfigureAwait(false) ?? app.LogoAssetId;
+            if (app.PrimaryColor != null) branding["primaryColor"] = app.PrimaryColor;
+            if (app.AccentColor != null) branding["accentColor"] = app.AccentColor;
+            if (app.WelcomeText != null) branding["welcomeText"] = app.WelcomeText;
+            if (branding.Count > 0) tree["branding"] = branding;
+            return tree;
+        }
+
         private async Task<Dictionary<string, object?>> PipelineTreeAsync(Pipeline pipeline, Resolver resolver, CancellationToken token)
         {
             Dictionary<string, object?> tree = new Dictionary<string, object?>();
@@ -1458,6 +1590,11 @@ namespace Garrison.Core.Manifests
                     await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, cache, token).ConfigureAwait(false);
                     if (create) await _Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
                     else await _Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                    break;
+                case AgenticApp app:
+                    if (AppValidator != null) await AppValidator(tenantId, app, create ? null : app.Id, token).ConfigureAwait(false);
+                    if (create) await _Database.Apps.CreateAsync(app, token).ConfigureAwait(false);
+                    else await _Database.Apps.UpdateAsync(app, token).ConfigureAwait(false);
                     break;
                 case Pipeline pipeline:
                     await ConfigurationValidator.PipelineAsync(_Database, tenantId, pipeline, _MaxPipelineStages, token).ConfigureAwait(false);

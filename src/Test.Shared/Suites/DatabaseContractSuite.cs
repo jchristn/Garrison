@@ -151,7 +151,21 @@ namespace Test.Shared.Suites
                     if (fromVersion == 17)
                         await ado.NonQueryAsync("UPDATE " + ado.Table("node_executors") + " SET capreported = " + ado.Dialect.BooleanLiteral(true) + ", capisolation = 1, capcoldstartclass = 'Cold' WHERE id = 'exe_legacy';", null, token).ConfigureAwait(false);
                 }
-                await raw.Conversations.CreateAsync(conversation, token).ConfigureAwait(false);
+                // Written with the columns the old schema has: the current data layer may write columns added later.
+                await ado.NonQueryAsync("INSERT INTO " + ado.Table("conversations") + " (id, tenantid, agentid, agentname, harnesstype, callertype, sessionid, turncount, fallbackcount, active, isprotected, createdutc, lastupdateutc) "
+                    + "VALUES (@id, @tenant, @agent, @name, @harness, 'User', @session, @turns, 0, @true, @false, @now, @now);", c =>
+                    {
+                        AdoDatabaseDriver.Add(c, "id", conversation.Id);
+                        AdoDatabaseDriver.Add(c, "tenant", conversation.TenantId);
+                        AdoDatabaseDriver.Add(c, "agent", conversation.AgentId);
+                        AdoDatabaseDriver.Add(c, "name", conversation.AgentName);
+                        AdoDatabaseDriver.Add(c, "harness", conversation.HarnessType.ToString());
+                        AdoDatabaseDriver.Add(c, "session", conversation.SessionId);
+                        AdoDatabaseDriver.Add(c, "turns", conversation.TurnCount);
+                        AdoDatabaseDriver.Add(c, "true", true);
+                        AdoDatabaseDriver.Add(c, "false", false);
+                        AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow);
+                    }, token).ConfigureAwait(false);
             }
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {

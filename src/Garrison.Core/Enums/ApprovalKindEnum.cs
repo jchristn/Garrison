@@ -18,6 +18,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A Codex app-server file change approval (item/fileChange/requestApproval), evaluated as Edit.
         /// </summary>
-        FileChange
+        FileChange,
+
+        /// <summary>
+        /// Apply a studio draft to live configuration (AD7.3). A person with the permissions the draft needs decides it;
+        /// it is not tied to a run.
+        /// </summary>
+        DraftApply
     }
 }

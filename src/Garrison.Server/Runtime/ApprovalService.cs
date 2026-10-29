@@ -382,6 +382,54 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Record a person's decision on a DraftApply approval (AD7.3). The studio service checks and applies the draft;
+        /// this only resolves the approval and audits the decision.
+        /// </summary>
+        /// <param name="ctx">Deciding principal.</param>
+        /// <param name="approval">Pending DraftApply approval.</param>
+        /// <param name="allow">Whether the draft is applied.</param>
+        /// <param name="reason">Reason, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        /// <exception cref="ConflictException">Thrown with ApprovalNotPending when the approval was already decided.</exception>
+        public async Task ResolveDraftAsync(RequestContext ctx, Approval approval, bool allow, string? reason, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (approval == null) throw new ArgumentNullException(nameof(approval));
+            string? trimmed = String.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+            if (trimmed != null && trimmed.Length > 4000) trimmed = trimmed.Substring(0, 4000);
+            ApprovalResolution resolution = new ApprovalResolution();
+            resolution.ApprovalId = approval.Id;
+            resolution.Status = allow ? ApprovalStatusEnum.Approved : ApprovalStatusEnum.Denied;
+            resolution.Decision = allow ? ApprovalDecisionEnum.Allow : ApprovalDecisionEnum.Deny;
+            resolution.Source = ApprovalSourceEnum.User;
+            resolution.DecidedBy = ctx.PrincipalName ?? ctx.UserId ?? ctx.CredentialId ?? "unknown";
+            resolution.DecidedById = ctx.CredentialId ?? ctx.UserId;
+            resolution.Reason = trimmed;
+            if (!await ResolveAsync(approval, resolution, token).ConfigureAwait(false))
+            {
+                Approval? current = await _Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false);
+                throw new ConflictException("ApprovalNotPending", "Approval " + approval.Id + " is no longer pending; it is " + (current?.Status.ToString() ?? "gone") + ".");
+            }
+            await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ApprovalDecided, "Approval", approval.Id, (allow ? "Allowed " : "Denied ") + approval.ToolName + (trimmed == null ? "." : ": " + trimmed), approval.TenantId, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Cancel a pending DraftApply approval (its draft changed or was deleted).
+        /// </summary>
+        /// <param name="approval">Approval.</param>
+        /// <param name="reason">Why, recorded on the approval.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when cancelled.</returns>
+        public async Task<bool> CancelDraftAsync(Approval approval, string reason, CancellationToken token = default)
+        {
+            if (approval == null) throw new ArgumentNullException(nameof(approval));
+            if (approval.Status != ApprovalStatusEnum.Pending) return false;
+            return await ResolveAsync(approval, Resolution(approval, ApprovalStatusEnum.Cancelled, ApprovalDecisionEnum.Deny, ApprovalSourceEnum.Cancelled, reason), token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Leader sweep: cancel pending approvals whose run stopped or moved to another lease epoch, and apply the timeout
         /// decision to pending approvals past their expiry plus <see cref="SweepGraceSeconds"/> that no waiter resolved.
         /// </summary>
@@ -395,6 +443,12 @@ namespace Garrison.Server.Runtime
             foreach (Approval approval in pending)
             {
                 token.ThrowIfCancellationRequested();
+                if (approval.Kind == ApprovalKindEnum.DraftApply)
+                {
+                    // Draft approvals have no run; they only expire (AD7.3).
+                    if (approval.ExpiresUtc.HasValue && approval.ExpiresUtc.Value <= now) any |= await ResolveAsync(approval, Expiry(approval), token).ConfigureAwait(false);
+                    continue;
+                }
                 Run? run = await _Database.Runs.ReadAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false);
                 if (run == null || (run.Status != RunStatusEnum.Suspended && !IsActive(run, approval.LeaseEpoch)))
                 {
@@ -573,7 +627,8 @@ namespace Garrison.Server.Runtime
             if (!await _Database.Approvals.ResolveAsync(resolution, token).ConfigureAwait(false)) return false;
 
             long waitMs = Math.Max(0, (long)(resolution.DecidedUtc - approval.RequestedUtc).TotalMilliseconds);
-            await _Database.Runs.AdjustPendingApprovalsAsync(approval.RunId, -1, resolution.Source == ApprovalSourceEnum.Cancelled ? 0 : waitMs, token).ConfigureAwait(false);
+            bool hasRun = !String.IsNullOrEmpty(approval.RunId);
+            if (hasRun) await _Database.Runs.AdjustPendingApprovalsAsync(approval.RunId, -1, resolution.Source == ApprovalSourceEnum.Cancelled ? 0 : waitMs, token).ConfigureAwait(false);
             if (Interlocked.Decrement(ref _PendingCount) < 0) Interlocked.Exchange(ref _PendingCount, 0);
 
             string source = resolution.Source.ToString().ToLowerInvariant();
@@ -587,7 +642,7 @@ namespace Garrison.Server.Runtime
             approval.DecidedBy = resolution.DecidedBy;
             approval.Reason = resolution.Reason;
             approval.DecidedUtc = resolution.DecidedUtc;
-            Run? run = await _Database.Runs.ReadAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false);
+            Run? run = hasRun ? await _Database.Runs.ReadAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false) : null;
             Changed(approval, run?.LeaseNodeId);
             if (run?.Status == RunStatusEnum.Suspended && Continuations != null)
                 await Continuations.ResumeAsync(approval.TenantId, approval.RunId, token).ConfigureAwait(false);

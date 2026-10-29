@@ -72,10 +72,14 @@ namespace Garrison.Server.Modules
             context.Register(_Cards);
             context.Register(new AgentRevisionService(context));
             context.Register(new PromotionService(context));
+            context.Register(new AgenticAppService(context));
+            context.Register(new AppGatewayService(context));
             AgentAssetService assets = new AgentAssetService(context);
             context.Register(assets);
             _Manifests.AssetContent = new ManifestAssetContentStore(assets);
+            _Manifests.AppValidator = (tenantId, app, appId, ct) => context.Get<AgenticAppService>().ValidateForManifestAsync(tenantId, app, appId, ct);
             context.Register(new FileSpaceService(context));
+            context.Register(new StudioService(context));
         }
 
         /// <inheritdoc />
@@ -99,6 +103,8 @@ namespace Garrison.Server.Modules
             new PromotionRoutes(context, context.Get<PromotionService>()).Register(routes);
             new AgentAssetRoutes(context, context.Get<AgentAssetService>()).Register(routes);
             new CapabilityRoutes(context, context.Get<CapabilityService>()).Register(routes);
+            new AppRoutes(context, context.Get<AgenticAppService>()).Register(routes);
+            new AppGatewayRoutes(context, context.Get<AppGatewayService>()).Register(routes);
             new FileSpaceRoutes(context, context.Get<FileSpaceService>()).Register(routes);
             new ManifestRoutes(context, _Manifests!).Register(routes);
         }

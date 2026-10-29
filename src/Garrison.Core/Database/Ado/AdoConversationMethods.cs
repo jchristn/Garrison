@@ -47,8 +47,8 @@ namespace Garrison.Core.Database.Ado
             obj.CreatedUtc = DateTime.UtcNow;
             obj.LastUpdateUtc = obj.CreatedUtc;
 
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, harnesstype, contextid, title, callertype, callerid, callername, sessionid, sessionharnessprofileid, affinitynodeid, affinitynodename, activerunid, lastrunid, turncount, fallbackcount, lastfallbackreason, lastfallbackutc, lastactivityutc, active, isprotected, createdutc, lastupdateutc) " +
-                "VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @harnesstype, @contextid, @title, @callertype, @callerid, @callername, @sessionid, @sessionharnessprofileid, @affinitynodeid, @affinitynodename, @activerunid, @lastrunid, @turncount, @fallbackcount, @lastfallbackreason, @lastfallbackutc, @lastactivityutc, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, harnesstype, contextid, appid, title, callertype, callerid, callername, sessionid, sessionharnessprofileid, affinitynodeid, affinitynodename, activerunid, lastrunid, turncount, fallbackcount, lastfallbackreason, lastfallbackutc, lastactivityutc, active, isprotected, createdutc, lastupdateutc) " +
+                "VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @harnesstype, @contextid, @appid, @title, @callertype, @callerid, @callername, @sessionid, @sessionharnessprofileid, @affinitynodeid, @affinitynodename, @activerunid, @lastrunid, @turncount, @fallbackcount, @lastfallbackreason, @lastfallbackutc, @lastactivityutc, @active, @isprotected, @createdutc, @lastupdateutc);";
             await _Driver.NonQueryAsync(sql, command => Bind(command, obj), token).ConfigureAwait(false);
             return obj;
         }
@@ -104,7 +104,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, harnesstype = @harnesstype, contextid = @contextid, title = @title, " +
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, harnesstype = @harnesstype, contextid = @contextid, appid = @appid, title = @title, " +
                 "callertype = @callertype, callerid = @callerid, callername = @callername, sessionid = @sessionid, sessionharnessprofileid = @sessionharnessprofileid, affinitynodeid = @affinitynodeid, " +
                 "affinitynodename = @affinitynodename, activerunid = @activerunid, lastrunid = @lastrunid, turncount = @turncount, fallbackcount = @fallbackcount, lastfallbackreason = @lastfallbackreason, " +
                 "lastfallbackutc = @lastfallbackutc, lastactivityutc = @lastactivityutc, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
@@ -138,6 +138,7 @@ namespace Garrison.Core.Database.Ado
             if (!String.IsNullOrEmpty(filter.AgentId)) clauses.Add("agentid = @agentid");
             if (!String.IsNullOrEmpty(filter.ContextId)) clauses.Add("contextid = @contextid");
             if (!String.IsNullOrEmpty(filter.CallerId)) clauses.Add("callerid = @callerid");
+            if (!String.IsNullOrEmpty(filter.AppId)) clauses.Add("appid = @appid");
             if (!String.IsNullOrEmpty(filter.Search)) clauses.Add(_Driver.Dialect.CaseInsensitiveLike("title", "search"));
             string where = clauses.Count > 0 ? " WHERE " + String.Join(" AND ", clauses) : String.Empty;
 
@@ -147,6 +148,7 @@ namespace Garrison.Core.Database.Ado
                 if (!String.IsNullOrEmpty(filter.AgentId)) AdoDatabaseDriver.Add(command, "agentid", filter.AgentId);
                 if (!String.IsNullOrEmpty(filter.ContextId)) AdoDatabaseDriver.Add(command, "contextid", filter.ContextId);
                 if (!String.IsNullOrEmpty(filter.CallerId)) AdoDatabaseDriver.Add(command, "callerid", filter.CallerId);
+                if (!String.IsNullOrEmpty(filter.AppId)) AdoDatabaseDriver.Add(command, "appid", filter.AppId);
                 if (!String.IsNullOrEmpty(filter.Search)) AdoDatabaseDriver.Add(command, "search", "%" + filter.Search + "%");
             };
 
@@ -280,6 +282,7 @@ namespace Garrison.Core.Database.Ado
             obj.DeploymentId = AdoConverters.NullableStr(reader, "deploymentid") ?? String.Empty;
             obj.HarnessType = AdoConverters.Enum<HarnessTypeEnum>(reader, "harnesstype", HarnessTypeEnum.Generic);
             obj.ContextId = AdoConverters.NullableStr(reader, "contextid");
+            obj.AppId = AdoConverters.NullableStr(reader, "appid");
             obj.Title = AdoConverters.NullableStr(reader, "title");
             obj.CallerType = AdoConverters.Enum<PrincipalTypeEnum>(reader, "callertype", PrincipalTypeEnum.User);
             obj.CallerId = AdoConverters.NullableStr(reader, "callerid");
@@ -315,6 +318,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "deploymentid", String.IsNullOrEmpty(obj.DeploymentId) ? null : obj.DeploymentId);
             AdoDatabaseDriver.Add(command, "harnesstype", obj.HarnessType.ToString());
             AdoDatabaseDriver.Add(command, "contextid", obj.ContextId);
+            AdoDatabaseDriver.Add(command, "appid", String.IsNullOrEmpty(obj.AppId) ? null : obj.AppId);
             AdoDatabaseDriver.Add(command, "title", obj.Title);
             AdoDatabaseDriver.Add(command, "callertype", obj.CallerType.ToString());
             AdoDatabaseDriver.Add(command, "callerid", obj.CallerId);

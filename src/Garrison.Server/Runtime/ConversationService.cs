@@ -494,6 +494,7 @@ namespace Garrison.Server.Runtime
             conversation.CallerType = create.CallerType;
             conversation.CallerId = create.CallerId;
             conversation.CallerName = create.CallerName;
+            conversation.AppId = create.AppId;
             return conversation;
         }
 

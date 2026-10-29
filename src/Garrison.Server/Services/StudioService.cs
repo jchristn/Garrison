@@ -1,0 +1,504 @@
+namespace Garrison.Server.Services
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Security.Cryptography;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Garrison.Core.Enumeration;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Manifests;
+    using Garrison.Core.Models;
+    using Garrison.Core.Requests;
+    using Garrison.Core.Responses;
+    using Garrison.Core.Security;
+    using Garrison.Core.Services;
+
+    /// <summary>
+    /// Studio drafts (AD7.2, AD7.3, AD-002): manifest bundles designed by a person or by the agent architect, compared with
+    /// live configuration by a manifest dry run, and applied only after a person approves a DraftApply approval. Items
+    /// are manifest documents keyed by kind and name (AD-018). Thread-safe.
+    /// </summary>
+    public class StudioService
+    {
+        #region Public-Members
+
+        /// <summary>
+        /// Kinds a draft may hold. Secrets are left out: drafts never carry secret values.
+        /// </summary>
+        public static readonly IReadOnlyList<string> DraftKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "NotificationEndpoint" };
+
+        /// <summary>
+        /// Kinds a draft may delete.
+        /// </summary>
+        public static readonly IReadOnlyList<string> DeletableKinds = new List<string> { "Agent", "Deployment", "Pipeline", "AgenticApp" };
+
+        /// <summary>
+        /// How long a DraftApply approval waits for a decision, in hours. Default 168; minimum 1; maximum 720.
+        /// </summary>
+        public int ApprovalHours
+        {
+            get
+            {
+                return _ApprovalHours;
+            }
+            set
+            {
+                _ApprovalHours = Math.Clamp(value, 1, 720);
+            }
+        }
+
+        #endregion
+
+        #region Private-Members
+
+        private readonly ServerContext _Server;
+        private int _ApprovalHours = 168;
+
+        #endregion
+
+        #region Constructors-and-Factories
+
+        /// <summary>
+        /// Instantiate.
+        /// </summary>
+        /// <param name="server">Server context.</param>
+        /// <exception cref="ArgumentNullException">Thrown when server is null.</exception>
+        public StudioService(ServerContext server)
+        {
+            _Server = server ?? throw new ArgumentNullException(nameof(server));
+        }
+
+        #endregion
+
+        #region Public-Methods
+
+        /// <summary>
+        /// Start a draft, empty or from an export of an existing app with everything it references.
+        /// </summary>
+        /// <param name="ctx">Caller; the draft belongs to them (or, for a run token, to the person who started the run).</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="request">Title, optional app, optional conversation.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The draft.</returns>
+        /// <exception cref="NotFoundException">Thrown when fromApp names no app.</exception>
+        public async Task<StudioDraft> CreateAsync(RequestContext ctx, string tenantId, StudioDraftCreateRequest request, CancellationToken token)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            StudioDraft draft = new StudioDraft { TenantId = tenantId, ConversationId = String.IsNullOrWhiteSpace(request.ConversationId) ? null : request.ConversationId };
+            Owner(ctx, out string? ownerId, out string? ownerName);
+            draft.OwnerUserId = ownerId;
+            draft.OwnerName = ownerName;
+            if (!String.IsNullOrWhiteSpace(request.FromApp))
+            {
+                AgenticApp app = await _Server.Get<AgenticAppService>().ResolveAsync(tenantId, request.FromApp, token).ConfigureAwait(false);
+                draft.TargetApp = app.Name;
+                ManifestExportOptions options = new ManifestExportOptions { FollowReferences = true };
+                options.Resources.Add(new ManifestResourceReference { Kind = "AgenticApp", Name = app.Name });
+                ManifestExportResult export = await _Server.Get<ManifestService>().ExportAsync(tenantId, options, token).ConfigureAwait(false);
+                foreach (ManifestDocument document in ManifestParser.Parse(export.Yaml).Where(d => DraftKinds.Contains(d.Kind)))
+                {
+                    string text = Normalize(document);
+                    draft.Items.Add(new StudioDraftItem { Kind = document.Kind, Name = document.Metadata.Name, Document = text, BaseHash = Hash(text) });
+                }
+            }
+            string title = String.IsNullOrWhiteSpace(request.Title) ? (draft.TargetApp ?? "Untitled draft") : request.Title.Trim();
+            draft.Title = title.Length > 256 ? title.Substring(0, 256) : title;
+            await _Server.Database.StudioDrafts.CreateAsync(draft, token).ConfigureAwait(false);
+            return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Read a draft. A draft whose apply approval was denied, expired, or cancelled is returned to Open first.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="id">Draft identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Draft.</returns>
+        /// <exception cref="NotFoundException">Thrown when the tenant has no such draft.</exception>
+        public async Task<StudioDraft> ReadAsync(string tenantId, string? id, CancellationToken token)
+        {
+            StudioDraft draft = (String.IsNullOrEmpty(id) ? null : await _Server.Database.StudioDrafts.ReadAsync(tenantId, id, token).ConfigureAwait(false))
+                ?? throw new NotFoundException("Draft not found.");
+            if (draft.Status == StudioDraftStatusEnum.PendingApproval && !String.IsNullOrEmpty(draft.ApprovalId))
+            {
+                Approval? approval = await _Server.Database.Approvals.ReadAsync(tenantId, draft.ApprovalId, token).ConfigureAwait(false);
+                if (approval == null || (approval.Status != ApprovalStatusEnum.Pending && approval.Status != ApprovalStatusEnum.Approved))
+                {
+                    await _Server.Database.StudioDrafts.TransitionAsync(tenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
+                    draft = await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft;
+                }
+            }
+            return draft;
+        }
+
+        /// <summary>
+        /// Create or replace one item at the version the caller read.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <param name="kind">Item kind.</param>
+        /// <param name="name">Item name.</param>
+        /// <param name="request">Version, operation, and document.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The draft after the change.</returns>
+        /// <exception cref="ValidationException">Thrown when the kind is not allowed, the document does not parse, or its kind and name differ from the path.</exception>
+        /// <exception cref="ConflictException">Thrown with DraftVersionConflict, or DraftNotOpen.</exception>
+        public async Task<StudioDraft> PutItemAsync(string tenantId, string draftId, string kind, string name, StudioDraftItemRequest request, CancellationToken token)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            StudioDraft draft = await OpenAsync(tenantId, draftId, request.Version, token).ConfigureAwait(false);
+            string canonicalKind = DraftKinds.FirstOrDefault(k => String.Equals(k, kind, StringComparison.OrdinalIgnoreCase))
+                ?? throw Invalid("kind", "UnsupportedKind", "Drafts hold " + String.Join(", ", DraftKinds) + ".");
+            StudioDraftOperationEnum operation = StudioDraftOperationEnum.Upsert;
+            if (!String.IsNullOrWhiteSpace(request.Operation) && !Enum.TryParse(request.Operation, true, out operation)) throw Invalid("operation", "InvalidOperation", "operation is Upsert or Delete.");
+            StudioDraftItem item = new StudioDraftItem { Kind = canonicalKind, Name = name, Operation = operation };
+            if (operation == StudioDraftOperationEnum.Delete)
+            {
+                if (!DeletableKinds.Contains(canonicalKind)) throw Invalid("operation", "DeleteNotSupported", "Drafts can delete " + String.Join(", ", DeletableKinds) + ".");
+            }
+            else
+            {
+                List<ManifestDocument> documents;
+                try
+                {
+                    documents = ManifestParser.Parse(request.Document);
+                }
+                catch (Exception e) when (e is ValidationException || e is FormatException || e is InvalidOperationException || e is ArgumentException)
+                {
+                    throw Invalid("document", "InvalidDocument", "The document does not parse: " + e.Message);
+                }
+                if (documents.Count != 1) throw Invalid("document", "InvalidDocument", "Send exactly one manifest document.");
+                ManifestDocument document = documents[0];
+                if (!String.Equals(document.Kind, canonicalKind, StringComparison.OrdinalIgnoreCase) || !String.Equals(document.Metadata.Name, name, StringComparison.Ordinal))
+                    throw Invalid("document", "DocumentMismatch", "The document is " + document.Kind + "/" + document.Metadata.Name + ", not " + canonicalKind + "/" + name + ".");
+                item.Document = Normalize(document);
+            }
+            StudioDraftItem? existing = draft.Items.FirstOrDefault(i => i.Kind == canonicalKind && i.Name == name);
+            item.BaseHash = existing != null ? existing.BaseHash : await LiveHashAsync(tenantId, canonicalKind, name, token).ConfigureAwait(false);
+            if (!await _Server.Database.StudioDrafts.PutItemAsync(tenantId, draft.Id, request.Version, item, token).ConfigureAwait(false)) throw Moved(draft);
+            return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Remove one item at the version the caller read.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <param name="kind">Item kind.</param>
+        /// <param name="name">Item name.</param>
+        /// <param name="version">Version the caller read.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The draft after the change.</returns>
+        /// <exception cref="ConflictException">Thrown with DraftVersionConflict, or DraftNotOpen.</exception>
+        public async Task<StudioDraft> RemoveItemAsync(string tenantId, string draftId, string kind, string name, int version, CancellationToken token)
+        {
+            StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
+            StudioDraftItem item = draft.Items.FirstOrDefault(i => String.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase) && i.Name == name) ?? throw new NotFoundException("The draft has no item " + kind + "/" + name + ".");
+            if (!await _Server.Database.StudioDrafts.RemoveItemAsync(tenantId, draft.Id, version, item.Kind, item.Name, token).ConfigureAwait(false)) throw Moved(draft);
+            return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Replace the graph layout at the version the caller read.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <param name="version">Version the caller read.</param>
+        /// <param name="nodes">Node positions.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The draft after the change.</returns>
+        public async Task<StudioDraft> SetLayoutAsync(string tenantId, string draftId, int version, List<StudioDraftNode> nodes, CancellationToken token)
+        {
+            if (nodes == null) throw new ArgumentNullException(nameof(nodes));
+            if (nodes.Count > 1000) throw Invalid("nodes", "TooMany", "At most 1000 nodes.");
+            StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
+            if (!await _Server.Database.StudioDrafts.SetLayoutAsync(tenantId, draft.Id, version, nodes, token).ConfigureAwait(false)) throw Moved(draft);
+            return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Compare a draft with live configuration and validate it (AD7.2): a manifest dry run of its upserts, plus a check of
+        /// each delete and of every item's base against the live record.
+        /// </summary>
+        /// <param name="ctx">Caller, for the dry run's secret checks.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draft">Draft.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The diff.</returns>
+        public async Task<StudioDraftDiff> DiffAsync(RequestContext ctx, string tenantId, StudioDraft draft, CancellationToken token)
+        {
+            if (draft == null) throw new ArgumentNullException(nameof(draft));
+            StudioDraftDiff diff = new StudioDraftDiff { DraftId = draft.Id, Version = draft.Version };
+            List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
+            Dictionary<string, ManifestApplyItem> planned = new Dictionary<string, ManifestApplyItem>(StringComparer.Ordinal);
+            if (upserts.Count > 0)
+            {
+                ManifestApplyOptions options = new ManifestApplyOptions { DryRun = true, PrincipalName = ctx?.PrincipalName, PrincipalType = ctx?.PrincipalType ?? PrincipalTypeEnum.User, PrincipalId = ctx?.PrincipalId };
+                if (ctx != null) options.SecretUse = _Server.Authorization.SecretUse(ctx, tenantId);
+                ManifestApply dryRun = await _Server.Get<ManifestService>().ApplyAsync(tenantId, Bundle(upserts), options, token).ConfigureAwait(false);
+                foreach (ManifestApplyItem item in dryRun.Items) planned[item.Kind + "/" + item.Name] = item;
+            }
+            foreach (StudioDraftItem item in OrderForApply(draft.Items))
+            {
+                StudioDraftDiffItem entry = new StudioDraftDiffItem { Kind = item.Kind, Name = item.Name };
+                string? live = await LiveHashAsync(tenantId, item.Kind, item.Name, token).ConfigureAwait(false);
+                entry.Stale = item.BaseHash != null && live != null && item.BaseHash != live;
+                if (item.Operation == StudioDraftOperationEnum.Delete)
+                {
+                    entry.Change = live == null ? "Unchanged" : "Delete";
+                    if (live == null) entry.Message = "Nothing to delete.";
+                }
+                else if (planned.TryGetValue(item.Kind + "/" + item.Name, out ManifestApplyItem? result))
+                {
+                    ManifestApplyResultEnum outcome = result.Result == ManifestApplyResultEnum.Validated && result.PlannedResult.HasValue ? result.PlannedResult.Value : result.Result;
+                    entry.Change = outcome == ManifestApplyResultEnum.Created ? "Create" : outcome == ManifestApplyResultEnum.Updated ? "Update" : outcome == ManifestApplyResultEnum.Failed ? "Failed" : "Unchanged";
+                    entry.Changes = result.Changes;
+                    entry.Message = result.Result == ManifestApplyResultEnum.Failed ? result.Message : null;
+                    entry.ErrorCode = result.ErrorCode;
+                }
+                if (entry.Stale && entry.Message == null) entry.Message = "The live record changed since the draft was based on it.";
+                diff.Items.Add(entry);
+            }
+            diff.Valid = diff.Items.All(i => i.Change != "Failed" && !i.Stale);
+            return diff;
+        }
+
+        /// <summary>
+        /// Ask a person to approve applying the draft (AD7.3): validate it, then create a DraftApply approval holding the
+        /// diff and move the draft to PendingApproval. Nothing changes live until a person approves.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <param name="version">Version the caller read.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The approval.</returns>
+        /// <exception cref="ValidationException">Thrown with DraftInvalid when an item fails validation, DraftStale when a live record moved, DraftEmpty without changes.</exception>
+        public async Task<Approval> RequestApplyAsync(RequestContext ctx, string tenantId, string draftId, int version, CancellationToken token)
+        {
+            StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
+            StudioDraftDiff diff = await DiffAsync(ctx, tenantId, draft, token).ConfigureAwait(false);
+            if (diff.Items.Any(i => i.Stale)) throw Invalid("items", "DraftStale", "Live configuration changed since the draft was based on it: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". Rebase those items and try again.");
+            if (!diff.Valid) throw Invalid("items", "DraftInvalid", "The draft does not validate: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+            if (diff.Items.All(i => i.Change == "Unchanged")) throw Invalid("items", "DraftEmpty", "The draft changes nothing.");
+            Approval approval = new Approval
+            {
+                TenantId = tenantId, RunId = String.Empty, AgentId = String.Empty, AgentName = "studio", DeploymentId = String.Empty, Kind = ApprovalKindEnum.DraftApply,
+                ToolName = "Apply draft " + draft.Title, DraftId = draft.Id, Status = ApprovalStatusEnum.Pending, TimeoutDecision = ApprovalDecisionEnum.Deny,
+                Summary = "Apply draft " + draft.Title + ": " + Summarize(diff), InputPreview = Garrison.Core.Serialization.Serializer.Serialize(diff),
+                RequestedUtc = DateTime.UtcNow, ExpiresUtc = DateTime.UtcNow.AddHours(_ApprovalHours)
+            };
+            await _Server.Database.Approvals.CreateAsync(approval, token).ConfigureAwait(false);
+            if (!await _Server.Database.StudioDrafts.TransitionAsync(tenantId, draft.Id, version, StudioDraftStatusEnum.Open, StudioDraftStatusEnum.PendingApproval, approval.Id, null, token).ConfigureAwait(false))
+            {
+                await _Server.Get<Garrison.Server.Runtime.ApprovalService>().CancelDraftAsync(approval, "The draft changed before the request was recorded.", token).ConfigureAwait(false);
+                throw Moved(draft);
+            }
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Requested approval to apply draft " + draft.Title + " (" + Summarize(diff) + ").", tenantId, token).ConfigureAwait(false);
+            return approval;
+        }
+
+        /// <summary>
+        /// Decide a DraftApply approval (AD7.3). Allowing it checks the decider may apply manifests, re-validates the draft,
+        /// refuses with DraftStale when live configuration moved since validation, and then applies the draft. Denying it
+        /// returns the draft to Open.
+        /// </summary>
+        /// <param name="ctx">Decider.</param>
+        /// <param name="approval">Pending DraftApply approval.</param>
+        /// <param name="allow">Whether to apply.</param>
+        /// <param name="reason">Reason, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The approval as decided.</returns>
+        /// <exception cref="ConflictException">Thrown with ApprovalNotPending, DraftStale, or DraftInvalid.</exception>
+        /// <exception cref="AppAccessException">Thrown with 403 ApproverIsAgent for a run token, or ApproverLacksPermission.</exception>
+        public async Task<Approval> DecideAsync(RequestContext ctx, Approval approval, bool allow, string? reason, CancellationToken token)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (approval == null) throw new ArgumentNullException(nameof(approval));
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw new AppAccessException(403, "ApproverIsAgent", "An agent cannot decide a draft approval; a person must.");
+            if (approval.Status != ApprovalStatusEnum.Pending) throw new ConflictException("ApprovalNotPending", "Approval " + approval.Id + " is no longer pending; it is " + approval.Status + ".");
+            Garrison.Server.Runtime.ApprovalService approvals = _Server.Get<Garrison.Server.Runtime.ApprovalService>();
+            StudioDraft draft = await _Server.Database.StudioDrafts.ReadAsync(approval.TenantId, approval.DraftId ?? String.Empty, token).ConfigureAwait(false) ?? throw new NotFoundException("The draft no longer exists.");
+            if (!allow)
+            {
+                await approvals.ResolveDraftAsync(ctx, approval, false, reason, token).ConfigureAwait(false);
+                await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
+                return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
+            }
+            AuthorizationDecision mayApply = await _Server.Authorization.AuthorizeAsync(ctx, approval.TenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+            if (!mayApply.Permitted) throw new AppAccessException(403, "ApproverLacksPermission", "Applying a draft needs Create on Manifest, which you do not hold. Ask someone who can apply manifests.");
+            if (draft.Items.Any(i => i.Operation == StudioDraftOperationEnum.Delete))
+            {
+                foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Delete))
+                {
+                    AuthorizationDecision mayDelete = await _Server.Authorization.AuthorizeAsync(ctx, approval.TenantId, Enum.Parse<ResourceTypeEnum>(item.Kind), OperationTypeEnum.Delete, null, token).ConfigureAwait(false);
+                    if (!mayDelete.Permitted) throw new AppAccessException(403, "ApproverLacksPermission", "The draft deletes " + item.Kind + "/" + item.Name + ", which needs Delete on " + item.Kind + ".");
+                }
+            }
+            StudioDraftDiff diff = await DiffAsync(ctx, approval.TenantId, draft, token).ConfigureAwait(false);
+            if (diff.Items.Any(i => i.Stale))
+            {
+                await approvals.ResolveDraftAsync(ctx, approval, false, "Live configuration changed since the draft was validated; validate it again.", token).ConfigureAwait(false);
+                await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
+                throw new ConflictException("DraftStale", "Live configuration changed since the draft was validated: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". The draft is open again; validate it and request approval again.");
+            }
+            if (!diff.Valid) throw new ConflictException("DraftInvalid", "The draft no longer validates: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+
+            ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, approval.TenantId) };
+            List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
+            string? applyId = null;
+            if (upserts.Count > 0)
+            {
+                ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(approval.TenantId, Bundle(upserts), options, token).ConfigureAwait(false);
+                applyId = applied.Id;
+                if (applied.FailedCount > 0) throw new ConflictException("DraftInvalid", "Applying the draft failed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+            }
+            foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Delete)) await DeleteLiveAsync(ctx, approval.TenantId, item, token).ConfigureAwait(false);
+            await approvals.ResolveDraftAsync(ctx, approval, true, reason, token).ConfigureAwait(false);
+            await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Applied, approval.Id, applyId, token).ConfigureAwait(false);
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Applied draft " + draft.Title + " (" + Summarize(diff) + ")" + (applyId == null ? "." : " as manifest apply " + applyId + "."), approval.TenantId, token).ConfigureAwait(false);
+            return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
+        }
+
+        /// <summary>
+        /// Discard a draft that is not applied.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        public async Task DeleteAsync(string tenantId, string draftId, CancellationToken token)
+        {
+            StudioDraft draft = await ReadAsync(tenantId, draftId, token).ConfigureAwait(false);
+            if (draft.Status == StudioDraftStatusEnum.PendingApproval && !String.IsNullOrEmpty(draft.ApprovalId))
+            {
+                Approval? approval = await _Server.Database.Approvals.ReadAsync(tenantId, draft.ApprovalId, token).ConfigureAwait(false);
+                if (approval != null && approval.Status == ApprovalStatusEnum.Pending) await _Server.Get<Garrison.Server.Runtime.ApprovalService>().CancelDraftAsync(approval, "The draft was deleted.", token).ConfigureAwait(false);
+            }
+            await _Server.Database.StudioDrafts.DeleteAsync(tenantId, draft.Id, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The person a caller acts for: the user, or for a run token the run's originating principal.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="ownerId">Owner user or credential identifier.</param>
+        /// <param name="ownerName">Owner name.</param>
+        public static void Owner(RequestContext ctx, out string? ownerId, out string? ownerName)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                ownerId = ctx.OriginPrincipalId;
+                ownerName = ctx.PrincipalName;
+                return;
+            }
+            ownerId = ctx.UserId ?? ctx.CredentialId;
+            ownerName = ctx.PrincipalName;
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task<StudioDraft> OpenAsync(string tenantId, string draftId, int version, CancellationToken token)
+        {
+            StudioDraft draft = await ReadAsync(tenantId, draftId, token).ConfigureAwait(false);
+            if (draft.Status != StudioDraftStatusEnum.Open) throw new ConflictException("DraftNotOpen", "Draft " + draft.Title + " is " + draft.Status + "; only an open draft changes.");
+            if (draft.Version != version) throw Moved(draft);
+            return draft;
+        }
+
+        private static ConflictException Moved(StudioDraft draft)
+        {
+            return new ConflictException("DraftVersionConflict", "Draft " + draft.Title + " changed since version you read; read it again (it is at a newer version) and retry.");
+        }
+
+        private static ValidationException Invalid(string field, string code, string message)
+        {
+            ValidationException error = new ValidationException(message, new Dictionary<string, string> { [field] = message }, new Dictionary<string, string> { [field] = code });
+            error.Code = code == "DraftStale" || code == "DraftInvalid" || code == "DraftEmpty" ? code : error.Code;
+            return error;
+        }
+
+        private static string Normalize(ManifestDocument document)
+        {
+            Dictionary<string, object?> metadata = new Dictionary<string, object?> { ["name"] = document.Metadata.Name };
+            if (document.Metadata.Description != null) metadata["description"] = document.Metadata.Description;
+            Dictionary<string, object?> wrapped = new Dictionary<string, object?>
+            {
+                ["apiVersion"] = String.IsNullOrEmpty(document.ApiVersion) ? "garrison/v1" : document.ApiVersion, ["kind"] = document.Kind, ["metadata"] = metadata, ["spec"] = document.Spec
+            };
+            return ManifestParser.ToYaml(new[] { wrapped });
+        }
+
+        private static string Hash(string text)
+        {
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+        }
+
+        private async Task<string?> LiveHashAsync(string tenantId, string kind, string name, CancellationToken token)
+        {
+            ManifestExportOptions options = new ManifestExportOptions();
+            options.Resources.Add(new ManifestResourceReference { Kind = kind, Name = name });
+            try
+            {
+                ManifestExportResult export = await _Server.Get<ManifestService>().ExportAsync(tenantId, options, token).ConfigureAwait(false);
+                ManifestDocument? document = ManifestParser.Parse(export.Yaml).FirstOrDefault(d => d.Kind == kind && d.Metadata.Name == name);
+                return document == null ? null : Hash(Normalize(document));
+            }
+            catch (NotFoundException)
+            {
+                return null;
+            }
+        }
+
+        private static IEnumerable<StudioDraftItem> OrderForApply(List<StudioDraftItem> items)
+        {
+            List<string> order = ManifestService.Kinds.ToList();
+            return items.OrderBy(i => order.IndexOf(i.Kind)).ThenBy(i => i.Name, StringComparer.Ordinal);
+        }
+
+        private static string Bundle(List<StudioDraftItem> items)
+        {
+            return String.Join("---\n", OrderForApply(items).Select(i => i.Document.EndsWith("\n", StringComparison.Ordinal) ? i.Document : i.Document + "\n"));
+        }
+
+        private static string Summarize(StudioDraftDiff diff)
+        {
+            int create = diff.Items.Count(i => i.Change == "Create");
+            int update = diff.Items.Count(i => i.Change == "Update");
+            int delete = diff.Items.Count(i => i.Change == "Delete");
+            return create + " to create, " + update + " to update, " + delete + " to delete";
+        }
+
+        private async Task DeleteLiveAsync(RequestContext ctx, string tenantId, StudioDraftItem item, CancellationToken token)
+        {
+            switch (item.Kind)
+            {
+                case "AgenticApp":
+                    AgenticApp? app = await _Server.Database.Apps.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);
+                    if (app != null) await _Server.Get<AgenticAppService>().DeleteAsync(ctx, tenantId, app, token).ConfigureAwait(false);
+                    break;
+                case "Agent":
+                    Agent? agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);
+                    if (agent != null) await _Server.Get<TenantConfigurationService>().DeleteAgentAsync(ctx, tenantId, agent, token).ConfigureAwait(false);
+                    break;
+                case "Deployment":
+                    Deployment? deployment = (await _Server.Database.Deployments.EnumerateAsync(tenantId, new EnumerationQuery { Search = item.Name, MaxResults = 1000 }, token).ConfigureAwait(false)).Objects.FirstOrDefault(d => d.Name == item.Name);
+                    if (deployment != null) await _Server.Get<TenantConfigurationService>().DeleteDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
+                    break;
+                case "Pipeline":
+                    Pipeline? pipeline = await _Server.Database.Pipelines.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);
+                    if (pipeline != null) await _Server.Database.Pipelines.DeleteAsync(tenantId, pipeline.Id, token).ConfigureAwait(false);
+                    break;
+            }
+        }
+
+        #endregion
+    }
+}

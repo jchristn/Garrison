@@ -752,6 +752,12 @@ namespace Garrison.Server.Protocols
                     case "garrison_files_delete":
                         result = await FileToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_list_apps":
+                    case "garrison_get_app":
+                    case "garrison_create_app":
+                    case "garrison_update_app":
+                        result = await AppToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_list_agent_assets":
                     case "garrison_get_agent_asset":
                     case "garrison_create_agent_asset":
@@ -1543,6 +1549,42 @@ namespace Garrison.Server.Protocols
             return view;
         }
 
+        private async Task<object> AppToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpAppArguments arguments = ManagementArguments<McpAppArguments>(args);
+            AgenticAppService apps = _Context.Get<AgenticAppService>();
+            try
+            {
+                if (tool.Name == "garrison_list_apps")
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.AgenticApp, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    return await _Context.Database.Apps.EnumerateAsync(tenantId, new EnumerationQuery { Search = arguments.Search, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) }, token).ConfigureAwait(false);
+                }
+                if (tool.Name == "garrison_create_app")
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.AgenticApp, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    return await apps.CreateAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+                }
+                if (String.IsNullOrWhiteSpace(arguments.App)) throw ToolError("ValidationFailed", "app is required.");
+                AgenticApp app = await apps.ResolveAsync(tenantId, arguments.App, token).ConfigureAwait(false);
+                await Require(ctx, tenantId, ResourceTypeEnum.AgenticApp, tool.Operation, app.Id, token).ConfigureAwait(false);
+                if (tool.Name == "garrison_get_app") return app;
+                return await apps.UpdateAsync(ctx, tenantId, app, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            }
+            catch (NotFoundException e)
+            {
+                throw ToolError("NotFound", e.Message);
+            }
+            catch (ConflictException e)
+            {
+                throw ToolError(e.Code, e.Message);
+            }
+            catch (ValidationException e)
+            {
+                throw ToolError(e.Code ?? "ValidationFailed", e.Message);
+            }
+        }
+
         private async Task<object> CapabilityToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
         {
             McpCapabilityArguments arguments = ManagementArguments<McpCapabilityArguments>(args);
@@ -1809,6 +1851,7 @@ namespace Garrison.Server.Protocols
             request.Reason = args?.GetString("reason");
             request.Remember = args?.GetBoolean("remember") ?? false;
             request.RulePattern = args?.GetString("rulePattern");
+            if (approval.Kind == ApprovalKindEnum.DraftApply) return await _Context.Get<StudioService>().DecideAsync(ctx, approval, parsed == ApprovalDecisionEnum.Allow, request.Reason, token).ConfigureAwait(false);
             if (request.Remember) await Require(ctx, tenantId, ResourceTypeEnum.Deployment, OperationTypeEnum.Update, approval.DeploymentId, token).ConfigureAwait(false);
             return await approvals.DecideAsync(ctx, approval, request, token).ConfigureAwait(false);
         }

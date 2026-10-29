@@ -343,6 +343,11 @@ namespace Garrison.Core.Database.Ado
             v40.BuildVersion40();
             migrations.Add(new SchemaMigration(40, "Agentic apps and app revisions", v40._Statements, v40._Columns));
 
+            // AD7: studio drafts with their manifest document items and graph layout; deployment management access.
+            SchemaBuilder v41 = new SchemaBuilder(catalog, dialect);
+            v41.BuildVersion41();
+            migrations.Add(new SchemaMigration(41, "Studio drafts and deployment management access", v41._Statements, v41._Columns));
+
             return migrations;
         }
 
@@ -406,6 +411,49 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion41()
+        {
+            SqlDialect d = _Dialect;
+            Table("studio_drafts",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "title VARCHAR(256) NOT NULL",
+                "owneruserid " + d.TypeId,
+                "ownername VARCHAR(256)",
+                "conversationid " + d.TypeId,
+                "targetapp VARCHAR(64)",
+                "version " + d.TypeInt + " NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "approvalid " + d.TypeId,
+                "publishonapply " + d.TypeBool + " NOT NULL",
+                "manifestapplyid " + d.TypeId,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("studio_drafts", "tenant", false, "tenantid", "lastupdateutc");
+            // Draft item documents are user-authored manifest text, the unmanaged exception AD-018 lists.
+            Table("studio_draft_items",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "draftid " + d.TypeId + " NOT NULL",
+                "kind VARCHAR(64) NOT NULL",
+                "name VARCHAR(256) NOT NULL",
+                "operation VARCHAR(16) NOT NULL",
+                "document " + d.TypeText + " NOT NULL",
+                "basehash VARCHAR(64)",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("studio_draft_items", "key", true, "draftid", "kind", "name");
+            Table("studio_draft_layout",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "draftid " + d.TypeId + " NOT NULL",
+                "nodekey VARCHAR(320) NOT NULL",
+                "x " + d.TypeDouble + " NOT NULL",
+                "y " + d.TypeDouble + " NOT NULL");
+            Index("studio_draft_layout", "key", true, "draftid", "nodekey");
+            Column("deployments", "managementaccess", "VARCHAR(16) NOT NULL DEFAULT 'None'");
+            Column("approvals", "draftid", d.TypeId);
         }
 
         private void BuildVersion40()
@@ -488,6 +536,18 @@ namespace Garrison.Core.Database.Ado
                 "calleeagentid " + d.TypeId + " NOT NULL",
                 "fanoutallowed " + d.TypeBool + " NOT NULL");
             Index("app_revision_edges", "parent", false, "revisionid", "position");
+            Table("app_sessions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "appid " + d.TypeId + " NOT NULL",
+                "tokenhash VARCHAR(64) NOT NULL",
+                "userid " + d.TypeId,
+                "principalname VARCHAR(256) NOT NULL",
+                "expiresutc " + d.TypeTimestamp + " NOT NULL",
+                "revokedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("app_sessions", "token", true, "tokenhash");
+            Index("app_sessions", "expires", false, "expiresutc");
             Column("conversations", "appid", d.TypeId);
         }
 

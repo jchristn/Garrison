@@ -296,6 +296,11 @@ namespace Garrison.Core.Database
         /// </summary>
         public IAgenticAppMethods Apps { get; protected set; } = null!;
 
+        /// <summary>
+        /// Studio drafts (AD7).
+        /// </summary>
+        public IStudioDraftMethods StudioDrafts { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

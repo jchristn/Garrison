@@ -107,6 +107,11 @@ namespace Garrison.Core.Models
         public string? ContextId { get; set; } = null;
 
         /// <summary>
+        /// Agentic app whose chat UI started the conversation (AD6), or null.
+        /// </summary>
+        public string? AppId { get; set; } = null;
+
+        /// <summary>
         /// Short title: the first line of the first turn's input, at most 200 characters. Null until the first turn.
         /// </summary>
         public string? Title

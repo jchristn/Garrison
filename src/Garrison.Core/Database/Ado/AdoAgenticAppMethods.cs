@@ -29,6 +29,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _RevisionEdges;
         private readonly string _Agents;
         private readonly string _AgentRevisions;
+        private readonly string _Sessions;
 
         #endregion
 
@@ -51,6 +52,7 @@ namespace Garrison.Core.Database.Ado
             _RevisionEdges = driver.Table("app_revision_edges");
             _Agents = driver.Table("agents");
             _AgentRevisions = driver.Table("agent_revisions");
+            _Sessions = driver.Table("app_sessions");
         }
 
         #endregion
@@ -301,6 +303,61 @@ namespace Garrison.Core.Database.Ado
                 }, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
             return published > 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<AppSession> CreateSessionAsync(AppSession session, CancellationToken token = default)
+        {
+            if (session == null) throw new ArgumentNullException(nameof(session));
+            session.CreatedUtc = DateTime.UtcNow;
+            await _Driver.NonQueryAsync("INSERT INTO " + _Sessions + " (id, tenantid, appid, tokenhash, userid, principalname, expiresutc, revokedutc, createdutc) VALUES (@id, @tenantid, @appid, @tokenhash, @userid, @principalname, @expiresutc, NULL, @createdutc);", command =>
+            {
+                AdoDatabaseDriver.Add(command, "id", session.Id);
+                AdoDatabaseDriver.Add(command, "tenantid", session.TenantId);
+                AdoDatabaseDriver.Add(command, "appid", session.AppId);
+                AdoDatabaseDriver.Add(command, "tokenhash", session.TokenHash);
+                AdoDatabaseDriver.Add(command, "userid", session.UserId);
+                AdoDatabaseDriver.Add(command, "principalname", session.PrincipalName);
+                AdoDatabaseDriver.Add(command, "expiresutc", session.ExpiresUtc);
+                AdoDatabaseDriver.Add(command, "createdutc", session.CreatedUtc);
+            }, token).ConfigureAwait(false);
+            return session;
+        }
+
+        /// <inheritdoc />
+        public Task<AppSession?> ReadSessionByHashAsync(string tokenHash, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tokenHash)) throw new ArgumentNullException(nameof(tokenHash));
+            return _Driver.QuerySingleAsync("SELECT * FROM " + _Sessions + " WHERE tokenhash = @hash;", command => AdoDatabaseDriver.Add(command, "hash", tokenHash), reader => new AppSession
+            {
+                Id = AdoConverters.Str(reader, "id"),
+                TenantId = AdoConverters.Str(reader, "tenantid"),
+                AppId = AdoConverters.Str(reader, "appid"),
+                TokenHash = AdoConverters.Str(reader, "tokenhash"),
+                UserId = AdoConverters.NullableStr(reader, "userid"),
+                PrincipalName = AdoConverters.Str(reader, "principalname"),
+                ExpiresUtc = AdoConverters.Date(reader, "expiresutc"),
+                RevokedUtc = AdoConverters.NullableDate(reader, "revokedutc"),
+                CreatedUtc = AdoConverters.Date(reader, "createdutc")
+            }, token);
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> RevokeSessionAsync(string id, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            int affected = await _Driver.NonQueryAsync("UPDATE " + _Sessions + " SET revokedutc = @now WHERE id = @id AND revokedutc IS NULL;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "id", id);
+                AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+            }, token).ConfigureAwait(false);
+            return affected > 0;
+        }
+
+        /// <inheritdoc />
+        public Task<int> DeleteExpiredSessionsAsync(DateTime beforeUtc, CancellationToken token = default)
+        {
+            return _Driver.NonQueryAsync("DELETE FROM " + _Sessions + " WHERE expiresutc < @before;", command => AdoDatabaseDriver.Add(command, "before", beforeUtc), token);
         }
 
         #endregion

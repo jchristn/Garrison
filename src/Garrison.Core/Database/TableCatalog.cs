@@ -165,6 +165,10 @@ namespace Garrison.Core.Database
                 "app_revisions",
                 "app_revision_members",
                 "app_revision_edges",
+                "app_sessions",
+                "studio_drafts",
+                "studio_draft_items",
+                "studio_draft_layout",
         };
 
         private readonly SqlDialect _Dialect;
