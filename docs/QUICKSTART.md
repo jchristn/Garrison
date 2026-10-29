@@ -273,6 +273,34 @@ PASS  analytics endpoint (53 runs in the last 24 hours; agents: planner echo cod
 
 That count is for the three default agents. The script runs ten checks once and five for every agent (deployment, REST invoke, MCP invoke, A2A card, A2A `SendMessage`), so `--agents "planner coder echo researcher"` gives 30, `--skip-delegation` removes two, and `--agents echo --skip-delegation` gives 13.
 
+## 9. Build an app in the studio
+
+The studio designs agents and apps in a draft, and nothing changes until a person approves applying it ([STUDIO.md](STUDIO.md)). This path uses the fake harness, so it needs no credentials. In the dashboard it is the **Studio** tab under Agents; here it is the same API with `curl`.
+
+Start a draft and put three documents in it: an agent, its `dev` deployment, and an app with that agent as its entry. Each change names the draft version you read:
+
+```bash
+D=$API/studio/drafts
+DRAFT=$(curl -s -X POST $D -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"title":"Help desk"}' | jq -r .id)
+put() { curl -s -X PUT "$D/$DRAFT/items/$1/$2" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "$(jq -n --argjson v "$3" --arg doc "$4" '{version:$v,document:$doc}')" | jq -r .version; }
+V=$(put Agent desk-entry 1 $'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: desk-entry\n  description: Answers people.\nspec:\n  displayName: Help desk\n')
+V=$(put Deployment desk-entry-dev $V $'apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: desk-entry-dev\nspec:\n  agent: desk-entry\n  harnessProfile: builtin/fake\n  environment: dev\n')
+V=$(put AgenticApp desk $V $'apiVersion: garrison/v1\nkind: AgenticApp\nmetadata:\n  name: desk\nspec:\n  entry: desk-entry\n  members:\n    - { agent: desk-entry }\n  environments:\n    - { environment: dev, deployment: desk-entry-dev }\n  liveEnvironment: dev\n  authMode: Anonymous\n  anonymousEnabled: true\n')
+curl -s $D/$DRAFT/diff -H "Authorization: Bearer $TOKEN" | jq -c '.items[] | {kind, name, change}'
+```
+
+The diff shows three `Create` items. Ask for approval, then approve it yourself as the administrator. Approving applies the draft and deploys it to `dev`:
+
+```bash
+APPROVAL=$(curl -s -X POST $D/$DRAFT/request-apply -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "{\"version\":$V}" | jq -r .id)
+curl -s -X POST $API/approvals/$APPROVAL/decide -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"decision":"Allow"}' | jq -r .status
+```
+
+Open http://127.0.0.1:8080/apps/desk/ and send a message: the fake harness answers with an echo. To try a change before it goes live, edit the agent in a new draft and run it in the playground (`POST $D/<draft>/playground/invoke` with `{"input":"..."}`); the playground runs the draft as an unpublished revision and leaves the live app alone. When `dev` looks right, promote the app to `staging` and `prod` ([APPS.md](APPS.md#app-revisions-and-promotion)).
+
+To have the agent architect build drafts with you, create a deployment of the seeded `agent-architect` agent on a real harness (Studio > New architect in the dashboard) and talk to it there.
+
 ## When something fails
 
 | Symptom | Likely cause |

@@ -9701,6 +9701,293 @@
       ]
     },
     {
+      "name": "Playground",
+      "description": "Studio playground and compile preview of a revision (AD9.1, AD9.3). See docs/STUDIO.md.",
+      "item": [
+        {
+          "name": "Create playground agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "description": "An agent to try in the playground.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-play-{{suffix}}\",\n  \"description\": \"Published description.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('playAgentId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create its dev deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "description": "The playground copies this deployment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-play-dev-{{suffix}}\",\n  \"agentId\": \"{{playAgentId}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"environment\": \"dev\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('playDeploymentId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{playAgentId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{playAgentId}}",
+                "revisions"
+              ]
+            },
+            "description": "An unpublished change to try.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Draft description.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('playRevisionId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Playground invoke",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{playAgentId}}/playground/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{playAgentId}}",
+                "playground",
+                "invoke"
+              ]
+            },
+            "description": "Runs the draft revision on an ephemeral deployment in the draft environment; nothing is published.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Try the draft.\",\n  \"waitSeconds\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('playground run', function () { pm.expect(json.kind).to.eql('Playground'); pm.expect(json.agentRevisionId).to.eql(pm.collectionVariables.get('playRevisionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Compile preview of the draft revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{playDeploymentId}}/compile-preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{playDeploymentId}}",
+                "compile-preview"
+              ]
+            },
+            "description": "Preview another revision before deploying it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentRevisionId\": \"{{playRevisionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('revision', function () { pm.expect(json.agentRevisionId).to.eql(pm.collectionVariables.get('playRevisionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete playground agent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{playAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{playAgentId}}"
+              ]
+            },
+            "description": "Deletes the agent with its deployments, including the playground copy."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Conversations",
       "description": "A conversation is a multi-turn session with one agent. Each turn is a run; every turn after the first resumes the harness session the earlier turns built. Start one with `startConversation` on invoke, create run, or a deployment test, then send `conversationId` with each later turn.",
       "item": [
@@ -19949,6 +20236,18 @@
     },
     {
       "key": "architectDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "playAgentId",
+      "value": ""
+    },
+    {
+      "key": "playDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "playRevisionId",
       "value": ""
     }
   ]
