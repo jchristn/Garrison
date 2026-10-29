@@ -4448,3 +4448,26 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "Escribe '{{word}}' en el cuadro de abajo para confirmar."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "Agente {{name}} eliminado."
+  }
+ }
+});

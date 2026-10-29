@@ -4230,6 +4230,236 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create agent to delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "description": "Creates an agent that the next requests delete together with its deployment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-delete-{{suffix}}\",\n  \"description\": \"Deleted by the next requests\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('deleteAgentId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create deployment of the agent to delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "description": "A deployment of the agent to delete; deleting the agent deletes it too.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-delete-dep-{{suffix}}\",\n  \"agentId\": \"{{deleteAgentId}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('deleteDeploymentId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete agent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{deleteAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{deleteAgentId}}"
+              ]
+            },
+            "description": "Deletes an agent with its deployments and revision history. 409 Protected for a protected agent; 409 AgentInUse, ReferencedByPipeline, ReferencedByTrigger, or ReferencedByNotificationEndpoint while something still uses it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted agent is gone",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{deleteAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{deleteAgentId}}"
+              ]
+            },
+            "description": "The deleted agent answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deployment of the deleted agent is gone",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deleteDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deleteDeploymentId}}"
+              ]
+            },
+            "description": "Deleting the agent deleted its deployment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the protected architect agent is refused",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/agent-architect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "agent-architect"
+              ]
+            },
+            "description": "The seeded agent-architect is protected: 409 Protected, and it stays."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('code is Protected', function () { pm.expect(json.code).to.eql('Protected'); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -22026,6 +22256,14 @@
     },
     {
       "key": "appTurnRunId",
+      "value": ""
+    },
+    {
+      "key": "deleteAgentId",
+      "value": ""
+    },
+    {
+      "key": "deleteDeploymentId",
       "value": ""
     }
   ]

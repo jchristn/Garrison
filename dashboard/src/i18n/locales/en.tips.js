@@ -3281,3 +3281,30 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "confirm": {
+  "typeToConfirm": "Type {{word}} exactly as shown to turn on the Delete button. This keeps a stray click from deleting something you cannot get back.",
+  "typeFirst": "Type {{word}} in the box first. The button stays off until the word matches."
+ },
+ "resources": {
+  "agents": {
+   "protected": "{{name}} is a protected built-in agent that Garrison seeds in every tenant, so it cannot be changed or deleted."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "delete": "Delete this agent with its deployments and revision history. You type delete to confirm, and a trigger, pipeline, app, or notification endpoint that uses it blocks the delete."
+  }
+ }
+});

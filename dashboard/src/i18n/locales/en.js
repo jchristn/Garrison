@@ -4423,3 +4423,26 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "Please type '{{word}}' in the box below to confirm."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "Deleted agent {{name}}."
+  }
+ }
+});

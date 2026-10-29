@@ -4444,3 +4444,26 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "Digita '{{word}}' nella casella qui sotto per confermare."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "Agente {{name}} eliminato."
+  }
+ }
+});

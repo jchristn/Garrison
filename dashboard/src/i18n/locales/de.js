@@ -4430,3 +4430,26 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "Bitte geben Sie '{{word}}' in das Feld unten ein, um zu bestätigen."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "Agent {{name}} gelöscht."
+  }
+ }
+});

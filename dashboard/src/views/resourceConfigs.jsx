@@ -1202,6 +1202,10 @@ export const agentsConfig = {
     return e;
   },
   detailPath: (r) => pathFor('agents', r.id),
+  // Deleting an agent cannot be undone, so the person types "delete" to confirm.
+  deleteConfirmWord: 'delete',
+  // Protected agents (the seeded agent-architect) keep Edit and Delete in the menu, disabled, with the reason.
+  lockedReason: (r, { t }) => (r?.isProtected ? t('tips.resources.agents.protected', { name: r.name }) : ''),
   // Deleting an agent deletes its deployments too; name them first (M1-06).
   deletePreview: async (r, { apiClient, tenantId, t }) => {
     const list = await safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }));

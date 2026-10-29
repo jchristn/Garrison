@@ -4395,3 +4395,26 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "確認のため、下のボックスに '{{word}}' と入力してください。"
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "エージェント {{name}} を削除しました。"
+  }
+ }
+});

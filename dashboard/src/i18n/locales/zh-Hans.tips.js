@@ -3280,3 +3280,30 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "confirm": {
+  "typeToConfirm": "按原样输入 {{word}} 才能启用删除按钮，以免误点删除无法恢复的内容。",
+  "typeFirst": "请先在输入框中输入 {{word}}。在单词匹配之前按钮保持禁用。"
+ },
+ "resources": {
+  "agents": {
+   "protected": "{{name}} 是 Garrison 在每个租户中创建的受保护内置代理，无法更改或删除。"
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "delete": "删除此代理及其部署和修订历史。需要输入 delete 进行确认；如果有触发器、流水线、应用或通知端点在使用它，则无法删除。"
+  }
+ }
+});

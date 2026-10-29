@@ -2152,12 +2152,13 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/agents/{idOrName}`
 
-Delete an agent and its deployments, addressed by identifier or name (identifier first).
+Delete an agent, addressed by identifier or name (identifier first). Its deployments and its revision history are deleted with it in one step; its past runs and conversations stay for history. There is no undo, so the dashboard asks the person to type `delete` before it sends this request.
 
 | | |
 |---|---|
 | Permission | Delete on `Agent` |
 | Success | 204 (no body) |
+| Errors | 404 when the agent does not exist in the tenant. 409 `Protected` for a protected agent (the seeded `agent-architect`). 409 `AgentInUse` while the agent is a member of an agentic app, `ReferencedByPipeline` while a pipeline stage runs it, and `ReferencedByTrigger` or `ReferencedByNotificationEndpoint` while a trigger or notification endpoint names the agent or one of its deployments; each message names what to change first. |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \

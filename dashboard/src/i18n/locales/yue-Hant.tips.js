@@ -3281,3 +3281,30 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "confirm": {
+  "typeToConfirm": "照住顯示嘅樣輸入 {{word}} 先會啟用刪除掣，免得一下撳錯就刪咗冇得還原嘅嘢。",
+  "typeFirst": "請先喺個格度輸入 {{word}}。個字對得上之前，個掣會一直停用。"
+ },
+ "resources": {
+  "agents": {
+   "protected": "{{name}} 係 Garrison 喺每個租用戶都會建立嘅受保護內建代理，唔可以更改或者刪除。"
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "delete": "刪除呢個代理同佢嘅部署同修訂紀錄。要輸入 delete 確認；如果有觸發器、管線、應用程式或者通知端點用緊佢，就刪唔到。"
+  }
+ }
+});

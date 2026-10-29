@@ -570,6 +570,7 @@ export default function ResourceView({ config }) {
         details={deletePreview && deletePreview.id === deleteTarget?.id ? deletePreview.details : null}
         confirmLabel={t('common.actions.delete')}
         confirmTip={t('tips.confirm.delete')}
+        confirmWord={config.deleteConfirmWord || ''}
         onConfirm={doDelete}
         onCancel={() => setDeleteTarget(null)}
       />

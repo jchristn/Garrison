@@ -438,7 +438,7 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_get_agent_configuration` | Agent.Read | `agent` (name or ID) |
 | `garrison_create_agent` | Agent.Create | `configuration` |
 | `garrison_update_agent` | Agent.Update on the resolved ID | `agent`, `configuration` |
-| `garrison_delete_agent` | Agent.Delete on the resolved ID | `agent` |
+| `garrison_delete_agent` | Agent.Delete on the resolved ID | `agent`; deletes its deployments and revision history too, and fails with `Protected`, `AgentInUse`, `ReferencedByPipeline`, `ReferencedByTrigger`, or `ReferencedByNotificationEndpoint` like the REST route |
 | `garrison_list_deployments` | Deployment.Read | none; optional `search`, `maxResults` |
 | `garrison_get_deployment` | Deployment.Read on the ID | `deploymentId` |
 | `garrison_create_deployment` | Deployment.Create | `configuration` |

@@ -4396,3 +4396,26 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "请在下方输入框中输入 '{{word}}' 以确认。"
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "已删除代理 {{name}}。"
+  }
+ }
+});

@@ -3283,3 +3283,30 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "confirm": {
+  "typeToConfirm": "Digita {{word}} esattamente come mostrato per attivare il pulsante Elimina. Così un clic accidentale non cancella qualcosa che non si può recuperare.",
+  "typeFirst": "Digita prima {{word}} nella casella. Il pulsante resta disattivato finché la parola non corrisponde."
+ },
+ "resources": {
+  "agents": {
+   "protected": "{{name}} è un agente integrato protetto che Garrison crea in ogni tenant, quindi non può essere modificato né eliminato."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "delete": "Elimina questo agente con le sue distribuzioni e la cronologia delle revisioni. Confermi digitando delete; un trigger, una pipeline, un'applicazione o un endpoint di notifica che lo usa impedisce l'eliminazione."
+  }
+ }
+});

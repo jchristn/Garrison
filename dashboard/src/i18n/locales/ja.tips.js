@@ -3281,3 +3281,30 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "confirm": {
+  "typeToConfirm": "表示どおりに {{word}} と入力すると削除ボタンが有効になります。誤ったクリックで元に戻せないものを削除しないための確認です。",
+  "typeFirst": "まずボックスに {{word}} と入力してください。単語が一致するまでボタンは無効のままです。"
+ },
+ "resources": {
+  "agents": {
+   "protected": "{{name}} は Garrison がすべてのテナントに作成する保護された組み込みエージェントのため、変更も削除もできません。"
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "delete": "このエージェントを、デプロイメントとリビジョン履歴とともに削除します。delete と入力して確認します。使用中のトリガー、パイプライン、アプリ、通知エンドポイントがあると削除できません。"
+  }
+ }
+});

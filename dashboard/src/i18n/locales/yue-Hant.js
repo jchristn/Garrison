@@ -4395,3 +4395,26 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "請喺下面個格度輸入 '{{word}}' 嚟確認。"
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "已經刪除代理 {{name}}。"
+  }
+ }
+});

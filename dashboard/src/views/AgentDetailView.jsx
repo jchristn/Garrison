@@ -5,13 +5,15 @@ import PageHeader from '../components/PageHeader';
 import CodeBlock from '../components/CodeBlock';
 import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
+import ConfirmModal from '../components/ConfirmModal';
 import Tabs from '../components/Tabs';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
 import { Badge, ActiveBadge } from '../components/StatusBadge';
-import { SendIcon } from '../components/Icons';
+import { SendIcon, TrashIcon } from '../components/Icons';
 import { RunStatus } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatRelativeTime, formatNumber, formatPercent } from '../i18n/formatters';
@@ -47,6 +49,9 @@ export default function AgentDetailView({ recordId }) {
   const [tab, setTab] = useState('deployments');
   const [jsonOpen, setJsonOpen] = useState(false);
   const [numbers, setNumbers] = useState({});
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const { addToast } = useToast();
 
   const load = useCallback(() => {
     if (!apiClient) return;
@@ -85,6 +90,21 @@ export default function AgentDetailView({ recordId }) {
   if (error && !agent) return <ErrorBanner message={errorMessage(t, error)} onRetry={load} />;
   if (!agent) return <LoadingState />;
 
+  // Deleting the agent deletes its deployments and revision history; the server refuses while a trigger, a
+  // notification endpoint, a pipeline, or an app still uses it, and the message says which.
+  const doDelete = async () => {
+    setDeleteError(null);
+    try {
+      await apiClient.deleteAgent(tenantId, agent.id);
+      setDeleting(false);
+      addToast({ type: 'success', message: t('views.agentDetail.deleted', { name: agent.name }) });
+      navigate(pathFor('agents'));
+    } catch (e) {
+      setDeleteError(errorMessage(t, e));
+    }
+  };
+  const deleteLocked = agent.isProtected ? t('tips.resources.agents.protected', { name: agent.name }) : '';
+
   const shares = trafficShares(deployments);
   const na = t('common.generic.notAvailable');
 
@@ -112,6 +132,20 @@ export default function AgentDetailView({ recordId }) {
             </button>
             <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke', null, { agentId: agent.id }))} {...tip(t('tips.views.agentDetail.invoke'))}>
               <SendIcon size={14} /> {t('views.agentDetail.invoke')}
+            </button>
+            <button
+              type="button"
+              className="button-danger"
+              onClick={() => {
+                if (deleteLocked) return;
+                setDeleteError(null);
+                setDeleting(true);
+              }}
+              aria-disabled={deleteLocked ? 'true' : undefined}
+              data-testid="agent-delete"
+              {...tip(deleteLocked || t('tips.views.agentDetail.delete'))}
+            >
+              <TrashIcon size={14} /> {t('common.actions.delete')}
             </button>
           </>
         }
@@ -255,6 +289,29 @@ export default function AgentDetailView({ recordId }) {
         {tab === 'card' && (cardError ? <div className="text-muted">{errorMessage(t, cardError)}</div> : <CodeBlock value={card} prettyJson />)}
       </div>
       <JsonViewerModal open={jsonOpen} value={agent} onClose={() => setJsonOpen(false)} />
+      <ConfirmModal
+        open={deleting}
+        danger
+        title={t('resources.agents.deleteTitle')}
+        message={deployments.length ? t('resources.agents.deleteWithDeployments', { name: agent.name, count: deployments.length }) : t('resources.agents.deleteNoDeployments', { name: agent.name })}
+        details={
+          deployments.length ? (
+            <ul className="plain-list confirm-list" data-testid="delete-affected">
+              {deployments.map((d) => (
+                <li key={d.id}>
+                  <code>{d.name}</code>
+                </li>
+              ))}
+            </ul>
+          ) : null
+        }
+        confirmLabel={t('common.actions.delete')}
+        confirmTip={t('tips.confirm.delete')}
+        confirmWord="delete"
+        error={deleteError}
+        onConfirm={doDelete}
+        onCancel={() => setDeleting(false)}
+      />
     </div>
   );
 }

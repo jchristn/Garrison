@@ -3281,3 +3281,30 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "confirm": {
+  "typeToConfirm": "Geben Sie {{word}} genau so ein, um die Schaltfläche Löschen zu aktivieren. So löscht ein versehentlicher Klick nichts, was sich nicht wiederherstellen lässt.",
+  "typeFirst": "Geben Sie zuerst {{word}} in das Feld ein. Die Schaltfläche bleibt aus, bis das Wort übereinstimmt."
+ },
+ "resources": {
+  "agents": {
+   "protected": "{{name}} ist ein geschützter integrierter Agent, den Garrison in jedem Mandanten anlegt; er kann nicht geändert oder gelöscht werden."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "delete": "Diesen Agenten mit seinen Bereitstellungen und seinem Revisionsverlauf löschen. Sie bestätigen durch Eingabe von delete; ein Trigger, eine Pipeline, eine App oder ein Benachrichtigungsendpunkt, der ihn verwendet, verhindert das Löschen."
+  }
+ }
+});

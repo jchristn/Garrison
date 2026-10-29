@@ -4444,3 +4444,26 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Typed confirmation for destructive deletes, and deleting an agent from its page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "confirm": {
+   "typeToConfirm": "Veuillez saisir '{{word}}' dans le champ ci-dessous pour confirmer."
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "deleted": "Agent {{name}} supprimé."
+  }
+ }
+});
