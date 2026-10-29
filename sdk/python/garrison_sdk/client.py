@@ -223,6 +223,60 @@ class AgentAssetFile(TypedDict, total=False):
     contentBase64: str
 
 
+class ConversationFile(TypedDict, total=False):
+    """A file in a conversation file space. sha256 is lowercase hex; deleted files appear only with include_deleted."""
+    id: str
+    tenantId: str
+    fileSpaceId: str
+    path: str
+    currentVersion: int
+    sizeBytes: int
+    sha256: Optional[str]
+    mediaType: Optional[str]
+    deleted: bool
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class ConversationFileVersion(TypedDict, total=False):
+    """An immutable version of a conversation file. runId is None for API writes."""
+    id: str
+    tenantId: str
+    fileId: str
+    number: int
+    sizeBytes: int
+    sha256: Optional[str]
+    mediaType: Optional[str]
+    runId: Optional[str]
+    leaseEpoch: int
+    writtenBy: Optional[str]
+    storageKey: Optional[str]
+    createdUtc: str
+
+
+class FileSpaceListing(TypedDict, total=False):
+    """Files in a conversation or run file space. fileSpaceId is None until the space exists."""
+    fileSpaceId: Optional[str]
+    fileCount: int
+    totalBytes: int
+    files: List[ConversationFile]
+
+
+class FileSpaceUploadResult(TypedDict, total=False):
+    """Result of a file space write. conflict is True when baseVersion was stale; path is then the conflict name."""
+    requestedPath: str
+    path: str
+    version: int
+    conflict: bool
+    sha256: Optional[str]
+
+
+class FileDownloadUrl(TypedDict, total=False):
+    """A short-lived download-only URL; fetching it needs no credentials."""
+    url: str
+    expiresUtc: str
+
+
 class AgentAssetVersion(TypedDict, total=False):
     """An immutable version of an agent asset."""
     id: str
@@ -414,6 +468,9 @@ DEFAULT_ENVIRONMENTS = ("dev", "staging", "prod")
 # RUN_OUTCOME_ASSET_INTEGRITY_FAILED.
 AGENT_ASSET_KINDS = ("SystemPrompt", "Skill", "ReferenceFile", "DocumentTemplate")
 RUN_OUTCOME_ASSET_INTEGRITY_FAILED = "AssetIntegrityFailed"
+
+# Conversation file spaces: the owner argument of every FileSpaces method.
+FILE_SPACE_OWNERS = ("conversations", "runs")
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -965,6 +1022,74 @@ class AgentAssets(Resource):
         return self._t.request_bytes(self._item(asset) + f"/versions/{int(number)}/files", {"path": path})
 
 
+class FileSpaces:
+    """Conversation file spaces: versioned files shared by a conversation's turns. Every method takes owner
+    ("conversations" or "runs"; FILE_SPACE_OWNERS) and the conversation or run ID. Paths are relative, for example
+    notes/a.md. Errors: 400 InvalidFilePath, 404, 413 FileTooLarge / FileSpaceFull / TooManyFiles."""
+
+    def __init__(self, transport: "Transport"):
+        self._t = transport
+
+    def _files(self, owner: str, id: str) -> str:
+        if owner not in FILE_SPACE_OWNERS:
+            raise ValueError(f"owner must be one of {FILE_SPACE_OWNERS}, got {owner!r}")
+        return self._t.tenant_path(f"/{owner}/{_seg(id)}/files")
+
+    def list(self, owner: str, id: str, include_deleted: bool = False) -> FileSpaceListing:
+        """List the files in the space."""
+        return self._t.request("GET", self._files(owner, id), {"includeDeleted": "true" if include_deleted else "false"})
+
+    def read(self, owner: str, id: str, path: str, version: Optional[int] = None) -> bytes:
+        """Read a file's content as bytes (the current version unless version is given)."""
+        params: Dict[str, Any] = {"path": path}
+        if version is not None:
+            params["version"] = str(int(version))
+        return self._t.request_bytes(self._files(owner, id) + "/content", params)
+
+    def read_text(self, owner: str, id: str, path: str, version: Optional[int] = None) -> str:
+        """Read a file's content decoded as UTF-8."""
+        return self.read(owner, id, path, version).decode("utf-8")
+
+    def versions(self, owner: str, id: str, path: str) -> List[ConversationFileVersion]:
+        """List a file's versions, newest first."""
+        return self._t.request("GET", self._files(owner, id) + "/versions", {"path": path}) or []
+
+    def write(self, owner: str, id: str, path: str, content: Union[bytes, str], base_version: Optional[int] = None,
+              media_type: Optional[str] = None) -> FileSpaceUploadResult:
+        """Write a file. str content is sent as text, bytes as base64. base_version 0 means the file must not exist; a
+        stale base_version writes under a conflict name and returns conflict True. None skips the check."""
+        body: Dict[str, Any] = {"path": path}
+        if isinstance(content, str):
+            body["content"] = content
+        else:
+            body["contentBase64"] = base64.b64encode(bytes(content)).decode("ascii")
+        if media_type is not None:
+            body["mediaType"] = media_type
+        if base_version is not None:
+            body["baseVersion"] = int(base_version)
+        return self._t.request("POST", self._files(owner, id), body=body)
+
+    def write_raw(self, owner: str, id: str, path: str, content: Union[bytes, str], base_version: Optional[int] = None,
+                  media_type: Optional[str] = None) -> FileSpaceUploadResult:
+        """Write a file as a raw application/octet-stream body (str is UTF-8 encoded)."""
+        data = content.encode("utf-8") if isinstance(content, str) else content
+        params: Dict[str, Any] = {"path": path, "mediaType": media_type}
+        if base_version is not None:
+            params["baseVersion"] = str(int(base_version))
+        return self._t.request("POST", self._files(owner, id), params, data, "application/octet-stream")
+
+    def delete(self, owner: str, id: str, path: str) -> Any:
+        """Delete a file (204, returns None)."""
+        return self._t.request("DELETE", self._files(owner, id), {"path": path})
+
+    def download_url(self, owner: str, id: str, path: str, version: Optional[int] = None) -> FileDownloadUrl:
+        """Issue a short-lived download-only URL that needs no credentials."""
+        params: Dict[str, Any] = {"path": path}
+        if version is not None:
+            params["version"] = str(int(version))
+        return self._t.request("POST", self._files(owner, id) + "/download-url", params)
+
+
 class Environments:
     """The tenant's ordered environment list (promotion path)."""
 
@@ -1511,6 +1636,7 @@ class GarrisonClient:
         self.environments = Environments(t)
         self.promotions = Promotions(t)
         self.agent_assets = AgentAssets(t, "agent-assets")
+        self.file_spaces = FileSpaces(t)
 
     @property
     def tenant_id(self) -> Optional[str]:

@@ -48,6 +48,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("k8s-executor", "run-one-stdin", "Warm input: a bounded stdin envelope executes once; extra input, malformed JSON, EOF, and oversize input cannot start another run", RunOneStdinAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-fake", "run-one: the fake harness runs through the process executor; harness output that mimics the prefix with the real nonce stays data", RunOneFakeAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-assets", "run-one: asset files the worker fetched arrive as bytes in the envelope (no URL) and the harness reads them from the workspace (AD2.4)", RunOneAssetsAsync),
+                new TestCaseDescriptor("k8s-executor", "run-one-filespace", "run-one: a file the harness writes under the file space mount path comes back as a FileChanged line with its base version, and the pod holds no upload credentials (AD3.4)", RunOneFileSpaceAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-egress-canary", "run-one: the harness starts only once the egress canary is blocked; a reachable canary fails the run PodFailed without starting it", RunOneCanaryAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-persistent-workspace", "run-one: a PersistentVolume workspace is linked into the run directory, shared by later runs, and never deleted", RunOnePersistentAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-bad-spec", "run-one: a missing or empty spec exits 3 without protocol output", RunOneBadSpecAsync),
@@ -400,6 +401,63 @@ namespace Test.Shared.Suites
                     RunCompleteRequest complete = parser.Completion?.Complete ?? throw new TestAssertionException("No completion. Output: " + text);
                     Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
                     Assert.True((complete.ResultText ?? String.Empty).Contains("POD-ASSET-OK", StringComparison.Ordinal), "The harness read the asset file in the pod: " + complete.ResultText);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(root, true);
+                }
+                catch (IOException)
+                {
+                }
+            }
+        }
+
+        private static async Task RunOneFileSpaceAsync(CancellationToken token)
+        {
+            string nonce = Nonce();
+            string root = Path.Combine(Path.GetTempPath(), "garrison-run-one-files-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(root);
+            try
+            {
+                ExecutionSpec spec = new ExecutionSpec();
+                spec.RunId = "run_k8s_" + Guid.NewGuid().ToString("N").Substring(0, 10);
+                spec.TenantId = "ten_test";
+                spec.AgentName = "fake";
+                spec.HarnessType = HarnessTypeEnum.Generic;
+                spec.Executor = RunExecutorEnum.KubernetesJob;
+                spec.Executable = DotnetHost();
+                spec.Arguments = new List<string> { FakeHarnessDll(), "--format", "claude", "--answer", "POD-FILE-OK", "--output-last-message", "files/out.txt" };
+                spec.Stdin = "hello";
+                spec.Parser = OutputParserEnum.ClaudeStreamJson;
+                spec.TimeoutSeconds = 60;
+                spec.KillGraceSeconds = 1;
+                spec.FileSpace = new ExecutionFileSpace { FileSpaceId = "cfs_test", MountPath = "files" };
+                spec.Files.Add(new ExecutionFile { BaseDirectory = FileBaseDirectoryEnum.Workspace, Path = "files/keep.txt", ContentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("unchanged")) });
+                spec.FileSpace.Files.Add(new ExecutionFileSpaceFile { Path = "keep.txt", Version = 4, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes("unchanged"))).ToLowerInvariant() });
+
+                RunPodEnvelope envelope = new RunPodEnvelope();
+                envelope.Nonce = nonce;
+                envelope.Assignment = new RunAssignment { RunId = spec.RunId, Epoch = 1, Spec = spec };
+                envelope.WorkRoot = Path.Combine(root, "runs");
+                envelope.EnvironmentAllowlist = new List<string> { "PATH", "DOTNET_ROOT", "TMPDIR", "LANG" };
+                string specPath = Path.Combine(root, "spec.json");
+                await File.WriteAllTextAsync(specPath, Serializer.Serialize(envelope), token).ConfigureAwait(false);
+                using (MemoryStream output = new MemoryStream())
+                {
+                    int code = await RunOneCommand.RunAsync(specPath, output, token).ConfigureAwait(false);
+                    Assert.Equal(0, code, "run-one exit code");
+                    string text = Encoding.UTF8.GetString(output.ToArray());
+                    PodLineParser parser = new PodLineParser(nonce);
+                    List<PodLine> accepted = Lines(text).Select(l => parser.Accept(l)).Where(l => l != null).Select(l => l!).ToList();
+                    PodLine changed = accepted.FirstOrDefault(l => l.Type == PodLineTypeEnum.FileChanged) ?? throw new TestAssertionException("No FileChanged line. Output: " + text);
+                    Assert.Equal("out.txt", changed.File!.Path, "Path relative to the mount path");
+                    Assert.Equal(0, changed.File.BaseVersion, "A new file has base version 0");
+                    Assert.True(Encoding.UTF8.GetString(Convert.FromBase64String(changed.File.ContentBase64)).Contains("POD-FILE-OK", StringComparison.Ordinal), "Content relayed");
+                    Assert.True(!accepted.Any(l => l.Type == PodLineTypeEnum.FileChanged && l.File?.Path == "keep.txt"), "An unchanged file is not relayed");
+                    Assert.Equal(RunStatusEnum.Succeeded, parser.Completion?.Complete?.Status ?? RunStatusEnum.Failed, "Run succeeded");
                 }
             }
             finally

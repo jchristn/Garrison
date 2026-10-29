@@ -28,7 +28,7 @@ namespace Garrison.Server.Runtime
         public bool AgentMemoryEnabled { get; set; } = false;
 
         /// <summary>Called with every compiled repair spec before it is sent, for example to add asset download URLs (AD2.4); null does nothing.</summary>
-        public Action<Run, ExecutionSpec>? DecorateSpec { get; set; } = null;
+        public Func<Run, ExecutionSpec, CancellationToken, Task>? DecorateSpec { get; set; } = null;
 
         #region Public-Members
 
@@ -141,7 +141,7 @@ namespace Garrison.Server.Runtime
             }
 
             CompilationResult compiled = await _Compiler().CompileRepairAsync(run, runToken, repair, token).ConfigureAwait(false);
-            DecorateSpec?.Invoke(run, compiled.Spec);
+            if (DecorateSpec != null) await DecorateSpec(run, compiled.Spec, token).ConfigureAwait(false);
             compiled.Spec.TimeoutSeconds = Math.Min(compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds, _Options.MaxRunSeconds);
             run.DeadlineUtc = DateTime.UtcNow.AddSeconds(compiled.Spec.TimeoutSeconds + _Options.DeadlineGraceSeconds);
 

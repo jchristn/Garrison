@@ -84,6 +84,18 @@ namespace Garrison.Core
         /// <summary>Key prefix for asset content inside an artifact store (AD-011). Never used for artifacts.</summary>
         public const string AssetKeyPrefix = ".garrison-assets/";
 
+        /// <summary>Conversation file space identifier prefix (AD3).</summary>
+        public const string FileSpaceIdPrefix = "cfs_";
+
+        /// <summary>Conversation file identifier prefix (AD3).</summary>
+        public const string FileSpaceFileIdPrefix = "cff_";
+
+        /// <summary>Conversation file version identifier prefix (AD3).</summary>
+        public const string FileSpaceVersionIdPrefix = "cfv_";
+
+        /// <summary>Key prefix for file space content inside an artifact store (AD3.2). Never used for artifacts.</summary>
+        public const string FileSpaceKeyPrefix = ".garrison-files/";
+
         /// <summary>
         /// Header carrying a Garrison webhook signature, inbound on trigger webhooks and outbound on notifications:
         /// <c>t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of "&lt;t&gt;.&lt;raw body&gt;"&gt;</c> (P12.5, P12.14).

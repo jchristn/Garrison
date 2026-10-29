@@ -379,10 +379,7 @@ namespace Garrison.Server.Services
         /// <returns>True when valid.</returns>
         public static bool ValidPath(string? path)
         {
-            if (String.IsNullOrEmpty(path) || path.Length > 512) return false;
-            if (path.StartsWith("/", StringComparison.Ordinal) || path.Contains('\\') || path.Contains(':')) return false;
-            if (path.Any(c => Char.IsControl(c))) return false;
-            return path.Split('/').All(segment => segment.Length > 0 && segment != "." && segment != "..");
+            return Garrison.Core.Helpers.RelativePaths.IsValid(path);
         }
 
         #endregion
@@ -465,26 +462,7 @@ namespace Garrison.Server.Services
 
         private static string MediaTypeFor(string path)
         {
-            string extension = System.IO.Path.GetExtension(path).ToLowerInvariant();
-            switch (extension)
-            {
-                case ".md": return "text/markdown";
-                case ".txt": return "text/plain";
-                case ".json": return "application/json";
-                case ".yaml":
-                case ".yml": return "application/yaml";
-                case ".html": return "text/html";
-                case ".csv": return "text/csv";
-                case ".py": return "text/x-python";
-                case ".sh": return "text/x-shellscript";
-                case ".docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                case ".dotx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.template";
-                case ".pdf": return "application/pdf";
-                case ".png": return "image/png";
-                case ".jpg":
-                case ".jpeg": return "image/jpeg";
-                default: return "application/octet-stream";
-            }
+            return Garrison.Core.Helpers.MediaTypes.ForPath(path);
         }
 
         private Task AuditAsync(RequestContext ctx, string tenantId, string id, string description, CancellationToken token)

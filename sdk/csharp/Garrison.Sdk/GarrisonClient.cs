@@ -189,6 +189,11 @@ namespace Garrison.Sdk
         public AgentAssetsClient AgentAssets { get; }
 
         /// <summary>
+        /// Conversation file spaces: versioned files shared by a conversation's turns, addressed by conversation or run.
+        /// </summary>
+        public FileSpacesClient FileSpaces { get; }
+
+        /// <summary>
         /// Tenant environments and promotions of agent revisions between them.
         /// </summary>
         public PromotionsClient Promotions { get; }
@@ -276,6 +281,7 @@ namespace Garrison.Sdk
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);
+            FileSpaces = new FileSpacesClient(Transport);
             Promotions = new PromotionsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);

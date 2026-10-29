@@ -259,7 +259,7 @@ namespace Garrison.Worker.Kubernetes
                     Lifecycle(reporter, "RunPodStarted", "Run pod " + pod.Metadata.Name + " started" + (String.IsNullOrEmpty(pod.Spec?.NodeName) ? String.Empty : " on node " + pod.Spec.NodeName) + ".");
 
                     PodLineParser parser = new PodLineParser(nonce, _Runtime.Settings.MaxLineBytes);
-                    RunCompleteRequest? complete = await StreamAsync(client, ns, pod.Metadata.Name, parser, reporter, linked.Token).ConfigureAwait(false);
+                    RunCompleteRequest? complete = await StreamAsync(client, ns, pod.Metadata.Name, parser, reporter, assignment, linked.Token).ConfigureAwait(false);
                     if (parser.Rejected > 0 || parser.Malformed > 0)
                     {
                         Emit(reporter, RunEventTypeEnum.Warning, "RunPodLinesRejected", "Ignored " + parser.Rejected + " line(s) that imitated the protocol without this run's nonce and " + parser.Malformed + " malformed protocol line(s) from the run pod.");
@@ -357,7 +357,7 @@ namespace Garrison.Worker.Kubernetes
                     Lifecycle(reporter, "RunPodStarted", "Reserved warm run pod " + pod.Metadata.Name + ".");
                     stage = "streaming the pod's output";
                     PodLineParser parser = new PodLineParser(nonce, _Runtime.Settings.MaxLineBytes);
-                    RunCompleteRequest? complete = await StreamAsync(client, _Runtime.Namespace, pod.Metadata.Name, parser, reporter, linked.Token).ConfigureAwait(false);
+                    RunCompleteRequest? complete = await StreamAsync(client, _Runtime.Namespace, pod.Metadata.Name, parser, reporter, assignment, linked.Token).ConfigureAwait(false);
                     if (complete != null)
                     {
                         if (complete.Status == RunStatusEnum.Cancelled && !token.IsCancellationRequested)
@@ -458,7 +458,7 @@ namespace Garrison.Worker.Kubernetes
             }
         }
 
-        private async Task<RunCompleteRequest?> StreamAsync(IKubernetes client, string ns, string podName, PodLineParser parser, IRunReporter reporter, CancellationToken token)
+        private async Task<RunCompleteRequest?> StreamAsync(IKubernetes client, string ns, string podName, PodLineParser parser, IRunReporter reporter, RunAssignment assignment, CancellationToken token)
         {
             int failures = 0;
             while (true)
@@ -476,7 +476,7 @@ namespace Garrison.Worker.Kubernetes
                             PodLine? message = parser.Accept(line);
                             if (message == null) continue;
                             failures = 0;
-                            await HandleAsync(message, reporter, token).ConfigureAwait(false);
+                            await HandleAsync(message, reporter, assignment, token).ConfigureAwait(false);
                             if (parser.Completion != null) return parser.Completion.Complete;
                         }
                     }
@@ -498,14 +498,14 @@ namespace Garrison.Worker.Kubernetes
                 bool running = status?.State?.Running != null;
                 if (!running)
                 {
-                    await DrainAsync(client, ns, podName, parser, reporter, token).ConfigureAwait(false);
+                    await DrainAsync(client, ns, podName, parser, reporter, assignment, token).ConfigureAwait(false);
                     return parser.Completion?.Complete;
                 }
                 await Task.Delay(Math.Min(5000, 250 * Math.Max(1, failures)), token).ConfigureAwait(false);
             }
         }
 
-        private async Task DrainAsync(IKubernetes client, string ns, string podName, PodLineParser parser, IRunReporter reporter, CancellationToken token)
+        private async Task DrainAsync(IKubernetes client, string ns, string podName, PodLineParser parser, IRunReporter reporter, RunAssignment assignment, CancellationToken token)
         {
             try
             {
@@ -517,7 +517,7 @@ namespace Garrison.Worker.Kubernetes
                         string? line = await reader.ReadLineAsync(token).ConfigureAwait(false);
                         if (line == null) break;
                         PodLine? message = parser.Accept(line);
-                        if (message != null) await HandleAsync(message, reporter, token).ConfigureAwait(false);
+                        if (message != null) await HandleAsync(message, reporter, assignment, token).ConfigureAwait(false);
                         if (parser.Completion != null) return;
                     }
                 }
@@ -528,10 +528,28 @@ namespace Garrison.Worker.Kubernetes
             }
         }
 
-        private static async Task HandleAsync(PodLine message, IRunReporter reporter, CancellationToken token)
+        private static async Task HandleAsync(PodLine message, IRunReporter reporter, RunAssignment assignment, CancellationToken token)
         {
             switch (message.Type)
             {
+                case PodLineTypeEnum.FileChanged:
+                    // AD3.4: write the pod's changed file back with this worker's node credentials.
+                    if (message.File == null) break;
+                    if (assignment.FileUploader == null)
+                    {
+                        reporter.Emit(new RunEventReport { EventType = RunEventTypeEnum.Warning, Code = "FileSyncWarning", Text = "This worker has no file space transport; file " + message.File.Path + " was not saved." });
+                        break;
+                    }
+                    try
+                    {
+                        Garrison.Core.Protocol.FileSpaceUploadResult result = await assignment.FileUploader(message.File.Path, message.File.BaseVersion, Convert.FromBase64String(message.File.ContentBase64), token).ConfigureAwait(false);
+                        if (result.Conflict) reporter.Emit(new RunEventReport { EventType = RunEventTypeEnum.Warning, Code = "FileConflict", Text = "File " + result.RequestedPath + " changed in the file space while this run worked on it; this run's version was kept as " + result.Path + "." });
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        reporter.Emit(new RunEventReport { EventType = RunEventTypeEnum.Warning, Code = "FileSyncWarning", Text = "File " + message.File.Path + " could not be saved to the file space: " + e.Message });
+                    }
+                    break;
                 case PodLineTypeEnum.Started:
                     await reporter.StartedAsync(message.ProcessId, token).ConfigureAwait(false);
                     break;

@@ -106,6 +106,13 @@ namespace Garrison.Server.Settings
             set { _Assets = value ?? new AssetSettings(); }
         }
 
+        /// <summary>Conversation file space limits (AD3.2).</summary>
+        public FileSpaceSettings FileSpaces
+        {
+            get { return _FileSpaces; }
+            set { _FileSpaces = value ?? new FileSpaceSettings(); }
+        }
+
         /// <summary>
         /// Control-plane refresh of ChatGPT logins stored in CodexAuthJson secrets (G-22).
         /// </summary>
@@ -154,6 +161,7 @@ namespace Garrison.Server.Settings
         private LeaseSettings _Leases = new LeaseSettings();
         private ArtifactSettings _Artifacts = new ArtifactSettings();
         private AssetSettings _Assets = new AssetSettings();
+        private FileSpaceSettings _FileSpaces = new FileSpaceSettings();
 
         private CodexSettings _Codex = new CodexSettings();
 
@@ -263,6 +271,9 @@ namespace Garrison.Server.Settings
             Int("GARRISON_ASSETS_MAX_VERSION_BYTES", "Assets.MaxVersionBytes", v => Assets.MaxVersionBytes = v);
             Int("GARRISON_ASSETS_MAX_FILES_PER_VERSION", "Assets.MaxFilesPerVersion", v => Assets.MaxFilesPerVersion = v);
             Bool("GARRISON_ASSETS_ALLOW_MACRO_FORMATS", "Assets.AllowMacroFormats", v => Assets.AllowMacroFormats = v);
+            Int("GARRISON_FILESPACES_MAX_FILE_BYTES", "FileSpaces.MaxFileBytes", v => FileSpaces.MaxFileBytes = v);
+            Long("GARRISON_FILESPACES_MAX_TOTAL_BYTES", "FileSpaces.MaxTotalBytes", v => FileSpaces.MaxTotalBytes = v);
+            Int("GARRISON_FILESPACES_MAX_FILES", "FileSpaces.MaxFiles", v => FileSpaces.MaxFiles = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);
@@ -353,6 +364,14 @@ namespace Garrison.Server.Settings
         {
             string? value = Environment.GetEnvironmentVariable(variable);
             if (String.IsNullOrEmpty(value) || !Int32.TryParse(value, out int parsed)) return;
+            apply(parsed);
+            EnvironmentOverrides.Add(path);
+        }
+
+        private void Long(string variable, string path, Action<long> apply)
+        {
+            string? value = Environment.GetEnvironmentVariable(variable);
+            if (String.IsNullOrEmpty(value) || !Int64.TryParse(value, out long parsed)) return;
             apply(parsed);
             EnvironmentOverrides.Add(path);
         }

@@ -176,6 +176,24 @@ byte[] skill = await client.AgentAssets.DownloadFileAsync(asset.Id, version.Numb
 AgentRevision draft = await client.AgentRevisions.SaveDraftAsync("my-agent", new AgentRevision { AssetPins = new List<AgentRevisionAssetPin> { new AgentRevisionAssetPin { AssetId = asset.Id } } });
 ```
 
+## Conversation file spaces
+
+Every conversation has a file space: versioned files that all of its turns share. The worker mounts the space into each run's workspace under the deployment's `fileSpaceMountPath` (default `files`), and a run reports the space it used as `fileSpaceId`. `client.FileSpaces` reads and writes the space from outside. Each method takes a `FileSpaceOwnerEnum` (`Conversation` or `Run`) and the conversation or run ID, so you can reach a space from any of its turns.
+
+Writes accept an optional base version. Pass the version you last read (0 for a file that should not exist yet). If someone wrote in between, the server keeps both copies: your content lands under a conflict name, and the result has its conflict flag set and its path set to that name. Leave the base version out to overwrite unconditionally.
+
+```csharp
+FileSpaceUploadResult result = await client.FileSpaces.WriteTextAsync(FileSpaceOwnerEnum.Conversation, conversationId, "notes/a.md", "# Notes\n", 0, "text/markdown");
+await client.FileSpaces.WriteBytesAsync(FileSpaceOwnerEnum.Conversation, conversationId, "data/raw.bin", new byte[] { 0, 1 }); // raw octet-stream body
+FileSpaceListing listing = await client.FileSpaces.ListAsync(FileSpaceOwnerEnum.Conversation, conversationId);
+List<ConversationFileVersion> versions = await client.FileSpaces.ListVersionsAsync(FileSpaceOwnerEnum.Conversation, conversationId, "notes/a.md"); // newest first
+byte[] data = await client.FileSpaces.ReadAsync(FileSpaceOwnerEnum.Conversation, conversationId, "notes/a.md", 1); // ReadTextAsync decodes UTF-8
+FileDownloadUrl link = await client.FileSpaces.DownloadUrlAsync(FileSpaceOwnerEnum.Run, runId, "notes/a.md"); // no credentials needed
+await client.FileSpaces.DeleteAsync(FileSpaceOwnerEnum.Conversation, conversationId, "notes/a.md");
+```
+
+`WriteAsync` takes a `FileSpaceWriteRequest` when you want to set `ContentBase64` or `Content` yourself. Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `Run.FileSpaceId` and `Deployment.FileSpaceMountPath` carry the new fields.
+
 ## Streaming run events
 
 ```csharp

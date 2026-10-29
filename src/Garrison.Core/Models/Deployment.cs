@@ -78,6 +78,23 @@ namespace Garrison.Core.Models
         public string? AgentRevisionId { get; set; } = null;
 
         /// <summary>
+        /// Workspace-relative directory the run's conversation file space is synced into (AD3.3). Default files. One to
+        /// 128 characters of letters, digits, dots, hyphens, underscores, and slashes; no leading slash and no "." or ".."
+        /// segments.
+        /// </summary>
+        public string FileSpaceMountPath
+        {
+            get
+            {
+                return _FileSpaceMountPath;
+            }
+            set
+            {
+                _FileSpaceMountPath = String.IsNullOrWhiteSpace(value) ? "files" : value.Trim().Trim('/');
+            }
+        }
+
+        /// <summary>
         /// Environment label (AD1.3, AD-013), validated against the tenant's environment list. Default dev.
         /// </summary>
         public string Environment
@@ -622,6 +639,7 @@ namespace Garrison.Core.Models
         private string _TenantId = String.Empty;
         private string _AgentId = String.Empty;
         private string _Environment = "dev";
+        private string _FileSpaceMountPath = "files";
         private string _Name = String.Empty;
         private string _HarnessProfileId = String.Empty;
         private int _MaxConcurrentRuns = 0;

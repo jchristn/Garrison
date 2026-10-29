@@ -162,6 +162,26 @@ draft, err := client.Agents.SaveDraft(ctx, "my-agent", garrison.AgentRevision{As
 
 `List(ctx, kind, opts)`, `Get`, `Update`, `Delete`, `ListVersions` (newest first), `GetVersion`, and `UploadRaw` (one file as raw bytes) complete the client. `RunOutcomeAssetIntegrityFailed` names the run outcome.
 
+## Conversation file spaces
+
+Every conversation has a file space: versioned files that all of its turns share. The worker mounts the space into each run's workspace under the deployment's `fileSpaceMountPath` (default `files`), and a run reports the space it used as `fileSpaceId`. `client.FileSpaces` reads and writes the space from outside. Each method takes the owner (`garrison.FileSpaceOwnerConversations` or `garrison.FileSpaceOwnerRuns`) and the conversation or run ID, so you can reach a space from any of its turns.
+
+Writes accept an optional base version. Pass the version you last read (0 for a file that should not exist yet). If someone wrote in between, the server keeps both copies: your content lands under a conflict name, and the result has its conflict flag set and its path set to that name. Leave the base version out to overwrite unconditionally.
+
+```go
+owner := garrison.FileSpaceOwnerConversations
+zero := 0
+result, err := client.FileSpaces.WriteText(ctx, owner, cid, "notes/a.md", "# Notes\n", garrison.FileSpaceWriteOptions{BaseVersion: &zero, MediaType: "text/markdown"})
+_, err = client.FileSpaces.WriteBytes(ctx, owner, cid, "data/raw.bin", []byte{0, 1}, garrison.FileSpaceWriteOptions{}) // WriteRaw sends octet-stream
+listing, err := client.FileSpaces.List(ctx, owner, cid, false)                   // FileSpaceID, FileCount, TotalBytes, Files
+versions, err := client.FileSpaces.Versions(ctx, owner, cid, "notes/a.md")      // newest first
+data, err := client.FileSpaces.Read(ctx, owner, cid, "notes/a.md", 0)           // 0 reads the current version
+link, err := client.FileSpaces.DownloadURL(ctx, garrison.FileSpaceOwnerRuns, runID, "notes/a.md", 0) // no credentials needed
+err = client.FileSpaces.Delete(ctx, owner, cid, "notes/a.md")
+```
+
+Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `Run.FileSpaceID` and `Deployment.FileSpaceMountPath` carry the new fields.
+
 ## Streaming run events
 
 ```go

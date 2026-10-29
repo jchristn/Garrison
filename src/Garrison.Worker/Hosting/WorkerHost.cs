@@ -889,6 +889,7 @@ namespace Garrison.Worker.Hosting
         private bool Launch(RunAssignment assignment, bool childReserve)
         {
             assignment.SnapshotUploader = (name, content, token) => _Client.UploadInternalArtifactAsync(_NodeId ?? String.Empty, assignment, name, content, token);
+            assignment.FileUploader = (path, baseVersion, content, token) => _Client.UploadFileSpaceFileAsync(_NodeId ?? String.Empty, assignment, path, baseVersion, content, token);
             ActiveRun run = new ActiveRun(assignment);
             run.ChildReserve = childReserve;
             if (!_Runs.TryAdd(run.RunId, run))
@@ -1033,6 +1034,7 @@ namespace Garrison.Worker.Hosting
                     repair.EventSequenceStart = response.EventSequenceStart;
                     repair.Spec = response.Repair;
                     repair.SnapshotUploader = (name, content, ct) => _Client.UploadInternalArtifactAsync(nodeId, repair, name, content, ct);
+                    repair.FileUploader = (path, baseVersion, content, ct) => _Client.UploadFileSpaceFileAsync(nodeId, repair, path, baseVersion, content, ct);
                     current = repair;
                 }
             }

@@ -321,6 +321,12 @@ namespace Garrison.Core.Database.Ado
             v36.BuildVersion36();
             migrations.Add(new SchemaMigration(36, "Agent assets, asset versions, revision asset pins, and harness asset placements", v36._Statements, v36._Columns));
 
+            // AD3: conversation file spaces with files, versions, and database-held content; the deployment mount path;
+            // the file space each run uses.
+            SchemaBuilder v37 = new SchemaBuilder(catalog, dialect);
+            v37.BuildVersion37();
+            migrations.Add(new SchemaMigration(37, "Conversation file spaces", v37._Statements, v37._Columns));
+
             return migrations;
         }
 
@@ -384,6 +390,60 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion37()
+        {
+            SqlDialect d = _Dialect;
+            string blob = d.DatabaseType == Garrison.Core.Enums.DatabaseTypeEnum.Postgresql ? "BYTEA" : "BLOB";
+            Table("conversation_file_spaces",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "ownerkey VARCHAR(128) NOT NULL",
+                "conversationid " + d.TypeId,
+                "pipelinerunid " + d.TypeId,
+                "rootrunid " + d.TypeId,
+                "artifactstoreid " + d.TypeId,
+                "filecount " + d.TypeInt + " NOT NULL",
+                "totalbytes " + d.TypeBigInt + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("conversation_file_spaces", "owner", true, "tenantid", "ownerkey");
+            Table("conversation_files",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "filespaceid " + d.TypeId + " NOT NULL",
+                "path VARCHAR(512) NOT NULL",
+                "currentversion " + d.TypeInt + " NOT NULL",
+                "sizebytes " + d.TypeBigInt + " NOT NULL",
+                "sha256 VARCHAR(64) NOT NULL",
+                "mediatype VARCHAR(256) NOT NULL",
+                "deleted " + d.TypeBool + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("conversation_files", "path", true, "filespaceid", "path");
+            Table("conversation_file_versions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "fileid " + d.TypeId + " NOT NULL",
+                "number " + d.TypeInt + " NOT NULL",
+                "sizebytes " + d.TypeBigInt + " NOT NULL",
+                "sha256 VARCHAR(64) NOT NULL",
+                "mediatype VARCHAR(256) NOT NULL",
+                "runid " + d.TypeId,
+                "leaseepoch " + d.TypeBigInt,
+                "writtenby VARCHAR(256)",
+                "storagekey VARCHAR(1024) NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("conversation_file_versions", "number", true, "fileid", "number");
+            Table("file_space_blobs",
+                "storagekey VARCHAR(1024) NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "sizebytes " + d.TypeBigInt + " NOT NULL",
+                "content " + blob + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Column("deployments", "filespacemountpath", "VARCHAR(128) NOT NULL DEFAULT 'files'");
+            Column("runs", "filespaceid", d.TypeId);
         }
 
         private void BuildVersion36()

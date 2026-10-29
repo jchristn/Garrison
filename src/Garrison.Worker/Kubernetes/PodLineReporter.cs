@@ -108,6 +108,20 @@ namespace Garrison.Worker.Kubernetes
         }
 
         /// <summary>
+        /// Relay a changed file-space file to the worker (AD3.4).
+        /// </summary>
+        /// <param name="change">Changed file.</param>
+        /// <exception cref="ArgumentNullException">Thrown when change is null.</exception>
+        public void FileChanged(PodFileChange change)
+        {
+            if (change == null) throw new ArgumentNullException(nameof(change));
+            PodLine line = new PodLine();
+            line.Type = PodLineTypeEnum.FileChanged;
+            line.File = change;
+            Write(line);
+        }
+
+        /// <summary>
         /// Write the completion line. Only the first call writes; later calls are ignored.
         /// </summary>
         /// <param name="complete">Completion.</param>

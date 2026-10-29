@@ -13,6 +13,7 @@ Garrison turns configurable agent harnesses into tenant-scoped services, invoked
 | Move reproducible agent configuration between tenants | [Manifests and bundles](MANIFESTS.md), [management MCP](MANAGEMENT_MCP.md) |
 | Version agents and move them through dev, staging, and prod | [Revisions, environments, and promotion](REVISIONS.md) |
 | Give agents skills, reference files, and document templates | [Agent assets](ASSETS.md) |
+| Share files across the turns and agents of a conversation | [Conversation file spaces](FILE_SPACES.md) |
 
 ## Build agent workflows
 

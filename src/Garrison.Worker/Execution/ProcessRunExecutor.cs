@@ -324,6 +324,16 @@ namespace Garrison.Worker.Execution
                 timing.ApplyTo(complete);
                 complete.CompletedUtc = DateTime.UtcNow;
                 succeeded = complete.Status == RunStatusEnum.Succeeded;
+                if (spec.FileSpace != null && !String.IsNullOrEmpty(spec.FileSpace.FileSpaceId) && !token.IsCancellationRequested)
+                {
+                    // AD3.3: new and changed files under the mount path go back to the file space before cleanup.
+                    List<FileSpaceChange> changes = await FileSpaceSync.ChangesAsync(directories.Workspace, spec.FileSpace,
+                        message => Emit(reporter, scrubber, RunEventTypeEnum.Warning, message, "FileSyncWarning"), token).ConfigureAwait(false);
+                    int saved = await FileSpaceSync.WriteBackAsync(assignment, changes,
+                        conflict => Emit(reporter, scrubber, RunEventTypeEnum.Warning, "File " + conflict.RequestedPath + " changed in the file space while this run worked on it; this run's version was kept as " + conflict.Path + ".", "FileConflict"),
+                        message => Emit(reporter, scrubber, RunEventTypeEnum.Warning, message, "FileSyncWarning"), token).ConfigureAwait(false);
+                    if (saved > 0) Lifecycle(reporter, "FilesSynced", "Saved " + saved + " file(s) to the conversation file space.");
+                }
                 if (spec.Continuation != null && Volatile.Read(ref suspensionRequested) == 1 && complete.Status == RunStatusEnum.Succeeded)
                 {
                     if (process.Killed || process.TimedOut || process.Cancelled || String.IsNullOrEmpty(complete.SessionId ?? appServer?.ThreadId))
@@ -333,7 +343,7 @@ namespace Garrison.Worker.Execution
                     using (MemoryStream archive = new MemoryStream())
                     {
                         Stopwatch snapshotTimer = Stopwatch.StartNew();
-                        long bytes = await new WorkspaceSnapshot().CaptureAsync(directories, archive, token).ConfigureAwait(false);
+                        long bytes = await new WorkspaceSnapshot { ExcludedWorkspaceDirectory = spec.FileSpace?.MountPath }.CaptureAsync(directories, archive, token).ConfigureAwait(false);
                         Artifact artifact = await ArtifactUploader.StoreSnapshotAsync(assignment, archive.ToArray(), token).ConfigureAwait(false);
                         complete.SnapshotArtifactId = artifact.Id;
                         complete.SessionFormat = spec.Continuation.SessionFormat;

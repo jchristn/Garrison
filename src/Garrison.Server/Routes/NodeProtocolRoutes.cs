@@ -59,6 +59,7 @@ namespace Garrison.Server.Routes
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             const string tag = "Node Protocol";
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/artifacts", ResourceTypeEnum.Node, OperationTypeEnum.Execute, UploadInternalArtifactAsync, "Upload a node-owned internal checkpoint or prepared workspace", tag, typeof(byte[]), typeof(Artifact), "none");
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/files", ResourceTypeEnum.Node, OperationTypeEnum.Execute, UploadFileSpaceFileAsync, "Write a file a run produced back to its conversation file space, fenced by the lease epoch (AD3.3)", tag, typeof(byte[]), typeof(Garrison.Core.Protocol.FileSpaceUploadResult), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/register", ResourceTypeEnum.Node, OperationTypeEnum.Execute, RegisterAsync, "Register a worker node", tag, typeof(NodeRegisterRequest), typeof(NodeRegisterResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/heartbeat", ResourceTypeEnum.Node, OperationTypeEnum.Execute, HeartbeatAsync, "Worker heartbeat", tag, typeof(NodeHeartbeatRequest), typeof(NodeHeartbeatResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/lease", ResourceTypeEnum.Node, OperationTypeEnum.Execute, LeaseAsync, "Lease runs (long poll)", tag, typeof(NodeLeaseRequest), typeof(NodeLeaseResponse), "none");
@@ -88,6 +89,22 @@ namespace Garrison.Server.Routes
                 RouteHelpers.Query(context, "storeId") ?? String.Empty, RouteHelpers.Query(context, "name") ?? String.Empty,
                 epoch.Value, repair.Value, context.Request.DataAsBytes ?? Array.Empty<byte>(), nodeId, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 201, artifact).ConfigureAwait(false);
+        }
+
+        private async Task UploadFileSpaceFileAsync(HttpContextBase context)
+        {
+            RequestContext principal = RouteHelpers.Context(context);
+            if (principal.PrincipalType == PrincipalTypeEnum.Run) throw new ValidationException("Run tokens write files through garrison_files_write, not the node protocol.");
+            string nodeId = RouteHelpers.Query(context, "nodeId") ?? String.Empty;
+            await _Bindings.RequireAsync(principal, nodeId, context.Token).ConfigureAwait(false);
+            long? epoch = RouteHelpers.QueryLong(context, "epoch");
+            int? repair = RouteHelpers.QueryInt(context, "repairAttempt");
+            int? baseVersion = RouteHelpers.QueryInt(context, "baseVersion");
+            if (!epoch.HasValue || epoch.Value < 1 || !repair.HasValue || repair.Value < 0 || !baseVersion.HasValue || baseVersion.Value < 0) throw new ValidationException("File upload requires epoch, repairAttempt, and baseVersion.");
+            Garrison.Core.Protocol.FileSpaceUploadResult result = await _Context.Get<Garrison.Server.Services.FileSpaceService>().WriteFromNodeAsync(
+                RouteHelpers.Query(context, "tenantId") ?? String.Empty, RouteHelpers.Param(context, "runId") ?? String.Empty, nodeId,
+                epoch.Value, repair.Value, RouteHelpers.Query(context, "path") ?? String.Empty, baseVersion.Value, context.Request.DataAsBytes ?? Array.Empty<byte>(), context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 201, result).ConfigureAwait(false);
         }
 
         private async Task RegisterAsync(HttpContextBase context)

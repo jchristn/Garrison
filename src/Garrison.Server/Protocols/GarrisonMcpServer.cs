@@ -746,6 +746,12 @@ namespace Garrison.Server.Protocols
                     case "garrison_publish_agent_revision":
                         result = await AgentRevisionToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_files_list":
+                    case "garrison_files_read":
+                    case "garrison_files_write":
+                    case "garrison_files_delete":
+                        result = await FileToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_list_agent_assets":
                     case "garrison_get_agent_asset":
                     case "garrison_create_agent_asset":
@@ -888,6 +894,72 @@ namespace Garrison.Server.Protocols
             if (String.IsNullOrWhiteSpace(arguments.Revision)) throw ToolError("ValidationFailed", "revision is required.");
             if (tool.Name == "garrison_get_agent_revision") return await revisions.ReadAsync(tenantId, agent, arguments.Revision, token).ConfigureAwait(false);
             return await revisions.PublishAsync(ctx, tenantId, agent, arguments.Revision, arguments.ChangeNote, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> FileToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpFileArguments arguments = ManagementArguments<McpFileArguments>(args);
+            FileSpaceService files = _Context.Get<FileSpaceService>();
+            ConversationFileSpace space;
+            string? writerRunId = null;
+            long? writerEpoch = null;
+            string? writer = ctx.PrincipalName;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                // A run token reaches only its own tree's space (AD3.5).
+                Run run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId ?? String.Empty, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run not found.");
+                space = await files.ForRunAsync(run, token).ConfigureAwait(false);
+                writerRunId = run.Id;
+                writerEpoch = run.LeaseEpoch;
+                writer = run.AgentName;
+            }
+            else if (!String.IsNullOrEmpty(arguments.ConversationId))
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Conversation, tool.Operation == OperationTypeEnum.Read ? OperationTypeEnum.Read : OperationTypeEnum.Update, arguments.ConversationId, token).ConfigureAwait(false);
+                Conversation conversation = await _Context.Database.Conversations.ReadAsync(tenantId, arguments.ConversationId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Conversation not found.");
+                space = await files.ForConversationAsync(tenantId, conversation, token).ConfigureAwait(false);
+            }
+            else if (!String.IsNullOrEmpty(arguments.RunId))
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Run, tool.Operation == OperationTypeEnum.Read ? OperationTypeEnum.Read : OperationTypeEnum.Update, arguments.RunId, token).ConfigureAwait(false);
+                Run run = await _Context.Database.Runs.ReadAsync(tenantId, arguments.RunId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run not found.");
+                space = await files.ForRunAsync(run, token).ConfigureAwait(false);
+            }
+            else
+            {
+                throw ToolError("ValidationFailed", "conversationId or runId is required outside a run.");
+            }
+
+            if (tool.Name == "garrison_files_list")
+            {
+                FileSpaceListing listing = new FileSpaceListing { FileSpaceId = space.Id, FileCount = space.FileCount, TotalBytes = space.TotalBytes };
+                listing.Files = await _Context.Database.FileSpaces.ListFilesAsync(tenantId, space.Id, arguments.IncludeDeleted, token).ConfigureAwait(false);
+                return listing;
+            }
+            if (String.IsNullOrWhiteSpace(arguments.Path)) throw ToolError("ValidationFailed", "path is required.");
+            if (tool.Name == "garrison_files_write")
+            {
+                byte[] content;
+                if (arguments.ContentBase64 != null)
+                {
+                    try { content = Convert.FromBase64String(arguments.ContentBase64); }
+                    catch (FormatException) { throw ToolError("ValidationFailed", "contentBase64 is not valid base64."); }
+                }
+                else if (arguments.Content != null) content = Encoding.UTF8.GetBytes(arguments.Content);
+                else throw ToolError("ValidationFailed", "content or contentBase64 is required.");
+                return await files.WriteAsync(space, arguments.Path, content, arguments.MediaType, arguments.BaseVersion, writerRunId, writerEpoch, writer, token).ConfigureAwait(false);
+            }
+            if (tool.Name == "garrison_files_delete")
+            {
+                if (!await files.DeleteAsync(space, arguments.Path, token).ConfigureAwait(false)) throw ToolError("NotFound", "File " + arguments.Path + " not found.");
+                return new McpConfigurationDeletion { Id = arguments.Path, Deleted = true };
+            }
+            ConversationFile file = await _Context.Database.FileSpaces.ReadFileAsync(tenantId, space.Id, arguments.Path, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "File " + arguments.Path + " not found.");
+            FileSpaceContent read = await files.ReadAsync(space, file, arguments.Version, token).ConfigureAwait(false);
+            McpFileContent result = new McpFileContent { Path = file.Path, Version = read.Version.Number, Sha256 = read.Version.Sha256, MediaType = read.Version.MediaType, SizeBytes = read.Version.SizeBytes };
+            if (MediaTypes.IsText(read.Version.MediaType)) result.Content = Encoding.UTF8.GetString(read.Content);
+            else result.ContentBase64 = Convert.ToBase64String(read.Content);
+            return result;
         }
 
         private async Task<object> AgentAssetToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

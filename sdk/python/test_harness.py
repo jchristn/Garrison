@@ -16,6 +16,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import requests
+
 from garrison_sdk import (EFFECT_POLICIES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
                           GarrisonError, sign_webhook, verify_webhook)
 
@@ -775,6 +777,38 @@ def t_revisions_promotion():
         client.agents.delete(agent["id"])
 
 
+def t_file_spaces():
+    # The conversation cases delete their conversation, so this case starts its own.
+    started = client.agents.invoke(state["agent"], "File space turn from the Python SDK", wait=True, wait_seconds=90,
+                                   deployment_id=state["conversation_deployment"], start_conversation=True)
+    cid = started.get("conversationId") or ""
+    require(cid.startswith("cnv_"), f"conversationId {cid}")
+    text = "# Notes\n\nWritten by the Python SDK harness.\n"
+    first = client.file_spaces.write("conversations", cid, "notes/a.md", text, base_version=0, media_type="text/markdown")
+    require(first["version"] == 1 and not first["conflict"] and first["path"] == "notes/a.md", f"first write {first}")
+    second = client.file_spaces.write("conversations", cid, "notes/a.md", "conflicting edit\n", base_version=0)
+    require(second["conflict"] and second["path"] != "notes/a.md", f"stale write {second}")
+    listing = client.file_spaces.list("conversations", cid)
+    paths = [f["path"] for f in listing.get("files") or []]
+    require("notes/a.md" in paths and second["path"] in paths, f"listing {paths}")
+    require(listing.get("fileSpaceId"), "listing fileSpaceId")
+    require(any(v["number"] == 1 for v in client.file_spaces.versions("conversations", cid, "notes/a.md")), "version 1 not listed")
+    content = client.file_spaces.read("conversations", cid, "notes/a.md")
+    require(content == text.encode("utf-8"), "content differs")
+    link = client.file_spaces.download_url("conversations", cid, "notes/a.md", version=1)
+    fetched = requests.get(link["url"], timeout=30)
+    require(fetched.status_code == 200 and fetched.content == content, f"download url status {fetched.status_code}")
+    client.file_spaces.delete("conversations", cid, second["path"])
+    after = [f["path"] for f in client.file_spaces.list("conversations", cid).get("files") or []]
+    require(second["path"] not in after, "conflict file not deleted")
+    turns = client.conversations.list_runs(cid)["objects"]
+    require(turns, "no conversation turns")
+    run = client.runs.get(turns[0]["id"])
+    require(run.get("fileSpaceId"), f"run fileSpaceId {run.get('fileSpaceId')}")
+    by_run = [f["path"] for f in client.file_spaces.list("runs", run["id"]).get("files") or []]
+    require("notes/a.md" in by_run, f"run listing {by_run}")
+
+
 def t_agent_assets():
     asset = client.agent_assets.create({"name": f"sdk-py-{SUFFIX}-asset", "kind": "Skill", "description": "Python SDK harness asset."})
     agent = None
@@ -849,7 +883,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

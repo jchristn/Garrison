@@ -15,6 +15,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Requests;
     using Garrison.Core.Serialization;
     using Garrison.Core.Telemetry;
+    using Garrison.Server.Services;
     using Radiant;
     using SyslogLogging;
 
@@ -50,6 +51,12 @@ namespace Garrison.Server.Runtime
         /// Days to keep finished runs.
         /// </summary>
         public Func<int> RunRetentionDays { get; set; } = () => 30;
+
+        /// <summary>
+        /// Conversation file spaces (AD3.2); the retention pass removes spaces whose conversation, pipeline run, or root
+        /// run is gone. Null skips them.
+        /// </summary>
+        public FileSpaceService? FileSpaces { get; set; } = null;
 
         /// <summary>
         /// Days to keep run events.
@@ -376,9 +383,12 @@ namespace Garrison.Server.Runtime
             }
             // Finished pipeline runs follow the run retention; stage runs of active pipeline runs are never pruned (P12.9).
             int pipelineRuns = Pipelines != null ? Pruned("pipeline_runs", await _Database.PipelineRuns.PruneFinishedAsync(runCutoff, token).ConfigureAwait(false)) : 0;
+            // A file space follows its owner's retention (AD3.2).
+            int spaces = FileSpaces != null ? await FileSpaces.RemoveOrphansAsync(token).ConfigureAwait(false) : 0;
+            if (spaces > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, spaces, GarrisonMetrics.Tags("kind", "file_spaces"));
             if (runs > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, runs, GarrisonMetrics.Tags("kind", "runs"));
             if (events > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, events, GarrisonMetrics.Tags("kind", "run_events"));
-            return runs + events + pipelineRuns;
+            return runs + events + pipelineRuns + spaces;
         }
 
         /// <summary>

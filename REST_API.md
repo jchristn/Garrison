@@ -2977,6 +2977,42 @@ curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}/trans
 ```
 
 
+### Conversation file spaces
+
+A shared folder per conversation, pipeline run, or delegation tree (AD3). Every run of the tree syncs it into its workspace at start and writes changes back at the end. [docs/FILE_SPACES.md](docs/FILE_SPACES.md) explains which space a run uses, conflicts, limits, and retention.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /conversations/{id}/files?includeDeleted=` | Read on `Conversation` | `FileSpaceListing` (`fileSpaceId`, `files`, `totalBytes`, `fileCount`), 200 |
+| `GET /conversations/{id}/files/content?path=&version=` | Read on `Conversation` | The file's bytes with its media type, 200 |
+| `GET /conversations/{id}/files/versions?path=` | Read on `Conversation` | `ConversationFileVersion[]`, newest first, 200 |
+| `POST /conversations/{id}/files` | Update on `Conversation` | `FileSpaceUploadResult`, 201 |
+| `DELETE /conversations/{id}/files?path=` | Update on `Conversation` | Empty, 204. Versions are kept |
+| `POST /conversations/{id}/files/download-url?path=&version=` | Read on `Conversation` | `FileDownloadUrl` (`url`, `expiresUtc`), 200 |
+
+The same six routes exist under `/runs/{id}/files` with Read and Update on `Run`; a run resolves to its tree's space, so any run of a conversation answers with the conversation's files. Paths are relative to `/v1.0/api/tenants/{tenantId}`, and another tenant's conversation or run answers 404. The URL from `download-url` points at `GET /v1.0/file-download/{fileSpaceId}?ticket=`, which needs no credentials and opens one file version until it expires.
+
+#### `POST /v1.0/api/tenants/{tenantId}/conversations/{id}/files`
+
+A JSON body carries `path`, `content` (text) or `contentBase64`, and optional `mediaType` and `baseVersion`. Raw bytes work too: `Content-Type: application/octet-stream` with the query parameters `path`, optional `mediaType`, and optional `baseVersion`.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}/files" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"path": "notes/sources.md", "content": "- https://example.com", "baseVersion": 0}'
+```
+
+```json
+{ "requestedPath": "notes/sources.md", "path": "notes/sources.md", "version": 1, "conflict": false, "sha256": "4b7e..." }
+```
+
+With `baseVersion` set and the file changed since that version, the upload is kept under a conflict name: `conflict` is true and `path` is the name it used, such as `notes/sources.user-mv3k2a1b.md`. Without `baseVersion` the upload replaces the file.
+
+| | |
+|---|---|
+| Errors | 400 `InvalidFilePath` (field code `InvalidFilePath` on `path`); 404 for an unknown conversation, run, or file; 413 `FileTooLarge` (`FileSpaces.MaxFileBytes`), `FileSpaceFull` (`FileSpaces.MaxTotalBytes`), `TooManyFiles` (`FileSpaces.MaxFiles`) |
+
+
 ### Approvals
 
 Permission approvals (P12.3) let a person, or a deployment's rules, decide the tool calls a harness asks permission for. Claude Code asks through `--permission-prompt-tool mcp__garrison__garrison_permission_prompt` (see [MCP_API.md](MCP_API.md)); for Codex with the `CodexAppServer` delivery, the worker relays the app-server's command and file change approval requests to the same tool with the run token. Turn approvals on per deployment with `approvalsEnabled` (see [Deployment approval fields](#deployment-approval-fields)).
@@ -4673,6 +4709,7 @@ Workers authenticate with a credential that holds the `NodeAgent` role (by defau
 | `POST /v1.0/api/node/runs/{runId}/started` | Start gate: the worker asks before it launches the harness, and launches only when the server answers 200, which moves the run from Leased to Running. A worker that cannot get the acknowledgement before its lease expires abandons the run without launching it. |
 | `POST /v1.0/api/node/runs/{runId}/events` | A batch of normalized events with worker-assigned sequences starting after the assignment's `eventSequenceStart` (1 for a run with no events yet). Re-sent sequences are ignored. |
 | `POST /v1.0/api/node/runs/{runId}/artifacts` | Upload an internal checkpoint or prepared workspace as `application/octet-stream`, with `nodeId`, `tenantId`, `storeId`, `name`, `epoch`, and `repairAttempt` query parameters. Requires the bound node credential and current live lease; ordinary run and administrator artifact uploads cannot use the reserved `.garrison/` namespace. |
+| `POST /v1.0/api/node/runs/{runId}/files` | Write one file the run produced back to its file space (AD3), as `application/octet-stream`, with `nodeId`, `tenantId`, `path`, `baseVersion` (the version the run downloaded, 0 for a new file), `epoch`, and `repairAttempt` query parameters; the media type is guessed from the path. Requires the bound node credential and the current live lease; a stale lease answers 409 `StaleFileUpload`. Answers a `FileSpaceUploadResult`, with `conflict` true when the file changed since `baseVersion`. See [docs/FILE_SPACES.md](docs/FILE_SPACES.md). |
 | `POST /v1.0/api/node/runs/{runId}/complete` | Terminal status, outcome, result, structured output, usage, cost, session identifier, served model, exit code, and stderr tail. The response may carry a structured output repair to run in the same lease (see the route above). |
 | `POST /v1.0/api/node/drain` | The worker is draining (body is a heartbeat). The node becomes Draining, or Offline when it holds no runs. |
 
@@ -5255,6 +5292,7 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
 | `workspaceTemplateId` | `string?` | Workspace template. |
 | `artifactStoreId` | `string?` | Artifact store. |
+| `fileSpaceMountPath` | `string` | Workspace folder the conversation file space is synced into, relative to the workspace. Default `files`. See [docs/FILE_SPACES.md](docs/FILE_SPACES.md). |
 | `approvalsEnabled` | `bool` | Relay permission requests to Garrison (Claude Code, Codex app-server). Default false. See [Deployment approval fields](#deployment-approval-fields). |
 | `approvalDefaultAction` | `ApprovalRuleActionEnum` | Action when no rule matches. Default `Ask`. |
 | `approvalTimeoutSeconds` | `int` | Seconds a pending approval waits. Minimum 10, maximum 3600, default 300. |
@@ -6037,6 +6075,7 @@ One invocation of one deployment.
 | `sessionId` | `string?` | Harness session identifier. |
 | `servedModel` | `string?` | Model that served the run. |
 | `conversationId` | `string?` | Conversation this run is a turn of, or `null`. Always present. See [Conversations](#conversations). |
+| `fileSpaceId` | `string?` | The file space this run syncs (`cfs_` identifier): its conversation's, its pipeline run's, or its root run's. See [Conversation file spaces](#conversation-file-spaces). |
 | `conversationTurn` | `int` | Turn number within the conversation, starting at 1; 0 outside a conversation. |
 | `resumeSessionId` | `string?` | Harness session this turn resumes on its affinity node, or `null` (first turn, fallback, or no conversation). Always present. |
 | `affinityNodeId` | `string?` | Node this turn waits for because it holds the conversation's directories, or `null`. Always present. |

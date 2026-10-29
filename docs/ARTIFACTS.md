@@ -38,6 +38,10 @@ The `.garrison/` namespace is reserved for internal execution state. Public uplo
 
 Download URLs grant access to one file until expiry; they cannot authenticate other API calls. Deleting the file invalidates its links. Links are served through Garrison rather than exposing provider credentials or filesystem paths. Normal artifacts are retained independently of run retention and require explicit deletion. Internal execution-state cleanup has its own lifecycle; do not use public artifact APIs to manage hidden checkpoints.
 
+## Artifacts and conversation file spaces
+
+Artifacts belong to one run and are chosen by `artifactGlobs`. A conversation file space (AD3) is a separate folder, `files/` by default, that every turn and delegated child of a conversation shares; it is synced in at run start and written back at run end, whatever the globs say. A glob that matches files under the mount path, such as `**/*`, collects them as artifacts too, so narrow the globs when the files belong only in the space. Space files are stored under the `.garrison-files/` prefix of the deployment's store; artifacts are stored by identifier, so the two never share a key. See [FILE_SPACES.md](FILE_SPACES.md).
+
 ## Limits and validation
 
 Server settings under `Artifacts` apply after restart:

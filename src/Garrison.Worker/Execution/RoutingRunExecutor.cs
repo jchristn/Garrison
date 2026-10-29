@@ -60,6 +60,20 @@ namespace Garrison.Worker.Execution
                     return integrity;
                 }
             }
+            if (assignment.Spec != null && assignment.Spec.FileSpace != null && assignment.Spec.FileSpace.Files.Count > 0)
+            {
+                // AD3.3: the conversation file space is synced in the same way, before either executor starts.
+                string? failure = await FileSpaceSync.DownloadAsync(assignment.Spec, token).ConfigureAwait(false);
+                if (failure != null)
+                {
+                    RunCompleteRequest unavailable = new RunCompleteRequest();
+                    unavailable.Status = RunStatusEnum.Failed;
+                    unavailable.Outcome = RunOutcomeEnum.WorkspaceFailed;
+                    unavailable.ErrorMessage = failure;
+                    unavailable.CompletedUtc = DateTime.UtcNow;
+                    return unavailable;
+                }
+            }
             return await DispatchAsync(assignment, reporter, token).ConfigureAwait(false);
         }
 

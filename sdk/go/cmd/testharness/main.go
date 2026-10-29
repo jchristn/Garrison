@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -1671,6 +1672,121 @@ func main() {
 		}
 		if current.SuspensionEnabled {
 			return errors.New("suspension defaults to opt out")
+		}
+		return nil
+	})
+	check("conversation file spaces", func(ctx context.Context) error {
+		if conversationDeploymentID == "" {
+			return errors.New("no conversation deployment")
+		}
+		// The conversation cases delete their conversation, so this case starts its own.
+		started, err := client.Agents.Invoke(ctx, agentID, garrison.InvokeRequest{Input: "File space turn from the Go SDK", Wait: true, WaitSeconds: 90, DeploymentID: conversationDeploymentID, StartConversation: true})
+		if err != nil {
+			return err
+		}
+		if started.ConversationID == nil {
+			return errors.New("file space conversation missing")
+		}
+		conversationID := *started.ConversationID
+		owner := garrison.FileSpaceOwnerConversations
+		text := "# Notes\n\nWritten by the Go SDK harness.\n"
+		zero := 0
+		first, err := client.FileSpaces.WriteText(ctx, owner, conversationID, "notes/a.md", text, garrison.FileSpaceWriteOptions{BaseVersion: &zero, MediaType: "text/markdown"})
+		if err != nil {
+			return err
+		}
+		if first.Version != 1 || first.Conflict || first.Path != "notes/a.md" {
+			return fmt.Errorf("first write %+v", *first)
+		}
+		second, err := client.FileSpaces.WriteText(ctx, owner, conversationID, "notes/a.md", "conflicting edit\n", garrison.FileSpaceWriteOptions{BaseVersion: &zero})
+		if err != nil {
+			return err
+		}
+		if !second.Conflict || second.Path == "notes/a.md" {
+			return fmt.Errorf("stale write %+v", *second)
+		}
+		listing, err := client.FileSpaces.List(ctx, owner, conversationID, false)
+		if err != nil {
+			return err
+		}
+		hasPath := func(files []garrison.ConversationFile, path string) bool {
+			for _, f := range files {
+				if f.Path == path {
+					return true
+				}
+			}
+			return false
+		}
+		if !hasPath(listing.Files, "notes/a.md") || !hasPath(listing.Files, second.Path) {
+			return fmt.Errorf("listing has %d files", len(listing.Files))
+		}
+		if listing.FileSpaceID == nil || *listing.FileSpaceID == "" {
+			return errors.New("listing fileSpaceId")
+		}
+		versions, err := client.FileSpaces.Versions(ctx, owner, conversationID, "notes/a.md")
+		if err != nil {
+			return err
+		}
+		if len(versions) == 0 || versions[len(versions)-1].Number != 1 {
+			return fmt.Errorf("versions %d", len(versions))
+		}
+		content, err := client.FileSpaces.Read(ctx, owner, conversationID, "notes/a.md", 0)
+		if err != nil {
+			return err
+		}
+		if string(content) != text {
+			return fmt.Errorf("content %q", string(content))
+		}
+		link, err := client.FileSpaces.DownloadURL(ctx, owner, conversationID, "notes/a.md", 1)
+		if err != nil {
+			return err
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, link.URL, nil)
+		if err != nil {
+			return err
+		}
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			return err
+		}
+		fetched, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			return err
+		}
+		if response.StatusCode != http.StatusOK || !bytes.Equal(fetched, content) {
+			return fmt.Errorf("download url status %d", response.StatusCode)
+		}
+		if err := client.FileSpaces.Delete(ctx, owner, conversationID, second.Path); err != nil {
+			return err
+		}
+		after, err := client.FileSpaces.List(ctx, owner, conversationID, false)
+		if err != nil {
+			return err
+		}
+		if hasPath(after.Files, second.Path) {
+			return errors.New("conflict file not deleted")
+		}
+		turns, err := client.Conversations.ListRuns(ctx, conversationID, 25, 0)
+		if err != nil {
+			return err
+		}
+		if len(turns.Objects) == 0 {
+			return errors.New("no conversation turns")
+		}
+		run, err := client.Runs.Get(ctx, turns.Objects[0].ID)
+		if err != nil {
+			return err
+		}
+		if run.FileSpaceID == nil || *run.FileSpaceID == "" {
+			return errors.New("run fileSpaceId missing")
+		}
+		byRun, err := client.FileSpaces.List(ctx, garrison.FileSpaceOwnerRuns, run.ID, false)
+		if err != nil {
+			return err
+		}
+		if !hasPath(byRun.Files, "notes/a.md") {
+			return errors.New("run listing missing notes/a.md")
 		}
 		return nil
 	})

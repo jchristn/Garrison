@@ -42,7 +42,7 @@ namespace Garrison.Server.Runtime
         public ContinuationService? Continuations { get; set; } = null;
 
         /// <summary>Called with every compiled spec before it is leased, for example to add asset download URLs (AD2.4); null does nothing.</summary>
-        public Action<Run, ExecutionSpec>? DecorateSpec { get; set; } = null;
+        public Func<Run, ExecutionSpec, CancellationToken, Task>? DecorateSpec { get; set; } = null;
 
 
         /// <summary>
@@ -559,7 +559,7 @@ namespace Garrison.Server.Runtime
                 }
 
                 if (Continuations != null) await Continuations.ApplyAsync(run, compiled.Spec, token).ConfigureAwait(false);
-                DecorateSpec?.Invoke(run, compiled.Spec);
+                if (DecorateSpec != null) await DecorateSpec(run, compiled.Spec, token).ConfigureAwait(false);
 
                 // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the
                 // worker a full lease from now so the run is not reclaimed before its first heartbeat.

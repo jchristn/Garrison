@@ -148,6 +148,10 @@ namespace Garrison.Core.Database
                 "agent_asset_blobs",
                 "agent_revision_asset_pins",
                 "harness_profile_asset_placements",
+                "conversation_file_spaces",
+                "conversation_files",
+                "conversation_file_versions",
+                "file_space_blobs",
         };
 
         private readonly SqlDialect _Dialect;

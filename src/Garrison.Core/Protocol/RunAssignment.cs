@@ -17,6 +17,10 @@ namespace Garrison.Core.Protocol
         [JsonIgnore]
         public Func<string, byte[], CancellationToken, Task<Artifact>>? SnapshotUploader { get; set; }
 
+        /// <summary>Private worker-owned conversation file space transport (AD3.3): path, base version, content. Never serialized into the execution spec or harness configuration.</summary>
+        [JsonIgnore]
+        public Func<string, int, byte[], CancellationToken, Task<FileSpaceUploadResult>>? FileUploader { get; set; }
+
         /// <summary>
         /// Run identifier.
         /// </summary>

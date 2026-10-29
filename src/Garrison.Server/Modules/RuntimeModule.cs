@@ -126,7 +126,18 @@ namespace Garrison.Server.Modules
             _Scheduler.Continuations = continuations;
             AgentAssetService assets = context.Get<AgentAssetService>();
             string assetBaseUrl = context.Settings.Rest.PublicBaseUrl ?? ExternalUrls.BindBaseUrl(context);
-            _Scheduler.DecorateSpec = (run, spec) => assets.ApplyDownloadUrls(run, spec, assetBaseUrl);
+            FileSpaceService fileSpaces = context.Get<FileSpaceService>();
+            _Maintenance.FileSpaces = fileSpaces;
+            _Scheduler.DecorateSpec = async (run, spec, ct) =>
+            {
+                assets.ApplyDownloadUrls(run, spec, assetBaseUrl);
+                await fileSpaces.ApplyAsync(run, spec, assetBaseUrl, ct).ConfigureAwait(false);
+                if (spec.FileSpace != null)
+                {
+                    spec.FileSpace.MaxFileBytes = context.Settings.FileSpaces.MaxFileBytes;
+                    spec.FileSpace.MaxFiles = context.Settings.FileSpaces.MaxFiles;
+                }
+            };
             _StructuredOutput.DecorateSpec = _Scheduler.DecorateSpec;
             _Events.Continuations = continuations;
             _Runs.Approvals = _Approvals;
@@ -197,7 +208,7 @@ namespace Garrison.Server.Modules
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, approvals, nodes)", "Live updates");
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, approvals, nodes)", "Live updates");
         }
 
         /// <inheritdoc />

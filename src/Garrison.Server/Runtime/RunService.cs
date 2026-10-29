@@ -251,6 +251,8 @@ namespace Garrison.Server.Runtime
                     if (!String.IsNullOrEmpty(run.ParentRunId)) activity.SetTag("garrison.parent_run_id", run.ParentRunId);
                 }
                 if (plan != null) await _Conversations!.BeginTurnAsync(plan, run, deployment, profile, create.Surface, token).ConfigureAwait(false);
+                // AD3.1: the conversation's, pipeline run's, or root run's file space, created on first use.
+                if (!remote) run.FileSpaceId = (await FileSpaceResolver.ResolveAsync(_Database, run, deployment.ArtifactStoreId, token).ConfigureAwait(false)).Id;
                 Run stored;
                 try
                 {

@@ -39,6 +39,11 @@ namespace Garrison.Worker.Kubernetes
         /// </summary>
         public RunCompleteRequest? Complete { get; set; } = null;
 
+        /// <summary>
+        /// Changed file for FileChanged lines (AD3.4).
+        /// </summary>
+        public PodFileChange? File { get; set; } = null;
+
         #endregion
     }
 }

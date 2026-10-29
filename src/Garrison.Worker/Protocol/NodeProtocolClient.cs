@@ -216,6 +216,36 @@ namespace Garrison.Worker.Protocol
             throw new NodeProtocolException(401, "Internal archive upload authentication failed.");
         }
 
+        /// <summary>Write one file back to the run's conversation file space using node credentials, fenced by the lease epoch (AD3.3).</summary>
+        /// <param name="nodeId">Registered node.</param><param name="assignment">Current assignment.</param><param name="path">Path inside the space.</param><param name="baseVersion">Version the run started from, 0 for a new file.</param><param name="content">File bytes.</param><param name="token">Cancellation.</param><returns>Commit result.</returns>
+        /// <exception cref="StaleLeaseException">Thrown when the node no longer holds the run lease.</exception>
+        /// <exception cref="NodeProtocolException">Thrown when the server refuses the upload.</exception>
+        public async Task<FileSpaceUploadResult> UploadFileSpaceFileAsync(string nodeId, RunAssignment assignment, string path, int baseVersion, byte[] content, CancellationToken token = default)
+        {
+            Dictionary<string, string?> query = new Dictionary<string, string?>
+            {
+                ["nodeId"] = nodeId, ["tenantId"] = assignment.Spec.TenantId, ["path"] = path,
+                ["baseVersion"] = baseVersion.ToString(CultureInfo.InvariantCulture), ["epoch"] = assignment.Epoch.ToString(CultureInfo.InvariantCulture),
+                ["repairAttempt"] = assignment.Spec.RepairAttempt.ToString(CultureInfo.InvariantCulture)
+            };
+            string route = "/v1.0/api/node/runs/" + Uri.EscapeDataString(assignment.RunId) + "/files";
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                await EnsureTokenAsync(attempt > 0, token).ConfigureAwait(false);
+                using CancellationTokenSource timeout = new CancellationTokenSource(_CallTimeoutMs);
+                using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
+                try
+                {
+                    return await _Transport.SendBinaryAsync<FileSpaceUploadResult>(HttpMethod.Post, route, content, query, token: linked.Token).ConfigureAwait(false)
+                        ?? throw new NodeProtocolException(0, "File space upload returned no result.");
+                }
+                catch (GarrisonException e) when (e.StatusCode == 401 && attempt == 0) { }
+                catch (GarrisonException e) when (e.StatusCode == 409 && e.Message.Contains("StaleFileUpload", StringComparison.Ordinal)) { throw new StaleLeaseException(assignment.RunId, "File space upload lost its execution lease."); }
+                catch (GarrisonException e) { throw new NodeProtocolException(e.StatusCode, "File space upload was rejected: " + e.Message, e); }
+            }
+            throw new NodeProtocolException(401, "File space upload authentication failed.");
+        }
+
         /// <summary>
         /// Dispose.
         /// </summary>

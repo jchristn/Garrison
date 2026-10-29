@@ -643,6 +643,12 @@ namespace Garrison.Core.Compilation
             List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled, approvalsEnabled, spec, scrub);
             context.Set("resources", ResourcesContext(inputs, servers));
             context.Set("assets", AssetsContext(inputs, spec));
+            // AD3.3: the worker syncs the file space into this directory; the server adds the files at lease.
+            if (run.Executor != RunExecutorEnum.RemoteA2A && run.Executor != RunExecutorEnum.RemoteMcp) spec.FileSpace = new ExecutionFileSpace { FileSpaceId = run.FileSpaceId, MountPath = deployment.FileSpaceMountPath };
+            Dictionary<string, object?> filesContext = TemplateContext.NewMap();
+            filesContext["enabled"] = spec.FileSpace != null && !String.IsNullOrEmpty(run.FileSpaceId);
+            filesContext["mountPath"] = deployment.FileSpaceMountPath;
+            context.Set("files", filesContext);
             if (spec.Artifacts != null) spec.Artifacts.ExcludedPaths = spec.AssetFiles.Select(a => a.Path).ToList();
 
             Func<string, string?> includes = name => inputs.Includes.TryGetValue(name, out BoundPrompt? include) ? include.Content : null;

@@ -261,6 +261,25 @@ await client.agents.saveDraft("my-agent", { assetPins: [{ assetId: asset.id }] }
 
 `list({ kind, search })`, `get`, `update`, `delete`, `listVersions` (a plain array, newest first), and `getVersion` complete the client. String content is UTF-8 encoded. `AGENT_ASSET_KINDS` lists the kinds and `RUN_OUTCOMES` includes `AssetIntegrityFailed`.
 
+## Conversation file spaces
+
+Every conversation has a file space: versioned files that all of its turns share. The worker mounts the space into each run's workspace under the deployment's `fileSpaceMountPath` (default `files`), and a run reports the space it used as `fileSpaceId`. `client.fileSpaces` reads and writes the space from outside. Each method takes the owner (`"conversations"` or `"runs"`) and the conversation or run ID, so you can reach a space from any of its turns.
+
+Writes accept an optional `baseVersion`. Pass the version you last read (0 for a file that should not exist yet). If someone wrote in between, the server keeps both copies: your content lands under a conflict name, and the result has `conflict: true` and `path` set to that name. Leave `baseVersion` out to overwrite unconditionally.
+
+```js
+const cid = run.conversationId;
+const result = await client.fileSpaces.write("conversations", cid, "notes/a.md", "# Notes\n", { baseVersion: 0, mediaType: "text/markdown" });
+await client.fileSpaces.writeRaw("conversations", cid, "data/raw.bin", new Uint8Array([0, 1]));   // raw octet-stream body
+const listing = await client.fileSpaces.list("conversations", cid);            // fileSpaceId, fileCount, totalBytes, files
+await client.fileSpaces.versions("conversations", cid, "notes/a.md");          // newest first
+const bytes = await client.fileSpaces.read("conversations", cid, "notes/a.md", 1);   // readText decodes UTF-8
+const link = await client.fileSpaces.downloadUrl("runs", run.id, "notes/a.md"); // { url, expiresUtc }; no credentials needed
+await client.fileSpaces.delete("conversations", cid, "notes/a.md");
+```
+
+Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `ConversationFile`, `ConversationFileVersion`, `FileSpaceListing`, `FileSpaceUploadResult`, and `FileDownloadUrl` type the responses.
+
 ## Manifests
 
 ```ts

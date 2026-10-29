@@ -4,6 +4,7 @@ namespace Garrison.Sdk.Test
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Net.Http;
     using System.Security.Cryptography;
     using System.Text;
     using System.Threading;
@@ -1130,6 +1131,52 @@ namespace Garrison.Sdk.Test
                         if (assetAgentId != null) await client.Agents.DeleteAsync(assetAgentId, token).ConfigureAwait(false);
                         await client.AgentAssets.DeleteAsync(asset.Id, token).ConfigureAwait(false);
                     }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("conversation file spaces", async () =>
+                {
+                    // The conversation cases delete their conversation, so this case starts its own.
+                    InvokeRequest startRequest = new InvokeRequest();
+                    startRequest.Input = "File space turn from the C# SDK";
+                    startRequest.DeploymentId = conversationDeploymentId ?? throw new InvalidOperationException("no conversation deployment");
+                    startRequest.StartConversation = true;
+                    startRequest.WaitSeconds = 90;
+                    Run started = await client.Agents.InvokeAsync(agentId!, startRequest, token).ConfigureAwait(false);
+                    string id = started.ConversationId ?? throw new InvalidOperationException("no conversation");
+                    string text = "# Notes\n\nWritten by the C# SDK harness.\n";
+                    FileSpaceUploadResult first = await client.FileSpaces.WriteTextAsync(FileSpaceOwnerEnum.Conversation, id, "notes/a.md", text, 0, "text/markdown", token).ConfigureAwait(false);
+                    Require(first.Version == 1 && !first.Conflict && first.Path == "notes/a.md", "first write version " + first.Version + " conflict " + first.Conflict);
+                    FileSpaceUploadResult second = await client.FileSpaces.WriteTextAsync(FileSpaceOwnerEnum.Conversation, id, "notes/a.md", "conflicting edit\n", 0, "text/markdown", token).ConfigureAwait(false);
+                    Require(second.Conflict && second.Path != "notes/a.md" && second.RequestedPath == "notes/a.md", "stale write conflict " + second.Conflict + " path " + second.Path);
+
+                    FileSpaceListing listing = await client.FileSpaces.ListAsync(FileSpaceOwnerEnum.Conversation, id, false, token).ConfigureAwait(false);
+                    Require(listing.Files.Any(f => f.Path == "notes/a.md") && listing.Files.Any(f => f.Path == second.Path), "listing has both files");
+                    Require(!String.IsNullOrEmpty(listing.FileSpaceId), "listing fileSpaceId");
+
+                    List<ConversationFileVersion> versions = await client.FileSpaces.ListVersionsAsync(FileSpaceOwnerEnum.Conversation, id, "notes/a.md", token).ConfigureAwait(false);
+                    Require(versions.Any(v => v.Number == 1), "version 1 listed");
+
+                    byte[] content = await client.FileSpaces.ReadAsync(FileSpaceOwnerEnum.Conversation, id, "notes/a.md", null, token).ConfigureAwait(false);
+                    Require(content.SequenceEqual(Encoding.UTF8.GetBytes(text)), "content matches");
+
+                    FileDownloadUrl link = await client.FileSpaces.DownloadUrlAsync(FileSpaceOwnerEnum.Conversation, id, "notes/a.md", 1, token).ConfigureAwait(false);
+                    Require(link.Url.Length > 0, "download url");
+                    using (HttpClient anonymous = new HttpClient())
+                    {
+                        byte[] fetched = await anonymous.GetByteArrayAsync(link.Url, token).ConfigureAwait(false);
+                        Require(fetched.SequenceEqual(content), "download url content matches");
+                    }
+
+                    await client.FileSpaces.DeleteAsync(FileSpaceOwnerEnum.Conversation, id, second.Path, token).ConfigureAwait(false);
+                    FileSpaceListing after = await client.FileSpaces.ListAsync(FileSpaceOwnerEnum.Conversation, id, false, token).ConfigureAwait(false);
+                    Require(!after.Files.Any(f => f.Path == second.Path), "conflict file deleted");
+
+                    EnumerationResult<Run> turns = await client.Conversations.ListRunsAsync(id, 25, 0, token).ConfigureAwait(false);
+                    Run turn = turns.Objects.FirstOrDefault() ?? throw new InvalidOperationException("no conversation turn");
+                    Run fetchedRun = await client.Runs.GetAsync(turn.Id, token).ConfigureAwait(false);
+                    Require(!String.IsNullOrEmpty(fetchedRun.FileSpaceId), "run fileSpaceId");
+                    FileSpaceListing byRun = await client.FileSpaces.ListAsync(FileSpaceOwnerEnum.Run, turn.Id, false, token).ConfigureAwait(false);
+                    Require(byRun.Files.Any(f => f.Path == "notes/a.md"), "run listing has the file");
                 }).ConfigureAwait(false);
 
                 await CheckAsync("cleanup", async () =>

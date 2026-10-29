@@ -348,6 +348,16 @@ Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example 
 
 An asset upload over a limit answers 413 naming the setting. Files kept in an external artifact store are also bounded by `Artifacts.MaxFileBytes` when they are read back. See [ASSETS.md](ASSETS.md).
 
+### Conversation file space limits
+
+| Setting | Default | Range | Environment |
+|---|---|---|---|
+| `FileSpaces.MaxFileBytes` | 33554432 (32 MiB) | 1024 to 268435456 | `GARRISON_FILESPACES_MAX_FILE_BYTES` |
+| `FileSpaces.MaxTotalBytes` | 268435456 (256 MiB) | 1048576 to 10737418240 | `GARRISON_FILESPACES_MAX_TOTAL_BYTES` |
+| `FileSpaces.MaxFiles` | 1000 | 1 to 100000 | `GARRISON_FILESPACES_MAX_FILES` |
+
+Totals count current, undeleted files. A write over a limit answers 413 naming the setting; a run's write-back over a limit becomes a warning event on the run. Runs on the KubernetesJob executor are also held to 6 MiB per file, the most a pod can relay in one line. A deployment's `fileSpaceMountPath` (default `files`) sets the workspace folder the space is synced into. See [FILE_SPACES.md](FILE_SPACES.md).
+
 ### Artifact and continuation byte limits
 
 `Artifacts.MaxFileBytes` defaults to 16777216 (16 MiB) and accepts 1024 through 268435456 (256 MiB). Environment: `GARRISON_ARTIFACT_MAX_FILE_BYTES`. This node-local setting is copied into new execution assignments at startup; restart control-plane replicas after changing it. The cap applies to compressed continuation archives and ordinary artifact files. For a 96 MiB archive allowance set 100663296, with REST/proxy body ceilings at least that high. The default REST ceiling is 128 MiB; it does not automatically increase when the artifact cap increases. Normal collection has an additional MaxTotalBytes aggregate limit; snapshot extraction separately enforces 256 MiB uncompressed and 100000 entries. See [continuation size policy](CONTINUATION.md#archive-size-policy) for retention, fidelity and buffering implications.

@@ -193,6 +193,13 @@ namespace Garrison.Core.Enums
         /// Agent assets (AD2): versioned system prompts, skills, reference files, and document templates. Create also
         /// uploads a new version.
         /// </summary>
-        AgentAsset
+        AgentAsset,
+
+        /// <summary>
+        /// Conversation file spaces (AD3): the files a conversation's turns and its delegation trees share. Users reach
+        /// them through Read and Update on the Conversation or Run they belong to; this type names them in audit records
+        /// and in the operation scope map.
+        /// </summary>
+        ConversationFileSpace
     }
 }

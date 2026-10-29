@@ -707,6 +707,37 @@ await check("agent assets", async () => {
     await client.agentAssets.delete(asset.id);
   }
 });
+await check("conversation file spaces", async () => {
+  // The conversation cases delete their conversation, so this case starts its own.
+  const started = await client.agents.invoke(state.agent, "File space turn from the JavaScript SDK", { waitSeconds: 90, deploymentId: state.conversationDeployment, startConversation: true });
+  const cid = started.conversationId;
+  require(cid, "no conversation");
+  const text = "# Notes\n\nWritten by the JavaScript SDK harness.\n";
+  const first = await client.fileSpaces.write("conversations", cid, "notes/a.md", text, { baseVersion: 0, mediaType: "text/markdown" });
+  require(first.version === 1 && !first.conflict && first.path === "notes/a.md", `first write ${JSON.stringify(first)}`);
+  const second = await client.fileSpaces.write("conversations", cid, "notes/a.md", "conflicting edit\n", { baseVersion: 0 });
+  require(second.conflict && second.path !== "notes/a.md", `stale write ${JSON.stringify(second)}`);
+  const listing = await client.fileSpaces.list("conversations", cid);
+  const paths = (listing.files ?? []).map((f) => f.path);
+  require(paths.includes("notes/a.md") && paths.includes(second.path), `listing ${paths}`);
+  require(listing.fileSpaceId, "listing fileSpaceId");
+  require((await client.fileSpaces.versions("conversations", cid, "notes/a.md")).some((v) => v.number === 1), "version 1 not listed");
+  const content = await client.fileSpaces.read("conversations", cid, "notes/a.md");
+  require(new TextDecoder().decode(content) === text, "content differs");
+  const link = await client.fileSpaces.downloadUrl("conversations", cid, "notes/a.md", 1);
+  const fetched = await fetch(link.url);
+  require(fetched.status === 200 && (await fetched.text()) === text, `download url status ${fetched.status}`);
+  await client.fileSpaces.delete("conversations", cid, second.path);
+  const after = ((await client.fileSpaces.list("conversations", cid)).files ?? []).map((f) => f.path);
+  require(!after.includes(second.path), "conflict file not deleted");
+  const turns = (await client.conversations.listRuns(cid)).objects;
+  require(turns.length > 0, "no conversation turns");
+  const run = await client.runs.get(turns[0].id);
+  require(run.fileSpaceId, `run fileSpaceId ${run.fileSpaceId}`);
+  const byRun = ((await client.fileSpaces.list("runs", run.id)).files ?? []).map((f) => f.path);
+  require(byRun.includes("notes/a.md"), `run listing ${byRun}`);
+});
+
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

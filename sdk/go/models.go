@@ -361,6 +361,8 @@ type Agent struct {
 
 // Deployment binds an agent to a harness profile and model.
 type Deployment struct {
+	// FileSpaceMountPath is the workspace-relative directory where the conversation file space is mounted for runs. Empty means the server default, "files".
+	FileSpaceMountPath string `json:"fileSpaceMountPath,omitempty"`
 	// SuspensionEnabled opts in to durable suspension on resumable harnesses.
 	SuspensionEnabled    bool                         `json:"suspensionEnabled,omitempty"`
 	ArgumentOverrides    []DeploymentArgumentOverride `json:"argumentOverrides,omitempty"`
@@ -639,6 +641,8 @@ type Run struct {
 	ApprovalWaitMs *int64 `json:"approvalWaitMs"`
 	// ConversationID is the conversation this run is a turn of; nil for a run outside any conversation.
 	ConversationID *string `json:"conversationId"`
+	// FileSpaceID is the file space the run reads and writes (its conversation's space for a conversation turn); nil when it has none.
+	FileSpaceID *string `json:"fileSpaceId"`
 	// ConversationTurn is the turn number within the conversation, starting at 1; 0 outside a conversation.
 	ConversationTurn int `json:"conversationTurn"`
 	// ResumeSessionID is the harness session this turn resumes on its affinity node; nil when it starts a new session.

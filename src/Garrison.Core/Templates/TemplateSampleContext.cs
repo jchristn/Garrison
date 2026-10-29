@@ -32,6 +32,8 @@ namespace Garrison.Core.Templates
             context.Set("agent.delegation.allowList", new List<object?>());
             context.Set("assets.listed", new List<object?>());
             context.Set("assets.count", 0);
+            context.Set("files.enabled", true);
+            context.Set("files.mountPath", "files");
             context.Set("tool.name", "garrison_invoke_agent");
             context.Set("tool.defaultDescription", "Ask another Garrison agent to do work and wait for its answer.");
             context.Set("deployment.name", "sample-agent-default");

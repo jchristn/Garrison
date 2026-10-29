@@ -70,6 +70,12 @@ namespace Garrison.Core.Models
         public string? AgentRevisionId { get; set; } = null;
 
         /// <summary>
+        /// Conversation file space the run reads and writes (AD3): its conversation's, its pipeline run's, or its root
+        /// run's. Null for remote runs.
+        /// </summary>
+        public string? FileSpaceId { get; set; } = null;
+
+        /// <summary>
         /// Agent name at creation.
         /// </summary>
         public string AgentName

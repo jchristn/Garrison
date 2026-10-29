@@ -344,6 +344,33 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a file space identifier (prefix cfs_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewFileSpaceId()
+        {
+            return New(Constants.FileSpaceIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a file space file identifier (prefix cff_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewFileSpaceFileId()
+        {
+            return New(Constants.FileSpaceFileIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a file space file version identifier (prefix cfv_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewFileSpaceVersionId()
+        {
+            return New(Constants.FileSpaceVersionIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a notification endpoint event row identifier (prefix nev_).
         /// </summary>
         /// <returns>Identifier.</returns>

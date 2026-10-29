@@ -315,6 +315,21 @@ namespace Garrison.Sdk.Models
         public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Deny;
 
         /// <summary>
+        /// Workspace-relative directory where the conversation file space is mounted for runs. Default "files". Null resets to the default.
+        /// </summary>
+        public string FileSpaceMountPath
+        {
+            get
+            {
+                return _FileSpaceMountPath;
+            }
+            set
+            {
+                _FileSpaceMountPath = value ?? "files";
+            }
+        }
+
+        /// <summary>
         /// Configuration version, incremented on every change.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;
@@ -525,6 +540,7 @@ namespace Garrison.Sdk.Models
 
         #region Private-Members
 
+        private string _FileSpaceMountPath = "files";
         private string _Environment = "dev";
         private RunPodResources _PodResources = new RunPodResources();
         private string _Id = String.Empty;

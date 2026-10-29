@@ -294,6 +294,11 @@ namespace Garrison.Sdk.Models
         public string? ConversationId { get; set; } = null;
 
         /// <summary>
+        /// File space the run reads and writes (the conversation's file space for a conversation turn), or null when the run has none.
+        /// </summary>
+        public string? FileSpaceId { get; set; } = null;
+
+        /// <summary>
         /// Turn number within the conversation, starting at 1; 0 for runs outside a conversation. Minimum 0.
         /// </summary>
         public int ConversationTurn

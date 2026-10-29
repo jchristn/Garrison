@@ -73,6 +73,7 @@ namespace Garrison.Server.Modules
             AgentAssetService assets = new AgentAssetService(context);
             context.Register(assets);
             _Manifests.AssetContent = new ManifestAssetContentStore(assets);
+            context.Register(new FileSpaceService(context));
         }
 
         /// <inheritdoc />
@@ -95,6 +96,7 @@ namespace Garrison.Server.Modules
             new AgentRevisionRoutes(context, context.Get<AgentRevisionService>()).Register(routes);
             new PromotionRoutes(context, context.Get<PromotionService>()).Register(routes);
             new AgentAssetRoutes(context, context.Get<AgentAssetService>()).Register(routes);
+            new FileSpaceRoutes(context, context.Get<FileSpaceService>()).Register(routes);
             new ManifestRoutes(context, _Manifests!).Register(routes);
         }
 

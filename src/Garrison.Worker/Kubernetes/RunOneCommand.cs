@@ -22,6 +22,12 @@ namespace Garrison.Worker.Kubernetes
     /// </summary>
     public static class RunOneCommand
     {
+        /// <summary>
+        /// Largest file-space file a run pod relays to its worker, in bytes (AD3.4). Default 6291456 (6 MiB), so its
+        /// base64 line fits the worker's default 8 MiB line limit. Larger files are reported as warnings and not saved.
+        /// </summary>
+        public static readonly long MaxRelayedFileBytes = 6291456L;
+
         /// <summary>Maximum warm spec bytes. Minimum 1024, maximum 64 MiB; default 16 MiB.</summary>
         public static int MaxStdinSpecBytes
         {
@@ -204,6 +210,19 @@ namespace Garrison.Worker.Kubernetes
                 if (!String.IsNullOrEmpty(home)) TryCreate(home);
                 TryCreate(envelope.WorkRoot);
                 if (!String.IsNullOrEmpty(envelope.WorkspaceMountPath)) LinkWorkspace(envelope);
+
+                if (envelope.Assignment.Spec?.FileSpace != null)
+                {
+                    // AD3.4: the pod has no credentials, so changed files travel to the worker as protocol lines; one line
+                    // carries the whole file, so files must fit the worker's line limit.
+                    envelope.Assignment.Spec.FileSpace.MaxFileBytes = Math.Min(envelope.Assignment.Spec.FileSpace.MaxFileBytes, MaxRelayedFileBytes);
+                    PodLineReporter relay = reporter;
+                    envelope.Assignment.FileUploader = (path, baseVersion, content, ct) =>
+                    {
+                        relay.FileChanged(new PodFileChange { Path = path, BaseVersion = baseVersion, ContentBase64 = Convert.ToBase64String(content) });
+                        return Task.FromResult(new Garrison.Core.Protocol.FileSpaceUploadResult { RequestedPath = path, Path = path });
+                    };
+                }
 
                 ExecutorOptions options = new ExecutorOptions();
                 options.WorkRoot = envelope.WorkRoot;

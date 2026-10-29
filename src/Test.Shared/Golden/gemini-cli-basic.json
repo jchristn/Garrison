@@ -79,6 +79,12 @@
       "credential-gemini_cli_basic"
     ],
     "assetFiles": [],
+    "fileSpace": {
+      "mountPath": "files",
+      "maxFileBytes": 33554432,
+      "maxFiles": 1000,
+      "files": []
+    },
     "retainForRepair": false,
     "repairAttempt": 0,
     "executor": "Process",

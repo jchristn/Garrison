@@ -3,6 +3,7 @@
   { "key": "default-task", "kind": "Task", "description": "Wraps the caller's message and any run parameters." },
   { "key": "delegated-task", "kind": "Task", "description": "Task wrapper used when the caller is another agent." },
   { "key": "garrison-tools-instructions", "kind": "Fragment", "description": "Explains Garrison's delegation tools; included by system prompts when delegation is enabled." },
+  { "key": "garrison-files-instructions", "kind": "Fragment", "description": "Explains the conversation file space: its mount path in the working directory, that files there persist across turns and are shared with delegated agents, and the garrison_files_* tools; included by system prompts when the run has a file space (AD3)." },
   { "key": "agent-assets-instructions", "kind": "Fragment", "description": "Lists the agent assets (skills, reference files, document templates) placed in the run's workspace; included by system prompts when a placement asks for a listing (AD2.3)." },
   { "key": "structured-output-instructions", "kind": "Fragment", "description": "Output schema instructions for harnesses without native schema support." },
   { "key": "structured-output-repair", "kind": "Task", "description": "Repair prompt sent when output fails schema validation." },

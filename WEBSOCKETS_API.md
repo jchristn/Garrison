@@ -40,9 +40,10 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `run:{runId}` | Read on Run for that run | Every event of the run as `run.event`, in order, then `run.status` each time the status changes |
 | `nodes` | Read on Node | `nodes` with every node (up to 500) whenever a node's status or active run count changes |
 | `approvals` | Read on Approval in your tenant | `approvals.changed` with the pending count, the pending approvals (newest first, up to 100), and the count of pending pipeline stage reviews, whenever either changes |
+| `conversation-files:{conversationId}` | Read on Conversation for that conversation | `files.changed` with the files that changed whenever a turn, a delegated child, or a user writes or deletes a file in the conversation's file space |
 | `pipeline-run:{pipelineRunId}` | Read on PipelineRun for that pipeline run | `pipeline-run.status` with the whole pipeline run (stages, stage run summaries, and reviews) each time its status, a stage, a stage run, or a review changes |
 
-A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `pipeline-run:{pipelineRunId}` sends the pipeline run, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
+A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `pipeline-run:{pipelineRunId}` sends the pipeline run, `conversation-files:{conversationId}` sends every current file as changed, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
 
 The `runs`, `run:{runId}`, `pipeline-run:{pipelineRunId}`, and `approvals` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
 
@@ -74,6 +75,12 @@ Follow a pipeline run with `pipeline-run:{pipelineRunId}`. Each message is the w
 {"type":"pipeline-run.status","pipelineRun":{"id":"plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y","pipelineName":"release-notes","status":"AwaitingReview","outcome":"None","currentPosition":1,"stages":[...],"runs":[...],"reviews":[{"id":"prv_mv5d0k9a_Hq3Lz8WcN1tYb5Ks","status":"Pending", ...}], ...}}
 ```
 
+Follow a conversation's shared files (see [docs/FILE_SPACES.md](docs/FILE_SPACES.md)) with `conversation-files:{conversationId}`. Each message lists only the files that changed since the last one; read the bytes over REST.
+
+```json
+{"type":"files.changed","conversationId":"cnv_mv5d1a2b_Tq8LmZ3wR7xKc4Np","fileSpaceId":"cfs_mv5d1a2c_Wb2Nq7Hx4LtYk9Rs","changed":[{"path":"notes/sources.md","version":2,"deleted":false,"sha256":"4b7e...","sizeBytes":118}]}
+```
+
 The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as REST returns them (see `REST_API.md`), including `rawEventJson`, the harness's original line, when the parser kept it. `runs.changed` carries `runs`, an array of `Run`; `nodes` carries `nodes`, an array of `Node`.
 
 ## Server messages
@@ -87,6 +94,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `nodes` | `nodes` |
 | `approvals.changed` | `pending`, `reviewsPending`, `approvals` |
 | `pipeline-run.status` | `pipelineRun` |
+| `files.changed` | `conversationId`, `fileSpaceId`, `changed` (each `path`, `version`, `deleted`, `sha256`, `sizeBytes`) |
 | `run.event` | `runId`, `event` |
 | `run.status` | `run` |
 | `error` | `code`, `message`, and `channel` for subscription errors |
@@ -95,7 +103,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 |---|---|
 | `InvalidJson` | The message is not a JSON object with a `type` |
 | `AuthenticationRequired` | The token is invalid, or the connection is not authenticated yet |
-| `SubscriptionDenied` | Unknown channel, missing permission, a run or pipeline run that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
+| `SubscriptionDenied` | Unknown channel, missing permission, a run, pipeline run, or conversation that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
 | `TooManySubscriptions` | The session already holds 64 subscriptions, each of which polls the database. Unsubscribe from one first |
 
 Errors never close the connection.

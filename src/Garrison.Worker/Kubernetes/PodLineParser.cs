@@ -208,6 +208,8 @@ namespace Garrison.Worker.Kubernetes
                     return line.Event != null;
                 case PodLineTypeEnum.Complete:
                     return line.Complete != null;
+                case PodLineTypeEnum.FileChanged:
+                    return line.File != null && Garrison.Core.Helpers.RelativePaths.IsValid(line.File.Path) && line.File.BaseVersion >= 0;
                 default:
                     return false;
             }

@@ -317,6 +317,19 @@ Only an active template of kind `ToolDescription` in the caller's own tenant cou
 
 Tool names, input schemas, and permissions are not affected by an override.
 
+## Shared files
+
+Every run sees its conversation's file space (AD3) at `files/` in its workspace, synced in at start and written back at the end. These tools reach the space during the run, so a parent can read what a child wrote a moment ago. See [docs/FILE_SPACES.md](docs/FILE_SPACES.md).
+
+| Tool | Permission | Arguments |
+|---|---|---|
+| `garrison_files_list` | ConversationFileSpace.Read | optional `includeDeleted` |
+| `garrison_files_read` | ConversationFileSpace.Read | `path`; optional `version` |
+| `garrison_files_write` | ConversationFileSpace.Update | `path`, `content` or `contentBase64`; optional `mediaType`, `baseVersion` |
+| `garrison_files_delete` | ConversationFileSpace.Update | `path` |
+
+A run token always uses its own tree's space and cannot name another. Users and credentials add `conversationId` or `runId` and need Read (or Update, to write or delete) on that conversation or run. `garrison_files_read` returns `path`, `version`, `sha256`, `mediaType`, `sizeBytes`, and `content` for text or `contentBase64` otherwise. `garrison_files_write` returns `requestedPath`, `path`, `version`, `conflict`, and `sha256`: with `baseVersion` set and the file changed since, the write is kept under a conflict name, `conflict` is true, and `path` is that name. Errors use the REST codes: `NotFound`, `InvalidFilePath`, `FileTooLarge`, `FileSpaceFull`, and `TooManyFiles`.
+
 ## Management tools
 
 User/developer credentials can configure their tenant through these tools. `AgentDeveloper`, administrator roles, or equivalent resource grants are required for writes. Hosted run and node tokens cannot use management tools; they retain discovery, invocation, and their existing run/approval capabilities.

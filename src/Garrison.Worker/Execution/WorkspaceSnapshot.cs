@@ -17,6 +17,8 @@ namespace Garrison.Worker.Execution
         public int MaxEntries { get { return _MaxEntries; } set { _MaxEntries = Math.Clamp(value, 1, 1000000); } }
         /// <summary>Include home and config session directories. False captures only the prepared workspace.</summary>
         public bool IncludeSession { get; set; } = true;
+        /// <summary>Workspace-relative directory left out of the snapshot, such as the conversation file space mount path (AD3.7), whose files the file space holds. Null includes everything.</summary>
+        public string? ExcludedWorkspaceDirectory { get; set; } = null;
         private long _MaxBytes = 256L * 1024 * 1024;
         private int _MaxEntries = 100000;
 
@@ -53,6 +55,7 @@ namespace Garrison.Worker.Execution
                             if (++count > MaxEntries) throw new IOException("Snapshot entry limit exceeded.");
                             if (SafePaths.IsLink(path)) throw new IOException("Snapshot contains a filesystem link.");
                             string relative = name + "/" + Path.GetRelativePath(root, path).Replace('\\', '/');
+                            if (name == "work" && !String.IsNullOrEmpty(ExcludedWorkspaceDirectory) && (relative == "work/" + ExcludedWorkspaceDirectory || relative.StartsWith("work/" + ExcludedWorkspaceDirectory + "/", StringComparison.Ordinal))) continue;
                             if (Directory.Exists(path)) { archive.CreateEntry(relative + "/"); pending.Enqueue(path); continue; }
                             byte[] content = await ArtifactUploader.ReadAsync(root, path, MaxBytes - total, token).ConfigureAwait(false);
                             total += content.LongLength;

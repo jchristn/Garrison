@@ -8151,6 +8151,616 @@
       ]
     },
     {
+      "name": "File Spaces",
+      "description": "Conversation file spaces (AD3): one shared folder per conversation, synced into every run. See docs/FILE_SPACES.md.",
+      "item": [
+        {
+          "name": "Start a conversation for files",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "invoke"
+              ]
+            },
+            "description": "A conversation owns one file space that every turn and delegated child shares.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"File space conversation from Postman\",\n  \"startConversation\": true,\n  \"wait\": true,\n  \"waitSeconds\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('a run with a file space', function () { pm.expect(json.fileSpaceId).to.match(/^cfs_/); });",
+                  "if (json.conversationId !== undefined && json.conversationId !== null) { pm.collectionVariables.set('fsConversationId', json.conversationId); }",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('fsRunId', json.id); }",
+                  "if (json.fileSpaceId !== undefined && json.fileSpaceId !== null) { pm.collectionVariables.set('fsSpaceId', json.fileSpaceId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload a file",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ]
+            },
+            "description": "JSON body with text content. baseVersion 0 means a new file.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"notes/sources.md\",\n  \"content\": \"- https://example.com\",\n  \"baseVersion\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('version 1, no conflict', function () { pm.expect(json.version).to.eql(1); pm.expect(json.conflict).to.eql(false); pm.expect(json.sha256.length).to.eql(64); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update the file",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ]
+            },
+            "description": "Writing with the current version as base makes version 2.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"notes/sources.md\",\n  \"content\": \"- https://example.com\\n- https://example.org\",\n  \"baseVersion\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('version 2', function () { pm.expect(json.version).to.eql(2); pm.expect(json.path).to.eql('notes/sources.md'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stale write keeps both",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ]
+            },
+            "description": "A write based on an old version is kept under a conflict name; nothing is overwritten.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"notes/sources.md\",\n  \"content\": \"stale edit\",\n  \"baseVersion\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('conflict copy', function () { pm.expect(json.conflict).to.eql(true); pm.expect(json.path).to.match(/^notes\\/sources\\.user-.+\\.md$/); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Path traversal is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ]
+            },
+            "description": "Paths stay inside the space: 400 InvalidFilePath.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"../escape.md\",\n  \"content\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('InvalidFilePath', function () { pm.expect(JSON.stringify(json)).to.include('InvalidFilePath'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ]
+            },
+            "description": "Current files with their versions, sizes, and hashes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two files', function () { pm.expect(json.fileSpaceId).to.eql(pm.collectionVariables.get('fsSpaceId')); pm.expect(json.fileCount).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read file content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files/content?path=notes/sources.md",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files",
+                "content"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "notes/sources.md"
+                }
+              ]
+            },
+            "description": "The current bytes with the media type."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('version 2 content', function () { pm.expect(pm.response.text()).to.include('example.org'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an older version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files/content?path=notes/sources.md&version=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files",
+                "content"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "notes/sources.md"
+                },
+                {
+                  "key": "version",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Any version stays readable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('version 1 content', function () { pm.expect(pm.response.text()).to.not.include('example.org'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List file versions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files/versions?path=notes/sources.md",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files",
+                "versions"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "notes/sources.md"
+                }
+              ]
+            },
+            "description": "Versions newest first, with the writer."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two versions', function () { pm.expect(json.length).to.eql(2); pm.expect(json[0].number).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Same files through the run",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{fsRunId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{fsRunId}}",
+                "files"
+              ]
+            },
+            "description": "A run of the conversation resolves to the conversation space."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same space', function () { pm.expect(json.fileSpaceId).to.eql(pm.collectionVariables.get('fsSpaceId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Issue a download URL",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files/download-url?path=notes/sources.md",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files",
+                "download-url"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "notes/sources.md"
+                }
+              ]
+            },
+            "description": "A short-lived URL that opens one file version without credentials."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('ticket url', function () { pm.expect(json.url).to.include('/v1.0/file-download/'); });",
+                  "if (json.url !== undefined && json.url !== null) { pm.collectionVariables.set('fsDownloadUrl', json.url); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download with the ticket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fsDownloadUrl}}",
+            "description": "The URL from download-url; the anonymous route checks the ticket.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('content', function () { pm.expect(pm.response.text()).to.include('example.org'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the file",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files?path=notes/sources.md",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "notes/sources.md"
+                }
+              ]
+            },
+            "description": "Marks the file deleted; its versions are kept."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted files are hidden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{fsConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{fsConversationId}}",
+                "files"
+              ]
+            },
+            "description": "includeDeleted=true lists them again."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('one file left', function () { pm.expect(json.fileCount).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Pipelines",
       "description": "Pipelines run agents as ordered stages on one request: each stage is an ordinary run of its agent, sees the earlier stages' results through its PipelineStage prompt template, and can wait for a person to approve, request changes, or reject. This folder creates a two-stage pipeline on the Postman agent, runs it through a revision and an approval, exercises cancel, retry, and the 409 cases, and deletes everything it made, so it must run before Cleanup deletes the agent. Definitions need Pipeline permissions, pipeline runs need PipelineRun, and stage reviews need Read or Update on Approval. Run tokens cannot use any of these routes. See docs/PIPELINES.md and the Pipelines section of REST_API.md.",
       "item": [
@@ -17313,6 +17923,22 @@
     },
     {
       "key": "assetDraftRevisionId",
+      "value": ""
+    },
+    {
+      "key": "fsConversationId",
+      "value": ""
+    },
+    {
+      "key": "fsRunId",
+      "value": ""
+    },
+    {
+      "key": "fsSpaceId",
+      "value": ""
+    },
+    {
+      "key": "fsDownloadUrl",
       "value": ""
     }
   ]

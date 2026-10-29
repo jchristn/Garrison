@@ -151,6 +151,33 @@ export interface AgentAssetVersion extends Json {
   authorName?: string | null; changeNote?: string | null; files: AgentAssetFile[]; createdUtc: string;
 }
 
+/** Owner of a file space: a conversation, or a run whose file space is used. */
+export type FileSpaceOwner = "conversations" | "runs";
+
+/** A file in a conversation file space. sha256 is lowercase hex; deleted files appear only with includeDeleted. */
+export interface ConversationFile extends Json {
+  id: string; tenantId: string; fileSpaceId: string; path: string; currentVersion: number; sizeBytes: number;
+  sha256?: string | null; mediaType?: string | null; deleted: boolean; createdUtc: string; lastUpdateUtc: string;
+}
+
+/** An immutable version of a conversation file. runId is null for API writes. */
+export interface ConversationFileVersion extends Json {
+  id: string; tenantId: string; fileId: string; number: number; sizeBytes: number; sha256?: string | null;
+  mediaType?: string | null; runId?: string | null; leaseEpoch: number; writtenBy?: string | null; storageKey?: string | null; createdUtc: string;
+}
+
+/** Files in a conversation or run file space. fileSpaceId is null until the space exists. */
+export interface FileSpaceListing extends Json { fileSpaceId?: string | null; fileCount: number; totalBytes: number; files: ConversationFile[]; }
+
+/** Result of a file space write. conflict is true when baseVersion was stale; path is then the conflict name. */
+export interface FileSpaceUploadResult extends Json { requestedPath: string; path: string; version: number; conflict: boolean; sha256?: string | null; }
+
+/** A short-lived download-only URL; fetching it needs no credentials. */
+export interface FileDownloadUrl extends Json { url: string; expiresUtc: string; }
+
+/** Options for a file space write. baseVersion 0 means the file must not exist yet; omit it to overwrite unconditionally. */
+export interface FileSpaceWriteOptions { baseVersion?: number; mediaType?: string; }
+
 /** One file to upload. String content is UTF-8 encoded. */
 export interface AgentAssetUpload { path: string; content: Uint8Array | string; mediaType?: string; }
 
@@ -315,6 +342,8 @@ export interface Artifact extends Json {
 export interface ArtifactDownload { url: string; expiresUtc: string; }
 
 export interface Deployment extends Json, WithWarnings {
+  /** Workspace-relative directory where the conversation file space is mounted for runs. Default "files". */
+  fileSpaceMountPath?: string;
   /** Opt in to durable suspension on resumable harnesses. */
   suspensionEnabled?: boolean;
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
@@ -852,6 +881,8 @@ export interface Run extends Json {
   approvalWaitMs?: number | null;
   /** Conversation this run is a turn of, or null for a run outside any conversation. */
   conversationId?: string | null;
+  /** File space the run reads and writes (its conversation's space for a conversation turn), or null when it has none. */
+  fileSpaceId?: string | null;
   /** Turn number within the conversation, starting at 1; 0 for runs outside a conversation. */
   conversationTurn?: number;
   /** Harness session this turn resumes on its affinity node, or null when the turn starts a new session. */
@@ -1387,6 +1418,55 @@ export class AgentAssets extends Resource<AgentAsset> {
   }
 }
 
+/**
+ * Conversation file spaces: versioned files shared by a conversation's turns. Every method takes the owner
+ * ("conversations" or "runs") and the conversation or run ID. Errors: 400 InvalidFilePath, 404,
+ * 413 FileTooLarge / FileSpaceFull / TooManyFiles.
+ */
+export class FileSpaces {
+  constructor(private readonly t: Transport) {}
+  private files(owner: FileSpaceOwner, id: string): string {
+    if (owner !== "conversations" && owner !== "runs") throw new Error(`owner must be "conversations" or "runs", got ${owner}`);
+    return this.t.tenantPath(`/${owner}/${seg(id)}/files`);
+  }
+  /** List the files in the space. */
+  list(owner: FileSpaceOwner, id: string, includeDeleted = false): Promise<FileSpaceListing> {
+    return this.t.request("GET", this.files(owner, id), { includeDeleted: includeDeleted ? "true" : "false" });
+  }
+  /** Read a file's content as bytes (the current version unless version is given). */
+  read(owner: FileSpaceOwner, id: string, path: string, version?: number): Promise<Uint8Array> {
+    return this.t.requestBytes(this.files(owner, id) + "/content", { path, version });
+  }
+  /** Read a file's content decoded as UTF-8. */
+  async readText(owner: FileSpaceOwner, id: string, path: string, version?: number): Promise<string> {
+    return new TextDecoder().decode(await this.read(owner, id, path, version));
+  }
+  /** Versions of a file, newest first. */
+  versions(owner: FileSpaceOwner, id: string, path: string): Promise<ConversationFileVersion[]> {
+    return this.t.request("GET", this.files(owner, id) + "/versions", { path });
+  }
+  /** Write a file. String content is sent as text, bytes as base64. A stale baseVersion writes under a conflict name and returns conflict true. */
+  write(owner: FileSpaceOwner, id: string, path: string, content: Uint8Array | string, options: FileSpaceWriteOptions = {}): Promise<FileSpaceUploadResult> {
+    const body = typeof content === "string"
+      ? { path, content, mediaType: options.mediaType, baseVersion: options.baseVersion }
+      : { path, contentBase64: toBase64(content), mediaType: options.mediaType, baseVersion: options.baseVersion };
+    return this.t.request("POST", this.files(owner, id), undefined, body);
+  }
+  /** Write a file as a raw application/octet-stream body (strings are UTF-8 encoded). */
+  writeRaw(owner: FileSpaceOwner, id: string, path: string, content: Uint8Array | string, options: FileSpaceWriteOptions = {}): Promise<FileSpaceUploadResult> {
+    const bytes = typeof content === "string" ? new TextEncoder().encode(content) : content;
+    return this.t.request("POST", this.files(owner, id), { path, mediaType: options.mediaType, baseVersion: options.baseVersion }, bytes, "application/octet-stream");
+  }
+  /** Delete a file (204). */
+  delete(owner: FileSpaceOwner, id: string, path: string): Promise<void> {
+    return this.t.request("DELETE", this.files(owner, id), { path });
+  }
+  /** Issue a short-lived download-only URL that needs no credentials. */
+  downloadUrl(owner: FileSpaceOwner, id: string, path: string, version?: number): Promise<FileDownloadUrl> {
+    return this.t.request("POST", this.files(owner, id) + "/download-url", { path, version });
+  }
+}
+
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 function toBase64(bytes: Uint8Array): string {
   let out = "";
@@ -1832,6 +1912,8 @@ export class GarrisonClient {
   readonly environments: Environments;
   readonly promotions: Promotions;
   readonly agentAssets: AgentAssets;
+  /** Conversation file spaces, addressed by conversation or run. */
+  readonly fileSpaces: FileSpaces;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
@@ -1873,6 +1955,7 @@ export class GarrisonClient {
     this.environments = new Environments(t);
     this.promotions = new Promotions(t);
     this.agentAssets = new AgentAssets(t, "agent-assets");
+    this.fileSpaces = new FileSpaces(t);
     this.harnessProfiles = new HarnessProfiles(t, "harness-profiles");
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");

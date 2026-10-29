@@ -276,6 +276,11 @@ namespace Garrison.Core.Database
         /// </summary>
         public IAgentAssetMethods AgentAssets { get; protected set; } = null!;
 
+        /// <summary>
+        /// Conversation file spaces (AD3).
+        /// </summary>
+        public IFileSpaceMethods FileSpaces { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

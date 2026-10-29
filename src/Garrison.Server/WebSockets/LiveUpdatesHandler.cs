@@ -246,8 +246,17 @@ namespace Garrison.Server.WebSockets
                 if (String.IsNullOrEmpty(pipelineRunId) || await _Context.Database.PipelineRuns.ReadAsync(ctx.TenantId, pipelineRunId, token).ConfigureAwait(false) == null) return "Pipeline run not found.";
                 return null;
             }
+            if (channel.StartsWith("conversation-files:", StringComparison.Ordinal))
+            {
+                // One conversation's file space (AD3.6): files.changed with the changed paths and versions.
+                string conversationId = channel.Substring("conversation-files:".Length);
+                AuthorizationDecision conversations = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Conversation, OperationTypeEnum.Read, conversationId, token).ConfigureAwait(false);
+                if (!conversations.Permitted) return conversations.Reason;
+                if (String.IsNullOrEmpty(conversationId) || await _Context.Database.Conversations.ReadAsync(ctx.TenantId, conversationId, token).ConfigureAwait(false) == null) return "Conversation not found.";
+                return null;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, approvals, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, approvals, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -270,6 +279,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key == "approvals") await PumpApprovalsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -353,6 +363,21 @@ namespace Garrison.Server.WebSockets
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
             await SendAsync(session, sendLock, new { type = "pipeline-run.status", pipelineRun = run }, token).ConfigureAwait(false);
+        }
+
+        private async Task PumpConversationFilesAsync(WebSocketSession session, RequestContext ctx, string conversationId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            ConversationFileSpace? space = await _Context.Database.FileSpaces.ReadByOwnerAsync(ctx.TenantId!, "cnv:" + conversationId, token).ConfigureAwait(false);
+            if (space == null) return;
+            List<ConversationFile> files = await _Context.Database.FileSpaces.ListFilesAsync(ctx.TenantId!, space.Id, true, token).ConfigureAwait(false);
+            string fingerprint = String.Join("|", files.Select(f => f.Path + "=" + f.CurrentVersion + (f.Deleted ? "d" : String.Empty)));
+            if (fingerprint == state.Fingerprint) return;
+            HashSet<string> before = new HashSet<string>((state.Fingerprint ?? String.Empty).Split('|', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+            bool first = state.Fingerprint == null;
+            state.Fingerprint = fingerprint;
+            List<object> changed = files.Where(f => first || !before.Contains(f.Path + "=" + f.CurrentVersion + (f.Deleted ? "d" : String.Empty)))
+                .Select(f => (object)new { path = f.Path, version = f.CurrentVersion, deleted = f.Deleted, sha256 = f.Sha256, sizeBytes = f.SizeBytes }).ToList();
+            await SendAsync(session, sendLock, new { type = "files.changed", conversationId = conversationId, fileSpaceId = space.Id, changed = changed }, token).ConfigureAwait(false);
         }
 
         private static async Task SendAsync(WebSocketSession session, SemaphoreSlim sendLock, object message, CancellationToken token)

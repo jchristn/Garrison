@@ -202,6 +202,11 @@ namespace Garrison.Core.Compilation
         public List<ExecutionAssetFile> AssetFiles { get; set; } = new List<ExecutionAssetFile>();
 
         /// <summary>
+        /// The run's conversation file space (AD3.3), or null when the run has none (remote runs).
+        /// </summary>
+        public ExecutionFileSpace? FileSpace { get; set; } = null;
+
+        /// <summary>
         /// Whether the worker keeps the run's work, home, and config directories after a successful execution, because
         /// the control plane may answer the completion report with a structured output repair that resumes the
         /// harness session in the same directories. Set when the agent has an output schema and the harness profile

@@ -333,6 +333,25 @@ client.agent_assets.list(kind="Skill", search="release")
 
 `AgentAsset`, `AgentAssetVersion`, `AgentAssetFile`, and `AssetPin` type the responses; `AGENT_ASSET_KINDS` lists the kinds and `RUN_OUTCOME_ASSET_INTEGRITY_FAILED` names the run outcome.
 
+## Conversation file spaces
+
+Every conversation has a file space: versioned files that all of its turns share. The worker mounts the space into each run's workspace under the deployment's `fileSpaceMountPath` (default `files`), and a run reports the space it used as `fileSpaceId`. `client.file_spaces` reads and writes the space from outside. Each method takes the owner (`"conversations"` or `"runs"`, listed in `FILE_SPACE_OWNERS`) and the conversation or run ID, so you can reach a space from any of its turns.
+
+Writes accept an optional `base_version`. Pass the version you last read (0 for a file that should not exist yet). If someone wrote in between, the server keeps both copies: your content lands under a conflict name, and the result has `conflict` set to True and `path` set to that name. Leave `base_version` out to overwrite unconditionally.
+
+```python
+cid = run["conversationId"]
+result = client.file_spaces.write("conversations", cid, "notes/a.md", "# Notes\n", base_version=0, media_type="text/markdown")
+client.file_spaces.write_raw("conversations", cid, "data/raw.bin", b"\x00\x01")    # raw octet-stream body
+listing = client.file_spaces.list("conversations", cid, include_deleted=False)    # fileSpaceId, fileCount, totalBytes, files
+client.file_spaces.versions("conversations", cid, "notes/a.md")                   # newest first
+data = client.file_spaces.read("conversations", cid, "notes/a.md", version=1)      # bytes; read_text decodes UTF-8
+link = client.file_spaces.download_url("runs", run["id"], "notes/a.md")           # {"url", "expiresUtc"}; no credentials needed
+client.file_spaces.delete("conversations", cid, "notes/a.md")
+```
+
+Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `ConversationFile`, `ConversationFileVersion`, `FileSpaceListing`, `FileSpaceUploadResult`, and `FileDownloadUrl` type the responses.
+
 ## Errors
 
 Non-success responses raise `GarrisonError` with `status_code`, `code`, `body`, and the parsed `error` payload. Validation failures carry field details in `error["fields"]`. The settings routes return 400 with `error["errors"]`, an object keyed by setting path (for example `Audit.RetentionDays`) whose values say what is wrong; nothing is saved when any value is rejected.

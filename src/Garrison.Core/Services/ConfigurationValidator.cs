@@ -826,6 +826,11 @@ namespace Garrison.Core.Services
                 : await database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false);
             if (agent == null) errors["agentId"] = "The agent does not exist in this tenant.";
             await EnvironmentAndRevisionAsync(database, tenantId, deployment, errors, codes, token).ConfigureAwait(false);
+            if (!Garrison.Core.Helpers.RelativePaths.IsValid(deployment.FileSpaceMountPath, 128))
+            {
+                errors["fileSpaceMountPath"] = "Use a workspace-relative directory with forward slashes, without \".\" or \"..\" segments, at most 128 characters.";
+                codes["fileSpaceMountPath"] = "InvalidFilePath";
+            }
             HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null
                 : cache != null ? await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false)
                 : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
