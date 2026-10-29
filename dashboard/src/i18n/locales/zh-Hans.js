@@ -3616,3 +3616,339 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "工作室",
+    "tip": "智能体工作室：与智能体架构师一起在草稿中设计智能体和应用，在试验场中试用，并申请应用草稿。"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "工作室草稿"
+  },
+  "approvalKind": {
+   "DraftApply": "应用草稿"
+  },
+  "studioDraftStatus": {
+   "Open": "可编辑",
+   "PendingApproval": "等待审批",
+   "Applied": "已应用",
+   "Discarded": "已丢弃"
+  },
+  "studioDraftOperation": {
+   "Upsert": "创建或更新",
+   "Delete": "删除"
+  },
+  "studioDiffChange": {
+   "Create": "创建",
+   "Update": "更新",
+   "Delete": "删除",
+   "Unchanged": "无变化",
+   "Failed": "失败"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "你读取草稿之后它已发生变化。请重新读取后重试。",
+  "DraftNotOpen": "此草稿不处于可编辑状态，因此无法更改。只有可编辑的草稿才能修改。",
+  "DraftStale": "草稿所基于的实时配置已发生变化。请变基过时的项目，然后重新申请应用。",
+  "DraftInvalid": "草稿中有未通过验证的文档。请先修复标记为“失败”的项目。",
+  "DraftEmpty": "草稿中没有任何项目，因此没有可应用的内容。",
+  "ApproverLacksPermission": "你无权批准此草稿：批准它需要对 Manifest 的创建权限，以及对草稿所删除的每个类别的删除权限。",
+  "AgentNotLive": "该智能体是此草稿中新增的。请先应用草稿，再在试验场中试用该智能体。",
+  "NotAnArchitectDeployment": "只有架构师部署才能使用架构师提示词，即 agent-architect 的部署或拥有草稿访问权限的部署。",
+  "InvalidArchitectPrompt": "该提示词不能用作架构师提示词。请选择此租户的 System 模板。",
+  "PromptTemplateInUse": "此提示词模板已被部署绑定。请先将这些部署切换到其他模板。",
+  "ReservedEnvironment": "草稿（draft）环境保留给试验场使用。",
+  "NoDeploymentInEnvironment": "该智能体在此环境中没有部署。"
+ },
+ "views": {
+  "studio": {
+   "title": "工作室",
+   "subtitle": "在草稿中设计智能体和应用。在有人批准应用草稿之前，实时配置不会发生任何变化。",
+   "newDraft": "新建草稿",
+   "refresh": "刷新",
+   "search": "搜索标题",
+   "scopeLabel": "草稿归属",
+   "scopes": {
+    "mine": "我的",
+    "all": "全部"
+   },
+   "statusLabel": "状态",
+   "columns": {
+    "title": "标题",
+    "status": "状态",
+    "owner": "所有者",
+    "targetApp": "目标应用",
+    "items": "项目",
+    "version": "版本",
+    "updated": "更新时间"
+   },
+   "open": "打开",
+   "discard": "丢弃",
+   "discardTitle": "丢弃草稿",
+   "discardMessage": "要丢弃 {{title}} 吗？丢弃后的草稿将无法再更改或应用。",
+   "discardPendingMessage": "要丢弃 {{title}} 吗？其应用审批将被取消，草稿将无法再更改或应用。",
+   "discarded": "已丢弃 {{title}}。",
+   "emptyTitle": "没有草稿",
+   "emptyBody": "从空白或现有应用开始一个草稿，并与智能体架构师一起设计它。",
+   "emptyFiltered": "没有符合这些筛选条件的草稿。",
+   "untitled": "未命名草稿"
+  },
+  "studioDraft": {
+   "title": "工作室草稿",
+   "notFoundTitle": "未找到草稿",
+   "notFoundBody": "该草稿不存在，或者你无权读取它。",
+   "back": "全部草稿",
+   "version": "版本 {{version}}",
+   "live": "实时",
+   "polling": "轮询中",
+   "architect": "架构师",
+   "tabsLabel": "草稿工作区",
+   "tabs": {
+    "architect": "架构师",
+    "items": "项目",
+    "graph": "关系图",
+    "apply": "差异与应用",
+    "playground": "试验场",
+    "preview": "编译预览",
+    "prompts": "架构师提示词"
+   },
+   "notOpen": {
+    "PendingApproval": "此草稿正在等待是否应用的决定，因此无法更改。拒绝审批或丢弃草稿后即可再次更改。",
+    "Applied": "此草稿已应用到实时配置，无法再更改。如需进一步更改，请新建草稿。",
+    "Discarded": "此草稿已被丢弃，无法再更改。",
+    "other": "此草稿目前无法更改。"
+   },
+   "liveNotice": "草稿已更新到版本 {{version}}（{{status}}）。",
+   "liveChanged": "已更改：{{items}}。",
+   "removedTag": "已移除",
+   "dismissNotice": "关闭"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "新建草稿",
+    "intro": "草稿中存放由你和智能体架构师编辑的清单文档。可以从空白开始，也可以从现有应用及其引用的所有内容开始。",
+    "titleField": "标题",
+    "titlePlaceholder": "带撰稿人的研究应用",
+    "fromApp": "从应用开始",
+    "emptyDraft": "空白草稿",
+    "fromAppHint": "应用、其成员、成员的部署、提示词和资产都会成为项目。每个项目都会记住它所基于的实时版本，以便工作室发现之后的变化。",
+    "create": "创建草稿",
+    "creating": "正在创建...",
+    "created": "已开始草稿 {{title}}。"
+   },
+   "architect": {
+    "title": "新建架构师",
+    "intro": "智能体架构师在你的草稿中设计智能体和应用。请为它提供一个部署：Harness 配置文件、模型以及它使用的提示词。它只编辑你的草稿，从不应用草稿。",
+    "name": "部署名称",
+    "harnessProfile": "Harness 配置文件",
+    "chooseProfile": "选择 Harness 配置文件",
+    "model": "模型",
+    "modelHint": "留空则使用 Harness 配置文件的默认模型。",
+    "prompt": "架构师提示词",
+    "defaultPrompt": "{{name}}（默认）",
+    "preview": "提示词预览",
+    "previewEmpty": "选择一个提示词即可查看渲染结果。",
+    "cloneLink": "克隆此提示词以进行修改",
+    "noAgent": "此租户没有名为 {{name}} 的智能体，因此无法创建架构师。请联系管理员。",
+    "create": "创建架构师",
+    "creating": "正在创建...",
+    "created": "已创建架构师 {{name}}。"
+   },
+   "chat": {
+    "title": "架构师",
+    "architect": "架构师部署",
+    "chooseArchitect": "选择架构师",
+    "newArchitect": "新建架构师",
+    "noArchitect": "还没有架构师部署。请先创建一个，以便与智能体架构师一起设计。",
+    "openConversation": "打开对话",
+    "newConversation": "新对话",
+    "you": "你",
+    "architectSays": "架构师",
+    "openRun": "运行",
+    "thinking": "正在处理...",
+    "empty": "告诉架构师要构建什么。第一条消息会告诉它在哪个草稿中工作。",
+    "pickFirst": "请选择或创建一个架构师以开始。",
+    "message": "消息",
+    "placeholder": "设计一个研究应用：由规划者把任务分发给两名研究员和一名撰稿人。",
+    "firstHint": "就此草稿与该架构师开始一段对话。",
+    "continueHint": "继续对话。按 Ctrl+Enter 或 Cmd+Enter 发送。",
+    "send": "发送"
+   },
+   "items": {
+    "title": "项目",
+    "titleCount": "项目（{{total}}）",
+    "add": "添加项目",
+    "addConfirm": "打开编辑器",
+    "columns": {
+     "kind": "类别",
+     "name": "名称",
+     "operation": "操作",
+     "stale": "已过时",
+     "updated": "更新时间"
+    },
+    "stale": "已过时",
+    "empty": "还没有项目。添加一个，或者让架构师来做。",
+    "remove": "移除",
+    "removeTitle": "移除项目",
+    "removeMessage": "要从草稿中移除 {{item}} 吗？实时配置不会改变。",
+    "removed": "已移除 {{item}}。",
+    "saved": "已保存 {{item}}。草稿当前为版本 {{version}}。",
+    "editorTitle": "编辑 {{item}}",
+    "newEditorTitle": "新项目 {{item}}",
+    "document": "清单文档",
+    "versionHint": "保存时会发送你读取的版本 {{version}}。如果此后草稿已更改，保存会被拒绝，你的文本仍会保留在这里。",
+    "unsaved": "未保存的更改",
+    "errors": {
+     "name": "请使用字母、数字、点、斜杠和连字符，并以字母或数字开头。",
+     "exists": "草稿中已存在 {{kind}}/{{name}}。",
+     "deleteKind": "只有 Agent、Deployment、Pipeline 和 AgenticApp 项目可以删除，{{kind}} 不行。"
+    },
+    "conflict": {
+     "title": "你编辑期间草稿已更改：版本 {{from}} 现在是 {{to}}。",
+     "added": "新增：{{items}}",
+     "updated": "已编辑：{{items}}",
+     "removed": "已移除：{{items}}",
+     "status": "其状态现在是 {{status}}。",
+     "layout": "只有关系图布局发生了变化。",
+     "mine": "你正在编辑的项目也已更改。再次保存前，请将你的文本与新版本进行比较。",
+     "retry": "你的文本仍在编辑器中。再次保存即可将其应用到新版本。",
+     "dismiss": "关闭"
+    }
+   },
+   "graph": {
+    "title": "关系图",
+    "empty": "草稿中还没有可绘制的应用或智能体。",
+    "depth": "深度 {{depth}}",
+    "entryAgent": "入口智能体：{{name}}",
+    "deleted": "将删除",
+    "inDraft": "在草稿中",
+    "loose": "不属于任何应用的智能体",
+    "capabilities": "能力：{{list}}",
+    "legend": "每次调用都标有它所需的委派深度。实线表示允许并行调用，虚线表示一次只能调用一次。能力显示在智能体名称下方。"
+   },
+   "diff": {
+    "title": "差异与应用",
+    "refresh": "刷新差异",
+    "validate": "验证",
+    "validating": "正在验证...",
+    "requestApply": "申请应用",
+    "requesting": "正在申请...",
+    "requested": "已申请应用。将由有权应用清单的人作出决定。",
+    "valid": "有效：{{create}} 个待创建，{{update}} 个待更新，{{delete}} 个待删除，{{unchanged}} 个无变化。",
+    "invalid": "无效：{{failed}} 个失败，{{stale}} 个已过时。计划：{{create}} 个待创建，{{update}} 个待更新，{{delete}} 个待删除，{{unchanged}} 个无变化。",
+    "validOk": "草稿有效。",
+    "validFailed": "草稿无效。请查看标记为“失败”或“已过时”的项目。",
+    "empty": "草稿中没有可比较的项目。",
+    "columns": {
+     "item": "项目",
+     "change": "变化",
+     "details": "详细信息"
+    },
+    "none": "（无）",
+    "approval": "应用审批",
+    "allow": "批准",
+    "deny": "拒绝",
+    "allowed": "已批准。正在应用草稿。",
+    "denied": "已拒绝。草稿已重新变为可编辑。",
+    "reason": "原因",
+    "reasonPlaceholder": "可选，与决定一起保存",
+    "waiting": "正在等待有权决定审批并应用清单的人。",
+    "applied": "已作为清单应用 {{id}} 完成应用。"
+   },
+   "playground": {
+    "title": "试验场",
+    "intro": "每一轮都会把草稿中该智能体的文档保存为其草稿修订版本，并在临时的试验场部署上运行。不会发布任何内容，实时配置也不会改变。",
+    "agent": "智能体",
+    "defaultAgent": "入口智能体（{{name}}）",
+    "defaultAgentShort": "入口智能体",
+    "input": "输入",
+    "answer": "回答",
+    "placeholder": "希望智能体做什么？",
+    "firstHint": "开始一段试验场对话。",
+    "continueHint": "继续试验场对话。",
+    "send": "运行本轮",
+    "turn": "第 {{number}} 轮，{{agent}}",
+    "openRun": "运行详情",
+    "conversation": "对话",
+    "export": "下载对话记录",
+    "reset": "新对话",
+    "empty": "还没有任何轮次。",
+    "exportDraft": "草稿",
+    "exportTurn": "轮次",
+    "exportRun": "运行"
+   },
+   "preview": {
+    "title": "编译预览",
+    "intro": "在部署之前查看运行启动时的内容：命令行、资产的放置位置以及文件空间挂载。机密值会被隐去。",
+    "deployment": "部署",
+    "chooseDeployment": "选择部署",
+    "revision": "智能体修订版本",
+    "deploymentRevision": "部署自身的修订版本",
+    "revisionOption": "修订版本 {{number}}（{{state}}）",
+    "environment": "环境",
+    "deploymentEnvironment": "部署所在的环境",
+    "input": "示例输入",
+    "compiled": "已使用 {{revision}} 编译 {{deployment}}。",
+    "assets": "放置的资产（{{total}}）",
+    "noAssets": "该修订版本不放置任何资产。",
+    "columns": {
+     "path": "路径",
+     "asset": "资产",
+     "kind": "类别",
+     "version": "版本",
+     "size": "大小"
+    },
+    "fileSpace": "文件空间",
+    "fileSpaceMount": "挂载于 {{path}}，目前有 {{files}} 个文件（最多 {{maxFiles}} 个文件，每个最大 {{maxBytes}}）。",
+    "noFileSpace": "由于该运行不属于任何对话，因此不会挂载文件空间。",
+    "redacted": "服务器会隐去命令行、环境和文件中的机密值。"
+   },
+   "prompts": {
+    "title": "架构师提示词",
+    "templatesLink": "在提示词模板中打开",
+    "forArchitect": "智能体架构师可用的提示词。请为 {{architect}} 选择一个。",
+    "noArchitect": "智能体架构师可用的提示词。请先在“架构师”选项卡中选择一个架构师，再为其选择提示词。",
+    "nextTurn": "新的选择或已保存的编辑将从架构师的下一轮开始生效。",
+    "current": "{{architect}} 使用 {{name}}，跟随其当前版本（{{version}}）。",
+    "currentPinned": "{{architect}} 使用 {{name}}，固定在版本 {{version}}。",
+    "inUse": "{{name}} 正被以下部署使用，因此无法删除：{{deployments}}。请先为它们选择其他提示词。",
+    "empty": "没有架构师提示词。",
+    "columns": {
+     "name": "名称",
+     "description": "描述",
+     "version": "版本",
+     "usedBy": "使用者"
+    },
+    "default": "默认",
+    "selectedBadge": "已选择",
+    "usedBy": "架构师：{{total}}",
+    "select": "选择",
+    "selected": "{{architect}} 将从下一轮开始使用 {{name}}。",
+    "saved": "已将 {{name}} 保存为新版本。",
+    "editorTitle": "编辑 {{name}}（版本 {{version}}）",
+    "name": "名称",
+    "description": "描述",
+    "body": "提示词正文",
+    "preview": "渲染预览",
+    "deleteMessage": "要删除 {{name}} 吗？使用它的架构师部署：{{total}}。正在使用的提示词无法删除。"
+   }
+  }
+ }
+});

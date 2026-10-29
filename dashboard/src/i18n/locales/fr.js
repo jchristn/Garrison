@@ -3664,3 +3664,339 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Atelier",
+    "tip": "Atelier d'agents : concevez des agents et des applications dans des brouillons avec l'architecte d'agents, essayez-les dans le bac à sable et demandez l'application d'un brouillon."
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "Brouillon d'atelier"
+  },
+  "approvalKind": {
+   "DraftApply": "Application de brouillon"
+  },
+  "studioDraftStatus": {
+   "Open": "Ouvert",
+   "PendingApproval": "En attente d'approbation",
+   "Applied": "Appliqué",
+   "Discarded": "Abandonné"
+  },
+  "studioDraftOperation": {
+   "Upsert": "Créer ou mettre à jour",
+   "Delete": "Supprimer"
+  },
+  "studioDiffChange": {
+   "Create": "Créer",
+   "Update": "Mettre à jour",
+   "Delete": "Supprimer",
+   "Unchanged": "Inchangé",
+   "Failed": "En échec"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "Le brouillon a changé depuis votre lecture. Relisez-le et réessayez.",
+  "DraftNotOpen": "Le brouillon n'est pas ouvert et ne peut donc pas changer. Seul un brouillon ouvert accepte des modifications.",
+  "DraftStale": "La configuration active a changé après la création du brouillon à partir d'elle. Mettez à jour les éléments obsolètes et redemandez l'application.",
+  "DraftInvalid": "Le brouillon contient des documents qui ne sont pas valides. Corrigez d'abord les éléments marqués En échec.",
+  "DraftEmpty": "Le brouillon ne contient aucun élément, il n'y a donc rien à appliquer.",
+  "ApproverLacksPermission": "Vous ne pouvez pas autoriser ce brouillon : il faut Create sur Manifest et Delete sur chaque type que le brouillon supprime.",
+  "AgentNotLive": "Cet agent est nouveau dans ce brouillon. Appliquez le brouillon avant d'essayer l'agent dans le bac à sable.",
+  "NotAnArchitectDeployment": "Seuls les déploiements d'architecte acceptent un prompt d'architecte : les déploiements de agent-architect ou avec accès aux brouillons.",
+  "InvalidArchitectPrompt": "Ce prompt ne peut pas servir de prompt d'architecte. Choisissez un modèle System de ce locataire.",
+  "PromptTemplateInUse": "Ce modèle de prompt est lié à des déploiements. Basculez-les d'abord vers un autre modèle.",
+  "ReservedEnvironment": "L'environnement de brouillon est réservé au bac à sable.",
+  "NoDeploymentInEnvironment": "L'agent n'a aucun déploiement dans cet environnement."
+ },
+ "views": {
+  "studio": {
+   "title": "Atelier",
+   "subtitle": "Concevez des agents et des applications dans des brouillons. Rien ne change dans la configuration active tant qu'une personne n'a pas approuvé l'application d'un brouillon.",
+   "newDraft": "Nouveau brouillon",
+   "refresh": "Actualiser",
+   "search": "Rechercher dans les titres",
+   "scopeLabel": "Brouillons de qui",
+   "scopes": {
+    "mine": "Les miens",
+    "all": "Tous"
+   },
+   "statusLabel": "Statut",
+   "columns": {
+    "title": "Titre",
+    "status": "Statut",
+    "owner": "Propriétaire",
+    "targetApp": "Application cible",
+    "items": "Éléments",
+    "version": "Version",
+    "updated": "Mis à jour"
+   },
+   "open": "Ouvrir",
+   "discard": "Abandonner",
+   "discardTitle": "Abandonner le brouillon",
+   "discardMessage": "Abandonner {{title}} ? Un brouillon abandonné ne peut plus changer ni être appliqué.",
+   "discardPendingMessage": "Abandonner {{title}} ? Son approbation d'application est annulée, et le brouillon ne peut plus changer ni être appliqué.",
+   "discarded": "{{title}} abandonné.",
+   "emptyTitle": "Aucun brouillon",
+   "emptyBody": "Commencez un brouillon, vide ou à partir d'une application existante, et concevez-le avec l'architecte d'agents.",
+   "emptyFiltered": "Aucun brouillon ne correspond à ces filtres.",
+   "untitled": "Brouillon sans titre"
+  },
+  "studioDraft": {
+   "title": "Brouillon d'atelier",
+   "notFoundTitle": "Brouillon introuvable",
+   "notFoundBody": "Le brouillon n'existe pas, ou vous n'avez pas le droit de le lire.",
+   "back": "Tous les brouillons",
+   "version": "Version {{version}}",
+   "live": "En direct",
+   "polling": "Interrogation",
+   "architect": "Architecte",
+   "tabsLabel": "Espace de travail du brouillon",
+   "tabs": {
+    "architect": "Architecte",
+    "items": "Éléments",
+    "graph": "Graphe",
+    "apply": "Comparer et appliquer",
+    "playground": "Bac à sable",
+    "preview": "Aperçu de compilation",
+    "prompts": "Prompt d'architecte"
+   },
+   "notOpen": {
+    "PendingApproval": "Ce brouillon attend une décision sur son application et ne peut donc pas changer. Refusez l'approbation ou abandonnez le brouillon pour le modifier à nouveau.",
+    "Applied": "Ce brouillon a été appliqué à la configuration active et ne peut plus changer. Commencez un nouveau brouillon pour d'autres modifications.",
+    "Discarded": "Ce brouillon a été abandonné et ne peut plus changer.",
+    "other": "Ce brouillon ne peut pas changer pour le moment."
+   },
+   "liveNotice": "Le brouillon est passé à la version {{version}} ({{status}}).",
+   "liveChanged": "Modifié : {{items}}.",
+   "removedTag": "retiré",
+   "dismissNotice": "Masquer"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "Nouveau brouillon",
+    "intro": "Un brouillon contient les documents de manifeste que vous et l'architecte d'agents modifiez. Commencez vide, ou à partir d'une application existante avec tout ce qu'elle référence.",
+    "titleField": "Titre",
+    "titlePlaceholder": "Application de recherche avec un rédacteur",
+    "fromApp": "Partir d'une application",
+    "emptyDraft": "Brouillon vide",
+    "fromAppHint": "L'application, ses membres, leurs déploiements, prompts et assets deviennent des éléments. Chacun retient la version active dont il est parti, afin que l'atelier remarque les changements ultérieurs.",
+    "create": "Créer le brouillon",
+    "creating": "Création...",
+    "created": "Brouillon {{title}} commencé."
+   },
+   "architect": {
+    "title": "Nouvel architecte",
+    "intro": "L'architecte d'agents conçoit des agents et des applications dans vos brouillons. Donnez-lui un déploiement : un profil de harness, un modèle et le prompt avec lequel il travaille. Il ne modifie que vos brouillons et ne les applique jamais.",
+    "name": "Nom du déploiement",
+    "harnessProfile": "Profil de harness",
+    "chooseProfile": "Choisir un profil de harness",
+    "model": "Modèle",
+    "modelHint": "Laissez vide pour utiliser le modèle par défaut du profil de harness.",
+    "prompt": "Prompt d'architecte",
+    "defaultPrompt": "{{name}} (par défaut)",
+    "preview": "Aperçu du prompt",
+    "previewEmpty": "Choisissez un prompt pour voir son rendu.",
+    "cloneLink": "Cloner ce prompt pour le modifier",
+    "noAgent": "Ce locataire n'a aucun agent nommé {{name}}, aucun architecte ne peut donc être créé. Contactez un administrateur.",
+    "create": "Créer l'architecte",
+    "creating": "Création...",
+    "created": "Architecte {{name}} créé."
+   },
+   "chat": {
+    "title": "Architecte",
+    "architect": "Déploiement d'architecte",
+    "chooseArchitect": "Choisir un architecte",
+    "newArchitect": "Nouvel architecte",
+    "noArchitect": "Il n'existe encore aucun déploiement d'architecte. Créez-en un pour concevoir avec l'architecte d'agents.",
+    "openConversation": "Ouvrir la conversation",
+    "newConversation": "Nouvelle conversation",
+    "you": "Vous",
+    "architectSays": "Architecte",
+    "openRun": "Exécution",
+    "thinking": "En cours...",
+    "empty": "Dites à l'architecte quoi construire. Le premier message lui indique dans quel brouillon travailler.",
+    "pickFirst": "Choisissez ou créez un architecte pour commencer.",
+    "message": "Message",
+    "placeholder": "Conçois une application de recherche : un planificateur qui répartit le travail entre deux chercheurs et un rédacteur.",
+    "firstHint": "Démarre une conversation avec cet architecte au sujet de ce brouillon.",
+    "continueHint": "Poursuit la conversation. Ctrl+Enter ou Cmd+Enter envoie.",
+    "send": "Envoyer"
+   },
+   "items": {
+    "title": "Éléments",
+    "titleCount": "Éléments ({{total}})",
+    "add": "Ajouter un élément",
+    "addConfirm": "Ouvrir l'éditeur",
+    "columns": {
+     "kind": "Type",
+     "name": "Nom",
+     "operation": "Opération",
+     "stale": "Obsolète",
+     "updated": "Mis à jour"
+    },
+    "stale": "Obsolète",
+    "empty": "Aucun élément pour l'instant. Ajoutez-en un ou demandez à l'architecte.",
+    "remove": "Retirer",
+    "removeTitle": "Retirer l'élément",
+    "removeMessage": "Retirer {{item}} du brouillon ? La configuration active ne change pas.",
+    "removed": "{{item}} retiré.",
+    "saved": "{{item}} enregistré. Le brouillon est à la version {{version}}.",
+    "editorTitle": "Modifier {{item}}",
+    "newEditorTitle": "Nouvel élément {{item}}",
+    "document": "Document de manifeste",
+    "versionHint": "L'enregistrement envoie la version {{version}}, celle que vous avez lue. Si le brouillon a changé depuis, l'enregistrement est refusé et votre texte reste ici.",
+    "unsaved": "Modifications non enregistrées",
+    "errors": {
+     "name": "Utilisez des lettres, des chiffres, des points, des barres obliques et des traits d'union, en commençant par une lettre ou un chiffre.",
+     "exists": "Le brouillon contient déjà {{kind}}/{{name}}.",
+     "deleteKind": "Seuls les éléments Agent, Deployment, Pipeline et AgenticApp peuvent être supprimés, pas {{kind}}."
+    },
+    "conflict": {
+     "title": "Le brouillon a changé pendant votre modification : la version {{from}} est maintenant {{to}}.",
+     "added": "Ajoutés : {{items}}",
+     "updated": "Modifiés : {{items}}",
+     "removed": "Retirés : {{items}}",
+     "status": "Son statut est maintenant {{status}}.",
+     "layout": "Seule la disposition de son graphe a changé.",
+     "mine": "L'élément que vous modifiez a changé aussi. Comparez votre texte avec la nouvelle version avant d'enregistrer à nouveau.",
+     "retry": "Votre texte est toujours dans l'éditeur. Enregistrez à nouveau pour l'appliquer à la nouvelle version.",
+     "dismiss": "Masquer"
+    }
+   },
+   "graph": {
+    "title": "Graphe",
+    "empty": "Le brouillon ne contient encore aucune application ni aucun agent à dessiner.",
+    "depth": "profondeur {{depth}}",
+    "entryAgent": "Agent d'entrée : {{name}}",
+    "deleted": "Supprimé",
+    "inDraft": "Dans le brouillon",
+    "loose": "Agents hors application",
+    "capabilities": "Capacités : {{list}}",
+    "legend": "Chaque appel indique la profondeur de délégation dont il a besoin. Une ligne pleine autorise les appels parallèles, une ligne pointillée un appel à la fois. Les capacités apparaissent sous le nom d'un agent."
+   },
+   "diff": {
+    "title": "Comparer et appliquer",
+    "refresh": "Actualiser la comparaison",
+    "validate": "Valider",
+    "validating": "Validation...",
+    "requestApply": "Demander l'application",
+    "requesting": "Demande en cours...",
+    "requested": "Application demandée. Une personne autorisée à appliquer des manifestes en décidera.",
+    "valid": "Valide : {{create}} à créer, {{update}} à mettre à jour, {{delete}} à supprimer, {{unchanged}} inchangés.",
+    "invalid": "Non valide : {{failed}} en échec et {{stale}} obsolètes. Prévu : {{create}} à créer, {{update}} à mettre à jour, {{delete}} à supprimer, {{unchanged}} inchangés.",
+    "validOk": "Le brouillon est valide.",
+    "validFailed": "Le brouillon n'est pas valide. Voyez les éléments marqués En échec ou Obsolète.",
+    "empty": "Le brouillon ne contient aucun élément à comparer.",
+    "columns": {
+     "item": "Élément",
+     "change": "Changement",
+     "details": "Détails"
+    },
+    "none": "(aucun)",
+    "approval": "Approbation d'application",
+    "allow": "Autoriser",
+    "deny": "Refuser",
+    "allowed": "Autorisé. Le brouillon est en cours d'application.",
+    "denied": "Refusé. Le brouillon est de nouveau ouvert.",
+    "reason": "Motif",
+    "reasonPlaceholder": "Facultatif, conservé avec la décision",
+    "waiting": "En attente d'une personne autorisée à décider des approbations et à appliquer des manifestes.",
+    "applied": "Appliqué en tant qu'application de manifeste {{id}}."
+   },
+   "playground": {
+    "title": "Bac à sable",
+    "intro": "Chaque tour enregistre le document de l'agent dans le brouillon comme sa révision de brouillon et l'exécute sur un déploiement temporaire du bac à sable. Rien n'est publié, et la configuration active ne change pas.",
+    "agent": "Agent",
+    "defaultAgent": "Agent d'entrée ({{name}})",
+    "defaultAgentShort": "Agent d'entrée",
+    "input": "Entrée",
+    "answer": "Réponse",
+    "placeholder": "Que doit faire l'agent ?",
+    "firstHint": "Démarre une conversation dans le bac à sable.",
+    "continueHint": "Poursuit la conversation dans le bac à sable.",
+    "send": "Lancer le tour",
+    "turn": "Tour {{number}}, {{agent}}",
+    "openRun": "Détail de l'exécution",
+    "conversation": "Conversation",
+    "export": "Télécharger la transcription",
+    "reset": "Nouvelle conversation",
+    "empty": "Aucun tour pour l'instant.",
+    "exportDraft": "Brouillon",
+    "exportTurn": "Tour",
+    "exportRun": "Exécution"
+   },
+   "preview": {
+    "title": "Aperçu de compilation",
+    "intro": "Voyez avec quoi une exécution démarrerait avant de déployer : la ligne de commande, l'emplacement des assets et le montage de l'espace de fichiers. Les valeurs secrètes sont masquées.",
+    "deployment": "Déploiement",
+    "chooseDeployment": "Choisir un déploiement",
+    "revision": "Révision de l'agent",
+    "deploymentRevision": "La révision propre au déploiement",
+    "revisionOption": "Révision {{number}} ({{state}})",
+    "environment": "Environnement",
+    "deploymentEnvironment": "L'environnement du déploiement",
+    "input": "Entrée d'exemple",
+    "compiled": "{{deployment}} compilé avec {{revision}}.",
+    "assets": "Assets placés ({{total}})",
+    "noAssets": "La révision ne place aucun asset.",
+    "columns": {
+     "path": "Chemin",
+     "asset": "Asset",
+     "kind": "Type",
+     "version": "Version",
+     "size": "Taille"
+    },
+    "fileSpace": "Espace de fichiers",
+    "fileSpaceMount": "Monté sur {{path}} avec {{files}} fichiers actuellement (au plus {{maxFiles}} fichiers de {{maxBytes}} maximum chacun).",
+    "noFileSpace": "Aucun espace de fichiers n'est monté, car l'exécution ne ferait pas partie d'une conversation.",
+    "redacted": "Le serveur masque les valeurs secrètes dans la ligne de commande, l'environnement et les fichiers."
+   },
+   "prompts": {
+    "title": "Prompt d'architecte",
+    "templatesLink": "Ouvrir dans Modèles de prompt",
+    "forArchitect": "Prompts utilisables par l'architecte d'agents. Sélectionnez-en un pour {{architect}}.",
+    "noArchitect": "Prompts utilisables par l'architecte d'agents. Choisissez un architecte dans l'onglet Architecte pour lui en attribuer un.",
+    "nextTurn": "Une nouvelle sélection ou une modification enregistrée prend effet au prochain tour de l'architecte.",
+    "current": "{{architect}} utilise {{name}} et suit sa version actuelle ({{version}}).",
+    "currentPinned": "{{architect}} utilise {{name}}, épinglé à la version {{version}}.",
+    "inUse": "{{name}} ne peut pas être supprimé tant que des déploiements l'utilisent : {{deployments}}. Sélectionnez d'abord un autre prompt pour eux.",
+    "empty": "Aucun prompt d'architecte.",
+    "columns": {
+     "name": "Nom",
+     "description": "Description",
+     "version": "Version",
+     "usedBy": "Utilisé par"
+    },
+    "default": "Par défaut",
+    "selectedBadge": "Sélectionné",
+    "usedBy": "Architectes : {{total}}",
+    "select": "Sélectionner",
+    "selected": "{{architect}} utilise {{name}} à partir de son prochain tour.",
+    "saved": "{{name}} enregistré comme nouvelle version.",
+    "editorTitle": "Modifier {{name}} (version {{version}})",
+    "name": "Nom",
+    "description": "Description",
+    "body": "Corps du prompt",
+    "preview": "Aperçu du rendu",
+    "deleteMessage": "Supprimer {{name}} ? Déploiements d'architecte qui l'utilisent : {{total}}. Un prompt utilisé ne peut pas être supprimé."
+   }
+  }
+ }
+});

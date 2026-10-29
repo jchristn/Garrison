@@ -1342,6 +1342,177 @@ function capabilityRoutes(method, url, parts) {
   return method === 'GET' ? found : { ...found, lastUpdateUtc: iso(0) };
 }
 
+// ---------------------------------------------------------------- agent studio (AD7.10, AD7.16, AD9.2, AD9.3)
+
+/** Manifest YAML of the research app the studio mocks draft. */
+export const STUDIO_APP_YAML = [
+  'apiVersion: garrison/v1',
+  'kind: AgenticApp',
+  'metadata:',
+  '  name: research',
+  'spec:',
+  '  entry: planner',
+  '  members:',
+  '    - agent: planner',
+  '    - agent: researcher',
+  '    - agent: writer',
+  '  edges:',
+  '    - from: planner',
+  '      to: researcher',
+  '    - from: planner',
+  '      to: writer',
+  '      fanOut: false',
+  ''
+].join('\n');
+
+/** Manifest YAML of the writer agent in drf_0001. */
+export const STUDIO_WRITER_YAML = ['apiVersion: garrison/v1', 'kind: Agent', 'metadata:', '  name: writer', 'spec:', '  description: Writes the report', '  capabilities:', '    - pandoc', ''].join('\n');
+
+/**
+ * Studio draft i, shaped like GET /studio/drafts/{id}. drf_0001 "Research app" is the caller's open draft at version 3
+ * with the research app, the writer agent, and a deployment; drf_0002 waits for its apply approval (apr_draft_0002) and
+ * belongs to someone else; drf_0003 was applied; drf_0004 was discarded.
+ */
+export function studioDraft(i) {
+  const rows = {
+    1: {
+      title: 'Research app',
+      ownerUserId: 'usr_admin',
+      ownerName: 'admin@garrison',
+      targetApp: 'research',
+      version: 3,
+      status: 'Open',
+      items: [
+        { kind: 'AgenticApp', name: 'research', operation: 'Upsert', document: STUDIO_APP_YAML, baseHash: 'a1b2c3', lastUpdateUtc: iso(30) },
+        { kind: 'Agent', name: 'writer', operation: 'Upsert', document: STUDIO_WRITER_YAML, lastUpdateUtc: iso(20) },
+        { kind: 'Deployment', name: 'writer-dev', operation: 'Upsert', document: 'apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: writer-dev\nspec:\n  agent: writer\n  harnessProfile: claude-code\n', lastUpdateUtc: iso(10) }
+      ]
+    },
+    2: {
+      title: 'Support refresh',
+      ownerUserId: 'usr_0002',
+      ownerName: 'user2@garrison.local',
+      targetApp: 'support',
+      version: 7,
+      status: 'PendingApproval',
+      approvalId: 'apr_draft_0002',
+      items: [{ kind: 'Agent', name: 'agent-2', operation: 'Upsert', document: 'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: agent-2\nspec: {}\n', lastUpdateUtc: iso(90) }]
+    },
+    3: { title: 'Triage agent', ownerUserId: 'usr_admin', ownerName: 'admin@garrison', version: 4, status: 'Applied', manifestApplyId: 'mfa_0003', items: [] },
+    4: { title: 'Old idea', ownerUserId: 'usr_admin', ownerName: 'admin@garrison', version: 2, status: 'Discarded', items: [] }
+  };
+  const row = rows[i] || rows[1];
+  return { id: `drf_${pad(i)}`, tenantId: TENANT, publishOnApply: true, layout: [], ...row, createdUtc: iso(i * 300), lastUpdateUtc: iso(i * 15) };
+}
+
+/** GET /studio/drafts/{id}/graph for drf_0001: the research app with the planner fanning out, and the writer's capability. */
+export function studioGraph(draftId = 'drf_0001', version = 3) {
+  return {
+    draftId,
+    version,
+    nodes: [
+      { key: 'AgenticApp/research', kind: 'AgenticApp', name: 'research', inDraft: true, deleted: false, entryOf: [], memberOf: [], capabilities: [] },
+      { key: 'Agent/planner', kind: 'Agent', name: 'planner', inDraft: false, deleted: false, entryOf: ['research'], memberOf: ['research'], capabilities: [] },
+      { key: 'Agent/researcher', kind: 'Agent', name: 'researcher', inDraft: false, deleted: false, entryOf: [], memberOf: ['research'], capabilities: [] },
+      { key: 'Agent/writer', kind: 'Agent', name: 'writer', inDraft: true, deleted: false, entryOf: [], memberOf: ['research'], capabilities: ['pandoc'] }
+    ],
+    edges: [
+      { app: 'research', from: 'planner', to: 'researcher', fanOut: true, depth: 1 },
+      { app: 'research', from: 'planner', to: 'writer', fanOut: false, depth: 1 }
+    ]
+  };
+}
+
+/** GET /studio/drafts/{id}/diff for drf_0001: the app updates, the writer is new and stale-free, the deployment fails. */
+export function studioDiff(draftId = 'drf_0001', version = 3, valid = false) {
+  return {
+    draftId,
+    version,
+    valid,
+    items: [
+      { kind: 'AgenticApp', name: 'research', change: 'Update', changes: [{ field: 'edges', before: 'planner>researcher', after: 'planner>researcher, planner>writer' }], stale: !valid },
+      { kind: 'Agent', name: 'writer', change: 'Create', changes: [], stale: false },
+      valid
+        ? { kind: 'Deployment', name: 'writer-dev', change: 'Create', changes: [], stale: false }
+        : { kind: 'Deployment', name: 'writer-dev', change: 'Failed', changes: [], message: 'Harness profile claude-code does not exist.', errorCode: 'NotFound', stale: false }
+    ]
+  };
+}
+
+/** The DraftApply approval of a draft (Pending), shaped like GET /approvals/{id}. */
+export function draftApproval(id = 'apr_draft_0002', draftId = 'drf_0002') {
+  return {
+    id,
+    tenantId: TENANT,
+    kind: 'DraftApply',
+    draftId,
+    toolName: 'DraftApply',
+    summary: 'Apply draft Research app: 1 to create, 1 to update, 0 to delete.',
+    inputPreview: JSON.stringify(studioDiff(draftId, 3, true)),
+    status: 'Pending',
+    timeoutDecision: 'Deny',
+    requestedUtc: iso(5),
+    expiresUtc: iso(-10080),
+    createdUtc: iso(5),
+    lastUpdateUtc: iso(5)
+  };
+}
+
+/** GET /studio/architect-prompts: the two built-ins (the default first) and a tenant clone bound by the architect. */
+export function architectPrompts() {
+  return [
+    { id: 'pt_builtin_agent_architect', name: 'builtin/agent-architect', description: 'Default architect prompt', isBuiltIn: true, builtInKey: 'agent-architect', currentVersion: 1, isDefault: true, deployments: [] },
+    { id: 'pt_builtin_agent_architect_guided', name: 'builtin/agent-architect-guided', description: 'One question at a time for first-time builders', isBuiltIn: true, builtInKey: 'agent-architect-guided', currentVersion: 1, isDefault: false, deployments: [] },
+    { id: 'pt_0042', name: 'agent-architect-team', description: 'Our naming conventions', isBuiltIn: false, builtInKey: 'agent-architect', currentVersion: 2, isDefault: false, deployments: ['dep_arch'] }
+  ];
+}
+
+/** The architect deployment the studio tests add to the deployment list (managementAccess Drafts). */
+export const ARCHITECT_DEPLOYMENT = { id: 'dep_arch', tenantId: TENANT, name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_0001', model: 'sonnet', environment: 'dev', managementAccess: 'Drafts', active: true, createdUtc: iso(500), lastUpdateUtc: iso(400) };
+
+/** The agent-architect agent the studio tests add to the agent list. */
+export const ARCHITECT_AGENT = { id: 'agt_arch', tenantId: TENANT, name: 'agent-architect', displayName: 'Agent architect', isProtected: true, active: true, createdUtc: iso(900), lastUpdateUtc: iso(900) };
+
+/** A playground or architect run: the next turn of a conversation, running until the test says otherwise. */
+export function studioRun(id, extra = {}) {
+  return { ...FACTORIES.runs(1), id, kind: 'Playground', status: 'Running', outcome: 'None', resultText: undefined, conversationTurn: 1, ...extra };
+}
+
+function studioRoutes(method, url, parts) {
+  if (parts[0] === 'approvals' && /^apr_draft_/.test(parts[1] || '')) {
+    if (parts[2] === 'decide') return { ...draftApproval(parts[1]), status: 'Approved', decision: 'Allow', decisionSource: 'User', decidedBy: 'admin@garrison', decidedUtc: iso(0) };
+    return draftApproval(parts[1]);
+  }
+  if (parts[0] !== 'studio') return undefined;
+  if (parts[1] === 'architect-prompts') return architectPrompts();
+  if (parts[1] === 'architects') {
+    const chosen = method === 'PUT' ? architectPrompts()[0] : architectPrompts()[2];
+    return { deploymentId: parts[2], architectPromptTemplateId: chosen.id, architectPromptName: chosen.name, currentVersion: chosen.currentVersion };
+  }
+  if (parts[1] !== 'drafts') return undefined;
+  const all = [1, 2, 3, 4].map(studioDraft);
+  if (parts.length === 2) {
+    if (method === 'POST') return { ...studioDraft(1), id: 'drf_0099', title: 'New draft', version: 1, items: [], targetApp: null, createdUtc: iso(0) };
+    const search = (url.searchParams.get('search') || '').toLowerCase();
+    let rows = url.searchParams.get('mine') === 'true' ? all.filter((d) => d.ownerUserId === 'usr_admin') : all;
+    if (search) rows = rows.filter((d) => d.title.toLowerCase().includes(search));
+    return pageOf(rows, url);
+  }
+  const draft = all.find((d) => d.id === parts[2]) || { ...studioDraft(1), id: parts[2] };
+  if (parts[3] === 'graph') return studioGraph(draft.id, draft.version);
+  if (parts[3] === 'diff') return studioDiff(draft.id, draft.version, false);
+  if (parts[3] === 'validate') return studioDiff(draft.id, draft.version, false);
+  if (parts[3] === 'request-apply') return { ...draftApproval('apr_draft_0001', draft.id) };
+  if (parts[3] === 'playground') return studioRun('run_play_1', { conversationId: 'cnv_play' });
+  if (parts[3] === 'items') {
+    const kind = decodeURIComponent(parts[4] || '');
+    const name = decodeURIComponent(parts[5] || '');
+    const items = draft.items.filter((i) => !(i.kind === kind && i.name === name));
+    return { ...draft, version: draft.version + 1, items: [...items, { kind, name, operation: 'Upsert', document: '', lastUpdateUtc: iso(0) }] };
+  }
+  return draft;
+}
+
 // ---------------------------------------------------------------- conversation file spaces (AD3.8)
 
 /** Text of each version of the cnv_0001 files, keyed by path and version. */
@@ -2052,6 +2223,9 @@ export function respond(method, url) {
     if ((collection === 'users' || collection === 'credentials') && parts[2] === 'permissions') return PERMISSIONS(collection === 'users' ? 'User' : 'Credential', parts[1]);
     if (collection === 'prompt-templates' && parts[1] === 'render') return { rendered: 'You are echo-agent. Task: hello', missingVariables: [] };
     if (collection === 'prompt-templates' && parts[2] === 'versions') return parts.length === 4 ? FACTORIES['prompt-template-versions'](Number(parts[3]) || 1) : [1, 2].map(FACTORIES['prompt-template-versions']);
+    // AD7.10: studio drafts, their graph, diff, playground, and DraftApply approvals, and architect prompts.
+    const studied = studioRoutes(method, url, parts);
+    if (studied !== undefined) return studied;
     if (collection === 'approvals' && parts.length === 1 && method === 'GET') return approvalList(url);
     if (collection === 'approvals' && parts[2] === 'decide') return decidedApproval(parts[1]);
     // apr_0003 style IDs map to that row; any other ID gets row 3 (decided by a rule, the shape the contract test seeds).

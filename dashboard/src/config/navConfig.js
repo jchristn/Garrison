@@ -65,7 +65,9 @@ export const NAV_SECTIONS = [
           // AD4.8: the capability catalog (agents, MCP tools, harness built-ins) with cost and latency hints.
           { id: 'capabilities', slug: 'capabilities' },
           // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
-          { id: 'apps', slug: 'apps' }
+          { id: 'apps', slug: 'apps' },
+          // AD7.10: the agent studio (a tab until AD-023 is confirmed); /dashboard/studio/<id> is a draft's workspace.
+          { id: 'studio', slug: 'studio', detail: true }
         ]
       }
     ]

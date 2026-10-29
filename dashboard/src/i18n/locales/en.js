@@ -3643,3 +3643,339 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Studio",
+    "tip": "Agent studio: design agents and apps in drafts with the agent architect, try them in the playground, and ask for a draft to be applied."
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "Studio draft"
+  },
+  "approvalKind": {
+   "DraftApply": "Draft apply"
+  },
+  "studioDraftStatus": {
+   "Open": "Open",
+   "PendingApproval": "Pending approval",
+   "Applied": "Applied",
+   "Discarded": "Discarded"
+  },
+  "studioDraftOperation": {
+   "Upsert": "Create or update",
+   "Delete": "Delete"
+  },
+  "studioDiffChange": {
+   "Create": "Create",
+   "Update": "Update",
+   "Delete": "Delete",
+   "Unchanged": "Unchanged",
+   "Failed": "Failed"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "The draft changed since you read it. Read it again and retry.",
+  "DraftNotOpen": "The draft is not open, so it cannot change. Only an open draft takes edits.",
+  "DraftStale": "Live configuration changed after the draft was based on it. Rebase the stale items and request apply again.",
+  "DraftInvalid": "The draft has documents that do not validate. Fix the items marked Failed first.",
+  "DraftEmpty": "The draft holds no items, so there is nothing to apply.",
+  "ApproverLacksPermission": "You may not allow this draft: allowing it needs Create on Manifest and Delete on each kind the draft deletes.",
+  "AgentNotLive": "That agent is new in this draft. Apply the draft before trying the agent in the playground.",
+  "NotAnArchitectDeployment": "Only architect deployments take an architect prompt: deployments of agent-architect or with draft access.",
+  "InvalidArchitectPrompt": "That prompt cannot be an architect prompt. Choose a System template of this tenant.",
+  "PromptTemplateInUse": "This prompt template is bound by deployments. Switch them to another template first.",
+  "ReservedEnvironment": "The draft environment is reserved for the playground.",
+  "NoDeploymentInEnvironment": "The agent has no deployment in that environment."
+ },
+ "views": {
+  "studio": {
+   "title": "Studio",
+   "subtitle": "Design agents and apps in drafts. Nothing changes in live configuration until a person approves applying a draft.",
+   "newDraft": "New draft",
+   "refresh": "Refresh",
+   "search": "Search titles",
+   "scopeLabel": "Whose drafts",
+   "scopes": {
+    "mine": "Mine",
+    "all": "All"
+   },
+   "statusLabel": "Status",
+   "columns": {
+    "title": "Title",
+    "status": "Status",
+    "owner": "Owner",
+    "targetApp": "Target app",
+    "items": "Items",
+    "version": "Version",
+    "updated": "Updated"
+   },
+   "open": "Open",
+   "discard": "Discard",
+   "discardTitle": "Discard draft",
+   "discardMessage": "Discard {{title}}? A discarded draft can no longer change or be applied.",
+   "discardPendingMessage": "Discard {{title}}? Its apply approval is cancelled, and the draft can no longer change or be applied.",
+   "discarded": "Discarded {{title}}.",
+   "emptyTitle": "No drafts",
+   "emptyBody": "Start a draft, empty or from an existing app, and design it with the agent architect.",
+   "emptyFiltered": "No drafts match these filters.",
+   "untitled": "Untitled draft"
+  },
+  "studioDraft": {
+   "title": "Studio draft",
+   "notFoundTitle": "Draft not found",
+   "notFoundBody": "The draft does not exist, or you may not read it.",
+   "back": "All drafts",
+   "version": "Version {{version}}",
+   "live": "Live",
+   "polling": "Polling",
+   "architect": "Architect",
+   "tabsLabel": "Draft workspace",
+   "tabs": {
+    "architect": "Architect",
+    "items": "Items",
+    "graph": "Graph",
+    "apply": "Diff and apply",
+    "playground": "Playground",
+    "preview": "Compile preview",
+    "prompts": "Architect prompt"
+   },
+   "notOpen": {
+    "PendingApproval": "This draft waits for a decision on applying it, so it cannot change. Deny the approval or discard the draft to change it again.",
+    "Applied": "This draft was applied to live configuration and can no longer change. Start a new draft for further changes.",
+    "Discarded": "This draft was discarded and can no longer change.",
+    "other": "This draft cannot change right now."
+   },
+   "liveNotice": "The draft moved to version {{version}} ({{status}}).",
+   "liveChanged": "Changed: {{items}}.",
+   "removedTag": "removed",
+   "dismissNotice": "Dismiss"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "New draft",
+    "intro": "A draft holds the manifest documents you and the agent architect edit. Start empty, or from an existing app with everything it references.",
+    "titleField": "Title",
+    "titlePlaceholder": "Research app with a writer",
+    "fromApp": "Start from app",
+    "emptyDraft": "Empty draft",
+    "fromAppHint": "The app, its members, their deployments, prompts, and assets become items. Each remembers the live version it started from, so the studio notices later changes.",
+    "create": "Create draft",
+    "creating": "Creating...",
+    "created": "Started draft {{title}}."
+   },
+   "architect": {
+    "title": "New architect",
+    "intro": "The agent architect designs agents and apps in your drafts. Give it a deployment: a harness profile, a model, and the prompt it works with. It edits only your drafts and never applies them.",
+    "name": "Deployment name",
+    "harnessProfile": "Harness profile",
+    "chooseProfile": "Choose a harness profile",
+    "model": "Model",
+    "modelHint": "Leave empty to use the harness profile's default model.",
+    "prompt": "Architect prompt",
+    "defaultPrompt": "{{name}} (default)",
+    "preview": "Prompt preview",
+    "previewEmpty": "Choose a prompt to see it rendered.",
+    "cloneLink": "Clone this prompt to change it",
+    "noAgent": "This tenant has no agent named {{name}}, so no architect can be created. Ask an administrator.",
+    "create": "Create architect",
+    "creating": "Creating...",
+    "created": "Created architect {{name}}."
+   },
+   "chat": {
+    "title": "Architect",
+    "architect": "Architect deployment",
+    "chooseArchitect": "Choose an architect",
+    "newArchitect": "New architect",
+    "noArchitect": "There is no architect deployment yet. Create one to design with the agent architect.",
+    "openConversation": "Open conversation",
+    "newConversation": "New conversation",
+    "you": "You",
+    "architectSays": "Architect",
+    "openRun": "Run",
+    "thinking": "Working...",
+    "empty": "Tell the architect what to build. The first message tells it which draft to work in.",
+    "pickFirst": "Choose or create an architect to start.",
+    "message": "Message",
+    "placeholder": "Design a research app: a planner that fans out to two researchers and a writer.",
+    "firstHint": "Starts a conversation with this architect about this draft.",
+    "continueHint": "Continues the conversation. Ctrl+Enter or Cmd+Enter sends.",
+    "send": "Send"
+   },
+   "items": {
+    "title": "Items",
+    "titleCount": "Items ({{total}})",
+    "add": "Add item",
+    "addConfirm": "Open editor",
+    "columns": {
+     "kind": "Kind",
+     "name": "Name",
+     "operation": "Operation",
+     "stale": "Stale",
+     "updated": "Updated"
+    },
+    "stale": "Stale",
+    "empty": "No items yet. Add one, or ask the architect.",
+    "remove": "Remove",
+    "removeTitle": "Remove item",
+    "removeMessage": "Remove {{item}} from the draft? Live configuration does not change.",
+    "removed": "Removed {{item}}.",
+    "saved": "Saved {{item}}. The draft is at version {{version}}.",
+    "editorTitle": "Edit {{item}}",
+    "newEditorTitle": "New item {{item}}",
+    "document": "Manifest document",
+    "versionHint": "Saving sends version {{version}}, the one you read. If the draft changed since, the save is refused and your text stays here.",
+    "unsaved": "Unsaved changes",
+    "errors": {
+     "name": "Use letters, digits, dots, slashes, and hyphens, starting with a letter or digit.",
+     "exists": "The draft already holds {{kind}}/{{name}}.",
+     "deleteKind": "Only Agent, Deployment, Pipeline, and AgenticApp items can be deleted, not {{kind}}."
+    },
+    "conflict": {
+     "title": "The draft changed while you edited it: version {{from}} is now {{to}}.",
+     "added": "Added: {{items}}",
+     "updated": "Edited: {{items}}",
+     "removed": "Removed: {{items}}",
+     "status": "Its status is now {{status}}.",
+     "layout": "Only its graph layout changed.",
+     "mine": "The item you are editing changed too. Compare your text with the new version before you save again.",
+     "retry": "Your text is still in the editor. Save again to apply it to the new version.",
+     "dismiss": "Dismiss"
+    }
+   },
+   "graph": {
+    "title": "Graph",
+    "empty": "The draft holds no apps or agents to draw yet.",
+    "depth": "depth {{depth}}",
+    "entryAgent": "Entry agent: {{name}}",
+    "deleted": "Deleted",
+    "inDraft": "In draft",
+    "loose": "Agents in no app",
+    "capabilities": "Capabilities: {{list}}",
+    "legend": "Each call is labelled with the delegation depth it needs. A solid line allows parallel calls, a dashed line one call at a time. Capabilities appear under an agent's name."
+   },
+   "diff": {
+    "title": "Diff and apply",
+    "refresh": "Refresh diff",
+    "validate": "Validate",
+    "validating": "Validating...",
+    "requestApply": "Request apply",
+    "requesting": "Requesting...",
+    "requested": "Apply requested. A person who may apply manifests decides it.",
+    "valid": "Valid: {{create}} to create, {{update}} to update, {{delete}} to delete, {{unchanged}} unchanged.",
+    "invalid": "Not valid: {{failed}} failed and {{stale}} stale. Planned: {{create}} to create, {{update}} to update, {{delete}} to delete, {{unchanged}} unchanged.",
+    "validOk": "The draft is valid.",
+    "validFailed": "The draft is not valid. See the items marked Failed or Stale.",
+    "empty": "The draft holds no items to compare.",
+    "columns": {
+     "item": "Item",
+     "change": "Change",
+     "details": "Details"
+    },
+    "none": "(none)",
+    "approval": "Apply approval",
+    "allow": "Allow",
+    "deny": "Deny",
+    "allowed": "Allowed. The draft is being applied.",
+    "denied": "Denied. The draft is open again.",
+    "reason": "Reason",
+    "reasonPlaceholder": "Optional, kept with the decision",
+    "waiting": "Waiting for a person who may decide approvals and apply manifests.",
+    "applied": "Applied as manifest apply {{id}}."
+   },
+   "playground": {
+    "title": "Playground",
+    "intro": "Each turn saves the draft's document for the agent as its draft revision and runs it on a temporary playground deployment. Nothing is published, and live configuration does not change.",
+    "agent": "Agent",
+    "defaultAgent": "Entry agent ({{name}})",
+    "defaultAgentShort": "Entry agent",
+    "input": "Input",
+    "answer": "Answer",
+    "placeholder": "What should the agent do?",
+    "firstHint": "Starts a playground conversation.",
+    "continueHint": "Continues the playground conversation.",
+    "send": "Run turn",
+    "turn": "Turn {{number}}, {{agent}}",
+    "openRun": "Run detail",
+    "conversation": "Conversation",
+    "export": "Download transcript",
+    "reset": "New conversation",
+    "empty": "No turns yet.",
+    "exportDraft": "Draft",
+    "exportTurn": "Turn",
+    "exportRun": "Run"
+   },
+   "preview": {
+    "title": "Compile preview",
+    "intro": "See what a run would start with before you deploy: the command line, where assets are placed, and the file space mount. Secret values are redacted.",
+    "deployment": "Deployment",
+    "chooseDeployment": "Choose a deployment",
+    "revision": "Agent revision",
+    "deploymentRevision": "The deployment's own revision",
+    "revisionOption": "Revision {{number}} ({{state}})",
+    "environment": "Environment",
+    "deploymentEnvironment": "The deployment's environment",
+    "input": "Sample input",
+    "compiled": "Compiled {{deployment}} with {{revision}}.",
+    "assets": "Placed assets ({{total}})",
+    "noAssets": "The revision places no assets.",
+    "columns": {
+     "path": "Path",
+     "asset": "Asset",
+     "kind": "Kind",
+     "version": "Version",
+     "size": "Size"
+    },
+    "fileSpace": "File space",
+    "fileSpaceMount": "Mounted at {{path}} with {{files}} files now (at most {{maxFiles}} files of up to {{maxBytes}} each).",
+    "noFileSpace": "No file space is mounted, because the run would not be part of a conversation.",
+    "redacted": "The server redacts secret values in the command line, the environment, and the files."
+   },
+   "prompts": {
+    "title": "Architect prompt",
+    "templatesLink": "Open in Prompt Templates",
+    "forArchitect": "Prompts the agent architect can use. Select one for {{architect}}.",
+    "noArchitect": "Prompts the agent architect can use. Choose an architect on the Architect tab to select one for it.",
+    "nextTurn": "A new selection or a saved edit takes effect on the architect's next turn.",
+    "current": "{{architect}} uses {{name}}, following its current version ({{version}}).",
+    "currentPinned": "{{architect}} uses {{name}}, pinned to version {{version}}.",
+    "inUse": "{{name}} cannot be deleted while deployments use it: {{deployments}}. Select another prompt for them first.",
+    "empty": "No architect prompts.",
+    "columns": {
+     "name": "Name",
+     "description": "Description",
+     "version": "Version",
+     "usedBy": "Used by"
+    },
+    "default": "Default",
+    "selectedBadge": "Selected",
+    "usedBy": "Architects: {{total}}",
+    "select": "Select",
+    "selected": "{{architect}} uses {{name}} from its next turn.",
+    "saved": "Saved {{name}} as a new version.",
+    "editorTitle": "Edit {{name}} (version {{version}})",
+    "name": "Name",
+    "description": "Description",
+    "body": "Prompt body",
+    "preview": "Rendered preview",
+    "deleteMessage": "Delete {{name}}? Architect deployments that use it: {{total}}. A prompt in use cannot be deleted."
+   }
+  }
+ }
+});

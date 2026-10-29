@@ -2815,3 +2815,218 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "studio": "El estudio de agentes: borradores de agentes y aplicaciones que diseñas con el arquitecto de agentes, pruebas en la zona de pruebas y pides a una persona que aplique."
+  }
+ },
+ "enums": {
+  "approvalKind": {
+   "DraftApply": "Una solicitud para aplicar un borrador del estudio a la configuración activa. Permitirla aplica todos los documentos del borrador en una sola aplicación de manifiesto."
+  },
+  "studioDraftStatus": {
+   "Open": "Tú y el arquitecto de agentes podéis editar el borrador, validarlo, probarlo en la zona de pruebas y enviarlo a aprobación.",
+   "PendingApproval": "El borrador espera una decisión sobre su aprobación de aplicación y queda congelado hasta entonces. Una denegación lo vuelve a abrir.",
+   "Applied": "El borrador se aplicó a la configuración activa en una sola aplicación de manifiesto. Ya no puede cambiar.",
+   "Discarded": "El borrador se descartó. Ya no puede cambiar y se canceló una aprobación de aplicación pendiente."
+  },
+  "studioDraftOperation": {
+   "Upsert": "Aplicar el borrador crea el recurso, o lo actualiza si ya existe.",
+   "Delete": "Aplicar el borrador elimina el recurso. Solo se pueden eliminar así agentes, despliegues, canalizaciones y aplicaciones."
+  },
+  "studioDiffChange": {
+   "Create": "El recurso aún no existe, así que aplicar el borrador lo crea.",
+   "Update": "El recurso existe y es distinto, así que aplicar el borrador actualiza los campos indicados.",
+   "Delete": "El borrador elimina este recurso cuando se aplica.",
+   "Unchanged": "El documento coincide con la configuración activa, así que aplicarlo no cambia nada.",
+   "Failed": "El documento no se valida. Los detalles dicen por qué; corrígelo antes de solicitar la aplicación."
+  }
+ },
+ "views": {
+  "studio": {
+   "newDraft": "Empieza un borrador, vacío o a partir de una aplicación existente, y abre su espacio de trabajo.",
+   "refresh": "Vuelve a leer la lista de borradores del servidor.",
+   "search": "Busca borradores cuyo título contenga este texto. La búsqueda la hace el servidor.",
+   "scope": "Muestra solo tus borradores, o todos los borradores del inquilino que puedes leer.",
+   "scopes": {
+    "mine": "Muestra solo los borradores que empezaste tú o que un arquitecto empezó por ti.",
+    "all": "Muestra todos los borradores del inquilino que puedes leer, sin importar quién los empezó."
+   },
+   "statusChip": "Muestra los borradores con estado {{status}}. Si no eliges ningún estado, se muestran todos.",
+   "columns": {
+    "title": "El título del borrador. Ábrelo para ver su espacio de trabajo con el arquitecto, los elementos, el grafo y la aplicación.",
+    "status": "Los borradores abiertos pueden cambiar; los pendientes esperan una decisión; los aplicados y descartados son definitivos.",
+    "owner": "La persona que empezó el borrador. Un arquitecto solo trabaja en los borradores de la persona que habla con él.",
+    "targetApp": "La aplicación que diseña el borrador. Las operaciones del grafo y la zona de pruebas la usan por defecto.",
+    "items": "Cuántos documentos de manifiesto contiene el borrador, uno por recurso.",
+    "version": "Sube en uno con cada cambio del borrador. Cada edición indica la versión que leyó.",
+    "updated": "Cuándo cambió el borrador por última vez."
+   },
+   "openDraft": "Abre el espacio de trabajo del borrador: chat con el arquitecto, elementos, grafo, comparación y aplicación, zona de pruebas y vista previa.",
+   "discard": "Descarta el borrador tras una confirmación. Ya no podrá cambiar ni aplicarse.",
+   "discardPending": "Descarta el borrador tras una confirmación. Se cancela su aprobación de aplicación pendiente."
+  },
+  "studioDraft": {
+   "version": "Cada cambio sube la versión. Las ediciones envían la versión que leyeron, para que nadie sobrescriba el cambio de otra persona.",
+   "live": "Conectado al canal en vivo del borrador, así que los cambios de otros y del arquitecto aparecen al instante.",
+   "polling": "El canal en vivo no está disponible, así que la página vuelve a leer el borrador cada pocos segundos.",
+   "back": "Vuelve a la lista de borradores del estudio.",
+   "viewJson": "Muestra el borrador tal como lo devolvió el servidor, con todos los elementos y la disposición del lienzo.",
+   "architect": "El despliegue de arquitecto con el que habla este espacio de trabajo. Elígelo en la pestaña Arquitecto.",
+   "dismissNotice": "Oculta este aviso sobre el último cambio del borrador.",
+   "tabs": {
+    "architect": "Habla con el arquitecto de agentes, que edita este borrador por ti.",
+    "items": "Los documentos de manifiesto del borrador, con un editor para cada uno.",
+    "graph": "Una imagen de solo lectura de las aplicaciones, llamadas, profundidad de delegación y capacidades del borrador.",
+    "apply": "Compara el borrador con la configuración activa, valídalo y solicita que se aplique.",
+    "playground": "Ejecuta los agentes del borrador durante varios turnos antes de publicar nada.",
+    "preview": "Compila un despliegue para ver su línea de comandos, los assets colocados y el montaje del espacio de archivos.",
+    "prompts": "Elige y edita el prompt con el que trabaja el arquitecto de agentes."
+   }
+  }
+ },
+ "studio": {
+  "notOpen": "Este borrador está {{status}}, y solo un borrador abierto puede cambiar.",
+  "newDraft": {
+   "titleField": "Un nombre corto para el borrador, que se muestra en la lista y al arquitecto. Vacío usa un título predeterminado.",
+   "fromApp": "Parte de una aplicación existente con todo lo que referencia, o empieza con un borrador vacío.",
+   "create": "Crea el borrador y abre su espacio de trabajo. La configuración activa no cambia."
+  },
+  "architect": {
+   "name": "Nombre del nuevo despliegue de arquitecto en este inquilino, por ejemplo architect.",
+   "harnessProfileId": "El harness en el que se ejecuta el arquitecto, por ejemplo Claude Code. Necesita un worker que pueda ejecutarlo.",
+   "model": "El modelo que usa el harness para el arquitecto. Vacío usa el predeterminado del perfil de harness.",
+   "promptId": "El prompt System con el que trabaja el arquitecto. Primero van los integrados y después sus clones.",
+   "preview": "El prompt elegido renderizado con valores de ejemplo, tal como lo recibiría el arquitecto.",
+   "cloneLink": "Abre este prompt en la pantalla Plantillas de prompt, donde puedes clonarlo y editar el clon.",
+   "create": "Crea el despliegue de agent-architect con acceso a borradores y el prompt elegido.",
+   "noAgent": "No se puede crear ningún arquitecto porque este inquilino no tiene el agente agent-architect."
+  },
+  "chat": {
+   "title": "Una conversación con el arquitecto de agentes sobre este borrador. Él edita el borrador; tú apruebas aplicarlo.",
+   "architect": "El despliegue de arquitecto con el que hablar. Elegir otro inicia una conversación nueva.",
+   "newArchitect": "Crea un despliegue de arquitecto: perfil de harness, modelo y prompt del arquitecto.",
+   "openConversation": "Abre esta conversación en su propia página, con cada turno como una ejecución.",
+   "newConversation": "Olvida esta conversación en este navegador y empieza una nueva con el siguiente mensaje.",
+   "you": "Lo que enviaste al arquitecto en este turno.",
+   "architectSays": "La respuesta del arquitecto en este turno. Los cambios que hizo en el borrador aparecen en las otras pestañas.",
+   "openRun": "Abre la ejecución de este turno, con su transcripción y las herramientas que llamó.",
+   "message": "Lo que quieres que el arquitecto diseñe o cambie. El ID del borrador va con el primer mensaje.",
+   "send": "Envía el mensaje al arquitecto. La respuesta aparece aquí cuando termina el turno.",
+   "sendBusy": "El arquitecto sigue trabajando en el último mensaje. Espera a que termine.",
+   "sendNoArchitect": "Elige o crea un despliegue de arquitecto antes de enviar un mensaje."
+  },
+  "items": {
+   "title": "Los documentos de manifiesto del borrador, uno por recurso, identificados por tipo y nombre.",
+   "add": "Añade un documento nuevo al borrador. Se guarda cuando lo guardas en el editor.",
+   "addConfirm": "Abre el editor con un documento inicial de este tipo y nombre.",
+   "kind": "El tipo de manifiesto del documento, por ejemplo Agent o Deployment.",
+   "name": "El nombre del recurso, que debe coincidir con el nombre dentro del documento.",
+   "operation": "Crear o actualizar el recurso al aplicar, o eliminarlo.",
+   "stale": "Indica si la configuración activa cambió después de que el borrador partiera de este documento.",
+   "updated": "Cuándo cambió este elemento en el borrador por última vez.",
+   "staleBadge": "La configuración activa cambió después de que el borrador partiera de este documento. Actualízalo antes de aplicar.",
+   "editItem": "Abre este documento en el editor para cambiarlo y guardarlo.",
+   "viewItem": "Abre este documento en el editor para leerlo. El borrador no puede cambiar en este momento.",
+   "remove": "Quita este documento del borrador tras una confirmación. La configuración activa no cambia.",
+   "editor": "El documento como YAML de manifiesto. Al guardar se envía la versión que leíste.",
+   "document": "YAML de manifiesto sin más. Su tipo y nombre deben coincidir con los del elemento.",
+   "save": "Guarda el documento en el borrador con la versión que leíste.",
+   "closeEditor": "Cierra el editor. El texto sin guardar se pierde.",
+   "dismissConflict": "Oculta este aviso sobre el cambio que rechazó tu guardado."
+  },
+  "graph": {
+   "title": "Imagen de solo lectura de las aplicaciones del borrador: miembros, llamadas, profundidad de delegación y capacidades.",
+   "app": "Una aplicación que el borrador contiene o referencia, dibujada a partir de su agente de entrada.",
+   "deletedApp": "Aplicar el borrador elimina esta aplicación.",
+   "draftedApp": "El borrador contiene el documento de esta aplicación, así que su grafo muestra la versión del borrador.",
+   "deletedAgent": "Aplicar el borrador elimina este agente.",
+   "loose": "Agentes del borrador que no pertenecen a ninguna de sus aplicaciones.",
+   "legend": "Cómo leer el grafo: etiquetas, estilos de línea y las capacidades bajo cada agente."
+  },
+  "diff": {
+   "title": "Cada documento frente a la configuración activa, la validación y la solicitud para aplicar el borrador.",
+   "refresh": "Vuelve a comparar cada documento con la configuración activa.",
+   "validate": "Ejecuta una simulación de manifiesto del borrador. Nada cambia; los resultados se muestran por elemento.",
+   "requestApply": "Valida el borrador y crea una aprobación para aplicarlo. El borrador queda congelado hasta que se decida.",
+   "columns": {
+    "item": "El tipo y el nombre del documento.",
+    "change": "Lo que aplicar el borrador haría con este recurso.",
+    "details": "Los campos que cambian, o por qué el documento no se valida."
+   },
+   "approval": "La aprobación que decide si este borrador se aplica.",
+   "openApproval": "Abre la aprobación con su resumen completo y la comparación.",
+   "reason": "Por qué permites o deniegas el borrador. Se registra con la decisión.",
+   "allow": "Permite la aprobación: el borrador se valida de nuevo y se aplica en una sola aplicación de manifiesto.",
+   "deny": "Deniega la aprobación: no se aplica nada y el borrador vuelve a estar abierto."
+  },
+  "playground": {
+   "title": "Prueba los agentes del borrador durante varios turnos antes de publicar nada.",
+   "agent": "El agente que se ejecuta. Por defecto es el agente de entrada de la aplicación de destino del borrador.",
+   "input": "Lo que debe hacer el agente en este turno.",
+   "send": "Guarda el documento del agente como su revisión de borrador y lo ejecuta en la zona de pruebas.",
+   "sendBusy": "El último turno sigue en ejecución. Espera a que termine.",
+   "openRun": "Abre la ejecución, con su árbol de ejecución, sus grupos de distribución y los archivos de la conversación.",
+   "conversation": "Abre la conversación de la zona de pruebas, con cada turno como una ejecución.",
+   "export": "Descarga los turnos de la zona de pruebas como un archivo Markdown.",
+   "reset": "Empieza una nueva conversación en la zona de pruebas con el siguiente turno."
+  },
+  "preview": {
+   "title": "Compila un despliegue con una entrada de ejemplo antes de desplegar. Los valores secretos se ocultan.",
+   "deploymentId": "El despliegue que se va a compilar.",
+   "agentRevisionId": "Una revisión del agente para compilar en lugar de la propia del despliegue, por ejemplo una revisión de borrador.",
+   "environment": "Compila el despliegue del agente en este entorno en lugar del elegido.",
+   "input": "La entrada de ejemplo con la que se renderiza el prompt compilado.",
+   "compile": "Compila el despliegue y muestra la línea de comandos, los assets y el espacio de archivos.",
+   "compileNoDeployment": "Elige primero un despliegue para compilar.",
+   "commandLine": "El comando que iniciaría el worker, con comillas de shell para mostrarlo.",
+   "assets": "Dónde se escribirían los assets de la revisión antes de que arranque el harness.",
+   "columns": {
+    "path": "Dónde se coloca el archivo, relativo a los directorios de la ejecución.",
+    "asset": "El asset del agente del que procede el archivo.",
+    "kind": "Para qué se usa el asset, por ejemplo una skill o un archivo de referencia.",
+    "version": "La versión del asset que fija la revisión.",
+    "size": "El tamaño del archivo colocado."
+   },
+   "fileSpace": "El espacio de archivos compartido de la conversación y dónde lo vería la ejecución."
+  },
+  "prompts": {
+   "title": "Los prompts con los que puede trabajar el arquitecto de agentes, y cuál usa cada arquitecto.",
+   "templatesLink": "Abre la pantalla Plantillas de prompt filtrada por prompts de arquitecto.",
+   "columns": {
+    "name": "El nombre de la plantilla de prompt. Los integrados empiezan por builtin/.",
+    "description": "Una nota breve sobre lo que el prompt hace que el arquitecto haga de otra forma.",
+    "version": "La versión actual del prompt. Cada guardado suma uno.",
+    "usedBy": "Cuántos despliegues de arquitecto usan este prompt. Pasa el cursor para ver sus nombres."
+   },
+   "defaultBadge": "Los nuevos despliegues de arquitecto usan este prompt salvo que se elija otro.",
+   "selectedBadge": "El prompt que usa {{architect}} ahora.",
+   "select": "Convierte este en el prompt del arquitecto actual. Surte efecto en el siguiente turno del arquitecto.",
+   "alreadySelected": "El arquitecto actual ya usa este prompt.",
+   "selectNoArchitect": "Elige primero un arquitecto en la pestaña Arquitecto; la selección se aplica a ese despliegue.",
+   "clone": "Copia este prompt en una plantilla nueva que puedes editar.",
+   "edit": "Edita el nombre, la descripción y el cuerpo. Cada guardado es una versión nueva.",
+   "delete": "Elimina este prompt tras una confirmación. Un prompt que usa un despliegue no se puede eliminar.",
+   "builtInLocked": "Los prompts integrados no se pueden editar ni eliminar. Clona este prompt y cambia el clon.",
+   "editor": "Edita el prompt y obtén una vista previa. Los arquitectos que siguen su versión actual usan lo guardado desde su siguiente turno.",
+   "closeEditor": "Cierra el editor. El texto sin guardar se pierde.",
+   "name": "El nombre de la plantilla en este inquilino. Debe seguir siendo único.",
+   "description": "Una nota breve sobre lo que este prompt hace que haga el arquitecto.",
+   "body": "El texto del prompt, con variables de plantilla e inclusiones de fragmentos como builtin/agent-architect-design.",
+   "preview": "El cuerpo renderizado con valores de ejemplo, tal como lo recibiría el arquitecto.",
+   "save": "Guarda la edición como una nueva versión del prompt."
+  }
+ }
+});

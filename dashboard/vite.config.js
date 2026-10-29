@@ -36,6 +36,8 @@ export default defineConfig({
           if (/node_modules\/(i18next|react-i18next|i18next-browser-languagedetector)\//.test(id)) return 'i18n';
           // The Markdown renderer and sanitizer (no app imports) keep the views chunk under the size warning.
           if (/node_modules\/(marked|dompurify)\//.test(id)) return 'markdown';
+          // The Markdown view and its renderer too, so the studio (AD7.10) can show answers without importing the views chunk.
+          if (id.endsWith('/src/components/MarkdownView.jsx') || id.endsWith('/src/utils/markdown.js')) return 'markdown';
           // Two chunks per locale (the catalog, and its tooltips and explainers) keep every chunk under the size warning;
           // the Japanese catalog with its tooltips passed 500 kB with the Apps tab (AD6.11).
           const locale = id.match(/\/src\/i18n\/locales\/([A-Za-z-]+?)(\.tips)?\.js$/);
@@ -45,7 +47,8 @@ export default defineConfig({
           // Trigger and notification components (P12.5, P12.14) likewise.
           if (/\/src\/components\/(Trigger|Notification|SigningSecret)/.test(id)) return 'triggers';
           // Agent revisions and promotions (AD1.9), with the confirmation dialog they share with the views (no chunk cycle).
-          if (/\/src\/components\/(AgentRevision|Revision|Promot|ConfirmModal)/.test(id)) return 'revisions';
+          // The prompt template clone dialog joins them, shared by the views and the studio's architect prompt panel (AD7.16).
+          if (/\/src\/components\/(AgentRevision|Revision|Promot|ConfirmModal|CloneTemplateModal)/.test(id)) return 'revisions';
           // Agent assets (AD2.8): the version, upload, and pin dialogs used by both the views and the revisions panel.
           if (/\/src\/components\/(AgentAsset|AssetUpload)/.test(id) || id.endsWith('/src/utils/assets.js')) return 'assets';
           // Conversation file spaces (AD3.8): the Files tab, its version dialog, and its upload panel.
@@ -56,6 +59,9 @@ export default defineConfig({
           // Agentic apps (AD6.11): the Apps tab's graph, share link, delegation, revisions, and promote dialogs, and their
           // helpers. The page configuration stays with the views, which re-export it (no chunk cycle).
           if (/\/src\/components\/AgenticApp/.test(id) || id.endsWith('/src/utils/apps.js')) return 'apps';
+          // Agent studio (AD7.10): the workspace panels, the architect dialogs and prompt panel, and their helpers. The two
+          // studio pages stay with the views; the panels import nothing from the views chunk (no chunk cycle).
+          if (id.includes('/src/components/studio/') || id.endsWith('/src/utils/studio.js') || id.endsWith('/src/hooks/useStudioDraftChannel.js')) return 'studio';
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

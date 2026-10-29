@@ -2815,3 +2815,218 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "studio": "L'atelier d'agents : des brouillons d'agents et d'applications que vous concevez avec l'architecte d'agents, essayez dans le bac à sable et faites appliquer par une personne."
+  }
+ },
+ "enums": {
+  "approvalKind": {
+   "DraftApply": "Une demande d'application d'un brouillon d'atelier à la configuration active. L'autoriser applique tous les documents du brouillon en une seule application de manifeste."
+  },
+  "studioDraftStatus": {
+   "Open": "Vous et l'architecte d'agents pouvez modifier le brouillon, le valider, l'essayer dans le bac à sable et l'envoyer pour approbation.",
+   "PendingApproval": "Le brouillon attend une décision sur son approbation d'application et reste figé jusque-là. Un refus le rouvre.",
+   "Applied": "Le brouillon a été appliqué à la configuration active en une seule application de manifeste. Il ne peut plus changer.",
+   "Discarded": "Le brouillon a été abandonné. Il ne peut plus changer, et une approbation d'application en attente a été annulée."
+  },
+  "studioDraftOperation": {
+   "Upsert": "L'application du brouillon crée la ressource, ou la met à jour si elle existe déjà.",
+   "Delete": "L'application du brouillon supprime la ressource. Seuls les agents, déploiements, pipelines et applications peuvent être supprimés ainsi."
+  },
+  "studioDiffChange": {
+   "Create": "La ressource n'existe pas encore, l'application du brouillon la crée donc.",
+   "Update": "La ressource existe et diffère, l'application du brouillon met donc à jour les champs listés.",
+   "Delete": "Le brouillon supprime cette ressource lorsqu'il est appliqué.",
+   "Unchanged": "Le document correspond à la configuration active, son application ne change donc rien.",
+   "Failed": "Le document n'est pas valide. Les détails indiquent pourquoi ; corrigez-le avant de demander l'application."
+  }
+ },
+ "views": {
+  "studio": {
+   "newDraft": "Commencer un brouillon, vide ou à partir d'une application existante, et ouvrir son espace de travail.",
+   "refresh": "Relire la liste des brouillons depuis le serveur.",
+   "search": "Trouver les brouillons dont le titre contient ce texte. La recherche est faite par le serveur.",
+   "scope": "Afficher uniquement vos brouillons, ou tous les brouillons du locataire que vous pouvez lire.",
+   "scopes": {
+    "mine": "Afficher uniquement les brouillons que vous avez commencés, ou qu'un architecte a commencés pour vous.",
+    "all": "Afficher tous les brouillons du locataire que vous pouvez lire, quelle que soit la personne qui les a commencés."
+   },
+   "statusChip": "Afficher les brouillons au statut {{status}}. Sans statut choisi, tous les statuts s'affichent.",
+   "columns": {
+    "title": "Le titre du brouillon. Ouvrez-le pour voir son espace de travail avec l'architecte, les éléments, le graphe et l'application.",
+    "status": "Les brouillons ouverts peuvent changer ; ceux en attente attendent une décision ; ceux appliqués ou abandonnés sont définitifs.",
+    "owner": "La personne qui a commencé le brouillon. Un architecte ne travaille que sur les brouillons de la personne qui lui parle.",
+    "targetApp": "L'application que conçoit le brouillon. Les opérations de graphe et le bac à sable l'utilisent par défaut.",
+    "items": "Le nombre de documents de manifeste du brouillon, un par ressource.",
+    "version": "Augmente de un à chaque changement du brouillon. Chaque modification indique la version qu'elle a lue.",
+    "updated": "La date du dernier changement du brouillon."
+   },
+   "openDraft": "Ouvrir l'espace de travail du brouillon : discussion avec l'architecte, éléments, graphe, comparaison et application, bac à sable et aperçu.",
+   "discard": "Abandonner le brouillon après confirmation. Il ne pourra plus changer ni être appliqué.",
+   "discardPending": "Abandonner le brouillon après confirmation. Son approbation d'application en attente est annulée."
+  },
+  "studioDraft": {
+   "version": "Chaque changement augmente la version. Les modifications envoient la version lue, pour que personne n'écrase le changement d'un autre.",
+   "live": "Connecté au canal en direct du brouillon : les changements des autres et de l'architecte apparaissent immédiatement.",
+   "polling": "Le canal en direct n'est pas disponible, la page relit donc le brouillon toutes les quelques secondes.",
+   "back": "Revenir à la liste des brouillons d'atelier.",
+   "viewJson": "Afficher le brouillon tel que le serveur l'a renvoyé, avec chaque élément et la disposition du canevas.",
+   "architect": "Le déploiement d'architecte avec lequel cet espace de travail dialogue. Choisissez-le dans l'onglet Architecte.",
+   "dismissNotice": "Masquer cet avis sur le dernier changement du brouillon.",
+   "tabs": {
+    "architect": "Dialoguer avec l'architecte d'agents, qui modifie ce brouillon pour vous.",
+    "items": "Les documents de manifeste du brouillon, avec un éditeur pour chacun.",
+    "graph": "Une vue en lecture seule des applications, appels, profondeurs de délégation et capacités du brouillon.",
+    "apply": "Comparer le brouillon avec la configuration active, le valider et demander son application.",
+    "playground": "Exécuter les agents du brouillon sur plusieurs tours avant toute publication.",
+    "preview": "Compiler un déploiement pour voir sa ligne de commande, ses assets placés et le montage de l'espace de fichiers.",
+    "prompts": "Choisir et modifier le prompt avec lequel travaille l'architecte d'agents."
+   }
+  }
+ },
+ "studio": {
+  "notOpen": "Ce brouillon est {{status}}, et seul un brouillon ouvert peut changer.",
+  "newDraft": {
+   "titleField": "Un nom court pour le brouillon, affiché dans la liste et à l'architecte. Vide, un titre par défaut est utilisé.",
+   "fromApp": "Partir d'une application existante avec tout ce qu'elle référence, ou d'un brouillon vide.",
+   "create": "Créer le brouillon et ouvrir son espace de travail. La configuration active ne change pas."
+  },
+  "architect": {
+   "name": "Nom du nouveau déploiement d'architecte dans ce locataire, par exemple architect.",
+   "harnessProfileId": "Le harness sur lequel l'architecte s'exécute, par exemple Claude Code. Il lui faut un worker capable de l'exécuter.",
+   "model": "Le modèle que le harness utilise pour l'architecte. Vide, le modèle par défaut du profil de harness est utilisé.",
+   "promptId": "Le prompt System avec lequel l'architecte travaille. Les prompts intégrés viennent en premier, leurs clones ensuite.",
+   "preview": "Le prompt choisi rendu avec des valeurs d'exemple, tel que l'architecte le recevrait.",
+   "cloneLink": "Ouvrir ce prompt dans l'écran Modèles de prompt, où vous pouvez le cloner et modifier le clone.",
+   "create": "Créer le déploiement de agent-architect avec accès aux brouillons et le prompt choisi.",
+   "noAgent": "Aucun architecte ne peut être créé, car ce locataire n'a pas d'agent agent-architect."
+  },
+  "chat": {
+   "title": "Une conversation avec l'architecte d'agents à propos de ce brouillon. Il modifie le brouillon ; vous approuvez son application.",
+   "architect": "Le déploiement d'architecte avec lequel dialoguer. En choisir un autre démarre une nouvelle conversation.",
+   "newArchitect": "Créer un déploiement d'architecte : profil de harness, modèle et prompt d'architecte.",
+   "openConversation": "Ouvrir cette conversation sur sa propre page, chaque tour étant une exécution.",
+   "newConversation": "Oublier cette conversation dans ce navigateur et en commencer une nouvelle au prochain message.",
+   "you": "Ce que vous avez envoyé à l'architecte lors de ce tour.",
+   "architectSays": "La réponse de l'architecte à ce tour. Les changements qu'il a faits au brouillon apparaissent dans les autres onglets.",
+   "openRun": "Ouvrir l'exécution de ce tour, avec sa transcription et les outils appelés.",
+   "message": "Ce que l'architecte doit concevoir ou changer. L'ID du brouillon accompagne le premier message.",
+   "send": "Envoyer le message à l'architecte. La réponse apparaît ici à la fin du tour.",
+   "sendBusy": "L'architecte travaille encore sur le dernier message. Attendez qu'il ait terminé.",
+   "sendNoArchitect": "Choisissez ou créez un déploiement d'architecte avant d'envoyer un message."
+  },
+  "items": {
+   "title": "Les documents de manifeste du brouillon, un par ressource, identifiés par type et nom.",
+   "add": "Ajouter un nouveau document au brouillon. Il est enregistré lorsque vous l'enregistrez dans l'éditeur.",
+   "addConfirm": "Ouvrir l'éditeur avec un document de départ de ce type et de ce nom.",
+   "kind": "Le type de manifeste du document, par exemple Agent ou Deployment.",
+   "name": "Le nom de la ressource, qui doit correspondre au nom dans le document.",
+   "operation": "Créer ou mettre à jour la ressource lors de l'application, ou la supprimer.",
+   "stale": "Indique si la configuration active a changé après la création du brouillon à partir de ce document.",
+   "updated": "La date du dernier changement de cet élément dans le brouillon.",
+   "staleBadge": "La configuration active a changé après que le brouillon est parti de ce document. Mettez-le à jour avant d'appliquer.",
+   "editItem": "Ouvrir ce document dans l'éditeur pour le modifier et l'enregistrer.",
+   "viewItem": "Ouvrir ce document dans l'éditeur pour le lire. Le brouillon ne peut pas changer pour le moment.",
+   "remove": "Retirer ce document du brouillon après confirmation. La configuration active ne change pas.",
+   "editor": "Le document en YAML de manifeste. L'enregistrement envoie la version que vous avez lue.",
+   "document": "YAML de manifeste brut. Son type et son nom doivent correspondre à ceux de l'élément.",
+   "save": "Enregistrer le document dans le brouillon à la version que vous avez lue.",
+   "closeEditor": "Fermer l'éditeur. Le texte non enregistré est perdu.",
+   "dismissConflict": "Masquer cet avis sur le changement qui a refusé votre enregistrement."
+  },
+  "graph": {
+   "title": "Vue en lecture seule des applications du brouillon : membres, appels, profondeur de délégation et capacités.",
+   "app": "Une application que le brouillon contient ou référence, dessinée à partir de son agent d'entrée.",
+   "deletedApp": "L'application du brouillon supprime cette application.",
+   "draftedApp": "Le brouillon contient le document de cette application, son graphe montre donc la version du brouillon.",
+   "deletedAgent": "L'application du brouillon supprime cet agent.",
+   "loose": "Agents du brouillon qui n'appartiennent à aucune de ses applications.",
+   "legend": "Comment lire le graphe : libellés, styles de ligne et capacités sous chaque agent."
+  },
+  "diff": {
+   "title": "Chaque document comparé à la configuration active, la validation et la demande d'application du brouillon.",
+   "refresh": "Comparer à nouveau chaque document avec la configuration active.",
+   "validate": "Lancer une simulation de manifeste du brouillon. Rien ne change ; les résultats s'affichent par élément.",
+   "requestApply": "Valider le brouillon et créer une approbation pour l'appliquer. Le brouillon reste figé jusqu'à la décision.",
+   "columns": {
+    "item": "Le type et le nom du document.",
+    "change": "Ce que l'application du brouillon ferait à cette ressource.",
+    "details": "Les champs qui changent, ou la raison pour laquelle le document n'est pas valide."
+   },
+   "approval": "L'approbation qui décide si ce brouillon est appliqué.",
+   "openApproval": "Ouvrir l'approbation avec son résumé complet et sa comparaison.",
+   "reason": "Pourquoi vous autorisez ou refusez le brouillon. Le motif est enregistré avec la décision.",
+   "allow": "Autoriser l'approbation : le brouillon est validé à nouveau et appliqué en une seule application de manifeste.",
+   "deny": "Refuser l'approbation : rien n'est appliqué, et le brouillon est de nouveau ouvert."
+  },
+  "playground": {
+   "title": "Essayer les agents du brouillon sur plusieurs tours avant toute publication.",
+   "agent": "L'agent à exécuter. Par défaut, c'est l'agent d'entrée de l'application cible du brouillon.",
+   "input": "Ce que l'agent doit faire lors de ce tour.",
+   "send": "Enregistrer le document de l'agent comme sa révision de brouillon et l'exécuter dans le bac à sable.",
+   "sendBusy": "Le dernier tour est toujours en cours. Attendez qu'il se termine.",
+   "openRun": "Ouvrir l'exécution, avec son arbre d'exécution, ses groupes de répartition et les fichiers de la conversation.",
+   "conversation": "Ouvrir la conversation du bac à sable, chaque tour étant une exécution.",
+   "export": "Télécharger les tours du bac à sable sous forme de fichier Markdown.",
+   "reset": "Commencer une nouvelle conversation dans le bac à sable au prochain tour."
+  },
+  "preview": {
+   "title": "Compiler un déploiement avec une entrée d'exemple avant de déployer. Les valeurs secrètes sont masquées.",
+   "deploymentId": "Le déploiement à compiler pour l'aperçu.",
+   "agentRevisionId": "Une révision d'agent à compiler à la place de celle du déploiement, par exemple une révision de brouillon.",
+   "environment": "Compiler le déploiement de l'agent dans cet environnement plutôt que dans celui choisi.",
+   "input": "L'entrée d'exemple avec laquelle le prompt compilé est rendu.",
+   "compile": "Compiler le déploiement et afficher la ligne de commande, les assets et l'espace de fichiers.",
+   "compileNoDeployment": "Choisissez d'abord un déploiement à compiler.",
+   "commandLine": "La commande que le worker lancerait, avec les guillemets du shell pour l'affichage.",
+   "assets": "Où les assets de la révision seraient écrits avant le démarrage du harness.",
+   "columns": {
+    "path": "L'emplacement du fichier, relatif aux répertoires de l'exécution.",
+    "asset": "L'asset de l'agent dont provient le fichier.",
+    "kind": "L'usage de l'asset, par exemple une compétence ou un fichier de référence.",
+    "version": "La version de l'asset que la révision épingle.",
+    "size": "La taille du fichier placé sur le disque."
+   },
+   "fileSpace": "L'espace de fichiers partagé de la conversation et l'endroit où l'exécution le verrait."
+  },
+  "prompts": {
+   "title": "Les prompts avec lesquels l'architecte d'agents peut travailler, et celui qu'utilise chaque architecte.",
+   "templatesLink": "Ouvrir l'écran Modèles de prompt filtré sur les prompts d'architecte.",
+   "columns": {
+    "name": "Le nom du modèle de prompt. Les intégrés commencent par builtin/.",
+    "description": "Une courte note sur ce que le prompt fait faire différemment à l'architecte.",
+    "version": "La version actuelle du prompt. Chaque enregistrement l'augmente de un.",
+    "usedBy": "Le nombre de déploiements d'architecte qui utilisent ce prompt. Survolez pour voir leurs noms."
+   },
+   "defaultBadge": "Les nouveaux déploiements d'architecte utilisent ce prompt sauf si un autre est choisi.",
+   "selectedBadge": "Le prompt que {{architect}} utilise actuellement.",
+   "select": "En faire le prompt de l'architecte actuel. Il prend effet au prochain tour de l'architecte.",
+   "alreadySelected": "L'architecte actuel utilise déjà ce prompt.",
+   "selectNoArchitect": "Choisissez d'abord un architecte dans l'onglet Architecte ; la sélection s'applique à ce déploiement.",
+   "clone": "Copier ce prompt dans un nouveau modèle que vous pouvez modifier.",
+   "edit": "Modifier le nom, la description et le corps. Chaque enregistrement crée une nouvelle version.",
+   "delete": "Supprimer ce prompt après confirmation. Un prompt utilisé par un déploiement ne peut pas être supprimé.",
+   "builtInLocked": "Les prompts intégrés ne peuvent être ni modifiés ni supprimés. Clonez ce prompt et modifiez le clone.",
+   "editor": "Modifier le prompt et le prévisualiser. Les architectes qui suivent sa version actuelle utilisent un enregistrement dès leur prochain tour.",
+   "closeEditor": "Fermer l'éditeur. Le texte non enregistré est perdu.",
+   "name": "Le nom du modèle dans ce locataire. Il doit rester unique.",
+   "description": "Une courte note sur ce que ce prompt fait faire à l'architecte.",
+   "body": "Le texte du prompt, avec des variables de modèle et des inclusions de fragments comme builtin/agent-architect-design.",
+   "preview": "Le corps rendu avec des valeurs d'exemple, tel que l'architecte le recevrait.",
+   "save": "Enregistrer la modification comme nouvelle version du prompt."
+  }
+ }
+});

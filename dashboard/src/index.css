@@ -1265,3 +1265,42 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .app-graph-key.is-single { border-block-start-style: dashed; }
 .app-revision-take { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: flex-end; margin-block-end: var(--spacing-md); }
 .app-revision-take .field { flex: 1; min-width: 16rem; margin: 0; }
+
+/* ================= Agent studio (AD7.10, AD7.16, AD9.2, AD9.3) ================= */
+.studio-filters { gap: var(--spacing-md); }
+.studio-scope { display: inline-flex; gap: var(--spacing-xs); }
+.studio-row-between { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; justify-content: space-between; margin-block-end: var(--spacing-sm); }
+.studio-row-between .section-title { margin: 0; }
+.studio-live-chip { display: inline-flex; align-items: center; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.studio-summary { margin-block-end: var(--spacing-md); }
+.studio-live-notice { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; justify-content: space-between; }
+.studio-chat, .studio-items, .studio-graph, .studio-diff, .studio-playground, .studio-preview, .studio-prompts { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.studio-chat-turns { display: flex; flex-direction: column; gap: var(--spacing-sm); max-block-size: 60vh; overflow-y: auto; }
+.studio-turn { display: flex; flex-direction: column; gap: var(--spacing-xs); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm); }
+.studio-turn-you { display: flex; flex-direction: column; gap: 2px; }
+.studio-turn-architect { display: flex; flex-direction: column; gap: 2px; border-block-start: 1px dashed var(--color-border); padding-block-start: var(--spacing-xs); }
+.studio-turn-who { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); }
+.studio-turn-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.studio-list { list-style: none; display: flex; flex-direction: column; gap: 2px; margin: var(--spacing-xs) 0; padding: 0; }
+.studio-field-changes code, .studio-before, .studio-after { overflow-wrap: anywhere; }
+.studio-before { text-decoration: line-through; color: var(--color-text-secondary); }
+.studio-after { font-weight: 600; }
+.studio-conflict { display: flex; flex-direction: column; gap: var(--spacing-xs); align-items: flex-start; }
+.studio-editor { display: flex; flex-direction: column; gap: var(--spacing-sm); border-block-start: 1px solid var(--color-border); padding-block-start: var(--spacing-sm); }
+.studio-yaml { min-height: 280px; }
+.studio-item-new { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm); }
+.data-table tr.is-selected td { background: var(--color-primary-soft); }
+.studio-approval { display: flex; flex-direction: column; gap: var(--spacing-sm); border: 1px solid var(--color-border); border-inline-start: 3px solid var(--color-warning, var(--color-primary)); border-radius: var(--radius-sm); padding: var(--spacing-sm); }
+.studio-decide { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.studio-graph-app { display: flex; flex-direction: column; gap: var(--spacing-xs); padding-block-end: var(--spacing-sm); border-block-end: 1px solid var(--color-border); }
+.app-graph-edge-label { fill: var(--color-text-secondary); font-size: 10px; }
+.app-graph-note { fill: var(--color-text-secondary); font-size: 10px; font-style: italic; }
+.app-graph-node.is-deleted rect { stroke: var(--color-danger); stroke-dasharray: 3 3; opacity: 0.7; }
+.app-graph-node.is-drafted rect { stroke: var(--color-primary); }
+.studio-architect-preview { display: flex; flex-direction: column; gap: var(--spacing-xs); margin-block-start: var(--spacing-md); }
+.studio-prompt-editor { display: flex; flex-direction: column; gap: var(--spacing-sm); border-block-start: 1px solid var(--color-border); padding-block-start: var(--spacing-sm); }
+.studio-prompts .actions-cell { white-space: nowrap; }
+@media (max-width: 760px) {
+  .studio-filters { flex-direction: column; align-items: stretch; }
+  .studio-filters .filter-search { min-width: 0; }
+}

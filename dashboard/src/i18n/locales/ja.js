@@ -3615,3 +3615,339 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "スタジオ",
+    "tip": "エージェントスタジオ：エージェントアーキテクトと一緒に下書きでエージェントやアプリを設計し、プレイグラウンドで試し、下書きの適用を依頼します。"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "スタジオの下書き"
+  },
+  "approvalKind": {
+   "DraftApply": "下書きの適用"
+  },
+  "studioDraftStatus": {
+   "Open": "編集可能",
+   "PendingApproval": "承認待ち",
+   "Applied": "適用済み",
+   "Discarded": "破棄済み"
+  },
+  "studioDraftOperation": {
+   "Upsert": "作成または更新",
+   "Delete": "削除"
+  },
+  "studioDiffChange": {
+   "Create": "作成",
+   "Update": "更新",
+   "Delete": "削除",
+   "Unchanged": "変更なし",
+   "Failed": "失敗"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "読み込んだ後に下書きが変更されました。もう一度読み込んでから再試行してください。",
+  "DraftNotOpen": "この下書きは編集可能な状態ではないため、変更できません。編集できるのは編集可能な下書きだけです。",
+  "DraftStale": "下書きの基になったライブ構成が変更されました。古くなった項目をリベースしてから、もう一度適用を依頼してください。",
+  "DraftInvalid": "下書きに検証に通らないドキュメントがあります。まず「失敗」と表示された項目を修正してください。",
+  "DraftEmpty": "下書きに項目がないため、適用するものがありません。",
+  "ApproverLacksPermission": "この下書きを許可する権限がありません。許可するには、Manifest に対する作成権限と、下書きが削除する各種類に対する削除権限が必要です。",
+  "AgentNotLive": "そのエージェントはこの下書きで新しく追加されたものです。プレイグラウンドで試す前に下書きを適用してください。",
+  "NotAnArchitectDeployment": "アーキテクトプロンプトを使えるのはアーキテクトのデプロイメント（agent-architect のデプロイメント、または下書きへのアクセス権を持つデプロイメント）だけです。",
+  "InvalidArchitectPrompt": "そのプロンプトはアーキテクトプロンプトにできません。このテナントの System テンプレートを選んでください。",
+  "PromptTemplateInUse": "このプロンプトテンプレートはデプロイメントで使われています。先にそれらを別のテンプレートに切り替えてください。",
+  "ReservedEnvironment": "draft 環境はプレイグラウンド用に予約されています。",
+  "NoDeploymentInEnvironment": "このエージェントにはその環境のデプロイメントがありません。"
+ },
+ "views": {
+  "studio": {
+   "title": "スタジオ",
+   "subtitle": "下書きでエージェントとアプリを設計します。下書きの適用を人が承認するまで、ライブ構成は何も変わりません。",
+   "newDraft": "新しい下書き",
+   "refresh": "更新",
+   "search": "タイトルを検索",
+   "scopeLabel": "対象の下書き",
+   "scopes": {
+    "mine": "自分の下書き",
+    "all": "すべて"
+   },
+   "statusLabel": "状態",
+   "columns": {
+    "title": "タイトル",
+    "status": "状態",
+    "owner": "所有者",
+    "targetApp": "対象アプリ",
+    "items": "項目",
+    "version": "バージョン",
+    "updated": "更新日時"
+   },
+   "open": "開く",
+   "discard": "破棄",
+   "discardTitle": "下書きを破棄",
+   "discardMessage": "{{title}} を破棄しますか？破棄した下書きは変更も適用もできなくなります。",
+   "discardPendingMessage": "{{title}} を破棄しますか？適用の承認は取り消され、下書きは変更も適用もできなくなります。",
+   "discarded": "{{title}} を破棄しました。",
+   "emptyTitle": "下書きはありません",
+   "emptyBody": "空の状態または既存のアプリから下書きを始め、エージェントアーキテクトと一緒に設計しましょう。",
+   "emptyFiltered": "この絞り込み条件に一致する下書きはありません。",
+   "untitled": "無題の下書き"
+  },
+  "studioDraft": {
+   "title": "スタジオの下書き",
+   "notFoundTitle": "下書きが見つかりません",
+   "notFoundBody": "この下書きは存在しないか、読み取る権限がありません。",
+   "back": "下書きの一覧",
+   "version": "バージョン {{version}}",
+   "live": "ライブ",
+   "polling": "ポーリング中",
+   "architect": "アーキテクト",
+   "tabsLabel": "下書きのワークスペース",
+   "tabs": {
+    "architect": "アーキテクト",
+    "items": "項目",
+    "graph": "グラフ",
+    "apply": "差分と適用",
+    "playground": "プレイグラウンド",
+    "preview": "コンパイルのプレビュー",
+    "prompts": "アーキテクトプロンプト"
+   },
+   "notOpen": {
+    "PendingApproval": "この下書きは適用の判断を待っているため、変更できません。再び変更するには、承認を拒否するか下書きを破棄してください。",
+    "Applied": "この下書きはライブ構成に適用済みで、これ以上変更できません。さらに変更するには新しい下書きを始めてください。",
+    "Discarded": "この下書きは破棄されたため、これ以上変更できません。",
+    "other": "この下書きは現在変更できません。"
+   },
+   "liveNotice": "下書きがバージョン {{version}}（{{status}}）になりました。",
+   "liveChanged": "変更された項目：{{items}}。",
+   "removedTag": "削除済み",
+   "dismissNotice": "閉じる"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "新しい下書き",
+    "intro": "下書きには、あなたとエージェントアーキテクトが編集するマニフェストドキュメントが入ります。空の状態から始めるか、既存のアプリとそれが参照するものすべてから始めます。",
+    "titleField": "タイトル",
+    "titlePlaceholder": "ライター付きのリサーチアプリ",
+    "fromApp": "元にするアプリ",
+    "emptyDraft": "空の下書き",
+    "fromAppHint": "アプリ、そのメンバー、それらのデプロイメント、プロンプト、アセットが項目になります。各項目は元にしたライブのバージョンを覚えているため、スタジオは後からの変更に気付けます。",
+    "create": "下書きを作成",
+    "creating": "作成中...",
+    "created": "下書き {{title}} を開始しました。"
+   },
+   "architect": {
+    "title": "新しいアーキテクト",
+    "intro": "エージェントアーキテクトはあなたの下書きの中でエージェントとアプリを設計します。ハーネスプロファイル、モデル、使用するプロンプトを指定したデプロイメントを用意してください。アーキテクトが編集するのはあなたの下書きだけで、適用は決して行いません。",
+    "name": "デプロイメント名",
+    "harnessProfile": "ハーネスプロファイル",
+    "chooseProfile": "ハーネスプロファイルを選択",
+    "model": "モデル",
+    "modelHint": "空のままにすると、ハーネスプロファイルの既定のモデルを使います。",
+    "prompt": "アーキテクトプロンプト",
+    "defaultPrompt": "{{name}}（既定）",
+    "preview": "プロンプトのプレビュー",
+    "previewEmpty": "プロンプトを選ぶと、レンダリング結果が表示されます。",
+    "cloneLink": "このプロンプトを複製して変更する",
+    "noAgent": "このテナントには {{name}} という名前のエージェントがないため、アーキテクトを作成できません。管理者に問い合わせてください。",
+    "create": "アーキテクトを作成",
+    "creating": "作成中...",
+    "created": "アーキテクト {{name}} を作成しました。"
+   },
+   "chat": {
+    "title": "アーキテクト",
+    "architect": "アーキテクトのデプロイメント",
+    "chooseArchitect": "アーキテクトを選択",
+    "newArchitect": "新しいアーキテクト",
+    "noArchitect": "アーキテクトのデプロイメントはまだありません。エージェントアーキテクトと設計するには、まず作成してください。",
+    "openConversation": "会話を開く",
+    "newConversation": "新しい会話",
+    "you": "あなた",
+    "architectSays": "アーキテクト",
+    "openRun": "実行",
+    "thinking": "作業中...",
+    "empty": "何を作るかをアーキテクトに伝えてください。最初のメッセージで、どの下書きで作業するかが伝わります。",
+    "pickFirst": "始めるには、アーキテクトを選ぶか作成してください。",
+    "message": "メッセージ",
+    "placeholder": "リサーチアプリを設計して：2 人のリサーチャーとライター 1 人に作業を分配するプランナー。",
+    "firstHint": "この下書きについて、このアーキテクトとの会話を始めます。",
+    "continueHint": "会話を続けます。Ctrl+Enter または Cmd+Enter で送信します。",
+    "send": "送信"
+   },
+   "items": {
+    "title": "項目",
+    "titleCount": "項目（{{total}}）",
+    "add": "項目を追加",
+    "addConfirm": "エディターを開く",
+    "columns": {
+     "kind": "種類",
+     "name": "名前",
+     "operation": "操作",
+     "stale": "古い",
+     "updated": "更新日時"
+    },
+    "stale": "古い",
+    "empty": "まだ項目はありません。追加するか、アーキテクトに依頼してください。",
+    "remove": "削除",
+    "removeTitle": "項目を削除",
+    "removeMessage": "{{item}} を下書きから削除しますか？ライブ構成は変わりません。",
+    "removed": "{{item}} を削除しました。",
+    "saved": "{{item}} を保存しました。下書きはバージョン {{version}} です。",
+    "editorTitle": "{{item}} を編集",
+    "newEditorTitle": "新しい項目 {{item}}",
+    "document": "マニフェストドキュメント",
+    "versionHint": "保存時には、読み込んだバージョン {{version}} を送信します。その後に下書きが変更されていた場合は保存が拒否されますが、入力したテキストはここに残ります。",
+    "unsaved": "未保存の変更",
+    "errors": {
+     "name": "英字、数字、ドット、スラッシュ、ハイフンを使い、英字か数字で始めてください。",
+     "exists": "下書きにはすでに {{kind}}/{{name}} があります。",
+     "deleteKind": "削除できるのは Agent、Deployment、Pipeline、AgenticApp の項目だけで、{{kind}} は削除できません。"
+    },
+    "conflict": {
+     "title": "編集中に下書きが変更されました：バージョン {{from}} は現在 {{to}} です。",
+     "added": "追加：{{items}}",
+     "updated": "編集：{{items}}",
+     "removed": "削除：{{items}}",
+     "status": "現在の状態は {{status}} です。",
+     "layout": "変わったのはグラフのレイアウトだけです。",
+     "mine": "編集中の項目も変更されています。もう一度保存する前に、自分のテキストと新しいバージョンを比べてください。",
+     "retry": "テキストはエディターに残っています。新しいバージョンに反映するには、もう一度保存してください。",
+     "dismiss": "閉じる"
+    }
+   },
+   "graph": {
+    "title": "グラフ",
+    "empty": "下書きには、まだ描画できるアプリやエージェントがありません。",
+    "depth": "深さ {{depth}}",
+    "entryAgent": "入口エージェント：{{name}}",
+    "deleted": "削除予定",
+    "inDraft": "下書き内",
+    "loose": "どのアプリにも属さないエージェント",
+    "capabilities": "対応機能：{{list}}",
+    "legend": "各呼び出しには、必要な委任の深さがラベル表示されます。実線は並列呼び出しを許可し、破線は一度に 1 回の呼び出しを表します。対応機能はエージェント名の下に表示されます。"
+   },
+   "diff": {
+    "title": "差分と適用",
+    "refresh": "差分を更新",
+    "validate": "検証",
+    "validating": "検証中...",
+    "requestApply": "適用を依頼",
+    "requesting": "依頼中...",
+    "requested": "適用を依頼しました。マニフェストを適用できる人が判断します。",
+    "valid": "有効：作成 {{create}}、更新 {{update}}、削除 {{delete}}、変更なし {{unchanged}}。",
+    "invalid": "無効：失敗 {{failed}}、古い項目 {{stale}}。予定：作成 {{create}}、更新 {{update}}、削除 {{delete}}、変更なし {{unchanged}}。",
+    "validOk": "下書きは有効です。",
+    "validFailed": "下書きは無効です。「失敗」または「古い」と表示された項目を確認してください。",
+    "empty": "下書きに比較する項目がありません。",
+    "columns": {
+     "item": "項目",
+     "change": "変更",
+     "details": "詳細"
+    },
+    "none": "（なし）",
+    "approval": "適用の承認",
+    "allow": "許可",
+    "deny": "拒否",
+    "allowed": "許可しました。下書きを適用しています。",
+    "denied": "拒否しました。下書きは再び編集可能になりました。",
+    "reason": "理由",
+    "reasonPlaceholder": "任意。判断と一緒に記録されます",
+    "waiting": "承認を判断してマニフェストを適用できる人を待っています。",
+    "applied": "マニフェストの適用 {{id}} として適用しました。"
+   },
+   "playground": {
+    "title": "プレイグラウンド",
+    "intro": "各ターンで、下書き内のエージェントのドキュメントを下書きリビジョンとして保存し、一時的なプレイグラウンドのデプロイメントで実行します。何も公開されず、ライブ構成も変わりません。",
+    "agent": "エージェント",
+    "defaultAgent": "入口エージェント（{{name}}）",
+    "defaultAgentShort": "入口エージェント",
+    "input": "入力",
+    "answer": "回答",
+    "placeholder": "エージェントに何をさせますか？",
+    "firstHint": "プレイグラウンドでの会話を始めます。",
+    "continueHint": "プレイグラウンドでの会話を続けます。",
+    "send": "ターンを実行",
+    "turn": "ターン {{number}}、{{agent}}",
+    "openRun": "実行の詳細",
+    "conversation": "会話",
+    "export": "記録をダウンロード",
+    "reset": "新しい会話",
+    "empty": "まだターンはありません。",
+    "exportDraft": "下書き",
+    "exportTurn": "ターン",
+    "exportRun": "実行"
+   },
+   "preview": {
+    "title": "コンパイルのプレビュー",
+    "intro": "デプロイする前に、実行が何で始まるかを確認できます：コマンドライン、アセットの配置先、ファイルスペースのマウント。シークレットの値は伏せられます。",
+    "deployment": "デプロイメント",
+    "chooseDeployment": "デプロイメントを選択",
+    "revision": "エージェントのリビジョン",
+    "deploymentRevision": "デプロイメント自身のリビジョン",
+    "revisionOption": "リビジョン {{number}}（{{state}}）",
+    "environment": "環境",
+    "deploymentEnvironment": "デプロイメントの環境",
+    "input": "サンプル入力",
+    "compiled": "{{deployment}} を {{revision}} でコンパイルしました。",
+    "assets": "配置されるアセット（{{total}}）",
+    "noAssets": "このリビジョンが配置するアセットはありません。",
+    "columns": {
+     "path": "パス",
+     "asset": "アセット",
+     "kind": "種類",
+     "version": "バージョン",
+     "size": "サイズ"
+    },
+    "fileSpace": "ファイルスペース",
+    "fileSpaceMount": "{{path}} にマウントされ、現在 {{files}} 個のファイルがあります（最大 {{maxFiles}} 個、各ファイル最大 {{maxBytes}}）。",
+    "noFileSpace": "この実行は会話の一部にならないため、ファイルスペースはマウントされません。",
+    "redacted": "サーバーは、コマンドライン、環境、ファイル内のシークレットの値を伏せます。"
+   },
+   "prompts": {
+    "title": "アーキテクトプロンプト",
+    "templatesLink": "プロンプトテンプレートで開く",
+    "forArchitect": "エージェントアーキテクトが使えるプロンプトです。{{architect}} 用に 1 つ選んでください。",
+    "noArchitect": "エージェントアーキテクトが使えるプロンプトです。選ぶには、まず「アーキテクト」タブでアーキテクトを選んでください。",
+    "nextTurn": "新しい選択や保存した編集は、アーキテクトの次のターンから反映されます。",
+    "current": "{{architect}} は {{name}} の最新バージョン（{{version}}）に従って使用しています。",
+    "currentPinned": "{{architect}} は {{name}} をバージョン {{version}} に固定して使用しています。",
+    "inUse": "{{name}} はデプロイメントで使われているため削除できません：{{deployments}}。先にそれらに別のプロンプトを選んでください。",
+    "empty": "アーキテクトプロンプトはありません。",
+    "columns": {
+     "name": "名前",
+     "description": "説明",
+     "version": "バージョン",
+     "usedBy": "使用元"
+    },
+    "default": "既定",
+    "selectedBadge": "選択中",
+    "usedBy": "アーキテクト：{{total}}",
+    "select": "選択",
+    "selected": "{{architect}} は次のターンから {{name}} を使います。",
+    "saved": "{{name}} を新しいバージョンとして保存しました。",
+    "editorTitle": "{{name}} を編集（バージョン {{version}}）",
+    "name": "名前",
+    "description": "説明",
+    "body": "プロンプト本文",
+    "preview": "レンダリングのプレビュー",
+    "deleteMessage": "{{name}} を削除しますか？使用しているアーキテクトのデプロイメント：{{total}}。使用中のプロンプトは削除できません。"
+   }
+  }
+ }
+});

@@ -2813,3 +2813,218 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "studio": "The agent studio: drafts of agents and apps that you design with the agent architect, try in the playground, and ask a person to apply."
+  }
+ },
+ "enums": {
+  "approvalKind": {
+   "DraftApply": "A request to apply a studio draft to live configuration. Allowing it applies every document in the draft as one manifest apply."
+  },
+  "studioDraftStatus": {
+   "Open": "The draft can be edited by you and the agent architect, validated, tried in the playground, and sent for approval.",
+   "PendingApproval": "The draft waits for a decision on its apply approval and is frozen until then. A denial opens it again.",
+   "Applied": "The draft was applied to live configuration as one manifest apply. It can no longer change.",
+   "Discarded": "The draft was discarded. It can no longer change, and a pending apply approval was cancelled."
+  },
+  "studioDraftOperation": {
+   "Upsert": "Applying the draft creates the resource, or updates it when it already exists.",
+   "Delete": "Applying the draft deletes the resource. Only agents, deployments, pipelines, and apps can be deleted this way."
+  },
+  "studioDiffChange": {
+   "Create": "The resource does not exist yet, so applying the draft creates it.",
+   "Update": "The resource exists and differs, so applying the draft updates the listed fields.",
+   "Delete": "The draft deletes this resource when it is applied.",
+   "Unchanged": "The document matches live configuration, so applying it changes nothing.",
+   "Failed": "The document does not validate. The details say why; fix it before requesting apply."
+  }
+ },
+ "views": {
+  "studio": {
+   "newDraft": "Start a draft, empty or from an existing app, and open its workspace.",
+   "refresh": "Read the list of drafts again from the server.",
+   "search": "Find drafts whose title contains this text. The server does the search.",
+   "scope": "Show only your own drafts, or every draft of the tenant you may read.",
+   "scopes": {
+    "mine": "Show only the drafts you started, or that an architect started for you.",
+    "all": "Show every draft in the tenant that you may read, whoever started it."
+   },
+   "statusChip": "Show drafts with status {{status}}. With no status chosen, every status shows.",
+   "columns": {
+    "title": "The draft's title. Open it to see its workspace with the architect, items, graph, and apply.",
+    "status": "Open drafts can change; pending ones wait for an apply decision; applied and discarded ones are final.",
+    "owner": "The person who started the draft. An architect works only on the drafts of the person talking to it.",
+    "targetApp": "The app the draft designs. Graph operations and the playground use it by default.",
+    "items": "How many manifest documents the draft holds, one per resource.",
+    "version": "Raised by one on every change to the draft. Each edit names the version it read.",
+    "updated": "When the draft last changed."
+   },
+   "openDraft": "Open the draft's workspace: architect chat, items, graph, diff and apply, playground, and preview.",
+   "discard": "Discard the draft after a confirmation. It can no longer change or be applied.",
+   "discardPending": "Discard the draft after a confirmation. Its pending apply approval is cancelled."
+  },
+  "studioDraft": {
+   "version": "Every change raises the version. Edits send the version they read, so nobody overwrites someone else's change.",
+   "live": "Connected to the draft's live channel, so changes by others and by the architect appear at once.",
+   "polling": "The live channel is not available, so the page reads the draft again every few seconds.",
+   "back": "Go back to the list of studio drafts.",
+   "viewJson": "Show the draft as the server returned it, with every item and the canvas layout.",
+   "architect": "The architect deployment this workspace talks to. Choose it on the Architect tab.",
+   "dismissNotice": "Hide this notice about the latest change to the draft.",
+   "tabs": {
+    "architect": "Talk with the agent architect, which edits this draft for you.",
+    "items": "The manifest documents in the draft, with an editor for each one.",
+    "graph": "A read-only picture of the draft's apps, calls, delegation depth, and capabilities.",
+    "apply": "Compare the draft with live configuration, validate it, and ask for it to be applied.",
+    "playground": "Run the draft's agents before anything is published, over several turns.",
+    "preview": "Compile a deployment to see its command line, placed assets, and file space mount.",
+    "prompts": "Choose and edit the prompt the agent architect works with."
+   }
+  }
+ },
+ "studio": {
+  "notOpen": "This draft is {{status}}, and only an open draft can change.",
+  "newDraft": {
+   "titleField": "A short name for the draft, shown in the list and to the architect. Empty uses a default title.",
+   "fromApp": "Start from an existing app with everything it references, or start with an empty draft.",
+   "create": "Create the draft and open its workspace. Live configuration does not change."
+  },
+  "architect": {
+   "name": "Name of the new architect deployment in this tenant, for example architect.",
+   "harnessProfileId": "The harness the architect runs on, for example Claude Code. It needs a worker that can run it.",
+   "model": "The model the harness uses for the architect. Empty uses the harness profile's default.",
+   "promptId": "The System prompt the architect works with. Built-ins come first; clones of them follow.",
+   "preview": "The chosen prompt rendered with sample values, as the architect would receive it.",
+   "cloneLink": "Open this prompt on the Prompt Templates screen, where you can clone it and edit the clone.",
+   "create": "Create the deployment of agent-architect with draft access and the chosen prompt.",
+   "noAgent": "No architect can be created because this tenant has no agent-architect agent."
+  },
+  "chat": {
+   "title": "A conversation with the agent architect about this draft. It edits the draft; you approve applying it.",
+   "architect": "The architect deployment to talk to. Choosing another one starts a new conversation.",
+   "newArchitect": "Create an architect deployment: harness profile, model, and architect prompt.",
+   "openConversation": "Open this conversation on its own page, with every turn as a run.",
+   "newConversation": "Forget this conversation in this browser and start a new one with the next message.",
+   "you": "What you sent to the architect in this turn.",
+   "architectSays": "The architect's answer to this turn. The draft changes it made appear in the other tabs.",
+   "openRun": "Open the run of this turn, with its transcript and the tools it called.",
+   "message": "What you want the architect to design or change. The draft's ID goes with the first message.",
+   "send": "Send the message to the architect. The answer appears here when the turn ends.",
+   "sendBusy": "The architect is still working on the last message. Wait for it to finish.",
+   "sendNoArchitect": "Choose or create an architect deployment before sending a message."
+  },
+  "items": {
+   "title": "The manifest documents in the draft, one per resource, keyed by kind and name.",
+   "add": "Add a new document to the draft. It is saved when you save it in the editor.",
+   "addConfirm": "Open the editor with a starting document of this kind and name.",
+   "kind": "The manifest kind of the document, for example Agent or Deployment.",
+   "name": "The resource name, which must match the name inside the document.",
+   "operation": "Create or update the resource on apply, or delete it.",
+   "stale": "Whether live configuration changed after the draft was based on this document.",
+   "updated": "When this item last changed in the draft.",
+   "staleBadge": "Live configuration changed after the draft started from this document. Rebase it before applying.",
+   "editItem": "Open this document in the editor to change and save it.",
+   "viewItem": "Open this document in the editor to read it. The draft cannot change right now.",
+   "remove": "Remove this document from the draft after a confirmation. Live configuration does not change.",
+   "editor": "The document as manifest YAML. Saving sends the version you read.",
+   "document": "Plain manifest YAML. Its kind and name must match the item's.",
+   "save": "Save the document into the draft at the version you read.",
+   "closeEditor": "Close the editor. Unsaved text is lost.",
+   "dismissConflict": "Hide this notice about the change that refused your save."
+  },
+  "graph": {
+   "title": "Read-only picture of the draft's apps: members, calls, delegation depth, and capabilities.",
+   "app": "An app the draft holds or refers to, drawn from its entry agent.",
+   "deletedApp": "Applying the draft deletes this app.",
+   "draftedApp": "The draft holds this app's document, so its graph shows the draft's version.",
+   "deletedAgent": "Applying the draft deletes this agent.",
+   "loose": "Agents the draft holds that belong to none of its apps.",
+   "legend": "How to read the graph: labels, line styles, and the capabilities under each agent."
+  },
+  "diff": {
+   "title": "Each document against live configuration, validation, and the request to apply the draft.",
+   "refresh": "Compare every document with live configuration again.",
+   "validate": "Run a manifest dry run of the draft. Nothing changes; the results show per item.",
+   "requestApply": "Validate the draft and create an approval to apply it. The draft is frozen until it is decided.",
+   "columns": {
+    "item": "The document's kind and name.",
+    "change": "What applying the draft would do to this resource.",
+    "details": "The fields that change, or why the document does not validate."
+   },
+   "approval": "The approval that decides whether this draft is applied.",
+   "openApproval": "Open the approval with its full summary and diff.",
+   "reason": "Why you allow or deny the draft. It is recorded with the decision.",
+   "allow": "Allow the approval: the draft is validated again and applied as one manifest apply.",
+   "deny": "Deny the approval: nothing is applied, and the draft is open again."
+  },
+  "playground": {
+   "title": "Try the draft's agents before anything is published, over several turns.",
+   "agent": "The agent to run. The default is the entry agent of the draft's target app.",
+   "input": "What the agent should do in this turn.",
+   "send": "Save the agent's document as its draft revision and run it in the playground.",
+   "sendBusy": "The last turn is still running. Wait for it to finish.",
+   "openRun": "Open the run, with its run tree, fan-out groups, and the conversation's files.",
+   "conversation": "Open the playground conversation, with every turn as a run.",
+   "export": "Download the playground turns as a Markdown file.",
+   "reset": "Start a new playground conversation with the next turn."
+  },
+  "preview": {
+   "title": "Compile a deployment with sample input before you deploy. Secret values are redacted.",
+   "deploymentId": "The deployment to compile.",
+   "agentRevisionId": "An agent revision to compile instead of the deployment's own, for example a draft revision.",
+   "environment": "Compile the agent's deployment in this environment instead of the chosen one.",
+   "input": "The sample input the compiled prompt is rendered with.",
+   "compile": "Compile the deployment and show the command line, assets, and file space.",
+   "compileNoDeployment": "Choose a deployment to compile first.",
+   "commandLine": "The command the worker would start, shell quoted for display.",
+   "assets": "Where the revision's assets would be written before the harness starts.",
+   "columns": {
+    "path": "Where the file is placed, relative to the run's directories.",
+    "asset": "The agent asset the file comes from.",
+    "kind": "What the asset is used for, for example a skill or a reference file.",
+    "version": "The asset version the revision pins.",
+    "size": "The size of the placed file."
+   },
+   "fileSpace": "The conversation's shared file space and where the run would see it."
+  },
+  "prompts": {
+   "title": "The prompts the agent architect can work with, and which one each architect uses.",
+   "templatesLink": "Open the Prompt Templates screen filtered to architect prompts.",
+   "columns": {
+    "name": "The prompt template's name. Built-ins start with builtin/.",
+    "description": "A short note on what the prompt makes the architect do differently.",
+    "version": "The prompt's current version. Every save adds one.",
+    "usedBy": "How many architect deployments use this prompt. Hover for their names."
+   },
+   "defaultBadge": "New architect deployments use this prompt unless another one is chosen.",
+   "selectedBadge": "The prompt {{architect}} uses now.",
+   "select": "Make this the prompt of the current architect. It takes effect on the architect's next turn.",
+   "alreadySelected": "The current architect already uses this prompt.",
+   "selectNoArchitect": "Choose an architect on the Architect tab first; the selection applies to that deployment.",
+   "clone": "Copy this prompt into a new template that you can edit.",
+   "edit": "Edit the name, description, and body. Every save is a new version.",
+   "delete": "Delete this prompt after a confirmation. A prompt that a deployment uses cannot be deleted.",
+   "builtInLocked": "Built-in prompts cannot be edited or deleted. Clone this prompt and change the clone.",
+   "editor": "Edit the prompt and preview it. Architects following its current version use a save from their next turn.",
+   "closeEditor": "Close the editor. Unsaved text is lost.",
+   "name": "The template's name in this tenant. It must stay unique.",
+   "description": "A short note on what this prompt makes the architect do.",
+   "body": "The prompt text, with template variables and includes of fragments such as builtin/agent-architect-design.",
+   "preview": "The body rendered with sample values, as the architect would receive it.",
+   "save": "Save the edit as a new version of the prompt."
+  }
+ }
+});

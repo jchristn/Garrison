@@ -87,7 +87,7 @@ describe('approvals navigation and enums', () => {
     expect(ENUMS.approvalStatus).toEqual(['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled']);
     expect(ENUMS.approvalRuleAction).toEqual(['Allow', 'Deny', 'Ask']);
     expect(ENUMS.approvalSource).toEqual(['Rule', 'Default', 'User', 'Timeout', 'Cancelled', 'DurableResume']);
-    expect(ENUMS.approvalKind).toEqual(['Tool', 'Command', 'FileChange']);
+    expect(ENUMS.approvalKind).toEqual(['Tool', 'Command', 'FileChange', 'DraftApply']);
     expect(ENUMS.auditEventType).toContain('ApprovalDecided');
     expect(ENUMS.resourceType).toContain('Approval');
   });

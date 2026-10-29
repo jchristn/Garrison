@@ -3664,3 +3664,339 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Studio",
+    "tip": "Studio degli agenti: progetta agenti e app in bozze con l'architetto di agenti, provali nell'area di prova e chiedi che una bozza venga applicata."
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "Bozza dello studio"
+  },
+  "approvalKind": {
+   "DraftApply": "Applicazione della bozza"
+  },
+  "studioDraftStatus": {
+   "Open": "Aperta",
+   "PendingApproval": "In attesa di approvazione",
+   "Applied": "Applicata",
+   "Discarded": "Scartata"
+  },
+  "studioDraftOperation": {
+   "Upsert": "Crea o aggiorna",
+   "Delete": "Elimina"
+  },
+  "studioDiffChange": {
+   "Create": "Crea",
+   "Update": "Aggiorna",
+   "Delete": "Elimina",
+   "Unchanged": "Invariato",
+   "Failed": "Non riuscito"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "La bozza è cambiata da quando l'hai letta. Rileggila e riprova.",
+  "DraftNotOpen": "La bozza non è aperta, quindi non può cambiare. Solo una bozza aperta accetta modifiche.",
+  "DraftStale": "La configurazione attiva è cambiata dopo che la bozza è partita da essa. Aggiorna gli elementi obsoleti e richiedi di nuovo l'applicazione.",
+  "DraftInvalid": "La bozza contiene documenti che non superano la convalida. Correggi prima gli elementi contrassegnati come Non riuscito.",
+  "DraftEmpty": "La bozza non contiene elementi, quindi non c'è nulla da applicare.",
+  "ApproverLacksPermission": "Non puoi consentire questa bozza: servono Create su Manifest e Delete su ogni tipo che la bozza elimina.",
+  "AgentNotLive": "Questo agente è nuovo in questa bozza. Applica la bozza prima di provare l'agente nell'area di prova.",
+  "NotAnArchitectDeployment": "Solo le distribuzioni di architetto accettano un prompt di architetto: distribuzioni di agent-architect o con accesso alle bozze.",
+  "InvalidArchitectPrompt": "Quel prompt non può essere un prompt di architetto. Scegli un modello System di questo tenant.",
+  "PromptTemplateInUse": "Questo modello di prompt è collegato a distribuzioni. Passale prima a un altro modello.",
+  "ReservedEnvironment": "L'ambiente bozza è riservato all'area di prova.",
+  "NoDeploymentInEnvironment": "L'agente non ha distribuzioni in quell'ambiente."
+ },
+ "views": {
+  "studio": {
+   "title": "Studio",
+   "subtitle": "Progetta agenti e app in bozze. Nella configurazione attiva non cambia nulla finché una persona non approva l'applicazione di una bozza.",
+   "newDraft": "Nuova bozza",
+   "refresh": "Aggiorna",
+   "search": "Cerca nei titoli",
+   "scopeLabel": "Bozze di chi",
+   "scopes": {
+    "mine": "Mie",
+    "all": "Tutte"
+   },
+   "statusLabel": "Stato",
+   "columns": {
+    "title": "Titolo",
+    "status": "Stato",
+    "owner": "Proprietario",
+    "targetApp": "App di destinazione",
+    "items": "Elementi",
+    "version": "Versione",
+    "updated": "Aggiornata"
+   },
+   "open": "Apri",
+   "discard": "Scarta",
+   "discardTitle": "Scarta bozza",
+   "discardMessage": "Scartare {{title}}? Una bozza scartata non può più cambiare né essere applicata.",
+   "discardPendingMessage": "Scartare {{title}}? La sua approvazione di applicazione viene annullata e la bozza non può più cambiare né essere applicata.",
+   "discarded": "{{title}} scartata.",
+   "emptyTitle": "Nessuna bozza",
+   "emptyBody": "Inizia una bozza, vuota o da un'app esistente, e progettala con l'architetto di agenti.",
+   "emptyFiltered": "Nessuna bozza corrisponde a questi filtri.",
+   "untitled": "Bozza senza titolo"
+  },
+  "studioDraft": {
+   "title": "Bozza dello studio",
+   "notFoundTitle": "Bozza non trovata",
+   "notFoundBody": "La bozza non esiste, oppure non hai il permesso di leggerla.",
+   "back": "Tutte le bozze",
+   "version": "Versione {{version}}",
+   "live": "In diretta",
+   "polling": "Interrogazione",
+   "architect": "Architetto",
+   "tabsLabel": "Area di lavoro della bozza",
+   "tabs": {
+    "architect": "Architetto",
+    "items": "Elementi",
+    "graph": "Grafo",
+    "apply": "Confronta e applica",
+    "playground": "Area di prova",
+    "preview": "Anteprima di compilazione",
+    "prompts": "Prompt dell'architetto"
+   },
+   "notOpen": {
+    "PendingApproval": "Questa bozza attende una decisione sulla sua applicazione, quindi non può cambiare. Rifiuta l'approvazione o scarta la bozza per modificarla di nuovo.",
+    "Applied": "Questa bozza è stata applicata alla configurazione attiva e non può più cambiare. Inizia una nuova bozza per altre modifiche.",
+    "Discarded": "Questa bozza è stata scartata e non può più cambiare.",
+    "other": "Questa bozza non può cambiare in questo momento."
+   },
+   "liveNotice": "La bozza è passata alla versione {{version}} ({{status}}).",
+   "liveChanged": "Modificati: {{items}}.",
+   "removedTag": "rimosso",
+   "dismissNotice": "Chiudi"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "Nuova bozza",
+    "intro": "Una bozza contiene i documenti manifest che modificate tu e l'architetto di agenti. Inizia vuota o da un'app esistente con tutto ciò a cui fa riferimento.",
+    "titleField": "Titolo",
+    "titlePlaceholder": "App di ricerca con uno scrittore",
+    "fromApp": "Parti da un'app",
+    "emptyDraft": "Bozza vuota",
+    "fromAppHint": "L'app, i suoi membri, le loro distribuzioni, i prompt e gli asset diventano elementi. Ognuno ricorda la versione attiva da cui è partito, così lo studio nota le modifiche successive.",
+    "create": "Crea bozza",
+    "creating": "Creazione...",
+    "created": "Bozza {{title}} avviata."
+   },
+   "architect": {
+    "title": "Nuovo architetto",
+    "intro": "L'architetto di agenti progetta agenti e app nelle tue bozze. Assegnagli una distribuzione: un profilo harness, un modello e il prompt con cui lavora. Modifica solo le tue bozze e non le applica mai.",
+    "name": "Nome della distribuzione",
+    "harnessProfile": "Profilo harness",
+    "chooseProfile": "Scegli un profilo harness",
+    "model": "Modello",
+    "modelHint": "Lascia vuoto per usare il modello predefinito del profilo harness.",
+    "prompt": "Prompt dell'architetto",
+    "defaultPrompt": "{{name}} (predefinito)",
+    "preview": "Anteprima del prompt",
+    "previewEmpty": "Scegli un prompt per vederlo renderizzato.",
+    "cloneLink": "Clona questo prompt per modificarlo",
+    "noAgent": "Questo tenant non ha un agente chiamato {{name}}, quindi non è possibile creare un architetto. Rivolgiti a un amministratore.",
+    "create": "Crea architetto",
+    "creating": "Creazione...",
+    "created": "Architetto {{name}} creato."
+   },
+   "chat": {
+    "title": "Architetto",
+    "architect": "Distribuzione dell'architetto",
+    "chooseArchitect": "Scegli un architetto",
+    "newArchitect": "Nuovo architetto",
+    "noArchitect": "Non esiste ancora una distribuzione di architetto. Creane una per progettare con l'architetto di agenti.",
+    "openConversation": "Apri conversazione",
+    "newConversation": "Nuova conversazione",
+    "you": "Tu",
+    "architectSays": "Architetto",
+    "openRun": "Esecuzione",
+    "thinking": "Al lavoro...",
+    "empty": "Di' all'architetto cosa costruire. Il primo messaggio gli indica in quale bozza lavorare.",
+    "pickFirst": "Scegli o crea un architetto per iniziare.",
+    "message": "Messaggio",
+    "placeholder": "Progetta un'app di ricerca: un pianificatore che distribuisce il lavoro a due ricercatori e uno scrittore.",
+    "firstHint": "Avvia una conversazione con questo architetto su questa bozza.",
+    "continueHint": "Continua la conversazione. Ctrl+Enter o Cmd+Enter invia.",
+    "send": "Invia"
+   },
+   "items": {
+    "title": "Elementi",
+    "titleCount": "Elementi ({{total}})",
+    "add": "Aggiungi elemento",
+    "addConfirm": "Apri editor",
+    "columns": {
+     "kind": "Tipo",
+     "name": "Nome",
+     "operation": "Operazione",
+     "stale": "Obsoleto",
+     "updated": "Aggiornato"
+    },
+    "stale": "Obsoleto",
+    "empty": "Ancora nessun elemento. Aggiungine uno o chiedi all'architetto.",
+    "remove": "Rimuovi",
+    "removeTitle": "Rimuovi elemento",
+    "removeMessage": "Rimuovere {{item}} dalla bozza? La configurazione attiva non cambia.",
+    "removed": "{{item}} rimosso.",
+    "saved": "{{item}} salvato. La bozza è alla versione {{version}}.",
+    "editorTitle": "Modifica {{item}}",
+    "newEditorTitle": "Nuovo elemento {{item}}",
+    "document": "Documento manifest",
+    "versionHint": "Il salvataggio invia la versione {{version}}, quella che hai letto. Se nel frattempo la bozza è cambiata, il salvataggio viene rifiutato e il tuo testo resta qui.",
+    "unsaved": "Modifiche non salvate",
+    "errors": {
+     "name": "Usa lettere, cifre, punti, barre e trattini, iniziando con una lettera o una cifra.",
+     "exists": "La bozza contiene già {{kind}}/{{name}}.",
+     "deleteKind": "Si possono eliminare solo elementi Agent, Deployment, Pipeline e AgenticApp, non {{kind}}."
+    },
+    "conflict": {
+     "title": "La bozza è cambiata mentre la modificavi: la versione {{from}} ora è {{to}}.",
+     "added": "Aggiunti: {{items}}",
+     "updated": "Modificati: {{items}}",
+     "removed": "Rimossi: {{items}}",
+     "status": "Il suo stato ora è {{status}}.",
+     "layout": "È cambiato solo il layout del suo grafo.",
+     "mine": "Anche l'elemento che stai modificando è cambiato. Confronta il tuo testo con la nuova versione prima di salvare di nuovo.",
+     "retry": "Il tuo testo è ancora nell'editor. Salva di nuovo per applicarlo alla nuova versione.",
+     "dismiss": "Chiudi"
+    }
+   },
+   "graph": {
+    "title": "Grafo",
+    "empty": "La bozza non contiene ancora app o agenti da disegnare.",
+    "depth": "profondità {{depth}}",
+    "entryAgent": "Agente di ingresso: {{name}}",
+    "deleted": "Eliminato",
+    "inDraft": "Nella bozza",
+    "loose": "Agenti senza app",
+    "capabilities": "Capacità: {{list}}",
+    "legend": "Ogni chiamata riporta la profondità di delega che richiede. Una linea continua consente chiamate parallele, una tratteggiata una chiamata alla volta. Le capacità compaiono sotto il nome di un agente."
+   },
+   "diff": {
+    "title": "Confronta e applica",
+    "refresh": "Aggiorna confronto",
+    "validate": "Convalida",
+    "validating": "Convalida in corso...",
+    "requestApply": "Richiedi applicazione",
+    "requesting": "Richiesta in corso...",
+    "requested": "Applicazione richiesta. Decide una persona autorizzata ad applicare manifest.",
+    "valid": "Valida: {{create}} da creare, {{update}} da aggiornare, {{delete}} da eliminare, {{unchanged}} invariati.",
+    "invalid": "Non valida: {{failed}} non riusciti e {{stale}} obsoleti. Previsti: {{create}} da creare, {{update}} da aggiornare, {{delete}} da eliminare, {{unchanged}} invariati.",
+    "validOk": "La bozza è valida.",
+    "validFailed": "La bozza non è valida. Vedi gli elementi contrassegnati come Non riuscito od Obsoleto.",
+    "empty": "La bozza non contiene elementi da confrontare.",
+    "columns": {
+     "item": "Elemento",
+     "change": "Modifica",
+     "details": "Dettagli"
+    },
+    "none": "(nessuno)",
+    "approval": "Approvazione di applicazione",
+    "allow": "Consenti",
+    "deny": "Rifiuta",
+    "allowed": "Consentita. La bozza è in fase di applicazione.",
+    "denied": "Rifiutata. La bozza è di nuovo aperta.",
+    "reason": "Motivo",
+    "reasonPlaceholder": "Facoltativo, conservato con la decisione",
+    "waiting": "In attesa di una persona autorizzata a decidere le approvazioni e ad applicare manifest.",
+    "applied": "Applicata come applicazione di manifest {{id}}."
+   },
+   "playground": {
+    "title": "Area di prova",
+    "intro": "Ogni turno salva il documento dell'agente nella bozza come sua revisione bozza e lo esegue su una distribuzione temporanea dell'area di prova. Non viene pubblicato nulla e la configurazione attiva non cambia.",
+    "agent": "Agente",
+    "defaultAgent": "Agente di ingresso ({{name}})",
+    "defaultAgentShort": "Agente di ingresso",
+    "input": "Input",
+    "answer": "Risposta",
+    "placeholder": "Cosa deve fare l'agente?",
+    "firstHint": "Avvia una conversazione nell'area di prova.",
+    "continueHint": "Continua la conversazione nell'area di prova.",
+    "send": "Esegui turno",
+    "turn": "Turno {{number}}, {{agent}}",
+    "openRun": "Dettaglio esecuzione",
+    "conversation": "Conversazione",
+    "export": "Scarica trascrizione",
+    "reset": "Nuova conversazione",
+    "empty": "Ancora nessun turno.",
+    "exportDraft": "Bozza",
+    "exportTurn": "Turno",
+    "exportRun": "Esecuzione"
+   },
+   "preview": {
+    "title": "Anteprima di compilazione",
+    "intro": "Guarda con cosa partirebbe un'esecuzione prima di distribuire: la riga di comando, dove vengono collocati gli asset e il montaggio dello spazio file. I valori segreti vengono oscurati.",
+    "deployment": "Distribuzione",
+    "chooseDeployment": "Scegli una distribuzione",
+    "revision": "Revisione dell'agente",
+    "deploymentRevision": "La revisione propria della distribuzione",
+    "revisionOption": "Revisione {{number}} ({{state}})",
+    "environment": "Ambiente",
+    "deploymentEnvironment": "L'ambiente della distribuzione",
+    "input": "Input di esempio",
+    "compiled": "{{deployment}} compilata con {{revision}}.",
+    "assets": "Asset collocati ({{total}})",
+    "noAssets": "La revisione non colloca alcun asset.",
+    "columns": {
+     "path": "Percorso",
+     "asset": "Asset",
+     "kind": "Tipo",
+     "version": "Versione",
+     "size": "Dimensione"
+    },
+    "fileSpace": "Spazio file",
+    "fileSpaceMount": "Montato su {{path}} con {{files}} file al momento (al massimo {{maxFiles}} file fino a {{maxBytes}} ciascuno).",
+    "noFileSpace": "Nessuno spazio file è montato, perché l'esecuzione non farebbe parte di una conversazione.",
+    "redacted": "Il server oscura i valori segreti nella riga di comando, nell'ambiente e nei file."
+   },
+   "prompts": {
+    "title": "Prompt dell'architetto",
+    "templatesLink": "Apri in Modelli di prompt",
+    "forArchitect": "Prompt che l'architetto di agenti può usare. Selezionane uno per {{architect}}.",
+    "noArchitect": "Prompt che l'architetto di agenti può usare. Scegli un architetto nella scheda Architetto per assegnargliene uno.",
+    "nextTurn": "Una nuova selezione o una modifica salvata ha effetto dal turno successivo dell'architetto.",
+    "current": "{{architect}} usa {{name}} e ne segue la versione attuale ({{version}}).",
+    "currentPinned": "{{architect}} usa {{name}}, fissato alla versione {{version}}.",
+    "inUse": "{{name}} non può essere eliminato finché lo usano delle distribuzioni: {{deployments}}. Seleziona prima un altro prompt per loro.",
+    "empty": "Nessun prompt di architetto.",
+    "columns": {
+     "name": "Nome",
+     "description": "Descrizione",
+     "version": "Versione",
+     "usedBy": "Usato da"
+    },
+    "default": "Predefinito",
+    "selectedBadge": "Selezionato",
+    "usedBy": "Architetti: {{total}}",
+    "select": "Seleziona",
+    "selected": "{{architect}} usa {{name}} dal suo prossimo turno.",
+    "saved": "{{name}} salvato come nuova versione.",
+    "editorTitle": "Modifica {{name}} (versione {{version}})",
+    "name": "Nome",
+    "description": "Descrizione",
+    "body": "Corpo del prompt",
+    "preview": "Anteprima renderizzata",
+    "deleteMessage": "Eliminare {{name}}? Distribuzioni di architetto che lo usano: {{total}}. Un prompt in uso non può essere eliminato."
+   }
+  }
+ }
+});

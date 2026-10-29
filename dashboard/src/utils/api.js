@@ -882,6 +882,89 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `apps/${enc(id)}/promote`), { body });
   }
 
+  // ------------------------------------------------------------------ agent studio (AD7, AD9)
+
+  /** Studio drafts, newest change first. params: { mine, search, pageNumber, pageSize }. */
+  listStudioDrafts(tenantId, params) {
+    const { mine, ...rest } = params || {};
+    return this._list(this._t(tenantId, 'studio/drafts'), { ...rest, mine: mine ? 'true' : undefined });
+  }
+
+  /** One draft with its items and layout. */
+  getStudioDraft(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `studio/drafts/${enc(id)}`));
+  }
+
+  /** Start a draft (201): body { title?, fromApp?, conversationId? }. With fromApp, one item per exported document. */
+  createStudioDraft(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'studio/drafts'), { body });
+  }
+
+  /** Discard a draft (204); a pending apply approval is cancelled. */
+  deleteStudioDraft(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `studio/drafts/${enc(id)}`));
+  }
+
+  /**
+   * Create or replace one item at the version read: body { version, operation, document }. Answers the draft.
+   * 409 DraftVersionConflict when the draft moved on, DraftNotOpen when it is not Open; 400 ValidationFailed.
+   */
+  putStudioDraftItem(tenantId, id, kind, name, body) {
+    return this._request('PUT', this._t(tenantId, `studio/drafts/${enc(id)}/items/${enc(kind)}/${enc(name)}`), { body });
+  }
+
+  /** Remove one item at the version read. Answers the draft. Same 409s as putStudioDraftItem. */
+  removeStudioDraftItem(tenantId, id, kind, name, version) {
+    return this._request('DELETE', this._t(tenantId, `studio/drafts/${enc(id)}/items/${enc(kind)}/${enc(name)}`), { query: { version } });
+  }
+
+  /** Each item against live configuration (StudioDraftDiff). */
+  getStudioDraftDiff(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `studio/drafts/${enc(id)}/diff`));
+  }
+
+  /** Validate a draft by manifest dry run (StudioDraftDiff). */
+  validateStudioDraft(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `studio/drafts/${enc(id)}/validate`));
+  }
+
+  /** Ask for the draft to be applied (201 Approval of kind DraftApply). 400 DraftStale, DraftInvalid, DraftEmpty. */
+  requestStudioDraftApply(tenantId, id, version) {
+    return this._request('POST', this._t(tenantId, `studio/drafts/${enc(id)}/request-apply`), { body: { version } });
+  }
+
+  /** The draft's apps as a graph (StudioGraph). */
+  getStudioDraftGraph(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `studio/drafts/${enc(id)}/graph`));
+  }
+
+  /**
+   * Run a draft's agent in the playground: body { input, agent?, conversationId?, wait, waitSeconds }. Answers the run.
+   * 400 AgentNotLive for an agent the draft creates.
+   */
+  invokeStudioPlayground(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `studio/drafts/${enc(id)}/playground/invoke`), { body });
+  }
+
+  /** Architect prompts: built-ins first, then tenant clones, then other System templates (ArchitectPromptEntry[]). */
+  async listArchitectPrompts(tenantId) {
+    const res = await this._request('GET', this._t(tenantId, 'studio/architect-prompts'));
+    return Array.isArray(res) ? res : res?.objects || res?.items || [];
+  }
+
+  /** The prompt an architect deployment uses (ArchitectPromptSelection). */
+  getArchitectPrompt(tenantId, deploymentId) {
+    return this._request('GET', this._t(tenantId, `studio/architects/${enc(deploymentId)}/prompt`));
+  }
+
+  /**
+   * Choose an architect deployment's prompt: body { architectPromptTemplateId, architectPromptVersion? }. Takes effect
+   * on its next turn. 400 NotAnArchitectDeployment, InvalidArchitectPrompt.
+   */
+  setArchitectPrompt(tenantId, deploymentId, body) {
+    return this._request('PUT', this._t(tenantId, `studio/architects/${enc(deploymentId)}/prompt`), { body });
+  }
+
   // ------------------------------------------------------------------ conversation file spaces (AD3)
 
   /**

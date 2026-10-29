@@ -86,7 +86,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -100,6 +100,10 @@ export const ENUMS = {
   capabilityHintStatus: ['Unknown', 'Known'],
   // Agentic apps (AD6): who may use an app's chat UI.
   appAuthMode: ['TenantUsers', 'AppUsers', 'Anonymous'],
+  // Agent studio (AD7): draft statuses, item operations, and what applying an item would do.
+  studioDraftStatus: ['Open', 'PendingApproval', 'Applied', 'Discarded'],
+  studioDraftOperation: ['Upsert', 'Delete'],
+  studioDiffChange: ['Create', 'Update', 'Delete', 'Unchanged', 'Failed'],
   // Fan-out groups (AD5): child runs started together and joined under a policy, a budget, and a deadline.
   fanOutGroupStatus: ['Running', 'Joined', 'TimedOut', 'BudgetExceeded', 'Cancelled'],
   fanOutJoinPolicy: ['All', 'Any', 'Quorum'],
@@ -110,7 +114,7 @@ export const ENUMS = {
   approvalDecision: ['Allow', 'Deny'],
   approvalSource: ['Rule', 'Default', 'User', 'Timeout', 'Cancelled', 'DurableResume'],
   approvalRuleAction: ['Allow', 'Deny', 'Ask'],
-  approvalKind: ['Tool', 'Command', 'FileChange'],
+  approvalKind: ['Tool', 'Command', 'FileChange', 'DraftApply'],
   // Pipelines (P12.9): ordered agent stages with optional review gates.
   pipelineRunStatus: ['Running', 'AwaitingReview', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut'],
   pipelineRunOutcome: ['None', 'Succeeded', 'StageFailed', 'StageStartFailed', 'ReviewRejected', 'ReviewExpired', 'Cancelled', 'TimedOut', 'InternalError'],

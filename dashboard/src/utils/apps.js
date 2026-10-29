@@ -261,8 +261,8 @@ export function unreachableNames(message) {
  * Layout for the read-only app graph: members in layers by the longest call path from the entry agent (the entry in
  * layer 0), members the entry cannot reach in a final layer marked unreachable, and the edges between members. Safe on
  * graphs with cycles (relaxation stops after one pass per member). Positions are in abstract units: x is the layer,
- * y the row within it. Returns { nodes: [{ id, layer, row, entry, unreachable }], edges: [{ from, to, fanOutAllowed }],
- * layers, rows }.
+ * y the row within it. Returns { nodes: [{ id, layer, row, entry, unreachable }], edges: [{ from, to, fanOutAllowed, depth? }],
+ * layers, rows }; an edge keeps the delegation depth the studio graph sends (AD7.10).
  */
 export function layoutAppGraph(app) {
   const ids = [...new Set(memberIds(app))];
@@ -297,7 +297,7 @@ export function layoutAppGraph(app) {
   for (const id of lost) place(id, reachedLayers, { unreachable: true });
   const layers = reachedLayers + (lost.length ? 1 : 0);
   const rows = Math.max(0, ...rowsPerLayer.values());
-  return { nodes, edges: edges.map((e) => ({ from: e.callerAgentId, to: e.calleeAgentId, fanOutAllowed: e.fanOutAllowed !== false })), layers, rows };
+  return { nodes, edges: edges.map((e) => ({ from: e.callerAgentId, to: e.calleeAgentId, fanOutAllowed: e.fanOutAllowed !== false, ...(e.depth !== undefined ? { depth: e.depth } : {}) })), layers, rows };
 }
 
 /** Deployments of the entry agent in one environment: the choices for that environment's entry deployment. */

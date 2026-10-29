@@ -3650,3 +3650,339 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Studio",
+    "tip": "Agenten-Studio: Entwerfen Sie Agenten und Apps in Entwürfen mit dem Agenten-Architekten, testen Sie sie im Testbereich und beantragen Sie das Anwenden eines Entwurfs."
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "Studio-Entwurf"
+  },
+  "approvalKind": {
+   "DraftApply": "Entwurf anwenden"
+  },
+  "studioDraftStatus": {
+   "Open": "Offen",
+   "PendingApproval": "Freigabe ausstehend",
+   "Applied": "Angewendet",
+   "Discarded": "Verworfen"
+  },
+  "studioDraftOperation": {
+   "Upsert": "Erstellen oder aktualisieren",
+   "Delete": "Löschen"
+  },
+  "studioDiffChange": {
+   "Create": "Erstellen",
+   "Update": "Aktualisieren",
+   "Delete": "Löschen",
+   "Unchanged": "Unverändert",
+   "Failed": "Fehlgeschlagen"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "Der Entwurf hat sich geändert, seit Sie ihn gelesen haben. Lesen Sie ihn erneut und versuchen Sie es noch einmal.",
+  "DraftNotOpen": "Der Entwurf ist nicht offen und kann daher nicht geändert werden. Nur ein offener Entwurf nimmt Änderungen an.",
+  "DraftStale": "Die Live-Konfiguration hat sich geändert, nachdem der Entwurf darauf aufgebaut wurde. Bringen Sie die veralteten Elemente auf den neuen Stand und beantragen Sie das Anwenden erneut.",
+  "DraftInvalid": "Der Entwurf enthält Dokumente, die die Validierung nicht bestehen. Korrigieren Sie zuerst die als fehlgeschlagen markierten Elemente.",
+  "DraftEmpty": "Der Entwurf enthält keine Elemente, es gibt also nichts anzuwenden.",
+  "ApproverLacksPermission": "Sie dürfen diesen Entwurf nicht zulassen: Dafür sind Create auf Manifest und Delete auf jeder Art nötig, die der Entwurf löscht.",
+  "AgentNotLive": "Dieser Agent ist neu in diesem Entwurf. Wenden Sie den Entwurf an, bevor Sie den Agenten im Testbereich ausprobieren.",
+  "NotAnArchitectDeployment": "Nur Architekten-Bereitstellungen erhalten einen Architekten-Prompt: Bereitstellungen von agent-architect oder mit Entwurfszugriff.",
+  "InvalidArchitectPrompt": "Dieser Prompt kann kein Architekten-Prompt sein. Wählen Sie eine System-Vorlage dieses Mandanten.",
+  "PromptTemplateInUse": "Diese Prompt-Vorlage ist an Bereitstellungen gebunden. Stellen Sie diese zuerst auf eine andere Vorlage um.",
+  "ReservedEnvironment": "Die Entwurfsumgebung ist für den Testbereich reserviert.",
+  "NoDeploymentInEnvironment": "Der Agent hat in dieser Umgebung keine Bereitstellung."
+ },
+ "views": {
+  "studio": {
+   "title": "Studio",
+   "subtitle": "Entwerfen Sie Agenten und Apps in Entwürfen. An der Live-Konfiguration ändert sich nichts, bis eine Person das Anwenden eines Entwurfs freigibt.",
+   "newDraft": "Neuer Entwurf",
+   "refresh": "Aktualisieren",
+   "search": "Titel durchsuchen",
+   "scopeLabel": "Wessen Entwürfe",
+   "scopes": {
+    "mine": "Meine",
+    "all": "Alle"
+   },
+   "statusLabel": "Status",
+   "columns": {
+    "title": "Titel",
+    "status": "Status",
+    "owner": "Besitzer",
+    "targetApp": "Ziel-App",
+    "items": "Elemente",
+    "version": "Version",
+    "updated": "Aktualisiert"
+   },
+   "open": "Öffnen",
+   "discard": "Verwerfen",
+   "discardTitle": "Entwurf verwerfen",
+   "discardMessage": "{{title}} verwerfen? Ein verworfener Entwurf kann nicht mehr geändert oder angewendet werden.",
+   "discardPendingMessage": "{{title}} verwerfen? Die Freigabe zum Anwenden wird abgebrochen, und der Entwurf kann nicht mehr geändert oder angewendet werden.",
+   "discarded": "{{title}} verworfen.",
+   "emptyTitle": "Keine Entwürfe",
+   "emptyBody": "Beginnen Sie einen Entwurf, leer oder aus einer bestehenden App, und gestalten Sie ihn mit dem Agenten-Architekten.",
+   "emptyFiltered": "Keine Entwürfe entsprechen diesen Filtern.",
+   "untitled": "Unbenannter Entwurf"
+  },
+  "studioDraft": {
+   "title": "Studio-Entwurf",
+   "notFoundTitle": "Entwurf nicht gefunden",
+   "notFoundBody": "Der Entwurf existiert nicht, oder Sie dürfen ihn nicht lesen.",
+   "back": "Alle Entwürfe",
+   "version": "Version {{version}}",
+   "live": "Live",
+   "polling": "Abfrage",
+   "architect": "Architekt",
+   "tabsLabel": "Entwurfsarbeitsbereich",
+   "tabs": {
+    "architect": "Architekt",
+    "items": "Elemente",
+    "graph": "Graph",
+    "apply": "Vergleichen und anwenden",
+    "playground": "Testbereich",
+    "preview": "Kompiliervorschau",
+    "prompts": "Architekten-Prompt"
+   },
+   "notOpen": {
+    "PendingApproval": "Dieser Entwurf wartet auf eine Entscheidung über das Anwenden und kann daher nicht geändert werden. Lehnen Sie die Freigabe ab oder verwerfen Sie den Entwurf, um ihn wieder zu ändern.",
+    "Applied": "Dieser Entwurf wurde auf die Live-Konfiguration angewendet und kann nicht mehr geändert werden. Beginnen Sie für weitere Änderungen einen neuen Entwurf.",
+    "Discarded": "Dieser Entwurf wurde verworfen und kann nicht mehr geändert werden.",
+    "other": "Dieser Entwurf kann gerade nicht geändert werden."
+   },
+   "liveNotice": "Der Entwurf ist jetzt bei Version {{version}} ({{status}}).",
+   "liveChanged": "Geändert: {{items}}.",
+   "removedTag": "entfernt",
+   "dismissNotice": "Ausblenden"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "Neuer Entwurf",
+    "intro": "Ein Entwurf enthält die Manifest-Dokumente, die Sie und der Agenten-Architekt bearbeiten. Beginnen Sie leer oder mit einer bestehenden App samt allem, worauf sie verweist.",
+    "titleField": "Titel",
+    "titlePlaceholder": "Recherche-App mit einem Autor",
+    "fromApp": "Von App ausgehen",
+    "emptyDraft": "Leerer Entwurf",
+    "fromAppHint": "Die App, ihre Mitglieder, deren Bereitstellungen, Prompts und Assets werden zu Elementen. Jedes merkt sich die Live-Version, von der es ausging, damit das Studio spätere Änderungen bemerkt.",
+    "create": "Entwurf erstellen",
+    "creating": "Wird erstellt...",
+    "created": "Entwurf {{title}} begonnen."
+   },
+   "architect": {
+    "title": "Neuer Architekt",
+    "intro": "Der Agenten-Architekt entwirft Agenten und Apps in Ihren Entwürfen. Geben Sie ihm eine Bereitstellung: ein Harness-Profil, ein Modell und den Prompt, mit dem er arbeitet. Er bearbeitet nur Ihre Entwürfe und wendet sie nie an.",
+    "name": "Name der Bereitstellung",
+    "harnessProfile": "Harness-Profil",
+    "chooseProfile": "Harness-Profil wählen",
+    "model": "Modell",
+    "modelHint": "Leer lassen, um das Standardmodell des Harness-Profils zu verwenden.",
+    "prompt": "Architekten-Prompt",
+    "defaultPrompt": "{{name}} (Standard)",
+    "preview": "Prompt-Vorschau",
+    "previewEmpty": "Wählen Sie einen Prompt, um ihn gerendert zu sehen.",
+    "cloneLink": "Diesen Prompt klonen, um ihn zu ändern",
+    "noAgent": "Dieser Mandant hat keinen Agenten namens {{name}}, daher kann kein Architekt erstellt werden. Wenden Sie sich an einen Administrator.",
+    "create": "Architekt erstellen",
+    "creating": "Wird erstellt...",
+    "created": "Architekt {{name}} erstellt."
+   },
+   "chat": {
+    "title": "Architekt",
+    "architect": "Architekten-Bereitstellung",
+    "chooseArchitect": "Architekten wählen",
+    "newArchitect": "Neuer Architekt",
+    "noArchitect": "Es gibt noch keine Architekten-Bereitstellung. Erstellen Sie eine, um mit dem Agenten-Architekten zu entwerfen.",
+    "openConversation": "Konversation öffnen",
+    "newConversation": "Neue Konversation",
+    "you": "Sie",
+    "architectSays": "Architekt",
+    "openRun": "Lauf",
+    "thinking": "Arbeitet...",
+    "empty": "Sagen Sie dem Architekten, was er bauen soll. Die erste Nachricht teilt ihm mit, in welchem Entwurf er arbeitet.",
+    "pickFirst": "Wählen oder erstellen Sie einen Architekten, um zu beginnen.",
+    "message": "Nachricht",
+    "placeholder": "Entwirf eine Recherche-App: ein Planer, der an zwei Rechercheure und einen Autor verteilt.",
+    "firstHint": "Beginnt eine Konversation mit diesem Architekten über diesen Entwurf.",
+    "continueHint": "Setzt die Konversation fort. Ctrl+Enter oder Cmd+Enter sendet.",
+    "send": "Senden"
+   },
+   "items": {
+    "title": "Elemente",
+    "titleCount": "Elemente ({{total}})",
+    "add": "Element hinzufügen",
+    "addConfirm": "Editor öffnen",
+    "columns": {
+     "kind": "Art",
+     "name": "Name",
+     "operation": "Vorgang",
+     "stale": "Veraltet",
+     "updated": "Aktualisiert"
+    },
+    "stale": "Veraltet",
+    "empty": "Noch keine Elemente. Fügen Sie eines hinzu oder fragen Sie den Architekten.",
+    "remove": "Entfernen",
+    "removeTitle": "Element entfernen",
+    "removeMessage": "{{item}} aus dem Entwurf entfernen? Die Live-Konfiguration ändert sich nicht.",
+    "removed": "{{item}} entfernt.",
+    "saved": "{{item}} gespeichert. Der Entwurf ist bei Version {{version}}.",
+    "editorTitle": "{{item}} bearbeiten",
+    "newEditorTitle": "Neues Element {{item}}",
+    "document": "Manifest-Dokument",
+    "versionHint": "Beim Speichern wird Version {{version}} gesendet, die Sie gelesen haben. Hat sich der Entwurf seitdem geändert, wird das Speichern abgelehnt und Ihr Text bleibt hier.",
+    "unsaved": "Ungespeicherte Änderungen",
+    "errors": {
+     "name": "Verwenden Sie Buchstaben, Ziffern, Punkte, Schrägstriche und Bindestriche, beginnend mit einem Buchstaben oder einer Ziffer.",
+     "exists": "Der Entwurf enthält bereits {{kind}}/{{name}}.",
+     "deleteKind": "Nur Elemente vom Typ Agent, Deployment, Pipeline und AgenticApp können gelöscht werden, nicht {{kind}}."
+    },
+    "conflict": {
+     "title": "Der Entwurf hat sich während Ihrer Bearbeitung geändert: Aus Version {{from}} ist jetzt {{to}} geworden.",
+     "added": "Hinzugefügt: {{items}}",
+     "updated": "Bearbeitet: {{items}}",
+     "removed": "Entfernt: {{items}}",
+     "status": "Sein Status ist jetzt {{status}}.",
+     "layout": "Nur das Graph-Layout hat sich geändert.",
+     "mine": "Das Element, das Sie bearbeiten, hat sich ebenfalls geändert. Vergleichen Sie Ihren Text mit der neuen Version, bevor Sie erneut speichern.",
+     "retry": "Ihr Text ist noch im Editor. Speichern Sie erneut, um ihn auf die neue Version anzuwenden.",
+     "dismiss": "Ausblenden"
+    }
+   },
+   "graph": {
+    "title": "Graph",
+    "empty": "Der Entwurf enthält noch keine Apps oder Agenten zum Zeichnen.",
+    "depth": "Tiefe {{depth}}",
+    "entryAgent": "Einstiegsagent: {{name}}",
+    "deleted": "Gelöscht",
+    "inDraft": "Im Entwurf",
+    "loose": "Agenten ohne App",
+    "capabilities": "Fähigkeiten: {{list}}",
+    "legend": "Jeder Aufruf ist mit der benötigten Delegationstiefe beschriftet. Eine durchgezogene Linie erlaubt parallele Aufrufe, eine gestrichelte nur einen Aufruf zur Zeit. Fähigkeiten stehen unter dem Namen eines Agenten."
+   },
+   "diff": {
+    "title": "Vergleichen und anwenden",
+    "refresh": "Vergleich aktualisieren",
+    "validate": "Validieren",
+    "validating": "Wird validiert...",
+    "requestApply": "Anwenden beantragen",
+    "requesting": "Wird beantragt...",
+    "requested": "Anwenden beantragt. Eine Person, die Manifeste anwenden darf, entscheidet darüber.",
+    "valid": "Gültig: {{create}} zu erstellen, {{update}} zu aktualisieren, {{delete}} zu löschen, {{unchanged}} unverändert.",
+    "invalid": "Ungültig: {{failed}} fehlgeschlagen und {{stale}} veraltet. Geplant: {{create}} zu erstellen, {{update}} zu aktualisieren, {{delete}} zu löschen, {{unchanged}} unverändert.",
+    "validOk": "Der Entwurf ist gültig.",
+    "validFailed": "Der Entwurf ist ungültig. Siehe die als fehlgeschlagen oder veraltet markierten Elemente.",
+    "empty": "Der Entwurf enthält keine Elemente zum Vergleichen.",
+    "columns": {
+     "item": "Element",
+     "change": "Änderung",
+     "details": "Details"
+    },
+    "none": "(keine)",
+    "approval": "Freigabe zum Anwenden",
+    "allow": "Zulassen",
+    "deny": "Ablehnen",
+    "allowed": "Zugelassen. Der Entwurf wird angewendet.",
+    "denied": "Abgelehnt. Der Entwurf ist wieder offen.",
+    "reason": "Begründung",
+    "reasonPlaceholder": "Optional, wird mit der Entscheidung gespeichert",
+    "waiting": "Wartet auf eine Person, die Freigaben entscheiden und Manifeste anwenden darf.",
+    "applied": "Als Manifest-Anwendung {{id}} angewendet."
+   },
+   "playground": {
+    "title": "Testbereich",
+    "intro": "Jede Runde speichert das Dokument des Agenten aus dem Entwurf als seine Entwurfsrevision und führt es auf einer temporären Testbereich-Bereitstellung aus. Nichts wird veröffentlicht, und die Live-Konfiguration ändert sich nicht.",
+    "agent": "Agent",
+    "defaultAgent": "Einstiegsagent ({{name}})",
+    "defaultAgentShort": "Einstiegsagent",
+    "input": "Eingabe",
+    "answer": "Antwort",
+    "placeholder": "Was soll der Agent tun?",
+    "firstHint": "Beginnt eine Konversation im Testbereich.",
+    "continueHint": "Setzt die Konversation im Testbereich fort.",
+    "send": "Runde ausführen",
+    "turn": "Runde {{number}}, {{agent}}",
+    "openRun": "Laufdetails",
+    "conversation": "Konversation",
+    "export": "Protokoll herunterladen",
+    "reset": "Neue Konversation",
+    "empty": "Noch keine Runden.",
+    "exportDraft": "Entwurf",
+    "exportTurn": "Runde",
+    "exportRun": "Lauf"
+   },
+   "preview": {
+    "title": "Kompiliervorschau",
+    "intro": "Sehen Sie vor der Bereitstellung, womit ein Lauf starten würde: die Befehlszeile, wo Assets abgelegt werden, und das Einhängen des Dateibereichs. Geheime Werte werden geschwärzt.",
+    "deployment": "Bereitstellung",
+    "chooseDeployment": "Bereitstellung wählen",
+    "revision": "Agentenrevision",
+    "deploymentRevision": "Die eigene Revision der Bereitstellung",
+    "revisionOption": "Revision {{number}} ({{state}})",
+    "environment": "Umgebung",
+    "deploymentEnvironment": "Die Umgebung der Bereitstellung",
+    "input": "Beispieleingabe",
+    "compiled": "{{deployment}} mit {{revision}} kompiliert.",
+    "assets": "Abgelegte Assets ({{total}})",
+    "noAssets": "Die Revision legt keine Assets ab.",
+    "columns": {
+     "path": "Pfad",
+     "asset": "Asset",
+     "kind": "Art",
+     "version": "Version",
+     "size": "Größe"
+    },
+    "fileSpace": "Dateibereich",
+    "fileSpaceMount": "Eingehängt unter {{path}} mit derzeit {{files}} Dateien (höchstens {{maxFiles}} Dateien mit je bis zu {{maxBytes}}).",
+    "noFileSpace": "Es ist kein Dateibereich eingehängt, weil der Lauf nicht Teil einer Konversation wäre.",
+    "redacted": "Der Server schwärzt geheime Werte in der Befehlszeile, der Umgebung und den Dateien."
+   },
+   "prompts": {
+    "title": "Architekten-Prompt",
+    "templatesLink": "In Prompt-Vorlagen öffnen",
+    "forArchitect": "Prompts, die der Agenten-Architekt verwenden kann. Wählen Sie einen für {{architect}}.",
+    "noArchitect": "Prompts, die der Agenten-Architekt verwenden kann. Wählen Sie auf dem Tab Architekt einen Architekten, um ihm einen zuzuweisen.",
+    "nextTurn": "Eine neue Auswahl oder eine gespeicherte Änderung wirkt ab der nächsten Runde des Architekten.",
+    "current": "{{architect}} verwendet {{name}} und folgt dessen aktueller Version ({{version}}).",
+    "currentPinned": "{{architect}} verwendet {{name}}, festgelegt auf Version {{version}}.",
+    "inUse": "{{name}} kann nicht gelöscht werden, solange Bereitstellungen ihn verwenden: {{deployments}}. Wählen Sie für diese zuerst einen anderen Prompt.",
+    "empty": "Keine Architekten-Prompts.",
+    "columns": {
+     "name": "Name",
+     "description": "Beschreibung",
+     "version": "Version",
+     "usedBy": "Verwendet von"
+    },
+    "default": "Standard",
+    "selectedBadge": "Ausgewählt",
+    "usedBy": "Architekten: {{total}}",
+    "select": "Auswählen",
+    "selected": "{{architect}} verwendet {{name}} ab der nächsten Runde.",
+    "saved": "{{name}} als neue Version gespeichert.",
+    "editorTitle": "{{name}} bearbeiten (Version {{version}})",
+    "name": "Name",
+    "description": "Beschreibung",
+    "body": "Prompt-Text",
+    "preview": "Gerenderte Vorschau",
+    "deleteMessage": "{{name}} löschen? Architekten-Bereitstellungen, die ihn verwenden: {{total}}. Ein verwendeter Prompt kann nicht gelöscht werden."
+   }
+  }
+ }
+});

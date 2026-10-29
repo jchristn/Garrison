@@ -2813,3 +2813,218 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "studio": "Das Agenten-Studio: Entwürfe von Agenten und Apps, die Sie mit dem Agenten-Architekten gestalten, im Testbereich ausprobieren und von einer Person anwenden lassen."
+  }
+ },
+ "enums": {
+  "approvalKind": {
+   "DraftApply": "Ein Antrag, einen Studio-Entwurf auf die Live-Konfiguration anzuwenden. Wird er zugelassen, werden alle Dokumente des Entwurfs in einer Manifest-Anwendung angewendet."
+  },
+  "studioDraftStatus": {
+   "Open": "Sie und der Agenten-Architekt können den Entwurf bearbeiten, validieren, im Testbereich ausprobieren und zur Freigabe senden.",
+   "PendingApproval": "Der Entwurf wartet auf die Entscheidung über seine Freigabe und ist bis dahin eingefroren. Eine Ablehnung öffnet ihn wieder.",
+   "Applied": "Der Entwurf wurde in einer Manifest-Anwendung auf die Live-Konfiguration angewendet. Er kann nicht mehr geändert werden.",
+   "Discarded": "Der Entwurf wurde verworfen. Er kann nicht mehr geändert werden, und eine ausstehende Freigabe wurde abgebrochen."
+  },
+  "studioDraftOperation": {
+   "Upsert": "Das Anwenden des Entwurfs erstellt die Ressource oder aktualisiert sie, wenn sie bereits existiert.",
+   "Delete": "Das Anwenden des Entwurfs löscht die Ressource. Nur Agenten, Bereitstellungen, Pipelines und Apps können so gelöscht werden."
+  },
+  "studioDiffChange": {
+   "Create": "Die Ressource existiert noch nicht, daher erstellt das Anwenden des Entwurfs sie.",
+   "Update": "Die Ressource existiert und weicht ab, daher aktualisiert das Anwenden des Entwurfs die aufgeführten Felder.",
+   "Delete": "Der Entwurf löscht diese Ressource, wenn er angewendet wird.",
+   "Unchanged": "Das Dokument entspricht der Live-Konfiguration, daher ändert das Anwenden nichts.",
+   "Failed": "Das Dokument besteht die Validierung nicht. Die Details nennen den Grund; korrigieren Sie es, bevor Sie das Anwenden beantragen."
+  }
+ },
+ "views": {
+  "studio": {
+   "newDraft": "Beginnen Sie einen Entwurf, leer oder aus einer bestehenden App, und öffnen Sie seinen Arbeitsbereich.",
+   "refresh": "Die Liste der Entwürfe erneut vom Server lesen.",
+   "search": "Entwürfe finden, deren Titel diesen Text enthält. Der Server führt die Suche aus.",
+   "scope": "Nur Ihre eigenen Entwürfe zeigen oder alle Entwürfe des Mandanten, die Sie lesen dürfen.",
+   "scopes": {
+    "mine": "Nur die Entwürfe zeigen, die Sie begonnen haben oder die ein Architekt für Sie begonnen hat.",
+    "all": "Alle Entwürfe im Mandanten zeigen, die Sie lesen dürfen, egal wer sie begonnen hat."
+   },
+   "statusChip": "Entwürfe mit dem Status {{status}} zeigen. Ist kein Status gewählt, erscheinen alle.",
+   "columns": {
+    "title": "Der Titel des Entwurfs. Öffnen Sie ihn, um seinen Arbeitsbereich mit Architekt, Elementen, Graph und Anwenden zu sehen.",
+    "status": "Offene Entwürfe können sich ändern; ausstehende warten auf eine Entscheidung; angewendete und verworfene sind endgültig.",
+    "owner": "Die Person, die den Entwurf begonnen hat. Ein Architekt arbeitet nur an den Entwürfen der Person, die mit ihm spricht.",
+    "targetApp": "Die App, die der Entwurf gestaltet. Graph-Vorgänge und der Testbereich verwenden sie standardmäßig.",
+    "items": "Wie viele Manifest-Dokumente der Entwurf enthält, eines pro Ressource.",
+    "version": "Steigt bei jeder Änderung am Entwurf um eins. Jede Bearbeitung nennt die Version, die sie gelesen hat.",
+    "updated": "Wann sich der Entwurf zuletzt geändert hat."
+   },
+   "openDraft": "Den Arbeitsbereich des Entwurfs öffnen: Architekten-Chat, Elemente, Graph, Vergleich und Anwenden, Testbereich und Vorschau.",
+   "discard": "Den Entwurf nach einer Bestätigung verwerfen. Er kann danach nicht mehr geändert oder angewendet werden.",
+   "discardPending": "Den Entwurf nach einer Bestätigung verwerfen. Seine ausstehende Freigabe wird abgebrochen."
+  },
+  "studioDraft": {
+   "version": "Jede Änderung erhöht die Version. Bearbeitungen senden die gelesene Version, damit niemand die Änderung eines anderen überschreibt.",
+   "live": "Mit dem Live-Kanal des Entwurfs verbunden, daher erscheinen Änderungen anderer und des Architekten sofort.",
+   "polling": "Der Live-Kanal ist nicht verfügbar, daher liest die Seite den Entwurf alle paar Sekunden neu.",
+   "back": "Zurück zur Liste der Studio-Entwürfe.",
+   "viewJson": "Den Entwurf so zeigen, wie der Server ihn geliefert hat, mit allen Elementen und dem Canvas-Layout.",
+   "architect": "Die Architekten-Bereitstellung, mit der dieser Arbeitsbereich spricht. Wählen Sie sie auf dem Tab Architekt.",
+   "dismissNotice": "Diesen Hinweis zur letzten Änderung am Entwurf ausblenden.",
+   "tabs": {
+    "architect": "Mit dem Agenten-Architekten sprechen, der diesen Entwurf für Sie bearbeitet.",
+    "items": "Die Manifest-Dokumente im Entwurf, mit einem Editor für jedes.",
+    "graph": "Eine schreibgeschützte Darstellung der Apps, Aufrufe, Delegationstiefe und Fähigkeiten des Entwurfs.",
+    "apply": "Den Entwurf mit der Live-Konfiguration vergleichen, validieren und das Anwenden beantragen.",
+    "playground": "Die Agenten des Entwurfs über mehrere Runden ausführen, bevor etwas veröffentlicht wird.",
+    "preview": "Eine Bereitstellung kompilieren, um Befehlszeile, abgelegte Assets und Dateibereich zu sehen.",
+    "prompts": "Den Prompt wählen und bearbeiten, mit dem der Agenten-Architekt arbeitet."
+   }
+  }
+ },
+ "studio": {
+  "notOpen": "Dieser Entwurf ist {{status}}, und nur ein offener Entwurf kann geändert werden.",
+  "newDraft": {
+   "titleField": "Ein kurzer Name für den Entwurf, angezeigt in der Liste und dem Architekten. Leer ergibt einen Standardtitel.",
+   "fromApp": "Mit einer bestehenden App samt allem, worauf sie verweist, beginnen oder mit einem leeren Entwurf.",
+   "create": "Den Entwurf erstellen und seinen Arbeitsbereich öffnen. Die Live-Konfiguration ändert sich nicht."
+  },
+  "architect": {
+   "name": "Name der neuen Architekten-Bereitstellung in diesem Mandanten, zum Beispiel architect.",
+   "harnessProfileId": "Der Harness, auf dem der Architekt läuft, zum Beispiel Claude Code. Er braucht einen Worker, der ihn ausführen kann.",
+   "model": "Das Modell, das der Harness für den Architekten verwendet. Leer verwendet den Standard des Harness-Profils.",
+   "promptId": "Der System-Prompt, mit dem der Architekt arbeitet. Integrierte kommen zuerst, ihre Klone danach.",
+   "preview": "Der gewählte Prompt, mit Beispielwerten gerendert, so wie der Architekt ihn erhalten würde.",
+   "cloneLink": "Diesen Prompt im Bereich Prompt-Vorlagen öffnen, wo Sie ihn klonen und den Klon bearbeiten können.",
+   "create": "Die Bereitstellung von agent-architect mit Entwurfszugriff und dem gewählten Prompt erstellen.",
+   "noAgent": "Es kann kein Architekt erstellt werden, weil dieser Mandant keinen Agenten agent-architect hat."
+  },
+  "chat": {
+   "title": "Eine Konversation mit dem Agenten-Architekten über diesen Entwurf. Er bearbeitet den Entwurf; Sie geben das Anwenden frei.",
+   "architect": "Die Architekten-Bereitstellung, mit der Sie sprechen. Die Wahl einer anderen beginnt eine neue Konversation.",
+   "newArchitect": "Eine Architekten-Bereitstellung erstellen: Harness-Profil, Modell und Architekten-Prompt.",
+   "openConversation": "Diese Konversation auf einer eigenen Seite öffnen, mit jeder Runde als Lauf.",
+   "newConversation": "Diese Konversation in diesem Browser vergessen und mit der nächsten Nachricht eine neue beginnen.",
+   "you": "Was Sie in dieser Runde an den Architekten gesendet haben.",
+   "architectSays": "Die Antwort des Architekten in dieser Runde. Seine Änderungen am Entwurf erscheinen in den anderen Tabs.",
+   "openRun": "Den Lauf dieser Runde öffnen, mit Protokoll und den aufgerufenen Tools.",
+   "message": "Was der Architekt entwerfen oder ändern soll. Die ID des Entwurfs wird mit der ersten Nachricht gesendet.",
+   "send": "Die Nachricht an den Architekten senden. Die Antwort erscheint hier, wenn die Runde endet.",
+   "sendBusy": "Der Architekt arbeitet noch an der letzten Nachricht. Warten Sie, bis er fertig ist.",
+   "sendNoArchitect": "Wählen oder erstellen Sie eine Architekten-Bereitstellung, bevor Sie eine Nachricht senden."
+  },
+  "items": {
+   "title": "Die Manifest-Dokumente im Entwurf, eines pro Ressource, nach Art und Name geordnet.",
+   "add": "Ein neues Dokument zum Entwurf hinzufügen. Es wird gespeichert, wenn Sie es im Editor speichern.",
+   "addConfirm": "Den Editor mit einem Ausgangsdokument dieser Art und dieses Namens öffnen.",
+   "kind": "Die Manifest-Art des Dokuments, zum Beispiel Agent oder Deployment.",
+   "name": "Der Ressourcenname, der mit dem Namen im Dokument übereinstimmen muss.",
+   "operation": "Die Ressource beim Anwenden erstellen oder aktualisieren, oder sie löschen.",
+   "stale": "Ob sich die Live-Konfiguration geändert hat, nachdem der Entwurf auf diesem Dokument aufgebaut wurde.",
+   "updated": "Wann sich dieses Element im Entwurf zuletzt geändert hat.",
+   "staleBadge": "Die Live-Konfiguration hat sich geändert, nachdem der Entwurf von diesem Dokument ausging. Bringen Sie es vor dem Anwenden auf den neuen Stand.",
+   "editItem": "Dieses Dokument im Editor öffnen, um es zu ändern und zu speichern.",
+   "viewItem": "Dieses Dokument im Editor öffnen, um es zu lesen. Der Entwurf kann gerade nicht geändert werden.",
+   "remove": "Dieses Dokument nach einer Bestätigung aus dem Entwurf entfernen. Die Live-Konfiguration ändert sich nicht.",
+   "editor": "Das Dokument als Manifest-YAML. Beim Speichern wird die gelesene Version gesendet.",
+   "document": "Reines Manifest-YAML. Art und Name müssen mit denen des Elements übereinstimmen.",
+   "save": "Das Dokument in der gelesenen Version im Entwurf speichern.",
+   "closeEditor": "Den Editor schließen. Ungespeicherter Text geht verloren.",
+   "dismissConflict": "Diesen Hinweis zu der Änderung ausblenden, die Ihr Speichern abgelehnt hat."
+  },
+  "graph": {
+   "title": "Schreibgeschützte Darstellung der Apps des Entwurfs: Mitglieder, Aufrufe, Delegationstiefe und Fähigkeiten.",
+   "app": "Eine App, die der Entwurf enthält oder auf die er verweist, ausgehend von ihrem Einstiegsagenten gezeichnet.",
+   "deletedApp": "Das Anwenden des Entwurfs löscht diese App.",
+   "draftedApp": "Der Entwurf enthält das Dokument dieser App, daher zeigt ihr Graph die Version des Entwurfs.",
+   "deletedAgent": "Das Anwenden des Entwurfs löscht diesen Agenten.",
+   "loose": "Agenten im Entwurf, die zu keiner seiner Apps gehören.",
+   "legend": "So lesen Sie den Graph: Beschriftungen, Linienarten und die Fähigkeiten unter jedem Agenten."
+  },
+  "diff": {
+   "title": "Jedes Dokument im Vergleich zur Live-Konfiguration, die Validierung und der Antrag, den Entwurf anzuwenden.",
+   "refresh": "Jedes Dokument erneut mit der Live-Konfiguration vergleichen.",
+   "validate": "Einen Manifest-Probelauf des Entwurfs ausführen. Nichts ändert sich; die Ergebnisse erscheinen pro Element.",
+   "requestApply": "Den Entwurf validieren und eine Freigabe zum Anwenden erstellen. Der Entwurf ist bis zur Entscheidung eingefroren.",
+   "columns": {
+    "item": "Art und Name des Dokuments.",
+    "change": "Was das Anwenden des Entwurfs mit dieser Ressource tun würde.",
+    "details": "Die Felder, die sich ändern, oder der Grund, warum das Dokument die Validierung nicht besteht."
+   },
+   "approval": "Die Freigabe, die entscheidet, ob dieser Entwurf angewendet wird.",
+   "openApproval": "Die Freigabe mit ihrer vollständigen Zusammenfassung und dem Vergleich öffnen.",
+   "reason": "Warum Sie den Entwurf zulassen oder ablehnen. Die Begründung wird mit der Entscheidung gespeichert.",
+   "allow": "Die Freigabe zulassen: Der Entwurf wird erneut validiert und in einer Manifest-Anwendung angewendet.",
+   "deny": "Die Freigabe ablehnen: Nichts wird angewendet, und der Entwurf ist wieder offen."
+  },
+  "playground": {
+   "title": "Die Agenten des Entwurfs über mehrere Runden ausprobieren, bevor etwas veröffentlicht wird.",
+   "agent": "Der auszuführende Agent. Standard ist der Einstiegsagent der Ziel-App des Entwurfs.",
+   "input": "Was der Agent in dieser Runde tun soll.",
+   "send": "Das Dokument des Agenten als seine Entwurfsrevision speichern und im Testbereich ausführen.",
+   "sendBusy": "Die letzte Runde läuft noch. Warten Sie, bis sie fertig ist.",
+   "openRun": "Den Lauf öffnen, mit Laufbaum, Fan-out-Gruppen und den Dateien der Konversation.",
+   "conversation": "Die Konversation im Testbereich öffnen, mit jeder Runde als Lauf.",
+   "export": "Die Runden aus dem Testbereich als Markdown-Datei herunterladen.",
+   "reset": "Mit der nächsten Runde eine neue Konversation im Testbereich beginnen."
+  },
+  "preview": {
+   "title": "Eine Bereitstellung vor dem Bereitstellen mit Beispieleingabe kompilieren. Geheime Werte werden geschwärzt.",
+   "deploymentId": "Die Bereitstellung, die kompiliert werden soll.",
+   "agentRevisionId": "Eine Agentenrevision, die statt der eigenen Revision der Bereitstellung kompiliert wird, zum Beispiel eine Entwurfsrevision.",
+   "environment": "Die Bereitstellung des Agenten in dieser Umgebung statt in der gewählten kompilieren.",
+   "input": "Die Beispieleingabe, mit der der kompilierte Prompt gerendert wird.",
+   "compile": "Die Bereitstellung kompilieren und Befehlszeile, Assets und Dateibereich zeigen.",
+   "compileNoDeployment": "Wählen Sie zuerst eine Bereitstellung zum Kompilieren.",
+   "commandLine": "Der Befehl, den der Worker starten würde, für die Anzeige in Shell-Quoting.",
+   "assets": "Wohin die Assets der Revision geschrieben würden, bevor der Harness startet.",
+   "columns": {
+    "path": "Wo die Datei abgelegt wird, relativ zu den Verzeichnissen des Laufs.",
+    "asset": "Das Agenten-Asset, aus dem die Datei stammt.",
+    "kind": "Wofür das Asset verwendet wird, zum Beispiel ein Skill oder eine Referenzdatei.",
+    "version": "Die Asset-Version, die die Revision festlegt.",
+    "size": "Die Größe der abgelegten Datei."
+   },
+   "fileSpace": "Der gemeinsame Dateibereich der Konversation und wo der Lauf ihn sehen würde."
+  },
+  "prompts": {
+   "title": "Die Prompts, mit denen der Agenten-Architekt arbeiten kann, und welchen jeder Architekt verwendet.",
+   "templatesLink": "Den Bereich Prompt-Vorlagen gefiltert auf Architekten-Prompts öffnen.",
+   "columns": {
+    "name": "Der Name der Prompt-Vorlage. Integrierte beginnen mit builtin/.",
+    "description": "Eine kurze Notiz dazu, was der Prompt beim Architekten anders macht.",
+    "version": "Die aktuelle Version des Prompts. Jedes Speichern erhöht sie um eins.",
+    "usedBy": "Wie viele Architekten-Bereitstellungen diesen Prompt verwenden. Für ihre Namen mit der Maus darüberfahren."
+   },
+   "defaultBadge": "Neue Architekten-Bereitstellungen verwenden diesen Prompt, sofern kein anderer gewählt wird.",
+   "selectedBadge": "Der Prompt, den {{architect}} jetzt verwendet.",
+   "select": "Diesen Prompt dem aktuellen Architekten zuweisen. Er wirkt ab der nächsten Runde des Architekten.",
+   "alreadySelected": "Der aktuelle Architekt verwendet diesen Prompt bereits.",
+   "selectNoArchitect": "Wählen Sie zuerst auf dem Tab Architekt einen Architekten; die Auswahl gilt für diese Bereitstellung.",
+   "clone": "Diesen Prompt in eine neue, bearbeitbare Vorlage kopieren.",
+   "edit": "Name, Beschreibung und Text bearbeiten. Jedes Speichern ergibt eine neue Version.",
+   "delete": "Diesen Prompt nach einer Bestätigung löschen. Ein Prompt, den eine Bereitstellung verwendet, kann nicht gelöscht werden.",
+   "builtInLocked": "Integrierte Prompts können nicht bearbeitet oder gelöscht werden. Klonen Sie diesen Prompt und ändern Sie den Klon.",
+   "editor": "Den Prompt bearbeiten und eine Vorschau sehen. Architekten, die seiner aktuellen Version folgen, verwenden eine Speicherung ab ihrer nächsten Runde.",
+   "closeEditor": "Den Editor schließen. Ungespeicherter Text geht verloren.",
+   "name": "Der Name der Vorlage in diesem Mandanten. Er muss eindeutig bleiben.",
+   "description": "Eine kurze Notiz dazu, was dieser Prompt den Architekten tun lässt.",
+   "body": "Der Prompt-Text, mit Vorlagenvariablen und eingebundenen Fragmenten wie builtin/agent-architect-design.",
+   "preview": "Der Text mit Beispielwerten gerendert, so wie der Architekt ihn erhalten würde.",
+   "save": "Die Änderung als neue Version des Prompts speichern."
+  }
+ }
+});

@@ -30,21 +30,22 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
     'Manifest', 'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
     'Version', 'Version {{version}}', 'Leader', 'Executor', 'Executors', 'Pipeline', 'Pipelines', 'Quorum', 'App', 'Apps', 'Graph',
-    'Logo', 'Revision'
+    'Logo', 'Revision', 'Asset', 'Details', 'Revision {{number}} ({{state}})', 'Studio'
   ],
   ja: [],
   es: [
-    'Endpoint', 'Endpoints', 'Error', 'General', 'Manual', 'No', 'Roles', 'Tokens', 'Tokens/s', 'Total'
+    'Endpoint', 'Endpoints', 'Error', 'General', 'Manual', 'No', 'Roles', 'Tokens', 'Tokens/s', 'Total', 'Asset'
   ],
   fr: [
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
-    'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo'
+    'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',
-    'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file', 'Leader', 'Quorum', 'Logo'
+    'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file', 'Leader', 'Quorum', 'Logo', 'Asset',
+    'Studio'
   ],
   'zh-Hans': [],
   'zh-Hant': [],

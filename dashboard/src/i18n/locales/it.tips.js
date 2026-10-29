@@ -2815,3 +2815,218 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "studio": "Lo studio degli agenti: bozze di agenti e app che progetti con l'architetto di agenti, provi nell'area di prova e fai applicare da una persona."
+  }
+ },
+ "enums": {
+  "approvalKind": {
+   "DraftApply": "Una richiesta di applicare una bozza dello studio alla configurazione attiva. Consentirla applica ogni documento della bozza in un'unica applicazione di manifest."
+  },
+  "studioDraftStatus": {
+   "Open": "Tu e l'architetto di agenti potete modificare la bozza, convalidarla, provarla nell'area di prova e inviarla per l'approvazione.",
+   "PendingApproval": "La bozza attende una decisione sulla sua approvazione di applicazione ed è bloccata fino ad allora. Un rifiuto la riapre.",
+   "Applied": "La bozza è stata applicata alla configurazione attiva in un'unica applicazione di manifest. Non può più cambiare.",
+   "Discarded": "La bozza è stata scartata. Non può più cambiare e un'approvazione di applicazione in sospeso è stata annullata."
+  },
+  "studioDraftOperation": {
+   "Upsert": "L'applicazione della bozza crea la risorsa, o la aggiorna se esiste già.",
+   "Delete": "L'applicazione della bozza elimina la risorsa. Solo agenti, distribuzioni, pipeline e app possono essere eliminati così."
+  },
+  "studioDiffChange": {
+   "Create": "La risorsa non esiste ancora, quindi l'applicazione della bozza la crea.",
+   "Update": "La risorsa esiste ed è diversa, quindi l'applicazione della bozza aggiorna i campi elencati.",
+   "Delete": "La bozza elimina questa risorsa quando viene applicata.",
+   "Unchanged": "Il documento corrisponde alla configurazione attiva, quindi applicarlo non cambia nulla.",
+   "Failed": "Il documento non supera la convalida. I dettagli spiegano perché; correggilo prima di richiedere l'applicazione."
+  }
+ },
+ "views": {
+  "studio": {
+   "newDraft": "Inizia una bozza, vuota o da un'app esistente, e apri la sua area di lavoro.",
+   "refresh": "Rileggi l'elenco delle bozze dal server.",
+   "search": "Trova le bozze il cui titolo contiene questo testo. La ricerca la fa il server.",
+   "scope": "Mostra solo le tue bozze, o tutte le bozze del tenant che puoi leggere.",
+   "scopes": {
+    "mine": "Mostra solo le bozze che hai iniziato tu o che un architetto ha iniziato per te.",
+    "all": "Mostra tutte le bozze del tenant che puoi leggere, chiunque le abbia iniziate."
+   },
+   "statusChip": "Mostra le bozze con stato {{status}}. Se non scegli uno stato, compaiono tutti.",
+   "columns": {
+    "title": "Il titolo della bozza. Aprila per vedere la sua area di lavoro con architetto, elementi, grafo e applicazione.",
+    "status": "Le bozze aperte possono cambiare; quelle in attesa aspettano una decisione; quelle applicate e scartate sono definitive.",
+    "owner": "La persona che ha iniziato la bozza. Un architetto lavora solo sulle bozze della persona che parla con lui.",
+    "targetApp": "L'app che la bozza progetta. Le operazioni sul grafo e l'area di prova la usano per impostazione predefinita.",
+    "items": "Quanti documenti manifest contiene la bozza, uno per risorsa.",
+    "version": "Aumenta di uno a ogni modifica della bozza. Ogni modifica indica la versione che ha letto.",
+    "updated": "Quando la bozza è cambiata l'ultima volta."
+   },
+   "openDraft": "Apri l'area di lavoro della bozza: chat con l'architetto, elementi, grafo, confronto e applicazione, area di prova e anteprima.",
+   "discard": "Scarta la bozza dopo una conferma. Non potrà più cambiare né essere applicata.",
+   "discardPending": "Scarta la bozza dopo una conferma. La sua approvazione di applicazione in sospeso viene annullata."
+  },
+  "studioDraft": {
+   "version": "Ogni modifica aumenta la versione. Le modifiche inviano la versione letta, così nessuno sovrascrive il lavoro di un altro.",
+   "live": "Connesso al canale in diretta della bozza, quindi le modifiche degli altri e dell'architetto compaiono subito.",
+   "polling": "Il canale in diretta non è disponibile, quindi la pagina rilegge la bozza ogni pochi secondi.",
+   "back": "Torna all'elenco delle bozze dello studio.",
+   "viewJson": "Mostra la bozza come l'ha restituita il server, con ogni elemento e il layout della tela.",
+   "architect": "La distribuzione di architetto con cui parla questa area di lavoro. Sceglila nella scheda Architetto.",
+   "dismissNotice": "Nascondi questo avviso sull'ultima modifica della bozza.",
+   "tabs": {
+    "architect": "Parla con l'architetto di agenti, che modifica questa bozza per te.",
+    "items": "I documenti manifest della bozza, con un editor per ciascuno.",
+    "graph": "Un'immagine in sola lettura delle app, chiamate, profondità di delega e capacità della bozza.",
+    "apply": "Confronta la bozza con la configurazione attiva, convalidala e chiedi che venga applicata.",
+    "playground": "Esegui gli agenti della bozza per più turni prima di pubblicare qualsiasi cosa.",
+    "preview": "Compila una distribuzione per vederne la riga di comando, gli asset collocati e il montaggio dello spazio file.",
+    "prompts": "Scegli e modifica il prompt con cui lavora l'architetto di agenti."
+   }
+  }
+ },
+ "studio": {
+  "notOpen": "Questa bozza è {{status}}, e solo una bozza aperta può cambiare.",
+  "newDraft": {
+   "titleField": "Un nome breve per la bozza, mostrato nell'elenco e all'architetto. Se vuoto, si usa un titolo predefinito.",
+   "fromApp": "Parti da un'app esistente con tutto ciò a cui fa riferimento, o inizia con una bozza vuota.",
+   "create": "Crea la bozza e apri la sua area di lavoro. La configurazione attiva non cambia."
+  },
+  "architect": {
+   "name": "Nome della nuova distribuzione di architetto in questo tenant, per esempio architect.",
+   "harnessProfileId": "L'harness su cui gira l'architetto, per esempio Claude Code. Serve un worker in grado di eseguirlo.",
+   "model": "Il modello che l'harness usa per l'architetto. Se vuoto, si usa il predefinito del profilo harness.",
+   "promptId": "Il prompt System con cui lavora l'architetto. Prima i prompt integrati, poi i loro cloni.",
+   "preview": "Il prompt scelto renderizzato con valori di esempio, come lo riceverebbe l'architetto.",
+   "cloneLink": "Apri questo prompt nella schermata Modelli di prompt, dove puoi clonarlo e modificare il clone.",
+   "create": "Crea la distribuzione di agent-architect con accesso alle bozze e il prompt scelto.",
+   "noAgent": "Non è possibile creare un architetto perché questo tenant non ha l'agente agent-architect."
+  },
+  "chat": {
+   "title": "Una conversazione con l'architetto di agenti su questa bozza. Lui modifica la bozza; tu ne approvi l'applicazione.",
+   "architect": "La distribuzione di architetto con cui parlare. Sceglierne un'altra avvia una nuova conversazione.",
+   "newArchitect": "Crea una distribuzione di architetto: profilo harness, modello e prompt dell'architetto.",
+   "openConversation": "Apri questa conversazione in una pagina dedicata, con ogni turno come esecuzione.",
+   "newConversation": "Dimentica questa conversazione in questo browser e iniziane una nuova con il prossimo messaggio.",
+   "you": "Ciò che hai inviato all'architetto in questo turno.",
+   "architectSays": "La risposta dell'architetto in questo turno. Le modifiche apportate alla bozza compaiono nelle altre schede.",
+   "openRun": "Apri l'esecuzione di questo turno, con la trascrizione e gli strumenti chiamati.",
+   "message": "Cosa vuoi che l'architetto progetti o cambi. L'ID della bozza viene inviato con il primo messaggio.",
+   "send": "Invia il messaggio all'architetto. La risposta compare qui alla fine del turno.",
+   "sendBusy": "L'architetto sta ancora lavorando all'ultimo messaggio. Attendi che finisca.",
+   "sendNoArchitect": "Scegli o crea una distribuzione di architetto prima di inviare un messaggio."
+  },
+  "items": {
+   "title": "I documenti manifest della bozza, uno per risorsa, identificati da tipo e nome.",
+   "add": "Aggiungi un nuovo documento alla bozza. Viene salvato quando lo salvi nell'editor.",
+   "addConfirm": "Apri l'editor con un documento iniziale di questo tipo e nome.",
+   "kind": "Il tipo di manifest del documento, per esempio Agent o Deployment.",
+   "name": "Il nome della risorsa, che deve corrispondere al nome nel documento.",
+   "operation": "Crea o aggiorna la risorsa all'applicazione, oppure eliminala.",
+   "stale": "Indica se la configurazione attiva è cambiata dopo che la bozza è partita da questo documento.",
+   "updated": "Quando questo elemento è cambiato l'ultima volta nella bozza.",
+   "staleBadge": "La configurazione attiva è cambiata dopo che la bozza è partita da questo documento. Aggiornalo prima di applicare.",
+   "editItem": "Apri questo documento nell'editor per modificarlo e salvarlo.",
+   "viewItem": "Apri questo documento nell'editor per leggerlo. La bozza non può cambiare in questo momento.",
+   "remove": "Rimuovi questo documento dalla bozza dopo una conferma. La configurazione attiva non cambia.",
+   "editor": "Il documento come YAML di manifest. Il salvataggio invia la versione che hai letto.",
+   "document": "YAML di manifest semplice. Tipo e nome devono corrispondere a quelli dell'elemento.",
+   "save": "Salva il documento nella bozza alla versione che hai letto.",
+   "closeEditor": "Chiudi l'editor. Il testo non salvato va perso.",
+   "dismissConflict": "Nascondi questo avviso sulla modifica che ha rifiutato il tuo salvataggio."
+  },
+  "graph": {
+   "title": "Immagine in sola lettura delle app della bozza: membri, chiamate, profondità di delega e capacità.",
+   "app": "Un'app che la bozza contiene o a cui fa riferimento, disegnata a partire dal suo agente di ingresso.",
+   "deletedApp": "L'applicazione della bozza elimina questa app.",
+   "draftedApp": "La bozza contiene il documento di questa app, quindi il suo grafo mostra la versione della bozza.",
+   "deletedAgent": "L'applicazione della bozza elimina questo agente.",
+   "loose": "Agenti della bozza che non appartengono a nessuna delle sue app.",
+   "legend": "Come leggere il grafo: etichette, stili di linea e le capacità sotto ogni agente."
+  },
+  "diff": {
+   "title": "Ogni documento confrontato con la configurazione attiva, la convalida e la richiesta di applicare la bozza.",
+   "refresh": "Confronta di nuovo ogni documento con la configurazione attiva.",
+   "validate": "Esegui una simulazione di manifest della bozza. Non cambia nulla; i risultati compaiono per elemento.",
+   "requestApply": "Convalida la bozza e crea un'approvazione per applicarla. La bozza resta bloccata finché non si decide.",
+   "columns": {
+    "item": "Il tipo e il nome del documento.",
+    "change": "Cosa farebbe a questa risorsa l'applicazione della bozza.",
+    "details": "I campi che cambiano, o il motivo per cui il documento non supera la convalida."
+   },
+   "approval": "L'approvazione che decide se questa bozza viene applicata.",
+   "openApproval": "Apri l'approvazione con il riepilogo completo e il confronto.",
+   "reason": "Perché consenti o rifiuti la bozza. Viene registrato con la decisione.",
+   "allow": "Consenti l'approvazione: la bozza viene convalidata di nuovo e applicata in un'unica applicazione di manifest.",
+   "deny": "Rifiuta l'approvazione: non viene applicato nulla e la bozza è di nuovo aperta."
+  },
+  "playground": {
+   "title": "Prova gli agenti della bozza per più turni prima di pubblicare qualsiasi cosa.",
+   "agent": "L'agente da eseguire. Il predefinito è l'agente di ingresso dell'app di destinazione della bozza.",
+   "input": "Cosa deve fare l'agente in questo turno.",
+   "send": "Salva il documento dell'agente come sua revisione bozza ed eseguilo nell'area di prova.",
+   "sendBusy": "L'ultimo turno è ancora in esecuzione. Attendi che finisca.",
+   "openRun": "Apri l'esecuzione, con il suo albero di esecuzione, i gruppi di fan-out e i file della conversazione.",
+   "conversation": "Apri la conversazione dell'area di prova, con ogni turno come esecuzione.",
+   "export": "Scarica i turni dell'area di prova come file Markdown.",
+   "reset": "Inizia una nuova conversazione nell'area di prova con il prossimo turno."
+  },
+  "preview": {
+   "title": "Compila una distribuzione con un input di esempio prima di distribuire. I valori segreti vengono oscurati.",
+   "deploymentId": "La distribuzione da compilare per l'anteprima.",
+   "agentRevisionId": "Una revisione dell'agente da compilare al posto di quella della distribuzione, per esempio una revisione bozza.",
+   "environment": "Compila la distribuzione dell'agente in questo ambiente invece di quello scelto.",
+   "input": "L'input di esempio con cui viene renderizzato il prompt compilato.",
+   "compile": "Compila la distribuzione e mostra riga di comando, asset e spazio file.",
+   "compileNoDeployment": "Scegli prima una distribuzione da compilare.",
+   "commandLine": "Il comando che il worker avvierebbe, con le virgolette della shell per la visualizzazione.",
+   "assets": "Dove verrebbero scritti gli asset della revisione prima dell'avvio dell'harness.",
+   "columns": {
+    "path": "Dove viene collocato il file, rispetto alle directory dell'esecuzione.",
+    "asset": "L'asset dell'agente da cui proviene il file.",
+    "kind": "A cosa serve l'asset, per esempio una skill o un file di riferimento.",
+    "version": "La versione dell'asset fissata dalla revisione.",
+    "size": "La dimensione del file collocato."
+   },
+   "fileSpace": "Lo spazio file condiviso della conversazione e dove l'esecuzione lo vedrebbe."
+  },
+  "prompts": {
+   "title": "I prompt con cui l'architetto di agenti può lavorare, e quale usa ciascun architetto.",
+   "templatesLink": "Apri la schermata Modelli di prompt filtrata sui prompt di architetto.",
+   "columns": {
+    "name": "Il nome del modello di prompt. Quelli integrati iniziano con builtin/.",
+    "description": "Una breve nota su cosa il prompt fa fare in modo diverso all'architetto.",
+    "version": "La versione attuale del prompt. Ogni salvataggio aggiunge uno.",
+    "usedBy": "Quante distribuzioni di architetto usano questo prompt. Passa il mouse per vederne i nomi."
+   },
+   "defaultBadge": "Le nuove distribuzioni di architetto usano questo prompt, a meno che non se ne scelga un altro.",
+   "selectedBadge": "Il prompt che {{architect}} usa ora.",
+   "select": "Rendi questo il prompt dell'architetto corrente. Ha effetto dal prossimo turno dell'architetto.",
+   "alreadySelected": "L'architetto corrente usa già questo prompt.",
+   "selectNoArchitect": "Scegli prima un architetto nella scheda Architetto; la selezione si applica a quella distribuzione.",
+   "clone": "Copia questo prompt in un nuovo modello che puoi modificare.",
+   "edit": "Modifica nome, descrizione e corpo. Ogni salvataggio è una nuova versione.",
+   "delete": "Elimina questo prompt dopo una conferma. Un prompt usato da una distribuzione non può essere eliminato.",
+   "builtInLocked": "I prompt integrati non possono essere modificati né eliminati. Clona questo prompt e modifica il clone.",
+   "editor": "Modifica il prompt e guardane l'anteprima. Gli architetti che ne seguono la versione attuale usano un salvataggio dal loro prossimo turno.",
+   "closeEditor": "Chiudi l'editor. Il testo non salvato va perso.",
+   "name": "Il nome del modello in questo tenant. Deve restare univoco.",
+   "description": "Una breve nota su cosa questo prompt fa fare all'architetto.",
+   "body": "Il testo del prompt, con variabili di modello e inclusioni di frammenti come builtin/agent-architect-design.",
+   "preview": "Il corpo renderizzato con valori di esempio, come lo riceverebbe l'architetto.",
+   "save": "Salva la modifica come nuova versione del prompt."
+  }
+ }
+});

@@ -3616,3 +3616,339 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "工作室",
+    "tip": "代理程式工作室：與代理程式架構師一起在草稿中設計代理程式和應用程式，在試驗場中試用，並申請套用草稿。"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "工作室草稿"
+  },
+  "approvalKind": {
+   "DraftApply": "套用草稿"
+  },
+  "studioDraftStatus": {
+   "Open": "可編輯",
+   "PendingApproval": "等待核准",
+   "Applied": "已套用",
+   "Discarded": "已捨棄"
+  },
+  "studioDraftOperation": {
+   "Upsert": "建立或更新",
+   "Delete": "刪除"
+  },
+  "studioDiffChange": {
+   "Create": "建立",
+   "Update": "更新",
+   "Delete": "刪除",
+   "Unchanged": "無變更",
+   "Failed": "失敗"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "你讀取草稿之後它已變更。請重新讀取後再試一次。",
+  "DraftNotOpen": "此草稿不是可編輯狀態，因此無法變更。只有可編輯的草稿才能修改。",
+  "DraftStale": "草稿所依據的即時設定已變更。請重訂過時的項目，然後再次申請套用。",
+  "DraftInvalid": "草稿中有未通過驗證的文件。請先修正標示為「失敗」的項目。",
+  "DraftEmpty": "草稿中沒有任何項目，因此沒有可套用的內容。",
+  "ApproverLacksPermission": "你無權允許此草稿：允許它需要 Manifest 的建立權限，以及草稿所刪除每個種類的刪除權限。",
+  "AgentNotLive": "該代理程式是此草稿中新增的。請先套用草稿，再於試驗場中試用該代理程式。",
+  "NotAnArchitectDeployment": "只有架構師部署才能使用架構師提示，也就是 agent-architect 的部署或具有草稿存取權的部署。",
+  "InvalidArchitectPrompt": "該提示不能作為架構師提示。請選擇此租用戶的 System 範本。",
+  "PromptTemplateInUse": "此提示範本已被部署繫結。請先將這些部署切換到其他範本。",
+  "ReservedEnvironment": "草稿（draft）環境保留給試驗場使用。",
+  "NoDeploymentInEnvironment": "該代理程式在此環境中沒有部署。"
+ },
+ "views": {
+  "studio": {
+   "title": "工作室",
+   "subtitle": "在草稿中設計代理程式和應用程式。在有人核准套用草稿之前，即時設定不會有任何變更。",
+   "newDraft": "新增草稿",
+   "refresh": "重新整理",
+   "search": "搜尋標題",
+   "scopeLabel": "草稿擁有者",
+   "scopes": {
+    "mine": "我的",
+    "all": "全部"
+   },
+   "statusLabel": "狀態",
+   "columns": {
+    "title": "標題",
+    "status": "狀態",
+    "owner": "擁有者",
+    "targetApp": "目標應用程式",
+    "items": "項目",
+    "version": "版本",
+    "updated": "更新時間"
+   },
+   "open": "開啟",
+   "discard": "捨棄",
+   "discardTitle": "捨棄草稿",
+   "discardMessage": "要捨棄 {{title}} 嗎？捨棄後的草稿將無法再變更或套用。",
+   "discardPendingMessage": "要捨棄 {{title}} 嗎？其套用核准將被取消，草稿將無法再變更或套用。",
+   "discarded": "已捨棄 {{title}}。",
+   "emptyTitle": "沒有草稿",
+   "emptyBody": "從空白或現有應用程式開始一份草稿，並與代理程式架構師一起設計。",
+   "emptyFiltered": "沒有符合這些篩選條件的草稿。",
+   "untitled": "未命名草稿"
+  },
+  "studioDraft": {
+   "title": "工作室草稿",
+   "notFoundTitle": "找不到草稿",
+   "notFoundBody": "該草稿不存在，或你無權讀取。",
+   "back": "所有草稿",
+   "version": "版本 {{version}}",
+   "live": "即時",
+   "polling": "輪詢中",
+   "architect": "架構師",
+   "tabsLabel": "草稿工作區",
+   "tabs": {
+    "architect": "架構師",
+    "items": "項目",
+    "graph": "關係圖",
+    "apply": "差異與套用",
+    "playground": "試驗場",
+    "preview": "編譯預覽",
+    "prompts": "架構師提示"
+   },
+   "notOpen": {
+    "PendingApproval": "此草稿正在等待是否套用的決定，因此無法變更。拒絕核准或捨棄草稿後即可再次變更。",
+    "Applied": "此草稿已套用到即時設定，無法再變更。如需進一步變更，請新增草稿。",
+    "Discarded": "此草稿已被捨棄，無法再變更。",
+    "other": "此草稿目前無法變更。"
+   },
+   "liveNotice": "草稿已更新為版本 {{version}}（{{status}}）。",
+   "liveChanged": "已變更：{{items}}。",
+   "removedTag": "已移除",
+   "dismissNotice": "關閉"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "新增草稿",
+    "intro": "草稿存放由你和代理程式架構師編輯的清單文件。可以從空白開始，也可以從現有應用程式及其參照的所有內容開始。",
+    "titleField": "標題",
+    "titlePlaceholder": "附撰稿者的研究應用程式",
+    "fromApp": "從應用程式開始",
+    "emptyDraft": "空白草稿",
+    "fromAppHint": "應用程式、其成員、成員的部署、提示和資產都會成為項目。每個項目都會記住它所依據的即時版本，讓工作室能察覺之後的變更。",
+    "create": "建立草稿",
+    "creating": "正在建立...",
+    "created": "已開始草稿 {{title}}。"
+   },
+   "architect": {
+    "title": "新增架構師",
+    "intro": "代理程式架構師會在你的草稿中設計代理程式和應用程式。請為它提供一個部署：Harness 設定檔、模型以及它使用的提示。它只會編輯你的草稿，從不套用草稿。",
+    "name": "部署名稱",
+    "harnessProfile": "Harness 設定檔",
+    "chooseProfile": "選擇 Harness 設定檔",
+    "model": "模型",
+    "modelHint": "留空則使用 Harness 設定檔的預設模型。",
+    "prompt": "架構師提示",
+    "defaultPrompt": "{{name}}（預設）",
+    "preview": "提示預覽",
+    "previewEmpty": "選擇一個提示即可查看轉譯結果。",
+    "cloneLink": "複製此提示以進行修改",
+    "noAgent": "此租用戶沒有名為 {{name}} 的代理程式，因此無法建立架構師。請洽詢管理員。",
+    "create": "建立架構師",
+    "creating": "正在建立...",
+    "created": "已建立架構師 {{name}}。"
+   },
+   "chat": {
+    "title": "架構師",
+    "architect": "架構師部署",
+    "chooseArchitect": "選擇架構師",
+    "newArchitect": "新增架構師",
+    "noArchitect": "目前還沒有架構師部署。請先建立一個，以便與代理程式架構師一起設計。",
+    "openConversation": "開啟對話",
+    "newConversation": "新對話",
+    "you": "你",
+    "architectSays": "架構師",
+    "openRun": "執行",
+    "thinking": "處理中...",
+    "empty": "告訴架構師要建構什麼。第一則訊息會告訴它要在哪份草稿中工作。",
+    "pickFirst": "請選擇或建立一個架構師以開始。",
+    "message": "訊息",
+    "placeholder": "設計一個研究應用程式：由規劃者將工作分派給兩位研究員和一位撰稿者。",
+    "firstHint": "就此草稿與這位架構師開始一段對話。",
+    "continueHint": "繼續對話。按 Ctrl+Enter 或 Cmd+Enter 傳送。",
+    "send": "傳送"
+   },
+   "items": {
+    "title": "項目",
+    "titleCount": "項目（{{total}}）",
+    "add": "新增項目",
+    "addConfirm": "開啟編輯器",
+    "columns": {
+     "kind": "種類",
+     "name": "名稱",
+     "operation": "操作",
+     "stale": "已過時",
+     "updated": "更新時間"
+    },
+    "stale": "已過時",
+    "empty": "還沒有項目。新增一個，或請架構師處理。",
+    "remove": "移除",
+    "removeTitle": "移除項目",
+    "removeMessage": "要從草稿中移除 {{item}} 嗎？即時設定不會變更。",
+    "removed": "已移除 {{item}}。",
+    "saved": "已儲存 {{item}}。草稿目前為版本 {{version}}。",
+    "editorTitle": "編輯 {{item}}",
+    "newEditorTitle": "新項目 {{item}}",
+    "document": "清單文件",
+    "versionHint": "儲存時會傳送你讀取的版本 {{version}}。如果之後草稿已變更，儲存會被拒絕，你的文字仍會保留在這裡。",
+    "unsaved": "未儲存的變更",
+    "errors": {
+     "name": "請使用字母、數字、句點、斜線和連字號，並以字母或數字開頭。",
+     "exists": "草稿中已有 {{kind}}/{{name}}。",
+     "deleteKind": "只有 Agent、Deployment、Pipeline 和 AgenticApp 項目可以刪除，{{kind}} 不行。"
+    },
+    "conflict": {
+     "title": "你編輯期間草稿已變更：版本 {{from}} 現在是 {{to}}。",
+     "added": "新增：{{items}}",
+     "updated": "已編輯：{{items}}",
+     "removed": "已移除：{{items}}",
+     "status": "其狀態現在是 {{status}}。",
+     "layout": "只有關係圖版面配置變更。",
+     "mine": "你正在編輯的項目也已變更。再次儲存前，請將你的文字與新版本比較。",
+     "retry": "你的文字仍在編輯器中。再次儲存即可套用到新版本。",
+     "dismiss": "關閉"
+    }
+   },
+   "graph": {
+    "title": "關係圖",
+    "empty": "草稿中還沒有可繪製的應用程式或代理程式。",
+    "depth": "深度 {{depth}}",
+    "entryAgent": "入口代理程式：{{name}}",
+    "deleted": "將刪除",
+    "inDraft": "在草稿中",
+    "loose": "不屬於任何應用程式的代理程式",
+    "capabilities": "能力：{{list}}",
+    "legend": "每次呼叫都會標示所需的委派深度。實線表示允許平行呼叫，虛線表示一次只能呼叫一次。能力顯示在代理程式名稱下方。"
+   },
+   "diff": {
+    "title": "差異與套用",
+    "refresh": "重新整理差異",
+    "validate": "驗證",
+    "validating": "正在驗證...",
+    "requestApply": "申請套用",
+    "requesting": "正在申請...",
+    "requested": "已申請套用。將由有權套用清單的人做出決定。",
+    "valid": "有效：{{create}} 個待建立，{{update}} 個待更新，{{delete}} 個待刪除，{{unchanged}} 個無變更。",
+    "invalid": "無效：{{failed}} 個失敗，{{stale}} 個已過時。預計：{{create}} 個待建立，{{update}} 個待更新，{{delete}} 個待刪除，{{unchanged}} 個無變更。",
+    "validOk": "草稿有效。",
+    "validFailed": "草稿無效。請查看標示為「失敗」或「已過時」的項目。",
+    "empty": "草稿中沒有可比較的項目。",
+    "columns": {
+     "item": "項目",
+     "change": "變更",
+     "details": "詳細資料"
+    },
+    "none": "（無）",
+    "approval": "套用核准",
+    "allow": "允許",
+    "deny": "拒絕",
+    "allowed": "已允許。正在套用草稿。",
+    "denied": "已拒絕。草稿已重新變為可編輯。",
+    "reason": "原因",
+    "reasonPlaceholder": "選填，會與決定一起保存",
+    "waiting": "正在等待有權決定核准並套用清單的人。",
+    "applied": "已作為清單套用 {{id}} 完成套用。"
+   },
+   "playground": {
+    "title": "試驗場",
+    "intro": "每一輪都會將草稿中該代理程式的文件儲存為其草稿修訂版本，並在暫時的試驗場部署上執行。不會發布任何內容，即時設定也不會變更。",
+    "agent": "代理程式",
+    "defaultAgent": "入口代理程式（{{name}}）",
+    "defaultAgentShort": "入口代理程式",
+    "input": "輸入",
+    "answer": "回答",
+    "placeholder": "希望代理程式做什麼？",
+    "firstHint": "開始一段試驗場對話。",
+    "continueHint": "繼續試驗場對話。",
+    "send": "執行本輪",
+    "turn": "第 {{number}} 輪，{{agent}}",
+    "openRun": "執行詳細資料",
+    "conversation": "對話",
+    "export": "下載對話紀錄",
+    "reset": "新對話",
+    "empty": "還沒有任何輪次。",
+    "exportDraft": "草稿",
+    "exportTurn": "輪次",
+    "exportRun": "執行"
+   },
+   "preview": {
+    "title": "編譯預覽",
+    "intro": "在部署之前查看執行啟動時的內容：命令列、資產的放置位置以及檔案空間掛接。祕密值會被遮蔽。",
+    "deployment": "部署",
+    "chooseDeployment": "選擇部署",
+    "revision": "代理程式修訂版本",
+    "deploymentRevision": "部署本身的修訂版本",
+    "revisionOption": "修訂版本 {{number}}（{{state}}）",
+    "environment": "環境",
+    "deploymentEnvironment": "部署所在的環境",
+    "input": "範例輸入",
+    "compiled": "已使用 {{revision}} 編譯 {{deployment}}。",
+    "assets": "放置的資產（{{total}}）",
+    "noAssets": "此修訂版本不會放置任何資產。",
+    "columns": {
+     "path": "路徑",
+     "asset": "資產",
+     "kind": "種類",
+     "version": "版本",
+     "size": "大小"
+    },
+    "fileSpace": "檔案空間",
+    "fileSpaceMount": "掛接於 {{path}}，目前有 {{files}} 個檔案（最多 {{maxFiles}} 個檔案，每個最大 {{maxBytes}}）。",
+    "noFileSpace": "由於此執行不屬於任何對話，因此不會掛接檔案空間。",
+    "redacted": "伺服器會遮蔽命令列、環境和檔案中的祕密值。"
+   },
+   "prompts": {
+    "title": "架構師提示",
+    "templatesLink": "在提示範本中開啟",
+    "forArchitect": "代理程式架構師可用的提示。請為 {{architect}} 選擇一個。",
+    "noArchitect": "代理程式架構師可用的提示。請先在「架構師」分頁中選擇架構師，再為它選擇提示。",
+    "nextTurn": "新的選擇或已儲存的編輯會從架構師的下一輪開始生效。",
+    "current": "{{architect}} 使用 {{name}}，跟隨其目前版本（{{version}}）。",
+    "currentPinned": "{{architect}} 使用 {{name}}，固定於版本 {{version}}。",
+    "inUse": "{{name}} 正被以下部署使用，因此無法刪除：{{deployments}}。請先為它們選擇其他提示。",
+    "empty": "沒有架構師提示。",
+    "columns": {
+     "name": "名稱",
+     "description": "說明",
+     "version": "版本",
+     "usedBy": "使用者"
+    },
+    "default": "預設",
+    "selectedBadge": "已選取",
+    "usedBy": "架構師：{{total}}",
+    "select": "選取",
+    "selected": "{{architect}} 將從下一輪開始使用 {{name}}。",
+    "saved": "已將 {{name}} 儲存為新版本。",
+    "editorTitle": "編輯 {{name}}（版本 {{version}}）",
+    "name": "名稱",
+    "description": "說明",
+    "body": "提示內文",
+    "preview": "轉譯預覽",
+    "deleteMessage": "要刪除 {{name}} 嗎？使用它的架構師部署：{{total}}。使用中的提示無法刪除。"
+   }
+  }
+ }
+});

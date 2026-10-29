@@ -3668,3 +3668,339 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Agent studio: the Studio tab, the draft workspace, the architect dialogs, the playground, the compile preview, and the architect prompt panel (AD7.10, AD7.16, AD9.2, AD9.3).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Estudio",
+    "tip": "Estudio de agentes: diseña agentes y aplicaciones en borradores con el arquitecto de agentes, pruébalos en la zona de pruebas y solicita que se aplique un borrador."
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "StudioDraft": "Borrador del estudio"
+  },
+  "approvalKind": {
+   "DraftApply": "Aplicación de borrador"
+  },
+  "studioDraftStatus": {
+   "Open": "Abierto",
+   "PendingApproval": "Pendiente de aprobación",
+   "Applied": "Aplicado",
+   "Discarded": "Descartado"
+  },
+  "studioDraftOperation": {
+   "Upsert": "Crear o actualizar",
+   "Delete": "Eliminar"
+  },
+  "studioDiffChange": {
+   "Create": "Crear",
+   "Update": "Actualizar",
+   "Delete": "Eliminar",
+   "Unchanged": "Sin cambios",
+   "Failed": "Con errores"
+  }
+ },
+ "errorCodes": {
+  "DraftVersionConflict": "El borrador cambió desde que lo leíste. Vuelve a leerlo y reintenta.",
+  "DraftNotOpen": "El borrador no está abierto, así que no puede cambiar. Solo un borrador abierto admite ediciones.",
+  "DraftStale": "La configuración activa cambió después de que el borrador partiera de ella. Actualiza los elementos obsoletos y vuelve a solicitar la aplicación.",
+  "DraftInvalid": "El borrador tiene documentos que no se validan. Corrige primero los elementos marcados Con errores.",
+  "DraftEmpty": "El borrador no tiene elementos, así que no hay nada que aplicar.",
+  "ApproverLacksPermission": "No puedes permitir este borrador: hace falta Create sobre Manifest y Delete sobre cada tipo que el borrador elimina.",
+  "AgentNotLive": "Ese agente es nuevo en este borrador. Aplica el borrador antes de probar el agente en la zona de pruebas.",
+  "NotAnArchitectDeployment": "Solo los despliegues de arquitecto aceptan un prompt de arquitecto: despliegues de agent-architect o con acceso a borradores.",
+  "InvalidArchitectPrompt": "Ese prompt no puede ser un prompt de arquitecto. Elige una plantilla System de este inquilino.",
+  "PromptTemplateInUse": "Esta plantilla de prompt está vinculada a despliegues. Cámbialos primero a otra plantilla.",
+  "ReservedEnvironment": "El entorno de borrador está reservado para la zona de pruebas.",
+  "NoDeploymentInEnvironment": "El agente no tiene ningún despliegue en ese entorno."
+ },
+ "views": {
+  "studio": {
+   "title": "Estudio",
+   "subtitle": "Diseña agentes y aplicaciones en borradores. Nada cambia en la configuración activa hasta que una persona aprueba aplicar un borrador.",
+   "newDraft": "Nuevo borrador",
+   "refresh": "Actualizar",
+   "search": "Buscar títulos",
+   "scopeLabel": "Borradores de quién",
+   "scopes": {
+    "mine": "Míos",
+    "all": "Todos"
+   },
+   "statusLabel": "Estado",
+   "columns": {
+    "title": "Título",
+    "status": "Estado",
+    "owner": "Propietario",
+    "targetApp": "Aplicación de destino",
+    "items": "Elementos",
+    "version": "Versión",
+    "updated": "Actualizado"
+   },
+   "open": "Abrir",
+   "discard": "Descartar",
+   "discardTitle": "Descartar borrador",
+   "discardMessage": "¿Descartar {{title}}? Un borrador descartado ya no puede cambiar ni aplicarse.",
+   "discardPendingMessage": "¿Descartar {{title}}? Su aprobación de aplicación se cancela y el borrador ya no puede cambiar ni aplicarse.",
+   "discarded": "{{title}} descartado.",
+   "emptyTitle": "No hay borradores",
+   "emptyBody": "Empieza un borrador, vacío o a partir de una aplicación existente, y diséñalo con el arquitecto de agentes.",
+   "emptyFiltered": "Ningún borrador coincide con estos filtros.",
+   "untitled": "Borrador sin título"
+  },
+  "studioDraft": {
+   "title": "Borrador del estudio",
+   "notFoundTitle": "Borrador no encontrado",
+   "notFoundBody": "El borrador no existe, o no tienes permiso para leerlo.",
+   "back": "Todos los borradores",
+   "version": "Versión {{version}}",
+   "live": "En vivo",
+   "polling": "Consultando",
+   "architect": "Arquitecto",
+   "tabsLabel": "Espacio de trabajo del borrador",
+   "tabs": {
+    "architect": "Arquitecto",
+    "items": "Elementos",
+    "graph": "Grafo",
+    "apply": "Comparar y aplicar",
+    "playground": "Zona de pruebas",
+    "preview": "Vista previa de compilación",
+    "prompts": "Prompt del arquitecto"
+   },
+   "notOpen": {
+    "PendingApproval": "Este borrador espera una decisión sobre su aplicación, así que no puede cambiar. Deniega la aprobación o descarta el borrador para volver a cambiarlo.",
+    "Applied": "Este borrador se aplicó a la configuración activa y ya no puede cambiar. Empieza un borrador nuevo para más cambios.",
+    "Discarded": "Este borrador se descartó y ya no puede cambiar.",
+    "other": "Este borrador no puede cambiar en este momento."
+   },
+   "liveNotice": "El borrador pasó a la versión {{version}} ({{status}}).",
+   "liveChanged": "Cambiado: {{items}}.",
+   "removedTag": "quitado",
+   "dismissNotice": "Ocultar"
+  }
+ },
+ "components": {
+  "studio": {
+   "newDraft": {
+    "title": "Nuevo borrador",
+    "intro": "Un borrador contiene los documentos de manifiesto que editáis tú y el arquitecto de agentes. Empieza vacío o a partir de una aplicación existente con todo lo que referencia.",
+    "titleField": "Título",
+    "titlePlaceholder": "Aplicación de investigación con un redactor",
+    "fromApp": "Partir de una aplicación",
+    "emptyDraft": "Borrador vacío",
+    "fromAppHint": "La aplicación, sus miembros, sus despliegues, prompts y assets se convierten en elementos. Cada uno recuerda la versión activa de la que partió, para que el estudio detecte cambios posteriores.",
+    "create": "Crear borrador",
+    "creating": "Creando...",
+    "created": "Borrador {{title}} iniciado."
+   },
+   "architect": {
+    "title": "Nuevo arquitecto",
+    "intro": "El arquitecto de agentes diseña agentes y aplicaciones en tus borradores. Dale un despliegue: un perfil de harness, un modelo y el prompt con el que trabaja. Solo edita tus borradores y nunca los aplica.",
+    "name": "Nombre del despliegue",
+    "harnessProfile": "Perfil de harness",
+    "chooseProfile": "Elige un perfil de harness",
+    "model": "Modelo",
+    "modelHint": "Déjalo vacío para usar el modelo predeterminado del perfil de harness.",
+    "prompt": "Prompt del arquitecto",
+    "defaultPrompt": "{{name}} (predeterminado)",
+    "preview": "Vista previa del prompt",
+    "previewEmpty": "Elige un prompt para verlo renderizado.",
+    "cloneLink": "Clona este prompt para cambiarlo",
+    "noAgent": "Este inquilino no tiene ningún agente llamado {{name}}, así que no se puede crear un arquitecto. Pregunta a un administrador.",
+    "create": "Crear arquitecto",
+    "creating": "Creando...",
+    "created": "Arquitecto {{name}} creado."
+   },
+   "chat": {
+    "title": "Arquitecto",
+    "architect": "Despliegue de arquitecto",
+    "chooseArchitect": "Elige un arquitecto",
+    "newArchitect": "Nuevo arquitecto",
+    "noArchitect": "Todavía no hay ningún despliegue de arquitecto. Crea uno para diseñar con el arquitecto de agentes.",
+    "openConversation": "Abrir conversación",
+    "newConversation": "Nueva conversación",
+    "you": "Tú",
+    "architectSays": "Arquitecto",
+    "openRun": "Ejecución",
+    "thinking": "Trabajando...",
+    "empty": "Dile al arquitecto qué construir. El primer mensaje le indica en qué borrador trabajar.",
+    "pickFirst": "Elige o crea un arquitecto para empezar.",
+    "message": "Mensaje",
+    "placeholder": "Diseña una aplicación de investigación: un planificador que reparte el trabajo entre dos investigadores y un redactor.",
+    "firstHint": "Inicia una conversación con este arquitecto sobre este borrador.",
+    "continueHint": "Continúa la conversación. Ctrl+Enter o Cmd+Enter envía.",
+    "send": "Enviar"
+   },
+   "items": {
+    "title": "Elementos",
+    "titleCount": "Elementos ({{total}})",
+    "add": "Añadir elemento",
+    "addConfirm": "Abrir editor",
+    "columns": {
+     "kind": "Tipo",
+     "name": "Nombre",
+     "operation": "Operación",
+     "stale": "Obsoleto",
+     "updated": "Actualizado"
+    },
+    "stale": "Obsoleto",
+    "empty": "Todavía no hay elementos. Añade uno o pídeselo al arquitecto.",
+    "remove": "Quitar",
+    "removeTitle": "Quitar elemento",
+    "removeMessage": "¿Quitar {{item}} del borrador? La configuración activa no cambia.",
+    "removed": "{{item}} quitado.",
+    "saved": "{{item}} guardado. El borrador está en la versión {{version}}.",
+    "editorTitle": "Editar {{item}}",
+    "newEditorTitle": "Nuevo elemento {{item}}",
+    "document": "Documento de manifiesto",
+    "versionHint": "Al guardar se envía la versión {{version}}, la que leíste. Si el borrador cambió desde entonces, se rechaza el guardado y tu texto se queda aquí.",
+    "unsaved": "Cambios sin guardar",
+    "errors": {
+     "name": "Usa letras, dígitos, puntos, barras y guiones, empezando por una letra o un dígito.",
+     "exists": "El borrador ya contiene {{kind}}/{{name}}.",
+     "deleteKind": "Solo se pueden eliminar elementos Agent, Deployment, Pipeline y AgenticApp, no {{kind}}."
+    },
+    "conflict": {
+     "title": "El borrador cambió mientras lo editabas: la versión {{from}} ahora es {{to}}.",
+     "added": "Añadidos: {{items}}",
+     "updated": "Editados: {{items}}",
+     "removed": "Quitados: {{items}}",
+     "status": "Su estado ahora es {{status}}.",
+     "layout": "Solo cambió la disposición de su grafo.",
+     "mine": "El elemento que editas también cambió. Compara tu texto con la nueva versión antes de volver a guardar.",
+     "retry": "Tu texto sigue en el editor. Guarda de nuevo para aplicarlo a la nueva versión.",
+     "dismiss": "Ocultar"
+    }
+   },
+   "graph": {
+    "title": "Grafo",
+    "empty": "El borrador todavía no tiene aplicaciones ni agentes que dibujar.",
+    "depth": "profundidad {{depth}}",
+    "entryAgent": "Agente de entrada: {{name}}",
+    "deleted": "Eliminado",
+    "inDraft": "En el borrador",
+    "loose": "Agentes sin aplicación",
+    "capabilities": "Capacidades: {{list}}",
+    "legend": "Cada llamada lleva la profundidad de delegación que necesita. Una línea continua permite llamadas en paralelo; una discontinua, una llamada cada vez. Las capacidades aparecen bajo el nombre de un agente."
+   },
+   "diff": {
+    "title": "Comparar y aplicar",
+    "refresh": "Actualizar comparación",
+    "validate": "Validar",
+    "validating": "Validando...",
+    "requestApply": "Solicitar aplicación",
+    "requesting": "Solicitando...",
+    "requested": "Aplicación solicitada. Decide una persona con permiso para aplicar manifiestos.",
+    "valid": "Válido: {{create}} para crear, {{update}} para actualizar, {{delete}} para eliminar, {{unchanged}} sin cambios.",
+    "invalid": "No válido: {{failed}} con errores y {{stale}} obsoletos. Previsto: {{create}} para crear, {{update}} para actualizar, {{delete}} para eliminar, {{unchanged}} sin cambios.",
+    "validOk": "El borrador es válido.",
+    "validFailed": "El borrador no es válido. Revisa los elementos marcados Con errores u Obsoleto.",
+    "empty": "El borrador no tiene elementos que comparar.",
+    "columns": {
+     "item": "Elemento",
+     "change": "Cambio",
+     "details": "Detalles"
+    },
+    "none": "(ninguno)",
+    "approval": "Aprobación de aplicación",
+    "allow": "Permitir",
+    "deny": "Denegar",
+    "allowed": "Permitido. El borrador se está aplicando.",
+    "denied": "Denegado. El borrador vuelve a estar abierto.",
+    "reason": "Motivo",
+    "reasonPlaceholder": "Opcional, se guarda con la decisión",
+    "waiting": "Esperando a una persona que pueda decidir aprobaciones y aplicar manifiestos.",
+    "applied": "Aplicado como aplicación de manifiesto {{id}}."
+   },
+   "playground": {
+    "title": "Zona de pruebas",
+    "intro": "Cada turno guarda el documento del agente en el borrador como su revisión de borrador y lo ejecuta en un despliegue temporal de la zona de pruebas. No se publica nada y la configuración activa no cambia.",
+    "agent": "Agente",
+    "defaultAgent": "Agente de entrada ({{name}})",
+    "defaultAgentShort": "Agente de entrada",
+    "input": "Entrada",
+    "answer": "Respuesta",
+    "placeholder": "¿Qué debe hacer el agente?",
+    "firstHint": "Inicia una conversación en la zona de pruebas.",
+    "continueHint": "Continúa la conversación de la zona de pruebas.",
+    "send": "Ejecutar turno",
+    "turn": "Turno {{number}}, {{agent}}",
+    "openRun": "Detalle de la ejecución",
+    "conversation": "Conversación",
+    "export": "Descargar transcripción",
+    "reset": "Nueva conversación",
+    "empty": "Todavía no hay turnos.",
+    "exportDraft": "Borrador",
+    "exportTurn": "Turno",
+    "exportRun": "Ejecución"
+   },
+   "preview": {
+    "title": "Vista previa de compilación",
+    "intro": "Mira con qué empezaría una ejecución antes de desplegar: la línea de comandos, dónde se colocan los assets y el montaje del espacio de archivos. Los valores secretos se ocultan.",
+    "deployment": "Despliegue",
+    "chooseDeployment": "Elige un despliegue",
+    "revision": "Revisión del agente",
+    "deploymentRevision": "La revisión propia del despliegue",
+    "revisionOption": "Revisión {{number}} ({{state}})",
+    "environment": "Entorno",
+    "deploymentEnvironment": "El entorno del despliegue",
+    "input": "Entrada de ejemplo",
+    "compiled": "{{deployment}} compilado con {{revision}}.",
+    "assets": "Assets colocados ({{total}})",
+    "noAssets": "La revisión no coloca ningún asset.",
+    "columns": {
+     "path": "Ruta",
+     "asset": "Asset",
+     "kind": "Tipo",
+     "version": "Versión",
+     "size": "Tamaño"
+    },
+    "fileSpace": "Espacio de archivos",
+    "fileSpaceMount": "Montado en {{path}} con {{files}} archivos ahora (como máximo {{maxFiles}} archivos de hasta {{maxBytes}} cada uno).",
+    "noFileSpace": "No hay ningún espacio de archivos montado, porque la ejecución no formaría parte de una conversación.",
+    "redacted": "El servidor oculta los valores secretos en la línea de comandos, el entorno y los archivos."
+   },
+   "prompts": {
+    "title": "Prompt del arquitecto",
+    "templatesLink": "Abrir en Plantillas de prompt",
+    "forArchitect": "Prompts que puede usar el arquitecto de agentes. Selecciona uno para {{architect}}.",
+    "noArchitect": "Prompts que puede usar el arquitecto de agentes. Elige un arquitecto en la pestaña Arquitecto para asignarle uno.",
+    "nextTurn": "Una nueva selección o una edición guardada surte efecto en el siguiente turno del arquitecto.",
+    "current": "{{architect}} usa {{name}} y sigue su versión actual ({{version}}).",
+    "currentPinned": "{{architect}} usa {{name}}, fijado en la versión {{version}}.",
+    "inUse": "{{name}} no se puede eliminar mientras lo usen despliegues: {{deployments}}. Selecciona primero otro prompt para ellos.",
+    "empty": "No hay prompts de arquitecto.",
+    "columns": {
+     "name": "Nombre",
+     "description": "Descripción",
+     "version": "Versión",
+     "usedBy": "Usado por"
+    },
+    "default": "Predeterminado",
+    "selectedBadge": "Seleccionado",
+    "usedBy": "Arquitectos: {{total}}",
+    "select": "Seleccionar",
+    "selected": "{{architect}} usa {{name}} a partir de su siguiente turno.",
+    "saved": "{{name}} guardado como nueva versión.",
+    "editorTitle": "Editar {{name}} (versión {{version}})",
+    "name": "Nombre",
+    "description": "Descripción",
+    "body": "Cuerpo del prompt",
+    "preview": "Vista previa renderizada",
+    "deleteMessage": "¿Eliminar {{name}}? Despliegues de arquitecto que lo usan: {{total}}. Un prompt en uso no se puede eliminar."
+   }
+  }
+ }
+});

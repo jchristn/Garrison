@@ -27,6 +27,8 @@ import ArtifactStoresView from '../ArtifactStoresView';
 import AgentAssetsView from '../AgentAssetsView';
 import CapabilitiesView from '../CapabilitiesView';
 import AppsView from '../AppsView';
+import StudioView from '../StudioView';
+import StudioDraftView from '../StudioDraftView';
 import ManifestsView from '../ManifestsView';
 import RequestHistoryView from '../RequestHistoryView';
 import AuditView from '../AuditView';
@@ -76,6 +78,7 @@ export const PAGE_VIEWS = {
   agentAssets: AgentAssetsView,
   capabilities: CapabilitiesView,
   apps: AppsView,
+  studio: StudioView,
   modelPrices: ModelPricesView,
   usageQuotas: UsageQuotasView,
   notifications: NotificationsView,
@@ -99,5 +102,6 @@ export const DETAIL_VIEWS = {
   pipelineRuns: PipelineRunDetailView,
   approvals: ApprovalDetailView,
   agents: AgentDetailView,
-  promptTemplates: PromptTemplateEditorView
+  promptTemplates: PromptTemplateEditorView,
+  studio: StudioDraftView
 };

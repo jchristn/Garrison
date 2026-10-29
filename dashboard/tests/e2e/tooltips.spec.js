@@ -343,6 +343,68 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await expect(page.getByTestId('app-revisions')).toBeVisible();
   await closeModal(page);
 
+  // AD7.10, AD7.16, AD9.2, AD9.3: the studio workspace on every tab (an open draft and one pending approval), the new
+  // item form and the item editor, the New architect dialog, the apply approval decided inline, the architect prompt
+  // editor, a playground turn, and a compile preview with placed assets and a file space.
+  for (const [path, context] of [
+    ['/dashboard/studio/drf_0001', 'studio draft'],
+    ['/dashboard/studio/drf_0002', 'studio draft pending approval']
+  ]) {
+    await page.goto(path);
+    await settle(page);
+    await audit(page, context);
+    await clickTabs(page, '.dashboard-content [role="tablist"]:not(.hub-tab-strip) [role="tab"]', context);
+  }
+  await page.goto('/dashboard/studio/drf_0001?tab=items');
+  await settle(page);
+  await page.getByTestId('studio-item-add').click();
+  await audit(page, 'studio new item form');
+  await page.locator('#studio-item-name').fill('reviewer');
+  await page.getByTestId('studio-item-add-confirm').click();
+  await expect(page.getByTestId('studio-item-editor')).toBeVisible();
+  await audit(page, 'studio item editor');
+  await page.goto('/dashboard/studio/drf_0001');
+  await settle(page);
+  await page.getByTestId('studio-new-architect').click();
+  await expect(page.getByTestId('new-architect')).toBeVisible();
+  await settle(page);
+  await audit(page, 'studio new architect');
+  await closeModal(page);
+  await page.goto('/dashboard/studio/drf_0001?tab=apply');
+  await settle(page);
+  await page.getByTestId('studio-request-apply').click();
+  await expect(page.getByTestId('studio-approval-allow')).toBeVisible();
+  await audit(page, 'studio apply approval');
+  await page.goto('/dashboard/studio/drf_0001?tab=prompts');
+  await settle(page);
+  await page.getByTestId('architect-prompt-edit-agent-architect-team').click();
+  await expect(page.getByTestId('architect-prompt-editor')).toBeVisible();
+  await settle(page);
+  await audit(page, 'studio architect prompt editor');
+  await page.goto('/dashboard/studio/drf_0001?tab=playground');
+  await settle(page);
+  await page.getByTestId('studio-playground-input').fill('Summarize the README');
+  await page.getByTestId('studio-playground-send').click();
+  await expect(page.locator('[data-playground-turn="1"]')).toBeVisible();
+  await audit(page, 'studio playground turn');
+  await page.route(/\/deployments\/dep_0001\/compile-preview$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        commandLine: 'claude -p',
+        deploymentId: 'dep_0001',
+        spec: { executable: 'claude', arguments: ['-p'], assetFiles: [{ assetName: 'style', kind: 'Skill', version: 1, path: '.claude/skills/style/SKILL.md', sizeBytes: 20 }], fileSpace: { mountPath: 'files', maxFiles: 1000, maxFileBytes: 33554432, files: [] } }
+      })
+    })
+  );
+  await page.goto('/dashboard/studio/drf_0001?tab=preview');
+  await settle(page);
+  await page.getByTestId('studio-preview-deploymentId').selectOption('dep_0001');
+  await page.getByTestId('studio-preview-compile').click();
+  await expect(page.getByTestId('studio-preview-assets')).toBeVisible();
+  await audit(page, 'studio compile preview');
+
   // AD2.8: the asset form for a system prompt, and the version dialog with a preview and files chosen for upload.
   await page.goto('/dashboard/configuration?tab=agent-assets');
   await settle(page);
