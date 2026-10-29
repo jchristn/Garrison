@@ -64,6 +64,8 @@ await check("model price CRUD", async () => {
 await check("builtin harness profiles", async () => {
   const profiles = await client.harnessProfiles.builtin();
   require(profiles.some((p) => p.name === "builtin/provider-api" && p.harnessType === "ProviderApi" && p.outputParser === "ProviderApiJsonl"), "optional provider profile");
+  require(profiles.some((p) => p.name === "builtin/opencode" && p.harnessType === "OpenCode" && p.outputParser === "OpenCodeJsonl"), "opencode profile");
+  require(profiles.some((p) => p.name === "builtin/pi" && p.harnessType === "Pi" && p.outputParser === "PiJsonl"), "pi profile");
   const fake = profiles.find((p) => p.name === "builtin/fake");
   require(fake, "builtin/fake not found");
   state.fake = fake.id;

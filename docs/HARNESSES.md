@@ -1,6 +1,6 @@
 # Harnesses
 
-A harness is the command-line agent that does the actual work: Claude Code, Codex, Mux, Gemini CLI, or anything else that can take a prompt and print what it is doing. Garrison never links against a harness. It describes each one as data in a **harness profile**, compiles that profile together with an agent and a deployment into an `ExecutionSpec`, and hands the spec to a worker, which runs it.
+A harness is the command-line agent that does the actual work: Claude Code, Codex, Mux, Gemini CLI, opencode, pi, or anything else that can take a prompt and print what it is doing. Garrison never links against a harness. It describes each one as data in a **harness profile**, compiles that profile together with an agent and a deployment into an `ExecutionSpec`, and hands the spec to a worker, which runs it.
 
 This page covers what a profile contains, how a deployment changes it, how the worker runs it, the built-in profiles, and how to add a new CLI without writing code.
 
@@ -29,6 +29,8 @@ Everything that varies by harness is in the profile, and everything is a templat
 | `builtin/codex-app-server` | `codex` | one `turn/start` over JSON-RPC (`CodexAppServer`) | `-c model_instructions_file=...` | one `--config=mcp_servers.<name>...` override per setting | `CodexAppServer` | final event |
 | `builtin/mux` | `mux` | stdin | `--system-prompt` file | `--mcp-config` JSON file with `--strict-mcp-config` | `MuxJsonl` | `--output-last-message` file |
 | `builtin/gemini-cli` | `gemini` | stdin | `GEMINI_SYSTEM_MD` file | `settings.json` in an isolated `GEMINI_CLI_HOME` | `GeminiStreamJson` | final event |
+| `builtin/opencode` | `opencode` | stdin | `instructions` file in the private config | `mcp` object of the private `OPENCODE_CONFIG` file | `OpenCodeJsonl` | last step |
+| `builtin/pi` | `pi` | stdin | `--append-system-prompt` file | `mcp.json` in a private `PI_CODING_AGENT_DIR` | `PiJsonl` | last assistant message |
 | `builtin/generic-jsonl` | from the `executable` parameter | stdin | prepended to the prompt | none | `GenericJsonl` | final event |
 | `builtin/provider-api` | `garrison-provider-api` | stdin | compiled template configuration | HTTP MCP entries in private config | `ProviderApiJsonl` | final event |
 | `builtin/fake` | `garrison-fake-harness` | stdin | file | none | `ClaudeStreamJson` | final event |
@@ -202,6 +204,74 @@ gemini -p "" -o stream-json --skip-trust --approval-mode <approvalMode, default 
 
 Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` from `builtin/gemini-settings`, and the system prompt is passed as the file named by `GEMINI_SYSTEM_MD`. The key comes from a secret of kind `GeminiApiKey`. Gemini CLI is not in the worker image unless it is built with `INCLUDE_GEMINI=true`.
 
+### opencode
+
+```text
+opencode run --format json --thinking [--auto (autoApprove, default true)] --title "garrison <run id>"
+             [-m <model>] [--variant <effort>] [--agent <agent>] [--session <session>]
+```
+
+The prompt goes to stdin; with no message arguments, `opencode run` reads all of stdin as the message. The profile writes one private configuration file, `$GARRISON_CONFIG_DIR/opencode.json` (mode 600), from `builtin/opencode-config` and points `OPENCODE_CONFIG` at it. The file turns off `autoupdate`, lists the system prompt file under `instructions`, and holds every MCP server. opencode adds instruction files to its own system prompt, so the agent keeps opencode's tool guidance. HTTP servers become `remote` entries with their headers and `oauth: false`; stdio servers become `local` entries with the command and its arguments in one array and the variables under `environment`. opencode applies an MCP server's `timeout` to connecting and to every tool call (default 5 seconds), so the file sets it to the server's tool timeout. The Garrison server gets ten minutes, which leaves a delegated agent time to answer.
+
+Other settings:
+
+- The model is a `provider/model` name, such as `anthropic/claude-sonnet-4-5` or `openai/gpt-5.5`. Without one, opencode picks its own default. The deployment's `effort` becomes `--variant`, the provider's reasoning effort (for example `high`).
+- `--auto` approves every permission request that the configuration does not deny. Without it, a headless `opencode run` rejects each request, so a tool that asks (for example a write outside the workspace) fails. Set `autoApprove` to `false` to drop the flag.
+- `--title` names the session after the run. opencode otherwise spends a model call writing a title.
+- `--thinking` makes opencode print reasoning parts, which become `Thinking` events.
+- `OPENCODE_DISABLE_PROJECT_CONFIG=1` stops opencode from loading an `opencode.json` or `.opencode` directory from the workspace, which could add MCP servers, plugins, or permission rules. The same switch also skips the workspace's `AGENTS.md` and `CLAUDE.md`. Set the `projectConfig` parameter to `true` to load project configuration and instruction files.
+- `OPENCODE_DISABLE_AUTOUPDATE=1` and `OPENCODE_DISABLE_LSP_DOWNLOAD=1` keep a run from updating opencode or downloading language servers.
+- `agent` selects an opencode agent other than the default `build` (`--agent`).
+
+Credentials: a secret of kind `AnthropicApiKey` becomes `ANTHROPIC_API_KEY`, `OpenAiApiKey` becomes `OPENAI_API_KEY`, and `GeminiApiKey` becomes `GOOGLE_GENERATIVE_AI_API_KEY`. The credential allowlist also has `OPENROUTER_API_KEY`, so a deployment can add an environment override such as `OPENROUTER_API_KEY` = `{{secret.openrouter}}`. For any other provider, or a custom base URL, clone the profile and extend the configuration template. opencode is not in the worker image unless it is built with `INCLUDE_OPENCODE=true` (version `OPENCODE_VERSION`, default 1.19.5, the npm package `opencode-ai`).
+
+`opencode run --format json` prints one JSON object per line with `type`, `timestamp`, `sessionID`, and a `part` or an `error`:
+
+| Line `type` | Garrison event or field |
+|---|---|
+| `text` | `AssistantText` once the text part is complete; opencode prints no partial text. Each step of the agent loop is its own assistant message, and the text of the last step is the result. |
+| `reasoning` | `Thinking` |
+| `tool_use` | `ToolCall` with the input, then `ToolResult` with the output, or with the error when the tool failed. opencode prints a tool part only after it has finished. |
+| `step_finish` | `Usage` (input tokens, cache reads as cached tokens, output plus reasoning tokens, and `cost` in USD) and the finish reason. `tool-calls` means the loop goes on; `stop` ends the run with a `Result`; `length`, `content-filter`, and `error` fail it. |
+| `error` | `Error` and a failed run. A `ProviderAuthError` (no key) or an `APIError` with status 401 makes the outcome `NotCredentialed`. opencode exits 1 after one. |
+| `sessionID` (every line) | The session that a structured output repair or the next conversation turn resumes with `--session`. |
+
+The success policy is `FinalEventAndExitCode`: the last step must finish with a reason other than `tool-calls`, and opencode must exit 0. opencode keeps its sessions in its data directory under the run's isolated `HOME` (`~/.local/share/opencode`). The stream does not name the served model, so `servedModel` stays empty for opencode runs.
+
+### pi
+
+```text
+pi --mode json --no-approve --no-skills --no-prompt-templates [--model <model>] [--thinking <effort>]
+   [--tools <tools>] [--append-system-prompt, or --system-prompt with replaceSystemPrompt] $GARRISON_CONFIG_DIR/system-prompt.md
+   [--no-session (when nothing will resume the session)] [--session <session>]
+```
+
+The prompt goes to stdin. With no message arguments pi uses stdin as the message, and it does not run stdin text that starts with `/` as a command. `PI_CODING_AGENT_DIR` points at `$GARRISON_CONFIG_DIR/pi-agent`, so pi's settings, credential store, and sessions are private to the run, and nothing from the worker's own `~/.pi` is read. MCP servers go to `pi-agent/mcp.json` from `builtin/pi-mcp-config`, in the `mcpServers` format pi shares with other clients. Header and environment values are written as `${GARRISON_MCP_<n>_H<i>}` references to variables the worker sets, so no token is written into the file. Each server gets its tool timeout in seconds (pi's default is 60) and `exposure` set to `direct` (the `mcpExposure` parameter), so its tools are declared to the model like built-in tools. With pi's default exposure, `codemode`, the model could reach MCP tools only from scripts.
+
+Other settings:
+
+- The model is a `provider/model` name, such as `anthropic/claude-sonnet-4-5`, optionally with a `:<thinking>` suffix. The deployment's `effort` becomes `--thinking` (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`).
+- The system prompt is appended to pi's own, which describes its tools. Set `replaceSystemPrompt` to `true` to pass it with `--system-prompt` instead.
+- `--no-approve` ignores the trust-gated project files in the workspace (`.pi/settings.json`, `.pi/mcp.json`, project extensions). pi still reads `AGENTS.md` and `CLAUDE.md` in the workspace, as Claude Code and Codex do. `--no-skills` and `--no-prompt-templates` keep runs independent of skills and prompt templates.
+- `tools` replaces pi's default tool selection (`read`, `bash`, `edit`, `write`) with a comma-separated list, passed as `--tools`.
+- pi keeps every session unless told otherwise, so the profile adds `--no-session` when nothing will resume the run (no output schema and not a conversation turn).
+- `PI_SKIP_VERSION_CHECK=1` and `PI_TELEMETRY=0` turn off the version check and install telemetry.
+
+Credentials: `AnthropicApiKey` becomes `ANTHROPIC_API_KEY`, `OpenAiApiKey` becomes `OPENAI_API_KEY`, and `GeminiApiKey` becomes `GEMINI_API_KEY`. `OPENROUTER_API_KEY` is on the credential allowlist for an environment override, as for opencode. pi is not in the worker image unless it is built with `INCLUDE_PI=true` (version `PI_VERSION`, default 1.4.0, the npm package `@earendil-works/pi-coding-agent`).
+
+What Garrison reads from `pi --mode json`:
+
+| Event | Garrison event or field |
+|---|---|
+| `session` (the first line) | The session ID, resumed later with `--session <id>`. pi exits 1 when the session does not exist, so a repair never starts fresh without saying so. |
+| `message_update` with `text_delta` or `thinking_delta` | `AssistantText` or `Thinking`, one per delta |
+| `message_end` of an assistant message | Usage (input, `cacheRead` as cached tokens, output, `cost.total`), the served model, and the stop reason. System, user, and tool result messages are ignored, so the system prompt pi echoes in its first records never becomes an event. |
+| `tool_execution_start`, `tool_execution_end` | `ToolCall` and `ToolResult` |
+| `auto_retry_start`, `auto_retry_end` with `success: false`, a failed `compaction_end` | `Warning` |
+| `agent_settled` | The end of the run: `Result` when the last assistant message stopped with `stop`; otherwise `Error` and a failed run (`error`, `aborted`, or `length`) |
+
+In JSON mode pi exits 0 even when the model call failed, so the stop reason decides. An error message that starts with `401` or names an authentication failure makes the outcome `NotCredentialed`. When the output ends without `agent_settled` (earlier pi releases), the last assistant message decides.
+
 ### Generic JSON lines and the fake harness
 
 `builtin/generic-jsonl` is a starting point for any CLI that reads a prompt on stdin and prints one JSON object per line. Set the `executable` parameter (and `argument1`, `argument2` if it needs them) on the deployment, or clone the profile and set the four field paths described under Parsers below. A secret of kind `GenericEnv` becomes `API_KEY`.
@@ -212,7 +282,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 
 | Field | Meaning |
 |---|---|
-| `harnessType` | `ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, `Generic`, or `ProviderApi`. Workers advertise which types they can run, and runs are only leased to workers that have the type. |
+| `harnessType` | `ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, `OpenCode`, `Pi`, `Generic`, or `ProviderApi`. Workers advertise which types they can run, and runs are only leased to workers that have the type. |
 | `executable` | Executable name or path. A template, so it can come from a parameter. |
 | `arguments` | Ordered argument templates (below). |
 | `environment` | Environment variable templates. `isSecret` marks values to scrub from output. |
@@ -220,7 +290,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument, after `--` unless the template starts with literal text such as `--prompt=`, so caller text that begins with `-` is never read as an option), `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`), or `CodexAppServer` (the worker drives `codex app-server` over JSON-RPC and sends the prompt as one turn; see [Streaming with `codex app-server`](#streaming-with-codex-app-server-builtincodex-app-server)). |
 | `systemPromptDelivery` | `File` (written to `systemPromptTarget` in the config directory), `Argument` (`systemPromptTarget` is the flag), `Environment` (`systemPromptTarget` is the variable), `PrependToPrompt`, or `None` (the profile handles it with its own arguments or files). |
 | `mcpConfigFormat`, `mcpConfigFileName` | Which MCP configuration dialect the harness reads and where. Informational for the built-in formats, which are produced by the profile's own files and arguments. |
-| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `ProviderApiJsonl`, `GenericJsonl`, or `PlainText`. |
+| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `OpenCodeJsonl`, `PiJsonl`, `ProviderApiJsonl`, `GenericJsonl`, or `PlainText`. |
 | `resultSource` | `ParserFinalEvent`, `LastMessageFile` (read `resultFileName` from the config directory), or `Stdout`. |
 | `successPolicy` | `FinalEvent` (the parser saw a successful final event), `ExitCode` (the exit code is in `successExitCodes`), or `FinalEventAndExitCode`. `PlainText` always uses `ExitCode`. |
 | `genericTextField`, `genericFinalField`, `genericSuccessField`, `genericSuccessValue` | Dotted JSON paths for `GenericJsonl`: assistant text, the final result, and the field and value that mean success. |
@@ -229,7 +299,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `maxOutputBytes` | Stdout limit; the run fails with `OutputLimitExceeded` beyond it (default 64 MiB). |
 | `stderrTailBytes` | How much stderr to keep for diagnosis (default 8000). |
 | `isolateHome` | Give each run its own `HOME` (and `USERPROFILE`, and `CODEX_HOME` for Codex). On by default for every built-in. |
-| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments, configuration or execution protocol must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/codex-app-server` (which resumes over JSON-RPC rather than with an argument), `builtin/mux`, `builtin/gemini-cli`, `builtin/provider-api`, and `builtin/fake`. |
+| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments, configuration or execution protocol must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/codex-app-server` (which resumes over JSON-RPC rather than with an argument), `builtin/mux`, `builtin/gemini-cli`, `builtin/opencode`, `builtin/pi`, `builtin/provider-api`, and `builtin/fake`. |
 | `successExitCodes`, `probeArguments` | Exit codes that count as success, and the arguments used to check the harness is installed (`--version`). |
 | `credentialEnvironmentAllowlist` | The only environment variables allowed to reference a secret. When the list is not empty, an environment template (from the profile or a deployment override) that references a secret under any other name fails compilation with `SecretNotAllowed`. |
 
@@ -333,7 +403,7 @@ A deployment with `approvalsEnabled` relays its harness's permission requests to
 | Claude Code (`builtin/claude-code`) | Yes | `--permission-prompt-tool mcp__garrison__garrison_permission_prompt`; Claude calls the tool with the run token through the `garrison` MCP server, which the run gets whenever approvals are on |
 | Codex with `CodexAppServer` delivery (`builtin/codex-app-server`) | Yes | Approval policy `untrusted`; the worker answers `item/commandExecution/requestApproval` (evaluated as `Bash` with `command` and `cwd`) and `item/fileChange/requestApproval` (evaluated as `Edit` with the changed paths) by calling `garrison_permission_prompt` with the run token. MCP elicitations and `item/permissions/requestApproval` stay declined. |
 | `codex exec` (`builtin/codex`) | No | `codex exec` has no way to ask a client; use `builtin/codex-app-server` |
-| Mux, Gemini CLI, generic profiles | No | No approval hook; a deployment that turns approvals on for them is rejected |
+| Mux, Gemini CLI, opencode, pi, generic profiles | No | No approval hook; a deployment that turns approvals on for them is rejected |
 
 Because Codex requests are evaluated as `Bash` and `Edit`, one set of rules covers both harnesses. The worker relays through the run token rather than its node credentials, so it works the same from run pods (`KubernetesJob`), which have no node credentials, and an attempt that lost its lease cannot ask (the token is fenced by its lease epoch).
 
@@ -350,7 +420,7 @@ For each run the worker:
 5. Applies the run guards (below), the deadline, and cancellation. Stopping sends SIGTERM to the harness and every process it started (listed before the signal, so the Node or Rust children of Claude Code and Codex are not orphaned when the parent exits first), waits up to `killGraceSeconds`, then sends SIGKILL to whatever is still alive. A cancel reaches the worker through its cancellation watch, a long poll the control plane answers the moment the run is cancelled, so a harness that exits on SIGTERM is gone well under a second after the cancel request.
 6. Decides the outcome, reads the result, scrubs secrets, reports completion, and deletes `config/` and `home/` (and the workspace too, unless the workspace template keeps it). When the spec has `retainForRepair` set, the directories stay until the control plane has answered the completion report, because the answer may be a structured output repair that resumes the session in them.
 
-Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness` at startup and every `ProbeIntervalSeconds`. Each one found adds the label `garrison.io/harness-<label>=true` (`claude`, `codex`, `mux`, `gemini`, `fake`) and its harness type to the node's capabilities.
+Workers probe for `claude`, `codex`, `mux`, `gemini`, `opencode`, `pi`, `garrison-fake-harness`, and `garrison-provider-api` at startup and every `ProbeIntervalSeconds`. Each one found adds the label `garrison.io/harness-<label>=true` (`claude`, `codex`, `mux`, `gemini`, `opencode`, `pi`, `fake`, `provider-api`) and its harness type to the node's capabilities.
 
 ### Run guards
 
@@ -411,6 +481,8 @@ How each built-in harness reports the session it resumes later:
 | `builtin/codex-app-server` | the thread ID returned by `thread/start` (a resumed turn keeps it) |
 | `builtin/mux` | `sessionId` of `run_started` and `run_completed`. Mux print mode keeps a session only when asked, so the first turn of a conversation runs with `--session-id <run id>` and without `--no-session-persistence` (the profile's `run.persistSession` condition) |
 | `builtin/gemini-cli` | `session_id` of the stream-json `init` event |
+| `builtin/opencode` | `sessionID` on every line; sessions live under the run's `HOME` |
+| `builtin/pi` | `id` of the `session` header; sessions live in the private `PI_CODING_AGENT_DIR` under the config directory. A run that nothing will resume passes `--no-session` |
 | `builtin/provider-api` | `sessionId` on the normalized lifecycle event; private history files are stored under the isolated HOME |
 | `builtin/fake` | the session it writes under `$HOME/.garrison-fake/sessions`; with the deployment parameter `reportTurns` it prefixes its answer with `[turn N]`, the turns in that session |
 
@@ -433,6 +505,8 @@ The repair runs inside the same lease, on the same worker, in the same `work/`, 
 | `builtin/codex-app-server` | no argument: the worker sends `thread/resume` with the thread ID before the repair turn |
 | `builtin/mux` | `--resume <sessionId>`; the original execution passes `--session-id <run id>` so Mux persists the session, which it does only for agents with an output schema and for conversation turns |
 | `builtin/gemini-cli` | `--resume <session_id>` |
+| `builtin/opencode` | `--session <sessionID>` (opencode exits 1 with "Session not found" for an unknown ID) |
+| `builtin/pi` | `--session <id>` (pi exits 1 with "No session found" for an unknown ID) |
 | `builtin/provider-api` | compiled configuration sets `sessionId` to the saved ID and `resume` to `true`; no resume CLI argument |
 | `builtin/fake` | `--resume <session>` |
 
@@ -448,6 +522,8 @@ Resume and native output schemas were checked on 2026-10-10 against the real CLI
 | Codex | codex-cli 0.159.3 | `exec ... resume <thread_id> -` remembered the word, with `--output-schema` still given before `resume` | `--output-schema`: valid final message on the first and the resumed turn |
 | Mux | 1.3.0 (commit `60fd88a`), gpt-oss:20b on Ollama | `--resume <sessionId>` remembered the word once the first execution ran with `--session-id`; without it Mux reported an empty `sessionId` and kept nothing, so the profile now passes `--session-id <run id>` | `--output-schema`: valid `--output-last-message` file on the first and the resumed turn; a non-matching answer (forced with a stub endpoint) exits 1 with `schema_validation_failed` and keeps the session |
 | Gemini CLI | not installed on the verification machine | not verified | not verified |
+| opencode | 1.19.5, against a local stub Anthropic endpoint (no real model) | `--session <sessionID>` sent the saved history, including the earlier tool call and result | no native schema; Garrison's schema instructions and repair apply |
+| pi | 1.4.0, against a local stub Anthropic endpoint (no real model) | `--session <id>` sent the saved history | no native schema; Garrison's schema instructions and repair apply |
 
 ### Quirks Garrison handles
 

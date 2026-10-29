@@ -1,0 +1,187 @@
+{
+  "name": "builtin/pi",
+  "description": "pi coding agent (pi --mode json) with JSON events. Prompt on stdin, system prompt appended from a file (replaced with the replaceSystemPrompt parameter), MCP servers and sessions in a private PI_CODING_AGENT_DIR, project-local pi configuration not trusted. The model is a provider/model name.",
+  "harnessType": "Pi",
+  "executable": "pi",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "PiJson",
+  "mcpConfigFileName": "pi-agent/mcp.json",
+  "outputParser": "PiJsonl",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEventAndExitCode",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "--mode"
+    },
+    {
+      "template": "json"
+    },
+    {
+      "template": "--no-approve"
+    },
+    {
+      "template": "--no-skills"
+    },
+    {
+      "template": "--no-prompt-templates"
+    },
+    {
+      "template": "--model",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "{{deployment.model}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "--thinking",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "{{deployment.effort}}",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "--tools",
+      "condition": "{{deployment.parameters.tools}}"
+    },
+    {
+      "template": "{{deployment.parameters.tools}}",
+      "condition": "{{deployment.parameters.tools}}"
+    },
+    {
+      "template": "--append-system-prompt",
+      "condition": "{{#if prompts.system}}{{#unless deployment.parameters.replaceSystemPrompt}}true{{/unless}}{{/if}}"
+    },
+    {
+      "template": "--system-prompt",
+      "condition": "{{#if prompts.system}}{{#if deployment.parameters.replaceSystemPrompt}}true{{/if}}{{/if}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/system-prompt.md",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "--no-session",
+      "condition": "{{#unless run.persistSession}}{{#unless run.resumeSessionId}}true{{/unless}}{{/unless}}"
+    },
+    {
+      "template": "--session",
+      "condition": "{{run.resumeSessionId}}"
+    },
+    {
+      "template": "{{run.resumeSessionId}}",
+      "condition": "{{run.resumeSessionId}}"
+    }
+  ],
+  "environment": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "valueTemplate": "{{secret.kind.AnthropicApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "GEMINI_API_KEY",
+      "valueTemplate": "{{secret.kind.GeminiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "PI_CODING_AGENT_DIR",
+      "valueTemplate": "$GARRISON_CONFIG_DIR/pi-agent",
+      "isSecret": false
+    },
+    {
+      "name": "PI_SKIP_VERSION_CHECK",
+      "valueTemplate": "1",
+      "isSecret": false
+    },
+    {
+      "name": "PI_TELEMETRY",
+      "valueTemplate": "0",
+      "isSecret": false
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "pi-agent/mcp.json",
+      "contentTemplate": "{{> builtin/pi-mcp-config}}",
+      "isSecret": false,
+      "condition": "{{resources.hasMcpServers}}",
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENROUTER_API_KEY"
+  ],
+  "assetPlacements": [
+    {
+      "kind": "Skill",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "ReferenceFile",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "DocumentTemplate",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    }
+  ],
+  "toolProbes": [
+    {
+      "name": "pandoc",
+      "executable": "pandoc",
+      "arguments": [
+        "--version"
+      ],
+      "description": "Converts documents between formats such as Markdown, HTML, DOCX, and PDF (with a PDF engine)."
+    },
+    {
+      "name": "libreoffice",
+      "executable": "soffice",
+      "arguments": [
+        "--version"
+      ],
+      "description": "LibreOffice in headless mode: converts office documents (DOCX, XLSX, PPTX, ODT) to PDF and other formats."
+    },
+    {
+      "name": "python3",
+      "executable": "python3",
+      "arguments": [
+        "--version"
+      ],
+      "description": "Python 3 interpreter for scripts and data processing."
+    }
+  ]
+}

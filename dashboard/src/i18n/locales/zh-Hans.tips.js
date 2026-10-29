@@ -1678,6 +1678,8 @@ tips.views.settings.groups.Leases = "可选协调设置；所有副本须使用�
 tips.views.settings.fields.Leases = {"Provider": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "ClutchEndpoint": "通过密钥或环境变量提供 Clutch 访问密钥；端点不得包含凭据。", "ClutchAccessKey": "通过密钥或环境变量提供 Clutch 访问密钥；端点不得包含凭据。", "KeyPrefix": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "RequestTimeoutMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "SweepIntervalMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "MaxLeaseMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "MaxHoldMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。"};
 
 tips.enums.harnessType.ProviderApi = "通过 PolyPrompt 运行可选的直接 API 循环。须配置端点和模型；CLI 部署保持可用。";
+tips.enums.harnessType.OpenCode = "以 opencode run 无界面运行 opencode CLI，输出 JSON 事件。支持 Anthropic、OpenAI、Google 等模型提供方。";
+tips.enums.harnessType.Pi = "以 JSON 模式运行 pi 编程代理。支持 Anthropic、OpenAI、Google 等模型提供方。";
 
 // Pipelines (P12.9).
 tips.nav.hubs.approvals = '所有等待人员处理的事项：智能体请求执行的工具调用，以及需要审核的流水线阶段，并附带每项决定的历史。';

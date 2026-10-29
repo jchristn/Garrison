@@ -42,6 +42,18 @@ namespace Garrison.Core.Enums
         CodexAppServer,
 
         /// <summary>Bundled direct provider API harness JSON-lines events.</summary>
-        ProviderApiJsonl
+        ProviderApiJsonl,
+
+        /// <summary>
+        /// OpenCodeJsonl: <c>opencode run --format json</c> events (text, reasoning, tool_use, step_start, step_finish,
+        /// error).
+        /// </summary>
+        OpenCodeJsonl,
+
+        /// <summary>
+        /// PiJsonl: <c>pi --mode json</c> events (session header, message updates and ends, tool executions, agent
+        /// settled).
+        /// </summary>
+        PiJsonl
     }
 }

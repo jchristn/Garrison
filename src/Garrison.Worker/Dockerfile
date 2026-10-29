@@ -33,6 +33,10 @@ ARG CLAUDE_CODE_VERSION=2.1.296
 ARG CODEX_VERSION=0.159.3
 ARG INCLUDE_GEMINI=false
 ARG GEMINI_CLI_VERSION=0.55.1
+ARG INCLUDE_OPENCODE=false
+ARG OPENCODE_VERSION=1.19.5
+ARG INCLUDE_PI=false
+ARG PI_VERSION=1.4.0
 LABEL org.opencontainers.image.title="garrison-worker" \
       org.opencontainers.image.version="${GARRISON_VERSION}" \
       org.opencontainers.image.source="https://github.com/jchristn/Garrison" \
@@ -41,7 +45,9 @@ LABEL org.opencontainers.image.title="garrison-worker" \
       io.garrison.harness.codex="${CODEX_VERSION}" \
       io.garrison.harness.mux="${MUX_VERSION}" \
       io.garrison.harness.mux-ref="${MUX_REF}" \
-      io.garrison.harness.gemini-cli="${INCLUDE_GEMINI}:${GEMINI_CLI_VERSION}"
+      io.garrison.harness.gemini-cli="${INCLUDE_GEMINI}:${GEMINI_CLI_VERSION}" \
+      io.garrison.harness.opencode="${INCLUDE_OPENCODE}:${OPENCODE_VERSION}" \
+      io.garrison.harness.pi="${INCLUDE_PI}:${PI_VERSION}"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git ripgrep gnupg \
@@ -49,11 +55,16 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends nodejs \
  && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
  && if [ "${INCLUDE_GEMINI}" = "true" ]; then npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}"; fi \
- # Both CLIs ship their native binaries as optional npm dependencies, which npm skips without failing when a
- # download breaks. Run them here so a partial install fails the build instead of producing a worker without harnesses.
+ && if [ "${INCLUDE_OPENCODE}" = "true" ]; then npm install -g "opencode-ai@${OPENCODE_VERSION}"; fi \
+ && if [ "${INCLUDE_PI}" = "true" ]; then npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"; fi \
+ # Claude Code, Codex, and opencode ship their native binaries as optional npm dependencies, which npm skips without
+ # failing when a download breaks. Run them here so a partial install fails the build instead of producing a worker
+ # without harnesses.
  && claude --version \
  && codex --version \
  && if [ "${INCLUDE_GEMINI}" = "true" ]; then gemini --version; fi \
+ && if [ "${INCLUDE_OPENCODE}" = "true" ]; then opencode --version | grep -q "${OPENCODE_VERSION}"; fi \
+ && if [ "${INCLUDE_PI}" = "true" ]; then pi --version | grep -q "${PI_VERSION}"; fi \
  && npm cache clean --force \
  && rm -rf /var/lib/apt/lists/*
 
@@ -85,6 +96,8 @@ ENV HOME=/home/garrison \
     DISABLE_AUTOUPDATER=1 \
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
     MUX_TELEMETRY_ENABLED=false \
+    OPENCODE_DISABLE_AUTOUPDATE=1 \
+    PI_SKIP_VERSION_CHECK=1 \
     DOTNET_CLI_TELEMETRY_OPTOUT=1
 EXPOSE 8710 9465
 ENTRYPOINT ["dotnet", "Garrison.Worker.dll"]

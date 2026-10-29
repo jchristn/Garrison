@@ -2218,7 +2218,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments" \
 
 | Field | Meaning |
 |---|---|
-| `approvalsEnabled` | Relay permission requests to Garrison (default false). Accepted only for Claude Code profiles and profiles with `CodexAppServer` delivery; `codex exec`, Mux, Gemini CLI, and generic profiles have no approval hook, and a deployment that enables approvals on them is rejected with 400 (field `approvalsEnabled`). |
+| `approvalsEnabled` | Relay permission requests to Garrison (default false). Accepted only for Claude Code profiles and profiles with `CodexAppServer` delivery; `codex exec`, Mux, Gemini CLI, opencode, pi, and generic profiles have no approval hook, and a deployment that enables approvals on them is rejected with 400 (field `approvalsEnabled`). |
 | `approvalDefaultAction` | `Allow`, `Deny`, or `Ask` (default) for requests no rule matches |
 | `approvalTimeoutSeconds` | How long a pending approval waits for a person: 10 to 3,600, default 300. The wait never outlasts the run's deadline. |
 | `approvalTimeoutDecision` | `Deny` (default) or `Allow`, applied when a pending approval expires |
@@ -4798,7 +4798,7 @@ Fully resolved instructions for one harness invocation. Compiled by the control 
 
 #### `HarnessTypeEnum`
 
-`ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, `Generic`
+`ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, `Generic`, `ProviderApi`, `OpenCode`, `Pi`
 
 #### `ExecutionEnvironmentVariable`
 

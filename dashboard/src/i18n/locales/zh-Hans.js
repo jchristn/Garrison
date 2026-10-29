@@ -1915,6 +1915,12 @@ zhHans.views.settings.fields.Leases = {"Provider": "提供方", "ClutchEndpoint"
 
 zhHans.enums.harnessType.ProviderApi = "提供方 API";
 zhHans.enums.outputParser.ProviderApiJsonl = "提供方 API JSONL";
+zhHans.enums.harnessType.OpenCode = "opencode";
+zhHans.enums.harnessType.Pi = "pi";
+zhHans.enums.outputParser.OpenCodeJsonl = "opencode JSONL";
+zhHans.enums.outputParser.PiJsonl = "pi JSONL";
+zhHans.enums.mcpConfigFormat.OpenCodeJson = "opencode JSON";
+zhHans.enums.mcpConfigFormat.PiJson = "pi JSON";
 
 // Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
 // (Approvals > Stage reviews).

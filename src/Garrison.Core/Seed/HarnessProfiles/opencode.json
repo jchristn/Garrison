@@ -1,0 +1,182 @@
+{
+  "name": "builtin/opencode",
+  "description": "opencode (opencode run --format json) with JSON events. Prompt on stdin, configuration (system prompt as an instructions file, MCP servers) from a private OPENCODE_CONFIG file, project opencode configuration ignored unless the projectConfig parameter is true. The model is a provider/model name.",
+  "harnessType": "OpenCode",
+  "executable": "opencode",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "OpenCodeJson",
+  "mcpConfigFileName": "opencode.json",
+  "outputParser": "OpenCodeJsonl",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEventAndExitCode",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "run"
+    },
+    {
+      "template": "--format"
+    },
+    {
+      "template": "json"
+    },
+    {
+      "template": "--thinking"
+    },
+    {
+      "template": "--auto",
+      "condition": "{{deployment.parameters.autoApprove | default: \"true\"}}"
+    },
+    {
+      "template": "--title"
+    },
+    {
+      "template": "garrison {{run.id}}"
+    },
+    {
+      "template": "-m",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "{{deployment.model}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "--variant",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "{{deployment.effort}}",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "--agent",
+      "condition": "{{deployment.parameters.agent}}"
+    },
+    {
+      "template": "{{deployment.parameters.agent}}",
+      "condition": "{{deployment.parameters.agent}}"
+    },
+    {
+      "template": "--session",
+      "condition": "{{run.resumeSessionId}}"
+    },
+    {
+      "template": "{{run.resumeSessionId}}",
+      "condition": "{{run.resumeSessionId}}"
+    }
+  ],
+  "environment": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "valueTemplate": "{{secret.kind.AnthropicApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "GOOGLE_GENERATIVE_AI_API_KEY",
+      "valueTemplate": "{{secret.kind.GeminiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENCODE_CONFIG",
+      "valueTemplate": "$GARRISON_CONFIG_DIR/opencode.json",
+      "isSecret": false
+    },
+    {
+      "name": "OPENCODE_DISABLE_PROJECT_CONFIG",
+      "valueTemplate": "{{#unless deployment.parameters.projectConfig}}1{{/unless}}",
+      "isSecret": false
+    },
+    {
+      "name": "OPENCODE_DISABLE_AUTOUPDATE",
+      "valueTemplate": "1",
+      "isSecret": false
+    },
+    {
+      "name": "OPENCODE_DISABLE_LSP_DOWNLOAD",
+      "valueTemplate": "1",
+      "isSecret": false
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "opencode.json",
+      "contentTemplate": "{{> builtin/opencode-config}}",
+      "isSecret": true,
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GOOGLE_GENERATIVE_AI_API_KEY",
+    "OPENROUTER_API_KEY"
+  ],
+  "assetPlacements": [
+    {
+      "kind": "Skill",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "ReferenceFile",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "DocumentTemplate",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    }
+  ],
+  "toolProbes": [
+    {
+      "name": "pandoc",
+      "executable": "pandoc",
+      "arguments": [
+        "--version"
+      ],
+      "description": "Converts documents between formats such as Markdown, HTML, DOCX, and PDF (with a PDF engine)."
+    },
+    {
+      "name": "libreoffice",
+      "executable": "soffice",
+      "arguments": [
+        "--version"
+      ],
+      "description": "LibreOffice in headless mode: converts office documents (DOCX, XLSX, PPTX, ODT) to PDF and other formats."
+    },
+    {
+      "name": "python3",
+      "executable": "python3",
+      "arguments": [
+        "--version"
+      ],
+      "description": "Python 3 interpreter for scripts and data processing."
+    }
+  ]
+}

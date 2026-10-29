@@ -131,13 +131,24 @@ func main() {
 			return err
 		}
 		providerFound := false
+		openCodeFound := false
+		piFound := false
 		for _, p := range profiles {
 			if p.Name == "builtin/provider-api" && p.HarnessType == "ProviderApi" {
 				providerFound = true
 			}
+			if p.Name == "builtin/opencode" && p.HarnessType == "OpenCode" {
+				openCodeFound = true
+			}
+			if p.Name == "builtin/pi" && p.HarnessType == "Pi" {
+				piFound = true
+			}
 		}
 		if !providerFound {
 			return errors.New("optional provider profile not found")
+		}
+		if !openCodeFound || !piFound {
+			return errors.New("opencode or pi profile not found")
 		}
 		for _, p := range profiles {
 			if p.Name == "builtin/fake" {

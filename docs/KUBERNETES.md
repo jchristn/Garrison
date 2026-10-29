@@ -268,7 +268,7 @@ kubectl apply -k k8s/overlays/k3s-worker-pools
 kubectl label node <node> garrison.io/node-pool=mux        # optional; the pool runs anywhere without it
 ```
 
-With Helm, each entry in `workerPools` is a pool: `name` becomes the pool name, the pod label `garrison.io/pool`, and the first worker label; `labels` adds more; `harnesses` (a list of `claude`, `codex`, `mux`, `gemini`, `fake`) or `probes` limit what it advertises; `image` swaps the image; `nodeSelector`, `tolerations`, and `affinity` place it. `values-worker-pools.yaml` is the two-pool example. Every pool keeps `app.kubernetes.io/name=garrison-worker`, so network policies, Prometheus (which records the pool as the `pool` label), and the Grafana dashboards treat all pools alike.
+With Helm, each entry in `workerPools` is a pool: `name` becomes the pool name, the pod label `garrison.io/pool`, and the first worker label; `labels` adds more; `harnesses` (a list of `claude`, `codex`, `mux`, `gemini`, `opencode`, `pi`, `fake`, `provider-api`) or `probes` limit what it advertises; `image` swaps the image; `nodeSelector`, `tolerations`, and `affinity` place it. `values-worker-pools.yaml` is the two-pool example. Every pool keeps `app.kubernetes.io/name=garrison-worker`, so network policies, Prometheus (which records the pool as the `pool` label), and the Grafana dashboards treat all pools alike.
 
 To send a deployment to a pool explicitly, select its labels in the manifest:
 

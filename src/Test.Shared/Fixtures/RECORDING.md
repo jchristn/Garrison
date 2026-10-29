@@ -20,6 +20,11 @@ These files feed the parser suite (`src/Test.Shared/Suites/ParserSuite.cs`). Eac
 
 The Mux recordings had their working directory, config directory, and endpoint host rewritten to `/work`, `/config/mux`, and `http://ollama:11434/v1`.
 | `gemini/success.jsonl` | Hand-written | Shape taken from Aegon's `GeminiStreamParser`; Gemini CLI was not installed. |
+| `opencode/v1.19.5-success.jsonl` | Recorded | `opencode run --format json --thinking --auto --title "garrison run_test" -m anthropic/claude-sonnet-4-5` with opencode 1.19.5 on 2026-10-28, the prompt on stdin, the `builtin/opencode` environment, and a config whose `anthropic` provider pointed at a local stub of the Anthropic Messages API. The stub answers the first request with a text block and a `bash` tool call and the second with `FIXTURE_ANSWER_42`; the usage numbers and costs are the stub's. |
+| `opencode/v1.19.5-api-401.jsonl` | Recorded | Same setup with a key the stub rejects with 401 `authentication_error` (exit 1). |
+| `opencode/v1.19.5-missing-key.jsonl` | Recorded | Same setup with no `ANTHROPIC_API_KEY`: one `ProviderAuthError` (exit 1). |
+| `pi/v1.4.0-success.jsonl` | Recorded | `pi --mode json --model anthropic/claude-sonnet-4-5 --append-system-prompt <file> --no-approve --no-skills --no-prompt-templates` with pi 1.4.0 on 2026-10-28, the prompt on stdin, against the same stub (set as the `anthropic` provider's `baseUrl` in `models.json`) and one HTTP MCP server. The section texts and tool descriptions of the echoed system message were cut to 60 and 40 characters, tool parameter schemas were emptied, and local paths were rewritten to `/work` and `/usr/lib/node_modules`. |
+| `pi/v1.4.0-api-401.jsonl` | Recorded | Same setup with a key the stub rejects with 401: the assistant message ends with `stopReason` `error`, and pi exits 0. Edited like the success recording. |
 
 ## Re-recording
 

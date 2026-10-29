@@ -6,7 +6,7 @@
 
 > **Alpha (v0.1.0-alpha).** The REST API, MCP tools, A2A surface, database schema, settings, manifests, and SDKs can all change without notice. Do not run it against data you cannot afford to lose.
 
-**Turn agent harnesses into managed services.** Garrison is a self-hosted, multi-tenant control plane for running Claude Code, Codex, Mux, Gemini CLI, and configurable command-line agents on your own workers. Publish reusable specialists through REST, MCP and A2A, give them the tools and credentials they need, and manage execution, approvals, results and audit history in one place.
+**Turn agent harnesses into managed services.** Garrison is a self-hosted, multi-tenant control plane for running Claude Code, Codex, Mux, Gemini CLI, opencode, pi, and configurable command-line agents on your own workers. Publish reusable specialists through REST, MCP and A2A, give them the tools and credentials they need, and manage execution, approvals, results and audit history in one place.
 
 Use it to offer coding or research agents to applications, let specialist agents delegate to one another, or build multi-stage workflows with human review. Teams can share an execution platform while keeping tenant resources, permissions, secrets and run history scoped. Harness profiles, prompts and deployments are configuration, so you can change an agent's model, tools or execution policy without changing the caller's integration.
 
@@ -167,6 +167,8 @@ The dashboard explains itself as you go. Every control carries a tooltip, each c
 | `builtin/codex-app-server` | Codex (`codex app-server`, JSON-RPC over stdio) | Same as `builtin/codex` | Streams text and reasoning token by token; opt in per deployment while the Codex app-server is experimental |
 | `builtin/mux` | Mux 1.3.0 (`mux --print --output-format jsonl`) | Any endpoint Mux supports, key from a secret | Endpoint, model, adapter, context window, and response token limit from deployment parameters |
 | `builtin/gemini-cli` | Gemini CLI (`gemini -o stream-json`) | `GEMINI_API_KEY` | Optional in the worker image |
+| `builtin/opencode` | opencode (`opencode run --format json`) | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENROUTER_API_KEY` | Model as `provider/model`; private config file with the MCP servers; optional in the worker image |
+| `builtin/pi` | pi coding agent (`pi --mode json`) | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY` | Model as `provider/model`; private agent directory with the MCP servers; optional in the worker image |
 | `builtin/generic-jsonl` | Any CLI that prints JSON lines | Whatever you map | Field paths for text, final result, and success are configurable |
 | `builtin/provider-api` | Garrison provider harness | API credential for an operator-selected compatible endpoint | Direct streaming API execution with HTTP MCP tools; no built-in shell |
 | `builtin/fake` | `garrison-fake-harness` | None | Deterministic; used by tests and the cluster smoke test |

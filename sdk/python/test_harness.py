@@ -102,6 +102,8 @@ def t_quotas():
 def t_builtin():
     profiles = client.harness_profiles.builtin()
     require(any(p["name"] == "builtin/provider-api" and p["harnessType"] == "ProviderApi" and p["outputParser"] == "ProviderApiJsonl" for p in profiles), "optional provider profile")
+    require(any(p["name"] == "builtin/opencode" and p["harnessType"] == "OpenCode" and p["outputParser"] == "OpenCodeJsonl" for p in profiles), "opencode profile")
+    require(any(p["name"] == "builtin/pi" and p["harnessType"] == "Pi" and p["outputParser"] == "PiJsonl" for p in profiles), "pi profile")
     fake = [p for p in profiles if p["name"] == "builtin/fake"]
     require(fake, "builtin/fake not found")
     state["fake"] = fake[0]["id"]

@@ -1914,6 +1914,12 @@ yueHant.views.settings.fields.Leases = {"Provider": "供應方", "ClutchEndpoint
 
 yueHant.enums.harnessType.ProviderApi = "供應方 API";
 yueHant.enums.outputParser.ProviderApiJsonl = "供應方 API JSONL";
+yueHant.enums.harnessType.OpenCode = "opencode";
+yueHant.enums.harnessType.Pi = "pi";
+yueHant.enums.outputParser.OpenCodeJsonl = "opencode JSONL";
+yueHant.enums.outputParser.PiJsonl = "pi JSONL";
+yueHant.enums.mcpConfigFormat.OpenCodeJson = "opencode JSON";
+yueHant.enums.mcpConfigFormat.PiJson = "pi JSON";
 
 // Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
 // (Approvals > Stage reviews).

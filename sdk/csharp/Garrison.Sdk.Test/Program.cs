@@ -120,6 +120,8 @@ namespace Garrison.Sdk.Test
                 {
                     List<HarnessProfile> builtIns = await client.HarnessProfiles.ListBuiltInAsync(token).ConfigureAwait(false);
                     Require(builtIns.Any(p => p.Name == "builtin/provider-api" && p.HarnessType == HarnessTypeEnum.ProviderApi && p.OutputParser == OutputParserEnum.ProviderApiJsonl), "optional provider profile enums");
+                    Require(builtIns.Any(p => p.Name == "builtin/opencode" && p.HarnessType == HarnessTypeEnum.OpenCode && p.OutputParser == OutputParserEnum.OpenCodeJsonl && p.McpConfigFormat == McpConfigFormatEnum.OpenCodeJson), "opencode profile enums");
+                    Require(builtIns.Any(p => p.Name == "builtin/pi" && p.HarnessType == HarnessTypeEnum.Pi && p.OutputParser == OutputParserEnum.PiJsonl && p.McpConfigFormat == McpConfigFormatEnum.PiJson), "pi profile enums");
                     HarnessProfile? fake = builtIns.FirstOrDefault(p => p.Name == "builtin/fake");
                     Require(fake != null, "builtin/fake not found among " + builtIns.Count);
                     fakeProfileId = fake!.Id;

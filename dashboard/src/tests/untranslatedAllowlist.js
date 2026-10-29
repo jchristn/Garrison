@@ -7,7 +7,7 @@
 
 const PRODUCT_WORDS = new Set([
   'Garrison', 'Claude', 'Code', 'Codex', 'Mux', 'Gemini', 'CLI', 'Anthropic', 'OpenAI', 'GitHub', 'Discord', 'Git',
-  'Kubernetes', 'ConfigMap', 'StatefulSet', 'Job', 'Prometheus', 'Grafana', 'OpenTelemetry', 'OpenAPI', 'WebSocket', 'OAuth',
+  'opencode', 'pi', 'Kubernetes', 'ConfigMap', 'StatefulSet', 'Job', 'Prometheus', 'Grafana', 'OpenTelemetry', 'OpenAPI', 'WebSocket', 'OAuth',
   'MCP', 'A2A', 'REST', 'API', 'APIs', 'SSE', 'JSON', 'YAML', 'URL', 'URLs', 'HTTP', 'HTTPS', 'SDK', 'ID', 'IDs', 'UTC',
   'CSV', 'PNG', 'SVG', 'HMAC', 'TTFT', 'USD', 'PID', 'HOME', 'stdio', 'Stdout', 'Stderr', 'stdout', 'stderr', 'auth',
   'JSONL', 'TOML', 'S3', 'Harness', 'Harnesses', 'harness', 'harnesses', 'Tempo', 'Loki', 'json', 'sonnet', 'opus', 'haiku', 'p50', 'p90', 'p95', 'p99', 'ms', 's', 'min', 'h', 'tok', 'KB', 'MB', 'GB', 'TB', 'B'

@@ -4,7 +4,7 @@ Guidance for agents working in this repository. Read `GARRISON_PLAN.md` first: i
 
 ## What Garrison is
 
-A multi-tenant control plane that runs headless agent harnesses (Claude Code, Codex, Mux, Gemini CLI, or any CLI described by a harness profile) on pull-based worker nodes, exposed over REST, MCP, and A2A, deployed to Kubernetes.
+A multi-tenant control plane that runs headless agent harnesses (Claude Code, Codex, Mux, Gemini CLI, opencode, pi, or any CLI described by a harness profile) on pull-based worker nodes, exposed over REST, MCP, and A2A, deployed to Kubernetes.
 
 ## Layout
 

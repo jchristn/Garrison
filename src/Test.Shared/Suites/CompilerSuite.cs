@@ -25,8 +25,8 @@ namespace Test.Shared.Suites
     {
         #region Private-Members
 
-        private static readonly string[] _Profiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli", "generic-jsonl", "fake" };
-        private static readonly string[] _FullProfiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli" };
+        private static readonly string[] _Profiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli", "opencode", "pi", "generic-jsonl", "fake" };
+        private static readonly string[] _FullProfiles = new string[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli", "opencode", "pi" };
 
         #endregion
 
