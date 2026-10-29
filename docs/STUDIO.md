@@ -62,7 +62,7 @@ An item is `stale` when the live resource changed after the draft was based on i
 
 Nothing changes in live configuration yet. The approval appears with the other approvals ([REST_API.md](../REST_API.md#approvals)) and is decided with the same `POST .../approvals/{id}/decide`:
 
-- **Allow** checks that the decider holds Create on `Manifest` and Delete on each kind the draft deletes (403 `ApproverLacksPermission` otherwise). It then validates again. If live configuration moved since the request, the approval is denied with 409 `DraftStale`, and the draft returns to `Open` for the author to rebase. Otherwise the documents apply as one manifest apply, deletes run, and the draft becomes `Applied`.
+- **Allow** checks that the decider holds Create on `Manifest` and Delete on each kind the draft deletes (403 `ApproverLacksPermission` otherwise). It then validates again. If live configuration moved since the request, the approval is denied with 409 `DraftStale`, and the draft returns to `Open` for the author to rebase. Otherwise the documents apply as one manifest apply, deletes run, and the draft becomes `Applied`. Applying deploys to `dev`: each agent the draft changed gets a new published revision, and its `dev` deployments that are pinned to a revision move to it. Other environments change only through promotion ([REVISIONS.md](REVISIONS.md)), so a draft never reaches staging or production directly.
 - **Deny** returns the draft to `Open`.
 - An approval that expires (after 7 days) or is cancelled also returns the draft to `Open`. Discarding a pending draft cancels its approval.
 

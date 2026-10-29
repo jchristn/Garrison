@@ -513,6 +513,7 @@ namespace Garrison.Server.Services
                 foreach (StudioDraftDiffItem changed in diff.Items.Where(i => i.Kind == "Agent" && (i.Change == "Create" || i.Change == "Update")))
                 {
                     await PublishAgentAsync(ctx, approval.TenantId, changed.Name, "Studio draft " + draft.Title, token).ConfigureAwait(false);
+                    await RepinDevAsync(ctx, approval.TenantId, changed.Name, token).ConfigureAwait(false);
                 }
             }
             await approvals.ResolveDraftAsync(ctx, approval, true, reason, token).ConfigureAwait(false);
@@ -704,6 +705,25 @@ namespace Garrison.Server.Services
             content.AuthorName = ctx.PrincipalName;
             AgentRevision saved = await _Server.Database.AgentRevisions.SaveDraftAsync(content, token).ConfigureAwait(false);
             await _Server.Database.AgentRevisions.PublishAsync(tenantId, saved.Id, ctx.UserId, ctx.PrincipalName, token).ConfigureAwait(false);
+        }
+
+        private async Task RepinDevAsync(RequestContext ctx, string tenantId, string name, CancellationToken token)
+        {
+            // AD9.4: applying a draft deploys to dev. Dev deployments pinned to an older revision move to the latest published
+            // one; other environments change only through promotion.
+            Agent? agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, name, token).ConfigureAwait(false);
+            if (agent == null || String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return;
+            AgentRevision? published = await _Server.Database.AgentRevisions.ReadAsync(tenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
+            if (published == null) return;
+            foreach (Deployment deployment in await _Server.Database.Deployments.ListByAgentAsync(tenantId, agent.Id, token).ConfigureAwait(false))
+            {
+                if (deployment.Environment != "dev" || String.IsNullOrEmpty(deployment.AgentRevisionId) || deployment.AgentRevisionId == published.Id) continue;
+                deployment.AgentRevisionId = published.Id;
+                deployment.ConfigVersion = deployment.ConfigVersion + 1;
+                deployment.LastUpdateUtc = DateTime.UtcNow;
+                await _Server.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Deployment", deployment.Id, "Repinned dev deployment " + deployment.Name + " to revision " + published.Number + " of agent " + agent.Name + " (studio draft apply).", tenantId, token).ConfigureAwait(false);
+            }
         }
 
         private async Task DeleteLiveAsync(RequestContext ctx, string tenantId, StudioDraftItem item, CancellationToken token)

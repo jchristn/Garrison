@@ -53,6 +53,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "architect-seed-replicas", "Replicas seeding the architect at the same time, including for a new tenant, leave exactly one agent and one skill asset and raise no unique constraint failure (" + provider + ")", ct => SeedReplicasAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "preview", "Compile preview of a draft revision shows its new asset's placed path, previews another environment's deployment, and keeps secrets redacted (" + provider + ")", ct => PreviewAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "playground", "Playground runs execute an agent's draft revision on an ephemeral draft-environment deployment, from an agent or from a studio draft, without publishing; apps cannot select the draft environment (" + provider + ")", ct => PlaygroundAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "deploy-dev", "From an empty draft to a running dev app: agent, dev deployment, and app drafted, approved, applied, and answering at its app URL through the gateway; a pinned dev deployment moves to the new revision (" + provider + ")", ct => DeployDevAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Studio drafts (" + provider + ")", cases));
             }
             return suites;
@@ -721,6 +722,68 @@ spec:
                 still = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + agent.Id, null, 200, token).ConfigureAwait(false);
                 Assert.Equal("Published description.", still.Description ?? String.Empty, "Still nothing published");
                 Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, D(host) + "/" + studio.Id + "/playground/invoke", new PlaygroundInvokeRequest { Agent = "pg-missing", Input = "x" }, token).ConfigureAwait(false), 400, "AgentNotLive", "An agent that does not exist yet");
+            }
+        }
+
+        private static async Task DeployDevAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                StudioDraft draft = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "New desk" }, 201, token).ConfigureAwait(false);
+                string items = D(host) + "/" + draft.Id + "/items/";
+                draft = await PutAsync(host.AdminClient, items + "Agent/desk-entry", draft.Version, AgentYaml("desk-entry", "Answers people."), token).ConfigureAwait(false);
+                draft = await PutAsync(host.AdminClient, items + "Deployment/desk-entry-dev", draft.Version, "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: desk-entry-dev\nspec:\n  agent: desk-entry\n  harnessProfile: builtin/fake\n  environment: dev\n", token).ConfigureAwait(false);
+                draft = await PutAsync(host.AdminClient, items + "AgenticApp/desk", draft.Version, "apiVersion: garrison/v1\nkind: AgenticApp\nmetadata:\n  name: desk\nspec:\n  entry: desk-entry\n  members:\n    - { agent: desk-entry }\n  environments:\n    - { environment: dev, deployment: desk-entry-dev }\n  liveEnvironment: dev\n  authMode: Anonymous\n  anonymousEnabled: true\n", token).ConfigureAwait(false);
+                Approval approval = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, D(host) + "/" + draft.Id + "/request-apply", new StudioDraftVersionRequest { Version = draft.Version }, 201, token).ConfigureAwait(false);
+                Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, "/v1.0/apps/desk", null, token).ConfigureAwait(false)).StatusCode, "No app before approval");
+                await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + approval.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, 200, token).ConfigureAwait(false);
+
+                using (HttpClient client = new HttpClient { BaseAddress = host.AdminClient.BaseAddress })
+                {
+                    string session;
+                    using (StringContent content = new StringContent("{}", Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage response = await client.PostAsync("/v1.0/apps/desk/session", content, token).ConfigureAwait(false))
+                    {
+                        string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(201, (int)response.StatusCode, "Anonymous session: " + body);
+                        session = Assert.NotNull(Serializer.Deserialize<AppSessionResponse>(body), "Session").Token;
+                    }
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", session);
+                    string conversationId;
+                    using (StringContent content = new StringContent("{\"message\":\"Hello desk\"}", Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage started = await client.PostAsync("/v1.0/apps/desk/conversations", content, token).ConfigureAwait(false))
+                    {
+                        string body = await started.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(201, (int)started.StatusCode, "Start: " + body);
+                        conversationId = Assert.NotNull(Serializer.Deserialize<Dictionary<string, object>>(body)?["conversationId"]?.ToString(), "Conversation id");
+                    }
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(60);
+                    AppConversationView view;
+                    while (true)
+                    {
+                        view = Assert.NotNull(Serializer.Deserialize<AppConversationView>(await client.GetStringAsync("/v1.0/apps/desk/conversations/" + conversationId, token).ConfigureAwait(false)), "Conversation");
+                        if (view.Turns.Count == 1 && Garrison.Server.Runtime.RunService.IsTerminal(view.Turns[0].Status)) break;
+                        if (DateTime.UtcNow > deadline) throw new TestAssertionException("The turn did not finish: " + Serializer.Serialize(view));
+                        await Task.Delay(250, token).ConfigureAwait(false);
+                    }
+                    Assert.True(view.Turns[0].Status == RunStatusEnum.Succeeded && (view.Turns[0].Answer ?? String.Empty).Contains("Hello desk", StringComparison.Ordinal), "The drafted app answers at its URL: " + Serializer.Serialize(view));
+                }
+
+                // A dev deployment pinned to a revision moves to the revision the next apply publishes; staging stays.
+                Agent entry = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/desk-entry", null, 200, token).ConfigureAwait(false);
+                Deployment dev = (await host.Server.Context.Database.Deployments.ListByAgentAsync(host.TenantId, entry.Id, token).ConfigureAwait(false)).Single(d => d.Name == "desk-entry-dev");
+                dev.AgentRevisionId = entry.LatestPublishedRevisionId;
+                await host.Server.Context.Database.Deployments.UpdateAsync(dev, token).ConfigureAwait(false);
+                Deployment staging = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "desk-entry-staging", AgentId = entry.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "staging", AgentRevisionId = entry.LatestPublishedRevisionId }, 201, token).ConfigureAwait(false);
+                StudioDraft next = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, D(host), new StudioDraftCreateRequest { FromApp = "desk" }, 201, token).ConfigureAwait(false);
+                next = await PutAsync(host.AdminClient, D(host) + "/" + next.Id + "/items/Agent/desk-entry", next.Version, AgentYaml("desk-entry", "Answers people kindly."), token).ConfigureAwait(false);
+                Approval second = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, D(host) + "/" + next.Id + "/request-apply", new StudioDraftVersionRequest { Version = next.Version }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + second.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, 200, token).ConfigureAwait(false);
+                Agent updated = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/desk-entry", null, 200, token).ConfigureAwait(false);
+                Deployment devAfter = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + dev.Id, null, 200, token).ConfigureAwait(false);
+                Deployment stagingAfter = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + staging.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(updated.LatestPublishedRevisionId != entry.LatestPublishedRevisionId && devAfter.AgentRevisionId == updated.LatestPublishedRevisionId && stagingAfter.AgentRevisionId == entry.LatestPublishedRevisionId, "Dev moves to the new revision; staging waits for promotion: before " + entry.LatestPublishedRevisionId + ", after " + updated.LatestPublishedRevisionId + ", dev " + devAfter.AgentRevisionId + ", staging " + stagingAfter.AgentRevisionId);
             }
         }
 
