@@ -35,7 +35,7 @@ The **agent architect** is a protected agent seeded in every tenant. You give it
 
 An **agentic app** groups agents behind one entry agent. Its edges become each member's delegation policy, and it gets its own URL at `/apps/{slug}/`, branding, and sign-in for tenant users, users holding the `AppUser` role, or anonymous visitors when you allow them. End users chat, watch answers stream, and download the files agents wrote, without ever seeing the operator dashboard ([docs/APPS.md](docs/APPS.md), [docs/APP_UI.md](docs/APP_UI.md)).
 
-Everything in the studio is reachable over REST, MCP, and the four SDKs today. The dashboard's Studio screens (chat, canvas, playground, and the architect prompt editor) are still in progress, so the examples in these docs use `curl`.
+In the dashboard, the Agent Studio tab has the architect chat, the canvas, the diff and approval, the playground, compile preview, promotion and rollback, and the architect prompt editor, and the setup wizard can create the architect for you. Everything in the studio is also reachable over REST, MCP, and the four SDKs; the quickstart below uses `curl` so you can see each step.
 
 ## Studio quickstart
 
@@ -76,7 +76,7 @@ APPROVAL=$(curl -s -X POST $D/$DRAFT/request-apply -H "Authorization: Bearer $TO
 curl -s -X POST $API/approvals/$APPROVAL/decide -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"decision":"Allow"}' | jq -r .status
 ```
 
-Open http://127.0.0.1:8080/apps/desk/ and send a message; the fake harness echoes it back. From here, [docs/QUICKSTART.md](docs/QUICKSTART.md#9-build-an-app-in-the-studio) shows the playground and promotion, [docs/ARCHITECT.md](docs/ARCHITECT.md) shows how to let the architect write drafts with you, and [examples/agentic-apps](examples/agentic-apps/README.md) has two complete apps to apply, including a research app that fans out to two researchers and hands back a PDF.
+Open http://127.0.0.1:8080/apps/desk/ and send a message; the fake harness echoes it back. From here, [docs/QUICKSTART.md](docs/QUICKSTART.md#9-build-an-app-in-the-studio) shows the playground and promotion, [docs/ARCHITECT.md](docs/ARCHITECT.md) shows how to let the architect write drafts with you, and [examples/agentic-apps](examples/agentic-apps/README.md) has three complete apps to apply: a support triage desk, a document converter, and a research app that fans out to two researchers and hands back a PDF.
 
 ## The runtime
 

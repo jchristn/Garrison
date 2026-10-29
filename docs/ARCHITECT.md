@@ -175,4 +175,4 @@ The same deployment is a valid target for `PUT .../studio/architects/{id}/prompt
 
 ## Status
 
-The architect, its prompts, selection, the next-turn rule, and the delete protection are built and tested on Sqlite and PostgreSQL. The dashboard's Studio screens for choosing and editing architect prompts, and the setup wizard step that creates the first architect, are still in progress; until they land, use the REST routes, MCP tools, or SDKs shown here.
+The architect, its prompts, selection, the next-turn rule, and the delete protection are built and tested on Sqlite and PostgreSQL. In the dashboard, the setup wizard's Agent Studio step creates the first architect with a chosen prompt, Agent Studio > New architect creates more, and the Architect prompt tab in a draft lists, clones, edits, resets, and selects architect prompts. The REST routes, MCP tools, and SDKs shown here do the same.
