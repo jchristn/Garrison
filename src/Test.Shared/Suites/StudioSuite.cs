@@ -127,7 +127,9 @@ namespace Test.Shared.Suites
                 string item = D(host) + "/" + draft.Id + "/items/Agent/drafted";
                 StudioDraft one = await PutAsync(host.AdminClient, item, 1, AgentYaml("drafted", "First."), token).ConfigureAwait(false);
                 Assert.True(one.Version == 2 && one.Items.Count == 1 && one.Items[0].BaseHash == null, "Item stored; nothing live to base it on");
-                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, item, new StudioDraftItemRequest { Version = 1, Document = AgentYaml("drafted", "Stale.") }, token).ConfigureAwait(false), 409, "DraftVersionConflict", "Stale version");
+                TestResponse stale = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, item, new StudioDraftItemRequest { Version = 1, Document = AgentYaml("drafted", "Stale.") }, token).ConfigureAwait(false);
+                Code(stale, 409, "DraftVersionConflict", "Stale version");
+                Assert.True(stale.Body.Contains("version 2", StringComparison.Ordinal), "The conflict names the current version: " + stale.Body);
                 StudioDraft two = await PutAsync(host.AdminClient, item, 2, AgentYaml("drafted", "Second."), token).ConfigureAwait(false);
                 Assert.True(two.Version == 3 && two.Items.Count == 1 && two.Items[0].Document.Contains("Second.", StringComparison.Ordinal), "Replaced, not duplicated");
                 Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/other", new StudioDraftItemRequest { Version = 3, Document = AgentYaml("drafted", "Wrong name.") }, token).ConfigureAwait(false), 400, "DocumentMismatch", "Name must match the path");
@@ -144,6 +146,8 @@ namespace Test.Shared.Suites
                 Assert.True(removed.Items.All(i => i.Name != "drafted") && removed.Version == current.Version + 1, "Removed");
                 EnumerationResult<StudioDraft> mine = await HttpTestHelpers.SendAsync<EnumerationResult<StudioDraft>>(host.AdminClient, HttpMethod.Get, D(host) + "?mine=true", null, 200, token).ConfigureAwait(false);
                 Assert.True(mine.Objects.Any(d => d.Id == draft.Id), "Listed as mine");
+                EnumerationResult<StudioDraft> applied = await HttpTestHelpers.SendAsync<EnumerationResult<StudioDraft>>(host.AdminClient, HttpMethod.Get, D(host) + "?status=Applied", null, 200, token).ConfigureAwait(false);
+                Assert.True(applied.Objects.All(d => d.Status == StudioDraftStatusEnum.Applied) && applied.Objects.All(d => d.Id != draft.Id), "The status filter leaves out open drafts");
                 Assert.Equal(204, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, D(host) + "/" + draft.Id, null, token).ConfigureAwait(false)).StatusCode, "Discarded");
                 Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, D(host) + "/" + draft.Id, null, token).ConfigureAwait(false)).StatusCode, "Gone");
             }

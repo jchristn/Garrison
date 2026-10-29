@@ -36,9 +36,10 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="tenantId">Tenant identifier.</param>
         /// <param name="ownerUserId">Owner, or null for all.</param>
         /// <param name="query">Paging and search on the title.</param>
+        /// <param name="status">Only drafts in this status, or null for all.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Page.</returns>
-        Task<EnumerationResult<StudioDraft>> EnumerateAsync(string tenantId, string? ownerUserId, EnumerationQuery query, CancellationToken token = default);
+        Task<EnumerationResult<StudioDraft>> EnumerateAsync(string tenantId, string? ownerUserId, EnumerationQuery query, StudioDraftStatusEnum? status = null, CancellationToken token = default);
 
         /// <summary>
         /// Create or replace one item of an Open draft at the expected version.

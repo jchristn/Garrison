@@ -55,7 +55,7 @@ namespace Garrison.Server.Routes
         public void Register(RouteRegistrar routes)
         {
             _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, ListAsync, "List studio drafts, newest change first (mine=true for your own)", _Tag, null, typeof(EnumerationResult<StudioDraft>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, ListAsync, "List studio drafts, newest change first (mine=true for your own; status to filter)", _Tag, null, typeof(EnumerationResult<StudioDraft>));
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Create, CreateAsync, "Start a studio draft, empty or from an existing app with everything it references", _Tag, typeof(StudioDraftCreateRequest), typeof(StudioDraft));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, ReadAsync, "Read a studio draft with its items and layout", _Tag, null, typeof(StudioDraft));
             routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Delete, DeleteAsync, "Discard a studio draft (a pending apply approval is cancelled)", _Tag);
@@ -81,7 +81,7 @@ namespace Garrison.Server.Routes
         {
             string? owner = null;
             if (RouteHelpers.QueryBool(http, "mine") == true) StudioService.Owner(RouteHelpers.Context(http), out owner, out string? _);
-            EnumerationResult<StudioDraft> page = await _Server.Database.StudioDrafts.EnumerateAsync(RouteHelpers.Tenant(http), owner, RouteHelpers.Enumeration(http), http.Token).ConfigureAwait(false);
+            EnumerationResult<StudioDraft> page = await _Server.Database.StudioDrafts.EnumerateAsync(RouteHelpers.Tenant(http), owner, RouteHelpers.Enumeration(http), RouteHelpers.QueryEnum<StudioDraftStatusEnum>(http, "status"), http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, page).ConfigureAwait(false);
         }
 

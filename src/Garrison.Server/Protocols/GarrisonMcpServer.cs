@@ -1710,7 +1710,7 @@ namespace Garrison.Server.Protocols
                 {
                     string? owner = null;
                     if (ctx.PrincipalType == PrincipalTypeEnum.Run) StudioService.Owner(ctx, out owner, out string? _);
-                    return await _Context.Database.StudioDrafts.EnumerateAsync(tenantId, owner, new EnumerationQuery { Search = arguments.Title, MaxResults = 100 }, token).ConfigureAwait(false);
+                    return await _Context.Database.StudioDrafts.EnumerateAsync(tenantId, owner, new EnumerationQuery { Search = arguments.Title, MaxResults = 100 }, null, token).ConfigureAwait(false);
                 }
                 if (tool.Name == "garrison_studio_create_draft")
                 {

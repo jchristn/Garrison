@@ -32,7 +32,7 @@ Item document text is stored as written. It is one of the few unmanaged text col
 
 ### Versions
 
-Every change to a draft (an item, a graph operation, the layout, a status change) raises its version by one. Each change names the version the caller read. If the draft moved on in the meantime, the change fails with 409 `DraftVersionConflict` and changes nothing; read the draft again and retry. Two editors, or a person and the architect, can therefore work on one draft without overwriting each other.
+Every change to a draft (an item, a graph operation, the layout, a status change) raises its version by one. Each change names the version the caller read. If the draft moved on in the meantime, the change fails with 409 `DraftVersionConflict`, whose message names the draft's current version, and changes nothing; read the draft again and retry. Two editors, or a person and the architect, can therefore work on one draft without overwriting each other.
 
 ### Starting from an app
 
@@ -135,7 +135,7 @@ All paths are under `/v1.0/api/tenants/{tenantId}/studio/drafts`:
 
 | Method and path suffix | Permission | Result |
 |---|---|---|
-| `GET` | Read on `StudioDraft` | `EnumerationResult<StudioDraft>`; `mine=true` for your own |
+| `GET` | Read on `StudioDraft` | `EnumerationResult<StudioDraft>`; `mine=true` for your own, `status` (`Open`, `PendingApproval`, `Applied`, `Discarded`) to filter |
 | `POST` | Create on `StudioDraft` (and Read on `AgenticApp` with `fromApp`) | `StudioDraft`, 201 |
 | `GET /{id}` | Read on `StudioDraft` | `StudioDraft` |
 | `DELETE /{id}` | Delete on `StudioDraft` | 204 |

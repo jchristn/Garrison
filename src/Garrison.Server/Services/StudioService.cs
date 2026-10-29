@@ -183,7 +183,7 @@ namespace Garrison.Server.Services
             }
             StudioDraftItem? existing = draft.Items.FirstOrDefault(i => i.Kind == canonicalKind && i.Name == name);
             item.BaseHash = existing != null ? existing.BaseHash : await LiveHashAsync(tenantId, canonicalKind, name, token).ConfigureAwait(false);
-            if (!await _Server.Database.StudioDrafts.PutItemAsync(tenantId, draft.Id, request.Version, item, token).ConfigureAwait(false)) throw Moved(draft);
+            if (!await _Server.Database.StudioDrafts.PutItemAsync(tenantId, draft.Id, request.Version, item, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
             return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
         }
 
@@ -202,7 +202,7 @@ namespace Garrison.Server.Services
         {
             StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
             StudioDraftItem item = draft.Items.FirstOrDefault(i => String.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase) && i.Name == name) ?? throw new NotFoundException("The draft has no item " + kind + "/" + name + ".");
-            if (!await _Server.Database.StudioDrafts.RemoveItemAsync(tenantId, draft.Id, version, item.Kind, item.Name, token).ConfigureAwait(false)) throw Moved(draft);
+            if (!await _Server.Database.StudioDrafts.RemoveItemAsync(tenantId, draft.Id, version, item.Kind, item.Name, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
             return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
         }
 
@@ -220,7 +220,7 @@ namespace Garrison.Server.Services
             if (nodes == null) throw new ArgumentNullException(nameof(nodes));
             if (nodes.Count > 1000) throw Invalid("nodes", "TooMany", "At most 1000 nodes.");
             StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
-            if (!await _Server.Database.StudioDrafts.SetLayoutAsync(tenantId, draft.Id, version, nodes, token).ConfigureAwait(false)) throw Moved(draft);
+            if (!await _Server.Database.StudioDrafts.SetLayoutAsync(tenantId, draft.Id, version, nodes, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
             return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
         }
 
@@ -300,7 +300,7 @@ namespace Garrison.Server.Services
                 if (String.IsNullOrWhiteSpace(request.NodeKey)) throw Invalid("nodeKey", "Required", "nodeKey is required.");
                 List<StudioDraftNode> layout = draft.Layout.Where(n => n.NodeKey != request.NodeKey).ToList();
                 layout.Add(new StudioDraftNode { NodeKey = request.NodeKey, X = request.X, Y = request.Y });
-                if (!await _Server.Database.StudioDrafts.SetLayoutAsync(tenantId, draft.Id, request.Version, layout, token).ConfigureAwait(false)) throw Moved(draft);
+                if (!await _Server.Database.StudioDrafts.SetLayoutAsync(tenantId, draft.Id, request.Version, layout, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
                 return Graph(await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false));
             }
 
@@ -366,7 +366,7 @@ namespace Garrison.Server.Services
             string text = Normalize(document);
             StudioDraftItem item = new StudioDraftItem { Kind = "AgenticApp", Name = appName, Document = text, Operation = StudioDraftOperationEnum.Upsert };
             item.BaseHash = existing != null ? existing.BaseHash : await LiveHashAsync(tenantId, "AgenticApp", appName, token).ConfigureAwait(false);
-            if (!await _Server.Database.StudioDrafts.PutItemAsync(tenantId, draft.Id, request.Version, item, token).ConfigureAwait(false)) throw Moved(draft);
+            if (!await _Server.Database.StudioDrafts.PutItemAsync(tenantId, draft.Id, request.Version, item, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
             return Graph(await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false));
         }
 
@@ -446,7 +446,7 @@ namespace Garrison.Server.Services
             if (!await _Server.Database.StudioDrafts.TransitionAsync(tenantId, draft.Id, version, StudioDraftStatusEnum.Open, StudioDraftStatusEnum.PendingApproval, approval.Id, null, token).ConfigureAwait(false))
             {
                 await _Server.Get<Garrison.Server.Runtime.ApprovalService>().CancelDraftAsync(approval, "The draft changed before the request was recorded.", token).ConfigureAwait(false);
-                throw Moved(draft);
+                throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
             }
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Requested approval to apply draft " + draft.Title + " (" + Summarize(diff) + ").", tenantId, token).ConfigureAwait(false);
             return approval;
@@ -573,7 +573,7 @@ namespace Garrison.Server.Services
 
         private static ConflictException Moved(StudioDraft draft)
         {
-            return new ConflictException("DraftVersionConflict", "Draft " + draft.Title + " changed since version you read; read it again (it is at a newer version) and retry.");
+            return new ConflictException("DraftVersionConflict", "Draft " + draft.Title + " is at version " + draft.Version + ", not the version you read; read it again and retry.");
         }
 
         private static ValidationException Invalid(string field, string code, string message)

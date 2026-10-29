@@ -110,19 +110,21 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
-        public async Task<EnumerationResult<StudioDraft>> EnumerateAsync(string tenantId, string? ownerUserId, EnumerationQuery query, CancellationToken token = default)
+        public async Task<EnumerationResult<StudioDraft>> EnumerateAsync(string tenantId, string? ownerUserId, EnumerationQuery query, StudioDraftStatusEnum? status = null, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             if (query == null) throw new ArgumentNullException(nameof(query));
             List<string> clauses = new List<string> { "tenantid = @tenantid" };
             if (!String.IsNullOrEmpty(ownerUserId)) clauses.Add("owneruserid = @owner");
             if (!String.IsNullOrEmpty(query.Search)) clauses.Add(_Driver.Dialect.CaseInsensitiveLike("title", "search"));
+            if (status.HasValue) clauses.Add("status = @status");
             string where = " WHERE " + String.Join(" AND ", clauses);
             Action<DbCommand> bind = command =>
             {
                 AdoDatabaseDriver.Add(command, "tenantid", tenantId);
                 if (!String.IsNullOrEmpty(ownerUserId)) AdoDatabaseDriver.Add(command, "owner", ownerUserId);
                 if (!String.IsNullOrEmpty(query.Search)) AdoDatabaseDriver.Add(command, "search", "%" + query.Search + "%");
+                if (status.HasValue) AdoDatabaseDriver.Add(command, "status", status.Value.ToString());
             };
             object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Drafts + where + ";", bind, token).ConfigureAwait(false);
             long total = countValue == null ? 0 : Convert.ToInt64(countValue, CultureInfo.InvariantCulture);
