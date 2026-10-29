@@ -327,6 +327,16 @@ namespace Garrison.Core.Database.Ado
             v37.BuildVersion37();
             migrations.Add(new SchemaMigration(37, "Conversation file spaces", v37._Statements, v37._Columns));
 
+            // AD4: capability descriptors with tags and placement requirements, and harness tool probes.
+            SchemaBuilder v38 = new SchemaBuilder(catalog, dialect);
+            v38.BuildVersion38();
+            migrations.Add(new SchemaMigration(38, "Capability descriptors and harness tool probes", v38._Statements, v38._Columns));
+
+            // AD5: fan-out groups with their members, and the group a run belongs to.
+            SchemaBuilder v39 = new SchemaBuilder(catalog, dialect);
+            v39.BuildVersion39();
+            migrations.Add(new SchemaMigration(39, "Fan-out groups", v39._Statements, v39._Columns));
+
             return migrations;
         }
 
@@ -390,6 +400,108 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion39()
+        {
+            SqlDialect d = _Dialect;
+            Table("fan_out_groups",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "parentrunid " + d.TypeId + " NOT NULL",
+                "rootrunid " + d.TypeId + " NOT NULL",
+                "joinpolicy VARCHAR(16) NOT NULL",
+                "quorum " + d.TypeInt + " NOT NULL",
+                "timeoutseconds " + d.TypeInt + " NOT NULL",
+                "deadlineutc " + d.TypeTimestamp,
+                "maxcostusd " + d.TypeDouble,
+                "maxtokens " + d.TypeBigInt,
+                "cancelremaining " + d.TypeBool + " NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "statusreason " + d.TypeText,
+                "costusd " + d.TypeDouble + " NOT NULL",
+                "tokens " + d.TypeBigInt + " NOT NULL",
+                "requestdigest VARCHAR(64) NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "completedutc " + d.TypeTimestamp,
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("fan_out_groups", "parent", false, "tenantid", "parentrunid", "createdutc");
+            Index("fan_out_groups", "status", false, "status", "createdutc");
+            Table("fan_out_group_members",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "groupid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "label VARCHAR(128) NOT NULL",
+                "agentname VARCHAR(128) NOT NULL",
+                "childrunid " + d.TypeId + " NOT NULL");
+            Index("fan_out_group_members", "parent", false, "groupid", "position");
+            Column("runs", "fanoutgroupid", d.TypeId);
+        }
+
+        private void BuildVersion38()
+        {
+            SqlDialect d = _Dialect;
+            Table("capability_descriptors",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId,
+                "scopekey VARCHAR(64) NOT NULL",
+                "name VARCHAR(256) NOT NULL",
+                "kind VARCHAR(32) NOT NULL",
+                "origin VARCHAR(32) NOT NULL",
+                "sourcekey VARCHAR(512) NOT NULL",
+                "sourceagentid " + d.TypeId,
+                "sourcerevisionid " + d.TypeId,
+                "sourcemcpserverid " + d.TypeId,
+                "sourcetoolname VARCHAR(256)",
+                "sourceharnessprofileid " + d.TypeId,
+                "sourceharnesstype VARCHAR(32)",
+                "summary " + d.TypeText,
+                "inputschemajson " + d.TypeText,
+                "outputschemajson " + d.TypeText,
+                "hintstatus VARCHAR(32) NOT NULL",
+                "hintsamplesize " + d.TypeInt + " NOT NULL",
+                "hintmediandurationms " + d.TypeBigInt,
+                "hintp90durationms " + d.TypeBigInt,
+                "hintmeancostusd " + d.TypeDouble,
+                "hintwindowdays " + d.TypeInt + " NOT NULL",
+                "hintcomputedutc " + d.TypeTimestamp,
+                "refreshwarning " + d.TypeText,
+                "lastrefreshedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            // scopekey is the tenant identifier, or "*" for descriptors every tenant shares, so the unique source index
+            // also holds for shared rows (a NULL tenant would never collide).
+            Index("capability_descriptors", "source", true, "scopekey", "sourcekey");
+            Index("capability_descriptors", "tenantkind", false, "tenantid", "kind", "name");
+            Table("capability_descriptor_tags",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "capabilityid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId,
+                "position " + d.TypeInt + " NOT NULL",
+                "tag VARCHAR(64) NOT NULL");
+            Index("capability_descriptor_tags", "parent", false, "capabilityid", "position");
+            Table("capability_descriptor_requirements",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "capabilityid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId,
+                "position " + d.TypeInt + " NOT NULL",
+                "labelkey VARCHAR(256) NOT NULL",
+                "labelvalue VARCHAR(256) NOT NULL");
+            Index("capability_descriptor_requirements", "parent", false, "capabilityid", "position");
+            Table("harness_profile_tool_probes",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "harnessprofileid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId,
+                "position " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(64) NOT NULL",
+                "executable VARCHAR(128) NOT NULL",
+                "argument VARCHAR(32)",
+                "description " + d.TypeText);
+            Index("harness_profile_tool_probes", "parent", false, "harnessprofileid", "position");
+            // Stdio MCP diagnostics carry tool descriptions and input schemas back for the capability catalog (AD4.3).
+            Column("mcp_test_tools", "description", d.TypeText);
+            Column("mcp_test_tools", "inputschemajson", d.TypeText);
         }
 
         private void BuildVersion37()

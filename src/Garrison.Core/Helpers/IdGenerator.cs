@@ -371,6 +371,33 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a capability descriptor identifier (prefix cap_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewCapabilityId()
+        {
+            return New(Constants.CapabilityIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a fan-out group identifier (prefix fog_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewFanOutGroupId()
+        {
+            return New(Constants.FanOutGroupIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a fan-out group member identifier (prefix fom_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewFanOutMemberId()
+        {
+            return New(Constants.FanOutMemberIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a notification endpoint event row identifier (prefix nev_).
         /// </summary>
         /// <returns>Identifier.</returns>

@@ -66,7 +66,7 @@
       {
         "baseDirectory": "Config",
         "path": "system-prompt.md",
-        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\nYou can hand work to other Garrison agents through the \u0022garrison\u0022 MCP server:\n- garrison_list_agents shows the agents you may call and what each one does.\n- garrison_invoke_agent sends a message to an agent and waits for its answer. If it returns a run ID instead of an answer, call garrison_get_run until the run finishes.\n\nDelegate only when another agent is better suited to part of the task. You may call: codex-coder. Delegation can go at most 2 levels below you.\n\n",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\nYou can hand work to other Garrison agents through the \u0022garrison\u0022 MCP server:\n- garrison_list_agents shows the agents you may call and what each one does.\n- garrison_invoke_agent sends a message to an agent and waits for its answer. If it returns a run ID instead of an answer, call garrison_get_run until the run finishes.\n\nDelegate only when another agent is better suited to part of the task. You may call: codex-coder. Delegation can go at most 2 levels below you.\n\nBefore you choose who or what does part of the task, look at the capability catalog:\n- garrison_list_capabilities lists what you can use: agents you may call, tools of MCP servers you are connected to, and tools installed on your host (such as pandoc). Each entry has a summary, input and output schemas, and cost and latency hints.\n- garrison_describe_capability shows one entry in full.\n\nPrefer the cheapest capability that does the job well. Hints marked Unknown have too few runs behind them to judge.\n\n\n",
         "isSecret": false
       }
     ],
@@ -183,6 +183,13 @@
       "runId": "run_golden",
       "templateId": "tpl_builtin_garrison_tools_instructions",
       "templateName": "builtin/garrison-tools-instructions",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_4",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_garrison_catalog_instructions",
+      "templateName": "builtin/garrison-catalog-instructions",
       "version": 1
     }
   ]

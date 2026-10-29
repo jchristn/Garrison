@@ -12,7 +12,7 @@ namespace Garrison.FakeHarness
     public static class FakeMcpServer
     {
         /// <summary>Serve initialize and two tools/list pages until stdin closes.</summary>
-        /// <param name="args">Fixture flags: --stdio-hang, --stdio-malformed, --stdio-cycle, --stdio-env.</param>
+        /// <param name="args">Fixture flags: --stdio-hang, --stdio-malformed, --stdio-cycle, --stdio-env, --stdio-describe (tools carry a description and input schema), --stdio-single (one page with fixture_echo only).</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Exit code.</returns>
         public static async Task<int> RunAsync(string[] args, CancellationToken token = default)
@@ -37,7 +37,9 @@ namespace Garrison.FakeHarness
                         await Console.Out.WriteLineAsync(JsonSerializer.Serialize(new JsonRpcResponse { Id = request.Id, Error = new JsonRpcError { Code = -32603, Message = "fixture-private-value" } })).ConfigureAwait(false);
                         continue;
                     }
-                    if (pages == 1 || args.Contains("--stdio-cycle")) result = new { tools = new[] { new { name = "fixture_echo" } }, nextCursor = "page-two" };
+                    if (args.Contains("--stdio-single")) result = new { tools = new[] { new { name = "fixture_echo" } } };
+                    else if (args.Contains("--stdio-describe") && pages == 1) result = new { tools = new[] { new { name = "fixture_echo", description = "Echoes the text it is given.", inputSchema = new { type = "object", properties = new { text = new { type = "string" } }, required = new[] { "text" } } } }, nextCursor = "page-two" };
+                    else if (pages == 1 || args.Contains("--stdio-cycle")) result = new { tools = new[] { new { name = "fixture_echo" } }, nextCursor = "page-two" };
                     else result = new { tools = new[] { new { name = "fixture_status" } } };
                 }
                 else result = new { };

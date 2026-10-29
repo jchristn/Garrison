@@ -100,6 +100,16 @@ namespace Garrison.Worker.Protocol
         }
 
         /// <summary>
+        /// Fetch the tool probes to run before registering (AD4.4).
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Probes and their hash.</returns>
+        public Task<NodeToolProbeResponse> ToolProbesAsync(CancellationToken token = default)
+        {
+            return PostAsync<NodeToolProbeResponse>("/v1.0/api/node/tool-probes", new { }, null, _CallTimeoutMs, token);
+        }
+
+        /// <summary>
         /// Send a heartbeat.
         /// </summary>
         /// <param name="request">Request.</param>

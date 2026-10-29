@@ -738,6 +738,47 @@ await check("conversation file spaces", async () => {
   require(byRun.includes("notes/a.md"), `run listing ${byRun}`);
 });
 
+await check("capability catalog", async () => {
+  const catalog = await client.capabilities.list();
+  require(catalog.totalRecords === catalog.objects.length, `totalRecords ${catalog.totalRecords} objects ${catalog.objects.length}`);
+  const mine = catalog.objects.find((d) => d.kind === "Agent" && d.sourceAgentId === state.agent);
+  require(mine, "test agent has no Agent descriptor");
+  require(mine.origin === "Derived" && mine.sourceRevisionId && mine.id.startsWith("cap_"), `agent descriptor ${JSON.stringify(mine)}`);
+  require((await client.capabilities.list({ kind: "Agent" })).objects.every((d) => d.kind === "Agent"), "kind filter");
+  const name = `sdk-js-cap-${suffix}`;
+  const tag = `sdk-js-tag-${suffix}`;
+  const schema = JSON.stringify({ type: "object", properties: { text: { type: "string" } }, required: ["text"] });
+  const created = await client.capabilities.create({
+    name, kind: "McpTool", summary: "Manual descriptor from the JavaScript SDK harness.", inputSchemaJson: schema,
+    tags: [tag], requirements: [{ key: "garrison.io/sdk-fixture", value: "true" }],
+  });
+  try {
+    require(created.origin === "Manual" && created.sourceKey === `manual:${created.id}`, `manual descriptor ${JSON.stringify(created)}`);
+    require(created.tags.includes(tag) && created.requirements.some((r) => r.key === "garrison.io/sdk-fixture"), "tags and requirements");
+    require((await client.capabilities.get(created.id)).name === name, "read by id");
+    require((await client.capabilities.get(name)).id === created.id, "read by name");
+    const tagged = (await client.capabilities.list({ tag })).objects;
+    require(tagged.length === 1 && tagged[0].id === created.id, `tag filter returned ${tagged.length}`);
+    let badCode = null;
+    try { await client.capabilities.create({ name: `${name}-bad`, kind: "McpTool", inputSchemaJson: "[1,2]" }); }
+    catch (e) { badCode = e instanceof GarrisonError && e.statusCode === 400 ? e.code : String(e); }
+    require(badCode === "InvalidJsonSchema", `invalid schema code ${badCode}`);
+    let duplicateCode = null;
+    try { await client.capabilities.create({ name, kind: "McpTool" }); }
+    catch (e) { duplicateCode = e instanceof GarrisonError && e.statusCode === 409 ? e.code : String(e); }
+    require(duplicateCode === "NameConflict", `duplicate name code ${duplicateCode}`);
+    const updated = await client.capabilities.update(created.id, { ...created, summary: "Updated by the JavaScript SDK harness." });
+    require(updated.summary === "Updated by the JavaScript SDK harness." && updated.tags.includes(tag), "update");
+    const refreshed = await client.capabilities.refresh();
+    require(["agents", "harnessBuiltIns", "hints"].every((k) => Number.isInteger(refreshed[k])), `refresh ${JSON.stringify(refreshed)}`);
+    require(Array.isArray(refreshed.mcpServers) && refreshed.mcpServers.every((m) => m.mcpServerId), "refresh servers");
+  } finally {
+    await client.capabilities.delete(created.id);
+  }
+  let missing = 0;
+  try { await client.capabilities.get(created.id); } catch (e) { missing = e instanceof GarrisonError ? e.statusCode : 0; }
+  require(missing === 404, `deleted descriptor read returned ${missing}`);
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

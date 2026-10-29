@@ -776,6 +776,10 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_agents":
                         result = await ListAgentsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_list_capabilities":
+                    case "garrison_describe_capability":
+                        result = await CapabilityToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_memory_read":
                     case "garrison_memory_write":
                     case "garrison_memory_delete":
@@ -1454,8 +1458,43 @@ namespace Garrison.Server.Protocols
 
             McpAgentList list = new McpAgentList();
             list.Agents = visible.Select(Describe).ToList();
+            // Hints come from the capability catalog (AD4.5); an agent without a descriptor yet has none.
+            List<CapabilityDescriptor> descriptors = await _Context.Database.Capabilities.ListInScopeAsync(tenantId, CapabilityKindEnum.Agent, CapabilityOriginEnum.Derived, token).ConfigureAwait(false);
+            Dictionary<string, CapabilityHints> hints = new Dictionary<string, CapabilityHints>(StringComparer.Ordinal);
+            foreach (CapabilityDescriptor descriptor in descriptors.Where(d => d.SourceAgentId != null)) hints[descriptor.SourceAgentId!] = descriptor.Hints;
+            foreach (McpAgentSummary summary in list.Agents) summary.Hints = hints.TryGetValue(summary.Id, out CapabilityHints? found) ? found : null;
             list.TotalRecords = ctx.PrincipalType == PrincipalTypeEnum.Run ? list.Agents.Count : page.TotalRecords;
             return list;
+        }
+
+        private async Task<object> CapabilityToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpCapabilityArguments arguments = ManagementArguments<McpCapabilityArguments>(args);
+            CapabilityService capabilities = _Context.Get<CapabilityService>();
+            Run? caller = null;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                // Run tokens see only what they may use (AD4.6): the discovery permission they already hold decides access.
+                await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                caller = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId ?? String.Empty, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run not found.");
+            }
+            else
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Capability, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            }
+            CapabilityKindEnum? kind = null;
+            if (!String.IsNullOrEmpty(arguments.Kind))
+            {
+                if (!Enum.TryParse(arguments.Kind, true, out CapabilityKindEnum parsed)) throw ToolError("ValidationFailed", "kind is Agent, McpTool, or HarnessBuiltIn.");
+                kind = parsed;
+            }
+            List<CapabilityDescriptor> list = await capabilities.ListAsync(tenantId, tool.Name == "garrison_list_capabilities" ? kind : null, arguments.Tag, arguments.Search, token).ConfigureAwait(false);
+            if (caller != null) list = await capabilities.VisibleToRunAsync(caller, list, token).ConfigureAwait(false);
+            if (tool.Name == "garrison_list_capabilities") return new McpCapabilityList { Capabilities = list, TotalRecords = list.Count };
+            if (String.IsNullOrWhiteSpace(arguments.Capability)) throw ToolError("ValidationFailed", "capability is required.");
+            CapabilityDescriptor? match = list.FirstOrDefault(d => d.Id == arguments.Capability)
+                ?? list.Where(d => d.Name == arguments.Capability).OrderBy(d => d.Kind).ThenBy(d => d.TenantId == null ? 1 : 0).FirstOrDefault();
+            return match ?? throw ToolError("NotFound", "No capability you may use is named " + arguments.Capability + ".");
         }
 
         private async Task<object> GetAgentAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)

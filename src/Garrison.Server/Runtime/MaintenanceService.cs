@@ -59,6 +59,12 @@ namespace Garrison.Server.Runtime
         public FileSpaceService? FileSpaces { get; set; } = null;
 
         /// <summary>
+        /// Capability catalog (AD4); when set, the leader runs its sweep (derived descriptors and hints) every
+        /// Capabilities.SweepSeconds.
+        /// </summary>
+        public CapabilityService? Capabilities { get; set; } = null;
+
+        /// <summary>
         /// Days to keep run events.
         /// </summary>
         public Func<int> EventRetentionDays { get; set; } = () => 14;
@@ -535,6 +541,19 @@ namespace Garrison.Server.Runtime
                         }
                         finally
                         {
+                            _Pause.Touch();
+                        }
+                    }
+                    CapabilityService? capabilities = Capabilities;
+                    if (capabilities != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "capabilities", capabilities.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Listing MCP servers can take a while; that work is not a pause.
                             _Pause.Touch();
                         }
                     }

@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -188,7 +188,7 @@ Run dictionaries carry timing and usage fields alongside `inputTokens`, `outputT
 
 The server omits most fields it cannot measure, so read them with `run.get(...)`. A few keys are always present and are `None` when there is nothing to report: `outputTokensPerSecond`, `blockedReason`, `outputSchemaValid`, and `schemaValidationErrors`. `run.get(...)` handles both cases.
 
-`run["blockedReason"]` is computed by the server when a run is read. It is `None` unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist). `RUN_BLOCKED_REASONS` lists them. The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
+`run["blockedReason"]` is computed by the server when a run is read. It is `None` unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist), `NoToolWorker` (the run's agent uses a harness built-in capability such as pandoc, and no Ready worker that can run it reports that tool). `RUN_BLOCKED_REASONS` lists them. The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
 
 Runs stopped by a worker run guard end `Failed` with outcome `RepetitionDetected` (the assistant text degenerated into a short repeated unit or into text with no letters or digits), `OutputLimitExceeded` (more assistant text than the deployment's `maxAssistantChars`), or `NoProgress` (nothing happened for `noProgressSeconds`). The partial output is in `run["resultText"]`, and the run has one `Warning` event with code `RunGuardTriggered`. A waiting invoke cancels its run when the connection drops; pass `cancel_on_disconnect=False` to `agents.invoke` or `runs.create` to keep the run going. See "Run guards" and "Cancellation" in `REST_API.md`.
 
@@ -351,6 +351,26 @@ client.file_spaces.delete("conversations", cid, "notes/a.md")
 ```
 
 Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `ConversationFile`, `ConversationFileVersion`, `FileSpaceListing`, `FileSpaceUploadResult`, and `FileDownloadUrl` type the responses.
+
+## Capability catalog
+
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `CapabilityDescriptor` has `id` (`cap_...`), `name`, `kind` (`CAPABILITY_KINDS`: `Agent`, `McpTool`, `HarnessBuiltIn`), `origin` (`CAPABILITY_ORIGINS`: `Derived` or `Manual`), `sourceKey`, the source fields (`sourceAgentId`, `sourceRevisionId`, `sourceMcpServerId`, `sourceToolName`, `sourceHarnessProfileId`, `sourceHarnessType`), `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags`, `requirements` (node labels a run needs, as `{"key", "value"}`), `hints`, `refreshWarning`, `lastRefreshedUtc`, `createdUtc`, and `lastUpdateUtc`. `tenantId` is `None` for descriptors every tenant shares (harness built-ins of built-in profiles).
+
+Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in its `toolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `hints` (`CapabilityHints`) has `status` (`CAPABILITY_HINT_STATUSES`: `Unknown` until enough runs finish, then `Known`), `sampleSize`, `medianDurationMs`, `p90DurationMs`, `meanCostUsd`, `windowDays`, and `computedUtc`; the values are `None` while the status is `Unknown`.
+
+```python
+agents = client.capabilities.list(kind="Agent")["objects"]
+billing = client.capabilities.list(tag="billing", search="invoice")["objects"]
+created = client.capabilities.create({"name": "lookup-invoice", "kind": "McpTool", "summary": "Find an invoice by number.",
+                                      "inputSchemaJson": '{"type":"object","properties":{"number":{"type":"string"}}}',
+                                      "tags": ["billing"]})
+same = client.capabilities.get("lookup-invoice")                  # ID or name
+client.capabilities.update(created["id"], {**created, "summary": "Find an invoice by its number."})
+result = client.capabilities.refresh()                             # or refresh(mcp_server_id=...)
+client.capabilities.delete(created["id"])
+```
+
+`refresh` returns a `CapabilityRefreshResult`: `agents`, `harnessBuiltIns`, and `hints` counts, plus `mcpServers`, one entry per MCP server with `mcpServerId`, `mcpServerName`, `tools`, `removed`, `warned`, and `error` (set when the listing failed). Harness profiles accept `toolProbes`, a list of `HarnessToolProbe` dictionaries: `name` (lowercase letters, digits, dots, and hyphens), `executable` (a bare file name on the worker's PATH), `arguments` (at most one of `HARNESS_TOOL_PROBE_ARGUMENTS`, default `["--version"]`), and `description`. Workers that find the tool report the node label `garrison.io/tool-{name}=true`.
 
 ## Errors
 

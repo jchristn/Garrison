@@ -96,6 +96,22 @@ namespace Garrison.Core
         /// <summary>Key prefix for file space content inside an artifact store (AD3.2). Never used for artifacts.</summary>
         public const string FileSpaceKeyPrefix = ".garrison-files/";
 
+        /// <summary>Capability descriptor identifier prefix (AD4).</summary>
+        public const string CapabilityIdPrefix = "cap_";
+
+        /// <summary>Fan-out group identifier prefix (AD5).</summary>
+        public const string FanOutGroupIdPrefix = "fog_";
+
+        /// <summary>Fan-out group member identifier prefix (AD5).</summary>
+        public const string FanOutMemberIdPrefix = "fom_";
+
+        /// <summary>
+        /// Node label prefix a worker uses to report a harness tool probe that succeeded (AD4.4), for example
+        /// garrison.io/tool-pandoc=true. A HarnessBuiltIn capability requires its label, so runs that need the tool are
+        /// placed on nodes that report it.
+        /// </summary>
+        public const string ToolLabelPrefix = "garrison.io/tool-";
+
         /// <summary>
         /// Header carrying a Garrison webhook signature, inbound on trigger webhooks and outbound on notifications:
         /// <c>t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of "&lt;t&gt;.&lt;raw body&gt;"&gt;</c> (P12.5, P12.14).

@@ -152,6 +152,12 @@ namespace Garrison.Core.Database
                 "conversation_files",
                 "conversation_file_versions",
                 "file_space_blobs",
+                "capability_descriptors",
+                "capability_descriptor_tags",
+                "capability_descriptor_requirements",
+                "harness_profile_tool_probes",
+                "fan_out_groups",
+                "fan_out_group_members",
         };
 
         private readonly SqlDialect _Dialect;

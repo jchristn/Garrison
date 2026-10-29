@@ -60,6 +60,7 @@ namespace Garrison.Harnesses.Preflight
                     ProcessRunResult process = await new ProcessRunner().RunAsync(request, driver.Accept, null, deadline.Token).ConfigureAwait(false);
                     token.ThrowIfCancellationRequested();
                     response.Tools = driver.Tools;
+                    response.ToolDetails = driver.ToolDetails;
                     response.MissingRequiredTools = test.RequiredTools.Where(name => !response.Tools.Contains(name, StringComparer.Ordinal)).ToList();
                     response.Success = driver.Success && response.MissingRequiredTools.Count == 0;
                     if (!response.Success) response.Error = driver.Error ?? (deadline.IsCancellationRequested || process.TimedOut ? "MCP diagnostic timed out." : process.OutputLimitExceeded ? "MCP diagnostic exceeded its output limit." : driver.Success ? "Required tools are missing." : "MCP server did not complete the diagnostic exchange.");

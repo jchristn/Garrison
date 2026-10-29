@@ -66,7 +66,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -190,7 +190,7 @@ Finished runs carry timing and usage metrics. Most nullable fields are omitted b
 | `reasoningTokens` | `number` (default 0) | Reasoning tokens reported by the harness. |
 | `toolCallCount` | `number` (default 0) | Tool calls made by the run. |
 
-`run.blockedReason` (`RunBlockedReason | null`) is computed by the server when a run is read. It is `null` unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
+`run.blockedReason` (`RunBlockedReason | null`) is computed by the server when a run is read. It is `null` unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist), `NoToolWorker` (the run's agent uses a harness built-in capability such as pandoc, and no Ready worker that can run it reports that tool). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
 
 Runs stopped by a worker run guard end `Failed` with outcome `RepetitionDetected` (the assistant text degenerated into a short repeated unit or into text with no letters or digits), `OutputLimitExceeded` (more assistant text than the deployment's `maxAssistantChars`), or `NoProgress` (nothing happened for `noProgressSeconds`). The partial output is in `run.resultText`, and the run has one `Warning` event with code `RunGuardTriggered`. A waiting invoke cancels its run when the connection drops; pass `{ cancelOnDisconnect: false }` to `agents.invoke` or `runs.create` to keep the run going. See "Run guards" and "Cancellation" in `REST_API.md`.
 
@@ -279,6 +279,27 @@ await client.fileSpaces.delete("conversations", cid, "notes/a.md");
 ```
 
 Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `ConversationFile`, `ConversationFileVersion`, `FileSpaceListing`, `FileSpaceUploadResult`, and `FileDownloadUrl` type the responses.
+
+## Capability catalog
+
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `CapabilityDescriptor` has `id` (`cap_...`), `name`, `kind` (`CapabilityKind`: `"Agent"`, `"McpTool"`, `"HarnessBuiltIn"`; `CAPABILITY_KINDS`), `origin` (`"Derived"` or `"Manual"`), `sourceKey`, the source fields (`sourceAgentId`, `sourceRevisionId`, `sourceMcpServerId`, `sourceToolName`, `sourceHarnessProfileId`, `sourceHarnessType`), `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags`, `requirements` (node labels a run needs, as `{ key, value }`), `hints`, `refreshWarning`, `lastRefreshedUtc`, `createdUtc`, and `lastUpdateUtc`. `tenantId` is `null` for descriptors every tenant shares (harness built-ins of built-in profiles).
+
+Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in its `toolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `hints` (`CapabilityHints`) has `status` (`"Unknown"` until enough runs finish, then `"Known"`), `sampleSize`, `medianDurationMs`, `p90DurationMs`, `meanCostUsd`, `windowDays`, and `computedUtc`; the values are `null` while the status is `"Unknown"`.
+
+```js
+const agents = (await client.capabilities.list({ kind: "Agent" })).objects;
+const billing = (await client.capabilities.list({ tag: "billing", search: "invoice" })).objects;
+const created = await client.capabilities.create({
+  name: "lookup-invoice", kind: "McpTool", summary: "Find an invoice by number.",
+  inputSchemaJson: JSON.stringify({ type: "object", properties: { number: { type: "string" } } }), tags: ["billing"],
+});
+const same = await client.capabilities.get("lookup-invoice");                 // ID or name
+await client.capabilities.update(created.id, { ...created, summary: "Find an invoice by its number." });
+const result = await client.capabilities.refresh();                            // or refresh(mcpServerId)
+await client.capabilities.delete(created.id);
+```
+
+`refresh` resolves with a `CapabilityRefreshResult`: `agents`, `harnessBuiltIns`, and `hints` counts, plus `mcpServers`, one `CapabilityServerRefresh` per MCP server with `mcpServerId`, `mcpServerName`, `tools`, `removed`, `warned`, and `error` (set when the listing failed). `HarnessProfile.toolProbes` (`HarnessToolProbe[]`) declares the tools a harness can use when the worker host has them: `name` (lowercase letters, digits, dots, and hyphens), `executable` (a bare file name on the worker's PATH), `arguments` (at most one of `HARNESS_TOOL_PROBE_ARGUMENTS`, default `["--version"]`), and `description`. Workers that find the tool report the node label `garrison.io/tool-{name}=true`.
 
 ## Manifests
 

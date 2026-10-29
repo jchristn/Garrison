@@ -86,6 +86,12 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Tool probes (AD4.4): a run whose agent revision binds a probed tool by name needs the tool's node label. Null
+        /// uses capability descriptors only.
+        /// </summary>
+        public ToolProbeCatalog? ToolProbes { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -230,6 +236,35 @@ namespace Garrison.Server.Runtime
                 requirement.Key = selector.Key;
                 requirement.Value = selector.Value;
                 run.Requirements.Add(requirement);
+            }
+
+            // A revision bound to harness built-in capabilities (AD4.4) also needs their node labels, so the run is placed
+            // only on a worker that reported the tool.
+            if (!String.IsNullOrEmpty(run.AgentRevisionId))
+            {
+                AgentRevision? revision = await _Database.AgentRevisions.ReadAsync(run.TenantId, run.AgentRevisionId, token).ConfigureAwait(false);
+                if (revision != null && revision.Capabilities.Count > 0)
+                {
+                    List<CapabilityDescriptor> builtIns = await _Database.Capabilities.ListAsync(run.TenantId, CapabilityKindEnum.HarnessBuiltIn, token).ConfigureAwait(false);
+                    foreach (CapabilityDescriptor capability in builtIns.Where(c => revision.Capabilities.Contains(c.Name, StringComparer.Ordinal)))
+                    {
+                        foreach (CapabilityRequirement needed in capability.Requirements)
+                        {
+                            if (run.Requirements.Any(r => r.Key == needed.Key)) continue;
+                            run.Requirements.Add(new RunRequirement { Key = needed.Key, Value = needed.Value });
+                        }
+                    }
+                    // A tool probe whose descriptor the catalog has not derived yet still places the run by its label.
+                    ToolProbeCatalog? probes = ToolProbes;
+                    if (probes != null)
+                    {
+                        foreach (Garrison.Core.Protocol.NodeToolProbe probe in (await probes.CurrentAsync(token).ConfigureAwait(false)).Probes.Where(p => revision.Capabilities.Contains(p.Name, StringComparer.Ordinal)))
+                        {
+                            string key = Garrison.Core.Constants.ToolLabelPrefix + probe.Name;
+                            if (!run.Requirements.Any(r => r.Key == key)) run.Requirements.Add(new RunRequirement { Key = key, Value = "true" });
+                        }
+                    }
+                }
             }
 
             run.Status = RunStatusEnum.Queued;

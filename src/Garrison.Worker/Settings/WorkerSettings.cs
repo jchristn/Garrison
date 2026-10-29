@@ -160,6 +160,14 @@ namespace Garrison.Worker.Settings
         /// </summary>
         public bool McpTestsEnabled { get; set; } = false;
 
+        /// <summary>
+        /// Whether the worker runs the tool probes the control plane sends (AD4.4) and reports the tools it finds as node
+        /// labels garrison.io/tool-{name}=true. A probe is a bare executable on the PATH with one version or help flag, so
+        /// it can report a tool but do nothing else. When false the worker reports no tool labels; operators can still set
+        /// such labels by hand. Default true. Environment override GARRISON_WORKER_TOOL_PROBES_ENABLED.
+        /// </summary>
+        public bool ToolProbesEnabled { get; set; } = true;
+
         /// <summary>Enable private per-node git mirrors. Default true; GARRISON_WORKER_GIT_CACHE_ENABLED overrides it.</summary>
         public bool GitCacheEnabled { get; set; } = true;
 
@@ -623,6 +631,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Boolean.TryParse(value, out bool containerized)) Containerized = containerized;
             value = Env("GARRISON_WORKER_MCP_TESTS_ENABLED");
             if (value != null && Boolean.TryParse(value, out bool mcpTests)) McpTestsEnabled = mcpTests;
+            value = Env("GARRISON_WORKER_TOOL_PROBES_ENABLED");
+            if (value != null && Boolean.TryParse(value, out bool toolProbes)) ToolProbesEnabled = toolProbes;
             value = Env("GARRISON_WORKER_WORK_ROOT");
             if (value != null) WorkRoot = value;
             value = Environment.GetEnvironmentVariable("GARRISON_WORKER_GIT_CACHE_ENABLED");

@@ -21,6 +21,11 @@ namespace Garrison.Core.Responses
         public List<string> Tools { get; set; } = new List<string>();
 
         /// <summary>
+        /// The listed tools with their descriptions and input schemas (AD4.3), in the order the server listed them.
+        /// </summary>
+        public List<McpToolDetail> ToolDetails { get; set; } = new List<McpToolDetail>();
+
+        /// <summary>
         /// Required tools the server did not list.
         /// </summary>
         public List<string> MissingRequiredTools { get; set; } = new List<string>();

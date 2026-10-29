@@ -27,6 +27,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _ProbeArgumentsTable;
         private readonly string _CredentialEnvironmentAllowlistTable;
         private readonly string _AssetPlacementsTable;
+        private readonly string _ToolProbesTable;
 
         #endregion
 
@@ -48,6 +49,7 @@ namespace Garrison.Core.Database.Ado
             _ProbeArgumentsTable = driver.Table("harness_profile_probe_args");
             _CredentialEnvironmentAllowlistTable = driver.Table("harness_profile_cred_env");
             _AssetPlacementsTable = driver.Table("harness_profile_asset_placements");
+            _ToolProbesTable = driver.Table("harness_profile_tool_probes");
         }
 
         #endregion
@@ -337,6 +339,21 @@ namespace Garrison.Core.Database.Ado
                     ListInSystemPrompt = AdoConverters.Bool(reader, "listinsystemprompt")
                 },
                 token).ConfigureAwait(false);
+
+            obj.ToolProbes = await _Driver.QueryAsync(
+                "SELECT * FROM " + _ToolProbesTable + " WHERE harnessprofileid = @parentid ORDER BY position ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                reader =>
+                {
+                    HarnessToolProbe probe = new HarnessToolProbe();
+                    probe.Name = AdoConverters.Str(reader, "name");
+                    probe.Executable = AdoConverters.Str(reader, "executable");
+                    string? argument = AdoConverters.NullableStr(reader, "argument");
+                    probe.Arguments = String.IsNullOrEmpty(argument) ? new List<string>() : new List<string> { argument };
+                    probe.Description = AdoConverters.NullableStr(reader, "description");
+                    return probe;
+                },
+                token).ConfigureAwait(false);
         }
 
         #endregion
@@ -507,6 +524,53 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "listinsystemprompt", placement.ListInSystemPrompt);
                     }, token).ConfigureAwait(false);
             }
+
+            for (int i = 0; i < obj.ToolProbes.Count; i++)
+            {
+                int position = i;
+                HarnessToolProbe probe = obj.ToolProbes[i];
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                    "INSERT INTO " + _ToolProbesTable + " (id, harnessprofileid, tenantid, position, name, executable, argument, description) VALUES (@id, @harnessprofileid, @tenantid, @position, @name, @executable, @argument, @description);",
+                    command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", batch + position.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "t");
+                        AdoDatabaseDriver.Add(command, "harnessprofileid", obj.Id);
+                        AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                        AdoDatabaseDriver.Add(command, "position", position);
+                        AdoDatabaseDriver.Add(command, "name", probe.Name);
+                        AdoDatabaseDriver.Add(command, "executable", probe.Executable);
+                        AdoDatabaseDriver.Add(command, "argument", probe.Arguments.Count > 0 ? probe.Arguments[0] : null);
+                        AdoDatabaseDriver.Add(command, "description", probe.Description);
+                    }, token).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc />
+        public Task<List<HarnessToolProbeSource>> ListToolProbesAsync(CancellationToken token = default)
+        {
+            return _Driver.QueryAsync(
+                "SELECT p.harnessprofileid AS harnessprofileid, h.tenantid AS tenantid, h.harnesstype AS harnesstype, h.active AS active, h.createdutc AS createdutc, " +
+                "p.name AS name, p.executable AS executable, p.argument AS argument, p.description AS description FROM " + _ToolProbesTable + " p JOIN " + _Table + " h ON h.id = p.harnessprofileid " +
+                "ORDER BY CASE WHEN h.tenantid IS NULL THEN 0 ELSE 1 END, h.createdutc ASC, h.id ASC, p.position ASC;",
+                command => { },
+                reader =>
+                {
+                    HarnessToolProbe probe = new HarnessToolProbe();
+                    probe.Name = AdoConverters.Str(reader, "name");
+                    probe.Executable = AdoConverters.Str(reader, "executable");
+                    string? argument = AdoConverters.NullableStr(reader, "argument");
+                    probe.Arguments = String.IsNullOrEmpty(argument) ? new List<string>() : new List<string> { argument };
+                    probe.Description = AdoConverters.NullableStr(reader, "description");
+                    HarnessToolProbeSource source = new HarnessToolProbeSource();
+                    source.HarnessProfileId = AdoConverters.Str(reader, "harnessprofileid");
+                    source.TenantId = AdoConverters.NullableStr(reader, "tenantid");
+                    source.HarnessType = AdoConverters.Enum(reader, "harnesstype", HarnessTypeEnum.Generic);
+                    source.Active = AdoConverters.Bool(reader, "active");
+                    source.ProfileCreatedUtc = AdoConverters.Date(reader, "createdutc");
+                    source.Probe = probe;
+                    return source;
+                },
+                token);
         }
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
@@ -518,6 +582,7 @@ namespace Garrison.Core.Database.Ado
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ProbeArgumentsTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _CredentialEnvironmentAllowlistTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _AssetPlacementsTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ToolProbesTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
         }
 
         private static HarnessArgument MapArguments(DbDataReader reader)

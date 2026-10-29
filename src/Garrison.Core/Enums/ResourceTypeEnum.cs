@@ -200,6 +200,19 @@ namespace Garrison.Core.Enums
         /// them through Read and Update on the Conversation or Run they belong to; this type names them in audit records
         /// and in the operation scope map.
         /// </summary>
-        ConversationFileSpace
+        ConversationFileSpace,
+
+        /// <summary>
+        /// Capability descriptors (AD4): the catalog of agents, MCP tools, and harness built-ins an orchestrator can
+        /// use. Derived descriptors are maintained by Garrison; Create, Update, and Delete apply to manual descriptors,
+        /// and Execute refreshes derived ones.
+        /// </summary>
+        Capability,
+
+        /// <summary>
+        /// Fan-out groups (AD5): children a run started in parallel with garrison_fan_out. Read reads a group and its
+        /// results; Update cancels it. Users reach a group through its parent run.
+        /// </summary>
+        FanOutGroup
     }
 }

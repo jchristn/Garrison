@@ -48,5 +48,11 @@ namespace Garrison.Server.Protocols
         /// Output JSON Schema, when structured.
         /// </summary>
         public string? OutputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// Cost and latency hints from the capability catalog (AD4.5), or null when the agent has no descriptor yet.
+        /// Values are null, never zero, while the status is Unknown.
+        /// </summary>
+        public Garrison.Core.Models.CapabilityHints? Hints { get; set; } = null;
     }
 }

@@ -211,5 +211,31 @@
       "pathTemplate": "assets/{{asset.name}}",
       "listInSystemPrompt": true
     }
+  ],
+  "toolProbes": [
+    {
+      "name": "pandoc",
+      "executable": "pandoc",
+      "arguments": [
+        "--version"
+      ],
+      "description": "Converts documents between formats such as Markdown, HTML, DOCX, and PDF (with a PDF engine)."
+    },
+    {
+      "name": "libreoffice",
+      "executable": "soffice",
+      "arguments": [
+        "--version"
+      ],
+      "description": "LibreOffice in headless mode: converts office documents (DOCX, XLSX, PPTX, ODT) to PDF and other formats."
+    },
+    {
+      "name": "python3",
+      "executable": "python3",
+      "arguments": [
+        "--version"
+      ],
+      "description": "Python 3 interpreter for scripts and data processing."
+    }
   ]
 }

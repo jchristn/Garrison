@@ -178,7 +178,9 @@ namespace Garrison.Server.Services
             foreach (McpWorkerTestResult result in request.McpTestResults)
             {
                 if (result.Result.Tools.Count > 1000 || result.Result.MissingRequiredTools.Count > 1000 || result.Result.Error?.Length > 2048 || result.Result.DurationMs < 0
-                    || result.Result.Tools.Concat(result.Result.MissingRequiredTools).Any(name => String.IsNullOrEmpty(name) || name.Length > 512)) throw new ValidationException("MCP diagnostic outcome exceeds its limits.");
+                    || result.Result.Tools.Concat(result.Result.MissingRequiredTools).Any(name => String.IsNullOrEmpty(name) || name.Length > 512)
+                    || result.Result.ToolDetails.Count > 1000 || result.Result.ToolDetails.Any(d => String.IsNullOrEmpty(d.Name) || d.Name.Length > 512 || (d.Description?.Length ?? 0) > 4000 || (d.InputSchemaJson?.Length ?? 0) > 65536))
+                    throw new ValidationException("MCP diagnostic outcome exceeds its limits.");
                 await _Context.Database.McpTests.CompleteAsync(node.Id, node.RegisteredUtc.Value, result.Id, result.Result, token).ConfigureAwait(false);
             }
             if (node.Status != NodeStatusEnum.Ready || request.Draining || request.FreeCapacity < 1) return;

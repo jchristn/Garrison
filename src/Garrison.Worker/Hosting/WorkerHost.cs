@@ -210,6 +210,9 @@ namespace Garrison.Worker.Hosting
         private readonly List<GaugeRegistration> _Gauges = new List<GaugeRegistration>();
         private Task? _MainTask = null;
         private List<NodeCapabilityReport> _Capabilities = new List<NodeCapabilityReport>();
+        private List<NodeToolProbe> _ToolProbes = new List<NodeToolProbe>();
+        private string _ToolProbeHash = String.Empty;
+        private Dictionary<string, string> _ToolLabels = new Dictionary<string, string>(StringComparer.Ordinal);
         private string? _NodeId = null;
         private string? _LastError = null;
         private int _HeartbeatIntervalMs;
@@ -484,6 +487,8 @@ namespace Garrison.Worker.Hosting
             request.NodePool = _Settings.NodePool;
             request.Labels = new Dictionary<string, string>(_Settings.Labels);
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
+            if (String.IsNullOrEmpty(_ToolProbeHash)) await LoadToolProbesAsync(token).ConfigureAwait(false);
+            foreach (KeyValuePair<string, string> label in Volatile.Read(ref _ToolLabels)) request.Labels[label.Key] = label.Value;
             request.Capabilities = new List<NodeCapabilityReport>(_Capabilities);
             if (!request.Capabilities.Any(capability => capability.HarnessType == HarnessTypeEnum.Generic && capability.Available))
                 request.Capabilities.Add(new NodeCapabilityReport { HarnessType = HarnessTypeEnum.Generic, Available = true, Executable = "remote-protocol" });
@@ -544,6 +549,17 @@ namespace Garrison.Worker.Hosting
 
             foreach (McpWorkerTestResult result in request.McpTestResults) _McpTestResults.TryRemove(result.Id, out _);
             if (response.McpTest != null) StartMcpTest(response.McpTest, token);
+            if (!String.IsNullOrEmpty(response.ToolProbeHash) && !String.Equals(response.ToolProbeHash, _ToolProbeHash, StringComparison.Ordinal))
+            {
+                // The probe list changed (AD4.4): run the new probes; register again only when the tools found change.
+                Dictionary<string, string> before = Volatile.Read(ref _ToolLabels);
+                await LoadToolProbesAsync(token).ConfigureAwait(false);
+                if (ToolLabelsDiffer(before, Volatile.Read(ref _ToolLabels)))
+                {
+                    _Logging.Info(_Header + "tools found changed; re-registering");
+                    Interlocked.Exchange(ref _NeedsRegistration, 1);
+                }
+            }
 
             foreach (string runId in response.LostRunIds) await TransitionAsync(runId, true, token).ConfigureAwait(false);
             foreach (string runId in response.CancelRunIds) await TransitionAsync(runId, false, token).ConfigureAwait(false);
@@ -1157,12 +1173,46 @@ namespace Garrison.Worker.Hosting
                     if (before != _Kubernetes.Available || egressBefore != _Kubernetes.EgressAvailable) changed = true;
                 }
                 _Capabilities = latest;
+                if (await RefreshToolLabelsAsync(Volatile.Read(ref _ToolLabels), token).ConfigureAwait(false)) changed = true;
                 if (changed)
                 {
                     _Logging.Info(_Header + "harness capabilities changed; re-registering");
                     Interlocked.Exchange(ref _NeedsRegistration, 1);
                 }
             }
+        }
+
+        private async Task LoadToolProbesAsync(CancellationToken token)
+        {
+            try
+            {
+                NodeToolProbeResponse response = await _Client.ToolProbesAsync(token).ConfigureAwait(false);
+                _ToolProbes = response.ToolProbes ?? new List<NodeToolProbe>();
+                _ToolProbeHash = String.IsNullOrEmpty(response.ToolProbeHash) ? "none" : response.ToolProbeHash;
+            }
+            catch (NodeProtocolException e)
+            {
+                // A control plane without the route, or a transient failure: register without tool labels and try again
+                // when a heartbeat reports a probe hash.
+                _Logging.Warn(_Header + "could not fetch tool probes: " + e.Message);
+                _ToolProbeHash = "none";
+                return;
+            }
+            Dictionary<string, string> found = await _Prober.ProbeToolsAsync(_ToolProbes, token).ConfigureAwait(false);
+            Volatile.Write(ref _ToolLabels, found);
+            _Logging.Info(_Header + "tools found: " + (found.Count == 0 ? "none" : String.Join(", ", found.Keys.Select(k => k.Substring(Garrison.Core.Constants.ToolLabelPrefix.Length)).OrderBy(k => k, StringComparer.Ordinal))));
+        }
+
+        private async Task<bool> RefreshToolLabelsAsync(Dictionary<string, string> current, CancellationToken token)
+        {
+            Dictionary<string, string> found = await _Prober.ProbeToolsAsync(_ToolProbes, token).ConfigureAwait(false);
+            Volatile.Write(ref _ToolLabels, found);
+            return ToolLabelsDiffer(current, found);
+        }
+
+        private static bool ToolLabelsDiffer(Dictionary<string, string> before, Dictionary<string, string> after)
+        {
+            return before.Count != after.Count || after.Any(label => !before.TryGetValue(label.Key, out string? value) || value != label.Value);
         }
 
         private List<RunExecutorEnum> Executors()

@@ -29,5 +29,11 @@ namespace Garrison.Core.Protocol
         /// Lease duration in milliseconds.
         /// </summary>
         public int LeaseDurationMs { get; set; } = 30000;
+
+        /// <summary>
+        /// Hash of the current tool probe list (AD4.4). A worker whose registration carried another hash re-registers to
+        /// fetch the new probes. Empty when the control plane does not send probes.
+        /// </summary>
+        public string ToolProbeHash { get; set; } = String.Empty;
     }
 }

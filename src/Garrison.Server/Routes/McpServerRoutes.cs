@@ -156,79 +156,8 @@ namespace Garrison.Server.Routes
                 return;
             }
 
-            Stopwatch watch = Stopwatch.StartNew();
-            long outboundStart = Stopwatch.GetTimestamp();
-            Activity? outbound = GarrisonTracing.StartOutbound("mcp_server", "test");
-            outbound?.SetTag("garrison.mcp_server", server.Name);
-            string outcome = "error";
-            Exception? failure = null;
-            try
-            {
-                if (!Uri.TryCreate((server.Url ?? String.Empty).TrimEnd('/'), UriKind.Absolute, out Uri? target)) throw new InvalidOperationException("The MCP server URL is not an absolute URL.");
-                string? blocked = await OutboundAddressPolicy.BlockedReasonAsync(target, http.Token).ConfigureAwait(false);
-                if (blocked != null)
-                {
-                    response.Error = blocked;
-                    outcome = "error";
-                    GarrisonTracing.EndOutbound(outbound, "mcp_server", "test", outboundStart, outcome, null);
-                    response.DurationMs = watch.ElapsedMilliseconds;
-                    await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
-                    return;
-                }
-                TemplateContext context = tests.SecretContext(referenced);
-                using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(http.Token))
-                {
-                    timeout.CancelAfter(_TestTimeoutMs);
-                    // A tenant chooses this URL: connect only to addresses the outbound policy allows, never follow redirects (SR-07).
-                    using (McpHttpClient client = new McpHttpClient(OutboundAddressPolicy.CreateHandler(), true))
-                    {
-                        foreach (McpServerHeader header in server.Headers)
-                        {
-                            TemplateRenderOptions options = new TemplateRenderOptions();
-                            options.AllowSecrets = true;
-                            client.SetRequestHeader(header.Name, TemplateRenderer.Render(header.ValueTemplate, context, options));
-                        }
-                        bool connected = await client.ConnectStreamableAsync((server.Url ?? String.Empty).TrimEnd('/'), String.IsNullOrWhiteSpace(server.Path) ? "/mcp" : server.Path!, timeout.Token).ConfigureAwait(false);
-                        if (!connected) throw new InvalidOperationException("The server did not complete the MCP handshake.");
-                        JsonElement tools = await client.CallAsync<JsonElement>("tools/list", new { }, _TestTimeoutMs, timeout.Token).ConfigureAwait(false);
-                        if (tools.ValueKind == JsonValueKind.Object && tools.TryGetProperty("tools", out JsonElement list) && list.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (JsonElement tool in list.EnumerateArray())
-                            {
-                                if (tool.TryGetProperty("name", out JsonElement name)) response.Tools.Add(name.GetString() ?? String.Empty);
-                            }
-                        }
-                    }
-                }
-                response.MissingRequiredTools = server.RequiredTools.Where(t => !response.Tools.Contains(t, StringComparer.Ordinal)).ToList();
-                response.Success = response.MissingRequiredTools.Count == 0;
-                outcome = response.Success ? "ok" : "missing_tools";
-                if (!response.Success) response.Error = "Required tools are missing: " + String.Join(", ", response.MissingRequiredTools) + ".";
-            }
-            catch (Exception e) when (e is not OperationCanceledException || !http.Token.IsCancellationRequested)
-            {
-                response.Success = false;
-                response.Error = e is OperationCanceledException ? "Timed out after " + _TestTimeoutMs + " ms." : TestFailure(e);
-                _Server.Logging.Debug("[McpServerRoutes] test of MCP server " + server.Id + " failed: " + e.Message);
-                outcome = e is OperationCanceledException ? "timeout" : "error";
-                failure = e;
-            }
-            GarrisonTracing.EndOutbound(outbound, "mcp_server", "test", outboundStart, outcome, failure);
-            response.DurationMs = watch.ElapsedMilliseconds;
+            response = await _Server.Get<Garrison.Server.Services.McpToolListingService>().ListHttpAsync(server, referenced, _TestTimeoutMs, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
-        }
-
-        private static string TestFailure(Exception e)
-        {
-            // The caller chooses the URL, so the raw exception text (which can echo internal host names, response bodies,
-            // and socket details) is not returned; only the class of failure is (SR-26). The detail goes to the debug log.
-            if (e is System.Net.Http.HttpRequestException request)
-            {
-                if (request.StatusCode.HasValue) return "The MCP server answered HTTP " + (int)request.StatusCode.Value + ".";
-                return "The MCP server could not be reached (" + request.HttpRequestError + ").";
-            }
-            if (e is InvalidOperationException && e.Source == typeof(McpServerRoutes).Assembly.GetName().Name) return e.Message;
-            return "The MCP test failed (" + e.GetType().Name + ").";
         }
 
         private async Task<McpServer> LoadAsync(HttpContextBase http)

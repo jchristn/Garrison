@@ -554,6 +554,9 @@ type HarnessProfile struct {
 	HarnessType   string  `json:"harnessType"`
 	Executable    string  `json:"executable"`
 	BuiltIn       bool    `json:"builtIn"`
+	// ToolProbes declares tools the harness can use when the worker host has them installed (at most 32, unique
+	// names); each becomes a HarnessBuiltIn capability.
+	ToolProbes []HarnessToolProbe `json:"toolProbes,omitempty"`
 	// Warnings is set on create and update responses only; see FieldWarning.
 	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
@@ -621,9 +624,10 @@ type Run struct {
 	// compiled in, for finding its spans in Tempo and its logs in Loki; nil for runs created before trace IDs were
 	// recorded.
 	TraceID *string `json:"traceId"`
-	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, NoMatchingPool, or
-	// NoIsolatingWorker (an Untrusted run no Ready worker can isolate) when the queued run cannot be handed to any
-	// worker right now; nil otherwise.
+	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, NoMatchingPool,
+	// NoIsolatingWorker (an Untrusted run no Ready worker can isolate), or NoToolWorker (the agent uses a harness
+	// built-in capability and no Ready worker that can run it reports that tool) when the queued run cannot be handed
+	// to any worker right now; nil otherwise.
 	BlockedReason *string `json:"blockedReason"`
 	// OutputSchemaValid reports whether the final output validated against the agent's output schema; nil when the
 	// agent has no output schema or nothing was validated.

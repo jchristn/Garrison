@@ -37,6 +37,11 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Tool probes workers fetch before they register, with their hash on every heartbeat (AD4.4). Null sends none.
+        /// </summary>
+        public ToolProbeCatalog? ToolProbes { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -205,6 +210,22 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// The tool probes workers run (AD4.4) and their hash. Empty when no catalog is configured.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Probes.</returns>
+        public async Task<NodeToolProbeResponse> ToolProbesAsync(CancellationToken token = default)
+        {
+            NodeToolProbeResponse response = new NodeToolProbeResponse();
+            ToolProbeCatalog? probes = ToolProbes;
+            if (probes == null) return response;
+            ToolProbeSet set = await probes.CurrentAsync(token).ConfigureAwait(false);
+            response.ToolProbes = set.Probes;
+            response.ToolProbeHash = set.Hash;
+            return response;
+        }
+
+        /// <summary>
         /// Process a heartbeat: extend held leases, report cancellations and lost leases.
         /// </summary>
         /// <param name="node">Node.</param>
@@ -240,6 +261,8 @@ namespace Garrison.Server.Runtime
             List<Run> held = await _Database.Runs.ListActiveByNodeAsync(node.Id, token).ConfigureAwait(false);
             response.CancelRunIds = held.Where(r => r.CancelRequested || r.Status == RunStatusEnum.Cancelling).Select(r => r.Id).ToList();
             response.Drain = node.Status == NodeStatusEnum.Draining;
+            ToolProbeCatalog? probes = ToolProbes;
+            if (probes != null) response.ToolProbeHash = (await probes.CurrentAsync(token).ConfigureAwait(false)).Hash;
             return response;
         }
 

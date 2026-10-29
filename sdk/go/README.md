@@ -182,6 +182,28 @@ err = client.FileSpaces.Delete(ctx, owner, cid, "notes/a.md")
 
 Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `Run.FileSpaceID` and `Deployment.FileSpaceMountPath` carry the new fields.
 
+## Capability catalog
+
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `garrison.CapabilityDescriptor` has `ID` (`cap_...`), `Name`, `Kind` (`CapabilityKindAgent`, `CapabilityKindMcpTool`, `CapabilityKindHarnessBuiltIn`), `Origin` (`CapabilityOriginDerived` or `CapabilityOriginManual`), `SourceKey`, the source fields (`SourceAgentID`, `SourceRevisionID`, `SourceMcpServerID`, `SourceToolName`, `SourceHarnessProfileID`, `SourceHarnessType`), `Summary`, `InputSchemaJSON`, `OutputSchemaJSON`, `Tags`, `Requirements` (node labels a run needs, as `CapabilityRequirement{Key, Value}`), `Hints`, `RefreshWarning`, `LastRefreshedUTC`, `CreatedUTC`, and `LastUpdateUTC`. `TenantID` is nil for descriptors every tenant shares (harness built-ins of built-in profiles).
+
+Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in `HarnessProfile.ToolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `Hints` (`*CapabilityHints`) has `Status` (`CapabilityHintStatusUnknown` until enough runs finish, then `CapabilityHintStatusKnown`), `SampleSize`, `MedianDurationMs`, `P90DurationMs`, `MeanCostUSD`, `WindowDays`, and `ComputedUTC`; the values are nil while the status is Unknown.
+
+```go
+agents, err := client.Capabilities.List(ctx, &garrison.CapabilityListOptions{Kind: garrison.CapabilityKindAgent})
+billing, err := client.Capabilities.List(ctx, &garrison.CapabilityListOptions{Tag: "billing", Search: "invoice"})
+summary := "Find an invoice by number."
+schema := `{"type":"object","properties":{"number":{"type":"string"}}}`
+created, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{
+	Name: "lookup-invoice", Kind: garrison.CapabilityKindMcpTool, Summary: &summary, InputSchemaJSON: &schema, Tags: []string{"billing"},
+})
+same, err := client.Capabilities.Get(ctx, "lookup-invoice") // ID or name
+updated, err := client.Capabilities.Update(ctx, created.ID, *created)
+result, err := client.Capabilities.Refresh(ctx, "") // or Refresh(ctx, mcpServerID)
+err = client.Capabilities.Delete(ctx, created.ID)
+```
+
+`Refresh` returns a `*CapabilityRefreshResult`: `Agents`, `HarnessBuiltIns`, and `Hints` counts, plus `McpServers`, one `CapabilityServerRefresh` per MCP server with `McpServerID`, `McpServerName`, `Tools`, `Removed`, `Warned`, and `Error` (set when the listing failed). `HarnessProfile.ToolProbes` (`[]HarnessToolProbe`) declares the tools a harness can use when the worker host has them: `Name` (lowercase letters, digits, dots, and hyphens), `Executable` (a bare file name on the worker's PATH), `Arguments` (at most one of `garrison.HarnessToolProbeArguments`, default `--version`), and `Description`. Workers that find the tool report the node label `garrison.io/tool-{name}=true`.
+
 ## Streaming run events
 
 ```go
@@ -244,7 +266,7 @@ Each turn's `Run` has `ConversationID` (`*string`), `ConversationTurn` (`int`: 1
 - `OutputTokensPerSecond` (`*float64`): nil when there was no streaming window or it was shorter than 100 ms.
 - `ReasoningTokens`, `ToolCallCount` (`int64`, default 0), alongside `InputTokens`, `OutputTokens`, `CachedTokens`, and `CostUSD`.
 
-`Run.BlockedReason` (`*string`) is computed by the server when a run is read. It is nil unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
+`Run.BlockedReason` (`*string`) is computed by the server when a run is read. It is nil unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist), `NoToolWorker` (the run's agent uses a harness built-in capability such as pandoc, and no Ready worker that can run it reports that tool). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
 
 Runs stopped by a worker run guard end `Failed` with outcome `RunOutcomeRepetitionDetected` (the assistant text degenerated into a short repeated unit or into text with no letters or digits), `RunOutcomeOutputLimitExceeded` (more assistant text than the deployment's `maxAssistantChars`), or `RunOutcomeNoProgress` (nothing happened for `noProgressSeconds`). The partial output is in `Run.ResultText`, and the run has one `Warning` event with code `RunGuardTriggered`. A waiting invoke cancels its run when the connection drops (for example when its `context.Context` is cancelled); set `InvokeRequest.CancelOnDisconnect` to a pointer to `false` to keep the run going. See "Run guards" and "Cancellation" in `REST_API.md`.
 

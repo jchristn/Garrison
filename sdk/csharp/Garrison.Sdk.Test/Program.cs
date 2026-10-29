@@ -1179,6 +1179,83 @@ namespace Garrison.Sdk.Test
                     Require(byRun.Files.Any(f => f.Path == "notes/a.md"), "run listing has the file");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("capability catalog", async () =>
+                {
+                    EnumerationResult<CapabilityDescriptor> catalog = await client.Capabilities.ListAsync(null, null, null, token).ConfigureAwait(false);
+                    Require(catalog.TotalRecords == catalog.Objects.Count, "totalRecords " + catalog.TotalRecords + " objects " + catalog.Objects.Count);
+                    CapabilityDescriptor? agentDescriptor = catalog.Objects.FirstOrDefault(d => d.Kind == CapabilityKindEnum.Agent && d.SourceAgentId == agentId);
+                    Require(agentDescriptor != null, "test agent has no Agent descriptor");
+                    Require(agentDescriptor!.Origin == CapabilityOriginEnum.Derived && !String.IsNullOrEmpty(agentDescriptor.SourceRevisionId) && agentDescriptor.Id.StartsWith("cap_", StringComparison.Ordinal), "agent descriptor fields");
+                    Require((await client.Capabilities.ListAsync(CapabilityKindEnum.Agent, null, null, token).ConfigureAwait(false)).Objects.All(d => d.Kind == CapabilityKindEnum.Agent), "kind filter");
+
+                    string name = "sdk-cs-cap-" + suffix;
+                    string tag = "sdk-cs-tag-" + suffix;
+                    CapabilityDescriptor request = new CapabilityDescriptor
+                    {
+                        Name = name,
+                        Kind = CapabilityKindEnum.McpTool,
+                        Summary = "Manual descriptor from the C# SDK harness.",
+                        InputSchemaJson = "{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}},\"required\":[\"text\"]}",
+                        Tags = new List<string> { tag },
+                        Requirements = new List<CapabilityRequirement> { new CapabilityRequirement { Key = "garrison.io/sdk-fixture", Value = "true" } }
+                    };
+                    CapabilityDescriptor created = await client.Capabilities.CreateAsync(request, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require(created.Origin == CapabilityOriginEnum.Manual && created.TenantId == tenantId && created.SourceKey == "manual:" + created.Id, "manual descriptor fields");
+                        Require(created.Tags.Contains(tag) && created.Requirements.Any(r => r.Key == "garrison.io/sdk-fixture"), "tags and requirements");
+                        Require((await client.Capabilities.GetAsync(created.Id, token).ConfigureAwait(false)).Name == name, "read by id");
+                        Require((await client.Capabilities.GetAsync(name, token).ConfigureAwait(false)).Id == created.Id, "read by name");
+                        EnumerationResult<CapabilityDescriptor> tagged = await client.Capabilities.ListAsync(null, tag, null, token).ConfigureAwait(false);
+                        Require(tagged.Objects.Count == 1 && tagged.Objects[0].Id == created.Id, "tag filter returned " + tagged.Objects.Count);
+
+                        string? badSchemaCode = null;
+                        try
+                        {
+                            await client.Capabilities.CreateAsync(new CapabilityDescriptor { Name = name + "-bad", Kind = CapabilityKindEnum.McpTool, InputSchemaJson = "[1,2]" }, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 400)
+                        {
+                            badSchemaCode = e.Error?.Code;
+                        }
+                        Require(badSchemaCode == "InvalidJsonSchema", "invalid schema code " + badSchemaCode);
+
+                        string? duplicateCode = null;
+                        try
+                        {
+                            await client.Capabilities.CreateAsync(new CapabilityDescriptor { Name = name, Kind = CapabilityKindEnum.McpTool }, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409)
+                        {
+                            duplicateCode = e.Error?.Code;
+                        }
+                        Require(duplicateCode == "NameConflict", "duplicate name code " + duplicateCode);
+
+                        created.Summary = "Updated by the C# SDK harness.";
+                        CapabilityDescriptor updated = await client.Capabilities.UpdateAsync(created.Id, created, token).ConfigureAwait(false);
+                        Require(updated.Summary == "Updated by the C# SDK harness." && updated.Tags.Contains(tag), "update");
+
+                        CapabilityRefreshResult refreshed = await client.Capabilities.RefreshAsync(null, token).ConfigureAwait(false);
+                        Require(refreshed.Agents >= 0 && refreshed.HarnessBuiltIns >= 0 && refreshed.Hints >= 0, "refresh counts");
+                        Require(refreshed.McpServers.All(s => !String.IsNullOrEmpty(s.McpServerId)), "refresh server entries");
+                    }
+                    finally
+                    {
+                        await client.Capabilities.DeleteAsync(created.Id, token).ConfigureAwait(false);
+                    }
+
+                    int missing = 0;
+                    try
+                    {
+                        await client.Capabilities.GetAsync(created.Id, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        missing = e.StatusCode;
+                    }
+                    Require(missing == 404, "deleted descriptor still readable");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

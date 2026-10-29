@@ -28,6 +28,12 @@ namespace Garrison.Core.Enums
         /// (a KubernetesJob worker with Kubernetes.EgressAllowlists on). The run waits in the queue until such a worker
         /// registers; it never runs without the allowlist enforced.
         /// </summary>
-        NoIsolatingWorker
+        NoIsolatingWorker,
+
+        /// <summary>
+        /// The run's agent uses a harness built-in capability (AD4.4), such as pandoc, and no Ready worker that can run it
+        /// reports that tool (node label garrison.io/tool-{name}=true). The run waits until such a worker registers.
+        /// </summary>
+        NoToolWorker
     }
 }

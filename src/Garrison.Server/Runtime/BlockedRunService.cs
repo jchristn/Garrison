@@ -105,6 +105,8 @@ namespace Garrison.Server.Runtime
                     return RunBlockedReasonEnum.NoIsolatingWorker;
                 return RunBlockedReasonEnum.NoCapableWorker;
             }
+            List<RunRequirement> tools = ToolRequirements(run);
+            if (tools.Count > 0 && !capable.Any(n => tools.All(t => n.Labels.Any(l => l.Key == t.Key && l.Value == t.Value)))) return RunBlockedReasonEnum.NoToolWorker;
             if (!capable.Any(n => PlacementRules.MatchesPlacement(n, snapshot.PoolOf(n), run))) return RunBlockedReasonEnum.NoMatchingPool;
             return null;
         }
@@ -128,6 +130,8 @@ namespace Garrison.Server.Runtime
                     if (ExecutorCapabilityRules.RequiresReport(run.RequiredCapabilities)) return "No Ready worker reports the " + harness + " harness, " + run.Executor + " executor, and required capabilities: " + Garrison.Core.Serialization.Serializer.Serialize(run.RequiredCapabilities) + ". The run waits until a matching worker registers.";
                     if (run.Executor != RunExecutorEnum.Process) return "No Ready worker reports both the " + harness + " harness and the " + run.Executor + " executor. The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs).";
                     return "No Ready worker reports the " + harness + " harness. The run waits until one registers.";
+                case RunBlockedReasonEnum.NoToolWorker:
+                    return "No Ready worker with the " + harness + " harness reports " + ToolNames(run) + ", which this run's agent uses. The run waits until a worker that has " + (ToolRequirements(run).Count == 1 ? "it" : "them") + " on its PATH registers (workers report tools as node labels " + Garrison.Core.Constants.ToolLabelPrefix + "{name}=true).";
                 case RunBlockedReasonEnum.NoIsolatingWorker:
                     return "This run " + Needs(run) + ", but no Ready worker with the " + harness + " harness offers the " + run.Executor + " executor with " + (run.RequiredCapabilities.EgressControl ? "that isolation and egress control" : "that isolation") + ". The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs" + (run.RequiredCapabilities.EgressControl ? ", and egress control only when Kubernetes.EgressAllowlists is on and it may create NetworkPolicies" : String.Empty) + ").";
                 default:
@@ -153,6 +157,8 @@ namespace Garrison.Server.Runtime
                 case RunBlockedReasonEnum.NoCapableWorker:
                     if (run.Executor != RunExecutorEnum.Process) return "no Ready worker reported both the " + harness + " harness and the " + run.Executor + " executor";
                     return "no Ready worker reported the " + harness + " harness";
+                case RunBlockedReasonEnum.NoToolWorker:
+                    return "no Ready worker with the " + harness + " harness reported " + ToolNames(run);
                 case RunBlockedReasonEnum.NoIsolatingWorker:
                     return "no Ready worker with the " + harness + " harness offered the " + (run.RequiredCapabilities.EgressControl ? run.RequiredCapabilities.Isolation + " isolation and egress control" : run.RequiredCapabilities.Isolation + " isolation") + " this run needs";
                 default:
@@ -304,6 +310,17 @@ namespace Garrison.Server.Runtime
                 default:
                     return harness.ToString();
             }
+        }
+
+        private static List<RunRequirement> ToolRequirements(Run run)
+        {
+            return run.Requirements.Where(r => r.Key.StartsWith(Garrison.Core.Constants.ToolLabelPrefix, StringComparison.Ordinal)).ToList();
+        }
+
+        private static string ToolNames(Run run)
+        {
+            List<string> names = ToolRequirements(run).Select(r => r.Key.Substring(Garrison.Core.Constants.ToolLabelPrefix.Length)).ToList();
+            return (names.Count == 1 ? "the tool " : "the tools ") + String.Join(", ", names);
         }
 
         #endregion

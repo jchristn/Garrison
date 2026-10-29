@@ -50,14 +50,21 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "id", id);
             }, Map, token).ConfigureAwait(false);
             if (entry == null || !entry.Finished) return entry;
-            await _Driver.QueryAsync("SELECT kind,name FROM " + _Tools + " WHERE tenantid=@tenant AND testid=@id ORDER BY position;", command =>
+            await _Driver.QueryAsync("SELECT kind,name,description,inputschemajson FROM " + _Tools + " WHERE tenantid=@tenant AND testid=@id ORDER BY position;", command =>
             {
                 AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "id", id);
             }, reader =>
             {
                 string name = AdoConverters.Str(reader, "name");
-                if (AdoConverters.Str(reader, "kind") == "Listed") entry.Result.Tools.Add(name);
-                else entry.Result.MissingRequiredTools.Add(name);
+                if (AdoConverters.Str(reader, "kind") == "Listed")
+                {
+                    entry.Result.Tools.Add(name);
+                    entry.Result.ToolDetails.Add(new McpToolDetail { Name = name, Description = AdoConverters.NullableStr(reader, "description"), InputSchemaJson = AdoConverters.NullableStr(reader, "inputschemajson") });
+                }
+                else
+                {
+                    entry.Result.MissingRequiredTools.Add(name);
+                }
                 return name;
             }, token).ConfigureAwait(false);
             return entry;
@@ -100,8 +107,8 @@ namespace Garrison.Core.Database.Ado
                 McpTestQueueEntry? entry = (await AdoDatabaseDriver.QueryAsync(connection, transaction, "SELECT * FROM " + _Table + " WHERE id=@id;", command => AdoDatabaseDriver.Add(command, "id", id), Map, ct).ConfigureAwait(false)).Find(e => e.Id == id);
                 if (entry == null) return;
                 int position = 0;
-                foreach (string name in result.Tools) await ToolAsync(connection, transaction, entry, "Listed", name, position++, ct).ConfigureAwait(false);
-                foreach (string name in result.MissingRequiredTools) await ToolAsync(connection, transaction, entry, "Missing", name, position++, ct).ConfigureAwait(false);
+                foreach (string name in result.Tools) await ToolAsync(connection, transaction, entry, "Listed", name, result.ToolDetails.Find(d => d.Name == name), position++, ct).ConfigureAwait(false);
+                foreach (string name in result.MissingRequiredTools) await ToolAsync(connection, transaction, entry, "Missing", name, null, position++, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
             return changed;
         }
@@ -148,10 +155,11 @@ namespace Garrison.Core.Database.Ado
             }, token).ConfigureAwait(false);
         }
 
-        private async Task ToolAsync(DbConnection connection, DbTransaction transaction, McpTestQueueEntry entry, string kind, string name, int position, CancellationToken token)
+        private async Task ToolAsync(DbConnection connection, DbTransaction transaction, McpTestQueueEntry entry, string kind, string name, McpToolDetail? detail, int position, CancellationToken token)
         {
-            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "INSERT INTO " + _Tools + " (id,tenantid,testid,kind,name,position) VALUES (@id,@tenant,@test,@kind,@name,@position);", command =>
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "INSERT INTO " + _Tools + " (id,tenantid,testid,kind,name,position,description,inputschemajson) VALUES (@id,@tenant,@test,@kind,@name,@position,@description,@schema);", command =>
             {
+                AdoDatabaseDriver.Add(command, "description", detail?.Description); AdoDatabaseDriver.Add(command, "schema", detail?.InputSchemaJson);
                 AdoDatabaseDriver.Add(command, "id", IdGenerator.New(Garrison.Core.Constants.McpTestToolIdPrefix)); AdoDatabaseDriver.Add(command, "tenant", entry.TenantId);
                 AdoDatabaseDriver.Add(command, "test", entry.Id); AdoDatabaseDriver.Add(command, "kind", kind);
                 AdoDatabaseDriver.Add(command, "name", name); AdoDatabaseDriver.Add(command, "position", position);

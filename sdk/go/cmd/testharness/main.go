@@ -1790,6 +1790,125 @@ func main() {
 		}
 		return nil
 	})
+	check("capability catalog", func(ctx context.Context) error {
+		catalog, err := client.Capabilities.List(ctx, nil)
+		if err != nil {
+			return err
+		}
+		if catalog.TotalRecords != int64(len(catalog.Objects)) {
+			return fmt.Errorf("totalRecords %d objects %d", catalog.TotalRecords, len(catalog.Objects))
+		}
+		var mine *garrison.CapabilityDescriptor
+		for i := range catalog.Objects {
+			d := &catalog.Objects[i]
+			if d.Kind == garrison.CapabilityKindAgent && d.SourceAgentID != nil && *d.SourceAgentID == agentID {
+				mine = d
+			}
+		}
+		if mine == nil {
+			return errors.New("test agent has no Agent descriptor")
+		}
+		if mine.Origin != garrison.CapabilityOriginDerived || mine.SourceRevisionID == nil || !strings.HasPrefix(mine.ID, "cap_") {
+			return fmt.Errorf("agent descriptor %+v", *mine)
+		}
+		agents, err := client.Capabilities.List(ctx, &garrison.CapabilityListOptions{Kind: garrison.CapabilityKindAgent})
+		if err != nil {
+			return err
+		}
+		for _, d := range agents.Objects {
+			if d.Kind != garrison.CapabilityKindAgent {
+				return fmt.Errorf("kind filter returned %s", d.Kind)
+			}
+		}
+		name := "sdk-go-cap-" + suffix
+		tag := "sdk-go-tag-" + suffix
+		summary := "Manual descriptor from the Go SDK harness."
+		schema := `{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}`
+		created, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{
+			Name: name, Kind: garrison.CapabilityKindMcpTool, Summary: &summary, InputSchemaJSON: &schema, Tags: []string{tag},
+			Requirements: []garrison.CapabilityRequirement{{Key: "garrison.io/sdk-fixture", Value: "true"}},
+		})
+		if err != nil {
+			return err
+		}
+		deleted := false
+		defer func() {
+			if !deleted {
+				_ = client.Capabilities.Delete(ctx, created.ID)
+			}
+		}()
+		if created.Origin != garrison.CapabilityOriginManual || created.SourceKey != "manual:"+created.ID {
+			return fmt.Errorf("manual descriptor %+v", *created)
+		}
+		hasTag := false
+		for _, t := range created.Tags {
+			if t == tag {
+				hasTag = true
+			}
+		}
+		if !hasTag || len(created.Requirements) != 1 || created.Requirements[0].Key != "garrison.io/sdk-fixture" {
+			return fmt.Errorf("tags %v requirements %v", created.Tags, created.Requirements)
+		}
+		byID, err := client.Capabilities.Get(ctx, created.ID)
+		if err != nil {
+			return err
+		}
+		if byID.Name != name {
+			return fmt.Errorf("read by id returned %s", byID.Name)
+		}
+		byName, err := client.Capabilities.Get(ctx, name)
+		if err != nil {
+			return err
+		}
+		if byName.ID != created.ID {
+			return fmt.Errorf("read by name returned %s", byName.ID)
+		}
+		tagged, err := client.Capabilities.List(ctx, &garrison.CapabilityListOptions{Tag: tag})
+		if err != nil {
+			return err
+		}
+		if len(tagged.Objects) != 1 || tagged.Objects[0].ID != created.ID {
+			return fmt.Errorf("tag filter returned %d", len(tagged.Objects))
+		}
+		badSchema := "[1,2]"
+		var apiErr *garrison.Error
+		if _, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{Name: name + "-bad", Kind: garrison.CapabilityKindMcpTool, InputSchemaJSON: &badSchema}); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.Code != "InvalidJsonSchema" {
+			return fmt.Errorf("invalid schema should fail with 400 InvalidJsonSchema, got %v", err)
+		}
+		if _, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{Name: name, Kind: garrison.CapabilityKindMcpTool}); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "NameConflict" {
+			return fmt.Errorf("duplicate name should fail with 409 NameConflict, got %v", err)
+		}
+		changed := "Updated by the Go SDK harness."
+		edit := *created
+		edit.Summary = &changed
+		updated, err := client.Capabilities.Update(ctx, created.ID, edit)
+		if err != nil {
+			return err
+		}
+		if updated.Summary == nil || *updated.Summary != changed || len(updated.Tags) != 1 {
+			return fmt.Errorf("update returned %+v", *updated)
+		}
+		refreshed, err := client.Capabilities.Refresh(ctx, "")
+		if err != nil {
+			return err
+		}
+		if refreshed.Agents < 0 || refreshed.HarnessBuiltIns < 0 || refreshed.Hints < 0 {
+			return fmt.Errorf("refresh %+v", *refreshed)
+		}
+		for _, m := range refreshed.McpServers {
+			if m.McpServerID == "" {
+				return errors.New("refresh server entry without mcpServerId")
+			}
+		}
+		if err := client.Capabilities.Delete(ctx, created.ID); err != nil {
+			return err
+		}
+		deleted = true
+		if _, err := client.Capabilities.Get(ctx, created.ID); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("deleted descriptor read should be 404, got %v", err)
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {

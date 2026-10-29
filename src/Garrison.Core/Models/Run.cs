@@ -76,6 +76,11 @@ namespace Garrison.Core.Models
         public string? FileSpaceId { get; set; } = null;
 
         /// <summary>
+        /// Fan-out group this run is a member of (AD5), or null when it was not started by garrison_fan_out.
+        /// </summary>
+        public string? FanOutGroupId { get; set; } = null;
+
+        /// <summary>
         /// Agent name at creation.
         /// </summary>
         public string AgentName

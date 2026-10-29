@@ -844,6 +844,53 @@ def t_agent_assets():
         client.agent_assets.delete(asset["id"])
 
 
+def t_capabilities():
+    catalog = client.capabilities.list()
+    require(catalog.get("totalRecords") == len(catalog["objects"]), f"totalRecords {catalog.get('totalRecords')}")
+    mine = next((d for d in catalog["objects"] if d["kind"] == "Agent" and d.get("sourceAgentId") == state["agent"]), None)
+    require(mine is not None, "test agent has no Agent descriptor")
+    require(mine["origin"] == "Derived" and mine.get("sourceRevisionId") and mine["id"].startswith("cap_"), f"agent descriptor {mine}")
+    require(all(d["kind"] == "Agent" for d in client.capabilities.list(kind="Agent")["objects"]), "kind filter")
+    name = f"sdk-py-{SUFFIX}-cap"
+    tag = f"sdk-py-{SUFFIX}-tag"
+    schema = '{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}'
+    created = client.capabilities.create({"name": name, "kind": "McpTool", "summary": "Manual descriptor from the Python SDK harness.",
+                                          "inputSchemaJson": schema, "tags": [tag],
+                                          "requirements": [{"key": "garrison.io/sdk-fixture", "value": "true"}]})
+    try:
+        require(created["origin"] == "Manual" and created["sourceKey"] == "manual:" + created["id"], f"manual descriptor {created}")
+        require(tag in created["tags"] and any(r["key"] == "garrison.io/sdk-fixture" for r in created["requirements"]), "tags and requirements")
+        require(client.capabilities.get(created["id"])["name"] == name, "read by id")
+        require(client.capabilities.get(name)["id"] == created["id"], "read by name")
+        tagged = client.capabilities.list(tag=tag)["objects"]
+        require(len(tagged) == 1 and tagged[0]["id"] == created["id"], f"tag filter returned {len(tagged)}")
+        bad_code = None
+        try:
+            client.capabilities.create({"name": name + "-bad", "kind": "McpTool", "inputSchemaJson": "[1,2]"})
+        except GarrisonError as e:
+            bad_code = e.code if e.status_code == 400 else f"{e.status_code} {e.code}"
+        require(bad_code == "InvalidJsonSchema", f"invalid schema code {bad_code}")
+        duplicate_code = None
+        try:
+            client.capabilities.create({"name": name, "kind": "McpTool"})
+        except GarrisonError as e:
+            duplicate_code = e.code if e.status_code == 409 else f"{e.status_code} {e.code}"
+        require(duplicate_code == "NameConflict", f"duplicate name code {duplicate_code}")
+        updated = client.capabilities.update(created["id"], {**created, "summary": "Updated by the Python SDK harness."})
+        require(updated["summary"] == "Updated by the Python SDK harness." and tag in updated["tags"], f"update {updated}")
+        refreshed = client.capabilities.refresh()
+        require(all(isinstance(refreshed.get(k), int) for k in ("agents", "harnessBuiltIns", "hints")), f"refresh {refreshed}")
+        require(isinstance(refreshed.get("mcpServers"), list) and all(s.get("mcpServerId") for s in refreshed["mcpServers"]), "refresh servers")
+    finally:
+        client.capabilities.delete(created["id"])
+    missing = None
+    try:
+        client.capabilities.get(created["id"])
+    except GarrisonError as e:
+        missing = e.status_code
+    require(missing == 404, f"deleted descriptor read returned {missing}")
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -883,7 +930,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

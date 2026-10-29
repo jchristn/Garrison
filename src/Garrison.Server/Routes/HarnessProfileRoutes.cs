@@ -86,6 +86,7 @@ namespace Garrison.Server.Routes
             ConfigurationSupport.EnsureNameAvailable(existing?.TenantId == tenantId ? existing : null, existing?.Id, null, profile.Name);
             HarnessProfile created = await _Server.Database.HarnessProfiles.CreateAsync(profile, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "HarnessProfile", created.Id, "Created harness profile " + created.Name + ".").ConfigureAwait(false);
+            _Server.TryGet<Garrison.Server.Runtime.ToolProbeCatalog>()?.Invalidate();
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
         }
 
@@ -115,6 +116,7 @@ namespace Garrison.Server.Routes
             ConfigurationSupport.EnsureNameAvailable(named?.TenantId == tenantId ? named : null, named?.Id, id, profile.Name);
             HarnessProfile updated = await _Server.Database.HarnessProfiles.UpdateAsync(profile, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "HarnessProfile", id, "Updated harness profile " + updated.Name + ".").ConfigureAwait(false);
+            _Server.TryGet<Garrison.Server.Runtime.ToolProbeCatalog>()?.Invalidate();
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
         }
 
@@ -127,6 +129,7 @@ namespace Garrison.Server.Routes
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.HarnessProfileId == id, "Harness profile " + existing.Name, http.Token).ConfigureAwait(false);
             await _Server.Database.HarnessProfiles.DeleteAsync(id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "HarnessProfile", id, "Deleted harness profile " + existing.Name + ".").ConfigureAwait(false);
+            _Server.TryGet<Garrison.Server.Runtime.ToolProbeCatalog>()?.Invalidate();
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
@@ -149,6 +152,7 @@ namespace Garrison.Server.Routes
             ConfigurationSupport.EnsureNameAvailable(existing?.TenantId == tenantId ? existing : null, existing?.Id, null, copy.Name);
             HarnessProfile created = await _Server.Database.HarnessProfiles.CreateAsync(copy, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "HarnessProfile", created.Id, "Cloned harness profile " + source.Name + " to " + created.Name + ".").ConfigureAwait(false);
+            _Server.TryGet<Garrison.Server.Runtime.ToolProbeCatalog>()?.Invalidate();
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
         }
 

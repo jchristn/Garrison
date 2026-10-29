@@ -5,6 +5,7 @@ namespace Garrison.Worker.Hosting
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Models;
     using Garrison.Core.Protocol;
     using Garrison.Harnesses.Probing;
     using Garrison.Worker.Settings;
@@ -59,6 +60,46 @@ namespace Garrison.Worker.Hosting
                 .ToList();
             NodeCapabilityReport[] reports = await Task.WhenAll(tasks).ConfigureAwait(false);
             return reports.ToList();
+        }
+
+        /// <summary>
+        /// Run tool probes (AD4.4) and return the label of every tool found: garrison.io/tool-{name}=true. A probe that
+        /// does not pass the <see cref="HarnessToolProbe"/> rules (bare executable, one version or help flag) is skipped
+        /// without running.
+        /// </summary>
+        /// <param name="probes">Probes from the control plane.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Labels of the tools found.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when probes is null.</exception>
+        public async Task<Dictionary<string, string>> ProbeToolsAsync(List<NodeToolProbe> probes, CancellationToken token)
+        {
+            if (probes == null) throw new ArgumentNullException(nameof(probes));
+            Dictionary<string, string> labels = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (!_Settings.ToolProbesEnabled) return labels;
+            Dictionary<string, string> environment = new Dictionary<string, string>(StringComparer.Ordinal);
+            string? path = Environment.GetEnvironmentVariable("PATH");
+            if (!String.IsNullOrEmpty(path)) environment["PATH"] = path;
+            string? home = Environment.GetEnvironmentVariable("HOME");
+            if (!String.IsNullOrEmpty(home)) environment["HOME"] = home;
+            List<HarnessToolProbe> valid = new List<HarnessToolProbe>();
+            foreach (NodeToolProbe probe in probes.Take(256))
+            {
+                try
+                {
+                    valid.Add(new HarnessToolProbe { Name = probe.Name, Executable = probe.Executable, Arguments = probe.Arguments ?? new List<string>() });
+                }
+                catch (ArgumentException)
+                {
+                    // A probe that breaks the rules is never run.
+                }
+            }
+            List<Task<NodeCapabilityReport>> tasks = valid.Select(p => _Probe.ProbeAsync(Garrison.Core.Enums.HarnessTypeEnum.Generic, p.Executable, new List<string>(p.Arguments), environment, token)).ToList();
+            NodeCapabilityReport[] reports = await Task.WhenAll(tasks).ConfigureAwait(false);
+            for (int i = 0; i < valid.Count; i++)
+            {
+                if (reports[i].Available) labels[Garrison.Core.Constants.ToolLabelPrefix + valid[i].Name] = "true";
+            }
+            return labels;
         }
 
         /// <summary>

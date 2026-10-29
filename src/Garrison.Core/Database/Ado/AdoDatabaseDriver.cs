@@ -150,6 +150,8 @@ namespace Garrison.Core.Database.Ado
             Promotions = new AdoPromotionRecordMethods(this);
             AgentAssets = new AdoAgentAssetMethods(this);
             FileSpaces = new AdoFileSpaceMethods(this);
+            Capabilities = new AdoCapabilityMethods(this);
+            FanOuts = new AdoFanOutMethods(this);
         }
 
         #endregion

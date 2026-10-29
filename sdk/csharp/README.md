@@ -79,7 +79,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -194,6 +194,32 @@ await client.FileSpaces.DeleteAsync(FileSpaceOwnerEnum.Conversation, conversatio
 
 `WriteAsync` takes a `FileSpaceWriteRequest` when you want to set `ContentBase64` or `Content` yourself. Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, and 413 `FileTooLarge`, `FileSpaceFull`, or `TooManyFiles`. `Run.FileSpaceId` and `Deployment.FileSpaceMountPath` carry the new fields.
 
+## Capability catalog
+
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. Each `CapabilityDescriptor` has an `Id` (`cap_...`), `Name`, `Kind` (`CapabilityKindEnum`: `Agent`, `McpTool`, `HarnessBuiltIn`), `Origin` (`CapabilityOriginEnum`: `Derived` or `Manual`), `SourceKey`, the source fields (`SourceAgentId`, `SourceRevisionId`, `SourceMcpServerId`, `SourceToolName`, `SourceHarnessProfileId`, `SourceHarnessType`), `Summary`, `InputSchemaJson`, `OutputSchemaJson`, `Tags`, `Requirements` (node labels a run needs, as `CapabilityRequirement` `Key` and `Value`), `Hints`, `RefreshWarning`, and timestamps. `TenantId` is null for descriptors every tenant shares (harness built-ins of built-in profiles).
+
+Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in `HarnessProfile.ToolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `Hints` (`CapabilityHints`) carry `Status` (`CapabilityHintStatusEnum`: `Unknown` until enough runs finish, then `Known`), `SampleSize`, `MedianDurationMs`, `P90DurationMs`, `MeanCostUsd`, `WindowDays`, and `ComputedUtc`; values are null while the status is `Unknown`.
+
+```csharp
+EnumerationResult<CapabilityDescriptor> agents = await client.Capabilities.ListAsync(CapabilityKindEnum.Agent);
+EnumerationResult<CapabilityDescriptor> tagged = await client.Capabilities.ListAsync(null, "billing", "invoice"); // kind, tag, search
+CapabilityDescriptor created = await client.Capabilities.CreateAsync(new CapabilityDescriptor
+{
+    Name = "lookup-invoice",
+    Kind = CapabilityKindEnum.McpTool,
+    Summary = "Find an invoice by number.",
+    InputSchemaJson = "{\"type\":\"object\",\"properties\":{\"number\":{\"type\":\"string\"}}}",
+    Tags = new List<string> { "billing" }
+});
+CapabilityDescriptor byName = await client.Capabilities.GetAsync("lookup-invoice"); // ID or name
+created.Summary = "Find an invoice by its number.";
+await client.Capabilities.UpdateAsync(created.Id, created);
+CapabilityRefreshResult refreshed = await client.Capabilities.RefreshAsync(); // or RefreshAsync(mcpServerId)
+await client.Capabilities.DeleteAsync(created.Id);
+```
+
+`RefreshAsync` refreshes derived descriptors now and returns `CapabilityRefreshResult`: `Agents`, `HarnessBuiltIns`, and `Hints` counts, plus one `CapabilityServerRefresh` per MCP server (`McpServerId`, `McpServerName`, `Tools`, `Removed`, `Warned`, and `Error` when the listing failed). A tool probe (`HarnessToolProbe`) names a tool, a bare `Executable` on the worker's PATH, at most one argument from `HarnessToolProbe.AllowedArguments` (default `--version`), and a `Description`; workers that find the tool report the node label `garrison.io/tool-{name}=true`.
+
 ## Streaming run events
 
 ```csharp
@@ -266,7 +292,7 @@ Nullable properties are null when the value could not be measured. On the wire, 
 
 ## Blocked runs
 
-`Run.BlockedReason` (`RunBlockedReasonEnum?`) is computed by the server when a run is read. It is null unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist). The tenant overview counts these runs as `OverviewResponse.BlockedRuns`. See "Blocked runs" in `REST_API.md`.
+`Run.BlockedReason` (`RunBlockedReasonEnum?`) is computed by the server when a run is read. It is null unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` or its deployment has an egress allowlist, and no Ready node with its harness can isolate it or enforce the allowlist), `NoToolWorker` (the run's agent uses a harness built-in capability such as pandoc, and no Ready worker that can run it reports that tool). The tenant overview counts these runs as `OverviewResponse.BlockedRuns`. See "Blocked runs" in `REST_API.md`.
 
 Runs stopped by a worker run guard end `Failed` with `RunOutcomeEnum.RepetitionDetected` (the assistant text degenerated into a short repeated unit or into text with no letters or digits), `RunOutcomeEnum.OutputLimitExceeded` (more assistant text than the deployment's `MaxAssistantChars`), or `RunOutcomeEnum.NoProgress` (nothing happened for `NoProgressSeconds`). The partial output is in `Run.ResultText`, and the run has one `Warning` event with code `RunGuardTriggered`. `Deployment.RepetitionGuard`, `Deployment.MaxAssistantChars`, and `Deployment.NoProgressSeconds` set the limits per deployment; null uses the cluster defaults. A waiting invoke (`InvokeRequest.Wait` true) cancels its run when the connection drops, for example when the `CancellationToken` passed to `InvokeAsync` is cancelled; set `InvokeRequest.CancelOnDisconnect = false` to keep the run going. See "Run guards" and "Cancellation" in `REST_API.md`.
 

@@ -7,6 +7,7 @@ namespace Garrison.Harnesses.Preflight
     using System.Threading;
     using System.Threading.Channels;
     using System.Threading.Tasks;
+    using Garrison.Core.Responses;
     using Garrison.Core.Serialization;
     using Garrison.Harnesses.Execution;
     using Voltaic.Core;
@@ -23,6 +24,8 @@ namespace Garrison.Harnesses.Preflight
 
         /// <summary>Names returned by completed tools/list pages.</summary>
         public List<string> Tools { get; } = new List<string>();
+        /// <summary>The same tools with descriptions and input schemas (AD4.3).</summary>
+        public List<McpToolDetail> ToolDetails { get; } = new List<McpToolDetail>();
         /// <summary>Whether the full exchange completed.</summary>
         public bool Success { get; private set; } = false;
         /// <summary>Safe diagnostic message, without stderr or protocol payloads.</summary>
@@ -79,7 +82,11 @@ namespace Garrison.Harnesses.Preflight
                     foreach (McpProbeTool tool in list.Tools)
                     {
                         if (String.IsNullOrEmpty(tool.Name) || tool.Name.Length > 512) throw new IOException("MCP server returned an invalid tool name.");
-                        if (names.Add(tool.Name)) Tools.Add(tool.Name);
+                        if (names.Add(tool.Name))
+                        {
+                            Tools.Add(tool.Name);
+                            ToolDetails.Add(McpToolDetail.Create(tool.Name, tool.Description, tool.InputSchema));
+                        }
                         if (Tools.Count > _MaxTools) throw new IOException("MCP tool list exceeds the diagnostic limit.");
                     }
                     cursor = list.NextCursor;

@@ -178,6 +178,51 @@ export interface FileDownloadUrl extends Json { url: string; expiresUtc: string;
 /** Options for a file space write. baseVersion 0 means the file must not exist yet; omit it to overwrite unconditionally. */
 export interface FileSpaceWriteOptions { baseVersion?: number; mediaType?: string; }
 
+/** Kinds of capability catalog entries. */
+export const CAPABILITY_KINDS = ["Agent", "McpTool", "HarnessBuiltIn"] as const;
+/** One of {@link CAPABILITY_KINDS}. */
+export type CapabilityKind = typeof CAPABILITY_KINDS[number];
+/** Derived descriptors follow their source; Manual ones are written through the API. */
+export type CapabilityOrigin = "Derived" | "Manual";
+/** Unknown until enough runs finish, then Known. */
+export type CapabilityHintStatus = "Unknown" | "Known";
+
+/** A node label a run needs when its agent uses a capability, for example garrison.io/tool-pandoc=true. */
+export interface CapabilityRequirement { key: string; value: string; }
+
+/** Cost and latency hints from recent finished runs. Every value is null while status is Unknown. */
+export interface CapabilityHints {
+  status: CapabilityHintStatus; sampleSize: number; medianDurationMs?: number | null; p90DurationMs?: number | null;
+  meanCostUsd?: number | null; windowDays: number; computedUtc?: string | null;
+}
+
+/**
+ * One capability catalog entry: an agent, an MCP tool, or a harness built-in. tenantId is null for descriptors every
+ * tenant shares. Schemas are JSON Schema documents as JSON text.
+ */
+export interface CapabilityDescriptor extends Json {
+  id: string; tenantId?: string | null; name: string; kind: CapabilityKind; origin: CapabilityOrigin; sourceKey: string;
+  sourceAgentId?: string | null; sourceRevisionId?: string | null; sourceMcpServerId?: string | null; sourceToolName?: string | null;
+  sourceHarnessProfileId?: string | null; sourceHarnessType?: string | null; summary?: string | null;
+  inputSchemaJson?: string | null; outputSchemaJson?: string | null; tags: string[]; requirements: CapabilityRequirement[];
+  hints: CapabilityHints; refreshWarning?: string | null; lastRefreshedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
+}
+
+/** Content of a manual capability descriptor for create and update. */
+export interface CapabilityDescriptorInput extends Json {
+  name: string; kind: CapabilityKind; summary?: string | null; inputSchemaJson?: string | null; outputSchemaJson?: string | null;
+  tags?: string[]; requirements?: CapabilityRequirement[]; sourceAgentId?: string | null; sourceMcpServerId?: string | null; sourceToolName?: string | null;
+}
+
+/** Filters for capabilities.list. search matches the name or summary, ignoring case. */
+export interface CapabilityListQuery { kind?: CapabilityKind; tag?: string; search?: string; }
+
+/** Refresh outcome for one MCP server. error is set when its tool listing failed. */
+export interface CapabilityServerRefresh { mcpServerId: string; mcpServerName: string; tools: number; removed: number; warned: number; error?: string | null; }
+
+/** Result of capabilities.refresh: descriptors created, refreshed, or removed per source. */
+export interface CapabilityRefreshResult { agents: number; harnessBuiltIns: number; hints: number; mcpServers: CapabilityServerRefresh[]; }
+
 /** One file to upload. String content is UTF-8 encoded. */
 export interface AgentAssetUpload { path: string; content: Uint8Array | string; mediaType?: string; }
 
@@ -789,7 +834,20 @@ export interface WorkspaceTemplate extends Json, WithWarnings {
   id: string; tenantId: string; name: string; kind: WorkspaceKind; persistentVolumeClaim?: string | null;
 }
 
-export interface HarnessProfile extends Json, WithWarnings { id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; }
+/** The arguments a harness tool probe may pass (at most one; default "--version"). */
+export const HARNESS_TOOL_PROBE_ARGUMENTS = ["--version", "-version", "-v", "-V", "version", "--help", "-h"] as const;
+/** One of {@link HARNESS_TOOL_PROBE_ARGUMENTS}. */
+export type HarnessToolProbeArgument = typeof HARNESS_TOOL_PROBE_ARGUMENTS[number];
+
+/**
+ * A tool a harness can use when its host has it installed, such as pandoc. Workers run the probe and report the tool as
+ * the node label garrison.io/tool-{name}=true; each probe becomes a HarnessBuiltIn capability. name is 1 to 63 lowercase
+ * letters, digits, dots, and hyphens; executable is a bare file name on the worker's PATH.
+ */
+export interface HarnessToolProbe { name: string; executable: string; arguments?: HarnessToolProbeArgument[]; description?: string | null; }
+
+/** A harness profile. toolProbes holds at most 32 probes with unique names. */
+export interface HarnessProfile extends Json, WithWarnings { id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; toolProbes?: HarnessToolProbe[]; }
 
 /** An MCP server definition. */
 export interface McpServer extends Json, WithWarnings {
@@ -976,8 +1034,11 @@ export const RUN_OUTCOMES = [
 /** One of {@link RUN_OUTCOMES}. */
 export type RunOutcome = typeof RUN_OUTCOMES[number];
 
-/** Why a queued run cannot be handed to any worker right now. */
-export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool" | "NoIsolatingWorker";
+/**
+ * Why a queued run cannot be handed to any worker right now. NoToolWorker: the run's agent uses a harness built-in
+ * capability (such as pandoc) and no Ready worker that can run it reports that tool (node label garrison.io/tool-{name}=true).
+ */
+export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool" | "NoIsolatingWorker" | "NoToolWorker";
 /** Deployment and run trust level. Tenant requireUntrustedDeployments rejects Trusted deployments (TenantRequiresUntrusted). */
 export type TrustLevel = "Trusted" | "Untrusted";
 /** Protocol of a deployment egress rule. */
@@ -1416,6 +1477,23 @@ export class AgentAssets extends Resource<AgentAsset> {
   downloadFile(asset: string, number: number, path: string): Promise<Uint8Array> {
     return this.t.requestBytes(this.item(asset) + `/versions/${number}/files`, { path });
   }
+}
+
+/**
+ * Capability catalog: agents (from their latest published revision), MCP server tools, and harness built-ins, plus
+ * manual descriptors. get takes an ID (cap_...) or a name. create, update, and delete work on manual descriptors only;
+ * derived ones fail with 409 CapabilityDerived. create and update fail with 400 InvalidJsonSchema for a schema that is
+ * not JSON Schema and 409 NameConflict for a duplicate manual name.
+ */
+export class Capabilities extends Resource<CapabilityDescriptor> {
+  /** List descriptors (every match in one page), ordered by kind and name. */
+  list(query?: CapabilityListQuery): Promise<EnumerationResult<CapabilityDescriptor>> { return this.t.request("GET", this.base(), query as any); }
+  /** Create a manual descriptor (201). */
+  create(body: CapabilityDescriptorInput): Promise<CapabilityDescriptor> { return this.t.request("POST", this.base(), undefined, body); }
+  /** Replace a manual descriptor's content. */
+  update(id: string, body: CapabilityDescriptorInput): Promise<CapabilityDescriptor> { return this.t.request("PUT", this.item(id), undefined, body); }
+  /** Refresh derived descriptors now, or only one MCP server's tools (404 when it names no active server). */
+  refresh(mcpServerId?: string): Promise<CapabilityRefreshResult> { return this.t.request("POST", this.base() + "/refresh", { mcpServerId }); }
 }
 
 /**
@@ -1914,6 +1992,8 @@ export class GarrisonClient {
   readonly agentAssets: AgentAssets;
   /** Conversation file spaces, addressed by conversation or run. */
   readonly fileSpaces: FileSpaces;
+  /** Capability catalog: agents, MCP tools, and harness built-ins. */
+  readonly capabilities: Capabilities;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
@@ -1956,6 +2036,7 @@ export class GarrisonClient {
     this.promotions = new Promotions(t);
     this.agentAssets = new AgentAssets(t, "agent-assets");
     this.fileSpaces = new FileSpaces(t);
+    this.capabilities = new Capabilities(t, "capabilities");
     this.harnessProfiles = new HarnessProfiles(t, "harness-profiles");
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");

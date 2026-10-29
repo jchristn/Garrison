@@ -362,6 +362,23 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>
+        /// Tool probes: tools the harness can use when the worker host has them installed, such as pandoc. Workers probe
+        /// each one and report the ones they find as node labels; each becomes a HarnessBuiltIn capability. The server
+        /// accepts at most 32, with unique names. Never null.
+        /// </summary>
+        public List<HarnessToolProbe> ToolProbes
+        {
+            get
+            {
+                return _ToolProbes;
+            }
+            set
+            {
+                _ToolProbes = value ?? new List<HarnessToolProbe>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -381,6 +398,7 @@ namespace Garrison.Sdk.Models
         private List<int> _SuccessExitCodes = new List<int>();
         private List<string> _ProbeArguments = new List<string>();
         private List<string> _CredentialEnvironmentAllowlist = new List<string>();
+        private List<HarnessToolProbe> _ToolProbes = new List<HarnessToolProbe>();
 
         #endregion
     }

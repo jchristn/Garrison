@@ -330,6 +330,17 @@ Every run sees its conversation's file space (AD3) at `files/` in its workspace,
 
 A run token always uses its own tree's space and cannot name another. Users and credentials add `conversationId` or `runId` and need Read (or Update, to write or delete) on that conversation or run. `garrison_files_read` returns `path`, `version`, `sha256`, `mediaType`, `sizeBytes`, and `content` for text or `contentBase64` otherwise. `garrison_files_write` returns `requestedPath`, `path`, `version`, `conflict`, and `sha256`: with `baseVersion` set and the file changed since, the write is kept under a conflict name, `conflict` is true, and `path` is that name. Errors use the REST codes: `NotFound`, `InvalidFilePath`, `FileTooLarge`, `FileSpaceFull`, and `TooManyFiles`.
 
+## Capability catalog
+
+When delegation is on, runs also get the catalog tools (AD4). See [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
+
+| Tool | Permission | Arguments |
+|---|---|---|
+| `garrison_list_capabilities` | Capability.Read for users; run tokens use their discovery permission | optional `kind` (`Agent`, `McpTool`, `HarnessBuiltIn`), `tag`, `search` |
+| `garrison_describe_capability` | As above | `capability` (identifier or name) |
+
+A run token sees only agents its agent may delegate to, tools of MCP servers bound to its deployment, built-ins its harness profile probes, and manual descriptors with no source. Users see the tenant catalog. `garrison_list_agents` returns each agent's `hints` (`status`, `sampleSize`, `medianDurationMs`, `p90DurationMs`, `meanCostUsd`); while `status` is `Unknown` the values are null. An unknown or hidden capability answers `NotFound`.
+
 ## Management tools
 
 User/developer credentials can configure their tenant through these tools. `AgentDeveloper`, administrator roles, or equivalent resource grants are required for writes. Hosted run and node tokens cannot use management tools; they retain discovery, invocation, and their existing run/approval capabilities.

@@ -2621,6 +2621,7 @@ Every `Run` returned by REST (invoke, create, read, list, children, cancel, retr
 | `NoCapableWorker` | Ready nodes exist, but none reports the run's harness as available. |
 | `NoMatchingPool` | Ready nodes report the harness, but none matches the deployment's node pool, the pool's tenant dedication, or the deployment's node selector labels. |
 | `NoIsolatingWorker` | The run is `Untrusted` (see [Deployment trust level](#deployment-trust-level-trustlevel)) or needs egress control because its deployment has `egressRules` (see [Deployment egress allowlist](#deployment-egress-allowlist-egressrules)), and Ready nodes report its harness, but none offers its executor with the isolation it needs (at least `Container`) and, for an allowlist, egress control. The run waits until such a worker registers; it is never given to a Process worker or run without its allowlist. |
+| `NoToolWorker` | The run's agent revision uses a harness built-in capability (AD4.4), such as `pandoc`, and no Ready worker that can run it reports the tool as the node label `garrison.io/tool-{name}=true`. The explanation names the missing tools. See [docs/CAPABILITIES.md](docs/CAPABILITIES.md). |
 
 The reason comes from a snapshot of node state that is reused for up to 3 seconds, so it can lag a node registering or going away by that long. The control plane leader also checks queued runs every 5 seconds. The first time it finds a run blocked for a given reason it appends one `Warning` run event that explains it, for example `No Ready worker reports the Codex harness. The run waits until one registers.` Each reason is explained at most once per run. When the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 (the default 0 waits forever), a run that stays blocked that long fails with status `Failed`, outcome `NoCapableWorker`, and an `errorMessage` that names the reason. The overview counts blocked runs in `blockedRuns`.
 
@@ -3860,6 +3861,55 @@ A single file can be sent as raw bytes with `Content-Type: application/octet-str
 
 Agent revisions pin assets in `assetPins` (`assetId` as an identifier or name, optional `version`); see [Agent revisions](#agent-revisions).
 
+### Capabilities
+
+The capability catalog (AD4): one descriptor per agent, MCP tool, and harness built-in, with schemas and cost and latency hints. [docs/CAPABILITIES.md](docs/CAPABILITIES.md) explains derivation, tool probes, placement, and hints.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /capabilities?kind=&tag=&search=` | Read on `Capability` | `EnumerationResult<CapabilityDescriptor>`, ordered by kind and name, 200 |
+| `GET /capabilities/{idOrName}` | Read on `Capability` | `CapabilityDescriptor`, 200 |
+| `POST /capabilities` | Create on `Capability` | Manual `CapabilityDescriptor`, 201 |
+| `PUT /capabilities/{id}` | Update on `Capability` | Manual `CapabilityDescriptor`, 200 |
+| `DELETE /capabilities/{id}` | Delete on `Capability` | Empty, 204 |
+| `POST /capabilities/refresh?mcpServerId=` | Execute on `Capability` | `CapabilityRefreshResult`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. A tenant sees its own descriptors and the shared ones (`tenantId` null, from built-in harness profiles); another tenant's descriptor answers 404. Listing first brings Agent descriptors up to date with published revisions.
+
+| Field | Meaning |
+|---|---|
+| `id` | `cap_` identifier |
+| `tenantId` | Owning tenant, or null for a descriptor every tenant shares |
+| `name` | The agent name, `server/tool` for MCP tools, or the tool name for built-ins. Not unique across kinds |
+| `kind`, `origin` | `Agent`, `McpTool`, or `HarnessBuiltIn`; `Derived` or `Manual` |
+| `sourceKey`, `sourceAgentId`, `sourceRevisionId`, `sourceMcpServerId`, `sourceToolName`, `sourceHarnessProfileId`, `sourceHarnessType` | Where a derived descriptor comes from |
+| `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags` | What it does, its schemas as JSON text, and up to 32 tags |
+| `requirements` | Node labels (`key`, `value`) a run needs when its agent uses this capability |
+| `hints` | `status` (`Known` or `Unknown`), `sampleSize`, `medianDurationMs`, `p90DurationMs`, `meanCostUsd`, `windowDays`, `computedUtc`. Values are null while `Unknown` |
+| `refreshWarning`, `lastRefreshedUtc` | Why the last refresh of the source failed (the content is the last good one), and when it last succeeded |
+
+#### `POST /v1.0/api/tenants/{tenantId}/capabilities`
+
+Body: `name`, `kind`, optional `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags`, `requirements`, and `sourceAgentId`, `sourceMcpServerId`, `sourceToolName`.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/capabilities" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "docx-to-pdf", "kind": "HarnessBuiltIn", "summary": "Converts DOCX to PDF.", "tags": ["documents"], "requirements": [{"key": "garrison.io/tool-libreoffice", "value": "true"}]}'
+```
+
+| | |
+|---|---|
+| Errors | 400 `InvalidJsonSchema` (field codes on `inputSchemaJson`, `outputSchemaJson`), `ValidationFailed` (field codes `InvalidTags`, `TooManyRequirements`); 409 `NameConflict` (a manual descriptor has the name); 409 `CapabilityDerived` on PUT or DELETE of a derived descriptor |
+
+#### `POST /v1.0/api/tenants/{tenantId}/capabilities/refresh`
+
+Refreshes Agent and HarnessBuiltIn descriptors, lists every active MCP server (stdio servers through a Ready worker with stdio diagnostics on), and recomputes hints. A server whose templates name secrets the caller may not use is skipped with an error in its entry. With `mcpServerId`, only that server is listed (404 when it is not an active server of the tenant).
+
+```json
+{ "agents": 1, "harnessBuiltIns": 0, "hints": 4, "mcpServers": [ { "mcpServerId": "mcp_...", "mcpServerName": "search", "tools": 3, "removed": 1, "warned": 0, "error": null } ] }
+```
+
 ### Environments and promotions
 
 Environments are labels on deployments (AD1.3); a tenant without a stored list uses `dev`, `staging`, `prod`. A deployment's `environment` defaults to `dev`, and its optional `agentRevisionId` pins a published revision (400 field codes `UnknownEnvironment` and `UnknownRevision`). Promotion repins every deployment of an agent in the next environment in one transaction, and rollback restores the exact previous pins. See [docs/REVISIONS.md](docs/REVISIONS.md).
@@ -4706,6 +4756,7 @@ Workers authenticate with a credential that holds the `NodeAgent` role (by defau
 | `POST /v1.0/api/node/register` | Register or re-register by node name with labels, capacity, version, and harness capabilities. Returns the node identifier and the heartbeat, lease wait, and lease duration to use. |
 | `POST /v1.0/api/node/heartbeat` | Report held leases and free capacity. Extends held leases and returns runs to cancel (`cancelRunIds`), leases the node lost (`lostRunIds`), and whether to drain. |
 | `POST /v1.0/api/node/lease` | Long poll for up to `maxRuns` runs, waiting up to `waitMs`. Each assignment carries the run identifier, the epoch, the lease expiry, and the compiled `ExecutionSpec`. |
+| `POST /v1.0/api/node/tool-probes` | The tool probes the worker runs before it registers (AD4.4): one per tool name across every active harness profile, with a hash. The worker reports the tools it finds as node labels `garrison.io/tool-{name}=true`; heartbeat responses carry `toolProbeHash`, and the worker fetches the probes again when it changes. Requires the node credential. |
 | `POST /v1.0/api/node/runs/{runId}/started` | Start gate: the worker asks before it launches the harness, and launches only when the server answers 200, which moves the run from Leased to Running. A worker that cannot get the acknowledgement before its lease expires abandons the run without launching it. |
 | `POST /v1.0/api/node/runs/{runId}/events` | A batch of normalized events with worker-assigned sequences starting after the assignment's `eventSequenceStart` (1 for a run with no events yet). Re-sent sequences are ignored. |
 | `POST /v1.0/api/node/runs/{runId}/artifacts` | Upload an internal checkpoint or prepared workspace as `application/octet-stream`, with `nodeId`, `tenantId`, `storeId`, `name`, `epoch`, and `repairAttempt` query parameters. Requires the bound node credential and current live lease; ordinary run and administrator artifact uploads cannot use the reserved `.garrison/` namespace. |
@@ -6173,7 +6224,7 @@ A multi-turn conversation with one agent. See [Conversations](#conversations).
 
 #### `RunBlockedReasonEnum`
 
-`NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`, `NoIsolatingWorker`
+`NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`, `NoIsolatingWorker`, `NoToolWorker`
 
 #### `EgressProtocolEnum`
 

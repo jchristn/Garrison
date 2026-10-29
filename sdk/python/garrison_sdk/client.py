@@ -277,6 +277,78 @@ class FileDownloadUrl(TypedDict, total=False):
     expiresUtc: str
 
 
+class CapabilityRequirement(TypedDict, total=False):
+    """A node label a run needs when its agent uses a capability, for example garrison.io/tool-pandoc=true."""
+    key: str
+    value: str
+
+
+class CapabilityHints(TypedDict, total=False):
+    """Cost and latency hints from recent finished runs. status is one of CAPABILITY_HINT_STATUSES; every value is None
+    while it is Unknown."""
+    status: str
+    sampleSize: int
+    medianDurationMs: Optional[int]
+    p90DurationMs: Optional[int]
+    meanCostUsd: Optional[float]
+    windowDays: int
+    computedUtc: Optional[str]
+
+
+class CapabilityDescriptor(TypedDict, total=False):
+    """One capability catalog entry. kind is one of CAPABILITY_KINDS, origin one of CAPABILITY_ORIGINS. tenantId is None
+    for descriptors every tenant shares. Schemas are JSON Schema documents as JSON text."""
+    id: str
+    tenantId: Optional[str]
+    name: str
+    kind: str
+    origin: str
+    sourceKey: str
+    sourceAgentId: Optional[str]
+    sourceRevisionId: Optional[str]
+    sourceMcpServerId: Optional[str]
+    sourceToolName: Optional[str]
+    sourceHarnessProfileId: Optional[str]
+    sourceHarnessType: Optional[str]
+    summary: Optional[str]
+    inputSchemaJson: Optional[str]
+    outputSchemaJson: Optional[str]
+    tags: List[str]
+    requirements: List[CapabilityRequirement]
+    hints: CapabilityHints
+    refreshWarning: Optional[str]
+    lastRefreshedUtc: Optional[str]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class CapabilityServerRefresh(TypedDict, total=False):
+    """Refresh outcome for one MCP server. error is set when its tool listing failed."""
+    mcpServerId: str
+    mcpServerName: str
+    tools: int
+    removed: int
+    warned: int
+    error: Optional[str]
+
+
+class CapabilityRefreshResult(TypedDict, total=False):
+    """Result of capabilities.refresh: descriptors created, refreshed, or removed per source."""
+    agents: int
+    harnessBuiltIns: int
+    hints: int
+    mcpServers: List[CapabilityServerRefresh]
+
+
+class HarnessToolProbe(TypedDict, total=False):
+    """A harness profile "toolProbes" entry. name is 1 to 63 lowercase letters, digits, dots, and hyphens; executable is
+    a bare file name on the worker's PATH; arguments holds at most one of HARNESS_TOOL_PROBE_ARGUMENTS."""
+    name: str
+    executable: str
+    arguments: List[str]
+    description: Optional[str]
+
+
 class AgentAssetVersion(TypedDict, total=False):
     """An immutable version of an agent asset."""
     id: str
@@ -414,7 +486,9 @@ INPUT_SCHEMA_FIELD_CODES = ("InputNotJson", "InputSchemaViolation", "InvalidJson
 TRANSCRIPT_FORMATS = ("markdown", "json")
 # Node["containerized"] (bool, default False): whether the worker runs inside a container or pod, reported at registration.
 # Run["blockedReason"] values, computed on read for Queued runs no Ready worker can take; None otherwise.
-RUN_BLOCKED_REASONS = ("NoReadyWorker", "NoCapableWorker", "NoMatchingPool", "NoIsolatingWorker")
+# NoToolWorker: the run's agent uses a harness built-in capability (such as pandoc) and no Ready worker that can run it
+# reports that tool (node label garrison.io/tool-{name}=true).
+RUN_BLOCKED_REASONS = ("NoReadyWorker", "NoCapableWorker", "NoMatchingPool", "NoIsolatingWorker", "NoToolWorker")
 
 # Secret["status"] values. NeedsReauthentication means the provider rejected a CodexAuthJson login for good (refresh
 # token reused, expired, or revoked); runs that bind it fail with outcome NotCredentialed until the value is replaced.
@@ -471,6 +545,13 @@ RUN_OUTCOME_ASSET_INTEGRITY_FAILED = "AssetIntegrityFailed"
 
 # Conversation file spaces: the owner argument of every FileSpaces method.
 FILE_SPACE_OWNERS = ("conversations", "runs")
+
+# Capability catalog. CapabilityDescriptor["kind"], ["origin"], and CapabilityHints["status"]. Harness profile
+# "toolProbes" entries take at most one argument from HARNESS_TOOL_PROBE_ARGUMENTS (default "--version").
+CAPABILITY_KINDS = ("Agent", "McpTool", "HarnessBuiltIn")
+CAPABILITY_ORIGINS = ("Derived", "Manual")
+CAPABILITY_HINT_STATUSES = ("Unknown", "Known")
+HARNESS_TOOL_PROBE_ARGUMENTS = ("--version", "-version", "-v", "-V", "version", "--help", "-h")
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -1090,6 +1171,24 @@ class FileSpaces:
         return self._t.request("POST", self._files(owner, id) + "/download-url", params)
 
 
+class Capabilities(Resource):
+    """Capability catalog: agents (from their latest published revision), MCP server tools, and harness built-ins, plus
+    manual descriptors. get takes an ID (cap_...) or a name. create, update, and delete work on manual descriptors only;
+    derived ones raise GarrisonError 409 CapabilityDerived. create and update raise 400 InvalidJsonSchema for a schema
+    that is not JSON Schema and 409 NameConflict for a duplicate manual name."""
+
+    def list(self, kind: Optional[str] = None, tag: Optional[str] = None,  # type: ignore[override]
+             search: Optional[str] = None) -> Dict[str, Any]:
+        """List descriptors as an enumeration of CapabilityDescriptor (every match in one page). kind is one of
+        CAPABILITY_KINDS; search matches the name or summary, ignoring case."""
+        return self._t.request("GET", self._base(), {"kind": kind, "tag": tag, "search": search})
+
+    def refresh(self, mcp_server_id: Optional[str] = None) -> CapabilityRefreshResult:
+        """Refresh derived descriptors now (agents, harness built-ins, MCP server tools, hints), or only one MCP
+        server's tools when mcp_server_id is given (404 when it names no active server)."""
+        return self._t.request("POST", self._base() + "/refresh", {"mcpServerId": mcp_server_id})
+
+
 class Environments:
     """The tenant's ordered environment list (promotion path)."""
 
@@ -1637,6 +1736,7 @@ class GarrisonClient:
         self.promotions = Promotions(t)
         self.agent_assets = AgentAssets(t, "agent-assets")
         self.file_spaces = FileSpaces(t)
+        self.capabilities = Capabilities(t, "capabilities")
 
     @property
     def tenant_id(self) -> Optional[str]:

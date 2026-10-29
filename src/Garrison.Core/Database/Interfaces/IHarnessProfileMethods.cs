@@ -76,5 +76,13 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>A page of records.</returns>
         Task<EnumerationResult<HarnessProfile>> EnumerateAsync(string? tenantId, EnumerationQuery query, CancellationToken token = default);
+
+        /// <summary>
+        /// Every tool probe of every harness profile, built-in and tenant, with its profile (AD4.4). Built-in profiles
+        /// come first, then the rest by creation time.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Probes.</returns>
+        Task<System.Collections.Generic.List<HarnessToolProbeSource>> ListToolProbesAsync(CancellationToken token = default);
     }
 }

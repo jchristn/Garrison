@@ -6062,6 +6062,474 @@
       ]
     },
     {
+      "name": "Capabilities",
+      "description": "Capability catalog (AD4): agents, MCP tools, and harness built-ins with schemas and hints. See docs/CAPABILITIES.md.",
+      "item": [
+        {
+          "name": "List capabilities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities"
+              ]
+            },
+            "description": "Agents, MCP tools, and harness built-ins, ordered by kind and name. Listing first brings Agent descriptors up to date."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('agent descriptors', function () { pm.expect(json.objects.some(function (d) { return d.kind === 'Agent'; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Agent capabilities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities?kind=Agent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities"
+              ],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "Agent"
+                }
+              ]
+            },
+            "description": "Only Agent descriptors, each from the agent's latest published revision."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('derived from a revision', function () { var d = json.objects.find(function (x) { return x.sourceAgentId === pm.collectionVariables.get('agentId'); }); pm.expect(d).to.not.eql(undefined); pm.expect(d.origin).to.eql('Derived'); pm.expect(d.sourceRevisionId).to.match(/^arv_/); pm.collectionVariables.set('derivedCapabilityId', d.id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create manual capability",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities"
+              ]
+            },
+            "description": "A manual descriptor for something Garrison cannot derive.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-convert-{{suffix}}\",\n  \"kind\": \"HarnessBuiltIn\",\n  \"summary\": \"Converts DOCX to PDF.\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\"}}}\",\n  \"tags\": [\n    \"postman\",\n    \"documents\"\n  ],\n  \"requirements\": [\n    {\n      \"key\": \"garrison.io/tool-libreoffice\",\n      \"value\": \"true\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('manual', function () { pm.expect(json.id).to.match(/^cap_/); pm.expect(json.origin).to.eql('Manual'); pm.expect(json.hints.status).to.eql('Unknown'); pm.expect(json.hints.medianDurationMs == null).to.eql(true); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('capabilityId', json.id); }",
+                  "if (json.name !== undefined && json.name !== null) { pm.collectionVariables.set('capabilityName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid schema is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities"
+              ]
+            },
+            "description": "Schemas must be valid JSON Schema: 400 InvalidJsonSchema.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-bad-{{suffix}}\",\n  \"kind\": \"McpTool\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"not-a-type\\\"}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('InvalidJsonSchema', function () { pm.expect(JSON.stringify(json)).to.include('InvalidJsonSchema'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate manual name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities"
+              ]
+            },
+            "description": "Manual names are unique per tenant: 409 NameConflict.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{capabilityName}}\",\n  \"kind\": \"HarnessBuiltIn\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('NameConflict', function () { pm.expect(JSON.stringify(json)).to.include('NameConflict'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read capability by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities/{{capabilityName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities",
+                "{{capabilityName}}"
+              ]
+            },
+            "description": "Descriptors are addressed by identifier or name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same descriptor', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('capabilityId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by tag",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities?tag=postman",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities"
+              ],
+              "query": [
+                {
+                  "key": "tag",
+                  "value": "postman"
+                }
+              ]
+            },
+            "description": "Only descriptors with the tag."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('found', function () { pm.expect(json.objects.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update manual capability",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities/{{capabilityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities",
+                "{{capabilityId}}"
+              ]
+            },
+            "description": "Replace a manual descriptor.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{capabilityName}}\",\n  \"kind\": \"HarnessBuiltIn\",\n  \"summary\": \"Converts DOCX and ODT to PDF.\",\n  \"tags\": [\n    \"postman\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('updated', function () { pm.expect(json.summary).to.eql('Converts DOCX and ODT to PDF.'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Derived capability cannot be edited",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities/{{derivedCapabilityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities",
+                "{{derivedCapabilityId}}"
+              ]
+            },
+            "description": "Derived descriptors follow their source: 409 CapabilityDerived.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"renamed\",\n  \"kind\": \"Agent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('CapabilityDerived', function () { pm.expect(JSON.stringify(json)).to.include('CapabilityDerived'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh capabilities",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities",
+                "refresh"
+              ]
+            },
+            "description": "Refresh agents, harness built-ins, MCP server tools, and hints now."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('result shape', function () { pm.expect(json).to.have.property('agents'); pm.expect(json).to.have.property('mcpServers'); pm.expect(json.hints).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete manual capability",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/capabilities/{{capabilityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "capabilities",
+                "{{capabilityId}}"
+              ]
+            },
+            "description": "Delete a manual descriptor."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Runs",
       "description": "Runs are invocations of an agent. Invoke waits for the result; create returns at once. Events can be polled or streamed.",
       "item": [
@@ -17939,6 +18407,18 @@
     },
     {
       "key": "fsDownloadUrl",
+      "value": ""
+    },
+    {
+      "key": "capabilityId",
+      "value": ""
+    },
+    {
+      "key": "capabilityName",
+      "value": ""
+    },
+    {
+      "key": "derivedCapabilityId",
       "value": ""
     }
   ]

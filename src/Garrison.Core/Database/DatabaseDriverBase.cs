@@ -281,6 +281,16 @@ namespace Garrison.Core.Database
         /// </summary>
         public IFileSpaceMethods FileSpaces { get; protected set; } = null!;
 
+        /// <summary>
+        /// Capability descriptors (AD4).
+        /// </summary>
+        public ICapabilityMethods Capabilities { get; protected set; } = null!;
+
+        /// <summary>
+        /// Fan-out groups (AD5).
+        /// </summary>
+        public IFanOutMethods FanOuts { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

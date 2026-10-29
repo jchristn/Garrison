@@ -61,6 +61,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/artifacts", ResourceTypeEnum.Node, OperationTypeEnum.Execute, UploadInternalArtifactAsync, "Upload a node-owned internal checkpoint or prepared workspace", tag, typeof(byte[]), typeof(Artifact), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/files", ResourceTypeEnum.Node, OperationTypeEnum.Execute, UploadFileSpaceFileAsync, "Write a file a run produced back to its conversation file space, fenced by the lease epoch (AD3.3)", tag, typeof(byte[]), typeof(Garrison.Core.Protocol.FileSpaceUploadResult), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/register", ResourceTypeEnum.Node, OperationTypeEnum.Execute, RegisterAsync, "Register a worker node", tag, typeof(NodeRegisterRequest), typeof(NodeRegisterResponse), "none");
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/node/tool-probes", ResourceTypeEnum.Node, OperationTypeEnum.Execute, ToolProbesAsync, "Tool probes the worker runs before it registers, reporting the tools it finds as node labels (AD4.4)", tag, null, typeof(NodeToolProbeResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/heartbeat", ResourceTypeEnum.Node, OperationTypeEnum.Execute, HeartbeatAsync, "Worker heartbeat", tag, typeof(NodeHeartbeatRequest), typeof(NodeHeartbeatResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/lease", ResourceTypeEnum.Node, OperationTypeEnum.Execute, LeaseAsync, "Lease runs (long poll)", tag, typeof(NodeLeaseRequest), typeof(NodeLeaseResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/watch", ResourceTypeEnum.Node, OperationTypeEnum.Execute, WatchAsync, "Watch held runs for cancellation (long poll)", tag, typeof(NodeWatchRequest), typeof(NodeWatchResponse), "none");
@@ -105,6 +106,11 @@ namespace Garrison.Server.Routes
                 RouteHelpers.Query(context, "tenantId") ?? String.Empty, RouteHelpers.Param(context, "runId") ?? String.Empty, nodeId,
                 epoch.Value, repair.Value, RouteHelpers.Query(context, "path") ?? String.Empty, baseVersion.Value, context.Request.DataAsBytes ?? Array.Empty<byte>(), context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 201, result).ConfigureAwait(false);
+        }
+
+        private async Task ToolProbesAsync(HttpContextBase context)
+        {
+            await RouteHelpers.JsonAsync(context, 200, await _Nodes.ToolProbesAsync(context.Token).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         private async Task RegisterAsync(HttpContextBase context)

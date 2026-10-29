@@ -2,6 +2,7 @@ namespace Garrison.Core.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
@@ -387,6 +388,26 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Tools the harness can use when the worker host has them (AD4.4), such as pandoc. Workers probe them and report
+        /// the ones they find as node labels; each becomes a HarnessBuiltIn capability. At most 32, with unique names.
+        /// </summary>
+        /// <exception cref="ArgumentException">Thrown when there are more than 32 probes or two share a name.</exception>
+        public List<HarnessToolProbe> ToolProbes
+        {
+            get
+            {
+                return _ToolProbes;
+            }
+            set
+            {
+                List<HarnessToolProbe> list = value ?? new List<HarnessToolProbe>();
+                if (list.Count > 32) throw new ArgumentException("A harness profile declares at most 32 tool probes.", nameof(ToolProbes));
+                if (list.Select(p => p.Name).Distinct(StringComparer.Ordinal).Count() != list.Count) throw new ArgumentException("Tool probe names must be unique within a harness profile.", nameof(ToolProbes));
+                _ToolProbes = list;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -394,6 +415,7 @@ namespace Garrison.Core.Models
         private readonly List<FieldWarning> _ClampWarnings = new List<FieldWarning>();
 
         private List<HarnessAssetPlacement> _AssetPlacements = new List<HarnessAssetPlacement>();
+        private List<HarnessToolProbe> _ToolProbes = new List<HarnessToolProbe>();
         private string _Id = IdGenerator.NewHarnessProfileId();
         private string _Name = String.Empty;
         private string _Executable = String.Empty;

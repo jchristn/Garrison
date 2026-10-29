@@ -114,6 +114,15 @@ namespace Garrison.Server.Settings
         }
 
         /// <summary>
+        /// Capability catalog settings (AD4).
+        /// </summary>
+        public CapabilitySettings Capabilities
+        {
+            get { return _Capabilities; }
+            set { _Capabilities = value ?? new CapabilitySettings(); }
+        }
+
+        /// <summary>
         /// Control-plane refresh of ChatGPT logins stored in CodexAuthJson secrets (G-22).
         /// </summary>
         public CodexSettings Codex
@@ -162,6 +171,7 @@ namespace Garrison.Server.Settings
         private ArtifactSettings _Artifacts = new ArtifactSettings();
         private AssetSettings _Assets = new AssetSettings();
         private FileSpaceSettings _FileSpaces = new FileSpaceSettings();
+        private CapabilitySettings _Capabilities = new CapabilitySettings();
 
         private CodexSettings _Codex = new CodexSettings();
 
@@ -274,6 +284,12 @@ namespace Garrison.Server.Settings
             Int("GARRISON_FILESPACES_MAX_FILE_BYTES", "FileSpaces.MaxFileBytes", v => FileSpaces.MaxFileBytes = v);
             Long("GARRISON_FILESPACES_MAX_TOTAL_BYTES", "FileSpaces.MaxTotalBytes", v => FileSpaces.MaxTotalBytes = v);
             Int("GARRISON_FILESPACES_MAX_FILES", "FileSpaces.MaxFiles", v => FileSpaces.MaxFiles = v);
+            Int("GARRISON_CAPABILITIES_SWEEP_SECONDS", "Capabilities.SweepSeconds", v => Capabilities.SweepSeconds = v);
+            Int("GARRISON_CAPABILITIES_MCP_REFRESH_SECONDS", "Capabilities.McpRefreshSeconds", v => Capabilities.McpRefreshSeconds = v);
+            Int("GARRISON_CAPABILITIES_MCP_TIMEOUT_MS", "Capabilities.McpTimeoutMs", v => Capabilities.McpTimeoutMs = v);
+            Int("GARRISON_CAPABILITIES_HINT_WINDOW_DAYS", "Capabilities.HintWindowDays", v => Capabilities.HintWindowDays = v);
+            Int("GARRISON_CAPABILITIES_HINT_MINIMUM_SAMPLES", "Capabilities.HintMinimumSamples", v => Capabilities.HintMinimumSamples = v);
+            Int("GARRISON_CAPABILITIES_HINT_MAX_SAMPLES", "Capabilities.HintMaxSamples", v => Capabilities.HintMaxSamples = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);

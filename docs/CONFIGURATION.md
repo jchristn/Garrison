@@ -258,6 +258,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `MaxResidentWaiters` | `0` | Most runs on this worker that may wait on a delegated run at once while keeping their process, 0 to 1024; `0` means `MaxConcurrentRuns`. The control plane also never lets more than `MaxConcurrentRuns + ChildReserveSlots - 1` wait. A delegation beyond it fails at once with `DelegationCapacityExhausted`. Environment: `GARRISON_WORKER_MAX_RESIDENT_WAITERS` |
 | `Containerized` | `false` | Whether this worker runs inside a container or pod. Reported at registration and exposed to harness profiles as `executor.containerized`; the built-in Codex profiles then default their sandbox to `danger-full-access`, because Codex's bubblewrap sandbox cannot work in a container (G-29, `docs/HARNESSES.md`). The worker image sets it to `true`; leave it `false` for a worker run directly on a host. Environment: `GARRISON_WORKER_CONTAINERIZED` |
 | `McpTestsEnabled` | `false` | Whether this worker runs stdio MCP server diagnostics (`POST .../mcp-servers/{id}/test?nodeId=`). A diagnostic starts the MCP server's configured command as a child of the worker process, outside any run pod, where it can read the node credential and, on a KubernetesJob worker, the service account token. Turn it on only for Process workers whose host you accept as the boundary for tenant-configured commands. While `false` the worker does not advertise `supportsMcpTests`, is not offered for diagnostics, and refuses any it is sent (SR-04). Environment: `GARRISON_WORKER_MCP_TESTS_ENABLED` |
+| `ToolProbesEnabled` | `true` | Whether this worker runs the tool probes the control plane sends (AD4.4) and reports the tools it finds as node labels `garrison.io/tool-{name}=true`. A probe is a bare executable on the `PATH` with one version or help flag, so it can report a tool but do nothing else. When `false` the worker reports no tool labels; set them by hand in `Labels` instead. Environment: `GARRISON_WORKER_TOOL_PROBES_ENABLED` |
 | `WorkRoot` | `workspaces` | Root of per-run workspace, home, and config directories. Conversation turns use `<WorkRoot>/conversations/<conversationId>/` instead, kept between turns. Environment: `GARRISON_WORKER_WORK_ROOT` |
 | `ConversationRetentionHours` | `24` | Hours a conversation's directories may go unused before the worker deletes them, 0 to 8760; `0` keeps them until the work root is emptied. The next turn of a removed conversation starts a fresh session seeded with the transcript. Environment: `GARRISON_WORKER_CONVERSATION_RETENTION_HOURS` |
 | `ConversationSweepIntervalSeconds` | `600` | How often the worker looks for unused conversation directories, 10 to 86400 |
@@ -347,6 +348,19 @@ Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example 
 | `Assets.AllowMacroFormats` | false | | `GARRISON_ASSETS_ALLOW_MACRO_FORMATS` |
 
 An asset upload over a limit answers 413 naming the setting. Files kept in an external artifact store are also bounded by `Artifacts.MaxFileBytes` when they are read back. See [ASSETS.md](ASSETS.md).
+
+### Capability catalog
+
+| Setting | Default | Range | Environment |
+|---|---|---|---|
+| `Capabilities.SweepSeconds` | 300 | 30 to 86400 | `GARRISON_CAPABILITIES_SWEEP_SECONDS` |
+| `Capabilities.McpRefreshSeconds` | 3600 | 60 to 604800 | `GARRISON_CAPABILITIES_MCP_REFRESH_SECONDS` |
+| `Capabilities.McpTimeoutMs` | 15000 | 1000 to 120000 | `GARRISON_CAPABILITIES_MCP_TIMEOUT_MS` |
+| `Capabilities.HintWindowDays` | 14 | 1 to 365 | `GARRISON_CAPABILITIES_HINT_WINDOW_DAYS` |
+| `Capabilities.HintMinimumSamples` | 5 | 1 to 1000 | `GARRISON_CAPABILITIES_HINT_MINIMUM_SAMPLES` |
+| `Capabilities.HintMaxSamples` | 1000 | 10 to 100000 | `GARRISON_CAPABILITIES_HINT_MAX_SAMPLES` |
+
+The leader refreshes the catalog every `SweepSeconds`: Agent descriptors, harness built-ins, HTTP MCP servers whose tool list is older than `McpRefreshSeconds`, and hints. Stdio MCP servers are listed only on request. See [CAPABILITIES.md](CAPABILITIES.md).
 
 ### Conversation file space limits
 

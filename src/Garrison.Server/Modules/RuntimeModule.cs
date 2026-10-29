@@ -91,6 +91,10 @@ namespace Garrison.Server.Modules
             _Events.Logging = context.Logging;
             _Analytics = new RunAnalyticsService(context.Database);
             _Nodes = new NodeService(context.Database, _Options, context.Audit, _Signals);
+            ToolProbeCatalog toolProbes = new ToolProbeCatalog(context.Database);
+            _Nodes.ToolProbes = toolProbes;
+            _Runs.ToolProbes = toolProbes;
+            context.Register(toolProbes);
             _Delegation = new DelegationPolicy(context.Database);
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation, _Options);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
@@ -128,6 +132,7 @@ namespace Garrison.Server.Modules
             string assetBaseUrl = context.Settings.Rest.PublicBaseUrl ?? ExternalUrls.BindBaseUrl(context);
             FileSpaceService fileSpaces = context.Get<FileSpaceService>();
             _Maintenance.FileSpaces = fileSpaces;
+            _Maintenance.Capabilities = context.TryGet<CapabilityService>();
             _Scheduler.DecorateSpec = async (run, spec, ct) =>
             {
                 assets.ApplyDownloadUrls(run, spec, assetBaseUrl);

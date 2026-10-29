@@ -268,6 +268,10 @@ The same values are available to templates as `run.workspaceDir`, `run.configDir
 
 `assetPlacements` says where the harness expects agent assets of each kind (AD2.3): `kind` (`Skill`, `ReferenceFile`, `DocumentTemplate`), `pathTemplate` (a workspace-relative directory with `{{asset.name}}`), and `listInSystemPrompt` (also list the asset in the system prompt through `builtin/agent-assets-instructions`). The built-ins place Claude Code skills in `.claude/skills/{{asset.name}}` and everything else in `assets/{{asset.name}}`, and list every placed asset. A kind without a placement goes to `assets/{{asset.name}}`, listed. See [ASSETS.md](ASSETS.md) for the full table.
 
+### Tool probes
+
+`toolProbes` lists programs the harness can use when the worker host has them (AD4.4): `name` (lowercase, used in the label and the capability name), `executable` (a bare file name on the `PATH`), `arguments` (at most one of `--version`, `-version`, `-v`, `-V`, `version`, `--help`, `-h`), and `description`. Workers run every probe before they register and report the tools that answer as node labels `garrison.io/tool-{name}=true`. Each probe also becomes a `HarnessBuiltIn` capability, and an agent revision that names it in `capabilities` runs only on a worker that reported it. The built-in Claude Code, Codex, Codex app server, Gemini CLI, and Mux profiles probe `pandoc`, `libreoffice` (`soffice`), and `python3`. See [CAPABILITIES.md](CAPABILITIES.md).
+
 ## Template variables
 
 Every string in a profile is rendered with the Garrison template language (see `docs/PROMPTS.md` for syntax). These are the variables available when compiling a run:

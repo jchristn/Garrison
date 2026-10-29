@@ -194,6 +194,11 @@ namespace Garrison.Sdk
         public FileSpacesClient FileSpaces { get; }
 
         /// <summary>
+        /// Capability catalog: agents, MCP tools, and harness built-ins described the same way.
+        /// </summary>
+        public CapabilitiesClient Capabilities { get; }
+
+        /// <summary>
         /// Tenant environments and promotions of agent revisions between them.
         /// </summary>
         public PromotionsClient Promotions { get; }
@@ -282,6 +287,7 @@ namespace Garrison.Sdk
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);
             FileSpaces = new FileSpacesClient(Transport);
+            Capabilities = new CapabilitiesClient(Transport);
             Promotions = new PromotionsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
