@@ -240,6 +240,7 @@ namespace Test.Shared.Suites
                 "b=$(basename \"$file\"); { echo '%PDF-1.4 STUB'; cat \"$file\"; } > \"$outdir/${b%.*}.pdf\"\n");
             foreach (string script in new[] { pandoc, soffice })
             {
+                if (OperatingSystem.IsWindows()) continue;
                 File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute);
             }
             return directory;
