@@ -1,0 +1,122 @@
+# Support triage example app (AD12.13): a smaller app built in the studio and exported as a manifest bundle.
+#
+# The entry agent takes a customer message, asks a classifier which queue it belongs to, asks a knowledge lookup for the
+# matching article, and answers with both. Like the research overview, it runs on the fake harness: the entry agent's
+# Garrison tool calls are scripted in its deployment parameters. Swap the harness profiles for a real harness and give
+# the agents prompts to run it for real.
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: triage-script
+  description: The fake harness, calling the Garrison MCP tools named in deployment parameters step1 and step2 in order
+spec:
+  harnessType: Generic
+  executable: garrison-fake-harness
+  promptDelivery: Stdin
+  mcpConfigFormat: ClaudeJson
+  mcpConfigFileName: mcp.json
+  outputParser: ClaudeStreamJson
+  resultSource: ParserFinalEvent
+  defaultTimeoutSeconds: 300
+  files:
+    - baseDirectory: Config
+      pathTemplate: mcp.json
+      contentTemplate: "{{> builtin/claude-code-mcp-config}}"
+      isSecret: true
+      condition: "{{resources.hasMcpServers}}"
+      mode: "600"
+  arguments:
+    - template: --format
+    - template: claude
+    - template: --mcp-config
+      condition: "{{resources.hasMcpServers}}"
+    - template: $GARRISON_CONFIG_DIR/mcp.json
+      condition: "{{resources.hasMcpServers}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step1}}"
+    - template: "{{deployment.parameters.step1}}"
+      condition: "{{deployment.parameters.step1}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step2}}"
+    - template: "{{deployment.parameters.step2}}"
+      condition: "{{deployment.parameters.step2}}"
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: triage-classifier
+  description: Names the queue a support message belongs to (billing, outage, account, or other)
+spec:
+  displayName: Classifier
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: triage-knowledge
+  description: Finds the knowledge base article that best answers a support message
+spec:
+  displayName: Knowledge lookup
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: triage-desk
+  description: Talks to customers, routes their message, and answers with the right article
+spec:
+  displayName: Support desk
+  delegation:
+    allow: [triage-classifier, triage-knowledge]
+    maxDepth: 1
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: triage-classifier-dev
+spec:
+  agent: triage-classifier
+  harnessProfile: builtin/fake
+  environment: dev
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: triage-knowledge-dev
+spec:
+  agent: triage-knowledge
+  harnessProfile: builtin/fake
+  environment: dev
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: triage-desk-dev
+spec:
+  agent: triage-desk
+  harnessProfile: triage-script
+  environment: dev
+  parameters:
+    step1: 'garrison,garrison_invoke_agent,{"agent":"triage-classifier","input":"Classify: my invoice was charged twice"}'
+    step2: 'garrison,garrison_invoke_agent,{"agent":"triage-knowledge","input":"Find the article for: duplicate invoice charge"}'
+---
+apiVersion: garrison/v1
+kind: AgenticApp
+metadata:
+  name: support-triage
+  description: Routes support messages and answers with the right article
+spec:
+  entry: triage-desk
+  members:
+    - { agent: triage-desk, role: Talks to customers }
+    - { agent: triage-classifier, role: Picks the queue }
+    - { agent: triage-knowledge, role: Finds the article }
+  edges:
+    - { from: triage-desk, to: triage-classifier, fanOut: false }
+    - { from: triage-desk, to: triage-knowledge, fanOut: false }
+  environments:
+    - { environment: dev, deployment: triage-desk-dev }
+  liveEnvironment: dev
+  authMode: Anonymous
+  anonymousEnabled: true
+  branding:
+    displayName: Support Desk
+    welcomeText: Tell us what went wrong.

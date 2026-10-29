@@ -1,11 +1,12 @@
 # Example agentic apps
 
-Two bundles you can apply as they are and copy as templates. Both run on the fake harness, so they work with no model and no credentials.
+Three bundles you can apply as they are and copy as templates. Both run on the fake harness, so they work with no model and no credentials.
 
 | Bundle | What it shows |
 |---|---|
 | [doc-converter](doc-converter/doc-converter.yaml) | A reference converter agent: Markdown to Word or PDF, and Word to PDF, with a reference document for styling. Typed input and output, a document template asset, a skill, and host tool requirements |
 | [research-overview](research-overview/research-overview.yaml) | An app whose orchestrator fans out to two researchers, has a writer put `report.md` in the conversation file space, and has the doc-converter turn it into `report.pdf` |
+| [support-triage](support-triage/support-triage.yaml) | A smaller app built in the studio and exported as a bundle: a support desk that asks a classifier for the queue and a knowledge lookup for the article, then answers with both |
 
 ## Run them
 

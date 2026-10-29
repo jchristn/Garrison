@@ -9,6 +9,7 @@ namespace Test.Shared.Suites
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enums;
+    using Garrison.Core.Manifests;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
@@ -43,6 +44,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "doc-converter-no-tools", "The doc-converter bundle applies and re-applies unchanged; with no worker reporting pandoc its runs queue with NoToolWorker naming the tool (" + provider + ")", ct => NoToolsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "research-overview", "The research overview app: an anonymous gateway conversation fans out to two researchers, has the writer draft report.md, and the doc-converter produce report.pdf in the file space (" + provider + ")", ct => ResearchAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-binding", "An external MCP converter with bearer auth from a secret: its tools enter the catalog, only the bound agent sees them, a run passes the required-tools pre-flight, and the secret never appears in events or the transcript (" + provider + ")", ct => McpBindingAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "support-triage-studio", "The support triage app is built in the studio from its documents, approved, exported with its references to the same documents, and answers through the gateway after asking the classifier and the knowledge lookup (" + provider + ")", ct => SupportTriageAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Example apps (" + provider + ")", cases));
             }
             return suites;
@@ -153,6 +155,70 @@ namespace Test.Shared.Suites
                 string events = (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/runs/" + real.Id + "/events?maxResults=1000", null, token).ConfigureAwait(false)).Body;
                 string record = (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/runs/" + real.Id, null, token).ConfigureAwait(false)).Body;
                 Assert.True(!events.Contains(bearer, StringComparison.Ordinal) && !record.Contains(bearer, StringComparison.Ordinal), "The secret never appears in events or the run record");
+            }
+        }
+
+        private static async Task SupportTriageAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                List<ManifestDocument> documents = ManifestParser.Parse(Example("support-triage/support-triage.yaml"));
+                string drafts = T(host) + "/studio/drafts";
+                StudioDraft draft = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, drafts, new StudioDraftCreateRequest { Title = "Support triage" }, 201, token).ConfigureAwait(false);
+                // The bundle's documents go into the draft one at a time, as the studio (or its architect) would write them.
+                string text = Example("support-triage/support-triage.yaml");
+                List<string> sources = text.Split("\n---\n").Select(d => d.Contains("apiVersion:", StringComparison.Ordinal) ? d.Substring(d.IndexOf("apiVersion:", StringComparison.Ordinal)) : d).ToList();
+                foreach (ManifestDocument document in documents)
+                {
+                    if (document.Kind == "HarnessProfile")
+                    {
+                        // Drafts hold harness profiles too, but this one is applied directly so the test stays about the app.
+                        await ApplyAsync(host, sources.Single(d => d.Contains("kind: HarnessProfile", StringComparison.Ordinal)), token).ConfigureAwait(false);
+                        continue;
+                    }
+                    string source = sources.Single(d => d.Contains("kind: " + document.Kind + "\n", StringComparison.Ordinal) && d.Contains("  name: " + document.Metadata.Name + "\n", StringComparison.Ordinal));
+                    draft = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Put, drafts + "/" + draft.Id + "/items/" + document.Kind + "/" + document.Metadata.Name, new StudioDraftItemRequest { Version = draft.Version, Document = source }, 200, token).ConfigureAwait(false);
+                }
+                StudioDraftDiff diff = await HttpTestHelpers.SendAsync<StudioDraftDiff>(host.AdminClient, HttpMethod.Post, drafts + "/" + draft.Id + "/validate", null, 200, token).ConfigureAwait(false);
+                Assert.True(diff.Valid && diff.Items.All(i => i.Change == "Create"), "Everything validates as a create: " + Serializer.Serialize(diff));
+                Approval approval = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, drafts + "/" + draft.Id + "/request-apply", new StudioDraftVersionRequest { Version = draft.Version }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + approval.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, 200, token).ConfigureAwait(false);
+
+                string exported = (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/manifests/export?resources=AgenticApp/support-triage&followReferences=true", null, token).ConfigureAwait(false)).Body;
+                List<string> exportedKeys = ManifestParser.Parse(exported).Where(d => d.Kind != "Bundle").Select(d => d.Kind + "/" + d.Metadata.Name).OrderBy(k => k, StringComparer.Ordinal).ToList();
+                List<string> bundleKeys = documents.Select(d => d.Kind + "/" + d.Metadata.Name).OrderBy(k => k, StringComparer.Ordinal).ToList();
+                Assert.True(exportedKeys.SequenceEqual(bundleKeys), "The exported bundle has the example's documents: " + String.Join(", ", exportedKeys));
+
+                using (HttpClient client = new HttpClient { BaseAddress = host.AdminClient.BaseAddress })
+                {
+                    string session;
+                    using (StringContent content = new StringContent("{}", Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage response = await client.PostAsync("/v1.0/apps/support-triage/session", content, token).ConfigureAwait(false))
+                    {
+                        session = Assert.NotNull(Serializer.Deserialize<AppSessionResponse>(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false)), "Session").Token;
+                    }
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", session);
+                    string conversationId;
+                    using (StringContent content = new StringContent("{\"message\":\"My invoice was charged twice.\"}", Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage started = await client.PostAsync("/v1.0/apps/support-triage/conversations", content, token).ConfigureAwait(false))
+                    {
+                        string body = await started.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(201, (int)started.StatusCode, "Start: " + body);
+                        conversationId = Assert.NotNull(Serializer.Deserialize<Dictionary<string, object>>(body)?["conversationId"]?.ToString(), "Conversation id");
+                    }
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(120);
+                    AppConversationView view;
+                    while (true)
+                    {
+                        view = Assert.NotNull(Serializer.Deserialize<AppConversationView>(await client.GetStringAsync("/v1.0/apps/support-triage/conversations/" + conversationId, token).ConfigureAwait(false)), "Conversation");
+                        if (view.Turns.Count == 1 && RunService.IsTerminal(view.Turns[0].Status)) break;
+                        if (DateTime.UtcNow > deadline) throw new TestAssertionException("The triage turn did not finish: " + Serializer.Serialize(view));
+                        await Task.Delay(500, token).ConfigureAwait(false);
+                    }
+                    string answer = view.Turns[0].Answer ?? String.Empty;
+                    Assert.True(view.Turns[0].Status == RunStatusEnum.Succeeded && answer.Contains("\"agent\":\"triage-classifier\"", StringComparison.Ordinal) && answer.Contains("\"agent\":\"triage-knowledge\"", StringComparison.Ordinal), "The desk asked both members: " + answer);
+                }
             }
         }
 
