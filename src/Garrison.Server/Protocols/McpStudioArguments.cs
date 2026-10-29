@@ -58,5 +58,14 @@ namespace Garrison.Server.Protocols
 
         /// <summary>Canvas Y, for graph_operation MoveNode.</summary>
         public double? Y { get; set; } = null;
+
+        /// <summary>Message, for playground_invoke.</summary>
+        public string? Input { get; set; } = null;
+
+        /// <summary>Conversation to continue, for playground_invoke.</summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>Most seconds to wait, for playground_invoke.</summary>
+        public int? WaitSeconds { get; set; } = null;
     }
 }

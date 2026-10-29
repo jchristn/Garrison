@@ -85,6 +85,16 @@ A run can never decide a draft approval: 403, whatever its permissions.
 
 `app` names the app and defaults to the draft's target app. An operation on an app the draft does not hold yet starts from the live app, or from a new app when none exists. Member and edge operations rewrite the draft's `AgenticApp` item, so the graph and the item text never disagree.
 
+## Playground
+
+The playground runs an agent's draft revision before anything is published. Each run goes to a temporary copy of one of the agent's deployments (its `dev` deployment, or the first one), named `playground-{agent}` and kept in the reserved `draft` environment, pinned to the revision being tried. Playground runs have kind `Playground`. They keep conversations and file spaces like any run, but they are left out of capability hints, and no app can select the `draft` environment, so end users never reach them.
+
+- `POST .../agents/{agentId}/playground/invoke` with `{input, agentRevisionId?, sourceDeploymentId?, conversationId?, wait, waitSeconds}` runs the given revision, by default the agent's open draft revision. Needs Execute on the agent.
+- `POST .../studio/drafts/{id}/playground/invoke` with `{input, agent?, conversationId?}` first writes the draft's document for that agent (default: the target app's entry agent) as the agent's draft revision, then runs it. Live configuration does not change. Needs Update on `StudioDraft` and on `AgentRevision`. An agent the draft creates must be applied before it can be tried (400 `AgentNotLive`).
+- MCP: `garrison_studio_playground_invoke` with `draftId`, `input`, and optional `agent`, `conversationId`, `waitSeconds`, also available to the architect.
+
+Users cannot create deployments in the `draft` environment (400 `ReservedEnvironment`). Deleting the agent deletes its playground copy.
+
 ## Delegated management
 
 The agent architect builds drafts by calling studio tools from inside a run. Runs normally cannot touch configuration. A deployment can grant its runs draft access with `managementAccess: Drafts`:
@@ -101,7 +111,7 @@ spec:
 
 The run token of such a deployment may:
 
-- create, read, and edit studio drafts and request their apply;
+- create, read, and edit studio drafts, try them in the playground (which writes agent draft revisions, never published ones), and request their apply;
 - read design configuration: deployments, harness profiles, prompt templates, MCP servers, workspace templates, agent revisions, agent assets, capabilities, apps, pipelines, and triggers.
 
 Every permission is also checked against the person who started the run, so the architect can never do more than that person. It sees and edits only that person's drafts. It can never apply a draft, decide an approval, delete live resources, or read secret values. The grant ends when the run ends, like every run token.

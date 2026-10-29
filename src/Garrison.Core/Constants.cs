@@ -178,6 +178,11 @@ namespace Garrison.Core
         public const string ArchitectSkillAssetName = "agent-architect-skills";
 
         /// <summary>
+        /// Reserved environment of playground deployments (AD9.1). User deployments and apps cannot use it.
+        /// </summary>
+        public const string PlaygroundEnvironment = "draft";
+
+        /// <summary>
         /// Identifier of the default tenant seeded on first boot.
         /// </summary>
         public const string DefaultTenantId = "default";

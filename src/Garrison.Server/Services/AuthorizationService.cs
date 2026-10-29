@@ -542,6 +542,8 @@ namespace Garrison.Server.Services
         private static bool IsDraftGrant(ResourceTypeEnum resourceType, OperationTypeEnum operation)
         {
             if (resourceType == ResourceTypeEnum.StudioDraft) return operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Update;
+            // Draft agent revisions back the studio playground (AD9.1); publishing a revision needs Execute, which runs never get.
+            if (resourceType == ResourceTypeEnum.AgentRevision && operation == OperationTypeEnum.Update) return true;
             if (operation != OperationTypeEnum.Read) return false;
             return resourceType == ResourceTypeEnum.Deployment || resourceType == ResourceTypeEnum.HarnessProfile || resourceType == ResourceTypeEnum.PromptTemplate
                 || resourceType == ResourceTypeEnum.McpServer || resourceType == ResourceTypeEnum.Workspace || resourceType == ResourceTypeEnum.AgentRevision

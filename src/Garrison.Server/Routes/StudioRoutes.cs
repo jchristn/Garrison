@@ -25,6 +25,7 @@ namespace Garrison.Server.Routes
         private static readonly string _Architects = "/v1.0/api/tenants/{tenantId}/studio/architect";
         private readonly ServerContext _Server;
         private readonly StudioService _Studio;
+        private RouteRegistrar? _Routes = null;
 
         #endregion
 
@@ -53,7 +54,7 @@ namespace Garrison.Server.Routes
         /// <exception cref="ArgumentNullException">Thrown when routes is null.</exception>
         public void Register(RouteRegistrar routes)
         {
-            if (routes == null) throw new ArgumentNullException(nameof(routes));
+            _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, ListAsync, "List studio drafts, newest change first (mine=true for your own)", _Tag, null, typeof(EnumerationResult<StudioDraft>));
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Create, CreateAsync, "Start a studio draft, empty or from an existing app with everything it references", _Tag, typeof(StudioDraftCreateRequest), typeof(StudioDraft));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, ReadAsync, "Read a studio draft with its items and layout", _Tag, null, typeof(StudioDraft));
@@ -67,6 +68,8 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.GET, _Architects + "-prompts", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, ArchitectPromptsAsync, "List architect prompts: built-ins first, then tenant clones of them, then other tenant System templates, with the architect deployments that bind each", _Tag, null, typeof(List<ArchitectPromptEntry>));
             routes.Scoped(HttpMethod.GET, _Architects + "s/{deploymentId}/prompt", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ArchitectPromptAsync, "Read the prompt an architect deployment uses", _Tag, null, typeof(ArchitectPromptSelection), "deploymentId");
             routes.Scoped(HttpMethod.PUT, _Architects + "s/{deploymentId}/prompt", ResourceTypeEnum.Deployment, OperationTypeEnum.Update, SetArchitectPromptAsync, "Choose the prompt an architect deployment uses; takes effect on its next turn", _Tag, typeof(ArchitectPromptRequest), typeof(ArchitectPromptSelection), "deploymentId");
+            routes.Scoped(HttpMethod.POST, _Base + "/{id}/playground/invoke", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Update, DraftPlaygroundAsync, "Run a draft's agent in the playground (its document becomes the agent's draft revision; nothing is published)", _Tag, typeof(PlaygroundInvokeRequest), typeof(Run));
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/tenants/{tenantId}/agents/{agentId}/playground/invoke", ResourceTypeEnum.Agent, OperationTypeEnum.Execute, AgentPlaygroundAsync, "Run an agent's draft revision in the playground on an ephemeral deployment in the draft environment", _Tag, typeof(PlaygroundInvokeRequest), typeof(Run), "agentId");
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/graph-operations", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Update, GraphOperationAsync, "Apply one graph operation (add or remove a member, connect, disconnect, set the entry agent, move a node)", _Tag, typeof(StudioGraphOperationRequest), typeof(StudioGraph));
         }
 
@@ -126,6 +129,28 @@ namespace Garrison.Server.Routes
             StudioDraftVersionRequest request = RouteHelpers.RequiredBody<StudioDraftVersionRequest>(http);
             Approval approval = await _Studio.RequestApplyAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id") ?? String.Empty, request.Version, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, approval).ConfigureAwait(false);
+        }
+
+        private async Task DraftPlaygroundAsync(HttpContextBase http)
+        {
+            string tenantId = RouteHelpers.Tenant(http);
+            StudioDraft draft = await _Studio.ReadAsync(tenantId, RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false);
+            PlaygroundInvokeRequest request = RouteHelpers.RequiredBody<PlaygroundInvokeRequest>(http);
+            if (_Routes != null && !await _Routes.RequireAsync(http, tenantId, ResourceTypeEnum.AgentRevision, OperationTypeEnum.Update, null).ConfigureAwait(false)) return;
+            Run run = await _Server.Get<PlaygroundService>().InvokeDraftAsync(RouteHelpers.Context(http), tenantId, draft, request, http.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, run).ConfigureAwait(false);
+        }
+
+        private async Task AgentPlaygroundAsync(HttpContextBase http)
+        {
+            string tenantId = RouteHelpers.Tenant(http);
+            string idOrName = RouteHelpers.Param(http, "agentId") ?? String.Empty;
+            Agent agent = await _Server.Database.Agents.ReadAsync(tenantId, idOrName, http.Token).ConfigureAwait(false)
+                ?? await _Server.Database.Agents.ReadByNameAsync(tenantId, idOrName, http.Token).ConfigureAwait(false)
+                ?? throw new NotFoundException("Agent not found.");
+            PlaygroundInvokeRequest request = RouteHelpers.RequiredBody<PlaygroundInvokeRequest>(http);
+            Run run = await _Server.Get<PlaygroundService>().InvokeAsync(RouteHelpers.Context(http), tenantId, agent, request, http.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, run).ConfigureAwait(false);
         }
 
         private async Task ArchitectPromptsAsync(HttpContextBase http)

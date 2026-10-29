@@ -392,6 +392,7 @@ Tools for building studio drafts (AD7). Users and credentials can call them with
 | `garrison_studio_diff` | StudioDraft.Read | `draftId` |
 | `garrison_studio_validate` | StudioDraft.Read | `draftId` |
 | `garrison_studio_request_apply` | StudioDraft.Update | `draftId`, `version` |
+| `garrison_studio_playground_invoke` | StudioDraft.Update and AgentRevision.Update | `draftId`, `input`, optional `agent`, `conversationId`, `waitSeconds` |
 
 Every change names the draft version the caller read and fails with `DraftVersionConflict` when the draft moved on. No tool applies a draft. A person decides the `DraftApply` approval that `garrison_studio_request_apply` creates.
 

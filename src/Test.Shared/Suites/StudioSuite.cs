@@ -52,6 +52,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "architect-script", "A scripted fake-harness architect turn sets a deployment's model, timeout, and approval rule, and binds all three capability sources (agent edge, MCP server, host tool), all through studio tools; the diff shows exactly those changes (" + provider + ")", ct => ScriptAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-seed-replicas", "Replicas seeding the architect at the same time, including for a new tenant, leave exactly one agent and one skill asset and raise no unique constraint failure (" + provider + ")", ct => SeedReplicasAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "preview", "Compile preview of a draft revision shows its new asset's placed path, previews another environment's deployment, and keeps secrets redacted (" + provider + ")", ct => PreviewAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "playground", "Playground runs execute an agent's draft revision on an ephemeral draft-environment deployment, from an agent or from a studio draft, without publishing; apps cannot select the draft environment (" + provider + ")", ct => PlaygroundAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Studio drafts (" + provider + ")", cases));
             }
             return suites;
@@ -686,6 +687,40 @@ spec:
                 CompilePreviewResponse other = await HttpTestHelpers.SendAsync<CompilePreviewResponse>(host.AdminClient, HttpMethod.Post, preview, new CompilePreviewRequest { Environment = "staging" }, 200, token).ConfigureAwait(false);
                 Assert.Equal(staging.Id, other.DeploymentId, "Staging's deployment is compiled");
                 Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, preview, new CompilePreviewRequest { Environment = "prod" }, token).ConfigureAwait(false), 400, "NoDeploymentInEnvironment", "No prod deployment");
+            }
+        }
+
+        private static async Task PlaygroundAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                Agent agent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "pg-agent", Description = "Published description." }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "pg-dev", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev" }, 201, token).ConfigureAwait(false);
+                AgentRevision draft = await HttpTestHelpers.SendAsync<AgentRevision>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/" + agent.Id + "/revisions", new AgentRevision { Description = "PLAYGROUND-DRAFT description." }, 201, token).ConfigureAwait(false);
+
+                Run run = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/pg-agent/playground/invoke", new PlaygroundInvokeRequest { Input = "Try the draft." }, 200, token).ConfigureAwait(false);
+                Assert.True(run.Status == RunStatusEnum.Succeeded && run.Kind == RunKindEnum.Playground && run.AgentRevisionId == draft.Id, "A playground run of the draft revision: " + run.Status + " " + run.Kind + " " + run.AgentRevisionId + " " + run.ErrorMessage);
+                Deployment playground = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + run.DeploymentId, null, 200, token).ConfigureAwait(false);
+                Assert.True(playground.Environment == "draft" && playground.Name == "playground-pg-agent" && playground.AgentRevisionId == draft.Id, "On the ephemeral draft deployment");
+                CompilePreviewResponse preview = await HttpTestHelpers.SendAsync<CompilePreviewResponse>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments/" + playground.Id + "/compile-preview", new CompilePreviewRequest(), 200, token).ConfigureAwait(false);
+                Assert.True(Serializer.Serialize(preview.Spec).Contains("PLAYGROUND-DRAFT", StringComparison.Ordinal), "The playground renders the draft's unpublished prompt text");
+                Agent still = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + agent.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal("Published description.", still.Description ?? String.Empty, "Nothing is published");
+                Run second = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/pg-agent/playground/invoke", new PlaygroundInvokeRequest { Input = "Again.", ConversationId = run.ConversationId }, 200, token).ConfigureAwait(false);
+                Assert.True(second.DeploymentId == run.DeploymentId && second.ConversationId == run.ConversationId && !String.IsNullOrEmpty(run.ConversationId), "A second turn reuses the playground deployment and the conversation");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "pg-sneaky", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "draft" }, token).ConfigureAwait(false), 400, "ReservedEnvironment", "Users cannot create draft-environment deployments");
+                AgenticApp app = new AgenticApp { Name = "pg-app", EntryAgentId = agent.Id, Members = new List<AgenticAppMember> { new AgenticAppMember { AgentId = agent.Id } }, Environments = new List<AgenticAppEnvironment> { new AgenticAppEnvironment { Environment = "draft", DeploymentId = playground.Id } } };
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/apps", app, token).ConfigureAwait(false), 400, "UnknownEnvironment", "Apps cannot use the draft environment");
+
+                StudioDraft studio = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Playground draft" }, 201, token).ConfigureAwait(false);
+                studio = await PutAsync(host.AdminClient, D(host) + "/" + studio.Id + "/items/Agent/pg-agent", studio.Version, AgentYaml("pg-agent", "STUDIO-DRAFT description."), token).ConfigureAwait(false);
+                Run fromDraft = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, D(host) + "/" + studio.Id + "/playground/invoke", new PlaygroundInvokeRequest { Agent = "pg-agent", Input = "From the studio." }, 200, token).ConfigureAwait(false);
+                AgentRevision used = await HttpTestHelpers.SendAsync<AgentRevision>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + agent.Id + "/revisions/" + fromDraft.AgentRevisionId, null, 200, token).ConfigureAwait(false);
+                Assert.True(fromDraft.Status == RunStatusEnum.Succeeded && used.State == AgentRevisionStateEnum.Draft && used.Description == "STUDIO-DRAFT description.", "The studio draft's document ran as the agent's draft revision: " + Serializer.Serialize(used));
+                still = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + agent.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal("Published description.", still.Description ?? String.Empty, "Still nothing published");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, D(host) + "/" + studio.Id + "/playground/invoke", new PlaygroundInvokeRequest { Agent = "pg-missing", Input = "x" }, token).ConfigureAwait(false), 400, "AgentNotLive", "An agent that does not exist yet");
             }
         }
 

@@ -33,6 +33,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Started by a trigger (P12.5): a cron schedule, a signed webhook, or a manual fire. The run carries triggerId.
         /// </summary>
-        Trigger
+        Trigger,
+
+        /// <summary>
+        /// A studio playground run (AD9.1): an agent's draft revision on an ephemeral deployment in the reserved draft
+        /// environment. Left out of capability hints and never reachable from an app UI.
+        /// </summary>
+        Playground
     }
 }

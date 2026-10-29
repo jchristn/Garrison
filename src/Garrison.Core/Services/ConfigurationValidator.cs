@@ -753,7 +753,7 @@ namespace Garrison.Core.Services
             if (errors == null) throw new ArgumentNullException(nameof(errors));
             if (codes == null) throw new ArgumentNullException(nameof(codes));
             List<TenantEnvironment> environments = await EnvironmentDefaults.ListAsync(database, tenantId, token).ConfigureAwait(false);
-            if (!environments.Any(e => e.Name == deployment.Environment))
+            if (!codes.ContainsKey("environment") && !environments.Any(e => e.Name == deployment.Environment))
             {
                 errors["environment"] = "Environment " + deployment.Environment + " is not one of this tenant's environments (" + String.Join(", ", environments.Select(e => e.Name)) + ").";
                 codes["environment"] = "UnknownEnvironment";
@@ -804,6 +804,12 @@ namespace Garrison.Core.Services
             try { ExecutorCapabilityRules.Validate(deployment.RequiredCapabilities); }
             catch (ArgumentException ex) { errors["requiredCapabilities"] = ex.Message; }
             await TrustLevelAsync(database, tenantId, deployment, errors, codes, cache, token).ConfigureAwait(false);
+            if (String.Equals(deployment.Environment, Constants.PlaygroundEnvironment, StringComparison.Ordinal))
+            {
+                // AD9.1: the draft environment holds only the studio's playground copies.
+                errors["environment"] = "The " + Constants.PlaygroundEnvironment + " environment is reserved for studio playground runs.";
+                codes["environment"] = "ReservedEnvironment";
+            }
             EffectPolicy(deployment, errors, codes);
             EgressRules(deployment.EgressRules, errors, codes);
             if (deployment.EgressRules.Count > 0 && deployment.Executor == RunExecutorEnum.Process && !codes.ContainsKey("executor"))

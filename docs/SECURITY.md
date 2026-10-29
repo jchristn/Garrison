@@ -300,7 +300,7 @@ Violations fail the invocation with `DelegationDisabled`, `DelegationNotAllowed`
 
 Runs cannot change configuration. The one exception is narrow: a deployment with `managementAccess: Drafts` gives its run tokens access to studio drafts ([STUDIO.md](STUDIO.md#delegated-management)). Such a token:
 
-- may create, read, and edit drafts, and request their apply, only for the person who started the run;
+- may create, read, and edit drafts, try them in the playground (writing agent draft revisions, never publishing), and request their apply, only for the person who started the run;
 - may read design configuration (deployments, harness profiles, prompt templates, MCP servers, workspace templates, revisions, assets, capabilities, apps, pipelines, triggers), never secrets;
 - is checked against that person's permissions on every call, so a person without design permissions gets an architect that cannot design;
 - can never apply a draft, decide an approval (403 for any run), or delete a live resource;

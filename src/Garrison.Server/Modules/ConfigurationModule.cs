@@ -82,6 +82,7 @@ namespace Garrison.Server.Modules
             context.Register(new StudioService(context));
             context.Register(new ArchitectService(context));
             context.Register(new PromptTemplateService(context));
+            context.Register(new PlaygroundService(context));
         }
 
         /// <inheritdoc />

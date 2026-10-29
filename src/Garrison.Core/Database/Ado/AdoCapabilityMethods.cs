@@ -199,7 +199,7 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             if (String.IsNullOrEmpty(agentId)) throw new ArgumentNullException(nameof(agentId));
             List<CapabilityRunSample> samples = await _Driver.QueryAsync(
-                "SELECT startedutc, completedutc, costusd FROM " + _Runs + " WHERE tenantid = @tenantid AND agentid = @agentid AND status IN ('Succeeded', 'Failed') " +
+                "SELECT startedutc, completedutc, costusd FROM " + _Runs + " WHERE tenantid = @tenantid AND agentid = @agentid AND status IN ('Succeeded', 'Failed') AND kind <> 'Playground' " +
                 "AND startedutc IS NOT NULL AND completedutc IS NOT NULL AND completedutc >= @since ORDER BY completedutc DESC" + _Driver.Dialect.LimitOffsetClause() + ";",
                 command =>
                 {

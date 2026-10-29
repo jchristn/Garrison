@@ -791,6 +791,7 @@ namespace Garrison.Server.Protocols
                     case "garrison_studio_diff":
                     case "garrison_studio_validate":
                     case "garrison_studio_request_apply":
+                    case "garrison_studio_playground_invoke":
                         result = await StudioToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_agent_assets":
@@ -1730,6 +1731,13 @@ namespace Garrison.Server.Protocols
                     if (draft.OwnerUserId != owner) throw ToolError("NotFound", "Draft not found.");
                 }
                 int version = arguments.Version ?? draft.Version;
+                if (tool.Name == "garrison_studio_playground_invoke")
+                {
+                    if (String.IsNullOrWhiteSpace(arguments.Input)) throw ToolError("ValidationFailed", "input is required.");
+                    await Require(ctx, tenantId, ResourceTypeEnum.AgentRevision, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    PlaygroundInvokeRequest play = new PlaygroundInvokeRequest { Input = arguments.Input, Agent = arguments.Agent, ConversationId = arguments.ConversationId, WaitSeconds = arguments.WaitSeconds ?? 120 };
+                    return await _Context.Get<PlaygroundService>().InvokeDraftAsync(ctx, tenantId, draft, play, token).ConfigureAwait(false);
+                }
                 switch (tool.Name)
                 {
                     case "garrison_studio_get_draft":

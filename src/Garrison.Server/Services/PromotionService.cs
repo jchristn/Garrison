@@ -115,7 +115,7 @@ namespace Garrison.Server.Services
             List<string> inUse = new List<string>();
             foreach (Deployment deployment in await AllDeploymentsAsync(tenantId, token).ConfigureAwait(false))
             {
-                if (!seen.Contains(deployment.Environment)) inUse.Add(deployment.Environment + " (deployment " + deployment.Name + ")");
+                if (deployment.Environment != DraftEnvironment && !seen.Contains(deployment.Environment)) inUse.Add(deployment.Environment + " (deployment " + deployment.Name + ")");
             }
             if (inUse.Count > 0) throw new ConflictException("EnvironmentInUse", "These environments still have deployments: " + String.Join(", ", inUse.Distinct()) + ". Move or delete those deployments first.");
 
