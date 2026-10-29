@@ -16,6 +16,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.Server.Backplane;
     using Garrison.Server.Services;
     using Test.Shared.Infrastructure;
     using Touchstone.Core;
@@ -49,6 +50,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "architect-seed", "Every tenant has the protected agent-architect with its skill asset; the four architect templates are built-in and immutable but resettable (" + provider + ")", ct => SeedAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-prompt-flow", "Clone a built-in architect prompt, edit it, spawn an architect on the clone, see the edit on the next turn, pin and reset, refuse deleting it while in use, then switch and delete (" + provider + ")", ct => ArchitectPromptAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-script", "A scripted fake-harness architect turn sets a deployment's model, timeout, and approval rule, and binds all three capability sources (agent edge, MCP server, host tool), all through studio tools; the diff shows exactly those changes (" + provider + ")", ct => ScriptAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "architect-seed-replicas", "Replicas seeding the architect at the same time, including for a new tenant, leave exactly one agent and one skill asset and raise no unique constraint failure (" + provider + ")", ct => SeedReplicasAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Studio drafts (" + provider + ")", cases));
             }
             return suites;
@@ -623,6 +625,35 @@ spec:
                     Assert.True(diff.Items.Single(i => i.Kind == "Deployment" && i.Name == "scr-reviewer-dev").Change == "Update", "MCP server binding on the reviewer's deployment");
                     StudioDraftDiffItem writerAgentDiff = diff.Items.Single(i => i.Kind == "Agent" && i.Name == "scr-writer");
                     Assert.True(writerAgentDiff.Change == "Update" && (writerAgentDiff.Changes ?? new List<ManifestFieldChange>()).Any(c => c.Field.StartsWith("capabilities", StringComparison.Ordinal)), "Host tool requirement on the writer: " + Serializer.Serialize(writerAgentDiff));
+                }
+            }
+        }
+
+        private static async Task SeedReplicasAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            int replicas = provider == DatabaseTypeEnum.Postgresql ? 2 : 1;
+            await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, replicas, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
+            {
+                TestServerHost first = cluster.Replicas[0];
+                Tenant fresh = await first.Server.Context.Database.Tenants.CreateAsync(new Tenant { Name = "Seed Race" }, token).ConfigureAwait(false);
+                List<Task> seeding = new List<Task>();
+                for (int round = 0; round < 3; round++)
+                {
+                    foreach (TestServerHost replica in cluster.Replicas)
+                    {
+                        ArchitectService architect = replica.Server.Context.Get<ArchitectService>();
+                        seeding.Add(architect.SeedAllAsync(token));
+                        seeding.Add(architect.SeedTenantAsync(fresh.Id, token));
+                    }
+                }
+                await Task.WhenAll(seeding).ConfigureAwait(false);
+                foreach (string tenantId in new[] { first.TenantId, fresh.Id })
+                {
+                    EnumerationResult<Agent> agents = await first.Server.Context.Database.Agents.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1000 }, token).ConfigureAwait(false);
+                    Assert.Equal(1, agents.Objects.Count(a => a.Name == "agent-architect"), "One architect in " + tenantId);
+                    EnumerationResult<AgentAsset> assets = await first.Server.Context.Database.AgentAssets.EnumerateAsync(tenantId, null, new EnumerationQuery { MaxResults = 1000 }, token).ConfigureAwait(false);
+                    AgentAsset skill = Assert.NotNull(assets.Objects.SingleOrDefault(a => a.Name == "agent-architect-skills"), "One skill asset in " + tenantId);
+                    Assert.Equal(1, skill.CurrentVersion, "Seeding again adds no version: " + tenantId);
                 }
             }
         }
