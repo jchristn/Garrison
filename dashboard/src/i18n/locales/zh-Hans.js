@@ -3356,3 +3356,257 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "apps": {
+    "label": "应用",
+    "tip": "智能体应用：在同一个面向最终用户的聊天 UI 背后协作的一组智能体，以及它们的调用图、委派、修订和可分享的 URL。"
+   }
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "租户用户",
+   "AppUsers": "应用用户",
+   "Anonymous": "匿名"
+  },
+  "resourceType": {
+   "AgenticApp": "智能体应用"
+  }
+ },
+ "errorCodes": {
+  "AppSlugTaken": "另一个应用已在使用此 URL 短名。短名在整个集群中唯一，请另选一个。",
+  "NoPublishedRevision": "没有可用的已发布修订。请先发布一个。",
+  "AgentInUse": "此智能体是某个智能体应用的成员。请先将其从应用中移除。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidName": "请使用 1 到 64 个小写字母、数字和连字符，并以字母或数字开头和结尾。",
+   "InvalidSlug": "请使用 2 到 63 个小写字母、数字和连字符，并以字母或数字开头。",
+   "UnknownAgent": "此租户中没有该智能体。",
+   "DuplicateMember": "每个智能体只能作为成员添加一次。",
+   "EntryNotMember": "入口智能体必须是成员之一。",
+   "EdgeNotMember": "调用的两端都必须是应用的成员。",
+   "SelfEdge": "成员不能调用自身。",
+   "AppGraphCycle": "成员之间的调用形成了循环。请移除循环中的一个调用。",
+   "UnreachableMember": "每个成员都必须能从入口智能体沿调用到达。",
+   "UnreachableMemberNamed": "入口智能体无法沿调用到达以下成员：{{names}}。请为每个成员添加调用，或将其移除。",
+   "UnknownEnvironment": "租户中不存在此环境。",
+   "InvalidEntryDeployment": "请选择入口智能体在此环境中的一个部署。",
+   "DuplicateEnvironment": "每个环境只能列出一次。",
+   "InvalidColor": "请使用 #RRGGBB 格式的颜色，例如 #1F6FEB。",
+   "UnknownAsset": "此租户中没有该智能体资产。",
+   "Required": "此字段为必填项。",
+   "TooMany": "此处的项目过多。"
+  },
+  "serverText": {
+   "appNameConflict": "名为 {{name}} 的应用已存在。",
+   "appSlugTaken": "URL 短名 {{slug}} 已被占用。短名在整个集群中唯一，请另选一个。",
+   "appNoPublishedRevision": "应用 {{name}} 没有可晋升的已发布修订。",
+   "appMemberNotPublished": "成员 {{name}} 没有可固定的已发布修订。请先发布一个。",
+   "appRevisionPublished": "应用 {{name}} 的修订 {{number}} 已发布。",
+   "appNoTargetDeployments": "成员 {{member}} 在环境 {{environment}} 中没有部署。请先在那里创建一个。未晋升任何内容。",
+   "agentInApps": "智能体 {{agent}} 是 {{apps}} 的成员。请先将其从应用中移除。"
+  }
+ },
+ "components": {
+  "form": {
+   "pickColor": "为 {{field}} 选择颜色"
+  },
+  "apps": {
+   "graph": {
+    "empty": "添加成员后即可查看应用的图。",
+    "summary": "包含 {{members}} 个成员和 {{edges}} 个调用的应用图",
+    "edgeFanOut": "{{caller}} 调用 {{callee}}，也可同时发起多个调用",
+    "edgeSingle": "{{caller}} 调用 {{callee}}，一次一个调用",
+    "entryNode": "{{name}}，入口智能体",
+    "unreachableNode": "{{name}}，入口智能体无法到达",
+    "entry": "入口智能体",
+    "unreachable": "不可到达",
+    "legendFanOut": "允许并行调用",
+    "legendSingle": "一次一个调用"
+   },
+   "share": {
+    "noSlug": "为应用设置名称或 URL 短名后即可获得其链接。",
+    "open": "打开",
+    "copy": "复制应用 URL",
+    "inactive": "应用已停用，在重新启用之前链接无法使用。",
+    "signIn": {
+     "TenantUsers": "此租户的任何启用用户都可以登录。",
+     "AppUsers": "只有在此应用上拥有 AppUser 角色的用户才能登录。",
+     "Anonymous": "任何拥有链接的人都无需登录即可使用此应用。已登录的用户也照常可用。",
+     "AnonymousDisabled": "已选择匿名但未开启，因此不登录的人无法进入，并且只有拥有访问权限的租户用户才能登录。"
+    }
+   },
+   "delegation": {
+    "title": "基于应用图的委派",
+    "intro": "应用的调用就是它的委派策略。每个成员应只允许它调用的成员，并且其最大深度应覆盖它下方最长的调用链。已发布修订与此不同的成员即为存在偏差。",
+    "apply": "写入草稿",
+    "applying": "正在写入草稿...",
+    "applied": "已写入 {{drafts}} 个草稿修订；跳过了 {{skipped}} 个成员。",
+    "appliedSummary": "已写入 {{drafts}} 个草稿修订，未发布任何内容。跳过了 {{skipped}} 个成员。请在每个智能体的“修订”选项卡中查看并发布草稿。",
+    "drifting_one": "{{count}} 个成员的已发布委派与图不一致。",
+    "drifting_other": "{{count}} 个成员的已发布委派与图不一致。",
+    "inSync": "所有成员的已发布委派都与图一致。",
+    "empty": "此应用没有成员。",
+    "notPublished": "未发布",
+    "drift": "有偏差",
+    "inSyncBadge": "一致",
+    "draftConflict": "草稿冲突",
+    "draft": "草稿 {{number}}",
+    "review": "草稿尚未生效。请打开每个智能体，在其“修订”选项卡中查看草稿并发布。",
+    "columns": {
+     "member": "成员",
+     "desiredMode": "图中的模式",
+     "desiredAllowList": "图中的允许列表",
+     "desiredMaxDepth": "图中的深度",
+     "publishedMode": "已发布的模式",
+     "publishedAllowList": "已发布的允许列表",
+     "publishedMaxDepth": "已发布的深度",
+     "status": "状态"
+    }
+   },
+   "revisions": {
+    "title": "应用修订",
+    "intro": "应用修订会固定每个成员最新发布的修订，并复制成员之间的调用。先发布，再晋升，即可将所有成员一起移到下一个环境。",
+    "changeNote": "变更说明",
+    "changeNotePlaceholder": "自上一个修订以来更改了什么",
+    "take": "创建修订",
+    "taking": "正在创建...",
+    "taken": "已创建应用修订 {{number}}。",
+    "published": "已发布应用修订 {{number}}。",
+    "empty": "还没有应用修订。当每个成员都有已发布修订时即可创建。",
+    "promote": "晋升",
+    "publish": "发布",
+    "publishTitle": "发布应用修订 {{number}}",
+    "publishConfirm": "要发布 {{name}} 的修订 {{number}} 吗？已发布的修订无法更改，并将成为晋升默认使用的修订。",
+    "pin": "{{name}}（修订 {{number}}）",
+    "columns": {
+     "number": "修订",
+     "state": "状态",
+     "members": "已固定的成员",
+     "edges": "调用",
+     "author": "作者",
+     "changeNote": "变更说明",
+     "publishedUtc": "发布时间",
+     "actions": "操作"
+    }
+   },
+   "promote": {
+    "title": "晋升应用",
+    "intro": "每个成员已固定的修订会一步应用到该成员在目标环境中的所有部署。如果某个成员在那里没有部署，则不会移动任何内容。",
+    "revision": "应用修订",
+    "latestRevision": "最新发布",
+    "promoted": "已将应用晋升到 {{target}}：已更新 {{deployments}} 个部署。",
+    "denied": "你无权晋升到 {{target}}。晋升需要对目标环境的“晋升”拥有“执行”权限。"
+   }
+  }
+ },
+ "resources": {
+  "apps": {
+   "title": "应用",
+   "subtitle": "在同一个面向最终用户的聊天 UI 背后协作的一组智能体。入口智能体与用户对话，并沿应用的调用关系调用其他成员。",
+   "add": "添加应用",
+   "create": "创建应用",
+   "edit": "编辑应用",
+   "view": "应用详情",
+   "deleteTitle": "删除应用",
+   "emptyTitle": "暂无应用",
+   "emptyBody": "用现有的智能体创建应用：选择成员、与用户对话的入口智能体，以及谁调用谁。",
+   "columns": {
+    "name": "名称",
+    "url": "应用 URL",
+    "entryAgentId": "入口智能体",
+    "members": "成员",
+    "liveEnvironment": "当前环境",
+    "authMode": "登录",
+    "active": "状态",
+    "description": "描述",
+    "id": "应用 ID",
+    "lastUpdateUtc": "更新时间",
+    "createdUtc": "创建时间"
+   },
+   "fields": {
+    "name": "名称",
+    "slug": "URL 短名",
+    "description": "描述",
+    "active": "启用",
+    "members": "成员",
+    "membersItems": {
+     "agentId": "智能体",
+     "role": "职责"
+    },
+    "entryAgentId": "入口智能体",
+    "edges": "成员之间的调用",
+    "edgesItems": {
+     "callerAgentId": "调用方",
+     "calleeAgentId": "被调用方",
+     "fanOutAllowed": "允许并行调用"
+    },
+    "graph": "图",
+    "environments": "各环境的入口部署",
+    "environmentsItems": {
+     "environment": "环境",
+     "deploymentId": "入口部署"
+    },
+    "liveEnvironment": "当前环境",
+    "authMode": "谁可以使用此应用",
+    "anonymousEnabled": "允许匿名使用",
+    "showOperatorDetail": "向最终用户显示工具调用和思考过程",
+    "share": "分享链接",
+    "displayName": "显示名称",
+    "logoAssetId": "徽标",
+    "primaryColor": "主色",
+    "accentColor": "强调色",
+    "welcomeText": "欢迎文本"
+   },
+   "hints": {
+    "slug": "应用位于 /apps/{slug}/。留空则使用名称。短名在整个集群中唯一。",
+    "members": "应用中的智能体。职责是对每个智能体作用的简短说明。",
+    "entryAgentId": "与最终用户对话的成员。其他每个成员都必须能从它到达。",
+    "edges": "谁可以调用谁。调用不能形成循环，它们会成为每个成员的委派策略。",
+    "environments": "应用在每个环境中使用的入口智能体部署。未设置时，应用使用入口智能体在该环境中按名称排序的第一个启用的部署。",
+    "liveEnvironment": "应用 UI 所连接的环境。",
+    "anonymousEnabled": "匿名登录需要开启此项。匿名会话时间较短，并受速率限制。",
+    "showOperatorDetail": "最终用户始终能看到回答、结果和错误。开启后还会显示工具调用、思考过程和进度。",
+    "logoAssetId": "资产当前版本中的第一张图片。",
+    "welcomeText": "在最终用户发送第一条消息之前显示。"
+   },
+   "steps": {
+    "general": "应用",
+    "members": "成员和调用",
+    "environments": "环境",
+    "access": "登录和链接",
+    "branding": "品牌"
+   },
+   "actions": {
+    "delegation": "委派",
+    "revisions": "修订和晋升"
+   },
+   "errors": {
+    "nameTaken": "此租户中的另一个应用已在使用此名称。"
+   },
+   "addMember": "添加成员",
+   "addEdge": "添加调用",
+   "addEnvironment": "添加环境",
+   "chooseAgent": "选择智能体",
+   "chooseEntry": "选择成员",
+   "rolePlaceholder": "此成员的职责",
+   "noEntryDeployment": "第一个启用的部署",
+   "noLogo": "无徽标",
+   "displayNamePlaceholder": "显示在应用的页眉中"
+  }
+ }
+});

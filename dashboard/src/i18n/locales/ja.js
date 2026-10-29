@@ -3355,3 +3355,257 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "apps": {
+    "label": "アプリ",
+    "tip": "エージェント型アプリ: エンドユーザー向けの 1 つのチャット UI の背後で動くエージェントのグループと、その呼び出しグラフ、委任、リビジョン、共有できる URL。"
+   }
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "テナントのユーザー",
+   "AppUsers": "アプリのユーザー",
+   "Anonymous": "匿名"
+  },
+  "resourceType": {
+   "AgenticApp": "エージェント型アプリ"
+  }
+ },
+ "errorCodes": {
+  "AppSlugTaken": "この URL スラッグは別のアプリが使用しています。スラッグはクラスター全体で一意のため、別のものを選んでください。",
+  "NoPublishedRevision": "使用できる公開済みリビジョンがありません。先に公開してください。",
+  "AgentInUse": "このエージェントはエージェント型アプリのメンバーです。先にアプリから外してください。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidName": "小文字、数字、ハイフンを 1 から 64 文字で使い、先頭と末尾は文字か数字にしてください。",
+   "InvalidSlug": "小文字、数字、ハイフンを 2 から 63 文字で使い、先頭は文字か数字にしてください。",
+   "UnknownAgent": "このテナントにそのエージェントはありません。",
+   "DuplicateMember": "各エージェントはメンバーに 1 回しか追加できません。",
+   "EntryNotMember": "エントリーエージェントはメンバーのいずれかである必要があります。",
+   "EdgeNotMember": "呼び出しの両端はどちらもアプリのメンバーである必要があります。",
+   "SelfEdge": "メンバーは自分自身を呼び出せません。",
+   "AppGraphCycle": "メンバー間の呼び出しが循環しています。ループ内の呼び出しを 1 つ削除してください。",
+   "UnreachableMember": "すべてのメンバーに、エントリーエージェントから呼び出しをたどって到達できる必要があります。",
+   "UnreachableMemberNamed": "エントリーエージェントは呼び出しをたどって次のメンバーに到達できません: {{names}}。それぞれへの呼び出しを追加するか、メンバーから外してください。",
+   "UnknownEnvironment": "この環境はテナントに存在しません。",
+   "InvalidEntryDeployment": "この環境にあるエントリーエージェントのデプロイメントを選んでください。",
+   "DuplicateEnvironment": "各環境は 1 回だけ指定してください。",
+   "InvalidColor": "#RRGGBB 形式の色を指定してください (例: #1F6FEB)。",
+   "UnknownAsset": "このテナントにそのエージェントのアセットはありません。",
+   "Required": "この項目は必須です。",
+   "TooMany": "項目が多すぎます。"
+  },
+  "serverText": {
+   "appNameConflict": "{{name}} という名前のアプリはすでに存在します。",
+   "appSlugTaken": "URL スラッグ {{slug}} は使用されています。スラッグはクラスター全体で一意のため、別のものを選んでください。",
+   "appNoPublishedRevision": "アプリ {{name}} には昇格できる公開済みリビジョンがありません。",
+   "appMemberNotPublished": "メンバー {{name}} には固定できる公開済みリビジョンがありません。先に公開してください。",
+   "appRevisionPublished": "アプリ {{name}} のリビジョン {{number}} はすでに公開されています。",
+   "appNoTargetDeployments": "メンバー {{member}} には環境 {{environment}} のデプロイメントがありません。先にそこで作成してください。何も昇格していません。",
+   "agentInApps": "エージェント {{agent}} は {{apps}} のメンバーです。先にアプリから外してください。"
+  }
+ },
+ "components": {
+  "form": {
+   "pickColor": "{{field}} の色を選ぶ"
+  },
+  "apps": {
+   "graph": {
+    "empty": "メンバーを追加すると、アプリのグラフが表示されます。",
+    "summary": "メンバー {{members}} 件、呼び出し {{edges}} 件のアプリのグラフ",
+    "edgeFanOut": "{{caller}} が {{callee}} を呼び出します。複数同時の呼び出しも可能です",
+    "edgeSingle": "{{caller}} が {{callee}} を呼び出します。呼び出しは一度に 1 件です",
+    "entryNode": "{{name}} (エントリーエージェント)",
+    "unreachableNode": "{{name}} (エントリーエージェントから到達できません)",
+    "entry": "エントリーエージェント",
+    "unreachable": "到達不可",
+    "legendFanOut": "並列呼び出し可",
+    "legendSingle": "一度に 1 件の呼び出し"
+   },
+   "share": {
+    "noSlug": "リンクを取得するには、アプリに名前か URL スラッグを付けてください。",
+    "open": "開く",
+    "copy": "アプリの URL をコピー",
+    "inactive": "アプリが無効のため、再び有効にするまでリンクは機能しません。",
+    "signIn": {
+     "TenantUsers": "このテナントの有効なユーザーなら誰でもサインインできます。",
+     "AppUsers": "このアプリで AppUser ロールを持つユーザーだけがサインインできます。",
+     "Anonymous": "リンクを知っている人は誰でもサインインせずにアプリを使えます。サインインしたユーザーも引き続き使えます。",
+     "AnonymousDisabled": "匿名が選択されていますが有効になっていません。そのため、サインインしないと誰も利用できず、サインインできるのはアクセス権を持つテナントのユーザーだけです。"
+    }
+   },
+   "delegation": {
+    "title": "アプリのグラフに基づく委任",
+    "intro": "アプリの呼び出しがそのまま委任ポリシーになります。各メンバーは自分が呼び出すメンバーだけを許可し、その下にある最長の呼び出しの連なりをカバーする最大深度を持つ必要があります。公開済みリビジョンがこれと異なるメンバーはずれが生じています。",
+    "apply": "下書きを書き込む",
+    "applying": "下書きを書き込んでいます...",
+    "applied": "下書きリビジョンを {{drafts}} 件書き込みました。{{skipped}} 件のメンバーはスキップしました。",
+    "appliedSummary": "下書きリビジョンを {{drafts}} 件書き込みました。公開したものはありません。{{skipped}} 件のメンバーはスキップしました。各エージェントの「リビジョン」タブで下書きを確認して公開してください。",
+    "drifting_one": "{{count}} 件のメンバーの公開済みの委任がグラフと異なります。",
+    "drifting_other": "{{count}} 件のメンバーの公開済みの委任がグラフと異なります。",
+    "inSync": "すべてのメンバーの公開済みの委任がグラフと一致しています。",
+    "empty": "このアプリにはメンバーがいません。",
+    "notPublished": "未公開",
+    "drift": "ずれあり",
+    "inSyncBadge": "一致",
+    "draftConflict": "下書きの競合",
+    "draft": "下書き {{number}}",
+    "review": "下書きはまだ反映されていません。各エージェントを開き、「リビジョン」タブで下書きを確認して公開してください。",
+    "columns": {
+     "member": "メンバー",
+     "desiredMode": "グラフのモード",
+     "desiredAllowList": "グラフの許可リスト",
+     "desiredMaxDepth": "グラフの深度",
+     "publishedMode": "公開済みのモード",
+     "publishedAllowList": "公開済みの許可リスト",
+     "publishedMaxDepth": "公開済みの深度",
+     "status": "状態"
+    }
+   },
+   "revisions": {
+    "title": "アプリのリビジョン",
+    "intro": "アプリのリビジョンは、各メンバーの最新の公開済みリビジョンを固定し、メンバー間の呼び出しをコピーします。公開してから昇格すると、すべてのメンバーがまとめて次の環境に移ります。",
+    "changeNote": "変更メモ",
+    "changeNotePlaceholder": "前回のリビジョンからの変更内容",
+    "take": "リビジョンを作成",
+    "taking": "作成中...",
+    "taken": "アプリのリビジョン {{number}} を作成しました。",
+    "published": "アプリのリビジョン {{number}} を公開しました。",
+    "empty": "アプリのリビジョンはまだありません。すべてのメンバーに公開済みリビジョンができたら作成してください。",
+    "promote": "昇格",
+    "publish": "公開",
+    "publishTitle": "アプリのリビジョン {{number}} を公開",
+    "publishConfirm": "{{name}} のリビジョン {{number}} を公開しますか? 公開済みのリビジョンは変更できず、昇格で既定に使われるリビジョンになります。",
+    "pin": "{{name}}（リビジョン {{number}}）",
+    "columns": {
+     "number": "リビジョン",
+     "state": "状態",
+     "members": "固定したメンバー",
+     "edges": "呼び出し",
+     "author": "作成者",
+     "changeNote": "変更メモ",
+     "publishedUtc": "公開日時",
+     "actions": "操作"
+    }
+   },
+   "promote": {
+    "title": "アプリを昇格",
+    "intro": "各メンバーの固定されたリビジョンを、昇格先の環境にあるそのメンバーのすべてのデプロイメントに一度に適用します。そこにデプロイメントがないメンバーが 1 つでもあれば、何も移動しません。",
+    "revision": "アプリのリビジョン",
+    "latestRevision": "最新の公開済み",
+    "promoted": "アプリを {{target}} に昇格しました。更新されたデプロイメント: {{deployments}}。",
+    "denied": "{{target}} への昇格は許可されていません。昇格には、昇格先の環境の「昇格」に対する「実行」権限が必要です。"
+   }
+  }
+ },
+ "resources": {
+  "apps": {
+   "title": "アプリ",
+   "subtitle": "エンドユーザー向けの 1 つのチャット UI の背後で動くエージェントのグループです。エントリーエージェントが人と対話し、アプリの呼び出しに沿って他のメンバーを呼び出します。",
+   "add": "アプリを追加",
+   "create": "アプリを作成",
+   "edit": "アプリを編集",
+   "view": "アプリの詳細",
+   "deleteTitle": "アプリを削除",
+   "emptyTitle": "アプリはまだありません",
+   "emptyBody": "既存のエージェントからアプリを作成します。メンバー、人と対話するエントリーエージェント、どのメンバーがどれを呼び出すかを選んでください。",
+   "columns": {
+    "name": "名前",
+    "url": "アプリの URL",
+    "entryAgentId": "エントリーエージェント",
+    "members": "メンバー",
+    "liveEnvironment": "稼働中の環境",
+    "authMode": "サインイン",
+    "active": "状態",
+    "description": "説明",
+    "id": "アプリ ID",
+    "lastUpdateUtc": "更新日時",
+    "createdUtc": "作成日時"
+   },
+   "fields": {
+    "name": "名前",
+    "slug": "URL スラッグ",
+    "description": "説明",
+    "active": "有効",
+    "members": "メンバー",
+    "membersItems": {
+     "agentId": "エージェント",
+     "role": "役割"
+    },
+    "entryAgentId": "エントリーエージェント",
+    "edges": "メンバー間の呼び出し",
+    "edgesItems": {
+     "callerAgentId": "呼び出し元",
+     "calleeAgentId": "呼び出し先",
+     "fanOutAllowed": "並列呼び出しを許可"
+    },
+    "graph": "グラフ",
+    "environments": "環境ごとのエントリーデプロイメント",
+    "environmentsItems": {
+     "environment": "環境",
+     "deploymentId": "エントリーデプロイメント"
+    },
+    "liveEnvironment": "稼働中の環境",
+    "authMode": "アプリを使用できる人",
+    "anonymousEnabled": "匿名での使用を許可",
+    "showOperatorDetail": "ツール呼び出しと思考をエンドユーザーに表示",
+    "share": "共有リンク",
+    "displayName": "表示名",
+    "logoAssetId": "ロゴ",
+    "primaryColor": "メインカラー",
+    "accentColor": "アクセントカラー",
+    "welcomeText": "ウェルカムテキスト"
+   },
+   "hints": {
+    "slug": "アプリは /apps/{slug}/ で公開されます。空のままにすると名前を使います。スラッグはクラスター全体で一意です。",
+    "members": "アプリに含めるエージェントです。役割には、それぞれが何をするかを短く記入します。",
+    "entryAgentId": "エンドユーザーと対話するメンバーです。他のすべてのメンバーにここから到達できる必要があります。",
+    "edges": "どのメンバーがどれを呼び出せるかを指定します。呼び出しはループになってはならず、各メンバーの委任ポリシーになります。",
+    "environments": "各環境でアプリが使う、エントリーエージェントのデプロイメントです。指定しない場合は、その環境にあるエントリーエージェントの有効なデプロイメントのうち、名前順で最初のものを使います。",
+    "liveEnvironment": "アプリの UI が通信する環境です。",
+    "anonymousEnabled": "匿名のサインインに必要です。匿名のセッションは短時間で、レート制限があります。",
+    "showOperatorDetail": "エンドユーザーには回答、結果、エラーが常に表示されます。オンにすると、ツール呼び出し、思考、進行状況も表示します。",
+    "logoAssetId": "アセットの現在のバージョンにある最初の画像です。",
+    "welcomeText": "エンドユーザーが最初のメッセージを送る前に表示されます。"
+   },
+   "steps": {
+    "general": "アプリ",
+    "members": "メンバーと呼び出し",
+    "environments": "環境",
+    "access": "サインインとリンク",
+    "branding": "ブランディング"
+   },
+   "actions": {
+    "delegation": "委任",
+    "revisions": "リビジョンと昇格"
+   },
+   "errors": {
+    "nameTaken": "このテナントの別のアプリがすでにこの名前を使用しています。"
+   },
+   "addMember": "メンバーを追加",
+   "addEdge": "呼び出しを追加",
+   "addEnvironment": "環境を追加",
+   "chooseAgent": "エージェントを選択",
+   "chooseEntry": "メンバーを選択",
+   "rolePlaceholder": "このメンバーの役割",
+   "noEntryDeployment": "最初の有効なデプロイメント",
+   "noLogo": "ロゴなし",
+   "displayNamePlaceholder": "アプリのヘッダーに表示されます"
+  }
+ }
+});

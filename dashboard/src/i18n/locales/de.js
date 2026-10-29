@@ -3390,3 +3390,257 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "apps": {
+    "label": "Apps",
+    "tip": "Agentische Apps: Gruppen von Agenten hinter einer Chat-Oberfläche für Endbenutzer, mit Aufrufgraph, Delegation, Revisionen und teilbarer URL."
+   }
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Benutzer des Mandanten",
+   "AppUsers": "App-Benutzer",
+   "Anonymous": "Anonym"
+  },
+  "resourceType": {
+   "AgenticApp": "Agentische App"
+  }
+ },
+ "errorCodes": {
+  "AppSlugTaken": "Eine andere App verwendet diesen URL-Slug bereits. Slugs sind im gesamten Cluster eindeutig, wählen Sie daher einen anderen.",
+  "NoPublishedRevision": "Es gibt keine veröffentlichte Revision, die verwendet werden kann. Veröffentlichen Sie zuerst eine.",
+  "AgentInUse": "Dieser Agent ist Mitglied einer agentischen App. Entfernen Sie ihn zuerst aus der App."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidName": "Verwenden Sie 1 bis 64 Kleinbuchstaben, Ziffern und Bindestriche, beginnend und endend mit einem Buchstaben oder einer Ziffer.",
+   "InvalidSlug": "Verwenden Sie 2 bis 63 Kleinbuchstaben, Ziffern und Bindestriche, beginnend mit einem Buchstaben oder einer Ziffer.",
+   "UnknownAgent": "Diesen Agenten gibt es in diesem Mandanten nicht.",
+   "DuplicateMember": "Jeder Agent kann nur einmal Mitglied sein.",
+   "EntryNotMember": "Der Einstiegsagent muss eines der Mitglieder sein.",
+   "EdgeNotMember": "Beide Enden eines Aufrufs müssen Mitglieder der App sein.",
+   "SelfEdge": "Ein Mitglied kann sich nicht selbst aufrufen.",
+   "AppGraphCycle": "Die Aufrufe zwischen den Mitgliedern bilden einen Zyklus. Entfernen Sie einen der Aufrufe in der Schleife.",
+   "UnreachableMember": "Jedes Mitglied muss vom Einstiegsagenten über Aufrufe erreichbar sein.",
+   "UnreachableMemberNamed": "Der Einstiegsagent kann diese Mitglieder nicht über Aufrufe erreichen: {{names}}. Fügen Sie jeweils einen Aufruf hinzu oder entfernen Sie sie.",
+   "UnknownEnvironment": "Diese Umgebung gibt es im Mandanten nicht.",
+   "InvalidEntryDeployment": "Wählen Sie eine Bereitstellung des Einstiegsagenten in dieser Umgebung.",
+   "DuplicateEnvironment": "Führen Sie jede Umgebung nur einmal auf.",
+   "InvalidColor": "Verwenden Sie eine Farbe im Format #RRGGBB, zum Beispiel #1F6FEB.",
+   "UnknownAsset": "Diese Agent-Ressource gibt es in diesem Mandanten nicht.",
+   "Required": "Dieses Feld ist erforderlich.",
+   "TooMany": "Hier sind zu viele Einträge."
+  },
+  "serverText": {
+   "appNameConflict": "Eine App namens {{name}} existiert bereits.",
+   "appSlugTaken": "Der URL-Slug {{slug}} ist vergeben. Slugs sind im gesamten Cluster eindeutig, wählen Sie daher einen anderen.",
+   "appNoPublishedRevision": "Die App {{name}} hat keine veröffentlichte Revision zum Hochstufen.",
+   "appMemberNotPublished": "Das Mitglied {{name}} hat keine veröffentlichte Revision zum Fixieren. Veröffentlichen Sie zuerst eine.",
+   "appRevisionPublished": "Revision {{number}} der App {{name}} ist bereits veröffentlicht.",
+   "appNoTargetDeployments": "Das Mitglied {{member}} hat keine Bereitstellung in der Umgebung {{environment}}. Erstellen Sie dort zuerst eine. Es wurde nichts hochgestuft.",
+   "agentInApps": "Der Agent {{agent}} ist Mitglied von {{apps}}. Entfernen Sie ihn zuerst aus der App."
+  }
+ },
+ "components": {
+  "form": {
+   "pickColor": "Farbe für {{field}} auswählen"
+  },
+  "apps": {
+   "graph": {
+    "empty": "Fügen Sie Mitglieder hinzu, um den Graphen der App zu sehen.",
+    "summary": "App-Graph mit {{members}} Mitgliedern und {{edges}} Aufrufen",
+    "edgeFanOut": "{{caller}} ruft {{callee}} auf, auch mehrfach gleichzeitig",
+    "edgeSingle": "{{caller}} ruft {{callee}} auf, jeweils ein Aufruf",
+    "entryNode": "{{name}}, der Einstiegsagent",
+    "unreachableNode": "{{name}}, den der Einstiegsagent nicht erreichen kann",
+    "entry": "Einstiegsagent",
+    "unreachable": "nicht erreichbar",
+    "legendFanOut": "Parallele Aufrufe erlaubt",
+    "legendSingle": "Jeweils ein Aufruf"
+   },
+   "share": {
+    "noSlug": "Geben Sie der App einen Namen oder einen URL-Slug, um ihren Link zu erhalten.",
+    "open": "Öffnen",
+    "copy": "App-URL kopieren",
+    "inactive": "Die App ist inaktiv, daher funktioniert der Link erst, wenn Sie sie wieder aktivieren.",
+    "signIn": {
+     "TenantUsers": "Jeder aktive Benutzer dieses Mandanten kann sich anmelden.",
+     "AppUsers": "Nur Benutzer mit der Rolle AppUser für diese App können sich anmelden.",
+     "Anonymous": "Jeder mit dem Link kann die App ohne Anmeldung nutzen. Angemeldete Benutzer funktionieren weiterhin.",
+     "AnonymousDisabled": "Anonym ist gewählt, aber nicht aktiviert. Niemand kommt ohne Anmeldung hinein, und nur Benutzer des Mandanten mit Zugriff können sich anmelden."
+    }
+   },
+   "delegation": {
+    "title": "Delegation aus dem App-Graphen",
+    "intro": "Die Aufrufe der App sind ihre Delegationsrichtlinie. Jedes Mitglied sollte genau die Mitglieder erlauben, die es aufruft, mit einer maximalen Tiefe, die die längste Kette darunter abdeckt. Mitglieder, deren veröffentlichte Revision etwas anderes vorgibt, weichen ab.",
+    "apply": "Entwürfe schreiben",
+    "applying": "Entwürfe werden geschrieben...",
+    "applied": "{{drafts}} Entwurfsrevisionen geschrieben; {{skipped}} Mitglieder übersprungen.",
+    "appliedSummary": "{{drafts}} Entwurfsrevisionen geschrieben, nichts veröffentlicht. {{skipped}} Mitglieder wurden übersprungen. Prüfen und veröffentlichen Sie die Entwürfe auf dem Tab Revisionen jedes Agenten.",
+    "drifting_one": "Die veröffentlichte Delegation von {{count}} Mitglied weicht vom Graphen ab.",
+    "drifting_other": "Die veröffentlichte Delegation von {{count}} Mitgliedern weicht vom Graphen ab.",
+    "inSync": "Die veröffentlichte Delegation jedes Mitglieds entspricht dem Graphen.",
+    "empty": "Diese App hat keine Mitglieder.",
+    "notPublished": "Nicht veröffentlicht",
+    "drift": "Abweichung",
+    "inSyncBadge": "Synchron",
+    "draftConflict": "Entwurfskonflikt",
+    "draft": "Entwurf {{number}}",
+    "review": "Die Entwürfe sind noch nicht live. Öffnen Sie jeden Agenten, prüfen Sie den Entwurf auf seinem Tab Revisionen und veröffentlichen Sie ihn.",
+    "columns": {
+     "member": "Mitglied",
+     "desiredMode": "Modus laut Graph",
+     "desiredAllowList": "Zulassungsliste laut Graph",
+     "desiredMaxDepth": "Tiefe laut Graph",
+     "publishedMode": "Veröffentlichter Modus",
+     "publishedAllowList": "Veröffentlichte Zulassungsliste",
+     "publishedMaxDepth": "Veröffentlichte Tiefe",
+     "status": "Status"
+    }
+   },
+   "revisions": {
+    "title": "App-Revisionen",
+    "intro": "Eine App-Revision fixiert die neueste veröffentlichte Revision jedes Mitglieds und kopiert die Aufrufe zwischen ihnen. Veröffentlichen Sie sie und stufen Sie sie dann hoch, um alle Mitglieder gemeinsam in die nächste Umgebung zu bringen.",
+    "changeNote": "Änderungsnotiz",
+    "changeNotePlaceholder": "Was sich seit der letzten Revision geändert hat",
+    "take": "Revision erstellen",
+    "taking": "Wird erstellt...",
+    "taken": "App-Revision {{number}} erstellt.",
+    "published": "App-Revision {{number}} veröffentlicht.",
+    "empty": "Noch keine App-Revisionen. Erstellen Sie eine, sobald jedes Mitglied eine veröffentlichte Revision hat.",
+    "promote": "Hochstufen",
+    "publish": "Veröffentlichen",
+    "publishTitle": "App-Revision {{number}} veröffentlichen",
+    "publishConfirm": "Revision {{number}} von {{name}} veröffentlichen? Eine veröffentlichte Revision kann sich nicht mehr ändern und wird standardmäßig für Hochstufungen verwendet.",
+    "pin": "{{name}}, Revision {{number}}",
+    "columns": {
+     "number": "Revision",
+     "state": "Zustand",
+     "members": "Fixierte Mitglieder",
+     "edges": "Aufrufe",
+     "author": "Autor",
+     "changeNote": "Änderungsnotiz",
+     "publishedUtc": "Veröffentlicht",
+     "actions": "Aktionen"
+    }
+   },
+   "promote": {
+    "title": "App hochstufen",
+    "intro": "Die fixierte Revision jedes Mitglieds geht in einem Schritt an jede Bereitstellung dieses Mitglieds in der Zielumgebung. Hat ein Mitglied dort keine Bereitstellung, wird nichts übernommen.",
+    "revision": "App-Revision",
+    "latestRevision": "Neueste veröffentlichte",
+    "promoted": "Die App wurde nach {{target}} hochgestuft: {{deployments}} Bereitstellungen aktualisiert.",
+    "denied": "Sie dürfen nicht nach {{target}} hochstufen. Das Hochstufen erfordert Ausführen auf Hochstufung für die Zielumgebung."
+   }
+  }
+ },
+ "resources": {
+  "apps": {
+   "title": "Apps",
+   "subtitle": "Gruppen von Agenten hinter einer Chat-Oberfläche für Endbenutzer. Der Einstiegsagent spricht mit Menschen und ruft die anderen Mitglieder entlang der Aufrufe der App auf.",
+   "add": "App hinzufügen",
+   "create": "App erstellen",
+   "edit": "App bearbeiten",
+   "view": "App-Details",
+   "deleteTitle": "App löschen",
+   "emptyTitle": "Noch keine Apps",
+   "emptyBody": "Erstellen Sie eine App aus vorhandenen Agenten: Wählen Sie die Mitglieder, den Einstiegsagenten, der mit Menschen spricht, und wer wen aufruft.",
+   "columns": {
+    "name": "Name",
+    "url": "App-URL",
+    "entryAgentId": "Einstiegsagent",
+    "members": "Mitglieder",
+    "liveEnvironment": "Live-Umgebung",
+    "authMode": "Anmeldung",
+    "active": "Status",
+    "description": "Beschreibung",
+    "id": "ID",
+    "lastUpdateUtc": "Aktualisiert",
+    "createdUtc": "Erstellt"
+   },
+   "fields": {
+    "name": "Name",
+    "slug": "URL-Slug",
+    "description": "Beschreibung",
+    "active": "Aktiv",
+    "members": "Mitglieder",
+    "membersItems": {
+     "agentId": "Agent",
+     "role": "Rolle"
+    },
+    "entryAgentId": "Einstiegsagent",
+    "edges": "Aufrufe zwischen Mitgliedern",
+    "edgesItems": {
+     "callerAgentId": "Aufrufer",
+     "calleeAgentId": "Aufgerufener",
+     "fanOutAllowed": "Parallele Aufrufe erlaubt"
+    },
+    "graph": "Graph",
+    "environments": "Einstiegsbereitstellung pro Umgebung",
+    "environmentsItems": {
+     "environment": "Umgebung",
+     "deploymentId": "Einstiegsbereitstellung"
+    },
+    "liveEnvironment": "Live-Umgebung",
+    "authMode": "Wer die App nutzen darf",
+    "anonymousEnabled": "Anonyme Nutzung erlauben",
+    "showOperatorDetail": "Werkzeugaufrufe und Denkprozess für Endbenutzer anzeigen",
+    "share": "Teilbarer Link",
+    "displayName": "Anzeigename",
+    "logoAssetId": "Logo",
+    "primaryColor": "Primärfarbe",
+    "accentColor": "Akzentfarbe",
+    "welcomeText": "Begrüßungstext"
+   },
+   "hints": {
+    "slug": "Die App liegt unter /apps/{slug}/. Leer lassen, um den Namen zu verwenden. Slugs sind im gesamten Cluster eindeutig.",
+    "members": "Die Agenten in der App. Die Rolle ist eine kurze Notiz dazu, was jeder tut.",
+    "entryAgentId": "Das Mitglied, das mit Endbenutzern spricht. Jedes andere Mitglied muss von ihm aus erreichbar sein.",
+    "edges": "Wer wen aufrufen darf. Die Aufrufe dürfen keine Schleife bilden und werden zur Delegationsrichtlinie jedes Mitglieds.",
+    "environments": "Die Bereitstellung des Einstiegsagenten, die die App in jeder Umgebung verwendet. Ohne Angabe verwendet die App dort die erste aktive Bereitstellung des Einstiegsagenten in Namensreihenfolge.",
+    "liveEnvironment": "Die Umgebung, mit der die App-Oberfläche spricht.",
+    "anonymousEnabled": "Erforderlich für die anonyme Anmeldung. Anonyme Sitzungen sind kurz und ratenbegrenzt.",
+    "showOperatorDetail": "Endbenutzer sehen immer Antworten, Ergebnisse und Fehler. Aktivieren Sie dies, um auch Werkzeugaufrufe, Denkprozess und Fortschritt anzuzeigen.",
+    "logoAssetId": "Das erste Bild in der aktuellen Version der Ressource.",
+    "welcomeText": "Wird Endbenutzern angezeigt, bevor sie ihre erste Nachricht senden."
+   },
+   "steps": {
+    "general": "App",
+    "members": "Mitglieder und Aufrufe",
+    "environments": "Umgebungen",
+    "access": "Anmeldung und Link",
+    "branding": "Erscheinungsbild"
+   },
+   "actions": {
+    "delegation": "Delegation",
+    "revisions": "Revisionen und Hochstufung"
+   },
+   "errors": {
+    "nameTaken": "Eine andere App in diesem Mandanten verwendet diesen Namen bereits."
+   },
+   "addMember": "Mitglied hinzufügen",
+   "addEdge": "Aufruf hinzufügen",
+   "addEnvironment": "Umgebung hinzufügen",
+   "chooseAgent": "Agenten wählen",
+   "chooseEntry": "Mitglied wählen",
+   "rolePlaceholder": "Was dieses Mitglied tut",
+   "noEntryDeployment": "Erste aktive Bereitstellung",
+   "noLogo": "Kein Logo",
+   "displayNamePlaceholder": "Wird in der Kopfzeile der App angezeigt"
+  }
+ }
+});

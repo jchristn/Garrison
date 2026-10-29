@@ -37,6 +37,7 @@ const COLLECTIONS = {
   artifactStores: 'artifact-stores',
   agentAssets: 'agent-assets',
   capabilities: 'capabilities',
+  apps: 'apps',
   modelPrices: 'model-prices',
   usageQuotas: 'usage-quotas',
   agents: 'agents',

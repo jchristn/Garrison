@@ -3404,3 +3404,257 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "apps": {
+    "label": "Applications",
+    "tip": "Applications agentiques : groupes d'agents derrière une seule interface de chat pour les utilisateurs finaux, avec leur graphe d'appels, leur délégation, leurs révisions et leur URL partageable."
+   }
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Utilisateurs du locataire",
+   "AppUsers": "Utilisateurs de l'application",
+   "Anonymous": "Anonyme"
+  },
+  "resourceType": {
+   "AgenticApp": "Application agentique"
+  }
+ },
+ "errorCodes": {
+  "AppSlugTaken": "Une autre application utilise déjà ce slug d'URL. Les slugs sont uniques dans tout le cluster, choisissez-en donc un autre.",
+  "NoPublishedRevision": "Aucune révision publiée n'est disponible. Publiez-en une d'abord.",
+  "AgentInUse": "Cet agent est membre d'une application agentique. Retirez-le d'abord de l'application."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidName": "Utilisez de 1 à 64 lettres minuscules, chiffres et traits d'union, en commençant et en terminant par une lettre ou un chiffre.",
+   "InvalidSlug": "Utilisez de 2 à 63 lettres minuscules, chiffres et traits d'union, en commençant par une lettre ou un chiffre.",
+   "UnknownAgent": "Cet agent n'existe pas dans ce locataire.",
+   "DuplicateMember": "Chaque agent ne peut être membre qu'une seule fois.",
+   "EntryNotMember": "L'agent d'entrée doit faire partie des membres.",
+   "EdgeNotMember": "Les deux extrémités d'un appel doivent être membres de l'application.",
+   "SelfEdge": "Un membre ne peut pas s'appeler lui-même.",
+   "AppGraphCycle": "Les appels entre les membres forment un cycle. Retirez l'un des appels de la boucle.",
+   "UnreachableMember": "Chaque membre doit être joignable depuis l'agent d'entrée par des appels.",
+   "UnreachableMemberNamed": "L'agent d'entrée ne peut pas joindre ces membres par des appels : {{names}}. Ajoutez un appel vers chacun d'eux ou retirez-les.",
+   "UnknownEnvironment": "Cet environnement n'existe pas dans le locataire.",
+   "InvalidEntryDeployment": "Choisissez un déploiement de l'agent d'entrée dans cet environnement.",
+   "DuplicateEnvironment": "Indiquez chaque environnement une seule fois.",
+   "InvalidColor": "Utilisez une couleur au format #RRGGBB, par exemple #1F6FEB.",
+   "UnknownAsset": "Cette ressource d'agent n'existe pas dans ce locataire.",
+   "Required": "Ce champ est obligatoire.",
+   "TooMany": "Il y a trop d'éléments ici."
+  },
+  "serverText": {
+   "appNameConflict": "Une application nommée {{name}} existe déjà.",
+   "appSlugTaken": "Le slug d'URL {{slug}} est déjà pris. Les slugs sont uniques dans tout le cluster, choisissez-en donc un autre.",
+   "appNoPublishedRevision": "L'application {{name}} n'a aucune révision publiée à promouvoir.",
+   "appMemberNotPublished": "Le membre {{name}} n'a aucune révision publiée à épingler. Publiez-en une d'abord.",
+   "appRevisionPublished": "La révision {{number}} de l'application {{name}} est déjà publiée.",
+   "appNoTargetDeployments": "Le membre {{member}} n'a aucun déploiement dans l'environnement {{environment}}. Créez-en un d'abord. Rien n'a été promu.",
+   "agentInApps": "L'agent {{agent}} est membre de {{apps}}. Retirez-le d'abord de l'application."
+  }
+ },
+ "components": {
+  "form": {
+   "pickColor": "Choisir une couleur pour {{field}}"
+  },
+  "apps": {
+   "graph": {
+    "empty": "Ajoutez des membres pour voir le graphe de l'application.",
+    "summary": "Graphe de l'application avec {{members}} membres et {{edges}} appels",
+    "edgeFanOut": "{{caller}} appelle {{callee}}, y compris plusieurs fois à la fois",
+    "edgeSingle": "{{caller}} appelle {{callee}}, un appel à la fois",
+    "entryNode": "{{name}}, l'agent d'entrée",
+    "unreachableNode": "{{name}}, que l'agent d'entrée ne peut pas joindre",
+    "entry": "agent d'entrée",
+    "unreachable": "injoignable",
+    "legendFanOut": "Appels en parallèle autorisés",
+    "legendSingle": "Un appel à la fois"
+   },
+   "share": {
+    "noSlug": "Donnez un nom ou un slug d'URL à l'application pour obtenir son lien.",
+    "open": "Ouvrir",
+    "copy": "Copier l'URL de l'application",
+    "inactive": "L'application est inactive : le lien ne fonctionne pas tant que vous ne la réactivez pas.",
+    "signIn": {
+     "TenantUsers": "Tout utilisateur actif de ce locataire peut se connecter.",
+     "AppUsers": "Seuls les utilisateurs qui ont le rôle AppUser sur cette application peuvent se connecter.",
+     "Anonymous": "Toute personne disposant du lien peut utiliser l'application sans se connecter. Les utilisateurs connectés fonctionnent toujours.",
+     "AnonymousDisabled": "Anonyme est choisi mais pas activé : personne n'entre sans se connecter, et seuls les utilisateurs du locataire ayant accès peuvent se connecter."
+    }
+   },
+   "delegation": {
+    "title": "Délégation issue du graphe de l'application",
+    "intro": "Les appels de l'application constituent sa politique de délégation. Chaque membre doit autoriser exactement les membres qu'il appelle, avec une profondeur maximale qui couvre la plus longue chaîne en dessous de lui. Les membres dont la révision publiée indique autre chose sont en écart.",
+    "apply": "Écrire les brouillons",
+    "applying": "Écriture des brouillons...",
+    "applied": "{{drafts}} révisions brouillon écrites ; {{skipped}} membres ignorés.",
+    "appliedSummary": "{{drafts}} révisions brouillon écrites, rien n'a été publié. {{skipped}} membres ont été ignorés. Vérifiez et publiez les brouillons dans l'onglet Révisions de chaque agent.",
+    "drifting_one": "La délégation publiée de {{count}} membre diffère du graphe.",
+    "drifting_other": "La délégation publiée de {{count}} membres diffère du graphe.",
+    "inSync": "La délégation publiée de chaque membre correspond au graphe.",
+    "empty": "Cette application n'a aucun membre.",
+    "notPublished": "Non publiée",
+    "drift": "Écart",
+    "inSyncBadge": "Synchronisé",
+    "draftConflict": "Conflit de brouillon",
+    "draft": "Brouillon {{number}}",
+    "review": "Les brouillons ne sont pas encore actifs. Ouvrez chaque agent, vérifiez le brouillon dans son onglet Révisions et publiez-le.",
+    "columns": {
+     "member": "Membre",
+     "desiredMode": "Mode du graphe",
+     "desiredAllowList": "Liste d'autorisation du graphe",
+     "desiredMaxDepth": "Profondeur du graphe",
+     "publishedMode": "Mode publié",
+     "publishedAllowList": "Liste d'autorisation publiée",
+     "publishedMaxDepth": "Profondeur publiée",
+     "status": "Statut"
+    }
+   },
+   "revisions": {
+    "title": "Révisions de l'application",
+    "intro": "Une révision d'application épingle la dernière révision publiée de chaque membre et copie les appels entre eux. Publiez-la, puis promouvez-la pour faire passer tous les membres ensemble à l'environnement suivant.",
+    "changeNote": "Note de modification",
+    "changeNotePlaceholder": "Ce qui a changé depuis la dernière révision",
+    "take": "Créer une révision",
+    "taking": "Création...",
+    "taken": "Révision d'application {{number}} créée.",
+    "published": "Révision d'application {{number}} publiée.",
+    "empty": "Aucune révision d'application pour l'instant. Créez-en une lorsque chaque membre a une révision publiée.",
+    "promote": "Promouvoir",
+    "publish": "Publier",
+    "publishTitle": "Publier la révision d'application {{number}}",
+    "publishConfirm": "Publier la révision {{number}} de {{name}} ? Une révision publiée ne peut plus changer et devient celle utilisée par défaut pour les promotions.",
+    "pin": "{{name}}, révision {{number}}",
+    "columns": {
+     "number": "Révision",
+     "state": "État",
+     "members": "Membres épinglés",
+     "edges": "Appels",
+     "author": "Auteur",
+     "changeNote": "Note de modification",
+     "publishedUtc": "Publiée",
+     "actions": "Actions"
+    }
+   },
+   "promote": {
+    "title": "Promouvoir l'application",
+    "intro": "La révision épinglée de chaque membre est appliquée en une seule étape à chaque déploiement de ce membre dans l'environnement cible. Si un membre n'y a aucun déploiement, rien ne bouge.",
+    "revision": "Révision d'application",
+    "latestRevision": "Dernière publiée",
+    "promoted": "Application promue vers {{target}} : {{deployments}} déploiements mis à jour.",
+    "denied": "Vous ne pouvez pas promouvoir vers {{target}}. La promotion nécessite Exécuter sur Promotion d'environnement pour l'environnement cible."
+   }
+  }
+ },
+ "resources": {
+  "apps": {
+   "title": "Applications",
+   "subtitle": "Groupes d'agents derrière une seule interface de chat pour les utilisateurs finaux. L'agent d'entrée parle aux personnes et appelle les autres membres selon les appels de l'application.",
+   "add": "Ajouter une application",
+   "create": "Créer une application",
+   "edit": "Modifier l'application",
+   "view": "Détails de l'application",
+   "deleteTitle": "Supprimer l'application",
+   "emptyTitle": "Aucune application pour l'instant",
+   "emptyBody": "Créez une application à partir d'agents existants : choisissez les membres, l'agent d'entrée qui parle aux personnes, et qui appelle qui.",
+   "columns": {
+    "name": "Nom",
+    "url": "URL de l'application",
+    "entryAgentId": "Agent d'entrée",
+    "members": "Membres",
+    "liveEnvironment": "Environnement actif",
+    "authMode": "Connexion",
+    "active": "Statut",
+    "description": "Description",
+    "id": "ID",
+    "lastUpdateUtc": "Mise à jour",
+    "createdUtc": "Création"
+   },
+   "fields": {
+    "name": "Nom",
+    "slug": "Slug d'URL",
+    "description": "Description",
+    "active": "Active",
+    "members": "Membres",
+    "membersItems": {
+     "agentId": "Agent",
+     "role": "Rôle"
+    },
+    "entryAgentId": "Agent d'entrée",
+    "edges": "Appels entre membres",
+    "edgesItems": {
+     "callerAgentId": "Appelant",
+     "calleeAgentId": "Appelé",
+     "fanOutAllowed": "Appels en parallèle autorisés"
+    },
+    "graph": "Graphe",
+    "environments": "Déploiement d'entrée par environnement",
+    "environmentsItems": {
+     "environment": "Environnement",
+     "deploymentId": "Déploiement d'entrée"
+    },
+    "liveEnvironment": "Environnement actif",
+    "authMode": "Qui peut utiliser l'application",
+    "anonymousEnabled": "Autoriser l'utilisation anonyme",
+    "showOperatorDetail": "Montrer les appels d'outil et le raisonnement aux utilisateurs finaux",
+    "share": "Lien partageable",
+    "displayName": "Nom affiché",
+    "logoAssetId": "Logo",
+    "primaryColor": "Couleur principale",
+    "accentColor": "Couleur d'accent",
+    "welcomeText": "Texte d'accueil"
+   },
+   "hints": {
+    "slug": "L'application se trouve à /apps/{slug}/. Laissez vide pour utiliser le nom. Les slugs sont uniques dans tout le cluster.",
+    "members": "Les agents de l'application. Le rôle est une courte note sur ce que fait chacun.",
+    "entryAgentId": "Le membre qui parle aux utilisateurs finaux. Tous les autres membres doivent être joignables depuis lui.",
+    "edges": "Qui peut appeler qui. Les appels ne doivent pas former de boucle, et ils deviennent la politique de délégation de chaque membre.",
+    "environments": "Le déploiement de l'agent d'entrée que l'application utilise dans chaque environnement. Sans indication, l'application y utilise le premier déploiement actif de l'agent d'entrée, par ordre de nom.",
+    "liveEnvironment": "L'environnement avec lequel l'interface de l'application communique.",
+    "anonymousEnabled": "Nécessaire pour la connexion anonyme. Les sessions anonymes sont courtes et limitées en débit.",
+    "showOperatorDetail": "Les utilisateurs finaux voient toujours les réponses, les résultats et les erreurs. Activez cette option pour montrer aussi les appels d'outil, le raisonnement et la progression.",
+    "logoAssetId": "La première image de la version actuelle de la ressource.",
+    "welcomeText": "Affiché aux utilisateurs finaux avant leur premier message."
+   },
+   "steps": {
+    "general": "Application",
+    "members": "Membres et appels",
+    "environments": "Environnements",
+    "access": "Connexion et lien",
+    "branding": "Habillage"
+   },
+   "actions": {
+    "delegation": "Délégation",
+    "revisions": "Révisions et promotion"
+   },
+   "errors": {
+    "nameTaken": "Une autre application de ce locataire utilise déjà ce nom."
+   },
+   "addMember": "Ajouter un membre",
+   "addEdge": "Ajouter un appel",
+   "addEnvironment": "Ajouter un environnement",
+   "chooseAgent": "Choisir un agent",
+   "chooseEntry": "Choisir un membre",
+   "rolePlaceholder": "Ce que fait ce membre",
+   "noEntryDeployment": "Premier déploiement actif",
+   "noLogo": "Aucun logo",
+   "displayNamePlaceholder": "Affiché dans l'en-tête de l'application"
+  }
+ }
+});

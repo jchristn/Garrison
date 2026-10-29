@@ -2670,3 +2670,146 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "apps": "Applications agentiques : groupes d'agents derrière une seule interface de chat pour les utilisateurs finaux, avec leur graphe d'appels, leur délégation, leurs révisions, leur promotion et leur lien."
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Tout utilisateur actif de ce locataire peut se connecter à l'application avec son e-mail et son mot de passe.",
+   "AppUsers": "Seuls les utilisateurs du locataire qui ont le rôle intégré AppUser sur cette application peuvent se connecter. Attribuez-le avec une portée de ressource sur l'application.",
+   "Anonymous": "Toute personne disposant du lien peut utiliser l'application sans se connecter, mais seulement si l'utilisation anonyme est aussi activée."
+  }
+ },
+ "form": {
+  "pickColor": "Choisissez {{field}} avec un sélecteur de couleur au lieu de saisir la valeur #RRGGBB."
+ },
+ "resources": {
+  "apps": {
+   "add": "Créez une application à partir d'agents existants : des membres, un agent d'entrée, les appels entre eux et la façon dont les personnes se connectent.",
+   "name": "Nom de l'application dans ce locataire : lettres minuscules, chiffres et traits d'union. Les manifestes et l'API la désignent par ce nom.",
+   "slug": "Le nom dans l'URL : l'application se trouve donc à /apps/{slug}/. Unique dans tout le cluster. Vide signifie le nom.",
+   "description": "À quoi sert l'application. Les utilisateurs finaux la voient sur la page de connexion de l'application.",
+   "active": "Les applications inactives conservent leurs paramètres, mais leur lien et leurs sessions cessent de fonctionner.",
+   "url": "L'adresse de l'application pour les utilisateurs finaux. Copiez-la pour la partager, ou ouvrez-la pour voir ce que voient les utilisateurs finaux.",
+   "entryAgentId": "Le membre qui parle aux utilisateurs finaux et démarre chaque conversation. Les autres membres sont joints depuis lui.",
+   "members": "Les agents de l'application, chacun avec une note de rôle facultative. Un agent qui appartient à une application ne peut pas être supprimé.",
+   "membersItems": {
+    "agentId": "Un agent de ce locataire à inclure dans l'application. Chaque agent peut être membre une seule fois.",
+    "role": "Une courte note sur ce que fait ce membre dans l'application, jusqu'à 256 caractères."
+   },
+   "edges": "Quel membre peut appeler quel autre. Ensemble, ils forment le graphe de l'application et deviennent la politique de délégation de chaque membre.",
+   "edgesItems": {
+    "callerAgentId": "Le membre qui effectue l'appel.",
+    "calleeAgentId": "Le membre appelé. Il doit être différent de l'appelant.",
+    "fanOutAllowed": "Permet à l'appelant de lancer plusieurs exécutions de ce membre à la fois avec garrison_fan_out."
+   },
+   "graph": "Les membres et les appels sous forme d'image, en lecture seule. L'agent d'entrée est à gauche ; les membres qu'il ne peut pas joindre sont entourés de rouge.",
+   "environments": "Pour chaque environnement, le déploiement de l'agent d'entrée que l'application y utilise. La promotion les maintient alignés.",
+   "environmentsItems": {
+    "environment": "Un environnement de ce locataire, par exemple dev, staging ou prod.",
+    "deploymentId": "Un déploiement de l'agent d'entrée dans cet environnement. Seuls ces déploiements sont listés."
+   },
+   "liveEnvironment": "L'environnement qu'utilise actuellement l'interface de chat de l'application. Changez-le pour faire passer les utilisateurs finaux à un autre environnement.",
+   "authMode": "Les utilisateurs du locataire, les utilisateurs ayant le rôle AppUser sur cette application, ou toute personne disposant du lien (avec l'utilisation anonyme activée).",
+   "anonymousEnabled": "Active les sessions anonymes. La connexion anonyme ne fonctionne que si cette option est activée et que le mode est Anonyme.",
+   "showOperatorDetail": "Montre aux utilisateurs finaux les appels d'outil, le raisonnement et la progression de chaque tour, pas seulement la réponse.",
+   "share": "Le lien à donner aux utilisateurs finaux, avec qui peut se connecter selon le paramètre de connexion choisi plus haut.",
+   "displayName": "Le nom affiché dans l'en-tête et sur la page de connexion de l'application. Vide signifie le nom de l'application.",
+   "logoAssetId": "Une ressource d'agent dont la version actuelle contient l'image du logo. Téléversez-en une dans Configuration, Ressources.",
+   "primaryColor": "Couleur principale de l'interface de l'application, au format #RRGGBB. Vide conserve la couleur par défaut.",
+   "accentColor": "Deuxième couleur de l'interface de l'application pour les mises en évidence, au format #RRGGBB. Vide conserve la couleur par défaut.",
+   "welcomeText": "Texte que les utilisateurs finaux voient avant leur premier message, jusqu'à 4000 caractères.",
+   "id": "L'identifiant de l'application. L'API et les manifestes l'acceptent aussi bien que le nom.",
+   "lastUpdateUtc": "Date de la dernière modification des paramètres de l'application.",
+   "createdUtc": "Date de création de l'application.",
+   "membersCell": "Membres de l'application : {{names}}.",
+   "activeBadge": "L'application est active : son lien fonctionne pour les personnes que son paramètre de connexion autorise.",
+   "inactiveBadge": "L'application est inactive : ses paramètres sont conservés, mais son lien et ses sessions ne fonctionnent pas.",
+   "steps": {
+    "general": "Le nom, le slug d'URL et la description de l'application, et si elle est active.",
+    "members": "Les agents de l'application, l'agent d'entrée et les appels entre eux, avec une image du graphe.",
+    "environments": "Le déploiement d'entrée que l'application utilise dans chaque environnement, et l'environnement sur lequel l'application tourne actuellement.",
+    "access": "Qui peut se connecter, si les utilisateurs finaux voient les appels d'outil, et le lien à partager.",
+    "branding": "Nom affiché, logo, couleurs et texte d'accueil que voient les utilisateurs finaux."
+   },
+   "actions": {
+    "delegation": "Comparez la délégation publiée de chaque membre avec ce que demande le graphe, et écrivez des brouillons qui corrigent l'écart.",
+    "revisions": "Listez les révisions de l'application, créez-en une nouvelle, publiez-la et promouvez l'application vers l'environnement suivant."
+   }
+  }
+ },
+ "apps": {
+  "denied": "Il vous faut l'autorisation {{operation}} sur {{resource}} pour cela. Demandez à un administrateur un rôle qui l'accorde.",
+  "graph": "Image en lecture seule de l'application : les membres, les appels entre eux et ceux que l'agent d'entrée peut joindre.",
+  "url": "L'adresse de l'application. {{who}}",
+  "open": "Ouvre l'application dans un nouvel onglet du navigateur, telle que la voient les utilisateurs finaux. {{who}}",
+  "copyUrl": "Copie l'adresse de l'application pour la partager. {{who}}",
+  "signIn": {
+   "TenantUsers": "Tout utilisateur actif de ce locataire peut se connecter.",
+   "AppUsers": "Seuls les utilisateurs qui ont le rôle AppUser sur cette application peuvent se connecter.",
+   "Anonymous": "Toute personne disposant du lien peut l'utiliser sans se connecter.",
+   "AnonymousDisabled": "Anonyme est choisi mais pas activé : seuls les utilisateurs connectés ayant accès peuvent entrer."
+  },
+  "delegation": {
+   "apply": "Écrit la délégation du graphe dans une révision brouillon de chaque membre en écart. Rien n'est publié, et les brouillons manuels ne sont pas touchés.",
+   "applyNothing": "La délégation publiée de chaque membre correspond déjà au graphe : il n'y a rien à écrire.",
+   "openAgent": "Ouvrez l'agent {{name}} pour vérifier et publier sa révision brouillon.",
+   "drift": "La délégation publiée du membre diffère de ce que demande le graphe. Écrivez des brouillons pour la corriger, puis publiez-les.",
+   "inSync": "La délégation publiée du membre correspond au graphe.",
+   "draftConflict": "Le brouillon ouvert du membre modifie déjà la délégation autrement, il n'a donc pas été touché. Publiez ou supprimez d'abord ce brouillon.",
+   "skipped": "Ce membre a été ignoré : {{reason}}.",
+   "draft": "La délégation du graphe se trouve dans la révision brouillon {{number}} de ce membre. Publiez-la pour l'activer.",
+   "columns": {
+    "member": "L'agent membre. Ouvrez-le pour vérifier ses révisions.",
+    "desiredMode": "Le mode de délégation que demande le graphe : Liste d'autorisation quand le membre en appelle d'autres, Aucune délégation quand il n'appelle personne.",
+    "desiredAllowList": "Les membres que ce membre appelle dans le graphe.",
+    "desiredMaxDepth": "La plus longue chaîne d'appels sous ce membre dans le graphe.",
+    "publishedMode": "Le mode de délégation dans la dernière révision publiée du membre.",
+    "publishedAllowList": "La liste d'autorisation dans la dernière révision publiée du membre.",
+    "publishedMaxDepth": "La profondeur maximale dans la dernière révision publiée du membre.",
+    "status": "Si le membre s'écarte du graphe, et le brouillon écrit ou la raison pour laquelle il a été ignoré."
+   }
+  },
+  "revisions": {
+   "promote": "Promouvez une révision d'application publiée : tous les membres passent ensemble à l'environnement suivant, ou rien ne bouge.",
+   "promoteNothing": "Publiez d'abord une révision d'application. Seules les révisions publiées peuvent être promues.",
+   "changeNote": "Une note sur ce qui a changé, conservée avec la révision. Jusqu'à 2000 caractères.",
+   "take": "Crée une révision d'application en brouillon qui épingle la dernière révision publiée de chaque membre et copie les appels.",
+   "latest": "La dernière révision publiée de l'application, utilisée par les promotions sauf si vous en choisissez une autre.",
+   "pin": "Cette révision épingle la révision {{number}} de {{name}}.",
+   "publishedBy": "Publiée par {{name}} le {{when}}.",
+   "publish": "Publie cette révision d'application en brouillon. Ensuite, elle ne peut plus changer et peut être promue.",
+   "publishConfirm": "Publie la révision maintenant. Elle ne pourra plus être modifiée ensuite.",
+   "columns": {
+    "number": "Le numéro de révision, compté à partir de 1 pour cette application.",
+    "state": "Brouillon jusqu'à la publication. Seules les révisions publiées peuvent être promues.",
+    "members": "Les révisions de membres que cette révision d'application épingle.",
+    "edges": "Le nombre d'appels entre membres que la révision a copiés.",
+    "author": "Qui a créé la révision.",
+    "changeNote": "La note écrite lors de la création de la révision.",
+    "publishedUtc": "Quand la révision a été publiée, et par qui.",
+    "actions": "Publier une révision brouillon."
+   }
+  },
+  "promote": {
+   "submit": "Promouvoir maintenant. Les déploiements de chaque membre dans l'environnement cible reçoivent les révisions épinglées, ou rien ne change.",
+   "revision": "La révision d'application publiée à promouvoir. La plus récente est utilisée sauf si vous en choisissez une autre.",
+   "source": "L'environnement d'origine de la promotion, généralement celui sur lequel l'application tourne actuellement.",
+   "target": "L'environnement vers lequel promouvoir. Par défaut, celui qui suit la source."
+  }
+ }
+});

@@ -2668,3 +2668,146 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "apps": "Agentic apps: groups of agents behind one end-user chat UI, with their call graph, delegation, revisions, promotion, and link."
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Any active user of this tenant can sign in to the app with their email and password.",
+   "AppUsers": "Only tenant users who hold the built-in AppUser role on this app can sign in. Assign it with resource scope on the app.",
+   "Anonymous": "Anyone with the link can use the app without signing in, but only when anonymous use is also turned on."
+  }
+ },
+ "form": {
+  "pickColor": "Pick {{field}} from a color picker instead of typing the #RRGGBB value."
+ },
+ "resources": {
+  "apps": {
+   "add": "Create an app from agents you already have: members, an entry agent, the calls between them, and how people sign in.",
+   "name": "Name of the app in this tenant: lowercase letters, digits, and hyphens. Manifests and the API refer to it by this name.",
+   "slug": "The URL name, so the app lives at /apps/{slug}/. Unique across the cluster. Empty means the name.",
+   "description": "What the app is for. End users see it on the app's sign-in page.",
+   "active": "Inactive apps keep their settings, but their link and their sessions stop working.",
+   "url": "The app's address for end users. Copy it to share, or open it to see what end users see.",
+   "entryAgentId": "The member that talks to end users and starts every conversation. The other members are reached from it.",
+   "members": "The agents in the app, each with an optional role note. An agent that belongs to an app cannot be deleted.",
+   "membersItems": {
+    "agentId": "An agent of this tenant to include in the app. Each agent can be a member once.",
+    "role": "A short note on what this member does in the app, up to 256 characters."
+   },
+   "edges": "Which member may call which. Together they form the app's graph and become each member's delegation policy.",
+   "edgesItems": {
+    "callerAgentId": "The member that makes the call.",
+    "calleeAgentId": "The member that is called. It must be a different member than the caller.",
+    "fanOutAllowed": "Let the caller start several runs of this member at once with garrison_fan_out."
+   },
+   "graph": "The members and calls as a picture, read only. The entry agent is on the left; members it cannot reach are outlined in red.",
+   "environments": "For each environment, the entry agent's deployment the app uses there. Promotion keeps these in step.",
+   "environmentsItems": {
+    "environment": "An environment of this tenant, such as dev, staging, or prod.",
+    "deploymentId": "A deployment of the entry agent in this environment. Only those deployments are listed."
+   },
+   "liveEnvironment": "The environment the app's chat UI uses now. Change it to switch end users to another environment.",
+   "authMode": "Tenant users, users holding the AppUser role on this app, or anyone with the link (with anonymous use turned on).",
+   "anonymousEnabled": "Turns on anonymous sessions. Anonymous sign-in works only when this is on and the mode is Anonymous.",
+   "showOperatorDetail": "Show end users the tool calls, thinking, and progress of each turn, not only the answer.",
+   "share": "The link to give end users, with who can sign in under the sign-in setting chosen above.",
+   "displayName": "The name shown in the app's header and sign-in page. Empty means the app's name.",
+   "logoAssetId": "An agent asset whose current version holds the logo image. Upload one under Configuration, Agent assets.",
+   "primaryColor": "Main color of the app UI, as #RRGGBB. Empty keeps the default color.",
+   "accentColor": "Second color of the app UI for highlights, as #RRGGBB. Empty keeps the default color.",
+   "welcomeText": "Text end users see before their first message, up to 4000 characters.",
+   "id": "The app's identifier. The API and manifests accept it as well as the name.",
+   "lastUpdateUtc": "When the app's settings last changed.",
+   "createdUtc": "When the app was created.",
+   "membersCell": "Members of the app: {{names}}.",
+   "activeBadge": "The app is active: its link works for the people its sign-in setting lets in.",
+   "inactiveBadge": "The app is inactive: its settings are kept, but its link and sessions do not work.",
+   "steps": {
+    "general": "The app's name, URL slug, description, and whether it is active.",
+    "members": "The agents in the app, the entry agent, and the calls between them, with a picture of the graph.",
+    "environments": "The entry deployment the app uses in each environment, and the environment the app runs on now.",
+    "access": "Who may sign in, whether end users see tool calls, and the link to share.",
+    "branding": "Display name, logo, colors, and welcome text end users see."
+   },
+   "actions": {
+    "delegation": "Compare each member's published delegation with what the graph calls for, and write drafts that fix the drift.",
+    "revisions": "List the app's revisions, take a new one, publish it, and promote the app to the next environment."
+   }
+  }
+ },
+ "apps": {
+  "denied": "You need {{operation}} permission on {{resource}} for this. Ask an administrator for a role that grants it.",
+  "graph": "Read-only picture of the app: members, the calls between them, and which ones the entry agent can reach.",
+  "url": "The app's address. {{who}}",
+  "open": "Open the app in a new browser tab, the way end users see it. {{who}}",
+  "copyUrl": "Copy the app's address to share it. {{who}}",
+  "signIn": {
+   "TenantUsers": "Any active user of this tenant can sign in.",
+   "AppUsers": "Only users who hold the AppUser role on this app can sign in.",
+   "Anonymous": "Anyone with the link can use it without signing in.",
+   "AnonymousDisabled": "Anonymous is chosen but not turned on, so only signed-in users with access get in."
+  },
+  "delegation": {
+   "apply": "Write the graph's delegation into a draft revision of each drifting member. Nothing is published, and manual drafts are left alone.",
+   "applyNothing": "Every member's published delegation already matches the graph, so there is nothing to write.",
+   "openAgent": "Open agent {{name}} to review and publish its draft revision.",
+   "drift": "The member's published delegation differs from what the graph calls for. Write drafts to fix it, then publish them.",
+   "inSync": "The member's published delegation matches the graph.",
+   "draftConflict": "The member's open draft already changes delegation another way, so it was left alone. Publish or discard that draft first.",
+   "skipped": "This member was skipped: {{reason}}.",
+   "draft": "The graph's delegation is in draft revision {{number}} of this member. Publish it to make it live.",
+   "columns": {
+    "member": "The member agent. Open it to review its revisions.",
+    "desiredMode": "The delegation mode the graph calls for: Allow list when the member calls others, None when it calls nobody.",
+    "desiredAllowList": "The members this member calls in the graph.",
+    "desiredMaxDepth": "The longest chain of calls below this member in the graph.",
+    "publishedMode": "The delegation mode in the member's latest published revision.",
+    "publishedAllowList": "The allow list in the member's latest published revision.",
+    "publishedMaxDepth": "The maximum depth in the member's latest published revision.",
+    "status": "Whether the member drifts from the graph, and the draft written or the reason it was skipped."
+   }
+  },
+  "revisions": {
+   "promote": "Promote a published app revision: every member moves to the next environment together, or nothing moves.",
+   "promoteNothing": "Publish an app revision first. Only published revisions can be promoted.",
+   "changeNote": "A note on what changed, kept with the revision. Up to 2000 characters.",
+   "take": "Take a draft app revision that pins every member's latest published revision and copies the calls.",
+   "latest": "The app's latest published revision, which promotions use unless you choose another.",
+   "pin": "This revision pins revision {{number}} of {{name}}.",
+   "publishedBy": "Published by {{name}} at {{when}}.",
+   "publish": "Publish this draft app revision. After that it cannot change and can be promoted.",
+   "publishConfirm": "Publish the revision now. It cannot be edited afterwards.",
+   "columns": {
+    "number": "The revision number, counting up from 1 for this app.",
+    "state": "Draft until published. Only published revisions can be promoted.",
+    "members": "The member revisions this app revision pins.",
+    "edges": "How many calls between members the revision copied.",
+    "author": "The person who took this revision.",
+    "changeNote": "The note written when the revision was taken.",
+    "publishedUtc": "When the revision was published, and by whom.",
+    "actions": "Publish a draft revision."
+   }
+  },
+  "promote": {
+   "submit": "Promote now. Every member's deployments in the target environment get the pinned revisions, or nothing changes.",
+   "revision": "The published app revision to promote. The latest one is used unless you choose another.",
+   "source": "The environment to promote from, usually the one the app runs on now.",
+   "target": "The environment to promote to. By default the one after the source."
+  }
+ }
+});

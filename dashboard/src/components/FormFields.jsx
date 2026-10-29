@@ -8,8 +8,9 @@ import { tip } from './Tooltip';
  * Declarative form renderer. field: { name, type, label, tip?, hint?, options?, required?, min?, max?, rows?,
  * placeholder?, showIf?(data), readOnly?, fields? (objectList), span? }.
  * Types: text, textarea, code, number, checkbox, nullableToggle (null follows `defaultValue`), select, password, datetime, stringList, keyValue, objectList,
- * multiselect, json, custom (`render(data, { disabled, onChange, errors })` draws a whole-row panel, for example a live test
- * helper or a list editor that needs the whole record; onChange takes the next record).
+ * multiselect, json, color (#RRGGBB text with a picker beside it; empty means none), custom (`render(data, { disabled,
+ * onChange, errors })` draws a whole-row panel, for example a live test helper or a list editor that needs the whole
+ * record; onChange takes the next record).
  */
 export default function FormFields({ fields, data, onChange, errors = {}, disabled = false, idPrefix = 'f' }) {
   return (
@@ -179,6 +180,24 @@ function FieldControl({ field, value, onChange, disabled, id }) {
           onBlur={(e) => onChange(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))}
         />
       );
+    case 'color': {
+      const valid = /^#[0-9A-Fa-f]{6}$/.test(String(value || ''));
+      return (
+        <div className="color-input">
+          <input
+            type="color"
+            className="color-swatch"
+            value={valid ? value : '#000000'}
+            disabled={disabled}
+            aria-label={t('components.form.pickColor', { field: field.label })}
+            data-empty={valid ? undefined : 'true'}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+            {...tip(t('tips.form.pickColor', { field: field.label }))}
+          />
+          <input id={id} {...tp} type="text" value={value ?? ''} disabled={disabled} placeholder={field.placeholder || '#1F6FEB'} maxLength={7} onChange={(e) => onChange(e.target.value)} />
+        </div>
+      );
+    }
     case 'keyValue':
       return <KeyValueEditor value={value} onChange={onChange} disabled={disabled} keyLabel={field.keyLabel} valueLabel={field.valueLabel} fieldLabel={field.label} />;
     case 'objectList':

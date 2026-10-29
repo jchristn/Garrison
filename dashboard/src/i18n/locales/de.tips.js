@@ -2668,3 +2668,146 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "apps": "Agentische Apps: Gruppen von Agenten hinter einer Chat-Oberfläche für Endbenutzer, mit Aufrufgraph, Delegation, Revisionen, Hochstufung und Link."
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Jeder aktive Benutzer dieses Mandanten kann sich mit E-Mail und Passwort bei der App anmelden.",
+   "AppUsers": "Nur Benutzer des Mandanten mit der integrierten Rolle AppUser für diese App können sich anmelden. Weisen Sie sie mit Ressourcen-Geltungsbereich auf der App zu.",
+   "Anonymous": "Jeder mit dem Link kann die App ohne Anmeldung nutzen, aber nur, wenn auch die anonyme Nutzung aktiviert ist."
+  }
+ },
+ "form": {
+  "pickColor": "Wählen Sie {{field}} mit einer Farbauswahl, statt den #RRGGBB-Wert einzutippen."
+ },
+ "resources": {
+  "apps": {
+   "add": "Erstellen Sie eine App aus vorhandenen Agenten: Mitglieder, ein Einstiegsagent, die Aufrufe zwischen ihnen und wie sich Menschen anmelden.",
+   "name": "Name der App in diesem Mandanten: Kleinbuchstaben, Ziffern und Bindestriche. Manifeste und die API verweisen über diesen Namen auf sie.",
+   "slug": "Der Name in der URL, die App liegt also unter /apps/{slug}/. Im gesamten Cluster eindeutig. Leer bedeutet den Namen.",
+   "description": "Wofür die App gedacht ist. Endbenutzer sehen dies auf der Anmeldeseite der App.",
+   "active": "Inaktive Apps behalten ihre Einstellungen, aber ihr Link und ihre Sitzungen funktionieren nicht mehr.",
+   "url": "Die Adresse der App für Endbenutzer. Kopieren Sie sie zum Teilen oder öffnen Sie sie, um zu sehen, was Endbenutzer sehen.",
+   "entryAgentId": "Das Mitglied, das mit Endbenutzern spricht und jede Konversation beginnt. Die anderen Mitglieder werden von ihm aus erreicht.",
+   "members": "Die Agenten in der App, jeweils mit optionaler Rollennotiz. Ein Agent, der zu einer App gehört, kann nicht gelöscht werden.",
+   "membersItems": {
+    "agentId": "Ein Agent dieses Mandanten, der in die App aufgenommen wird. Jeder Agent kann einmal Mitglied sein.",
+    "role": "Eine kurze Notiz dazu, was dieses Mitglied in der App tut, bis zu 256 Zeichen."
+   },
+   "edges": "Welches Mitglied welches aufrufen darf. Zusammen bilden sie den Graphen der App und werden zur Delegationsrichtlinie jedes Mitglieds.",
+   "edgesItems": {
+    "callerAgentId": "Das Mitglied, das den Aufruf ausführt.",
+    "calleeAgentId": "Das aufgerufene Mitglied. Es muss ein anderes Mitglied als der Aufrufer sein.",
+    "fanOutAllowed": "Erlaubt dem Aufrufer, mit garrison_fan_out mehrere Läufe dieses Mitglieds gleichzeitig zu starten."
+   },
+   "graph": "Die Mitglieder und Aufrufe als Bild, schreibgeschützt. Der Einstiegsagent steht links; Mitglieder, die er nicht erreichen kann, sind rot umrandet.",
+   "environments": "Für jede Umgebung die Bereitstellung des Einstiegsagenten, die die App dort verwendet. Die Hochstufung hält diese synchron.",
+   "environmentsItems": {
+    "environment": "Eine Umgebung dieses Mandanten, etwa dev, staging oder prod.",
+    "deploymentId": "Eine Bereitstellung des Einstiegsagenten in dieser Umgebung. Nur diese Bereitstellungen werden aufgeführt."
+   },
+   "liveEnvironment": "Die Umgebung, die die Chat-Oberfläche der App jetzt verwendet. Ändern Sie sie, um Endbenutzer auf eine andere Umgebung umzustellen.",
+   "authMode": "Benutzer des Mandanten, Benutzer mit der Rolle AppUser für diese App oder jeder mit dem Link (bei aktivierter anonymer Nutzung).",
+   "anonymousEnabled": "Aktiviert anonyme Sitzungen. Die anonyme Anmeldung funktioniert nur, wenn dies aktiviert ist und der Modus Anonym lautet.",
+   "showOperatorDetail": "Zeigt Endbenutzern die Werkzeugaufrufe, den Denkprozess und den Fortschritt jeder Runde, nicht nur die Antwort.",
+   "share": "Der Link für Endbenutzer, zusammen mit der Angabe, wer sich laut der oben gewählten Anmeldeeinstellung anmelden kann.",
+   "displayName": "Der Name in der Kopfzeile und auf der Anmeldeseite der App. Leer bedeutet den Namen der App.",
+   "logoAssetId": "Eine Agent-Ressource, deren aktuelle Version das Logobild enthält. Laden Sie eine unter Konfiguration, Ressourcen hoch.",
+   "primaryColor": "Hauptfarbe der App-Oberfläche als #RRGGBB. Leer behält die Standardfarbe.",
+   "accentColor": "Zweite Farbe der App-Oberfläche für Hervorhebungen als #RRGGBB. Leer behält die Standardfarbe.",
+   "welcomeText": "Text, den Endbenutzer vor ihrer ersten Nachricht sehen, bis zu 4000 Zeichen.",
+   "id": "Die Kennung der App. Die API und Manifeste akzeptieren sie ebenso wie den Namen.",
+   "lastUpdateUtc": "Wann sich die Einstellungen der App zuletzt geändert haben.",
+   "createdUtc": "Wann die App erstellt wurde.",
+   "membersCell": "Mitglieder der App: {{names}}.",
+   "activeBadge": "Die App ist aktiv: Ihr Link funktioniert für die Personen, die ihre Anmeldeeinstellung zulässt.",
+   "inactiveBadge": "Die App ist inaktiv: Ihre Einstellungen bleiben erhalten, aber ihr Link und ihre Sitzungen funktionieren nicht.",
+   "steps": {
+    "general": "Name, URL-Slug und Beschreibung der App und ob sie aktiv ist.",
+    "members": "Die Agenten in der App, der Einstiegsagent und die Aufrufe zwischen ihnen, mit einem Bild des Graphen.",
+    "environments": "Die Einstiegsbereitstellung, die die App in jeder Umgebung verwendet, und die Umgebung, auf der die App jetzt läuft.",
+    "access": "Wer sich anmelden darf, ob Endbenutzer Werkzeugaufrufe sehen, und der Link zum Teilen.",
+    "branding": "Anzeigename, Logo, Farben und Begrüßungstext, die Endbenutzer sehen."
+   },
+   "actions": {
+    "delegation": "Vergleicht die veröffentlichte Delegation jedes Mitglieds mit den Vorgaben des Graphen und schreibt Entwürfe, die die Abweichung beheben.",
+    "revisions": "Listet die Revisionen der App auf, erstellt eine neue, veröffentlicht sie und stuft die App in die nächste Umgebung hoch."
+   }
+  }
+ },
+ "apps": {
+  "denied": "Dafür benötigen Sie die Berechtigung {{operation}} auf {{resource}}. Bitten Sie einen Administrator um eine Rolle, die sie gewährt.",
+  "graph": "Schreibgeschütztes Bild der App: Mitglieder, die Aufrufe zwischen ihnen und welche der Einstiegsagent erreichen kann.",
+  "url": "Die Adresse der App. {{who}}",
+  "open": "Öffnet die App in einem neuen Browser-Tab, so wie Endbenutzer sie sehen. {{who}}",
+  "copyUrl": "Kopiert die Adresse der App zum Teilen. {{who}}",
+  "signIn": {
+   "TenantUsers": "Jeder aktive Benutzer dieses Mandanten kann sich anmelden.",
+   "AppUsers": "Nur Benutzer mit der Rolle AppUser für diese App können sich anmelden.",
+   "Anonymous": "Jeder mit dem Link kann sie ohne Anmeldung nutzen.",
+   "AnonymousDisabled": "Anonym ist gewählt, aber nicht aktiviert, daher kommen nur angemeldete Benutzer mit Zugriff hinein."
+  },
+  "delegation": {
+   "apply": "Schreibt die Delegation des Graphen in eine Entwurfsrevision jedes abweichenden Mitglieds. Nichts wird veröffentlicht, und manuelle Entwürfe bleiben unberührt.",
+   "applyNothing": "Die veröffentlichte Delegation jedes Mitglieds entspricht bereits dem Graphen, daher gibt es nichts zu schreiben.",
+   "openAgent": "Öffnen Sie den Agenten {{name}}, um seine Entwurfsrevision zu prüfen und zu veröffentlichen.",
+   "drift": "Die veröffentlichte Delegation des Mitglieds weicht von den Vorgaben des Graphen ab. Schreiben Sie Entwürfe zur Behebung und veröffentlichen Sie sie dann.",
+   "inSync": "Die veröffentlichte Delegation des Mitglieds entspricht dem Graphen.",
+   "draftConflict": "Der offene Entwurf des Mitglieds ändert die Delegation bereits anders, daher blieb er unberührt. Veröffentlichen oder verwerfen Sie diesen Entwurf zuerst.",
+   "skipped": "Dieses Mitglied wurde übersprungen: {{reason}}.",
+   "draft": "Die Delegation des Graphen steht in Entwurfsrevision {{number}} dieses Mitglieds. Veröffentlichen Sie sie, damit sie live wird.",
+   "columns": {
+    "member": "Der Mitgliedsagent. Öffnen Sie ihn, um seine Revisionen zu prüfen.",
+    "desiredMode": "Der Delegationsmodus laut Graph: Zulassungsliste, wenn das Mitglied andere aufruft, Keine Delegation, wenn es niemanden aufruft.",
+    "desiredAllowList": "Die Mitglieder, die dieses Mitglied im Graphen aufruft.",
+    "desiredMaxDepth": "Die längste Aufrufkette unterhalb dieses Mitglieds im Graphen.",
+    "publishedMode": "Der Delegationsmodus in der neuesten veröffentlichten Revision des Mitglieds.",
+    "publishedAllowList": "Die Zulassungsliste in der neuesten veröffentlichten Revision des Mitglieds.",
+    "publishedMaxDepth": "Die maximale Tiefe in der neuesten veröffentlichten Revision des Mitglieds.",
+    "status": "Ob das Mitglied vom Graphen abweicht, und der geschriebene Entwurf oder der Grund, warum es übersprungen wurde."
+   }
+  },
+  "revisions": {
+   "promote": "Stuft eine veröffentlichte App-Revision hoch: Alle Mitglieder wechseln gemeinsam in die nächste Umgebung, oder nichts ändert sich.",
+   "promoteNothing": "Veröffentlichen Sie zuerst eine App-Revision. Nur veröffentlichte Revisionen können hochgestuft werden.",
+   "changeNote": "Eine Notiz zu den Änderungen, die mit der Revision gespeichert wird. Bis zu 2000 Zeichen.",
+   "take": "Erstellt eine App-Revision als Entwurf, die die neueste veröffentlichte Revision jedes Mitglieds fixiert und die Aufrufe kopiert.",
+   "latest": "Die neueste veröffentlichte Revision der App, die Hochstufungen verwenden, sofern Sie keine andere wählen.",
+   "pin": "Diese Revision fixiert Revision {{number}} von {{name}}.",
+   "publishedBy": "Veröffentlicht von {{name}} am {{when}}.",
+   "publish": "Veröffentlicht diese App-Revision im Entwurf. Danach kann sie sich nicht mehr ändern und kann hochgestuft werden.",
+   "publishConfirm": "Veröffentlicht die Revision jetzt. Danach kann sie nicht mehr bearbeitet werden.",
+   "columns": {
+    "number": "Die Revisionsnummer, für diese App ab 1 hochgezählt.",
+    "state": "Entwurf bis zur Veröffentlichung. Nur veröffentlichte Revisionen können hochgestuft werden.",
+    "members": "Die Mitgliedsrevisionen, die diese App-Revision fixiert.",
+    "edges": "Wie viele Aufrufe zwischen Mitgliedern die Revision kopiert hat.",
+    "author": "Wer die Revision erstellt hat.",
+    "changeNote": "Die Notiz, die beim Erstellen der Revision geschrieben wurde.",
+    "publishedUtc": "Wann und von wem die Revision veröffentlicht wurde.",
+    "actions": "Eine Entwurfsrevision veröffentlichen."
+   }
+  },
+  "promote": {
+   "submit": "Jetzt hochstufen. Die Bereitstellungen jedes Mitglieds in der Zielumgebung erhalten die fixierten Revisionen, oder nichts ändert sich.",
+   "revision": "Die veröffentlichte App-Revision, die hochgestuft wird. Die neueste wird verwendet, sofern Sie keine andere wählen.",
+   "source": "Die Umgebung, aus der hochgestuft wird, meist die, auf der die App jetzt läuft.",
+   "target": "Die Umgebung, in die hochgestuft wird. Standardmäßig die nach der Quelle."
+  }
+ }
+});

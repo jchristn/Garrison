@@ -80,7 +80,13 @@ function applyClientFilters(config, filters, rows) {
  * `clientSide: true` is applied to the loaded page instead of being sent to the server;
  * `toDuplicate(row)` replaces the generic Duplicate stripping for records whose children keep references (pipelines);
  * `search: false` hides the name search for lists the server cannot search; `lockedReason(row, ctx)` shows Edit and
- * Delete disabled with that explanation for records that cannot change; `bulkDelete: false` turns off row selection.
+ * Delete disabled with that explanation for records that cannot change; `bulkDelete: false` turns off row selection;
+ * `deniedReason(action, row, ctx)` ('create', 'update', 'delete') returns the missing permission's explanation, which
+ * keeps the add button, Edit, and Delete visible but disabled with that tooltip (ctx carries the lookups, so
+ * `loadLookups({ apiClient, tenantId, principal })` can load the caller's permissions); `fieldErrorSpecial(t)` refines
+ * translated field codes (see fieldErrorMessages); `errorFields(error, t)` places a refusal that is not a validation
+ * error (for example 409 AppSlugTaken) on a field; on a form with steps, saving with errors opens the first step
+ * that has one (a custom field claims extra keys with `errorKeys`).
  */
 export default function ResourceView({ config }) {
   const { t, i18n } = useTranslation();
@@ -130,10 +136,10 @@ export default function ResourceView({ config }) {
   const loadLookups = useCallback(() => {
     if (!apiClient || !config.loadLookups) return;
     config
-      .loadLookups({ apiClient, tenantId })
+      .loadLookups({ apiClient, tenantId, principal })
       .then(setLookups)
       .catch(() => setLookups({}));
-  }, [apiClient, tenantId, config]);
+  }, [apiClient, tenantId, principal, config]);
   useEffect(loadLookups, [loadLookups]);
 
   const load = useCallback(
@@ -179,6 +185,9 @@ export default function ResourceView({ config }) {
   // Records that can never be edited or deleted here (for example derived capabilities) keep Edit and Delete in the menu,
   // disabled, with a tooltip that says why; lockedReason(row, ctx) returns that text, or '' for records that are not locked.
   const lockedTip = (row) => (canManage && config.lockedReason ? config.lockedReason(row, ctx) || '' : '');
+  // Actions the caller lacks the permission for stay visible but disabled, with the missing permission as the tooltip.
+  const deniedTip = (action, row) => (canManage && config.deniedReason ? config.deniedReason(action, row, { ...ctx, lookups }) || '' : '');
+  const blockedTip = (action, row) => lockedTip(row) || deniedTip(action, row);
 
   const open = (mode, data) => {
     setFieldErrors({});
@@ -197,7 +206,16 @@ export default function ResourceView({ config }) {
   };
   const openRow = (row) => {
     if (config.detailPath) navigate(config.detailPath(row));
-    else open(isEditable(row) && config.api.update ? 'edit' : 'view', config.toForm ? config.toForm(row) : { ...row });
+    else open(isEditable(row) && config.api.update && !deniedTip('update', row) ? 'edit' : 'view', config.toForm ? config.toForm(row) : { ...row });
+  };
+
+  // On a form with steps, open the first step that shows one of these errors (keys such as edges[2].calleeAgentId
+  // belong to the field edges; a custom field claims more keys with errorKeys).
+  const showErrorStep = (errors) => {
+    if (!config.steps || !editing) return;
+    const keys = Object.keys(errors || {}).map((k) => k.replace(/[[.].*$/, ''));
+    const owners = config.fields(editing.data, { ...ctx, mode: editing.mode, options }).filter((f) => keys.includes(f.name) || (f.errorKeys || []).some((k) => keys.includes(k)));
+    if (owners.length) setStep(Math.min(...owners.map((f) => f.step || 0)));
   };
 
   const save = async () => {
@@ -208,6 +226,7 @@ export default function ResourceView({ config }) {
       const validation = config.validate ? config.validate(d, t) : null;
       if (validation && Object.keys(validation).length > 0) {
         setFieldErrors(validation);
+        showErrorStep(validation);
         return;
       }
       const body = config.toBody ? config.toBody(d, editing.mode) : d;
@@ -221,8 +240,11 @@ export default function ResourceView({ config }) {
       if (config.afterCreate && editing.mode !== 'edit') config.afterCreate(result, { ...ctx, setExtraModal });
       load(page.pageNumber);
     } catch (e) {
-      const perField = withListItemErrors(t, fieldErrorMessages(t, e));
-      if (perField) setFieldErrors(perField);
+      const perField = withListItemErrors(t, fieldErrorMessages(t, e, config.fieldErrorSpecial ? config.fieldErrorSpecial(t) : undefined)) || (config.errorFields ? config.errorFields(e, t) : null);
+      if (perField) {
+        setFieldErrors(perField);
+        showErrorStep(perField);
+      }
       addToast({ type: 'error', message: `${errorMessage(t, e)} ${errorDetail(t, e)}`.trim() });
     } finally {
       setBusy(false);
@@ -284,25 +306,25 @@ export default function ResourceView({ config }) {
             { label: t('common.actions.view'), tip: t(config.detailPath ? 'tips.actions.openDetail' : 'tips.actions.view'), onClick: () => (config.detailPath ? navigate(config.detailPath(r)) : open('view', config.toForm ? config.toForm(r) : { ...r })) },
             {
               label: t('common.actions.edit'),
-              tip: lockedTip(r) || t('tips.actions.edit'),
+              tip: blockedTip('update', r) || t('tips.actions.edit'),
               hidden: !config.api.update || (!isEditable(r) && !lockedTip(r)),
-              disabled: !!lockedTip(r),
+              disabled: !!blockedTip('update', r),
               onClick: () => open('edit', config.toForm ? config.toForm(r) : { ...r })
             },
             {
               label: t('common.actions.duplicate'),
               tip: t('tips.actions.duplicate'),
-              hidden: !canManage || config.canDuplicate === false || !config.api.create,
+              hidden: !canManage || config.canDuplicate === false || !config.api.create || !!deniedTip('create', r),
               onClick: () => open('create', config.toDuplicate ? config.toDuplicate(r) : stripForDuplicate(config.toForm ? config.toForm(r) : r, config.duplicateStrip || []))
             },
-            ...((config.rowActions && config.rowActions(r, { ...ctx, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
+            ...((config.rowActions && config.rowActions(r, { ...ctx, lookups, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
             { label: t('common.actions.viewJson'), tip: t('tips.actions.viewJson'), onClick: () => setJsonValue(r) },
             {
               label: t('common.actions.delete'),
-              tip: lockedTip(r) || t('tips.actions.delete'),
-              danger: !lockedTip(r),
+              tip: blockedTip('delete', r) || t('tips.actions.delete'),
+              danger: !blockedTip('delete', r),
               hidden: !config.api.remove || (!canDelete(r) && !lockedTip(r)),
-              disabled: !!lockedTip(r),
+              disabled: !!blockedTip('delete', r),
               onClick: () => askDelete(r)
             }
           ]}
@@ -324,7 +346,13 @@ export default function ResourceView({ config }) {
   const filterOptions = (f) => (typeof f.options === 'function' ? f.options(lookups, filters) : f.options || []);
   const defaults = config.defaultFilters || {};
   const filtersChanged = [...new Set([...Object.keys(filters), ...Object.keys(defaults)])].some((k) => (filters[k] || '') !== (defaults[k] || ''));
-  const addTip = t(`tips.resources.${config.id}.add`, { defaultValue: t('tips.actions.add') });
+  const addDenied = deniedTip('create', null);
+  const addTip = addDenied || t(`tips.resources.${config.id}.add`, { defaultValue: t('tips.actions.add') });
+  // A denied add stays visible with aria-disabled (not disabled, so its tooltip still shows) and does nothing.
+  const openCreate = () => {
+    if (!addDenied) open('create', config.blank ? config.blank(ctx) : {});
+  };
+  const addProps = addDenied ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {};
 
   const filterSlot = (
     <div className="filter-inline">
@@ -386,7 +414,7 @@ export default function ResourceView({ config }) {
           <>
             {config.headerActions && config.headerActions({ ...ctx, reload: () => load(page.pageNumber), setExtraModal })}
             {config.api.create && canManage && (
-              <button type="button" className="button-primary" onClick={() => open('create', config.blank ? config.blank(ctx) : {})} data-testid="add-button" {...tip(addTip)}>
+              <button type="button" className="button-primary" onClick={openCreate} data-testid="add-button" {...addProps} {...tip(addTip)}>
                 <PlusIcon /> {t(`${prefix}.add`)}
               </button>
             )}
@@ -412,7 +440,7 @@ export default function ResourceView({ config }) {
             body={t(`${prefix}.emptyBody`)}
             action={
               config.api.create && canManage && (
-                <button type="button" className="button-primary" onClick={() => open('create', config.blank ? config.blank(ctx) : {})} {...tip(addTip)}>
+                <button type="button" className="button-primary" onClick={openCreate} {...addProps} {...tip(addTip)}>
                   <PlusIcon /> {t(`${prefix}.add`)}
                 </button>
               )
@@ -468,7 +496,14 @@ export default function ResourceView({ config }) {
                 {t('common.actions.viewJson')}
               </button>
               {config.api.update && isEditable(editing.data) && (
-                <button type="button" className="button-secondary" onClick={() => setEditing((e) => ({ ...e, mode: 'edit' }))} {...tip(t('tips.actions.switchToEdit'))}>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => !deniedTip('update', editing.data) && setEditing((e) => ({ ...e, mode: 'edit' }))}
+                  aria-disabled={deniedTip('update', editing.data) ? 'true' : undefined}
+                  data-testid="view-edit-button"
+                  {...tip(deniedTip('update', editing.data) || t('tips.actions.switchToEdit'))}
+                >
                   {t('common.actions.edit')}
                 </button>
               )}
@@ -501,7 +536,7 @@ export default function ResourceView({ config }) {
         {editing && (
           <>
             {Object.keys(fieldErrors).length > 0 && <div className="error-banner">{t('common.errors.fixFields')}</div>}
-            {editing.mode === 'view' && config.viewExtra && config.viewExtra(editing.data, { ...ctx, lookups })}
+            {editing.mode === 'view' && config.viewExtra && config.viewExtra(editing.data, { ...ctx, lookups, options })}
             {editing.mode !== 'create' && config.formNotice && config.formNotice(editing.data, { ...ctx, options })}
             {steps && (
               <div className="stepper" role="tablist" aria-label={t('components.form.steps')}>

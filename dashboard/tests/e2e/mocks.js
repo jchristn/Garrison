@@ -1345,6 +1345,113 @@ function capabilityRoutes(method, url, parts) {
 // ---------------------------------------------------------------- conversation file spaces (AD3.8)
 
 /** Text of each version of the cnv_0001 files, keyed by path and version. */
+// ---------------------------------------------------------------- agentic apps (AD6.11)
+
+/**
+ * App i, shaped like GET /apps/{id}. app_0001 "research": echo-agent (entry) calls agent-2, which calls agent-3 (one at a
+ * time), live in dev with deployment-1 as the dev entry deployment, AppUsers sign-in, branded, with a published
+ * revision. app_0002 "support": one member, Anonymous with anonymous use on, live in staging, inactive.
+ */
+export function agenticApp(i) {
+  const rows = {
+    1: {
+      name: 'research',
+      slug: 'research',
+      description: 'Research overviews',
+      entryAgentId: 'agt_0001',
+      members: [
+        { agentId: 'agt_0001', agentName: 'echo-agent', role: 'Talks to people and plans the work' },
+        { agentId: 'agt_0002', agentName: 'agent-2', role: 'Researches' },
+        { agentId: 'agt_0003', agentName: 'agent-3' }
+      ],
+      edges: [
+        { callerAgentId: 'agt_0001', calleeAgentId: 'agt_0002', fanOutAllowed: true },
+        { callerAgentId: 'agt_0002', calleeAgentId: 'agt_0003', fanOutAllowed: false }
+      ],
+      environments: [{ environment: 'dev', deploymentId: 'dep_0001' }],
+      liveEnvironment: 'dev',
+      authMode: 'AppUsers',
+      anonymousEnabled: false,
+      showOperatorDetail: false,
+      displayName: 'Research Desk',
+      logoAssetId: 'aas_0001',
+      primaryColor: '#1F6FEB',
+      welcomeText: 'Ask for an overview of any topic.',
+      latestPublishedRevisionId: 'apr_0001_1',
+      active: true
+    },
+    2: {
+      name: 'support',
+      slug: 'support-desk',
+      entryAgentId: 'agt_0002',
+      members: [{ agentId: 'agt_0002', agentName: 'agent-2' }],
+      edges: [],
+      environments: [],
+      liveEnvironment: 'staging',
+      authMode: 'Anonymous',
+      anonymousEnabled: true,
+      showOperatorDetail: true,
+      active: false
+    }
+  };
+  const row = rows[i] || rows[1];
+  return { id: `app_${pad(i)}`, tenantId: TENANT, ...row, createdUtc: iso(i * 90), lastUpdateUtc: iso(i * 20) };
+}
+
+/** GET /apps/{id}/delegation for research: agent-2 drifts (published allow list empty), agent-3 is in sync. */
+export function appDelegation(appId = 'app_0001', applied = false) {
+  return {
+    appId,
+    applied,
+    members: [
+      { agentId: 'agt_0001', agentName: 'echo-agent', desiredMode: 'AllowList', desiredAllowList: ['agent-2'], desiredMaxDepth: 2, publishedMode: 'AllowList', publishedAllowList: ['agent-2'], publishedMaxDepth: 2, drift: false },
+      { agentId: 'agt_0002', agentName: 'agent-2', desiredMode: 'AllowList', desiredAllowList: ['agent-3'], desiredMaxDepth: 1, publishedMode: 'None', publishedAllowList: [], publishedMaxDepth: 2, drift: true, ...(applied ? { draftRevisionNumber: 3 } : {}) },
+      { agentId: 'agt_0003', agentName: 'agent-3', desiredMode: 'None', desiredAllowList: [], desiredMaxDepth: 0, publishedMode: 'AllowList', publishedAllowList: ['echo-agent'], publishedMaxDepth: 1, drift: true, ...(applied ? { skippedReason: 'DraftConflict' } : {}) }
+    ]
+  };
+}
+
+/** App revision n of research: 1 is published, 2 a draft. */
+export function appRevision(n, appId = 'app_0001') {
+  const draft = n >= 2;
+  return {
+    id: `apr_0001_${n}`,
+    tenantId: TENANT,
+    appId,
+    number: n,
+    state: draft ? 'Draft' : 'Published',
+    members: [
+      { agentId: 'agt_0001', agentName: 'echo-agent', agentRevisionId: revisionId('agt_0001', 2), agentRevisionNumber: 2 },
+      { agentId: 'agt_0002', agentName: 'agent-2', agentRevisionId: revisionId('agt_0002', 2), agentRevisionNumber: 2 },
+      { agentId: 'agt_0003', agentName: 'agent-3', agentRevisionId: revisionId('agt_0003', 1), agentRevisionNumber: 1 }
+    ],
+    edges: agenticApp(1).edges,
+    authorName: 'admin@garrison',
+    changeNote: draft ? 'Writer added' : 'First release',
+    ...(draft ? {} : { publishedByName: 'admin@garrison', publishedUtc: iso(300) }),
+    createdUtc: iso(400 - n * 50)
+  };
+}
+
+function appRoutes(method, url, parts) {
+  if (parts[0] !== 'apps') return undefined;
+  const all = [1, 2].map(agenticApp);
+  if (parts.length === 1) {
+    if (method !== 'GET') return { ...agenticApp(1), id: 'app_0099', name: 'new-app', slug: 'new-app', createdUtc: iso(0) };
+    const search = url.searchParams.get('search');
+    return pageOf(search ? all.filter((a) => a.name.includes(search)) : all, url);
+  }
+  const app = all.find((a) => a.id === parts[1] || a.name === parts[1]) || agenticApp(1);
+  if (parts[2] === 'delegation') return appDelegation(app.id, method === 'POST');
+  if (parts[2] === 'revisions') {
+    if (parts.length === 3) return method === 'GET' ? [appRevision(2), appRevision(1)] : { ...appRevision(3), changeNote: 'Taken in a test' };
+    if (parts[4] === 'publish') return { ...appRevision(Number(parts[3]) || 2), state: 'Published', publishedByName: 'admin@garrison', publishedUtc: iso(0) };
+    return appRevision(Number(String(parts[3]).replace(/^apr_0001_/, '')) || 1);
+  }
+  if (parts[2] === 'promote') return { ...promotionRecord(1), id: 'pro_0097', agentId: null, sourceEnvironment: 'dev', targetEnvironment: 'staging', createdUtc: iso(0) };
+  return app;
+}
+
 export const CONVERSATION_FILE_TEXT = {
   'notes/sources.md': { 1: '# Sources\n\n- https://example.com\n', 2: '# Sources\n\n- https://example.com\n- https://example.org\n' },
   'report.json': { 1: '{ "status": "draft" }\n' },
@@ -1966,6 +2073,8 @@ export function respond(method, url) {
     if (triggered !== undefined) return triggered;
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
+    const apped = appRoutes(method, url, parts);
+    if (apped !== undefined) return apped;
     const asset = assetRoutes(method, url, parts);
     if (asset !== undefined) return asset;
     const filed = fileSpaceRoutes(method, url, parts);

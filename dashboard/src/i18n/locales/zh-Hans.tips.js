@@ -2667,3 +2667,146 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "apps": "智能体应用：在同一个面向最终用户的聊天 UI 背后协作的一组智能体，以及它们的调用图、委派、修订、晋升和链接。"
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "此租户的任何启用用户都可以用电子邮件和密码登录此应用。",
+   "AppUsers": "只有在此应用上拥有内置 AppUser 角色的租户用户才能登录。请以此应用为资源范围分配该角色。",
+   "Anonymous": "任何拥有链接的人都无需登录即可使用此应用，但前提是同时开启了匿名使用。"
+  }
+ },
+ "form": {
+  "pickColor": "通过颜色选择器选择 {{field}}，无需手动输入 #RRGGBB 值。"
+ },
+ "resources": {
+  "apps": {
+   "add": "用现有的智能体创建应用：成员、入口智能体、成员之间的调用，以及用户的登录方式。",
+   "name": "应用在此租户中的名称，使用小写字母、数字和连字符。清单和 API 通过此名称引用它。",
+   "slug": "用于 URL 的名称，应用位于 /apps/{slug}/。在整个集群中唯一。留空则使用名称。",
+   "description": "应用的用途。最终用户会在应用的登录页面上看到它。",
+   "active": "停用的应用会保留其设置，但其链接和会话将无法使用。",
+   "url": "面向最终用户的应用地址。复制以分享，或打开以查看最终用户看到的内容。",
+   "entryAgentId": "与最终用户对话并开始每个会话的成员。其他成员都从它出发到达。",
+   "members": "应用中的智能体，每个都可以附带可选的职责说明。属于某个应用的智能体无法删除。",
+   "membersItems": {
+    "agentId": "要加入应用的此租户智能体。每个智能体只能作为成员添加一次。",
+    "role": "简要说明此成员在应用中的作用，最多 256 个字符。"
+   },
+   "edges": "哪个成员可以调用哪个成员。它们共同构成应用的图，并成为每个成员的委派策略。",
+   "edgesItems": {
+    "callerAgentId": "发起调用的成员。",
+    "calleeAgentId": "被调用的成员，必须是与调用方不同的成员。",
+    "fanOutAllowed": "允许调用方通过 garrison_fan_out 同时启动此成员的多个运行。"
+   },
+   "graph": "以只读图示展示成员和调用。入口智能体位于左侧；它无法到达的成员会以红色轮廓标出。",
+   "environments": "在每个环境中，应用所使用的入口智能体部署。晋升会让这些设置保持同步。",
+   "environmentsItems": {
+    "environment": "此租户的一个环境，例如 dev、staging 或 prod。",
+    "deploymentId": "入口智能体在此环境中的一个部署。只列出这些部署。"
+   },
+   "liveEnvironment": "应用的聊天 UI 当前使用的环境。更改它可将最终用户切换到另一个环境。",
+   "authMode": "租户用户、在此应用上拥有 AppUser 角色的用户，或任何拥有链接的人（需开启匿名使用）。",
+   "anonymousEnabled": "开启匿名会话。只有开启此项且模式为“匿名”时，匿名登录才有效。",
+   "showOperatorDetail": "向最终用户显示每一轮的工具调用、思考过程和进度，而不只是回答。",
+   "share": "提供给最终用户的链接，谁能登录取决于上方选择的登录设置。",
+   "displayName": "显示在应用页眉和登录页面上的名称。留空则使用应用的名称。",
+   "logoAssetId": "当前版本包含徽标图片的智能体资产。请在“配置”下的“资产”中上传。",
+   "primaryColor": "应用 UI 的主色，格式为 #RRGGBB。留空则保留默认颜色。",
+   "accentColor": "应用 UI 中用于突出显示的第二种颜色，格式为 #RRGGBB。留空则保留默认颜色。",
+   "welcomeText": "最终用户发送第一条消息之前看到的文本，最多 4000 个字符。",
+   "id": "应用的标识符。API 和清单除名称外也接受此标识符。",
+   "lastUpdateUtc": "应用设置上次更改的时间。",
+   "createdUtc": "应用的创建时间。",
+   "membersCell": "应用的成员：{{names}}。",
+   "activeBadge": "应用已启用：登录设置允许的人可以使用其链接。",
+   "inactiveBadge": "应用已停用：其设置会保留，但链接和会话无法使用。",
+   "steps": {
+    "general": "应用的名称、URL 短名、描述以及是否启用。",
+    "members": "应用中的智能体、入口智能体和成员之间的调用，并附有图示。",
+    "environments": "应用在每个环境中使用的入口部署，以及应用当前运行的环境。",
+    "access": "谁可以登录、最终用户是否能看到工具调用，以及要分享的链接。",
+    "branding": "最终用户看到的显示名称、徽标、颜色和欢迎文本。"
+   },
+   "actions": {
+    "delegation": "将每个成员已发布的委派与图的要求进行比较，并写入修正偏差的草稿。",
+    "revisions": "列出应用的修订，创建新修订并发布，然后将应用晋升到下一个环境。"
+   }
+  }
+ },
+ "apps": {
+  "denied": "此操作需要对 {{resource}} 拥有 {{operation}} 权限。请向管理员申请授予该权限的角色。",
+  "graph": "应用的只读图示：成员、成员之间的调用，以及入口智能体能到达哪些成员。",
+  "url": "应用的地址。{{who}}",
+  "open": "在新的浏览器标签页中打开应用，查看最终用户看到的样子。{{who}}",
+  "copyUrl": "复制应用的地址以分享。{{who}}",
+  "signIn": {
+   "TenantUsers": "此租户的任何启用用户都可以登录。",
+   "AppUsers": "只有在此应用上拥有 AppUser 角色的用户才能登录。",
+   "Anonymous": "任何拥有链接的人都无需登录即可使用。",
+   "AnonymousDisabled": "已选择匿名但未开启，因此只有拥有访问权限并已登录的用户才能进入。"
+  },
+  "delegation": {
+   "apply": "将图中的委派写入每个存在偏差的成员的草稿修订。不会发布任何内容，手动创建的草稿保持不变。",
+   "applyNothing": "所有成员的已发布委派都已与图一致，因此无需写入。",
+   "openAgent": "打开智能体 {{name}}，查看并发布其草稿修订。",
+   "drift": "此成员的已发布委派与图的要求不一致。请写入草稿进行修正，然后发布。",
+   "inSync": "此成员的已发布委派与图一致。",
+   "draftConflict": "此成员打开的草稿已经以其他方式更改了委派，因此保持不变。请先发布或丢弃该草稿。",
+   "skipped": "已跳过此成员：{{reason}}。",
+   "draft": "图中的委派位于此成员的草稿修订 {{number}} 中。发布后即可生效。",
+   "columns": {
+    "member": "成员智能体。打开它可查看其修订。",
+    "desiredMode": "图所要求的委派模式：成员调用其他成员时为“允许列表”，不调用任何成员时为“不委派”。",
+    "desiredAllowList": "图中此成员调用的成员。",
+    "desiredMaxDepth": "图中此成员下方最长的调用链。",
+    "publishedMode": "成员最新发布的修订中的委派模式。",
+    "publishedAllowList": "成员最新发布的修订中的允许列表。",
+    "publishedMaxDepth": "成员最新发布的修订中的最大深度。",
+    "status": "成员是否与图存在偏差，以及写入的草稿或跳过的原因。"
+   }
+  },
+  "revisions": {
+   "promote": "晋升已发布的应用修订：所有成员一起移到下一个环境，否则都不移动。",
+   "promoteNothing": "请先发布一个应用修订。只有已发布的修订才能晋升。",
+   "changeNote": "关于更改内容的说明，与修订一起保存。最多 2000 个字符。",
+   "take": "创建一个应用草稿修订，固定每个成员最新发布的修订并复制调用。",
+   "latest": "应用最新发布的修订，除非你选择其他修订，否则晋升会使用它。",
+   "pin": "此修订固定了 {{name}} 的修订 {{number}}。",
+   "publishedBy": "由 {{name}} 于 {{when}} 发布。",
+   "publish": "发布此应用草稿修订。发布后无法更改，并且可以晋升。",
+   "publishConfirm": "立即发布修订。发布后无法编辑。",
+   "columns": {
+    "number": "修订号，此应用从 1 开始递增。",
+    "state": "发布前为草稿。只有已发布的修订才能晋升。",
+    "members": "此应用修订固定的成员修订。",
+    "edges": "修订复制的成员之间调用的数量。",
+    "author": "创建该修订的人。",
+    "changeNote": "创建修订时写下的说明。",
+    "publishedUtc": "修订的发布时间和发布者。",
+    "actions": "发布草稿修订。"
+   }
+  },
+  "promote": {
+   "submit": "立即晋升。目标环境中每个成员的部署都会获得已固定的修订，否则不做任何更改。",
+   "revision": "要晋升的已发布应用修订。除非你选择其他修订，否则使用最新的修订。",
+   "source": "晋升的源环境，通常是应用当前运行的环境。",
+   "target": "晋升的目标环境。默认为源环境之后的环境。"
+  }
+ }
+});

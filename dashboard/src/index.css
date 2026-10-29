@@ -159,6 +159,9 @@ button,
   transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
 }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
+/* A button the caller lacks permission for: dimmed like a disabled one, but still hoverable so its tooltip says why. */
+button[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+button[aria-disabled="true"]:hover { filter: none; }
 .button-primary { background-color: var(--color-primary); color: #fff; }
 .button-primary:hover:not(:disabled) { background-color: var(--color-primary-hover); }
 .button-secondary { background-color: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
@@ -1235,3 +1238,30 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .fanout-budget-bar { display: block; height: 6px; border-radius: 3px; background: var(--color-surface-alt); overflow: hidden; }
 .fanout-budget-fill { display: block; height: 100%; background: var(--color-primary); }
 .fanout-budget-bar.is-over .fanout-budget-fill { background: var(--color-danger); }
+
+/* ================= Agentic apps (AD6.11) ================= */
+.color-input { display: flex; gap: var(--spacing-xs); align-items: center; }
+.color-input .color-swatch { inline-size: 2.5rem; block-size: 2.1rem; padding: 0.1rem; flex: none; cursor: pointer; }
+.color-input .color-swatch[data-empty="true"] { opacity: 0.45; }
+.color-input input[type="text"] { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); }
+.app-share { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.app-share-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; }
+.app-share-url { overflow-wrap: anywhere; }
+.app-share-cell { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+.app-share-cell .app-share-open { font-size: var(--font-size-xs); }
+.app-view { display: flex; flex-direction: column; gap: var(--spacing-sm); margin-block-end: var(--spacing-md); }
+.app-graph { display: flex; flex-direction: column; gap: var(--spacing-xs); overflow-x: auto; padding: var(--spacing-xs) 0; }
+.app-graph svg { display: block; }
+.app-graph-node rect { fill: var(--color-surface); stroke: var(--color-border); stroke-width: 1.5; }
+.app-graph-node.is-entry rect { fill: var(--color-primary-soft); stroke: var(--color-primary); stroke-width: 2; }
+.app-graph-node.is-unreachable rect { stroke: var(--color-danger); stroke-dasharray: 5 4; }
+.app-graph-name { fill: var(--color-text); font-size: 13px; font-weight: 600; }
+.app-graph-tag { fill: var(--color-text-secondary); font-size: 11px; }
+.app-graph-edge { fill: none; stroke: var(--color-text-secondary); stroke-width: 1.5; }
+.app-graph-edge.is-single { stroke-dasharray: 6 4; }
+.app-graph-arrow { fill: var(--color-text-secondary); }
+.app-graph-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); font-size: var(--font-size-xs); }
+.app-graph-key { display: inline-block; inline-size: 1.5rem; border-block-start: 2px solid var(--color-text-secondary); margin-inline-start: var(--spacing-sm); }
+.app-graph-key.is-single { border-block-start-style: dashed; }
+.app-revision-take { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: flex-end; margin-block-end: var(--spacing-md); }
+.app-revision-take .field { flex: 1; min-width: 16rem; margin: 0; }

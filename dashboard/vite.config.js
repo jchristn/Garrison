@@ -36,9 +36,10 @@ export default defineConfig({
           if (/node_modules\/(i18next|react-i18next|i18next-browser-languagedetector)\//.test(id)) return 'i18n';
           // The Markdown renderer and sanitizer (no app imports) keep the views chunk under the size warning.
           if (/node_modules\/(marked|dompurify)\//.test(id)) return 'markdown';
-          // One chunk per locale (catalog plus tooltips) keeps every chunk under the size warning.
-          const locale = id.match(/\/src\/i18n\/locales\/([A-Za-z-]+?)(?:\.tips)?\.js$/);
-          if (locale) return `locale-${locale[1]}`;
+          // Two chunks per locale (the catalog, and its tooltips and explainers) keep every chunk under the size warning;
+          // the Japanese catalog with its tooltips passed 500 kB with the Apps tab (AD6.11).
+          const locale = id.match(/\/src\/i18n\/locales\/([A-Za-z-]+?)(\.tips)?\.js$/);
+          if (locale) return `locale-${locale[1]}${locale[2] ? '-tips' : ''}`;
           // Pipeline components (P12.9) get their own chunk so the views chunk stays under the size warning.
           if (/\/src\/components\/Pipeline/.test(id)) return 'pipelines';
           // Trigger and notification components (P12.5, P12.14) likewise.
@@ -52,6 +53,9 @@ export default defineConfig({
           // Capability catalog (AD4.8): the detail panel, refresh dialog, and revision capability editor, plus their helpers,
           // shared by the views and the revisions panel.
           if (/\/src\/components\/(Capability|AgentCapabilities)/.test(id) || id.endsWith('/src/utils/capabilities.js')) return 'capabilities';
+          // Agentic apps (AD6.11): the Apps tab's graph, share link, delegation, revisions, and promote dialogs, and their
+          // helpers. The page configuration stays with the views, which re-export it (no chunk cycle).
+          if (/\/src\/components\/AgenticApp/.test(id) || id.endsWith('/src/utils/apps.js')) return 'apps';
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

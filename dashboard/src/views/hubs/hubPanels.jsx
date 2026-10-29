@@ -26,6 +26,7 @@ import ModelPricesView from '../ModelPricesView';
 import ArtifactStoresView from '../ArtifactStoresView';
 import AgentAssetsView from '../AgentAssetsView';
 import CapabilitiesView from '../CapabilitiesView';
+import AppsView from '../AppsView';
 import ManifestsView from '../ManifestsView';
 import RequestHistoryView from '../RequestHistoryView';
 import AuditView from '../AuditView';
@@ -74,6 +75,7 @@ export const PAGE_VIEWS = {
   artifactStores: ArtifactStoresView,
   agentAssets: AgentAssetsView,
   capabilities: CapabilitiesView,
+  apps: AppsView,
   modelPrices: ModelPricesView,
   usageQuotas: UsageQuotasView,
   notifications: NotificationsView,

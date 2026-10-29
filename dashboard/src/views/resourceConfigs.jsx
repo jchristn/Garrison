@@ -60,6 +60,8 @@ import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RE
 export { pipelinesConfig } from './pipelineConfigs';
 // Triggers (P12.5) and notification endpoints (P12.14) live in their own module too.
 export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
+// Agentic apps (AD6.11) too.
+export { appsConfig } from './appConfigs';
 
 // ---------------------------------------------------------------- helpers
 //

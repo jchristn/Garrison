@@ -2670,3 +2670,146 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "apps": "Applicazioni agentiche: gruppi di agenti dietro un'unica interfaccia di chat per gli utenti finali, con grafo delle chiamate, delega, revisioni, promozione e link."
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Qualsiasi utente attivo di questo tenant può accedere all'applicazione con email e password.",
+   "AppUsers": "Possono accedere solo gli utenti del tenant con il ruolo predefinito AppUser su questa applicazione. Assegnalo con ambito di risorsa sull'applicazione.",
+   "Anonymous": "Chiunque abbia il link può usare l'applicazione senza accedere, ma solo se è attivato anche l'uso anonimo."
+  }
+ },
+ "form": {
+  "pickColor": "Scegli {{field}} da un selettore di colore invece di digitare il valore #RRGGBB."
+ },
+ "resources": {
+  "apps": {
+   "add": "Crea un'applicazione con agenti che hai già: membri, un agente di ingresso, le chiamate tra loro e il modo in cui le persone accedono.",
+   "name": "Nome dell'applicazione in questo tenant: lettere minuscole, cifre e trattini. I manifest e l'API la indicano con questo nome.",
+   "slug": "Il nome nell'URL, quindi l'applicazione si trova in /apps/{slug}/. Unico in tutto il cluster. Vuoto significa il nome.",
+   "description": "A cosa serve l'applicazione. Gli utenti finali la vedono nella pagina di accesso dell'applicazione.",
+   "active": "Le applicazioni inattive conservano le impostazioni, ma il loro link e le loro sessioni smettono di funzionare.",
+   "url": "L'indirizzo dell'applicazione per gli utenti finali. Copialo per condividerlo o aprilo per vedere ciò che vedono gli utenti finali.",
+   "entryAgentId": "Il membro che parla con gli utenti finali e avvia ogni conversazione. Gli altri membri si raggiungono da esso.",
+   "members": "Gli agenti dell'applicazione, ciascuno con una nota facoltativa sul ruolo. Un agente che appartiene a un'applicazione non può essere eliminato.",
+   "membersItems": {
+    "agentId": "Un agente di questo tenant da includere nell'applicazione. Ogni agente può essere membro una volta.",
+    "role": "Una breve nota su cosa fa questo membro nell'applicazione, fino a 256 caratteri."
+   },
+   "edges": "Quale membro può chiamare quale. Insieme formano il grafo dell'applicazione e diventano la regola di delega di ogni membro.",
+   "edgesItems": {
+    "callerAgentId": "Il membro che effettua la chiamata.",
+    "calleeAgentId": "Il membro chiamato. Deve essere un membro diverso dal chiamante.",
+    "fanOutAllowed": "Consente al chiamante di avviare più esecuzioni di questo membro in parallelo con garrison_fan_out."
+   },
+   "graph": "I membri e le chiamate come immagine, in sola lettura. L'agente di ingresso è a sinistra; i membri che non può raggiungere hanno il bordo rosso.",
+   "environments": "Per ogni ambiente, la distribuzione dell'agente di ingresso che l'applicazione usa lì. La promozione le mantiene allineate.",
+   "environmentsItems": {
+    "environment": "Un ambiente di questo tenant, come dev, staging o prod.",
+    "deploymentId": "Una distribuzione dell'agente di ingresso in questo ambiente. Sono elencate solo quelle distribuzioni."
+   },
+   "liveEnvironment": "L'ambiente usato ora dall'interfaccia di chat dell'applicazione. Cambialo per spostare gli utenti finali su un altro ambiente.",
+   "authMode": "Utenti del tenant, utenti con il ruolo AppUser su questa applicazione oppure chiunque abbia il link (con l'uso anonimo attivato).",
+   "anonymousEnabled": "Attiva le sessioni anonime. L'accesso anonimo funziona solo se questa opzione è attiva e la modalità è Anonimo.",
+   "showOperatorDetail": "Mostra agli utenti finali le chiamate a strumenti, il ragionamento e l'avanzamento di ogni turno, non solo la risposta.",
+   "share": "Il link da dare agli utenti finali, con chi può accedere secondo l'impostazione di accesso scelta sopra.",
+   "displayName": "Il nome mostrato nell'intestazione e nella pagina di accesso dell'applicazione. Vuoto significa il nome dell'applicazione.",
+   "logoAssetId": "Un asset dell'agente la cui versione corrente contiene l'immagine del logo. Caricane uno in Configurazione, Asset degli agenti.",
+   "primaryColor": "Colore principale dell'interfaccia dell'applicazione, come #RRGGBB. Vuoto mantiene il colore predefinito.",
+   "accentColor": "Secondo colore dell'interfaccia dell'applicazione per i risalti, come #RRGGBB. Vuoto mantiene il colore predefinito.",
+   "welcomeText": "Testo che gli utenti finali vedono prima del primo messaggio, fino a 4000 caratteri.",
+   "id": "L'identificatore dell'applicazione. L'API e i manifest lo accettano così come il nome.",
+   "lastUpdateUtc": "Quando sono cambiate l'ultima volta le impostazioni dell'applicazione.",
+   "createdUtc": "Quando è stata creata l'applicazione.",
+   "membersCell": "Membri dell'applicazione: {{names}}.",
+   "activeBadge": "L'applicazione è attiva: il suo link funziona per le persone ammesse dalla sua impostazione di accesso.",
+   "inactiveBadge": "L'applicazione è inattiva: le impostazioni sono conservate, ma il link e le sessioni non funzionano.",
+   "steps": {
+    "general": "Il nome dell'applicazione, lo slug URL, la descrizione e se è attiva.",
+    "members": "Gli agenti dell'applicazione, l'agente di ingresso e le chiamate tra loro, con un'immagine del grafo.",
+    "environments": "La distribuzione di ingresso che l'applicazione usa in ogni ambiente e l'ambiente in cui è in esecuzione ora.",
+    "access": "Chi può accedere, se gli utenti finali vedono le chiamate a strumenti e il link da condividere.",
+    "branding": "Nome visualizzato, logo, colori e testo di benvenuto che vedono gli utenti finali."
+   },
+   "actions": {
+    "delegation": "Confronta la delega pubblicata di ogni membro con quella richiesta dal grafo e scrive bozze che correggono il disallineamento.",
+    "revisions": "Elenca le revisioni dell'applicazione, ne crea una nuova, la pubblica e promuove l'applicazione all'ambiente successivo."
+   }
+  }
+ },
+ "apps": {
+  "denied": "Per questo ti serve l'autorizzazione {{operation}} su {{resource}}. Chiedi a un amministratore un ruolo che la conceda.",
+  "graph": "Immagine in sola lettura dell'applicazione: i membri, le chiamate tra loro e quali può raggiungere l'agente di ingresso.",
+  "url": "L'indirizzo dell'applicazione. {{who}}",
+  "open": "Apre l'applicazione in una nuova scheda del browser, come la vedono gli utenti finali. {{who}}",
+  "copyUrl": "Copia l'indirizzo dell'applicazione per condividerlo. {{who}}",
+  "signIn": {
+   "TenantUsers": "Qualsiasi utente attivo di questo tenant può accedere.",
+   "AppUsers": "Possono accedere solo gli utenti con il ruolo AppUser su questa applicazione.",
+   "Anonymous": "Chiunque abbia il link può usarla senza accedere.",
+   "AnonymousDisabled": "È scelto Anonimo ma non è attivato, quindi entrano solo gli utenti che hanno eseguito l'accesso e hanno i permessi."
+  },
+  "delegation": {
+   "apply": "Scrive la delega del grafo in una revisione in bozza di ogni membro disallineato. Non viene pubblicato nulla e le bozze manuali non vengono toccate.",
+   "applyNothing": "La delega pubblicata di ogni membro corrisponde già al grafo, quindi non c'è nulla da scrivere.",
+   "openAgent": "Apri l'agente {{name}} per controllare e pubblicare la sua revisione in bozza.",
+   "drift": "La delega pubblicata del membro è diversa da quella richiesta dal grafo. Scrivi le bozze per correggerla, poi pubblicale.",
+   "inSync": "La delega pubblicata del membro corrisponde al grafo.",
+   "draftConflict": "La bozza aperta del membro cambia già la delega in un altro modo, quindi non è stata toccata. Pubblica o scarta prima quella bozza.",
+   "skipped": "Questo membro è stato saltato: {{reason}}.",
+   "draft": "La delega del grafo si trova nella revisione in bozza {{number}} di questo membro. Pubblicala per renderla effettiva.",
+   "columns": {
+    "member": "L'agente membro. Aprilo per controllare le sue revisioni.",
+    "desiredMode": "La modalità di delega richiesta dal grafo: Elenco consentiti quando il membro chiama altri, Nessuna delega quando non chiama nessuno.",
+    "desiredAllowList": "I membri che questo membro chiama nel grafo.",
+    "desiredMaxDepth": "La catena di chiamate più lunga sotto questo membro nel grafo.",
+    "publishedMode": "La modalità di delega nell'ultima revisione pubblicata del membro.",
+    "publishedAllowList": "L'elenco consentiti nell'ultima revisione pubblicata del membro.",
+    "publishedMaxDepth": "La profondità massima nell'ultima revisione pubblicata del membro.",
+    "status": "Se il membro è disallineato dal grafo, e la bozza scritta o il motivo per cui è stato saltato."
+   }
+  },
+  "revisions": {
+   "promote": "Promuovi una revisione pubblicata dell'applicazione: tutti i membri passano insieme all'ambiente successivo, oppure non si sposta nulla.",
+   "promoteNothing": "Pubblica prima una revisione dell'applicazione. Si possono promuovere solo le revisioni pubblicate.",
+   "changeNote": "Una nota su cosa è cambiato, salvata con la revisione. Fino a 2000 caratteri.",
+   "take": "Crea una revisione in bozza dell'applicazione che fissa l'ultima revisione pubblicata di ogni membro e copia le chiamate.",
+   "latest": "L'ultima revisione pubblicata dell'applicazione, usata dalle promozioni a meno che tu non ne scelga un'altra.",
+   "pin": "Questa revisione fissa la revisione {{number}} di {{name}}.",
+   "publishedBy": "Pubblicata da {{name}} il {{when}}.",
+   "publish": "Pubblica questa revisione in bozza dell'applicazione. Dopo non può più cambiare e può essere promossa.",
+   "publishConfirm": "Pubblica la revisione ora. Dopo non si può più modificare.",
+   "columns": {
+    "number": "Il numero di revisione, che parte da 1 per questa applicazione.",
+    "state": "Bozza finché non viene pubblicata. Si possono promuovere solo le revisioni pubblicate.",
+    "members": "Le revisioni dei membri fissate da questa revisione dell'applicazione.",
+    "edges": "Quante chiamate tra membri ha copiato la revisione.",
+    "author": "Chi ha creato la revisione.",
+    "changeNote": "La nota scritta quando è stata creata la revisione.",
+    "publishedUtc": "Quando è stata pubblicata la revisione e da chi.",
+    "actions": "Pubblica una revisione in bozza."
+   }
+  },
+  "promote": {
+   "submit": "Promuovi ora. Le distribuzioni di ogni membro nell'ambiente di destinazione ricevono le revisioni fissate, oppure non cambia nulla.",
+   "revision": "La revisione pubblicata dell'applicazione da promuovere. Si usa l'ultima a meno che tu non ne scelga un'altra.",
+   "source": "L'ambiente da cui promuovere, di solito quello in cui l'applicazione è in esecuzione ora.",
+   "target": "L'ambiente verso cui promuovere. Per impostazione predefinita, quello successivo all'origine."
+  }
+ }
+});

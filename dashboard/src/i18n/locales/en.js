@@ -3383,3 +3383,257 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "apps": {
+    "label": "Apps",
+    "tip": "Agentic apps: groups of agents behind one chat UI for end users, with their call graph, delegation, revisions, and shareable URL."
+   }
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "Tenant users",
+   "AppUsers": "App users",
+   "Anonymous": "Anonymous"
+  },
+  "resourceType": {
+   "AgenticApp": "Agentic app"
+  }
+ },
+ "errorCodes": {
+  "AppSlugTaken": "Another app already uses this URL slug. Slugs are unique across the cluster, so choose a different one.",
+  "NoPublishedRevision": "There is no published revision to use. Publish one first.",
+  "AgentInUse": "This agent is a member of an agentic app. Remove it from the app first."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidName": "Use 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.",
+   "InvalidSlug": "Use 2 to 63 lowercase letters, digits, and hyphens, starting with a letter or digit.",
+   "UnknownAgent": "There is no such agent in this tenant.",
+   "DuplicateMember": "Each agent can be a member only once.",
+   "EntryNotMember": "The entry agent must be one of the members.",
+   "EdgeNotMember": "Both ends of a call must be members of the app.",
+   "SelfEdge": "A member cannot call itself.",
+   "AppGraphCycle": "The calls between members form a cycle. Remove one of the calls in the loop.",
+   "UnreachableMember": "Every member must be reachable from the entry agent through calls.",
+   "UnreachableMemberNamed": "The entry agent cannot reach these members through calls: {{names}}. Add a call to each of them or remove them.",
+   "UnknownEnvironment": "This environment does not exist in the tenant.",
+   "InvalidEntryDeployment": "Choose a deployment of the entry agent in this environment.",
+   "DuplicateEnvironment": "List each environment only once.",
+   "InvalidColor": "Use a color in the form #RRGGBB, for example #1F6FEB.",
+   "UnknownAsset": "There is no such agent asset in this tenant.",
+   "Required": "This field is required.",
+   "TooMany": "There are too many items here."
+  },
+  "serverText": {
+   "appNameConflict": "An app named {{name}} already exists.",
+   "appSlugTaken": "The URL slug {{slug}} is taken. Slugs are unique across the cluster, so choose another.",
+   "appNoPublishedRevision": "App {{name}} has no published revision to promote.",
+   "appMemberNotPublished": "Member {{name}} has no published revision to pin. Publish one first.",
+   "appRevisionPublished": "Revision {{number}} of app {{name}} is already published.",
+   "appNoTargetDeployments": "Member {{member}} has no deployment in environment {{environment}}. Create one there first. Nothing was promoted.",
+   "agentInApps": "Agent {{agent}} is a member of {{apps}}. Remove it from the app first."
+  }
+ },
+ "components": {
+  "form": {
+   "pickColor": "Pick a color for {{field}}"
+  },
+  "apps": {
+   "graph": {
+    "empty": "Add members to see the app's graph.",
+    "summary": "App graph with {{members}} members and {{edges}} calls",
+    "edgeFanOut": "{{caller}} calls {{callee}}, also several at once",
+    "edgeSingle": "{{caller}} calls {{callee}}, one call at a time",
+    "entryNode": "{{name}}, the entry agent",
+    "unreachableNode": "{{name}}, which the entry agent cannot reach",
+    "entry": "entry agent",
+    "unreachable": "not reachable",
+    "legendFanOut": "Calls in parallel allowed",
+    "legendSingle": "One call at a time"
+   },
+   "share": {
+    "noSlug": "Give the app a name or a URL slug to get its link.",
+    "open": "Open",
+    "copy": "Copy app URL",
+    "inactive": "The app is inactive, so the link does not work until you turn it back on.",
+    "signIn": {
+     "TenantUsers": "Any active user of this tenant can sign in.",
+     "AppUsers": "Only users who hold the AppUser role on this app can sign in.",
+     "Anonymous": "Anyone with the link can use the app without signing in. Signed-in users still work.",
+     "AnonymousDisabled": "Anonymous is chosen but not turned on, so nobody gets in without signing in, and only tenant users with access can sign in."
+    }
+   },
+   "delegation": {
+    "title": "Delegation from the app graph",
+    "intro": "The app's calls are its delegation policy. Each member should allow exactly the members it calls, with a maximum depth that covers the longest chain below it. Members whose published revision says otherwise are drifting.",
+    "apply": "Write drafts",
+    "applying": "Writing drafts...",
+    "applied": "Wrote {{drafts}} draft revisions; {{skipped}} members skipped.",
+    "appliedSummary": "Wrote {{drafts}} draft revisions and published nothing. {{skipped}} members were skipped. Review and publish the drafts on each agent's Revisions tab.",
+    "drifting_one": "{{count}} member's published delegation differs from the graph.",
+    "drifting_other": "{{count}} members' published delegation differs from the graph.",
+    "inSync": "Every member's published delegation matches the graph.",
+    "empty": "This app has no members.",
+    "notPublished": "Not published",
+    "drift": "Drift",
+    "inSyncBadge": "In sync",
+    "draftConflict": "Draft conflict",
+    "draft": "Draft {{number}}",
+    "review": "The drafts are not live yet. Open each agent, review the draft on its Revisions tab, and publish it.",
+    "columns": {
+     "member": "Member",
+     "desiredMode": "Graph mode",
+     "desiredAllowList": "Graph allow list",
+     "desiredMaxDepth": "Graph depth",
+     "publishedMode": "Published mode",
+     "publishedAllowList": "Published allow list",
+     "publishedMaxDepth": "Published depth",
+     "status": "Status"
+    }
+   },
+   "revisions": {
+    "title": "App revisions",
+    "intro": "An app revision pins every member's latest published revision and copies the calls between them. Publish it, then promote it to move every member to the next environment together.",
+    "changeNote": "Change note",
+    "changeNotePlaceholder": "What changed since the last revision",
+    "take": "Take revision",
+    "taking": "Taking...",
+    "taken": "Took app revision {{number}}.",
+    "published": "Published app revision {{number}}.",
+    "empty": "No app revisions yet. Take one when every member has a published revision.",
+    "promote": "Promote",
+    "publish": "Publish",
+    "publishTitle": "Publish app revision {{number}}",
+    "publishConfirm": "Publish revision {{number}} of {{name}}? A published revision cannot change, and it becomes the one promotions use by default.",
+    "pin": "{{name}}, revision {{number}}",
+    "columns": {
+     "number": "Revision",
+     "state": "State",
+     "members": "Pinned members",
+     "edges": "Calls",
+     "author": "Author",
+     "changeNote": "Change note",
+     "publishedUtc": "Published",
+     "actions": "Actions"
+    }
+   },
+   "promote": {
+    "title": "Promote app",
+    "intro": "Every member's pinned revision goes to every deployment of that member in the target environment, in one step. If a member has no deployment there, nothing moves.",
+    "revision": "App revision",
+    "latestRevision": "Latest published",
+    "promoted": "Promoted the app to {{target}}: {{deployments}} deployments updated.",
+    "denied": "You may not promote to {{target}}. Promoting needs Execute on Promotion for the target environment."
+   }
+  }
+ },
+ "resources": {
+  "apps": {
+   "title": "Apps",
+   "subtitle": "Groups of agents behind one chat UI for end users. The entry agent talks to people and calls the other members along the app's calls.",
+   "add": "Add app",
+   "create": "Create app",
+   "edit": "Edit app",
+   "view": "App details",
+   "deleteTitle": "Delete app",
+   "emptyTitle": "No apps yet",
+   "emptyBody": "Create an app from agents you already have: pick the members, the entry agent that talks to people, and who calls whom.",
+   "columns": {
+    "name": "Name",
+    "url": "App URL",
+    "entryAgentId": "Entry agent",
+    "members": "Members",
+    "liveEnvironment": "Live environment",
+    "authMode": "Sign-in",
+    "active": "Status",
+    "description": "Description",
+    "id": "ID",
+    "lastUpdateUtc": "Updated",
+    "createdUtc": "Created"
+   },
+   "fields": {
+    "name": "Name",
+    "slug": "URL slug",
+    "description": "Description",
+    "active": "Active",
+    "members": "Members",
+    "membersItems": {
+     "agentId": "Agent",
+     "role": "Role"
+    },
+    "entryAgentId": "Entry agent",
+    "edges": "Calls between members",
+    "edgesItems": {
+     "callerAgentId": "Caller",
+     "calleeAgentId": "Callee",
+     "fanOutAllowed": "Parallel calls allowed"
+    },
+    "graph": "Graph",
+    "environments": "Entry deployment per environment",
+    "environmentsItems": {
+     "environment": "Environment",
+     "deploymentId": "Entry deployment"
+    },
+    "liveEnvironment": "Live environment",
+    "authMode": "Who may use the app",
+    "anonymousEnabled": "Allow anonymous use",
+    "showOperatorDetail": "Show tool calls and thinking to end users",
+    "share": "Shareable link",
+    "displayName": "Display name",
+    "logoAssetId": "Logo",
+    "primaryColor": "Primary color",
+    "accentColor": "Accent color",
+    "welcomeText": "Welcome text"
+   },
+   "hints": {
+    "slug": "The app lives at /apps/{slug}/. Leave empty to use the name. Slugs are unique across the cluster.",
+    "members": "The agents in the app. The role is a short note on what each one does.",
+    "entryAgentId": "The member that talks to end users. Every other member must be reachable from it.",
+    "edges": "Who may call whom. The calls must not form a loop, and they become each member's delegation policy.",
+    "environments": "The entry agent's deployment the app uses in each environment. Without one, the app uses the entry agent's first active deployment there, in name order.",
+    "liveEnvironment": "The environment the app UI talks to.",
+    "anonymousEnabled": "Needed for Anonymous sign-in. Anonymous sessions are short and rate limited.",
+    "showOperatorDetail": "End users always see answers, results, and errors. Turn this on to also show tool calls, thinking, and progress.",
+    "logoAssetId": "The first image in the asset's current version.",
+    "welcomeText": "Shown to end users before they send their first message."
+   },
+   "steps": {
+    "general": "App",
+    "members": "Members and calls",
+    "environments": "Environments",
+    "access": "Sign-in and link",
+    "branding": "Branding"
+   },
+   "actions": {
+    "delegation": "Delegation",
+    "revisions": "Revisions and promotion"
+   },
+   "errors": {
+    "nameTaken": "Another app in this tenant already uses this name."
+   },
+   "addMember": "Add member",
+   "addEdge": "Add call",
+   "addEnvironment": "Add environment",
+   "chooseAgent": "Choose an agent",
+   "chooseEntry": "Choose a member",
+   "rolePlaceholder": "What this member does",
+   "noEntryDeployment": "First active deployment",
+   "noLogo": "No logo",
+   "displayNamePlaceholder": "Shown in the app's header"
+  }
+ }
+});

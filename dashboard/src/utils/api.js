@@ -814,6 +814,74 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, 'capabilities/refresh'), { query: mcpServerId ? { mcpServerId } : null });
   }
 
+  // ------------------------------------------------------------------ agentic apps (AD6)
+
+  /** Agentic apps of the tenant (EnumerationResult, paged like other lists; `search` matches the name). */
+  listApps(tenantId, params) {
+    return this._list(this._t(tenantId, 'apps'), params);
+  }
+
+  /** One app by identifier or name. */
+  getApp(tenantId, idOrName) {
+    return this._request('GET', this._t(tenantId, `apps/${enc(idOrName)}`));
+  }
+
+  /**
+   * Create an app (201). 400 ValidationFailed with field codes (EntryNotMember, EdgeNotMember, AppGraphCycle,
+   * UnreachableMember, InvalidEntryDeployment, and others); 409 NameConflict or AppSlugTaken.
+   */
+  createApp(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'apps'), { body });
+  }
+
+  /** Replace an app. Same errors as createApp. */
+  updateApp(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `apps/${enc(id)}`), { body });
+  }
+
+  /** Delete an app and its revisions (204). Members, deployments, and conversations stay. */
+  deleteApp(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `apps/${enc(id)}`));
+  }
+
+  /** Each member's delegation policy derived from the app graph, against what the member has published (AppDelegationPlan). */
+  getAppDelegation(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `apps/${enc(id)}/delegation`));
+  }
+
+  /**
+   * Write the graph's delegation policy into a draft revision of each drifting member. Nothing is published; a member
+   * whose open draft changes delegation another way is reported with skippedReason DraftConflict.
+   */
+  applyAppDelegation(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `apps/${enc(id)}/delegation`));
+  }
+
+  /** App revisions, newest first. The server answers an array; the result is { items }. */
+  async listAppRevisions(tenantId, id) {
+    const res = await this._request('GET', this._t(tenantId, `apps/${enc(id)}/revisions`));
+    return { items: Array.isArray(res) ? res : res?.objects || res?.items || [] };
+  }
+
+  /** Take an app revision (201, a draft) pinning every member's latest published revision. 409 NoPublishedRevision. */
+  createAppRevision(tenantId, id, changeNote) {
+    return this._request('POST', this._t(tenantId, `apps/${enc(id)}/revisions`), { body: changeNote ? { changeNote } : {} });
+  }
+
+  /** Publish a draft app revision (identifier or number). 409 RevisionPublished. */
+  publishAppRevision(tenantId, id, revision) {
+    return this._request('POST', this._t(tenantId, `apps/${enc(id)}/revisions/${enc(revision)}/publish`));
+  }
+
+  /**
+   * Promote a published app revision (default the latest): body { sourceEnvironment, targetEnvironment?, appRevision?,
+   * allowSkip?, note? }. 201 PromotionRecord; 409 NoTargetDeployments naming the member, NoPublishedRevision; 403
+   * without Execute on Promotion for the target environment.
+   */
+  promoteApp(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `apps/${enc(id)}/promote`), { body });
+  }
+
   // ------------------------------------------------------------------ conversation file spaces (AD3)
 
   /**

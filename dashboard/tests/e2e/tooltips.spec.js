@@ -303,6 +303,46 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await audit(page, 'capability refresh result');
   await closeModal(page);
 
+  // AD6.11: the Apps tab: the URL cell, the row menu, the view dialog with the link and graph, the editor on every step
+  // with members, calls, and environments filled in, the delegation dialog after writing drafts (drift, draft, and
+  // conflict badges), the revisions dialog, and the promote dialog with a target that skips an environment.
+  await page.goto('/dashboard/agents?tab=apps');
+  await settle(page);
+  await audit(page, 'apps list');
+  const appRow = page.locator('.data-table tbody tr', { has: page.locator('strong', { hasText: /^research$/ }) });
+  await appRow.locator('.action-menu-trigger').click();
+  await audit(page, 'app row actions');
+  await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+  await expect(page.getByTestId('app-view')).toBeVisible();
+  await audit(page, 'app details');
+  await closeModal(page);
+  await appRow.locator('td').nth(2).click();
+  for (let i = 0; i < 5; i++) {
+    await page.locator('.modal .stepper-step').nth(i).click();
+    await audit(page, `app editor step ${i + 1}`);
+  }
+  await closeModal(page);
+  await appRow.locator('.action-menu-trigger').click();
+  await page.getByRole('menuitem', { name: 'Delegation', exact: true }).click();
+  await expect(page.getByTestId('app-delegation')).toBeVisible();
+  await audit(page, 'app delegation');
+  await page.getByTestId('app-delegation-apply').click();
+  await expect(page.getByTestId('app-delegation')).toContainText('Draft conflict');
+  await audit(page, 'app delegation after writing drafts');
+  await closeModal(page);
+  await appRow.locator('.action-menu-trigger').click();
+  await page.getByRole('menuitem', { name: 'Revisions and promotion', exact: true }).click();
+  await expect(page.getByTestId('app-revisions')).toBeVisible();
+  await audit(page, 'app revisions');
+  await page.getByTestId('app-promote').click();
+  await page.locator('#app-promote-target').selectOption('prod');
+  await expect(page.locator('#app-promote-allow-skip')).toBeVisible();
+  await audit(page, 'app promote');
+  // Closing the promote dialog returns to the revisions dialog.
+  await page.locator('.modal').last().locator('.modal-header .icon-button').click();
+  await expect(page.getByTestId('app-revisions')).toBeVisible();
+  await closeModal(page);
+
   // AD2.8: the asset form for a system prompt, and the version dialog with a preview and files chosen for upload.
   await page.goto('/dashboard/configuration?tab=agent-assets');
   await settle(page);

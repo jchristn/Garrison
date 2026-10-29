@@ -2667,3 +2667,146 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "apps": "代理式應用程式：在單一終端使用者聊天介面後方的一組代理程式，包含其呼叫圖、委派、修訂、推進與連結。"
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "此租用戶的任何啟用中使用者都可以用電子郵件與密碼登入此應用程式。",
+   "AppUsers": "只有在此應用程式上擁有內建 AppUser 角色的租用戶使用者可以登入。請以此應用程式為資源範圍指派此角色。",
+   "Anonymous": "任何擁有連結的人都可以不登入就使用此應用程式，但前提是也已開啟匿名使用。"
+  }
+ },
+ "form": {
+  "pickColor": "從顏色選擇器選取 {{field}}，不必輸入 #RRGGBB 值。"
+ },
+ "resources": {
+  "apps": {
+   "add": "用現有的代理程式建立應用程式：成員、入口代理程式、它們之間的呼叫，以及使用者如何登入。",
+   "name": "此應用程式在租用戶中的名稱：小寫字母、數字與連字號。清單與 API 以此名稱參照它。",
+   "slug": "URL 名稱，應用程式位於 /apps/{slug}/。在整個叢集中唯一。留空表示使用名稱。",
+   "description": "此應用程式的用途。終端使用者會在應用程式的登入頁面看到它。",
+   "active": "未啟用的應用程式會保留設定，但其連結與工作階段會停止運作。",
+   "url": "應用程式給終端使用者的網址。複製以分享，或開啟以查看終端使用者看到的畫面。",
+   "entryAgentId": "與終端使用者對話並開始每段對話的成員。其他成員都從它抵達。",
+   "members": "應用程式中的代理程式，每個都可附上角色說明。屬於某個應用程式的代理程式無法刪除。",
+   "membersItems": {
+    "agentId": "要納入應用程式的此租用戶代理程式。每個代理程式只能成為成員一次。",
+    "role": "簡短說明此成員在應用程式中的工作，最多 256 個字元。"
+   },
+   "edges": "哪個成員可以呼叫哪個成員。這些呼叫共同構成應用程式的圖，並成為每個成員的委派策略。",
+   "edgesItems": {
+    "callerAgentId": "發出呼叫的成員。",
+    "calleeAgentId": "被呼叫的成員。它必須是與呼叫端不同的成員。",
+    "fanOutAllowed": "讓呼叫端透過 garrison_fan_out 同時啟動此成員的多個執行。"
+   },
+   "graph": "以圖片呈現成員與呼叫，唯讀。入口代理程式位於左側；它無法抵達的成員會以紅框標示。",
+   "environments": "每個環境中應用程式所使用的入口代理程式部署。推進會讓這些設定保持一致。",
+   "environmentsItems": {
+    "environment": "此租用戶的環境，例如 dev、staging 或 prod。",
+    "deploymentId": "入口代理程式在此環境中的部署。只會列出這些部署。"
+   },
+   "liveEnvironment": "應用程式聊天介面目前使用的環境。變更它即可將終端使用者切換到另一個環境。",
+   "authMode": "租用戶使用者、在此應用程式上擁有 AppUser 角色的使用者，或任何擁有連結的人（需開啟匿名使用）。",
+   "anonymousEnabled": "開啟匿名工作階段。只有在此選項開啟且模式為匿名時，匿名登入才有效。",
+   "showOperatorDetail": "向終端使用者顯示每一輪的工具呼叫、思考過程與進度，而不只是回答。",
+   "share": "要提供給終端使用者的連結，以及依上方所選登入設定可以登入的對象。",
+   "displayName": "顯示在應用程式標頭與登入頁面的名稱。留空表示使用應用程式名稱。",
+   "logoAssetId": "目前版本包含標誌圖片的代理程式資產。請在「組態」的「代理程式資產」下上傳。",
+   "primaryColor": "應用程式介面的主要顏色，格式為 #RRGGBB。留空則保留預設顏色。",
+   "accentColor": "應用程式介面用於強調的第二顏色，格式為 #RRGGBB。留空則保留預設顏色。",
+   "welcomeText": "終端使用者在傳送第一則訊息前看到的文字，最多 4000 個字元。",
+   "id": "應用程式的識別碼。API 與清單接受它，也接受名稱。",
+   "lastUpdateUtc": "應用程式設定上次變更的時間。",
+   "createdUtc": "應用程式的建立時間。",
+   "membersCell": "應用程式的成員：{{names}}。",
+   "activeBadge": "此應用程式已啟用：其登入設定允許的人可以使用它的連結。",
+   "inactiveBadge": "此應用程式未啟用：設定會保留，但其連結與工作階段無法使用。",
+   "steps": {
+    "general": "應用程式的名稱、URL 代稱、描述，以及是否啟用。",
+    "members": "應用程式中的代理程式、入口代理程式及它們之間的呼叫，並附上圖。",
+    "environments": "應用程式在各環境使用的入口部署，以及應用程式目前執行的環境。",
+    "access": "誰可以登入、終端使用者是否看到工具呼叫，以及要分享的連結。",
+    "branding": "終端使用者看到的顯示名稱、標誌、顏色與歡迎文字。"
+   },
+   "actions": {
+    "delegation": "比較每個成員的已發佈委派與圖的要求，並寫入修正偏移的草稿。",
+    "revisions": "列出應用程式的修訂、建立新修訂、發佈它，並將應用程式推進到下一個環境。"
+   }
+  }
+ },
+ "apps": {
+  "denied": "此操作需要 {{resource}} 的 {{operation}} 權限。請向管理員申請授予此權限的角色。",
+  "graph": "應用程式的唯讀圖：成員、它們之間的呼叫，以及入口代理程式可以抵達哪些成員。",
+  "url": "應用程式的網址。{{who}}",
+  "open": "在新的瀏覽器分頁開啟應用程式，查看終端使用者看到的畫面。{{who}}",
+  "copyUrl": "複製應用程式的網址以分享。{{who}}",
+  "signIn": {
+   "TenantUsers": "此租用戶的任何啟用中使用者都可以登入。",
+   "AppUsers": "只有在此應用程式上擁有 AppUser 角色的使用者可以登入。",
+   "Anonymous": "任何擁有連結的人都可以不登入就使用。",
+   "AnonymousDisabled": "已選擇匿名但尚未開啟，因此只有具備存取權的已登入使用者能進入。"
+  },
+  "delegation": {
+   "apply": "將圖的委派寫入每個偏移成員的草稿修訂。不會發佈任何項目，手動建立的草稿也不受影響。",
+   "applyNothing": "每個成員的已發佈委派都已與圖相符，沒有需要寫入的內容。",
+   "openAgent": "開啟代理程式 {{name}} 以檢閱並發佈其草稿修訂。",
+   "drift": "此成員的已發佈委派與圖的要求不同。請寫入草稿來修正，然後發佈。",
+   "inSync": "此成員的已發佈委派與圖相符。",
+   "draftConflict": "此成員開啟中的草稿已用其他方式變更委派，因此未予更動。請先發佈或捨棄該草稿。",
+   "skipped": "已略過此成員：{{reason}}。",
+   "draft": "圖的委派位於此成員的草稿修訂 {{number}} 中。發佈後即會生效。",
+   "columns": {
+    "member": "成員代理程式。開啟它以檢閱其修訂。",
+    "desiredMode": "圖所要求的委派模式：成員呼叫其他成員時為允許清單，不呼叫任何成員時為不委派。",
+    "desiredAllowList": "在圖中此成員所呼叫的成員。",
+    "desiredMaxDepth": "在圖中此成員下方最長的呼叫鏈。",
+    "publishedMode": "成員最新已發佈修訂中的委派模式。",
+    "publishedAllowList": "成員最新已發佈修訂中的允許清單。",
+    "publishedMaxDepth": "成員最新已發佈修訂中的最大深度。",
+    "status": "成員是否偏離圖，以及已寫入的草稿或略過的原因。"
+   }
+  },
+  "revisions": {
+   "promote": "推進已發佈的應用程式修訂：所有成員一起移到下一個環境，否則都不移動。",
+   "promoteNothing": "請先發佈應用程式修訂。只有已發佈的修訂可以推進。",
+   "changeNote": "說明變更內容的備註，會與修訂一起保存。最多 2000 個字元。",
+   "take": "建立草稿應用程式修訂，釘選每個成員最新的已發佈修訂並複製呼叫。",
+   "latest": "應用程式最新的已發佈修訂，除非你另選，推進時都會使用它。",
+   "pin": "此修訂釘選了 {{name}} 的修訂 {{number}}。",
+   "publishedBy": "由 {{name}} 於 {{when}} 發佈。",
+   "publish": "發佈此草稿應用程式修訂。發佈後即無法變更，且可以推進。",
+   "publishConfirm": "立即發佈修訂。發佈後無法再編輯。",
+   "columns": {
+    "number": "修訂編號，此應用程式從 1 開始遞增。",
+    "state": "發佈前為草稿。只有已發佈的修訂可以推進。",
+    "members": "此應用程式修訂所釘選的成員修訂。",
+    "edges": "此修訂複製了多少個成員之間的呼叫。",
+    "author": "建立此修訂的人。",
+    "changeNote": "建立修訂時寫下的說明。",
+    "publishedUtc": "修訂的發佈時間與發佈者。",
+    "actions": "發佈草稿修訂。"
+   }
+  },
+  "promote": {
+   "submit": "立即推進。每個成員在目標環境中的部署都會取得釘選的修訂，否則不會有任何變更。",
+   "revision": "要推進的已發佈應用程式修訂。除非你另選，否則使用最新的一個。",
+   "source": "推進的來源環境，通常是應用程式目前執行的環境。",
+   "target": "推進的目標環境。預設為來源之後的環境。"
+  }
+ }
+});

@@ -3356,3 +3356,257 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Agentic apps: the Apps tab, its editor, graph, link, delegation, revisions, and promotion (AD6.11).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "apps": {
+    "label": "應用程式",
+    "tip": "代理式應用程式：在單一聊天介面後方為終端使用者提供服務的一組代理程式，包含其呼叫圖、委派、修訂與可分享的 URL。"
+   }
+  }
+ },
+ "enums": {
+  "appAuthMode": {
+   "TenantUsers": "租用戶使用者",
+   "AppUsers": "應用程式使用者",
+   "Anonymous": "匿名"
+  },
+  "resourceType": {
+   "AgenticApp": "代理式應用程式"
+  }
+ },
+ "errorCodes": {
+  "AppSlugTaken": "另一個應用程式已使用此 URL 代稱。代稱在整個叢集中必須唯一，請選擇其他代稱。",
+  "NoPublishedRevision": "沒有可使用的已發佈修訂。請先發佈一個。",
+  "AgentInUse": "此代理程式是某個代理式應用程式的成員。請先將它從應用程式中移除。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidName": "請使用 1 到 64 個小寫字母、數字與連字號，開頭與結尾必須是字母或數字。",
+   "InvalidSlug": "請使用 2 到 63 個小寫字母、數字與連字號，開頭必須是字母或數字。",
+   "UnknownAgent": "此租用戶中沒有這個代理程式。",
+   "DuplicateMember": "每個代理程式只能成為成員一次。",
+   "EntryNotMember": "入口代理程式必須是成員之一。",
+   "EdgeNotMember": "呼叫的兩端都必須是應用程式的成員。",
+   "SelfEdge": "成員不能呼叫自己。",
+   "AppGraphCycle": "成員之間的呼叫形成了循環。請移除循環中的其中一個呼叫。",
+   "UnreachableMember": "每個成員都必須能從入口代理程式透過呼叫抵達。",
+   "UnreachableMemberNamed": "入口代理程式無法透過呼叫抵達這些成員：{{names}}。請為每個成員新增呼叫，或將它們移除。",
+   "UnknownEnvironment": "此租用戶中沒有這個環境。",
+   "InvalidEntryDeployment": "請選擇入口代理程式在此環境中的部署。",
+   "DuplicateEnvironment": "每個環境只能列出一次。",
+   "InvalidColor": "請使用 #RRGGBB 格式的顏色，例如 #1F6FEB。",
+   "UnknownAsset": "此租用戶中沒有這個代理程式資產。",
+   "Required": "此欄位為必填。",
+   "TooMany": "這裡的項目太多。"
+  },
+  "serverText": {
+   "appNameConflict": "名為 {{name}} 的應用程式已存在。",
+   "appSlugTaken": "URL 代稱 {{slug}} 已被使用。代稱在整個叢集中必須唯一，請選擇其他代稱。",
+   "appNoPublishedRevision": "應用程式 {{name}} 沒有可推進的已發佈修訂。",
+   "appMemberNotPublished": "成員 {{name}} 沒有可釘選的已發佈修訂。請先發佈一個。",
+   "appRevisionPublished": "應用程式 {{name}} 的修訂 {{number}} 已經發佈。",
+   "appNoTargetDeployments": "成員 {{member}} 在環境 {{environment}} 中沒有部署。請先在該環境建立一個。未推進任何項目。",
+   "agentInApps": "代理程式 {{agent}} 是 {{apps}} 的成員。請先將它從應用程式中移除。"
+  }
+ },
+ "components": {
+  "form": {
+   "pickColor": "為 {{field}} 選擇顏色"
+  },
+  "apps": {
+   "graph": {
+    "empty": "新增成員以查看應用程式的圖。",
+    "summary": "應用程式圖，包含 {{members}} 個成員與 {{edges}} 個呼叫",
+    "edgeFanOut": "{{caller}} 呼叫 {{callee}}，也可同時呼叫多個",
+    "edgeSingle": "{{caller}} 呼叫 {{callee}}，一次一個呼叫",
+    "entryNode": "{{name}}，入口代理程式",
+    "unreachableNode": "{{name}}，入口代理程式無法抵達",
+    "entry": "入口代理程式",
+    "unreachable": "無法抵達",
+    "legendFanOut": "允許平行呼叫",
+    "legendSingle": "一次一個呼叫"
+   },
+   "share": {
+    "noSlug": "為應用程式設定名稱或 URL 代稱，即可取得其連結。",
+    "open": "開啟",
+    "copy": "複製應用程式 URL",
+    "inactive": "此應用程式未啟用，因此在你重新啟用之前，連結無法使用。",
+    "signIn": {
+     "TenantUsers": "此租用戶的任何啟用中使用者都可以登入。",
+     "AppUsers": "只有在此應用程式上擁有 AppUser 角色的使用者可以登入。",
+     "Anonymous": "任何擁有連結的人都可以不登入就使用此應用程式。已登入的使用者仍可使用。",
+     "AnonymousDisabled": "已選擇匿名但尚未開啟，因此沒有人能不登入就進入，且只有具備存取權的租用戶使用者可以登入。"
+    }
+   },
+   "delegation": {
+    "title": "依應用程式圖設定委派",
+    "intro": "應用程式的呼叫就是它的委派策略。每個成員應剛好允許它所呼叫的成員，且最大深度須涵蓋其下方最長的呼叫鏈。已發佈修訂與此不符的成員即為偏移。",
+    "apply": "寫入草稿",
+    "applying": "正在寫入草稿...",
+    "applied": "已寫入 {{drafts}} 個草稿修訂；略過 {{skipped}} 個成員。",
+    "appliedSummary": "已寫入 {{drafts}} 個草稿修訂，未發佈任何項目。略過了 {{skipped}} 個成員。請在各代理程式的「修訂」分頁檢閱並發佈草稿。",
+    "drifting_one": "有 {{count}} 個成員的已發佈委派與圖不同。",
+    "drifting_other": "有 {{count}} 個成員的已發佈委派與圖不同。",
+    "inSync": "每個成員的已發佈委派都與圖相符。",
+    "empty": "此應用程式沒有成員。",
+    "notPublished": "未發佈",
+    "drift": "偏移",
+    "inSyncBadge": "已同步",
+    "draftConflict": "草稿衝突",
+    "draft": "草稿 {{number}}",
+    "review": "草稿尚未生效。請開啟每個代理程式，在其「修訂」分頁檢閱草稿並發佈。",
+    "columns": {
+     "member": "成員",
+     "desiredMode": "圖的模式",
+     "desiredAllowList": "圖的允許清單",
+     "desiredMaxDepth": "圖的深度",
+     "publishedMode": "已發佈的模式",
+     "publishedAllowList": "已發佈的允許清單",
+     "publishedMaxDepth": "已發佈的深度",
+     "status": "狀態"
+    }
+   },
+   "revisions": {
+    "title": "應用程式修訂",
+    "intro": "應用程式修訂會釘選每個成員最新的已發佈修訂，並複製成員之間的呼叫。先發佈它，再推進它，讓所有成員一起移到下一個環境。",
+    "changeNote": "變更說明",
+    "changeNotePlaceholder": "自上一個修訂以來的變更",
+    "take": "建立修訂",
+    "taking": "建立中...",
+    "taken": "已建立應用程式修訂 {{number}}。",
+    "published": "已發佈應用程式修訂 {{number}}。",
+    "empty": "尚無應用程式修訂。待每個成員都有已發佈修訂後再建立一個。",
+    "promote": "推進",
+    "publish": "發佈",
+    "publishTitle": "發佈應用程式修訂 {{number}}",
+    "publishConfirm": "要發佈 {{name}} 的修訂 {{number}} 嗎？已發佈的修訂無法變更，並會成為推進時預設使用的修訂。",
+    "pin": "{{name}}（修訂 {{number}}）",
+    "columns": {
+     "number": "修訂",
+     "state": "狀態",
+     "members": "釘選的成員",
+     "edges": "呼叫",
+     "author": "作者",
+     "changeNote": "變更說明",
+     "publishedUtc": "發佈時間",
+     "actions": "動作"
+    }
+   },
+   "promote": {
+    "title": "推進應用程式",
+    "intro": "每個成員釘選的修訂會一次套用到該成員在目標環境中的每個部署。若有成員在該環境沒有部署，則不會推進任何項目。",
+    "revision": "應用程式修訂",
+    "latestRevision": "最新已發佈",
+    "promoted": "已將應用程式推進到 {{target}}：更新了 {{deployments}} 個部署。",
+    "denied": "你無法推進到 {{target}}。推進需要目標環境「升級推進」的「執行」權限。"
+   }
+  }
+ },
+ "resources": {
+  "apps": {
+   "title": "應用程式",
+   "subtitle": "在單一聊天介面後方為終端使用者提供服務的一組代理程式。入口代理程式與使用者對話，並沿著應用程式的呼叫來呼叫其他成員。",
+   "add": "新增應用程式",
+   "create": "建立應用程式",
+   "edit": "編輯應用程式",
+   "view": "應用程式詳細資料",
+   "deleteTitle": "刪除應用程式",
+   "emptyTitle": "尚無應用程式",
+   "emptyBody": "用現有的代理程式建立應用程式：選擇成員、負責與使用者對話的入口代理程式，以及誰呼叫誰。",
+   "columns": {
+    "name": "名稱",
+    "url": "應用程式 URL",
+    "entryAgentId": "入口代理程式",
+    "members": "成員",
+    "liveEnvironment": "上線環境",
+    "authMode": "登入",
+    "active": "狀態",
+    "description": "描述",
+    "id": "ID 識別碼",
+    "lastUpdateUtc": "更新時間",
+    "createdUtc": "建立時間"
+   },
+   "fields": {
+    "name": "名稱",
+    "slug": "URL 代稱",
+    "description": "描述",
+    "active": "啟用",
+    "members": "成員",
+    "membersItems": {
+     "agentId": "代理程式",
+     "role": "角色"
+    },
+    "entryAgentId": "入口代理程式",
+    "edges": "成員之間的呼叫",
+    "edgesItems": {
+     "callerAgentId": "呼叫端",
+     "calleeAgentId": "被呼叫端",
+     "fanOutAllowed": "允許平行呼叫"
+    },
+    "graph": "圖",
+    "environments": "各環境的入口部署",
+    "environmentsItems": {
+     "environment": "環境",
+     "deploymentId": "入口部署"
+    },
+    "liveEnvironment": "上線環境",
+    "authMode": "誰可以使用此應用程式",
+    "anonymousEnabled": "允許匿名使用",
+    "showOperatorDetail": "向終端使用者顯示工具呼叫與思考過程",
+    "share": "可分享的連結",
+    "displayName": "顯示名稱",
+    "logoAssetId": "標誌",
+    "primaryColor": "主要顏色",
+    "accentColor": "強調顏色",
+    "welcomeText": "歡迎文字"
+   },
+   "hints": {
+    "slug": "應用程式位於 /apps/{slug}/。留空則使用名稱。代稱在整個叢集中必須唯一。",
+    "members": "應用程式中的代理程式。角色是簡短說明每個代理程式做什麼。",
+    "entryAgentId": "與終端使用者對話的成員。其他每個成員都必須能從它抵達。",
+    "edges": "誰可以呼叫誰。呼叫不能形成循環，並會成為每個成員的委派策略。",
+    "environments": "應用程式在各環境中使用的入口代理程式部署。若未指定，應用程式會依名稱順序使用入口代理程式在該環境的第一個啟用中部署。",
+    "liveEnvironment": "應用程式介面所連線的環境。",
+    "anonymousEnabled": "匿名登入需要此選項。匿名工作階段較短，且有速率限制。",
+    "showOperatorDetail": "終端使用者一律會看到回答、結果與錯誤。開啟此選項可同時顯示工具呼叫、思考過程與進度。",
+    "logoAssetId": "資產目前版本中的第一張圖片。",
+    "welcomeText": "在終端使用者傳送第一則訊息前顯示。"
+   },
+   "steps": {
+    "general": "應用程式",
+    "members": "成員與呼叫",
+    "environments": "環境",
+    "access": "登入與連結",
+    "branding": "品牌"
+   },
+   "actions": {
+    "delegation": "委派",
+    "revisions": "修訂與推進"
+   },
+   "errors": {
+    "nameTaken": "此租用戶中的另一個應用程式已使用這個名稱。"
+   },
+   "addMember": "新增成員",
+   "addEdge": "新增呼叫",
+   "addEnvironment": "新增環境",
+   "chooseAgent": "選擇代理程式",
+   "chooseEntry": "選擇成員",
+   "rolePlaceholder": "此成員的工作",
+   "noEntryDeployment": "第一個啟用中的部署",
+   "noLogo": "無標誌",
+   "displayNamePlaceholder": "顯示在應用程式的標頭"
+  }
+ }
+});

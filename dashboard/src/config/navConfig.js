@@ -63,7 +63,9 @@ export const NAV_SECTIONS = [
           // P12.5: cron schedules and signed webhooks that start agent runs or pipeline runs.
           { id: 'triggers', slug: 'triggers' },
           // AD4.8: the capability catalog (agents, MCP tools, harness built-ins) with cost and latency hints.
-          { id: 'capabilities', slug: 'capabilities' }
+          { id: 'capabilities', slug: 'capabilities' },
+          // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
+          { id: 'apps', slug: 'apps' }
         ]
       }
     ]

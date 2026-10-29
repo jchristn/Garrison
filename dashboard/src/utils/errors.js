@@ -54,12 +54,13 @@ export function isMissingEndpoint(err) {
 }
 
 /** Field codes the server attaches to 400 ValidationFailed (P9.17); `Invalid` has no translation of its own. */
-export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAllowedValue', 'TooLong', 'UnknownSetting', 'PathRequired', 'OverriddenByEnvironment', 'SettingsFileReadOnly', 'ParameterNotAllowed', 'ParameterInvalid', 'ExpiryInPast', 'InvalidUrl', 'DestinationBlocked', 'EventsRequired', 'InvalidEvent', 'InvalidCron', 'InvalidTimeZone', 'TypeImmutable', 'TargetMismatch', 'PayloadTooLarge', 'SecretUseDenied', 'GrantCeiling', 'ReservedRoleName', 'InvalidAssetPath', 'MacroFormatRefused', 'AssetHasNoFiles', 'AssetTemplateRequired', 'InvalidFilePath', 'InvalidJsonSchema', 'InvalidTags', 'TooManyRequirements'];
+export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAllowedValue', 'TooLong', 'UnknownSetting', 'PathRequired', 'OverriddenByEnvironment', 'SettingsFileReadOnly', 'ParameterNotAllowed', 'ParameterInvalid', 'ExpiryInPast', 'InvalidUrl', 'DestinationBlocked', 'EventsRequired', 'InvalidEvent', 'InvalidCron', 'InvalidTimeZone', 'TypeImmutable', 'TargetMismatch', 'PayloadTooLarge', 'SecretUseDenied', 'GrantCeiling', 'ReservedRoleName', 'InvalidAssetPath', 'MacroFormatRefused', 'AssetHasNoFiles', 'AssetTemplateRequired', 'InvalidFilePath', 'InvalidJsonSchema', 'InvalidTags', 'TooManyRequirements', 'InvalidName', 'InvalidSlug', 'UnknownAgent', 'DuplicateMember', 'EntryNotMember', 'EdgeNotMember', 'SelfEdge', 'AppGraphCycle', 'UnreachableMember', 'UnknownEnvironment', 'InvalidEntryDeployment', 'DuplicateEnvironment', 'InvalidColor', 'UnknownAsset', 'Required', 'TooMany'];
 
 /**
  * Per-field messages from a validation error: each field's machine code (fieldCodes) translated, falling back to
- * the server's message. `special(key, code)` may return a more specific translated message (for example a range
- * with the field's minimum and maximum), or null to use the generic one.
+ * the server's message. `special(key, code, message)` may return a more specific translated message (for example a
+ * range with the field's minimum and maximum, or the member names an app's UnreachableMember message carries), or null
+ * to use the generic one.
  * @returns {Object<string, string>|null}
  */
 export function fieldErrorMessages(t, err, special) {
@@ -70,7 +71,7 @@ export function fieldErrorMessages(t, err, special) {
     const code = err.fieldCodes?.[key];
     let text = null;
     if (code && FIELD_CODES.includes(code)) {
-      text = (special && special(key, code)) || t(`common.fieldCodes.${code}`, { defaultValue: '' }) || null;
+      text = (special && special(key, code, message)) || t(`common.fieldCodes.${code}`, { defaultValue: '' }) || null;
     }
     out[key] = text || message;
   }
