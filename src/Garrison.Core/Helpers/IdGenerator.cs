@@ -398,6 +398,24 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate an agentic app identifier (prefix app_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAgenticAppId()
+        {
+            return New(Constants.AgenticAppIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate an app revision identifier (prefix apv_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAppRevisionId()
+        {
+            return New(Constants.AppRevisionIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a notification endpoint event row identifier (prefix nev_).
         /// </summary>
         /// <returns>Identifier.</returns>

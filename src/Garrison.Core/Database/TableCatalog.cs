@@ -158,6 +158,13 @@ namespace Garrison.Core.Database
                 "harness_profile_tool_probes",
                 "fan_out_groups",
                 "fan_out_group_members",
+                "agentic_apps",
+                "agentic_app_members",
+                "agentic_app_edges",
+                "agentic_app_environments",
+                "app_revisions",
+                "app_revision_members",
+                "app_revision_edges",
         };
 
         private readonly SqlDialect _Dialect;

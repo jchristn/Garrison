@@ -152,6 +152,7 @@ namespace Garrison.Core.Database.Ado
             FileSpaces = new AdoFileSpaceMethods(this);
             Capabilities = new AdoCapabilityMethods(this);
             FanOuts = new AdoFanOutMethods(this);
+            Apps = new AdoAgenticAppMethods(this);
         }
 
         #endregion

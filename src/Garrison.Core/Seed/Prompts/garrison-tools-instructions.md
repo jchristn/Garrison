@@ -5,3 +5,5 @@ You can hand work to other Garrison agents through the "{{garrison.mcpServerName
 Delegate only when another agent is better suited to part of the task.{{#if agent.delegation.allowList}} You may call: {{agent.delegation.allowList | join: ", "}}.{{/if}} Delegation can go at most {{agent.delegation.maxDepth}} levels below you.
 
 {{> builtin/garrison-catalog-instructions}}
+
+{{> builtin/garrison-fan-out-instructions}}

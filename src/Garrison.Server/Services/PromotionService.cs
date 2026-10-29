@@ -200,6 +200,84 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
+        /// Promote an app revision (AD6.4): every member's pinned agent revision goes to every deployment of that member in
+        /// the target environment, in one transaction, under one promotion record, so the members move together or not at
+        /// all. Environment order and authorization work as for an agent promotion.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="app">App.</param>
+        /// <param name="revision">Published app revision to promote.</param>
+        /// <param name="sourceEnvironment">Environment the revision comes from.</param>
+        /// <param name="targetEnvironment">Target environment, or null for the next one.</param>
+        /// <param name="allowSkip">Whether the target may skip environments.</param>
+        /// <param name="note">Note, up to 2000 characters, or null.</param>
+        /// <param name="authorizeTarget">Returns true when the caller may promote into the named environment.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Promotion record, or null when authorizeTarget refused.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        /// <exception cref="ValidationException">Thrown for an unknown environment, NoNextEnvironment, or a long note.</exception>
+        /// <exception cref="ConflictException">Thrown with RevisionNotPublished, PromotionOrderViolation, or NoTargetDeployments naming the member.</exception>
+        public async Task<PromotionRecord?> PromoteAppAsync(RequestContext ctx, string tenantId, AgenticApp app, AppRevision revision, string sourceEnvironment, string? targetEnvironment, bool allowSkip, string? note, Func<string, Task<bool>> authorizeTarget, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (app == null) throw new ArgumentNullException(nameof(app));
+            if (revision == null) throw new ArgumentNullException(nameof(revision));
+            if (authorizeTarget == null) throw new ArgumentNullException(nameof(authorizeTarget));
+            if (note != null && note.Length > 2000) throw new ValidationException("The note is too long.", new Dictionary<string, string> { ["note"] = "At most 2000 characters." });
+            if (revision.State != AgentRevisionStateEnum.Published) throw new ConflictException("RevisionNotPublished", "App revision " + revision.Number + " is a draft; publish it before promoting it.");
+            List<TenantEnvironment> order = (await ListEnvironmentsAsync(tenantId, token).ConfigureAwait(false)).Environments;
+            int sourceIndex = IndexOf(order, sourceEnvironment, "sourceEnvironment");
+            int targetIndex;
+            if (String.IsNullOrEmpty(targetEnvironment))
+            {
+                if (sourceIndex + 1 >= order.Count)
+                {
+                    ValidationException last = new ValidationException("Environment " + sourceEnvironment + " is the last one; there is nothing to promote to.", new Dictionary<string, string> { ["targetEnvironment"] = "No next environment." });
+                    last.Code = "NoNextEnvironment";
+                    throw last;
+                }
+                targetIndex = sourceIndex + 1;
+            }
+            else
+            {
+                targetIndex = IndexOf(order, targetEnvironment, "targetEnvironment");
+            }
+            string target = order[targetIndex].Name;
+            bool skipped = targetIndex != sourceIndex + 1;
+            if (skipped && !allowSkip)
+            {
+                throw new ConflictException("PromotionOrderViolation", "Promotion goes from " + order[sourceIndex].Name + " to the next environment, " + (sourceIndex + 1 < order.Count ? order[sourceIndex + 1].Name : "none") + ", not " + target + ". Set allowSkip to promote out of order.");
+            }
+            if (!await authorizeTarget(target).ConfigureAwait(false)) return null;
+
+            PromotionRecord record = new PromotionRecord();
+            record.TenantId = tenantId;
+            record.Kind = PromotionKindEnum.Promote;
+            record.AppId = app.Id;
+            record.AppRevisionId = revision.Id;
+            record.SourceEnvironment = order[sourceIndex].Name;
+            record.TargetEnvironment = target;
+            record.SkippedEnvironments = skipped;
+            record.Note = note;
+            SetActor(record, ctx);
+            foreach (AppRevisionMember member in revision.Members)
+            {
+                List<Deployment> targets = (await _Server.Database.Deployments.ListByAgentAsync(tenantId, member.AgentId, token).ConfigureAwait(false))
+                    .Where(d => d.Environment == target).OrderBy(d => d.Name, StringComparer.Ordinal).ToList();
+                if (targets.Count == 0) throw new ConflictException("NoTargetDeployments", "Member " + (member.AgentName ?? member.AgentId) + " has no deployment in environment " + target + ". Create one there first; nothing was promoted.");
+                foreach (Deployment deployment in targets)
+                {
+                    record.Items.Add(new PromotionRecordItem { DeploymentId = deployment.Id, DeploymentName = deployment.Name, AgentId = member.AgentId, PreviousRevisionId = deployment.AgentRevisionId, NewRevisionId = member.AgentRevisionId });
+                }
+            }
+            await ApplyAsync(record, token).ConfigureAwait(false);
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Promotion", record.Id, "Promoted revision " + revision.Number + " of app " + app.Name + " from " + record.SourceEnvironment + " to " + target + " (" + record.Items.Count + " deployment(s) of " + revision.Members.Count + " member(s)).", tenantId, token).ConfigureAwait(false);
+            return record;
+        }
+
+        /// <summary>
         /// Roll back a promotion: restore every deployment pin it replaced, in one transaction, and mark it RolledBack.
         /// The caller must hold Execute on Promotion for the promotion's target environment.
         /// </summary>

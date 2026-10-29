@@ -779,6 +779,13 @@ await check("capability catalog", async () => {
   try { await client.capabilities.get(created.id); } catch (e) { missing = e instanceof GarrisonError ? e.statusCode : 0; }
   require(missing === 404, `deleted descriptor read returned ${missing}`);
 });
+await check("fan-out groups", async () => {
+  require(state.run, "no finished run");
+  const groups = await client.fanOutGroups.listByRun(state.run.id);
+  require(Array.isArray(groups) && groups.length === 0, `expected no fan-out groups, got ${JSON.stringify(groups)}`);
+  await expectStatus(404, () => client.fanOutGroups.get("fog_missing"));
+  await expectStatus(404, () => client.fanOutGroups.cancel("fog_missing"));
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

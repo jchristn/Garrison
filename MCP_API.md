@@ -330,6 +330,39 @@ Every run sees its conversation's file space (AD3) at `files/` in its workspace,
 
 A run token always uses its own tree's space and cannot name another. Users and credentials add `conversationId` or `runId` and need Read (or Update, to write or delete) on that conversation or run. `garrison_files_read` returns `path`, `version`, `sha256`, `mediaType`, `sizeBytes`, and `content` for text or `contentBase64` otherwise. `garrison_files_write` returns `requestedPath`, `path`, `version`, `conflict`, and `sha256`: with `baseVersion` set and the file changed since, the write is kept under a conflict name, `conflict` is true, and `path` is that name. Errors use the REST codes: `NotFound`, `InvalidFilePath`, `FileTooLarge`, `FileSpaceFull`, and `TooManyFiles`.
 
+## Fan-out and gather
+
+A run whose agent may delegate can start several agents at once and join them (AD5). Members are ordinary delegated child runs, so the allow list, depth, cycle, and capacity rules apply to each of them.
+
+| Tool | Permission | Arguments |
+|---|---|---|
+| `garrison_fan_out` | Run tokens only; Agent.Execute on each member's agent | `members` (each `agent`, `input`, optional `label`, `deploymentId`, `parameters`); optional `joinPolicy` (`All`, `Any`, `Quorum`), `quorum`, `timeoutSeconds` (0 to 86400), `maxCostUsd`, `maxTokens`, `cancelRemaining` (default true) |
+| `garrison_gather` | The group's parent run, or Run.Read on it | optional `fanOutGroupId` (default the run's latest group), `waitSeconds` |
+| `garrison_cancel_fan_out` | The group's parent run, or Run.Update on it | `fanOutGroupId`; optional `reason` |
+
+`garrison_fan_out` checks every member first: a member that does not exist, is off the allow list, would go too deep or form a cycle, or has an input its schema refuses, refuses the whole call before any child starts, with that check's code and the member's index. More members than `Delegation.MaxFanOutWidth` (default 8) is `FanOutTooWide`. When children could never run (a resident parent on a worker without a child reserve, for example), the call fails with `DelegationCapacityExhausted` and nothing keeps running. An identical call from the same run returns the group it already started. The result is the group with every member's run ID; it never waits.
+
+A group ends once:
+
+- **Joined**: the policy is met. `All` needs every member finished, `Any` one success, and `Quorum` the given number of successes. A group also joins when every member has finished, or when so many have failed that the quorum can no longer be met. With `cancelRemaining`, members still running when `Any` or `Quorum` is met are cancelled.
+- **TimedOut**: `timeoutSeconds` passed first.
+- **BudgetExceeded**: the members' recorded cost or tokens went over `maxCostUsd` or `maxTokens`.
+- **Cancelled**: `garrison_cancel_fan_out` was called, or the parent run finished or was cancelled.
+
+Members still running when a group times out, goes over budget, or is cancelled are cancelled.
+
+`garrison_gather` waits up to `waitSeconds` and returns the group (`FanOutGroupView`), whether or not it ended:
+
+- `status` and `statusReason`.
+- `members`, each with `status`, `outcome`, `resultText` (cut at `Delegation.GatherResultCharLimit`), `structuredOutputJson`, `errorMessage`, and `filesWritten` (paths in the shared file space).
+- `pending` and `failed`, as lists of labels.
+- `costUsd` and `tokens`.
+- `summary`, rendered by the `builtin/fan-out-gather-result` template.
+
+Partial results are always returned. When the parent's deployment has `suspensionEnabled` and the group is still running, gather returns at once with `continuationMarker` `GARRISON_CONTINUATION_WAIT`. The run then finishes its turn and releases its slot. Garrison resumes it when the group ends, and the resumed turn sees each member's result.
+
+Run objects carry `fanOutGroupId`. The REST routes and the `fan-out:{groupId}` WebSocket channel show groups to people (see [REST_API.md](REST_API.md#fan-out-groups) and [WEBSOCKETS_API.md](WEBSOCKETS_API.md)). [examples/fan-out.yaml](examples/fan-out.yaml) runs a fan-out of three on the fake harness.
+
 ## Capability catalog
 
 When delegation is on, runs also get the catalog tools (AD4). See [docs/CAPABILITIES.md](docs/CAPABILITIES.md).

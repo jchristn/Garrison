@@ -104,6 +104,8 @@ namespace Garrison.Server.Runtime
             create.ConversationId = String.IsNullOrWhiteSpace(options.ConversationId) ? null : options.ConversationId.Trim();
             create.StartConversation = options.StartConversation;
             create.ContextId = String.IsNullOrWhiteSpace(options.ContextId) ? null : options.ContextId.Trim();
+            create.FanOutGroupId = options.FanOutGroupId;
+            if (!String.IsNullOrEmpty(options.RunId)) create.RunId = options.RunId;
             create.Surface = options.Surface;
 
             if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId))
@@ -181,7 +183,7 @@ namespace Garrison.Server.Runtime
                 // Admission records the handshake before child creation, so the scheduler can open its reserve.
                 if (create.Parent != null && (options.Wait || options.CallerWaits))
                 {
-                    create.RunId = IdGenerator.NewRunId();
+                    if (String.IsNullOrEmpty(create.RunId)) create.RunId = IdGenerator.NewRunId();
                     waitId = await BeginWaitAsync(create.Parent, create.RunId, options.DurableWait, token).ConfigureAwait(false);
                 }
                 Run run;

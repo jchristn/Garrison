@@ -66,7 +66,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `fanOutGroups`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -300,6 +300,21 @@ await client.capabilities.delete(created.id);
 ```
 
 `refresh` resolves with a `CapabilityRefreshResult`: `agents`, `harnessBuiltIns`, and `hints` counts, plus `mcpServers`, one `CapabilityServerRefresh` per MCP server with `mcpServerId`, `mcpServerName`, `tools`, `removed`, `warned`, and `error` (set when the listing failed). `HarnessProfile.toolProbes` (`HarnessToolProbe[]`) declares the tools a harness can use when the worker host has them: `name` (lowercase letters, digits, dots, and hyphens), `executable` (a bare file name on the worker's PATH), `arguments` (at most one of `HARNESS_TOOL_PROBE_ARGUMENTS`, default `["--version"]`), and `description`. Workers that find the tool report the node label `garrison.io/tool-{name}=true`.
+
+## Fan-out groups
+
+A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; `client.fanOutGroups` reads and cancels them. A `FanOutGroup` has `fanOutGroupId` (`fog_...`), `parentRunId`, `status` (`FanOutGroupStatus`: `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, `Cancelled`; every status but `Running` is final), `statusReason`, `joinPolicy` (`FanOutJoinPolicy`: `All`, `Any`, `Quorum`), `quorum`, the counts `total`, `finished`, and `succeeded`, the label lists `pending` and `failed`, `members`, the totals `costUsd` and `tokens`, the budget `maxCostUsd` and `maxTokens` (absent when unset), `deadlineUtc`, `createdUtc`, and `completedUtc`. `summary`, `continuationMarker`, and `continuationInstruction` are what a harness sees through `garrison_gather` and are normally absent here.
+
+Each `FanOutMember` has `label`, `agent`, `runId` (the child run), `status` (`RunStatus`), `outcome` (absent until it finishes), `resultText` with `resultTruncated`, `structuredOutputJson`, `errorMessage`, `filesWritten` (paths in the shared file space), `costUsd`, and `tokens`. A child run's `Run.fanOutGroupId` names its group.
+
+```js
+const groups = await client.fanOutGroups.listByRun(runId); // oldest first; 404 when the run does not exist
+const group = await client.fanOutGroups.get(groups[0].fanOutGroupId);
+for (const member of group.members) console.log(member.label, member.status, member.runId);
+const cancelled = await client.fanOutGroups.cancel(group.fanOutGroupId); // cancels members still running
+```
+
+A group that does not exist, or belongs to another tenant, rejects with a `GarrisonError` whose `statusCode` is 404.
 
 ## Manifests
 

@@ -8203,6 +8203,117 @@
       ]
     },
     {
+      "name": "Fan-out",
+      "description": "Fan-out groups (AD5): children a run started at once with garrison_fan_out, their join policy, budget, and results. See MCP_API.md.",
+      "item": [
+        {
+          "name": "List a run's fan-out groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/fan-out-groups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "fan-out-groups"
+              ]
+            },
+            "description": "Groups the run started with garrison_fan_out, oldest first. Groups are created by runs through MCP, so a run started over REST has none."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('a list', function () { pm.expect(Array.isArray(json)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown fan-out group",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/fan-out-groups/fog_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "fan-out-groups",
+                "fog_missing"
+              ]
+            },
+            "description": "A group of another tenant, or none at all, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel an unknown fan-out group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/fan-out-groups/fog_missing/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "fan-out-groups",
+                "fog_missing",
+                "cancel"
+              ]
+            },
+            "description": "Cancelling stops every member still running; an unknown group answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Conversations",
       "description": "A conversation is a multi-turn session with one agent. Each turn is a run; every turn after the first resumes the harness session the earlier turns built. Start one with `startConversation` on invoke, create run, or a deployment test, then send `conversationId` with each later turn.",
       "item": [

@@ -106,7 +106,7 @@ namespace Test.Shared.Suites
                 TestResponse badSecret = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, b, new PromptTemplateRequest { Name = "leaky", Content = "{{secret.key}}" }, token).ConfigureAwait(false);
                 Assert.Equal(400, badSecret.StatusCode, "secret reference in a prompt is rejected");
 
-                EnumerationResult<PromptTemplate> all = await HttpTestHelpers.SendAsync<EnumerationResult<PromptTemplate>>(host.AdminClient, HttpMethod.Get, b + "?maxResults=100", null, 200, token).ConfigureAwait(false);
+                EnumerationResult<PromptTemplate> all = await HttpTestHelpers.SendAsync<EnumerationResult<PromptTemplate>>(host.AdminClient, HttpMethod.Get, b + "?search=default-system&maxResults=100", null, 200, token).ConfigureAwait(false);
                 PromptTemplate system = all.Objects.First(t => t.Name == "builtin/default-system");
                 PromptTemplate copy = await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, b + "/" + system.Id + "/clone", new CloneRequest { Name = "my-system" }, 201, token).ConfigureAwait(false);
                 await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Put, b + "/" + copy.Id, new PromptTemplateRequest { Name = "my-system", Kind = PromptTemplateKindEnum.System, Content = "custom" }, 200, token).ConfigureAwait(false);

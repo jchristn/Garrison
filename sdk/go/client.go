@@ -118,6 +118,7 @@ type Client struct {
 	AgentAssets                *AgentAssetsClient
 	FileSpaces                 *FileSpacesClient
 	Capabilities               *CapabilitiesClient
+	FanOutGroups               *FanOutGroupsClient
 	Analytics                  *AnalyticsClient
 	Nodes                      *GlobalResource
 	ControlNodes               *ControlNodesClient
@@ -164,6 +165,7 @@ func NewClient(baseURL string) *Client {
 	c.AgentAssets = &AgentAssetsClient{c: c}
 	c.FileSpaces = &FileSpacesClient{c: c}
 	c.Capabilities = &CapabilitiesClient{c: c}
+	c.FanOutGroups = &FanOutGroupsClient{c: c}
 	c.Analytics = &AnalyticsClient{c: c}
 	c.Nodes = &GlobalResource{c: c, path: "/v1.0/api/nodes"}
 	c.ControlNodes = &ControlNodesClient{c: c}

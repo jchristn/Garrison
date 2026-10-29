@@ -1909,6 +1909,25 @@ func main() {
 		}
 		return nil
 	})
+	check("fan-out groups", func(ctx context.Context) error {
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		groups, err := client.FanOutGroups.ListByRun(ctx, finished.ID)
+		if err != nil {
+			return err
+		}
+		if len(groups) != 0 {
+			return fmt.Errorf("expected no fan-out groups, got %d", len(groups))
+		}
+		if _, err := client.FanOutGroups.Get(ctx, "fog_missing"); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("missing group read should be 404, got %v", err)
+		}
+		if _, err := client.FanOutGroups.Cancel(ctx, "fog_missing"); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("missing group cancel should be 404, got %v", err)
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {

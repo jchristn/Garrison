@@ -146,6 +146,38 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Most children one garrison_fan_out call may start (AD5.2). Minimum 1, maximum 64, default 8. Cluster setting
+        /// Delegation.MaxFanOutWidth.
+        /// </summary>
+        public int MaxFanOutWidth
+        {
+            get
+            {
+                return _MaxFanOutWidth;
+            }
+            set
+            {
+                _MaxFanOutWidth = Math.Clamp(value, 1, 64);
+            }
+        }
+
+        /// <summary>
+        /// Longest result text garrison_gather returns per member, in characters (AD5.3). Minimum 256, maximum 1000000,
+        /// default 16000. Cluster setting Delegation.GatherResultCharLimit.
+        /// </summary>
+        public int GatherResultCharLimit
+        {
+            get
+            {
+                return _GatherResultCharLimit;
+            }
+            set
+            {
+                _GatherResultCharLimit = Math.Clamp(value, 256, 1000000);
+            }
+        }
+
+        /// <summary>
         /// Delegation capacity (P12.38): most queued delegated runs whose parent waits on them, across the cluster, before
         /// a new synchronous delegation fails with DelegationCapacityExhausted. Checked when the parent starts waiting.
         /// Minimum 1, maximum 100000, default 100.
@@ -469,6 +501,8 @@ namespace Garrison.Server.Runtime
         private int _PipelineMaxStages = 20;
         private int _MaxDelegationDepth = 3;
         private int _DelegationChildQueueDepth = 100;
+        private int _MaxFanOutWidth = 8;
+        private int _GatherResultCharLimit = 16000;
         private int _DelegationRetryAfterSeconds = 5;
         private int _ChildWaitOrphanSeconds = 300;
         private int _DeadlineGraceSeconds = 120;

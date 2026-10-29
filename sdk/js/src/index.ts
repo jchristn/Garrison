@@ -208,6 +208,44 @@ export interface CapabilityDescriptor extends Json {
   hints: CapabilityHints; refreshWarning?: string | null; lastRefreshedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
 }
 
+/** States of a fan-out group. Every state other than Running is final. */
+export const FAN_OUT_GROUP_STATUSES = ["Running", "Joined", "TimedOut", "BudgetExceeded", "Cancelled"] as const;
+/** One of {@link FAN_OUT_GROUP_STATUSES}. */
+export type FanOutGroupStatus = typeof FAN_OUT_GROUP_STATUSES[number];
+/**
+ * Fan-out join policies. All joins when every member finished; Any when one member succeeded (or every member finished
+ * without one succeeding); Quorum when quorum members succeeded (or the quorum can no longer be met).
+ */
+export const FAN_OUT_JOIN_POLICIES = ["All", "Any", "Quorum"] as const;
+/** One of {@link FAN_OUT_JOIN_POLICIES}. */
+export type FanOutJoinPolicy = typeof FAN_OUT_JOIN_POLICIES[number];
+
+/**
+ * One member of a fan-out group: a child run with its state and, once finished, its result. status is a run status and
+ * outcome a run outcome (absent until it finishes). resultText is cut at the server's gather limit and resultTruncated
+ * reports the cut. filesWritten holds paths the member wrote in the shared file space. tokens counts input plus output.
+ */
+export interface FanOutMember {
+  label: string; agent: string; runId: string; status: RunStatus; outcome?: RunOutcome | null;
+  resultText?: string | null; resultTruncated: boolean; structuredOutputJson?: string | null; errorMessage?: string | null;
+  filesWritten: string[]; costUsd?: number | null; tokens: number;
+}
+
+/**
+ * A group of child runs a run started with the garrison_fan_out MCP tool. fanOutGroupId has the prefix fog_. pending
+ * lists labels of members still queued or running; failed lists those that failed, timed out, or were cancelled.
+ * costUsd and tokens total the members; maxCostUsd and maxTokens are the budget (absent when unset). Times are ISO 8601
+ * UTC. summary, continuationMarker, and continuationInstruction are what a harness sees through garrison_gather and are
+ * normally absent here.
+ */
+export interface FanOutGroup {
+  fanOutGroupId: string; parentRunId: string; status: FanOutGroupStatus; statusReason?: string | null;
+  joinPolicy: FanOutJoinPolicy; quorum: number; total: number; finished: number; succeeded: number;
+  pending: string[]; failed: string[]; members: FanOutMember[]; costUsd: number; tokens: number;
+  maxCostUsd?: number | null; maxTokens?: number | null; deadlineUtc?: string | null; createdUtc: string; completedUtc?: string | null;
+  summary?: string | null; continuationMarker?: string | null; continuationInstruction?: string | null;
+}
+
 /** Content of a manual capability descriptor for create and update. */
 export interface CapabilityDescriptorInput extends Json {
   name: string; kind: CapabilityKind; summary?: string | null; inputSchemaJson?: string | null; outputSchemaJson?: string | null;
@@ -959,6 +997,8 @@ export interface Run extends Json {
   pipelineExecution?: number;
   /** Trigger that started this run (kind Trigger), or null. */
   triggerId?: string | null;
+  /** Fan-out group this run is a member of, or null when it was not started by garrison_fan_out. */
+  fanOutGroupId?: string | null;
 }
 
 /**
@@ -1497,6 +1537,23 @@ export class Capabilities extends Resource<CapabilityDescriptor> {
 }
 
 /**
+ * Fan-out groups: child runs a run started with the garrison_fan_out MCP tool. Groups are only created by runs, so this
+ * client reads and cancels them. A group that does not exist or belongs to another tenant fails with 404.
+ */
+export class FanOutGroups {
+  constructor(private readonly t: Transport) {}
+  private item(groupId: string): string { return this.t.tenantPath(`/fan-out-groups/${seg(groupId)}`); }
+  /** List the fan-out groups a run started, oldest first (404 when the run does not exist). */
+  async listByRun(runId: string): Promise<FanOutGroup[]> {
+    return (await this.t.request("GET", this.t.tenantPath(`/runs/${seg(runId)}/fan-out-groups`))) ?? [];
+  }
+  /** Read a fan-out group with its members' state and results. */
+  get(groupId: string): Promise<FanOutGroup> { return this.t.request("GET", this.item(groupId)); }
+  /** Cancel a fan-out group; members still running are cancelled. Returns the group as it stands afterwards. */
+  cancel(groupId: string): Promise<FanOutGroup> { return this.t.request("POST", this.item(groupId) + "/cancel"); }
+}
+
+/**
  * Conversation file spaces: versioned files shared by a conversation's turns. Every method takes the owner
  * ("conversations" or "runs") and the conversation or run ID. Errors: 400 InvalidFilePath, 404,
  * 413 FileTooLarge / FileSpaceFull / TooManyFiles.
@@ -1994,6 +2051,8 @@ export class GarrisonClient {
   readonly fileSpaces: FileSpaces;
   /** Capability catalog: agents, MCP tools, and harness built-ins. */
   readonly capabilities: Capabilities;
+  /** Fan-out groups: read and cancel the groups of child runs a run started with garrison_fan_out. */
+  readonly fanOutGroups: FanOutGroups;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
@@ -2037,6 +2096,7 @@ export class GarrisonClient {
     this.agentAssets = new AgentAssets(t, "agent-assets");
     this.fileSpaces = new FileSpaces(t);
     this.capabilities = new Capabilities(t, "capabilities");
+    this.fanOutGroups = new FanOutGroups(t);
     this.harnessProfiles = new HarnessProfiles(t, "harness-profiles");
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");

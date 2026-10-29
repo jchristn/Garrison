@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `fan_out_groups`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -371,6 +371,22 @@ client.capabilities.delete(created["id"])
 ```
 
 `refresh` returns a `CapabilityRefreshResult`: `agents`, `harnessBuiltIns`, and `hints` counts, plus `mcpServers`, one entry per MCP server with `mcpServerId`, `mcpServerName`, `tools`, `removed`, `warned`, and `error` (set when the listing failed). Harness profiles accept `toolProbes`, a list of `HarnessToolProbe` dictionaries: `name` (lowercase letters, digits, dots, and hyphens), `executable` (a bare file name on the worker's PATH), `arguments` (at most one of `HARNESS_TOOL_PROBE_ARGUMENTS`, default `["--version"]`), and `description`. Workers that find the tool report the node label `garrison.io/tool-{name}=true`.
+
+## Fan-out groups
+
+A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; `client.fan_out_groups` reads and cancels them. A `FanOutGroup` has `fanOutGroupId` (`fog_...`), `parentRunId`, `status` (`FAN_OUT_GROUP_STATUSES`: `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, `Cancelled`; every status but `Running` is final), `statusReason`, `joinPolicy` (`FAN_OUT_JOIN_POLICIES`: `All`, `Any`, `Quorum`), `quorum`, the counts `total`, `finished`, and `succeeded`, the label lists `pending` and `failed`, `members`, the totals `costUsd` and `tokens`, the budget `maxCostUsd` and `maxTokens` (absent when unset), `deadlineUtc`, `createdUtc`, and `completedUtc`. `summary`, `continuationMarker`, and `continuationInstruction` are what a harness sees through `garrison_gather` and are normally absent here.
+
+Each `FanOutMember` has `label`, `agent`, `runId` (the child run), `status` (a run status), `outcome` (absent until it finishes), `resultText` with `resultTruncated`, `structuredOutputJson`, `errorMessage`, `filesWritten` (paths in the shared file space), `costUsd`, and `tokens`. A child run's `fanOutGroupId` names its group.
+
+```python
+groups = client.fan_out_groups.list_by_run(run_id)                # oldest first; 404 when the run does not exist
+group = client.fan_out_groups.get(groups[0]["fanOutGroupId"])
+for member in group["members"]:
+    print(member["label"], member["status"], member["runId"])
+cancelled = client.fan_out_groups.cancel(group["fanOutGroupId"])  # cancels members still running
+```
+
+A group that does not exist, or belongs to another tenant, raises `GarrisonError` with status 404.
 
 ## Errors
 

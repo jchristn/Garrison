@@ -340,6 +340,56 @@ class CapabilityRefreshResult(TypedDict, total=False):
     mcpServers: List[CapabilityServerRefresh]
 
 
+class FanOutMember(TypedDict, total=False):
+    """One member of a fan-out group: a child run with its state and, once finished, its result. status is a run status
+    and outcome a run outcome (None until it finishes). resultText is cut at the server's gather limit and
+    resultTruncated reports the cut. filesWritten holds paths the member wrote in the shared file space. tokens counts
+    input plus output tokens."""
+    label: str
+    agent: str
+    runId: str
+    status: str
+    outcome: Optional[str]
+    resultText: Optional[str]
+    resultTruncated: bool
+    structuredOutputJson: Optional[str]
+    errorMessage: Optional[str]
+    filesWritten: List[str]
+    costUsd: Optional[float]
+    tokens: int
+
+
+class FanOutGroup(TypedDict, total=False):
+    """A group of child runs a run started with the garrison_fan_out MCP tool. fanOutGroupId has the prefix fog_. status
+    is one of FAN_OUT_GROUP_STATUSES (every status but Running is final) and joinPolicy one of FAN_OUT_JOIN_POLICIES.
+    pending lists labels of members still queued or running; failed lists those that failed, timed out, or were
+    cancelled. costUsd and tokens total the members; maxCostUsd and maxTokens are the budget (absent when unset). Times
+    are ISO 8601 UTC. summary, continuationMarker, and continuationInstruction are what a harness sees through
+    garrison_gather and are normally absent here."""
+    fanOutGroupId: str
+    parentRunId: str
+    status: str
+    statusReason: Optional[str]
+    joinPolicy: str
+    quorum: int
+    total: int
+    finished: int
+    succeeded: int
+    pending: List[str]
+    failed: List[str]
+    members: List[FanOutMember]
+    costUsd: float
+    tokens: int
+    maxCostUsd: Optional[float]
+    maxTokens: Optional[int]
+    deadlineUtc: Optional[str]
+    createdUtc: str
+    completedUtc: Optional[str]
+    summary: Optional[str]
+    continuationMarker: Optional[str]
+    continuationInstruction: Optional[str]
+
+
 class HarnessToolProbe(TypedDict, total=False):
     """A harness profile "toolProbes" entry. name is 1 to 63 lowercase letters, digits, dots, and hyphens; executable is
     a bare file name on the worker's PATH; arguments holds at most one of HARNESS_TOOL_PROBE_ARGUMENTS."""
@@ -552,6 +602,11 @@ CAPABILITY_KINDS = ("Agent", "McpTool", "HarnessBuiltIn")
 CAPABILITY_ORIGINS = ("Derived", "Manual")
 CAPABILITY_HINT_STATUSES = ("Unknown", "Known")
 HARNESS_TOOL_PROBE_ARGUMENTS = ("--version", "-version", "-v", "-V", "version", "--help", "-h")
+
+# Fan-out groups. FanOutGroup["status"] and ["joinPolicy"]. Run["fanOutGroupId"] names the group a child run belongs
+# to (absent for runs garrison_fan_out did not start).
+FAN_OUT_GROUP_STATUSES = ("Running", "Joined", "TimedOut", "BudgetExceeded", "Cancelled")
+FAN_OUT_JOIN_POLICIES = ("All", "Any", "Quorum")
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -1189,6 +1244,27 @@ class Capabilities(Resource):
         return self._t.request("POST", self._base() + "/refresh", {"mcpServerId": mcp_server_id})
 
 
+class FanOutGroups:
+    """Fan-out groups: child runs a run started with the garrison_fan_out MCP tool. Groups are only created by runs, so
+    this client reads and cancels them. A group that does not exist or belongs to another tenant raises GarrisonError
+    404."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list_by_run(self, run_id: str) -> List[FanOutGroup]:
+        """List the fan-out groups a run started, oldest first (404 when the run does not exist)."""
+        return self._t.request("GET", self._t.tenant_path(f"/runs/{_seg(run_id)}/fan-out-groups")) or []
+
+    def get(self, group_id: str) -> FanOutGroup:
+        """Read a fan-out group with its members' state and results."""
+        return self._t.request("GET", self._t.tenant_path(f"/fan-out-groups/{_seg(group_id)}"))
+
+    def cancel(self, group_id: str) -> FanOutGroup:
+        """Cancel a fan-out group; members still running are cancelled. Returns the group as it stands afterwards."""
+        return self._t.request("POST", self._t.tenant_path(f"/fan-out-groups/{_seg(group_id)}/cancel"))
+
+
 class Environments:
     """The tenant's ordered environment list (promotion path)."""
 
@@ -1737,6 +1813,7 @@ class GarrisonClient:
         self.agent_assets = AgentAssets(t, "agent-assets")
         self.file_spaces = FileSpaces(t)
         self.capabilities = Capabilities(t, "capabilities")
+        self.fan_out_groups = FanOutGroups(t)
 
     @property
     def tenant_id(self) -> Optional[str]:

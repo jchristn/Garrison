@@ -666,6 +666,8 @@ type Run struct {
 	PipelineExecution int `json:"pipelineExecution"`
 	// TriggerID is the trigger that started this run (Kind Trigger); nil otherwise.
 	TriggerID *string `json:"triggerId"`
+	// FanOutGroupID is the fan-out group this run is a member of; nil when it was not started by garrison_fan_out.
+	FanOutGroupID *string `json:"fanOutGroupId,omitempty"`
 }
 
 // Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness

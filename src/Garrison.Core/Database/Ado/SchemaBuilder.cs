@@ -337,6 +337,12 @@ namespace Garrison.Core.Database.Ado
             v39.BuildVersion39();
             migrations.Add(new SchemaMigration(39, "Fan-out groups", v39._Statements, v39._Columns));
 
+            // AD6: agentic apps with members, edges, entry deployments per environment, and app revisions; the app a
+            // conversation belongs to.
+            SchemaBuilder v40 = new SchemaBuilder(catalog, dialect);
+            v40.BuildVersion40();
+            migrations.Add(new SchemaMigration(40, "Agentic apps and app revisions", v40._Statements, v40._Columns));
+
             return migrations;
         }
 
@@ -400,6 +406,89 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion40()
+        {
+            SqlDialect d = _Dialect;
+            Table("agentic_apps",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(64) NOT NULL",
+                "slug VARCHAR(64) NOT NULL",
+                "description " + d.TypeText,
+                "entryagentid " + d.TypeId + " NOT NULL",
+                "liveenvironment VARCHAR(64) NOT NULL",
+                "authmode VARCHAR(32) NOT NULL",
+                "anonymousenabled " + d.TypeBool + " NOT NULL",
+                "showoperatordetail " + d.TypeBool + " NOT NULL",
+                "displayname VARCHAR(128)",
+                "logoassetid " + d.TypeId,
+                "primarycolor VARCHAR(16)",
+                "accentcolor VARCHAR(16)",
+                "welcometext " + d.TypeText,
+                "latestpublishedrevisionid " + d.TypeId,
+                "active " + d.TypeBool + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("agentic_apps", "slug", true, "slug");
+            Index("agentic_apps", "name", true, "tenantid", "name");
+            Table("agentic_app_members",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "appid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "role VARCHAR(256)");
+            Index("agentic_app_members", "parent", false, "appid", "position");
+            Index("agentic_app_members", "agent", false, "agentid");
+            Table("agentic_app_edges",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "appid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "calleragentid " + d.TypeId + " NOT NULL",
+                "calleeagentid " + d.TypeId + " NOT NULL",
+                "fanoutallowed " + d.TypeBool + " NOT NULL");
+            Index("agentic_app_edges", "parent", false, "appid", "position");
+            Table("agentic_app_environments",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "appid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "environment VARCHAR(64) NOT NULL",
+                "deploymentid " + d.TypeId);
+            Index("agentic_app_environments", "parent", false, "appid", "position");
+            Table("app_revisions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "appid " + d.TypeId + " NOT NULL",
+                "number " + d.TypeInt + " NOT NULL",
+                "state VARCHAR(16) NOT NULL",
+                "authorname VARCHAR(256)",
+                "changenote " + d.TypeText,
+                "publishedbyname VARCHAR(256)",
+                "publishedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("app_revisions", "number", true, "appid", "number");
+            Table("app_revision_members",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "agentrevisionid " + d.TypeId + " NOT NULL");
+            Index("app_revision_members", "parent", false, "revisionid", "position");
+            Table("app_revision_edges",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "calleragentid " + d.TypeId + " NOT NULL",
+                "calleeagentid " + d.TypeId + " NOT NULL",
+                "fanoutallowed " + d.TypeBool + " NOT NULL");
+            Index("app_revision_edges", "parent", false, "revisionid", "position");
+            Column("conversations", "appid", d.TypeId);
         }
 
         private void BuildVersion39()

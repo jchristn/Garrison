@@ -176,6 +176,7 @@ namespace Garrison.Server.Runtime
             Run run = new Run();
             if (!String.IsNullOrEmpty(create.RunId)) run.Id = create.RunId;
             run.TenantId = create.TenantId;
+            run.FanOutGroupId = create.FanOutGroupId;
             run.AgentId = create.Agent.Id;
             run.AgentName = create.Agent.Name;
             run.DeploymentId = deployment.Id;

@@ -149,5 +149,15 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Orphaned spaces.</returns>
         Task<List<ConversationFileSpace>> ListOrphansAsync(int max, CancellationToken token = default);
+
+        /// <summary>
+        /// Paths of the files one run wrote in a space (any version), sorted, for fan-out gather results (AD5.3).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="spaceId">File space identifier.</param>
+        /// <param name="runId">Writing run.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Paths.</returns>
+        Task<List<string>> PathsWrittenByRunAsync(string tenantId, string spaceId, string runId, CancellationToken token = default);
     }
 }

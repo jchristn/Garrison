@@ -3,6 +3,7 @@
   { "key": "default-task", "kind": "Task", "description": "Wraps the caller's message and any run parameters." },
   { "key": "delegated-task", "kind": "Task", "description": "Task wrapper used when the caller is another agent." },
   { "key": "garrison-tools-instructions", "kind": "Fragment", "description": "Explains Garrison's delegation tools; included by system prompts when delegation is enabled." },
+  { "key": "garrison-fan-out-instructions", "kind": "Fragment", "description": "Explains the fan-out tools (garrison_fan_out, garrison_gather, garrison_cancel_fan_out), join policies, and budgets; included by builtin/garrison-tools-instructions, so only when delegation is enabled (AD5.6)." },
   { "key": "garrison-catalog-instructions", "kind": "Fragment", "description": "Points the harness at the capability catalog tools (garrison_list_capabilities, garrison_describe_capability) and how to choose between agents, MCP tools, and host tools; included by builtin/garrison-tools-instructions, so only when delegation is enabled (AD4.7)." },
   { "key": "garrison-files-instructions", "kind": "Fragment", "description": "Explains the conversation file space: its mount path in the working directory, that files there persist across turns and are shared with delegated agents, and the garrison_files_* tools; included by system prompts when the run has a file space (AD3)." },
   { "key": "agent-assets-instructions", "kind": "Fragment", "description": "Lists the agent assets (skills, reference files, document templates) placed in the run's workspace; included by system prompts when a placement asks for a listing (AD2.3)." },
@@ -23,5 +24,6 @@
   { "key": "approval-denied", "kind": "Other", "description": "Message a harness receives when Garrison denies a permission request (P12.3). A tenant template named approval-denied of kind Other replaces it for that tenant." },
   { "key": "provider-api-config", "kind": "ConfigFile", "description": "Optional provider API harness configuration, compiled from deployment parameters and resolved MCP servers." },
   { "key": "continuation-resume", "kind": "Task", "description": "Resumes a suspended harness session with reviewed permission decisions; configurable per tenant." },
+  { "key": "fan-out-gather-result", "kind": "Task", "description": "Renders the summary garrison_gather returns: the group's status and each member's result, error, and files written; configurable per tenant (AD5.6)." },
   { "key": "continuation-wait", "kind": "Task", "description": "Requests a resumable harness to finish its current turn at a durable approval or child-wait checkpoint." }
 ]

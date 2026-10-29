@@ -124,6 +124,8 @@ namespace Garrison.Server.Services
                 Int("Scheduling.PauseGraceMs", 5000, 1000, 600000, "Pause tolerance: a maintenance tick that comes more than the maintenance interval plus this long after the previous one (host sleep, frozen VM, clock jump) skips lease expiry, Lost and Offline marking, and deadline enforcement until one heartbeat window plus this grace has passed since the resume."),
                 Int("Runs.DefaultTimeoutSeconds", 1800, 5, 86400, "Default run deadline when neither the deployment nor the profile sets one."),
                 Int("Runs.MaxDelegationDepth", 3, 0, 10, "Maximum agent-to-agent delegation depth."),
+                Int("Delegation.MaxFanOutWidth", 8, 1, 64, "Most children one garrison_fan_out call may start (AD5). A wider call is refused before any child starts."),
+                Int("Delegation.GatherResultCharLimit", 16000, 256, 1000000, "Longest result text garrison_gather returns per member, in characters; longer results are cut and marked truncated."),
                 Int("Runs.QueueDepthCluster", 0, 0, 10000000, "Maximum queued runs cluster-wide; 0 disables the limit. Admission is atomic and QueueFull returns Retry-After."),
                 Int("Runs.QueueDepthTenant", 0, 0, 10000000, "Maximum queued runs per tenant; 0 disables the limit."),
                 Int("Runs.QueueDepthAgent", 0, 0, 10000000, "Maximum queued runs per agent within its tenant; 0 disables the limit."),

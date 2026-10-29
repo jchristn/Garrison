@@ -99,6 +99,11 @@ namespace Garrison.Server.Runtime
         public string? ContextId { get; set; } = null;
 
         /// <summary>
+        /// Fan-out group the new run is a member of (AD5), or null.
+        /// </summary>
+        public string? FanOutGroupId { get; set; } = null;
+
+        /// <summary>
         /// Protocol surface the run came from (rest, mcp, or a2a), used as a metric label. Default rest.
         /// </summary>
         public string Surface { get; set; } = "rest";

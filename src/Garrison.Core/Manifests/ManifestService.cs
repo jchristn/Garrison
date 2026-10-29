@@ -554,6 +554,9 @@ namespace Garrison.Core.Manifests
             profile.Name = document.Metadata.Name;
             profile.TenantId = tenantId;
             profile.IsBuiltIn = false;
+            // A profile without a session format is stored as an empty string; compare it the same way, so applying the
+            // same document again reports Unchanged.
+            profile.SessionFormat ??= String.Empty;
             if (existing != null)
             {
                 profile.Id = existing.Id;

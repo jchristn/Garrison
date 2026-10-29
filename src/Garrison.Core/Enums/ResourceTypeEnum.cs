@@ -213,6 +213,12 @@ namespace Garrison.Core.Enums
         /// Fan-out groups (AD5): children a run started in parallel with garrison_fan_out. Read reads a group and its
         /// results; Update cancels it. Users reach a group through its parent run.
         /// </summary>
-        FanOutGroup
+        FanOutGroup,
+
+        /// <summary>
+        /// Agentic apps (AD6): a group of agents with an entry agent, its graph, app revisions, and its end-user chat UI.
+        /// Execute promotes an app. A resource-scoped AppUser assignment lets a user use one app's chat UI.
+        /// </summary>
+        AgenticApp
     }
 }

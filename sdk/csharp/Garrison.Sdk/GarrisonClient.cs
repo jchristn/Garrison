@@ -199,6 +199,11 @@ namespace Garrison.Sdk
         public CapabilitiesClient Capabilities { get; }
 
         /// <summary>
+        /// Fan-out groups: read and cancel the groups of child runs a run started with garrison_fan_out.
+        /// </summary>
+        public FanOutGroupsClient FanOutGroups { get; }
+
+        /// <summary>
         /// Tenant environments and promotions of agent revisions between them.
         /// </summary>
         public PromotionsClient Promotions { get; }
@@ -288,6 +293,7 @@ namespace Garrison.Sdk
             AgentAssets = new AgentAssetsClient(Transport);
             FileSpaces = new FileSpacesClient(Transport);
             Capabilities = new CapabilitiesClient(Transport);
+            FanOutGroups = new FanOutGroupsClient(Transport);
             Promotions = new PromotionsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);

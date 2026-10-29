@@ -145,6 +145,11 @@ namespace Garrison.Server.Modules
             };
             _StructuredOutput.DecorateSpec = _Scheduler.DecorateSpec;
             _Events.Continuations = continuations;
+            FanOutService fanOuts = new FanOutService(context.Database, _Runs, _Invoker, _Delegation, _Options, context.Logging);
+            fanOuts.Continuations = continuations;
+            _Events.FanOuts = fanOuts;
+            _Maintenance.FanOuts = fanOuts;
+            context.Register(fanOuts);
             _Runs.Approvals = _Approvals;
             _Events.Approvals = _Approvals;
             _Maintenance.Approvals = _Approvals;
@@ -201,6 +206,7 @@ namespace Garrison.Server.Modules
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             new RunRoutes(context, _Runs!, _Events!, _Options!, _Signals!, _Invoker!, _Blocked!).Register(routes);
             new ConversationRoutes(context, _Conversations!, _Blocked!).Register(routes);
+            new FanOutRoutes(context, context.Get<FanOutService>()).Register(routes);
             new AnalyticsRoutes(_Analytics!).Register(routes);
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
@@ -345,6 +351,8 @@ namespace Garrison.Server.Modules
             _Options.QueueDepthAgent = cluster.GetInt("Runs.QueueDepthAgent");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.DelegationChildQueueDepth = cluster.GetInt("Runs.DelegationChildQueueDepth");
+            _Options.MaxFanOutWidth = cluster.GetInt("Delegation.MaxFanOutWidth");
+            _Options.GatherResultCharLimit = cluster.GetInt("Delegation.GatherResultCharLimit");
             _Options.DelegationRetryAfterSeconds = cluster.GetInt("Runs.DelegationRetryAfterSeconds");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
             _Options.MaxRunSeconds = cluster.GetInt("Runtime.MaxRunSeconds");

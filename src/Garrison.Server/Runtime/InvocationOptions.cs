@@ -63,6 +63,17 @@ namespace Garrison.Server.Runtime
         public string? ContextId { get; set; } = null;
 
         /// <summary>
+        /// Fan-out group the new run is a member of (AD5), or null.
+        /// </summary>
+        public string? FanOutGroupId { get; set; } = null;
+
+        /// <summary>
+        /// Run identifier to use for the new run, or null to generate one. Fan-out sets it so the group can name its
+        /// members before they exist.
+        /// </summary>
+        public string? RunId { get; set; } = null;
+
+        /// <summary>
         /// Whether to wait for completion.
         /// </summary>
         public bool Wait { get; set; } = false;

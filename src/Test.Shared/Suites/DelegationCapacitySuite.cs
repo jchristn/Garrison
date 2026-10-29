@@ -509,7 +509,7 @@ namespace Test.Shared.Suites
             return Regex.IsMatch(head, "\"status\":\\s*\"Succeeded\"") ? "ok" : "other";
         }
 
-        private static async Task<TestCluster> StartAsync(DatabaseTypeEnum provider, Action<WorkerSettings>? configure, CancellationToken token)
+        internal static async Task<TestCluster> StartAsync(DatabaseTypeEnum provider, Action<WorkerSettings>? configure, CancellationToken token)
         {
             TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false);
             WorkerHost worker = await TestCluster.StartWorkerAsync(cluster.Server.BaseUrl, "delegation-" + Guid.NewGuid().ToString("N").Substring(0, 6), settings =>
@@ -522,7 +522,7 @@ namespace Test.Shared.Suites
             return cluster;
         }
 
-        private static async Task<HarnessProfile> DelegatingProfileAsync(TestServerHost host, CancellationToken token)
+        internal static async Task<HarnessProfile> DelegatingProfileAsync(TestServerHost host, CancellationToken token)
         {
             // builtin/claude-code with the fake harness as the executable: each --mcp-invoke calls a tool on the Garrison
             // MCP server named in the run's --mcp-config, authenticated with the run token.

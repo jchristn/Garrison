@@ -776,6 +776,11 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_agents":
                         result = await ListAgentsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_fan_out":
+                    case "garrison_gather":
+                    case "garrison_cancel_fan_out":
+                        result = await FanOutToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_list_capabilities":
                     case "garrison_describe_capability":
                         result = await CapabilityToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
@@ -1467,6 +1472,77 @@ namespace Garrison.Server.Protocols
             return list;
         }
 
+        private async Task<object> FanOutToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            FanOutService fanOuts = _Context.Get<FanOutService>();
+            if (tool.Name == "garrison_fan_out")
+            {
+                // Members are children of the calling run, so only a run token can fan out (AD5.2).
+                if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.RunId)) throw ToolError("Forbidden", "Only a run can fan out; its members become its child runs.");
+                Run parent = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run not found.");
+                FanOutRequest request = ManagementArguments<FanOutRequest>(args);
+                try
+                {
+                    return await fanOuts.StartAsync(ctx, parent, request, (agent, ct) => Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, ct), token).ConfigureAwait(false);
+                }
+                catch (DelegationCapacityExhaustedException e)
+                {
+                    throw ToolError(e.Code, e.Message);
+                }
+                catch (ConflictException e)
+                {
+                    throw ToolError(e.Code, e.Message);
+                }
+                catch (ValidationException e)
+                {
+                    throw ToolError(e.Code ?? "ValidationFailed", e.Message);
+                }
+                catch (NotFoundException e)
+                {
+                    throw ToolError("NotFound", e.Message);
+                }
+            }
+            McpFanOutArguments arguments = ManagementArguments<McpFanOutArguments>(args);
+            if (String.IsNullOrWhiteSpace(arguments.FanOutGroupId))
+            {
+                // A run may omit the identifier to use the group it started most recently.
+                if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.RunId)) throw ToolError("ValidationFailed", "fanOutGroupId is required.");
+                List<FanOutGroup> mine = await _Context.Database.FanOuts.ListByParentAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+                arguments.FanOutGroupId = mine.LastOrDefault()?.Id ?? throw ToolError("NotFound", "This run has not started a fan-out group.");
+            }
+            FanOutGroup group = await _Context.Database.FanOuts.ReadAsync(tenantId, arguments.FanOutGroupId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Fan-out group not found.");
+            Run? groupParent = await _Context.Database.Runs.ReadAsync(tenantId, group.ParentRunId, token).ConfigureAwait(false);
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                // A run reaches only the groups it started.
+                if (group.ParentRunId != ctx.RunId) throw ToolError("NotFound", "Fan-out group not found.");
+            }
+            else
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Run, tool.Operation == OperationTypeEnum.Read ? OperationTypeEnum.Read : OperationTypeEnum.Update, group.ParentRunId, token).ConfigureAwait(false);
+            }
+            if (tool.Name == "garrison_cancel_fan_out") return await fanOuts.CancelAsync(group, String.IsNullOrWhiteSpace(arguments.Reason) ? "Cancelled with garrison_cancel_fan_out." : arguments.Reason.Trim(), token).ConfigureAwait(false);
+
+            int maxWait = _Context.Settings.Mcp.MaxToolWaitSeconds;
+            int waitSeconds = Math.Clamp(arguments.WaitSeconds ?? maxWait, 0, maxWait);
+            bool durable = false;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run && groupParent != null)
+            {
+                Deployment? deployment = await _Context.Database.Deployments.ReadAsync(tenantId, groupParent.DeploymentId, token).ConfigureAwait(false);
+                // A parent that can suspend does not hold its slot while members run (AD5.5): it finishes its turn and is
+                // resumed when the group ends.
+                durable = deployment?.SuspensionEnabled == true;
+                if (durable) waitSeconds = 0;
+            }
+            FanOutGroupView view = await fanOuts.GatherAsync(group, waitSeconds, token).ConfigureAwait(false);
+            if (durable && view.Status == FanOutGroupStatusEnum.Running)
+            {
+                view.ContinuationMarker = "GARRISON_CONTINUATION_WAIT";
+                view.ContinuationInstruction = await _Context.Get<ContinuationService>().WaitInstructionAsync(groupParent!, "Child", token).ConfigureAwait(false);
+            }
+            return view;
+        }
+
         private async Task<object> CapabilityToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
         {
             McpCapabilityArguments arguments = ManagementArguments<McpCapabilityArguments>(args);
@@ -1811,6 +1887,7 @@ namespace Garrison.Server.Protocols
             summary.Status = run.Status.ToString();
             summary.Outcome = run.Outcome.ToString();
             summary.ConversationId = run.ConversationId;
+            summary.FanOutGroupId = run.FanOutGroupId;
             summary.ConversationTurn = String.IsNullOrEmpty(run.ConversationId) ? null : run.ConversationTurn;
             summary.BlockedReason = run.BlockedReason?.ToString();
             summary.AwaitingApproval = run.AwaitingApproval;

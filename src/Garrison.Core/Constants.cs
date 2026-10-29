@@ -105,6 +105,12 @@ namespace Garrison.Core
         /// <summary>Fan-out group member identifier prefix (AD5).</summary>
         public const string FanOutMemberIdPrefix = "fom_";
 
+        /// <summary>Agentic app identifier prefix (AD6).</summary>
+        public const string AgenticAppIdPrefix = "app_";
+
+        /// <summary>App revision identifier prefix (AD6).</summary>
+        public const string AppRevisionIdPrefix = "apv_";
+
         /// <summary>
         /// Node label prefix a worker uses to report a harness tool probe that succeeded (AD4.4), for example
         /// garrison.io/tool-pandoc=true. A HarnessBuiltIn capability requires its label, so runs that need the tool are

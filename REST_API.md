@@ -3861,6 +3861,32 @@ A single file can be sent as raw bytes with `Content-Type: application/octet-str
 
 Agent revisions pin assets in `assetPins` (`assetId` as an identifier or name, optional `version`); see [Agent revisions](#agent-revisions).
 
+### Fan-out groups
+
+Groups of child runs a run started with `garrison_fan_out` (AD5); see [MCP_API.md](MCP_API.md#fan-out-and-gather) for how they are started, joined, and bounded.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /runs/{id}/fan-out-groups` | Read on `Run` | `FanOutGroupView[]`, the run's groups, oldest first, 200 |
+| `GET /fan-out-groups/{groupId}` | Read on `FanOutGroup` | `FanOutGroupView`, 200 |
+| `POST /fan-out-groups/{groupId}/cancel` | Update on `FanOutGroup` | `FanOutGroupView`; members still running are cancelled, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`; another tenant's group answers 404.
+
+| Field | Meaning |
+|---|---|
+| `fanOutGroupId`, `parentRunId` | `fog_` identifier and the run that started the group |
+| `status`, `statusReason` | `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, or `Cancelled`, and why it ended |
+| `joinPolicy`, `quorum` | `All`, `Any`, or `Quorum`, and the successes `Quorum` needs |
+| `total`, `finished`, `succeeded`, `pending`, `failed` | Counts, and the labels of members still running and of members that did not succeed |
+| `members` | Each `label`, `agent`, `runId`, `status`, `outcome`, `resultText`, `resultTruncated`, `structuredOutputJson`, `errorMessage`, `filesWritten`, `costUsd`, `tokens` |
+| `costUsd`, `tokens`, `maxCostUsd`, `maxTokens`, `deadlineUtc` | Usage so far and the group's budget and deadline |
+| `createdUtc`, `completedUtc` | When the group started and ended |
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{runId}/fan-out-groups" -H "Authorization: Bearer $TOKEN"
+```
+
 ### Capabilities
 
 The capability catalog (AD4): one descriptor per agent, MCP tool, and harness built-in, with schemas and cost and latency hints. [docs/CAPABILITIES.md](docs/CAPABILITIES.md) explains derivation, tool probes, placement, and hints.
@@ -6126,6 +6152,7 @@ One invocation of one deployment.
 | `sessionId` | `string?` | Harness session identifier. |
 | `servedModel` | `string?` | Model that served the run. |
 | `conversationId` | `string?` | Conversation this run is a turn of, or `null`. Always present. See [Conversations](#conversations). |
+| `fanOutGroupId` | `string?` | The fan-out group this run is a member of, or `null`. See [Fan-out groups](#fan-out-groups). |
 | `fileSpaceId` | `string?` | The file space this run syncs (`cfs_` identifier): its conversation's, its pipeline run's, or its root run's. See [Conversation file spaces](#conversation-file-spaces). |
 | `conversationTurn` | `int` | Turn number within the conversation, starting at 1; 0 outside a conversation. |
 | `resumeSessionId` | `string?` | Harness session this turn resumes on its affinity node, or `null` (first turn, fallback, or no conversation). Always present. |

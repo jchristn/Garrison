@@ -181,7 +181,8 @@ namespace Garrison.Server.Runtime
         {
             Run? run = await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
             if (run == null || run.Status != RunStatusEnum.Suspended || run.PendingApprovals > 0 || run.CancelRequested) return false;
-            List<string> waiting = await _Ado.QueryAsync("SELECT c.id FROM " + _Ado.Table("runs") + " c WHERE c.tenantid = @tenant AND c.parentrunid = @parent AND c.status NOT IN ('Succeeded','Failed','Cancelled','TimedOut','Rejected');",
+            List<string> waiting = await _Ado.QueryAsync("SELECT c.id FROM " + _Ado.Table("runs") + " c WHERE c.tenantid = @tenant AND c.parentrunid = @parent AND c.status NOT IN ('Succeeded','Failed','Cancelled','TimedOut','Rejected') " +
+                "AND (c.fanoutgroupid IS NULL OR EXISTS (SELECT 1 FROM " + _Ado.Table("fan_out_groups") + " g WHERE g.id = c.fanoutgroupid AND g.status = 'Running'));",
                 command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "parent", runId); }, reader => AdoConverters.Str(reader, "id"), token).ConfigureAwait(false);
             if (waiting.Count > 0) return false;
             List<string> uncreated = await _Ado.QueryAsync("SELECT w.childrunid FROM " + _Ado.Table("run_child_waits") + " w WHERE w.tenantid = @tenant AND w.parentrunid = @parent AND NOT EXISTS (SELECT 1 FROM " + _Ado.Table("runs") + " c WHERE c.id = w.childrunid);",

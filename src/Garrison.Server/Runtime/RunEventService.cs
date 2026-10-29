@@ -31,6 +31,11 @@ namespace Garrison.Server.Runtime
         /// <summary>Opt-in durable continuation coordinator.</summary>
         public ContinuationService? Continuations { get; set; } = null;
 
+        /// <summary>
+        /// Fan-out service (AD5); when set, a finished member run re-evaluates its group before its parent is resumed.
+        /// </summary>
+        public FanOutService? FanOuts { get; set; } = null;
+
 
         /// <summary>
         /// Structured output validation and repair. When null, completion reports are recorded without validating
@@ -464,6 +469,7 @@ namespace Garrison.Server.Runtime
             RunTelemetry.Finished(run, labels);
             if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, request.Epoch, token).ConfigureAwait(false);
             _Signals.Complete(run.Id);
+            if (FanOuts != null && !String.IsNullOrEmpty(run.FanOutGroupId)) await FanOuts.OnRunFinishedAsync(run, token).ConfigureAwait(false);
             if (Continuations != null && !String.IsNullOrEmpty(run.ParentRunId)) await Continuations.ResumeAsync(run.TenantId, run.ParentRunId, token).ConfigureAwait(false);
             _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId)
                 + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", labels.Deployment, "model", run.ServedModel, "node", run.LeaseNodeName ?? request.NodeId, "outcome", run.Outcome.ToString()));

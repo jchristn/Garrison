@@ -291,6 +291,11 @@ namespace Garrison.Core.Database
         /// </summary>
         public IFanOutMethods FanOuts { get; protected set; } = null!;
 
+        /// <summary>
+        /// Agentic apps and app revisions (AD6).
+        /// </summary>
+        public IAgenticAppMethods Apps { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

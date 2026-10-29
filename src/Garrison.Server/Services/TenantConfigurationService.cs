@@ -135,6 +135,11 @@ namespace Garrison.Server.Services
             {
                 throw new ConflictException("ReferencedByPipeline", "Agent " + existing.Name + " runs a stage of pipeline" + (pipelines.Count == 1 ? " " : "s ") + String.Join(", ", pipelines) + ". Remove it from " + (pipelines.Count == 1 ? "that pipeline" : "those pipelines") + " first.");
             }
+            List<string> apps = await _Server.Database.Apps.AppsWithMemberAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            if (apps.Count > 0)
+            {
+                throw new ConflictException("AgentInUse", "Agent " + existing.Name + " is a member of app" + (apps.Count == 1 ? " " : "s ") + String.Join(", ", apps) + ". Remove it from " + (apps.Count == 1 ? "that app" : "those apps") + " first.");
+            }
             int cascaded = 0;
             List<Deployment> deployments = await _Server.Database.Deployments.ListByAgentAsync(tenantId, existing.Id, token).ConfigureAwait(false);
             foreach (Deployment deployment in deployments)

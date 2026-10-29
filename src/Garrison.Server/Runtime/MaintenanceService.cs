@@ -65,6 +65,12 @@ namespace Garrison.Server.Runtime
         public CapabilityService? Capabilities { get; set; } = null;
 
         /// <summary>
+        /// Fan-out groups (AD5); when set, the leader evaluates running groups every tick (timeouts, budgets, cancelled
+        /// members, finished parents), and retention removes groups whose parent run is gone.
+        /// </summary>
+        public FanOutService? FanOuts { get; set; } = null;
+
+        /// <summary>
         /// Days to keep run events.
         /// </summary>
         public Func<int> EventRetentionDays { get; set; } = () => 14;
@@ -391,6 +397,8 @@ namespace Garrison.Server.Runtime
             int pipelineRuns = Pipelines != null ? Pruned("pipeline_runs", await _Database.PipelineRuns.PruneFinishedAsync(runCutoff, token).ConfigureAwait(false)) : 0;
             // A file space follows its owner's retention (AD3.2).
             int spaces = FileSpaces != null ? await FileSpaces.RemoveOrphansAsync(token).ConfigureAwait(false) : 0;
+            // A fan-out group follows its parent run (AD5).
+            if (FanOuts != null) await _Database.FanOuts.RemoveOrphansAsync(token).ConfigureAwait(false);
             if (spaces > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, spaces, GarrisonMetrics.Tags("kind", "file_spaces"));
             if (runs > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, runs, GarrisonMetrics.Tags("kind", "runs"));
             if (events > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, events, GarrisonMetrics.Tags("kind", "run_events"));
@@ -544,6 +552,8 @@ namespace Garrison.Server.Runtime
                             _Pause.Touch();
                         }
                     }
+                    FanOutService? fanOuts = FanOuts;
+                    if (fanOuts != null && await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "fan_out", fanOuts.SweepAsync, token).ConfigureAwait(false);
                     CapabilityService? capabilities = Capabilities;
                     if (capabilities != null && await AwakeAsync(token).ConfigureAwait(false))
                     {

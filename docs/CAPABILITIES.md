@@ -102,6 +102,10 @@ All paths are under `/v1.0/api/tenants/{tenantId}`:
 
 A refresh lists stdio servers too, and lists a server only when the caller may use the secrets its templates name. A server the caller may not use reports an error in the result instead. See [REST_API.md](../REST_API.md).
 
+## In the dashboard
+
+Agents > Capabilities lists the catalog with each entry's kind, origin, source, hints, and tags, and filters it by kind, origin, tag, and text. The source links to the agent, the MCP server and tool, or the harness profile and the node label a run needs. Unknown hints show as Unknown. Derived entries open read-only and their Edit and Delete stay disabled, with a tooltip saying where to change the source. Manual entries are created and edited there, and Refresh shows what a refresh changed, server by server. Harness profiles have a Tool probes editor, and the Revisions tab of an agent shows each revision's capabilities and edits the draft's.
+
 ## Settings
 
 | Setting | Default | Range | Environment |

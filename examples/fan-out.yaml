@@ -1,0 +1,90 @@
+# Fan-out and gather with the fake harness (AD5): no model credentials needed.
+#
+#   fan-member        fake harness   answers each task by echoing it
+#   fan-orchestrator  fake harness   starts three fan-member runs in one garrison_fan_out call, then garrison_gather
+#
+# The orchestrator's profile runs the fake harness, which reads the Garrison MCP server from its --mcp-config like
+# Claude Code does and makes each --mcp-invoke call in order. Its answer ends with the gather result.
+#
+# Apply, then invoke the orchestrator:
+#   curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply" \
+#     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" --data-binary @examples/fan-out.yaml
+#   curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/fan-orchestrator/invoke" \
+#     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"input": "Fan out", "wait": true, "waitSeconds": 120}'
+#
+# The run's fan-out group is listed at GET .../runs/{runId}/fan-out-groups. Applying twice changes nothing.
+
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: fan-out-demo
+  description: The fake harness calling Garrison MCP tools named in deployment parameters
+spec:
+  harnessType: Generic
+  executable: garrison-fake-harness
+  promptDelivery: Stdin
+  mcpConfigFormat: ClaudeJson
+  mcpConfigFileName: mcp.json
+  outputParser: ClaudeStreamJson
+  resultSource: ParserFinalEvent
+  defaultTimeoutSeconds: 300
+  files:
+    - baseDirectory: Config
+      pathTemplate: mcp.json
+      contentTemplate: "{{> builtin/claude-code-mcp-config}}"
+      isSecret: true
+      condition: "{{resources.hasMcpServers}}"
+      mode: "600"
+  arguments:
+    - template: --format
+    - template: claude
+    - template: --mcp-config
+      condition: "{{resources.hasMcpServers}}"
+    - template: $GARRISON_CONFIG_DIR/mcp.json
+      condition: "{{resources.hasMcpServers}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.fanOut}}"
+    - template: "{{deployment.parameters.fanOut}}"
+      condition: "{{deployment.parameters.fanOut}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.gather}}"
+    - template: "{{deployment.parameters.gather}}"
+      condition: "{{deployment.parameters.gather}}"
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: fan-member
+  description: Answers one part of a fanned-out task
+spec:
+  displayName: Fan-out member
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: fan-member-fake
+spec:
+  agent: fan-member
+  harnessProfile: builtin/fake
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: fan-orchestrator
+  description: Starts three members at once and gathers their answers
+spec:
+  displayName: Fan-out orchestrator
+  delegation:
+    allow: [fan-member]
+    maxDepth: 1
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: fan-orchestrator-fake
+spec:
+  agent: fan-orchestrator
+  harnessProfile: fan-out-demo
+  parameters:
+    fanOut: 'garrison,garrison_fan_out,{"members":[{"agent":"fan-member","input":"Summarize source A","label":"source-a"},{"agent":"fan-member","input":"Summarize source B","label":"source-b"},{"agent":"fan-member","input":"Summarize source C","label":"source-c"}],"joinPolicy":"All","timeoutSeconds":120}'
+    gather: 'garrison,garrison_gather,{"waitSeconds":110}'

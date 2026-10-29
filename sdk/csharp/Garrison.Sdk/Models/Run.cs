@@ -358,6 +358,11 @@ namespace Garrison.Sdk.Models
         public string? TriggerId { get; set; } = null;
 
         /// <summary>
+        /// Fan-out group this run is a member of, or null when it was not started by garrison_fan_out.
+        /// </summary>
+        public string? FanOutGroupId { get; set; } = null;
+
+        /// <summary>
         /// Model that served the run.
         /// </summary>
         public string? ServedModel { get; set; } = null;

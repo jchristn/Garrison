@@ -79,7 +79,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -219,6 +219,21 @@ await client.Capabilities.DeleteAsync(created.Id);
 ```
 
 `RefreshAsync` refreshes derived descriptors now and returns `CapabilityRefreshResult`: `Agents`, `HarnessBuiltIns`, and `Hints` counts, plus one `CapabilityServerRefresh` per MCP server (`McpServerId`, `McpServerName`, `Tools`, `Removed`, `Warned`, and `Error` when the listing failed). A tool probe (`HarnessToolProbe`) names a tool, a bare `Executable` on the worker's PATH, at most one argument from `HarnessToolProbe.AllowedArguments` (default `--version`), and a `Description`; workers that find the tool report the node label `garrison.io/tool-{name}=true`.
+
+## Fan-out groups
+
+A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; `client.FanOutGroups` reads and cancels them. A `FanOutGroup` has `FanOutGroupId` (`fog_...`), `ParentRunId`, `Status` (`FanOutGroupStatusEnum`: `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, `Cancelled`; every status but `Running` is final), `StatusReason`, `JoinPolicy` (`FanOutJoinPolicyEnum`: `All`, `Any`, `Quorum`), `Quorum`, the counts `Total`, `Finished`, and `Succeeded`, the label lists `Pending` and `Failed`, `Members`, the totals `CostUsd` and `Tokens`, the budget `MaxCostUsd` and `MaxTokens` (null when unset), `DeadlineUtc`, `CreatedUtc`, and `CompletedUtc`. `Summary`, `ContinuationMarker`, and `ContinuationInstruction` are what a harness sees through `garrison_gather` and are normally null here.
+
+Each `FanOutMember` has `Label`, `Agent`, `RunId` (the child run), `Status` (`RunStatusEnum`), `Outcome` (null until it finishes), `ResultText` with `ResultTruncated`, `StructuredOutputJson`, `ErrorMessage`, `FilesWritten` (paths in the shared file space), `CostUsd`, and `Tokens`. A child run's `Run.FanOutGroupId` names its group.
+
+```csharp
+List<FanOutGroup> groups = await client.FanOutGroups.ListByRunAsync(runId); // oldest first; 404 when the run does not exist
+FanOutGroup group = await client.FanOutGroups.GetAsync(groups[0].FanOutGroupId);
+foreach (FanOutMember member in group.Members) Console.WriteLine(member.Label + " " + member.Status + " " + member.RunId);
+FanOutGroup cancelled = await client.FanOutGroups.CancelAsync(group.FanOutGroupId); // cancels members still running
+```
+
+A group that does not exist, or belongs to another tenant, throws `GarrisonException` with status 404.
 
 ## Streaming run events
 

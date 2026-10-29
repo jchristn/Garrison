@@ -1256,6 +1256,33 @@ namespace Garrison.Sdk.Test
                     Require(missing == 404, "deleted descriptor still readable");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("fan-out groups", async () =>
+                {
+                    string runId = invokedRun?.Id ?? throw new InvalidOperationException("no invoked run");
+                    List<FanOutGroup> groups = await client.FanOutGroups.ListByRunAsync(runId, token).ConfigureAwait(false);
+                    Require(groups.Count == 0, "expected no fan-out groups, got " + groups.Count);
+                    int readStatus = 0;
+                    try
+                    {
+                        await client.FanOutGroups.GetAsync("fog_missing", token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        readStatus = e.StatusCode;
+                    }
+                    Require(readStatus == 404, "expected 404 reading a missing fan-out group");
+                    int cancelStatus = 0;
+                    try
+                    {
+                        await client.FanOutGroups.CancelAsync("fog_missing", token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        cancelStatus = e.StatusCode;
+                    }
+                    Require(cancelStatus == 404, "expected 404 cancelling a missing fan-out group");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

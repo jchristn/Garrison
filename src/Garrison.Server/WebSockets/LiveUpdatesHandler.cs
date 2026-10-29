@@ -255,8 +255,19 @@ namespace Garrison.Server.WebSockets
                 if (String.IsNullOrEmpty(conversationId) || await _Context.Database.Conversations.ReadAsync(ctx.TenantId, conversationId, token).ConfigureAwait(false) == null) return "Conversation not found.";
                 return null;
             }
+            if (channel.StartsWith("fan-out:", StringComparison.Ordinal))
+            {
+                // One fan-out group (AD5.7): fan-out.status with members and statuses; Read on the parent run decides.
+                string groupId = channel.Substring("fan-out:".Length);
+                FanOutGroup? group = String.IsNullOrEmpty(groupId) ? null : await _Context.Database.FanOuts.ReadAsync(ctx.TenantId, groupId, token).ConfigureAwait(false);
+                if (group == null) return "Fan-out group not found.";
+                AuthorizationDecision parent = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, group.ParentRunId, token).ConfigureAwait(false);
+                if (!parent.Permitted) return parent.Reason;
+                if (ctx.PrincipalType == PrincipalTypeEnum.Run && ctx.RunId != group.ParentRunId) return "Fan-out group not found.";
+                return null;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, approvals, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, approvals, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -280,6 +291,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("fan-out:", StringComparison.Ordinal)) await PumpFanOutAsync(session, ctx, subscription.Key.Substring("fan-out:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -363,6 +375,18 @@ namespace Garrison.Server.WebSockets
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
             await SendAsync(session, sendLock, new { type = "pipeline-run.status", pipelineRun = run }, token).ConfigureAwait(false);
+        }
+
+        private async Task PumpFanOutAsync(WebSocketSession session, RequestContext ctx, string groupId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            FanOutGroup? group = await _Context.Database.FanOuts.ReadAsync(ctx.TenantId!, groupId, token).ConfigureAwait(false);
+            FanOutService? fanOuts = _Context.TryGet<FanOutService>();
+            if (group == null || fanOuts == null) return;
+            Garrison.Core.Responses.FanOutGroupView view = await fanOuts.ViewAsync(group, false, token).ConfigureAwait(false);
+            string fingerprint = view.Status + ":" + view.CostUsd.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + view.Tokens + ":" + String.Join(",", view.Members.Select(m => m.RunId + "/" + m.Status));
+            if (fingerprint == state.Fingerprint) return;
+            state.Fingerprint = fingerprint;
+            await SendAsync(session, sendLock, new { type = "fan-out.status", fanOutGroup = view }, token).ConfigureAwait(false);
         }
 
         private async Task PumpConversationFilesAsync(WebSocketSession session, RequestContext ctx, string conversationId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)

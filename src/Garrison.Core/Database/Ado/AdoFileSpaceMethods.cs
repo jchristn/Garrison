@@ -135,6 +135,20 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public Task<List<string>> PathsWrittenByRunAsync(string tenantId, string spaceId, string runId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(spaceId)) throw new ArgumentNullException(nameof(spaceId));
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            return _Driver.QueryAsync("SELECT DISTINCT f.path AS path FROM " + _Versions + " v JOIN " + _Files + " f ON f.id = v.fileid WHERE v.tenantid = @tenantid AND f.filespaceid = @spaceid AND v.runid = @runid ORDER BY f.path ASC;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "spaceid", spaceId);
+                AdoDatabaseDriver.Add(command, "runid", runId);
+            }, reader => AdoConverters.Str(reader, "path"), token);
+        }
+
+        /// <inheritdoc />
         public Task<List<ConversationFileVersion>> ListVersionsAsync(string tenantId, string fileId, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

@@ -50,6 +50,11 @@ namespace Garrison.Server.Protocols
         public string? ConversationId { get; set; } = null;
 
         /// <summary>
+        /// Fan-out group the run is a member of (AD5), or null.
+        /// </summary>
+        public string? FanOutGroupId { get; set; } = null;
+
+        /// <summary>
         /// Turn number within the conversation, or null (omitted) outside a conversation.
         /// </summary>
         public int? ConversationTurn { get; set; } = null;

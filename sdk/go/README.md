@@ -204,6 +204,23 @@ err = client.Capabilities.Delete(ctx, created.ID)
 
 `Refresh` returns a `*CapabilityRefreshResult`: `Agents`, `HarnessBuiltIns`, and `Hints` counts, plus `McpServers`, one `CapabilityServerRefresh` per MCP server with `McpServerID`, `McpServerName`, `Tools`, `Removed`, `Warned`, and `Error` (set when the listing failed). `HarnessProfile.ToolProbes` (`[]HarnessToolProbe`) declares the tools a harness can use when the worker host has them: `Name` (lowercase letters, digits, dots, and hyphens), `Executable` (a bare file name on the worker's PATH), `Arguments` (at most one of `garrison.HarnessToolProbeArguments`, default `--version`), and `Description`. Workers that find the tool report the node label `garrison.io/tool-{name}=true`.
 
+## Fan-out groups
+
+A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; it reads them and cancels them. A `garrison.FanOutGroup` has `ID` (`fog_...`), `ParentRunID`, `Status` (`FanOutGroupStatusRunning`, `FanOutGroupStatusJoined`, `FanOutGroupStatusTimedOut`, `FanOutGroupStatusBudgetExceeded`, `FanOutGroupStatusCancelled`; every status but Running is final), `StatusReason`, `JoinPolicy` (`FanOutJoinPolicyAll`, `FanOutJoinPolicyAny`, `FanOutJoinPolicyQuorum`), `Quorum`, the counts `Total`, `Finished`, and `Succeeded`, the label lists `Pending` and `Failed`, `Members`, the totals `CostUSD` and `Tokens`, the budget `MaxCostUSD` and `MaxTokens` (nil when unset), `DeadlineUTC`, `CreatedUTC`, and `CompletedUTC`. `Summary`, `ContinuationMarker`, and `ContinuationInstruction` are what a harness sees through `garrison_gather` and are normally nil here.
+
+Each `garrison.FanOutMember` has `Label`, `Agent`, `RunID` (the child run), `Status` (a run status), `Outcome` (nil until it finishes), `ResultText` with `ResultTruncated`, `StructuredOutputJSON`, `ErrorMessage`, `FilesWritten` (paths in the shared file space), `CostUSD`, and `Tokens`. A child run's `Run.FanOutGroupID` names its group.
+
+```go
+groups, err := client.FanOutGroups.ListByRun(ctx, runID) // oldest first; 404 when the run does not exist
+group, err := client.FanOutGroups.Get(ctx, groups[0].ID)
+for _, m := range group.Members {
+	fmt.Println(m.Label, m.Status, m.RunID)
+}
+cancelled, err := client.FanOutGroups.Cancel(ctx, group.ID) // cancels members still running
+```
+
+A group that does not exist, or belongs to another tenant, is a 404.
+
 ## Streaming run events
 
 ```go
