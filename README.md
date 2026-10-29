@@ -35,7 +35,7 @@ The **agent architect** is a protected agent seeded in every tenant. You give it
 
 An **agentic app** groups agents behind one entry agent. Its edges become each member's delegation policy, and it gets its own URL at `/apps/{slug}/`, branding, and sign-in for tenant users, users holding the `AppUser` role, or anonymous visitors when you allow them. End users chat, watch answers stream, and download the files agents wrote, without ever seeing the operator dashboard ([docs/APPS.md](docs/APPS.md), [docs/APP_UI.md](docs/APP_UI.md)).
 
-In the dashboard, the Agent Studio tab has the architect chat, the canvas, the diff and approval, the playground, compile preview, promotion and rollback, and the architect prompt editor, and the setup wizard can create the architect for you. Everything in the studio is also reachable over REST, MCP, and the four SDKs; the quickstart below uses `curl` so you can see each step.
+In the dashboard, the Agent Studio tab has the architect chat, the canvas, the diff and approval, the playground, compile preview, promotion and rollback, and the architect prompt editor. Architects are reusable across drafts: Agents > Architects lists them and creates, edits, and deletes them, and the setup wizard can create the first one for you. Everything in the studio is also reachable over REST, MCP, and the four SDKs; the quickstart below uses `curl` so you can see each step.
 
 ## Studio quickstart
 
@@ -258,7 +258,7 @@ Authentication is the same on the first four: a bearer session token from `POST 
 | JavaScript and TypeScript | [sdk/js](sdk/js) | `@garrison/sdk` (includes an app gateway client) |
 | Go | [sdk/go](sdk/go) | `github.com/jchristn/Garrison/sdk/go` |
 
-All four cover revisions and promotion, assets, file spaces, capabilities, fan-out groups, apps, studio drafts, architect prompts, and the playground. Each SDK has a README and a test harness, and `scripts/run-sdk-harnesses.sh` starts a local server and worker and runs all four. None of the packages is published to NuGet, PyPI, or npm yet, and the Go module has no tagged release, so install them from this repository; each SDK README shows how.
+All four cover revisions and promotion, assets, file spaces, capabilities, fan-out groups, apps, studio drafts, architects and architect prompts, and the playground. Each SDK has a README and a test harness, and `scripts/run-sdk-harnesses.sh` starts a local server and worker and runs all four. None of the packages is published to NuGet, PyPI, or npm yet, and the Go module has no tagged release, so install them from this repository; each SDK README shows how.
 
 ## Building and testing
 

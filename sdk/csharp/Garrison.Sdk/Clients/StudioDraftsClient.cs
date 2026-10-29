@@ -14,9 +14,10 @@ namespace Garrison.Sdk.Clients
     using Garrison.Sdk.Responses;
 
     /// <summary>
-    /// Studio drafts (AD7): manifest bundles designed before a person approves applying them, their app graph, and the
-    /// architect prompt of architect deployments. Every change names the draft version the caller read and fails with 409
-    /// DraftVersionConflict when the draft moved on, or 409 DraftNotOpen when it is not Open. Reading needs Read on
+    /// Studio drafts (AD7): manifest bundles designed before a person approves applying them, their app graph, the agent
+    /// architects that design them, and the architect prompt of architect deployments. Every change to a draft names the
+    /// draft version the caller read and fails with 409 DraftVersionConflict when the draft moved on, or 409 DraftNotOpen
+    /// when it is not Open. Reading needs Read on
     /// StudioDraft, creating needs Create, editing and requesting an apply need Update, and discarding needs Delete. An
     /// apply request creates a DraftApply approval; decide it with <see cref="ApprovalsClient.DecideAsync"/>, which needs
     /// Create on Manifest. Thread-safe.
@@ -234,15 +235,91 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
-        /// List architect prompts: the built-in ones first, then the tenant's clones of them, then the tenant's other System
-        /// templates, each with the architect deployments that bind it. Needs Read on PromptTemplate.
+        /// List agent architects: tenant deployments that may edit studio drafts (deployments of the built-in agent-architect
+        /// and deployments granted managementAccess Drafts), with their harness, model, and architect prompt. Needs Read on
+        /// Deployment.
         /// </summary>
+        /// <param name="query">Optional paging, ordering, search (part of the name), and activeOnly, or null.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>Entries; never null.</returns>
+        /// <returns>Page of architects; never null.</returns>
         /// <exception cref="GarrisonException">Thrown on a non-success status.</exception>
-        public async Task<List<ArchitectPromptEntry>> ListArchitectPromptsAsync(CancellationToken token = default)
+        public async Task<EnumerationResult<Architect>> ListArchitectsAsync(EnumerationQuery? query = null, CancellationToken token = default)
         {
-            return await Transport.SendAsync<List<ArchitectPromptEntry>>(HttpMethod.Get, TenantPath("/studio/architect-prompts"), token: token).ConfigureAwait(false) ?? new List<ArchitectPromptEntry>();
+            return await Transport.SendAsync<EnumerationResult<Architect>>(HttpMethod.Get, ArchitectsBase(), null, QueryBuilder.From(query), token: token).ConfigureAwait(false) ?? new EnumerationResult<Architect>();
+        }
+
+        /// <summary>
+        /// Read an agent architect. Needs Read on Deployment.
+        /// </summary>
+        /// <param name="deploymentId">Deployment identifier or name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The architect.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when deploymentId is null or empty.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 404 when the deployment is not an architect.</exception>
+        public async Task<Architect> GetArchitectAsync(string deploymentId, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<Architect>(HttpMethod.Get, ArchitectItem(deploymentId), token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
+        /// Create an agent architect: a deployment of the built-in agent-architect with draft access, bound to the chosen
+        /// architect prompt (builtin/agent-architect when none is named). Needs Create on Deployment.
+        /// </summary>
+        /// <param name="request">Name, harness profile, model, active flag, and prompt.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The architect.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on 400 (a missing name or harness profile, InvalidArchitectPrompt) or 409 (NameConflict, ArchitectAgentMissing).</exception>
+        public async Task<Architect> CreateArchitectAsync(ArchitectRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return await Transport.SendAsync<Architect>(HttpMethod.Post, ArchitectsBase(), request, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
+        /// Change an agent architect's name, description, harness profile, model, active flag, and prompt. A null
+        /// ArchitectPromptTemplateId keeps the current prompt; other deployment settings are kept. Needs Update on Deployment.
+        /// </summary>
+        /// <param name="deploymentId">Deployment identifier or name.</param>
+        /// <param name="request">New fields.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The architect.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when deploymentId is null or empty, or request is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on 400 (a missing field, InvalidArchitectPrompt), 404, or 409 NameConflict.</exception>
+        public async Task<Architect> UpdateArchitectAsync(string deploymentId, ArchitectRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return await Transport.SendAsync<Architect>(HttpMethod.Put, ArchitectItem(deploymentId), request, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
+        /// Delete an agent architect (its deployment). Drafts are kept. Needs Delete on Deployment.
+        /// </summary>
+        /// <param name="deploymentId">Deployment identifier or name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when deploymentId is null or empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 404.</exception>
+        public async Task DeleteArchitectAsync(string deploymentId, CancellationToken token = default)
+        {
+            await Transport.SendTextAsync(HttpMethod.Delete, ArchitectItem(deploymentId), token: token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// List architect prompts, one page at a time: the built-in ones first, then the tenant's clones of them, then the
+        /// tenant's other System templates, each with the architect deployments that bind it. The order is fixed, so the
+        /// query's ordering does not apply; search matches part of the template name. Needs Read on PromptTemplate.
+        /// </summary>
+        /// <param name="query">Optional paging (maxResults, skip) and search, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Page of entries; never null.</returns>
+        /// <exception cref="GarrisonException">Thrown on a non-success status.</exception>
+        public async Task<EnumerationResult<ArchitectPromptEntry>> ListArchitectPromptsAsync(EnumerationQuery? query = null, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<EnumerationResult<ArchitectPromptEntry>>(HttpMethod.Get, TenantPath("/studio/architect-prompts"), null, QueryBuilder.From(query), token: token).ConfigureAwait(false) ?? new EnumerationResult<ArchitectPromptEntry>();
         }
 
         /// <summary>
@@ -303,10 +380,20 @@ namespace Garrison.Sdk.Clients
             return DraftItem(id) + "/items/" + Segment(kind) + "/" + Segment(name);
         }
 
-        private string ArchitectPath(string deploymentId)
+        private string ArchitectsBase()
+        {
+            return TenantPath("/studio/architects");
+        }
+
+        private string ArchitectItem(string deploymentId)
         {
             if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
-            return TenantPath("/studio/architects/" + Segment(deploymentId) + "/prompt");
+            return ArchitectsBase() + "/" + Segment(deploymentId);
+        }
+
+        private string ArchitectPath(string deploymentId)
+        {
+            return ArchitectItem(deploymentId) + "/prompt";
         }
 
         #endregion

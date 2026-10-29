@@ -8,16 +8,65 @@ The architect is an ordinary Garrison agent, not a special service. It runs on a
 
 Every tenant gets a protected agent named `agent-architect`. Garrison seeds it at startup and whenever a tenant is created, under the startup lock, so several replicas starting together still leave exactly one. Its published revision pins the skill asset `agent-architect-skills`, which teaches it how to write manifests, how Garrison names and relates things, and how to choose where a capability comes from. The agent cannot be edited or deleted. You change its behavior by giving its deployment a different prompt, not by editing the agent.
 
-It has no deployment until you create one. Pick the harness and model you want the architect to think with; a capable coding harness such as Claude Code is the natural choice:
+It has no deployment until you create an architect. Pick the harness and model you want the architect to think with; a capable coding harness such as Claude Code is the natural choice. The next section shows how.
+
+## Architects
+
+An architect is a deployment of `agent-architect` with `managementAccess: Drafts`, a harness profile, a model, and an architect prompt. Its ID is the deployment ID (`dep_...`). Architects belong to the tenant and are reusable: any studio draft can use any architect, and nothing ties one to a particular draft. Keep one per harness or prompt you like to work with. In the dashboard they are on Agents > Architects (list, create, edit, delete, choose the prompt), and the Architect tab of a draft only picks which architect to talk to.
 
 ```bash
 API=http://127.0.0.1:8700/v1.0/api/tenants/default
-ARCHITECT=$(curl -s "$API/agents/agent-architect" -H "Authorization: Bearer $TOKEN" | jq -r .id)
-curl -s -X POST $API/deployments -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d "{\"name\":\"architect\",\"agentId\":\"$ARCHITECT\",\"harnessProfileId\":\"hrn_builtin_claude_code\",\"architectPromptTemplateId\":\"builtin/agent-architect-guided\"}"
+DEP=$(curl -s -X POST "$API/studio/architects" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"architect","harnessProfileId":"hrn_builtin_claude_code","architectPromptTemplateId":"builtin/agent-architect-guided"}' | jq -r .id)
+curl -s "$API/studio/architects?search=arch&activeOnly=true" -H "Authorization: Bearer $TOKEN"
+curl -s -X PUT "$API/studio/architects/$DEP" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"architect","harnessProfileId":"hrn_builtin_claude_code","model":"claude-opus-4-1","active":true}'
+curl -s -X DELETE "$API/studio/architects/$DEP" -H "Authorization: Bearer $TOKEN"
 ```
 
-A deployment of `agent-architect` always gets `managementAccess: Drafts`. Leave out `architectPromptTemplateId` and it binds `builtin/agent-architect`. Then talk to it in a conversation like any other agent. It works on the drafts of the person talking to it, with that person's permissions and no more.
+| Method and path | Permission | Result |
+|---|---|---|
+| `GET /studio/architects` | Read on `Deployment` | `EnumerationResult<Architect>`. Query: `maxResults` (1 to 1000, default 25), `skip`, `ordering`, `search` (part of a name), `activeOnly` |
+| `POST /studio/architects` | Create on `Deployment` | `Architect`, 201 |
+| `GET /studio/architects/{deploymentId}` | Read on `Deployment` | `Architect`, 200 |
+| `PUT /studio/architects/{deploymentId}` | Update on `Deployment` | `Architect`, 200 |
+| `DELETE /studio/architects/{deploymentId}` | Delete on `Deployment` | 204 |
+
+`{deploymentId}` takes the deployment ID or its name. A deployment that exists but is not an architect answers 404, the same as one that does not exist.
+
+The request body, `ArchitectRequest`, is the same for create and update:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | Required. Unique among the tenant's deployments |
+| `description` | string? | Optional |
+| `harnessProfileId` | string | Required. Harness profile ID, such as `hrn_builtin_claude_code` |
+| `model` | string? | Null for the harness profile's default model |
+| `active` | bool | Whether the architect accepts new turns. Default true |
+| `architectPromptTemplateId` | string? | A `System` template ID or name. On create, null binds `builtin/agent-architect`; on update, null keeps the current prompt |
+| `architectPromptVersion` | int? | Version to pin, minimum 1, or null to follow the template's current version. Give it together with `architectPromptTemplateId` |
+
+An update changes only these fields. The deployment's other settings (limits, executor, egress rules, and so on) stay as they are, and you edit them through the ordinary deployment routes. A prompt change takes effect on the architect's next turn ([the next-turn rule](#the-next-turn-rule)).
+
+The response, `Architect`, has `id`, `tenantId`, `name`, `description`, `agentId`, `agentName` (null when the agent cannot be read), `harnessProfileId`, `model`, `active`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (the pin, or null), `architectPromptCurrentVersion`, `configVersion`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
+
+The list includes every deployment with `managementAccess: Drafts` and every deployment of the built-in `agent-architect`, so an architect created through `POST /deployments` or a manifest shows up as well.
+
+Errors:
+
+- 400 `ValidationFailed` when `name` or `harnessProfileId` is missing, or `architectPromptVersion` comes without `architectPromptTemplateId`.
+- 400 `InvalidArchitectPrompt` when the template is not a `System` template the tenant can read.
+- 409 `NameConflict` when another deployment has the name.
+- 409 `ArchitectAgentMissing` on create when the tenant has no built-in `agent-architect`. Restarting the server seeds it.
+- 409 `Protected` on update or delete when the deployment is protected, and on delete 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, or `ReferencedByPipeline` when something still names it.
+
+Deleting an architect removes its deployment. Drafts are kept; only their conversations with that architect end.
+
+The MCP tools `garrison_studio_list_architects` (`search`, `activeOnly`, `maxResults` 1 to 100, `skip`), `garrison_studio_get_architect`, `garrison_studio_create_architect`, `garrison_studio_update_architect`, and `garrison_studio_delete_architect` do the same for users and credentials ([MCP_API.md](../MCP_API.md#studio-drafts)). The update tool is partial: fields you leave out keep their values. The delete tool returns `{"id": "dep_...", "deleted": true}`.
+
+You can still create an architect as a plain deployment of `agent-architect` with `POST /deployments`, which accepts `architectPromptTemplateId` and `architectPromptVersion` on create. A deployment of `agent-architect` always gets `managementAccess: Drafts`, and without a prompt it binds `builtin/agent-architect`.
+
+Talk to an architect in a conversation like any other agent. It works on the drafts of the person talking to it, with that person's permissions and no more.
 
 ## What it does in a draft
 
@@ -56,7 +105,7 @@ Where an architect prompt is selected (`architectPromptTemplateId`), a template 
 
 The clone belongs to your tenant, starts at version 1, and remembers which built-in it came from (`builtInKey`). Its name, description, and body are yours to change, and every save is a new version with the usual history, restore, and render preview ([PROMPTS.md](PROMPTS.md)). Reset on a clone brings back the shipped text of its built-in as a new version, which is the quickest way out of an experiment that went wrong. A clone can include the design and runtime fragments as the built-ins do, or replace them with your own text.
 
-`GET $API/studio/architect-prompts` lists what you can choose from, in this order: the built-ins, then your tenant's clones of them, then any other `System` template in the tenant. Each entry has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments`, the architect deployments that use it right now. Templates of other tenants never appear. Listing needs Read on `PromptTemplate`.
+`GET $API/studio/architect-prompts` lists what you can choose from, in this order: the built-ins, then your tenant's clones of them, then any other `System` template in the tenant. The answer is an `EnumerationResult<ArchitectPromptEntry>` (`success`, `maxResults`, `skip`, `totalRecords`, `recordsRemaining`, `endOfResults`, `timestampUtc`, `objects`). It takes `maxResults` (1 to 1000, default 25), `skip`, and `search` (part of the template name); the order stays fixed, so `ordering` has no effect. Each entry in `objects` has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments`, the architect deployments that use it right now. Templates of other tenants never appear. Listing needs Read on `PromptTemplate`.
 
 ### Selecting a prompt
 
@@ -69,7 +118,7 @@ curl -s -X PUT "$API/studio/architects/$DEP/prompt" -H "Authorization: Bearer $T
   -d "{\"architectPromptTemplateId\":\"$CLONE\"}"
 ```
 
-Both return an `ArchitectPromptSelection`: `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (the pin, or null), and `currentVersion`. Reading needs Read on `Deployment`, and changing needs Update on it. The MCP tools `garrison_studio_list_architect_prompts`, `garrison_studio_get_architect_prompt`, and `garrison_studio_set_architect_prompt` do the same.
+Both return an `ArchitectPromptSelection`: `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (the pin, or null), and `currentVersion`. Reading needs Read on `Deployment`, and changing needs Update on it. The MCP tools `garrison_studio_list_architect_prompts` (`search`, `maxResults` 1 to 100, `skip`), `garrison_studio_get_architect_prompt`, and `garrison_studio_set_architect_prompt` do the same. `PUT /studio/architects/{deploymentId}` with `architectPromptTemplateId` changes the prompt too.
 
 Only architect deployments take an architect prompt: deployments of `agent-architect`, or of any agent whose deployment has `managementAccess: Drafts`. Anything else answers 400 `NotAnArchitectDeployment`. The template must be a `System` template your tenant can read, or the answer is 400 `InvalidArchitectPrompt`.
 
@@ -87,7 +136,7 @@ Deleting a template that any deployment binds, pinned or not, is refused with 40
 
 ### Who may change the prompt
 
-People and credentials, with the permissions above. Runs never can: the architect prompt tools and the prompt template tools (`garrison_clone_prompt_template`, `garrison_update_prompt_template`, `garrison_reset_prompt_template`, `garrison_render_prompt_template`) are hidden from every run token and refused if called, including the architect's own runs. The architect can propose changes to your agents, but it cannot rewrite its own instructions.
+People and credentials, with the permissions above. Runs never can: the architect tools, the architect prompt tools and the prompt template tools (`garrison_clone_prompt_template`, `garrison_update_prompt_template`, `garrison_reset_prompt_template`, `garrison_render_prompt_template`) are hidden from every run token and refused if called, including the architect's own runs. The architect can propose changes to your agents, but it cannot rewrite its own instructions.
 
 ## The Drafts grant
 
@@ -175,4 +224,4 @@ The same deployment is a valid target for `PUT .../studio/architects/{id}/prompt
 
 ## Status
 
-The architect, its prompts, selection, the next-turn rule, and the delete protection are built and tested on Sqlite and PostgreSQL. In the dashboard, the setup wizard's Agent Studio step creates the first architect with a chosen prompt, Agent Studio > New architect creates more, and the Architect prompt tab in a draft lists, clones, edits, resets, and selects architect prompts. The REST routes, MCP tools, and SDKs shown here do the same.
+The architect, its prompts, selection, the next-turn rule, and the delete protection are built and tested on Sqlite and PostgreSQL. The architect resource (`/studio/architects`) and its MCP tools are covered by the Touchstone case `studio-*: architects`. In the dashboard, the setup wizard's Agent Studio step creates the first architect with a chosen prompt, Agents > Architects lists, creates, edits, and deletes architects and chooses their prompts, a draft's Architect tab picks which architect to use, and the Architect prompt tab in a draft lists, clones, edits, resets, and selects architect prompts. The REST routes, MCP tools, and SDKs shown here do the same.

@@ -873,7 +873,7 @@ await check("studio draft: items, graph, diff, request-apply, and apply", async 
   }
 });
 await check("architect prompts", async () => {
-  const prompts = await client.studioDrafts.listArchitectPrompts();
+  const prompts = (await client.studioDrafts.listArchitectPrompts()).objects;
   require(prompts.length > 0 && prompts[0].name === "builtin/agent-architect" && prompts[0].isBuiltIn === true, `architect prompts ${JSON.stringify(prompts[0])}`);
   const clone = await client.promptTemplates.clone(prompts[0].id, `sdk-js-architect-${suffix}`);
   let deploymentId;
@@ -892,6 +892,37 @@ await check("architect prompts", async () => {
   } finally {
     if (deploymentId) await client.deployments.delete(deploymentId);
     await client.promptTemplates.delete(clone.id);
+  }
+});
+await check("agent architects", async () => {
+  const name = `sdk-js-arch-${suffix}`;
+  const renamed = `${name}-renamed`;
+  let architectId;
+  try {
+    const created = await client.studioDrafts.createArchitect({ name, description: "SDK harness architect", harnessProfileId: "hrn_builtin_fake" });
+    architectId = created.id;
+    require(created.name === name && created.harnessProfileId === "hrn_builtin_fake" && created.active === true && created.agentName === "agent-architect", `created ${JSON.stringify(created)}`);
+    require(created.architectPromptName === "builtin/agent-architect" && created.architectPromptVersion == null, `created prompt ${JSON.stringify(created)}`);
+    const page = await client.studioDrafts.listArchitects({ maxResults: 1, search: name });
+    require(page.objects.length === 1 && page.objects[0].id === created.id && page.totalRecords === 1 && page.maxResults === 1, `list page ${JSON.stringify(page)}`);
+    require((await client.studioDrafts.getArchitect(created.id)).name === name, "get by id");
+    require((await client.studioDrafts.getArchitect(name)).id === created.id, "get by name");
+    const updated = await client.studioDrafts.updateArchitect(created.id, {
+      name: renamed, harnessProfileId: "hrn_builtin_fake", model: "fake-model", active: false, architectPromptTemplateId: "builtin/agent-architect-guided",
+    });
+    require(updated.id === created.id && updated.name === renamed && updated.model === "fake-model" && updated.active === false, `updated ${JSON.stringify(updated)}`);
+    require(updated.architectPromptName === "builtin/agent-architect-guided", `updated prompt ${JSON.stringify(updated)}`);
+    const first = await client.studioDrafts.listArchitectPrompts({ maxResults: 1 });
+    require(first.objects.length === 1 && first.objects[0].name === "builtin/agent-architect" && first.totalRecords >= 2 && first.endOfResults === false, `prompt page 1 ${JSON.stringify(first)}`);
+    const second = await client.studioDrafts.listArchitectPrompts({ maxResults: 1, skip: 1 });
+    require(second.objects.length === 1 && second.objects[0].name === "builtin/agent-architect-guided" && second.objects[0].deployments.includes(created.id), `prompt page 2 ${JSON.stringify(second)}`);
+    await client.studioDrafts.deleteArchitect(created.id);
+    architectId = undefined;
+    let status = 0;
+    try { await client.studioDrafts.getArchitect(created.id); } catch (e) { status = e instanceof GarrisonError ? e.statusCode : -1; }
+    require(status === 404, `read after delete ${status}`);
+  } finally {
+    if (architectId) await client.studioDrafts.deleteArchitect(architectId).catch((e) => { if (!(e instanceof GarrisonError && e.statusCode === 404)) throw e; });
   }
 });
 await check("app gateway chat with the support triage bundle", async () => {

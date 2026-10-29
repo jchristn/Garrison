@@ -3243,3 +3243,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "Architetti di agenti riutilizzabili in qualsiasi bozza dello studio: creali, modificali ed eliminali, e scegli il profilo harness, il modello e il prompt di ciascuno."
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "Crea un architetto di agenti: una distribuzione di agent-architect che modifica solo le tue bozze dello studio e non le applica mai.",
+   "harnessProfileId": "Il profilo harness su cui viene eseguito l'architetto, che stabilisce la CLI di agente usata (Claude Code, Codex e così via).",
+   "model": "Il modello che l'architetto chiede all'harness. Vuoto usa il modello predefinito del profilo harness.",
+   "architectPromptTemplateId": "Il modello System che dice all'architetto come lavorare. I prompt integrati vengono per primi; clonane uno per modificarlo.",
+   "architectPromptVersion": "Fissa l'architetto a una versione del suo prompt. Vuoto segue la versione corrente, quindi una modifica salvata vale dal suo turno successivo.",
+   "defaultModel": "Nessun modello impostato, quindi l'architetto usa il modello predefinito del profilo harness.",
+   "defaultBadge": "Questo architetto usa il prompt predefinito integrato, builtin/agent-architect.",
+   "activeBadge": "Attivo: le bozze possono avviare nuove conversazioni con questo architetto.",
+   "inactiveBadge": "Inattivo: l'architetto non accetta nuovi turni e le bozze non lo propongono finché non lo riattivi.",
+   "actions": {
+    "prompts": "Gestisci i prompt dell'architetto: scegli quello usato da questo architetto e clona, modifica, reimposta o elimina i prompt.",
+    "deployment": "Apri la distribuzione dietro questo architetto per cambiarne limiti, esecutore, regole di uscita e altre impostazioni."
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "Apri Agenti > Architetti per creare, modificare o eliminare gli architetti che ogni bozza può usare."
+  }
+ }
+});

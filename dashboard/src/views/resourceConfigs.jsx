@@ -62,6 +62,7 @@ export { pipelinesConfig } from './pipelineConfigs';
 export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
+export { architectsConfig } from './architectConfigs';
 
 // ---------------------------------------------------------------- helpers
 //

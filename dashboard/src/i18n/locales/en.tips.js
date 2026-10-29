@@ -3241,3 +3241,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "Agent architects you can reuse in any studio draft: create, edit, and delete them, and choose the harness profile, model, and prompt each one works with."
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "Create an agent architect: a deployment of agent-architect that edits only your studio drafts and never applies them.",
+   "harnessProfileId": "The harness profile the architect runs on, which decides the agent CLI it uses (Claude Code, Codex, and so on).",
+   "model": "The model the architect asks the harness for. Empty uses the harness profile's default model.",
+   "architectPromptTemplateId": "The System template that tells the architect how to work. The built-in prompts come first; clone one to change it.",
+   "architectPromptVersion": "Pin the architect to one version of its prompt. Empty follows the current version, so a saved edit applies on its next turn.",
+   "defaultModel": "No model is set, so the architect uses the harness profile's default model.",
+   "defaultBadge": "This architect uses the built-in default prompt, builtin/agent-architect.",
+   "activeBadge": "Active: drafts can start new conversations with this architect.",
+   "inactiveBadge": "Inactive: the architect takes no new turns and drafts do not offer it until you turn it back on.",
+   "actions": {
+    "prompts": "Manage the architect prompts: choose the one this architect uses, and clone, edit, reset, or delete prompts.",
+    "deployment": "Open the deployment behind this architect to change its limits, executor, egress rules, and other settings."
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "Open Agents > Architects to create, edit, or delete the architects every draft can use."
+  }
+ }
+});

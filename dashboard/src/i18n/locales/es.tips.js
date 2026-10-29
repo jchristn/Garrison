@@ -3243,3 +3243,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "Arquitectos de agentes que puedes reutilizar en cualquier borrador del estudio: créalos, edítalos y elimínalos, y elige el perfil de harness, el modelo y el prompt de cada uno."
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "Crea un arquitecto de agentes: un despliegue de agent-architect que solo edita tus borradores del estudio y nunca los aplica.",
+   "harnessProfileId": "El perfil de harness en el que se ejecuta el arquitecto, que decide la CLI de agente que usa (Claude Code, Codex, etc.).",
+   "model": "El modelo que el arquitecto pide al harness. Vacío usa el modelo predeterminado del perfil de harness.",
+   "architectPromptTemplateId": "La plantilla System que indica al arquitecto cómo trabajar. Los prompts integrados aparecen primero; clona uno para cambiarlo.",
+   "architectPromptVersion": "Fija el arquitecto a una versión de su prompt. Vacío sigue la versión actual, así que una edición guardada se aplica en su siguiente turno.",
+   "defaultModel": "No hay ningún modelo definido, así que el arquitecto usa el modelo predeterminado del perfil de harness.",
+   "defaultBadge": "Este arquitecto usa el prompt predeterminado integrado, builtin/agent-architect.",
+   "activeBadge": "Activo: los borradores pueden iniciar conversaciones nuevas con este arquitecto.",
+   "inactiveBadge": "Inactivo: el arquitecto no acepta turnos nuevos y los borradores no lo ofrecen hasta que lo vuelvas a activar.",
+   "actions": {
+    "prompts": "Gestiona los prompts del arquitecto: elige el que usa este arquitecto y clona, edita, restablece o elimina prompts.",
+    "deployment": "Abre el despliegue que hay detrás de este arquitecto para cambiar sus límites, ejecutor, reglas de salida y otros ajustes."
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "Abre Agentes > Arquitectos para crear, editar o eliminar los arquitectos que puede usar cualquier borrador."
+  }
+ }
+});

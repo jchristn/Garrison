@@ -1483,7 +1483,7 @@ export function draftApproval(id = 'apr_draft_0002', draftId = 'drf_0002') {
   };
 }
 
-/** GET /studio/architect-prompts: the two built-ins (the default first) and a tenant clone bound by the architect. */
+/** The rows of GET /studio/architect-prompts: the two built-ins (the default first) and a tenant clone bound by the architect. */
 export function architectPrompts() {
   return [
     { id: 'pt_builtin_agent_architect', name: 'builtin/agent-architect', description: 'Default architect prompt', isBuiltIn: true, builtInKey: 'agent-architect', currentVersion: 1, isDefault: true, deployments: [] },
@@ -1494,6 +1494,9 @@ export function architectPrompts() {
 
 /** The architect deployment the studio tests add to the deployment list (managementAccess Drafts). */
 export const ARCHITECT_DEPLOYMENT = { id: 'dep_arch', tenantId: TENANT, name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_0001', model: 'sonnet', environment: 'dev', managementAccess: 'Drafts', active: true, createdUtc: iso(500), lastUpdateUtc: iso(400) };
+
+/** The same architect as GET /studio/architects shows it: tenant-wide, with its harness profile, model, and prompt. */
+export const ARCHITECT = { id: 'dep_arch', tenantId: TENANT, name: 'architect', description: 'Designs our research apps.', agentId: 'agt_arch', agentName: 'agent-architect', harnessProfileId: 'hp_0001', model: 'sonnet', active: true, architectPromptTemplateId: 'pt_0042', architectPromptName: 'agent-architect-team', architectPromptCurrentVersion: 2, configVersion: 1, isProtected: false, createdUtc: iso(500), lastUpdateUtc: iso(400) };
 
 /** The agent-architect agent the studio tests add to the agent list. */
 export const ARCHITECT_AGENT = { id: 'agt_arch', tenantId: TENANT, name: 'agent-architect', displayName: 'Agent architect', isProtected: true, active: true, createdUtc: iso(900), lastUpdateUtc: iso(900) };
@@ -1509,7 +1512,13 @@ function studioRoutes(method, url, parts) {
     return draftApproval(parts[1]);
   }
   if (parts[0] !== 'studio') return undefined;
-  if (parts[1] === 'architect-prompts') return architectPrompts();
+  if (parts[1] === 'architect-prompts') {
+    const search = (url.searchParams.get('search') || '').toLowerCase();
+    return pageOf(architectPrompts().filter((p) => !search || p.name.toLowerCase().includes(search)), url);
+  }
+  // Architects: none until a test adds one (the studio tests route the list themselves).
+  if (parts[1] === 'architects' && parts.length === 2) return method === 'POST' ? { ...ARCHITECT, id: 'dep_0099' } : pageOf([], url);
+  if (parts[1] === 'architects' && parts.length === 3) return ARCHITECT;
   if (parts[1] === 'architects') {
     const chosen = method === 'PUT' ? architectPrompts()[0] : architectPrompts()[2];
     return { deploymentId: parts[2], architectPromptTemplateId: chosen.id, architectPromptName: chosen.name, currentVersion: chosen.currentVersion };

@@ -7,12 +7,12 @@ export function blankArchitectForm() {
 }
 
 /**
- * Body for POST /deployments that creates an architect (AD9.5, AD9.9): a deployment of the agent-architect agent on the
- * chosen harness profile, with the model when given and the chosen architect prompt as architectPromptTemplateId. The
- * server gives every deployment of that agent managementAccess Drafts; the body says so too, for older servers.
+ * Body for POST /studio/architects (AD9.5, AD9.9): the name, the chosen harness profile, the model when given, and the
+ * chosen architect prompt as architectPromptTemplateId. The server makes it a deployment of agent-architect with
+ * managementAccess Drafts.
  */
-export function architectDeploymentBody(form, agentId) {
-  const body = { name: String(form.name || '').trim(), agentId, harnessProfileId: form.harnessProfileId, managementAccess: 'Drafts' };
+export function architectBody(form) {
+  const body = { name: String(form.name || '').trim(), harnessProfileId: form.harnessProfileId };
   const model = String(form.model || '').trim();
   if (model) body.model = model;
   if (form.promptId) body.architectPromptTemplateId = form.promptId;

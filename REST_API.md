@@ -3892,7 +3892,24 @@ The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates wi
 
 ### Studio drafts
 
-Manifest bundles designed in the studio and applied only after a person approves (AD7). [docs/STUDIO.md](docs/STUDIO.md) explains drafts, versions, diffs, the graph, `DraftApply` approvals, and the `managementAccess: Drafts` grant. Routes are under `/studio/drafts`, and the architect prompt routes under `/studio/architect-prompts` and `/studio/architects/{deploymentId}/prompt`; the tables are in [docs/STUDIO.md](docs/STUDIO.md#routes). A `DraftApply` approval is decided with `POST /approvals/{id}/decide`, which then needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request.
+Manifest bundles designed in the studio and applied only after a person approves (AD7). [docs/STUDIO.md](docs/STUDIO.md) explains drafts, versions, diffs, the graph, `DraftApply` approvals, and the `managementAccess: Drafts` grant. Routes are under `/studio/drafts`; the tables are in [docs/STUDIO.md](docs/STUDIO.md#routes).
+
+Agent architects are reusable, tenant-wide deployments that may edit studio drafts (`managementAccess: Drafts`); any draft can use any architect, and an architect's ID is its deployment ID (`dep_...`). `{deploymentId}` takes the ID or the name. Full field lists and examples are in [docs/ARCHITECT.md](docs/ARCHITECT.md#architects).
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /studio/architects` | Read on `Deployment` | `EnumerationResult<Architect>`, 200. Query: `maxResults` (1 to 1000, default 25), `skip`, `ordering`, `search` (part of a name), `activeOnly` |
+| `POST /studio/architects` | Create on `Deployment` | `Architect`, 201. Body `ArchitectRequest` |
+| `GET /studio/architects/{deploymentId}` | Read on `Deployment` | `Architect`, 200; 404 when the deployment is not an architect |
+| `PUT /studio/architects/{deploymentId}` | Update on `Deployment` | `Architect`, 200. Body `ArchitectRequest`; a null `architectPromptTemplateId` keeps the current prompt, and the deployment's other settings are kept |
+| `DELETE /studio/architects/{deploymentId}` | Delete on `Deployment` | Empty, 204. Drafts are kept |
+| `GET /studio/architect-prompts` | Read on `PromptTemplate` | `EnumerationResult<ArchitectPromptEntry>`, 200. Query: `maxResults` (1 to 1000, default 25), `skip`, `search` (part of a name). The order is fixed: built-ins, then tenant clones of them, then other `System` templates |
+| `GET /studio/architects/{deploymentId}/prompt` | Read on `Deployment` | `ArchitectPromptSelection`, 200 |
+| `PUT /studio/architects/{deploymentId}/prompt` | Update on `Deployment` | `ArchitectPromptSelection`, 200. Body `{architectPromptTemplateId, architectPromptVersion}`; 400 `NotAnArchitectDeployment` |
+
+`ArchitectRequest` fields: `name` (required, unique among the tenant's deployments), `description`, `harnessProfileId` (required), `model` (null for the harness profile's default), `active` (default true), `architectPromptTemplateId` (a `System` template ID or name; null on create binds `builtin/agent-architect`), and `architectPromptVersion` (minimum 1, given with `architectPromptTemplateId`; null follows the current version). `Architect` fields: `id`, `tenantId`, `name`, `description`, `agentId`, `agentName`, `harnessProfileId`, `model`, `active`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion`, `architectPromptCurrentVersion`, `configVersion`, `isProtected`, `createdUtc`, `lastUpdateUtc`.
+
+Errors: 400 `ValidationFailed` (missing `name` or `harnessProfileId`), 400 `InvalidArchitectPrompt`; 409 `NameConflict`, `ArchitectAgentMissing` (create, when the tenant has no built-in `agent-architect`), `Protected`; on delete also 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, `ReferencedByPipeline`. A `DraftApply` approval is decided with `POST /approvals/{id}/decide`, which then needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request.
 
 ### Fan-out groups
 

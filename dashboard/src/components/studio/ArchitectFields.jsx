@@ -58,8 +58,9 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
       })
       .catch(() => active && setProfiles([]));
     apiClient
-      .listArchitectPrompts(tenantId)
-      .then((list) => {
+      .listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 })
+      .then((page) => {
+        const list = page?.items || [];
         if (!active) return;
         const sorted = sortArchitectPrompts(list);
         setPrompts(sorted);

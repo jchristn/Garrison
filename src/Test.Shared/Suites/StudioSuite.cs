@@ -49,6 +49,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "channel", "A change made through an MCP tool reaches a studio-draft:{id} subscriber with the new version and the changed item (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-seed", "Every tenant has the protected agent-architect with its skill asset; the four architect templates are built-in and immutable but resettable (" + provider + ")", ct => SeedAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-prompt-flow", "Clone a built-in architect prompt, edit it, spawn an architect on the clone, see the edit on the next turn, pin and reset, refuse deleting it while in use, then switch and delete (" + provider + ")", ct => ArchitectPromptAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "architects", "Architects are tenant-wide: create, list (paginated, search, activeOnly), read by ID or name, update keeps other deployment settings, delete; a plain deployment is not an architect; the prompt catalog pages; MCP tools match; another tenant gets 404 (" + provider + ")", ct => ArchitectsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-script", "A scripted fake-harness architect turn sets a deployment's model, timeout, and approval rule, and binds all three capability sources (agent edge, MCP server, host tool), all through studio tools; the diff shows exactly those changes (" + provider + ")", ct => ScriptAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-seed-replicas", "Replicas seeding the architect at the same time, including for a new tenant, leave exactly one agent and one skill asset and raise no unique constraint failure (" + provider + ")", ct => SeedReplicasAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "preview", "Compile preview of a draft revision shows its new asset's placed path, previews another environment's deployment, and keeps secrets redacted (" + provider + ")", ct => PreviewAsync(provider, ct)));
@@ -424,13 +425,13 @@ namespace Test.Shared.Suites
             {
                 TestServerHost host = cluster.Server;
                 string prompts = T(host) + "/prompt-templates";
-                List<ArchitectPromptEntry> catalog = await HttpTestHelpers.SendAsync<List<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts", null, 200, token).ConfigureAwait(false);
+                List<ArchitectPromptEntry> catalog = (await HttpTestHelpers.SendAsync<EnumerationResult<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts?maxResults=1000", null, 200, token).ConfigureAwait(false)).Objects;
                 Assert.True(catalog.Count >= 2 && catalog[0].Name == "builtin/agent-architect" && catalog[0].IsDefault && catalog[1].Name == "builtin/agent-architect-guided", "Built-ins first: " + String.Join(", ", catalog.Select(c => c.Name)));
 
                 PromptTemplate clone = await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, prompts + "/tpl_builtin_agent_architect/clone", new CloneRequest { Name = "my-architect" }, 201, token).ConfigureAwait(false);
                 Assert.True(clone.CurrentVersion == 1 && clone.BuiltInKey == "agent-architect" && !clone.IsBuiltIn, "Clone at version 1 keeps the built-in key");
                 await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, prompts, new PromptTemplateRequest { Name = "custom-system", Kind = PromptTemplateKindEnum.System, Content = "Custom system prompt." }, 201, token).ConfigureAwait(false);
-                catalog = await HttpTestHelpers.SendAsync<List<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts", null, 200, token).ConfigureAwait(false);
+                catalog = (await HttpTestHelpers.SendAsync<EnumerationResult<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts?maxResults=1000", null, 200, token).ConfigureAwait(false)).Objects;
                 List<string> order = catalog.Select(c => c.Name).ToList();
                 Assert.True(order.IndexOf("my-architect") == 2 && order.IndexOf("custom-system") > 2, "Then clones, then other System templates: " + String.Join(", ", order));
 
@@ -484,7 +485,7 @@ namespace Test.Shared.Suites
                     await client.ConnectAsync(host, null, token).ConfigureAwait(false);
                     ArchitectPromptSelection switched = await client.CallAsync<ArchitectPromptSelection>("garrison_studio_set_architect_prompt", new { deployment = "architect", architectPromptTemplateId = "builtin/agent-architect-guided" }, token).ConfigureAwait(false);
                     Assert.Equal("tpl_builtin_agent_architect_guided", switched.ArchitectPromptTemplateId, "Switched over MCP");
-                    List<ArchitectPromptEntry> listed = await client.CallAsync<List<ArchitectPromptEntry>>("garrison_studio_list_architect_prompts", new { }, token).ConfigureAwait(false);
+                    List<ArchitectPromptEntry> listed = (await client.CallAsync<EnumerationResult<ArchitectPromptEntry>>("garrison_studio_list_architect_prompts", new { maxResults = 100 }, token).ConfigureAwait(false)).Objects;
                     Assert.True(listed.Single(e => e.Name == "builtin/agent-architect-guided").Deployments.Contains(architect.Id), "The catalog shows which architect uses the guided prompt");
                     PromptTemplate mcpClone = await client.CallAsync<PromptTemplate>("garrison_clone_prompt_template", new { template = "builtin/agent-architect-guided", name = "mcp-architect" }, token).ConfigureAwait(false);
                     PromptTemplate mcpEdited = await client.CallAsync<PromptTemplate>("garrison_update_prompt_template", new { template = "mcp-architect", content = "You are {{agent.name}}. MCP-EDIT.", changeNote = "Shorter." }, token).ConfigureAwait(false);
@@ -814,14 +815,14 @@ spec:
                     Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Get, D(host) + "/" + draft.Id, null, token).ConfigureAwait(false)).StatusCode, "Another tenant's draft through ours");
                     EnumerationResult<StudioDraft> list = await HttpTestHelpers.SendAsync<EnumerationResult<StudioDraft>>(outsider, HttpMethod.Get, theirs + "/studio/drafts", null, 200, token).ConfigureAwait(false);
                     Assert.True(list.Objects.All(d => d.Id != draft.Id), "Not listed to another tenant");
-                    List<ArchitectPromptEntry> prompts = await HttpTestHelpers.SendAsync<List<ArchitectPromptEntry>>(outsider, HttpMethod.Get, theirs + "/studio/architect-prompts", null, 200, token).ConfigureAwait(false);
+                    List<ArchitectPromptEntry> prompts = (await HttpTestHelpers.SendAsync<EnumerationResult<ArchitectPromptEntry>>(outsider, HttpMethod.Get, theirs + "/studio/architect-prompts?maxResults=1000", null, 200, token).ConfigureAwait(false)).Objects;
                     Assert.True(prompts.All(p => p.Id != ourClone.Id) && prompts.Any(p => p.Name == "builtin/agent-architect"), "Another tenant sees the built-ins but not our clone");
                 }
 
                 await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, T(host) + "/users", new UserRequest { Email = "studio-nobody@example.com", Password = "password123" }, 201, token).ConfigureAwait(false);
                 using (HttpClient nobody = await host.UserClientAsync("studio-nobody@example.com", "password123", host.TenantId, token).ConfigureAwait(false))
                 {
-                    string[] reads = { D(host), D(host) + "/" + draft.Id, T(host) + "/studio/architect-prompts", T(host) + "/capabilities", T(host) + "/agent-assets", T(host) + "/apps", T(host) + "/fan-out-groups/fog_missing", T(host) + "/conversations/cnv_missing/files" };
+                    string[] reads = { D(host), D(host) + "/" + draft.Id, T(host) + "/studio/architect-prompts", T(host) + "/studio/architects", T(host) + "/capabilities", T(host) + "/agent-assets", T(host) + "/apps", T(host) + "/fan-out-groups/fog_missing", T(host) + "/conversations/cnv_missing/files" };
                     foreach (string path in reads)
                     {
                         Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Get, path, null, token).ConfigureAwait(false)).StatusCode, "No permission: GET " + path);
@@ -829,6 +830,92 @@ spec:
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Nope" }, token).ConfigureAwait(false)).StatusCode, "No permission: create a draft");
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/nope", new StudioDraftItemRequest { Version = draft.Version, Document = AgentYaml("nope", "No.") }, token).ConfigureAwait(false)).StatusCode, "No permission: edit a draft");
                 }
+            }
+        }
+
+        private static async Task ArchitectsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                string architects = T(host) + "/studio/architects";
+                EnumerationResult<Architect> empty = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(host.AdminClient, HttpMethod.Get, architects, null, 200, token).ConfigureAwait(false);
+                Assert.True(empty.TotalRecords == 0 && empty.Objects.Count == 0, "A new tenant has no architects");
+
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, architects, new ArchitectRequest { Name = "", HarnessProfileId = "" }, token).ConfigureAwait(false), 400, "harnessProfileId", "Name and harness profile are required");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, architects, new ArchitectRequest { Name = "bad-prompt", HarnessProfileId = "hrn_builtin_fake", ArchitectPromptTemplateId = "builtin/default-task" }, token).ConfigureAwait(false), 400, "InvalidArchitectPrompt", "A Task template is not an architect prompt");
+
+                Architect first = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Post, architects, new ArchitectRequest { Name = "architect-one", Description = "First.", HarnessProfileId = "hrn_builtin_fake", Model = "fake-model" }, 201, token).ConfigureAwait(false);
+                Assert.True(first.Id.StartsWith("dep_", StringComparison.Ordinal) && first.AgentName == "agent-architect" && first.ArchitectPromptTemplateId == "tpl_builtin_agent_architect" && first.ArchitectPromptVersion == null && first.Active && first.Model == "fake-model", "Created on the default prompt: " + Serializer.Serialize(first));
+                Deployment underlying = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + first.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(underlying.ManagementAccess == ManagementAccessEnum.Drafts, "The architect is a deployment with Drafts access");
+                Architect second = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Post, architects, new ArchitectRequest { Name = "architect-two", HarnessProfileId = "hrn_builtin_fake", ArchitectPromptTemplateId = "builtin/agent-architect-guided", ArchitectPromptVersion = 1, Active = false }, 201, token).ConfigureAwait(false);
+                Assert.True(second.ArchitectPromptName == "builtin/agent-architect-guided" && second.ArchitectPromptVersion == 1 && !second.Active, "Created on the guided prompt, pinned, inactive");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, architects, new ArchitectRequest { Name = "architect-one", HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false), 409, "NameConflict", "Duplicate name");
+
+                Agent plainAgent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "not-an-architect" }, 201, token).ConfigureAwait(false);
+                Deployment plain = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "plain", AgentId = plainAgent.Id, HarnessProfileId = "hrn_builtin_fake" }, 201, token).ConfigureAwait(false);
+                Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, architects + "/" + plain.Id, null, token).ConfigureAwait(false)).StatusCode, "A plain deployment is not an architect");
+                Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, architects + "/" + plain.Id, null, token).ConfigureAwait(false)).StatusCode, "Deleting a plain deployment as an architect");
+
+                EnumerationResult<Architect> page = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(host.AdminClient, HttpMethod.Get, architects + "?maxResults=1&ordering=CreatedAscending", null, 200, token).ConfigureAwait(false);
+                Assert.True(page.TotalRecords == 2 && page.Objects.Count == 1 && page.Objects[0].Id == first.Id && !page.EndOfResults && page.RecordsRemaining == 1, "First page of one: " + Serializer.Serialize(page));
+                EnumerationResult<Architect> next = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(host.AdminClient, HttpMethod.Get, architects + "?maxResults=1&skip=1&ordering=CreatedAscending", null, 200, token).ConfigureAwait(false);
+                Assert.True(next.Objects.Count == 1 && next.Objects[0].Id == second.Id && next.EndOfResults, "Second page");
+                EnumerationResult<Architect> searched = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(host.AdminClient, HttpMethod.Get, architects + "?search=two", null, 200, token).ConfigureAwait(false);
+                Assert.True(searched.TotalRecords == 1 && searched.Objects[0].Id == second.Id, "Search by name");
+                EnumerationResult<Architect> active = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(host.AdminClient, HttpMethod.Get, architects + "?activeOnly=true", null, 200, token).ConfigureAwait(false);
+                Assert.True(active.TotalRecords == 1 && active.Objects[0].Id == first.Id, "activeOnly");
+                Assert.Equal(second.Id, (await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Get, architects + "/architect-two", null, 200, token).ConfigureAwait(false)).Id, "Read by name");
+
+                Deployment tuned = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + first.Id, null, 200, token).ConfigureAwait(false);
+                tuned.TimeoutSeconds = 321;
+                await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Put, T(host) + "/deployments/" + first.Id, tuned, 200, token).ConfigureAwait(false);
+                Architect renamed = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Put, architects + "/" + first.Id, new ArchitectRequest { Name = "architect-renamed", Description = "Renamed.", HarnessProfileId = "hrn_builtin_fake", Model = "other-model", Active = false, ArchitectPromptTemplateId = "builtin/agent-architect-guided" }, 200, token).ConfigureAwait(false);
+                Assert.True(renamed.Name == "architect-renamed" && renamed.Model == "other-model" && !renamed.Active && renamed.ArchitectPromptName == "builtin/agent-architect-guided" && renamed.ConfigVersion == 3, "Updated: " + Serializer.Serialize(renamed));
+                Deployment afterUpdate = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + first.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(afterUpdate.TimeoutSeconds == 321 && afterUpdate.ManagementAccess == ManagementAccessEnum.Drafts, "Other deployment settings are kept");
+                Architect keptPrompt = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Put, architects + "/" + first.Id, new ArchitectRequest { Name = "architect-renamed", HarnessProfileId = "hrn_builtin_fake", Active = true }, 200, token).ConfigureAwait(false);
+                Assert.True(keptPrompt.ArchitectPromptName == "builtin/agent-architect-guided" && keptPrompt.Active, "No prompt in the update keeps the current one");
+
+                EnumerationResult<ArchitectPromptEntry> promptPage = await HttpTestHelpers.SendAsync<EnumerationResult<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts?maxResults=1", null, 200, token).ConfigureAwait(false);
+                Assert.True(promptPage.Objects.Count == 1 && promptPage.Objects[0].Name == "builtin/agent-architect" && promptPage.TotalRecords >= 2 && !promptPage.EndOfResults, "The prompt catalog pages: " + Serializer.Serialize(promptPage));
+                EnumerationResult<ArchitectPromptEntry> promptNext = await HttpTestHelpers.SendAsync<EnumerationResult<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts?maxResults=1&skip=1", null, 200, token).ConfigureAwait(false);
+                Assert.True(promptNext.Objects.Count == 1 && promptNext.Objects[0].Name == "builtin/agent-architect-guided" && promptNext.Objects[0].Deployments.Contains(first.Id) && promptNext.Objects[0].Deployments.Contains(second.Id), "Second prompt page names its architects");
+                EnumerationResult<ArchitectPromptEntry> promptSearch = await HttpTestHelpers.SendAsync<EnumerationResult<ArchitectPromptEntry>>(host.AdminClient, HttpMethod.Get, T(host) + "/studio/architect-prompts?search=guided", null, 200, token).ConfigureAwait(false);
+                Assert.True(promptSearch.TotalRecords == 1, "Prompt search");
+
+                using (TestMcpClient client = new TestMcpClient())
+                {
+                    await client.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    EnumerationResult<Architect> listed = await client.CallAsync<EnumerationResult<Architect>>("garrison_studio_list_architects", new { maxResults = 1, skip = 0 }, token).ConfigureAwait(false);
+                    Assert.True(listed.TotalRecords == 2 && listed.Objects.Count == 1, "MCP list pages");
+                    Architect made = await client.CallAsync<Architect>("garrison_studio_create_architect", new { name = "mcp-architect", harnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
+                    Assert.True(made.ArchitectPromptTemplateId == "tpl_builtin_agent_architect", "MCP create");
+                    Architect changed = await client.CallAsync<Architect>("garrison_studio_update_architect", new { architect = "mcp-architect", model = "mcp-model" }, token).ConfigureAwait(false);
+                    Assert.True(changed.Model == "mcp-model" && changed.Name == "mcp-architect" && changed.Active, "MCP update keeps fields left out");
+                    Architect read = await client.CallAsync<Architect>("garrison_studio_get_architect", new { architect = made.Id }, token).ConfigureAwait(false);
+                    Assert.Equal("mcp-model", read.Model, "MCP get");
+                    await client.ExpectErrorAsync("garrison_studio_get_architect", new { architect = "plain" }, "NotFound", token).ConfigureAwait(false);
+                    await client.CallAsync<object>("garrison_studio_delete_architect", new { architect = made.Id }, token).ConfigureAwait(false);
+                    await client.ExpectErrorAsync("garrison_studio_get_architect", new { architect = made.Id }, "NotFound", token).ConfigureAwait(false);
+                }
+
+                Tenant other = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Architects Other" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + other.Id + "/users", new UserRequest { Email = "architects-outsider@example.com", Password = "password123", IsTenantAdmin = true }, 201, token).ConfigureAwait(false);
+                using (HttpClient outsider = await host.UserClientAsync("architects-outsider@example.com", "password123", other.Id, token).ConfigureAwait(false))
+                {
+                    string theirs = "/v1.0/api/tenants/" + other.Id + "/studio/architects";
+                    Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Get, theirs + "/" + first.Id, null, token).ConfigureAwait(false)).StatusCode, "Another tenant's architect");
+                    Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Put, theirs + "/" + first.Id, new ArchitectRequest { Name = "x", HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false)).StatusCode, "Changing another tenant's architect");
+                    EnumerationResult<Architect> theirList = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(outsider, HttpMethod.Get, theirs, null, 200, token).ConfigureAwait(false);
+                    Assert.True(theirList.TotalRecords == 0, "Not listed to another tenant");
+                }
+
+                Assert.Equal(204, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, architects + "/" + second.Id, null, token).ConfigureAwait(false)).StatusCode, "Delete");
+                Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, architects + "/" + second.Id, null, token).ConfigureAwait(false)).StatusCode, "Gone");
+                EnumerationResult<Architect> remaining = await HttpTestHelpers.SendAsync<EnumerationResult<Architect>>(host.AdminClient, HttpMethod.Get, architects, null, 200, token).ConfigureAwait(false);
+                Assert.True(remaining.TotalRecords == 1 && remaining.Objects[0].Id == first.Id, "One left");
             }
         }
 

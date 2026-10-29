@@ -7,15 +7,14 @@ import { tip } from '../Tooltip';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { errorMessage } from '../../utils/errors';
-import { ARCHITECT_AGENT, architectDeploymentBody, architectFormErrors, blankArchitectForm } from '../../utils/studio';
+import { ARCHITECT_AGENT, architectBody, architectFormErrors, blankArchitectForm } from '../../utils/studio';
 
 /**
- * "New architect" (AD7.10, AD9.9): creates a deployment of agent-architect (looked up by name) on a chosen harness
- * profile and model, with the architect prompt chosen from GET /studio/architect-prompts (built-ins first, the default
+ * "New architect" (AD7.10, AD9.9): creates an agent architect (POST /studio/architects; the agent-architect agent is
+ * looked up by name only to warn when the tenant has none) on a chosen harness profile and model, with the architect prompt chosen from GET /studio/architect-prompts (built-ins first, the default
  * builtin/agent-architect preselected), a rendered preview of that prompt, and a link to clone it on the Prompt
- * Templates screen (the fields are ArchitectFields, shared with the setup wizard). The choice goes as
- * architectPromptTemplateId; the server gives the deployment managementAccess Drafts. `onCreated(deployment)` receives
- * the new deployment.
+ * Templates screen (the fields are ArchitectFields, shared with the setup wizard and the Architects page). The choice
+ * goes as architectPromptTemplateId. `onCreated(architect)` receives the new architect.
  */
 export default function NewArchitectModal({ onClose, onCreated }) {
   const { t } = useTranslation();
@@ -41,7 +40,7 @@ export default function NewArchitectModal({ onClose, onCreated }) {
     setBusy(true);
     setError(null);
     try {
-      const created = await apiClient.createDeployment(tenantId, architectDeploymentBody(form, agent.id));
+      const created = await apiClient.createArchitect(tenantId, architectBody(form));
       onCreated?.(created);
     } catch (e) {
       setError(e);

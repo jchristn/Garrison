@@ -74,7 +74,7 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 	}
 	switch command {
 	case "help":
-		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architect [prompt] | chat <slug> <message> | quit")
+		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architects | architect [prompt] | chat <slug> <message> | quit")
 		return nil, nil
 	case "health":
 		return client.Health(ctx)
@@ -163,11 +163,20 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 	case "studio-draft":
 		return client.StudioDrafts.Create(ctx, "Console draft of "+argument, argument)
 	case "architect-prompts":
-		prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+		prompts, err := client.StudioDrafts.ArchitectPrompts(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range prompts {
+		for _, entry := range prompts.Objects {
+			_ = json.NewEncoder(os.Stdout).Encode(entry)
+		}
+		return nil, nil
+	case "architects":
+		architects, err := client.StudioDrafts.Architects(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range architects.Objects {
 			_ = json.NewEncoder(os.Stdout).Encode(entry)
 		}
 		return nil, nil
@@ -184,43 +193,38 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 }
 
 const (
-	architectAgent      = "agent-architect"
 	architectDeployment = "agent-architect-sdk"
 	fakeHarnessProfile  = "hrn_builtin_fake"
 )
 
 // selectArchitectPrompt selects an architect prompt (identifier or name; default the first listed, the built-in) for an
-// architect deployment, creating a deployment of the seeded agent-architect agent on the fake harness when none exists.
+// agent architect, creating an architect on the fake harness when none exists.
 func selectArchitectPrompt(ctx context.Context, client *garrison.Client, prompt string) (*garrison.ArchitectPromptSelection, error) {
-	prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+	prompts, err := client.StudioDrafts.ArchitectPrompts(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(prompts) == 0 {
+	if len(prompts.Objects) == 0 {
 		return nil, fmt.Errorf("the server lists no architect prompts")
 	}
-	deploymentID := ""
-	for _, entry := range prompts {
-		if len(entry.Deployments) > 0 {
-			deploymentID = entry.Deployments[0]
-			break
-		}
+	architects, err := client.StudioDrafts.Architects(ctx, &garrison.ListOptions{MaxResults: 1})
+	if err != nil {
+		return nil, err
 	}
-	if deploymentID == "" {
-		var architect garrison.Agent
-		if err := client.Agents.Get(ctx, architectAgent, &architect); err != nil {
+	architectID := ""
+	if len(architects.Objects) > 0 {
+		architectID = architects.Objects[0].ID
+	} else {
+		created, err := client.StudioDrafts.CreateArchitect(ctx, garrison.ArchitectRequest{Name: architectDeployment, HarnessProfileID: fakeHarnessProfile})
+		if err != nil {
 			return nil, err
 		}
-		var created garrison.Deployment
-		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: architectDeployment, AgentID: architect.ID, HarnessProfileID: fakeHarnessProfile}, &created); err != nil {
-			return nil, err
-		}
-		deploymentID = created.ID
+		architectID = created.ID
 	}
 	if prompt == "" {
-		prompt = prompts[0].ID
+		prompt = prompts.Objects[0].ID
 	}
-	return client.StudioDrafts.SetArchitectPrompt(ctx, deploymentID, prompt, nil)
+	return client.StudioDrafts.SetArchitectPrompt(ctx, architectID, prompt, nil)
 }
 
 // chat starts an anonymous session with the app, sends one message, waits for the turn, and ends the session.

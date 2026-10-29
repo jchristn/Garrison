@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { ARCHITECT_AGENT_NAME, SAMPLE_MANIFEST, STORAGE_KEYS } from '../utils/constants';
-import { architectDeploymentBody, architectFormErrors, blankArchitectForm } from '../utils/architect';
+import { architectBody, architectFormErrors, blankArchitectForm } from '../utils/architect';
 import { enumOptions } from '../utils/enums';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
@@ -80,7 +80,7 @@ export default function SetupWizard() {
     if (Object.keys(errors).length || !architectAgent) return;
     setBusy(true);
     try {
-      const created = await apiClient.createDeployment(tenantId, architectDeploymentBody(architectForm, architectAgent.id));
+      const created = await apiClient.createArchitect(tenantId, architectBody(architectForm));
       setArchitect(created || { name: architectForm.name });
       addToast({ type: 'success', message: t('wizard.architectCreated', { name: created?.name || architectForm.name }) });
       setStep((s) => s + 1);

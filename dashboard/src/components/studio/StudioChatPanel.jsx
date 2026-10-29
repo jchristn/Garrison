@@ -156,6 +156,9 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           >
             <PlusIcon size={14} /> {t('components.studio.chat.newArchitect')}
           </button>
+          <StudioLink to={pathFor('architects')} testId="studio-manage-architects" tipText={t('tips.studio.chat.manageArchitects')}>
+            {t('components.studio.chat.manageArchitects')}
+          </StudioLink>
           {conversationId && (
             <>
               <StudioLink to={pathFor('conversations', conversationId)} testId="studio-chat-conversation" tipText={t('tips.studio.chat.openConversation')}>

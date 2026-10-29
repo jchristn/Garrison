@@ -4318,3 +4318,81 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "architects": {
+    "label": "架构师",
+    "tip": "代理架构师：可复用的代理架构师部署，可在任意工作室草稿中与你一起设计代理和应用。"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "title": "架构师",
+   "subtitle": "此租户中的代理架构师。每个都是 agent-architect 的一个部署，拥有自己的 Harness 配置文件、模型和提示词，任意工作室草稿都可以使用。",
+   "add": "添加架构师",
+   "create": "创建架构师",
+   "edit": "编辑架构师",
+   "view": "架构师详情",
+   "deleteTitle": "删除架构师",
+   "emptyTitle": "暂无架构师",
+   "emptyBody": "创建一个架构师，在代理工作室中与你一起设计代理和应用。选择它运行所用的 Harness 配置文件和模型，以及它使用的提示词。",
+   "columns": {
+    "name": "名称",
+    "harnessProfileId": "Harness 配置文件",
+    "model": "模型",
+    "architectPromptTemplateId": "架构师提示词",
+    "active": "状态",
+    "description": "描述",
+    "id": "ID",
+    "lastUpdateUtc": "更新时间",
+    "createdUtc": "创建时间"
+   },
+   "fields": {
+    "name": "名称",
+    "description": "描述",
+    "harnessProfileId": "Harness 配置文件",
+    "model": "模型",
+    "architectPromptTemplateId": "架构师提示词",
+    "architectPromptVersion": "固定的提示词版本",
+    "active": "启用"
+   },
+   "hints": {
+    "model": "留空则使用 Harness 配置文件的默认模型。",
+    "architectPromptTemplateId": "架构师使用的 System 模板。更改从其下一轮开始生效。",
+    "architectPromptVersion": "留空则跟随提示词的当前版本，保存的编辑会从下一轮开始生效。"
+   },
+   "actions": {
+    "prompts": "架构师提示词",
+    "deployment": "部署设置"
+   },
+   "errors": {
+    "nameTaken": "此租户中的另一个部署已在使用此名称。",
+    "version": "请输入从 1 开始的整数，或留空。"
+   },
+   "promptPinned": "{{name}}（版本 {{version}}）",
+   "defaultModel": "配置文件默认",
+   "defaultBadge": "默认",
+   "promptsTitle": "{{name}} 的架构师提示词"
+  }
+ },
+ "components": {
+  "studio": {
+   "chat": {
+    "manageArchitects": "管理架构师"
+   }
+  }
+ }
+});

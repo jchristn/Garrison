@@ -257,6 +257,43 @@ namespace Garrison.Core.Database.Ado
             return EnumerationResult<Deployment>.Build(query, total, objects);
         }
 
+        /// <inheritdoc />
+        public async Task<EnumerationResult<Deployment>> EnumerateArchitectsAsync(string tenantId, string? architectAgentId, EnumerationQuery query, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (query == null) throw new ArgumentNullException(nameof(query));
+
+            List<string> clauses = new List<string>();
+            clauses.Add("tenantid = @tenantid");
+            clauses.Add(String.IsNullOrEmpty(architectAgentId) ? "managementaccess = @drafts" : "(managementaccess = @drafts OR agentid = @architectagentid)");
+            if (!String.IsNullOrEmpty(query.Search)) clauses.Add(_Driver.Dialect.CaseInsensitiveLike("name", "search"));
+            if (query.ActiveOnly) clauses.Add("active = " + _Driver.Dialect.BooleanLiteral(true));
+            string where = " WHERE " + String.Join(" AND ", clauses);
+
+            Action<DbCommand> bind = command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "drafts", ManagementAccessEnum.Drafts.ToString());
+                if (!String.IsNullOrEmpty(architectAgentId)) AdoDatabaseDriver.Add(command, "architectagentid", architectAgentId);
+                if (!String.IsNullOrEmpty(query.Search)) AdoDatabaseDriver.Add(command, "search", "%" + query.Search + "%");
+            };
+
+            object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Table + where + ";", bind, token).ConfigureAwait(false);
+            long total = countValue == null ? 0 : Convert.ToInt64(countValue);
+
+            string sql = "SELECT * FROM " + _Table + where + AdoEnumerationSql.OrderBy(query.Ordering, true) + _Driver.Dialect.LimitOffsetClause() + ";";
+            List<Deployment> objects = await _Driver.QueryAsync(sql, command =>
+            {
+                bind(command);
+                AdoDatabaseDriver.Add(command, "max", query.MaxResults);
+                AdoDatabaseDriver.Add(command, "skip", query.Skip);
+            }, Map, token).ConfigureAwait(false);
+
+            foreach (Deployment obj in objects) await LoadChildrenAsync(obj, token).ConfigureAwait(false);
+
+            return EnumerationResult<Deployment>.Build(query, total, objects);
+        }
+
         /// <summary>
         /// Map a row to a Deployment (child rows not loaded).
         /// </summary>

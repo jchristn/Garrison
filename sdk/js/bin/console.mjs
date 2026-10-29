@@ -21,20 +21,16 @@ async function read(prompt, secret = false) {
   finally { if (muted) process.stdout.write('\n'); muted = false; }
 }
 const show = (value) => console.log(JSON.stringify(value));
-const ARCHITECT_AGENT = 'agent-architect';
 const ARCHITECT_DEPLOYMENT = 'agent-architect-sdk';
 const FAKE_HARNESS_PROFILE = 'hrn_builtin_fake';
-// Select an architect prompt (identifier or name; default the first listed, the built-in) for an architect deployment,
-// creating a deployment of the seeded agent-architect agent on the fake harness when none exists.
+// Select an architect prompt (identifier or name; default the first listed, the built-in) for an agent architect,
+// creating an architect on the fake harness when none exists.
 async function selectArchitectPrompt(prompt) {
-  const prompts = await client.studioDrafts.listArchitectPrompts();
+  const prompts = (await client.studioDrafts.listArchitectPrompts()).objects;
   if (!prompts.length) throw new Error('The server lists no architect prompts.');
-  let deploymentId = prompts.flatMap((entry) => entry.deployments ?? [])[0];
-  if (!deploymentId) {
-    const architect = await client.agents.get(ARCHITECT_AGENT);
-    deploymentId = (await client.deployments.create({ name: ARCHITECT_DEPLOYMENT, agentId: architect.id, harnessProfileId: FAKE_HARNESS_PROFILE })).id;
-  }
-  return client.studioDrafts.setArchitectPrompt(deploymentId, prompt || prompts[0].id);
+  let architect = (await client.studioDrafts.listArchitects({ maxResults: 1 })).objects[0];
+  if (!architect) architect = await client.studioDrafts.createArchitect({ name: ARCHITECT_DEPLOYMENT, harnessProfileId: FAKE_HARNESS_PROFILE });
+  return client.studioDrafts.setArchitectPrompt(architect.id, prompt || prompts[0].id);
 }
 // Start an anonymous app session, send one message, wait for the turn, and end the session.
 async function chat(slug, message, signal) {
@@ -61,7 +57,7 @@ try {
     try {
       const requireArgument = () => { if (!argument) throw new Error('Missing arguments. Type help.'); };
       switch (command.toLowerCase()) {
-        case 'help': console.log('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architect [prompt] | chat <slug> <message> | quit'); break;
+        case 'help': console.log('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architects | architect [prompt] | chat <slug> <message> | quit'); break;
         case 'health': show(await client.health()); break;
         case 'login':
           requireArgument(); if (!rest) throw new Error('Missing email. Type help.');
@@ -91,7 +87,8 @@ try {
         }
         case 'apps': show(await client.apps.list()); break;
         case 'studio-draft': requireArgument(); show(await client.studioDrafts.create({ title: `Console draft of ${argument}`, fromApp: argument })); break;
-        case 'architect-prompts': for (const entry of await client.studioDrafts.listArchitectPrompts()) show(entry); break;
+        case 'architect-prompts': for (const entry of (await client.studioDrafts.listArchitectPrompts()).objects) show(entry); break;
+        case 'architects': for (const entry of (await client.studioDrafts.listArchitects()).objects) show(entry); break;
         case 'architect': show(await selectArchitectPrompt(argument)); break;
         case 'chat': requireArgument(); if (!rest) throw new Error('Missing message. Type help.'); show(await chat(argument, rest, active.signal)); break;
         default: console.log('Unknown command. Type help.'); break;

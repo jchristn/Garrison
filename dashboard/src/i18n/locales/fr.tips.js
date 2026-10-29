@@ -3243,3 +3243,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "Les architectes d'agents réutilisables dans n'importe quel brouillon du studio : créez-les, modifiez-les et supprimez-les, et choisissez le profil de harness, le modèle et le prompt de chacun."
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "Créer un architecte d'agents : un déploiement de agent-architect qui ne modifie que vos brouillons du studio et ne les applique jamais.",
+   "harnessProfileId": "Le profil de harness sur lequel l'architecte s'exécute, qui détermine la CLI d'agent qu'il utilise (Claude Code, Codex, etc.).",
+   "model": "Le modèle que l'architecte demande au harness. Vide utilise le modèle par défaut du profil de harness.",
+   "architectPromptTemplateId": "Le modèle System qui indique à l'architecte comment travailler. Les prompts intégrés viennent en premier ; clonez-en un pour le modifier.",
+   "architectPromptVersion": "Épingler l'architecte à une version de son prompt. Vide suit la version actuelle, donc une modification enregistrée s'applique à son prochain tour.",
+   "defaultModel": "Aucun modèle n'est défini : l'architecte utilise le modèle par défaut du profil de harness.",
+   "defaultBadge": "Cet architecte utilise le prompt intégré par défaut, builtin/agent-architect.",
+   "activeBadge": "Actif : les brouillons peuvent ouvrir de nouvelles conversations avec cet architecte.",
+   "inactiveBadge": "Inactif : l'architecte n'accepte plus de nouveaux tours et les brouillons ne le proposent plus tant que vous ne le réactivez pas.",
+   "actions": {
+    "prompts": "Gérer les prompts d'architecte : choisir celui qu'utilise cet architecte, et cloner, modifier, réinitialiser ou supprimer des prompts.",
+    "deployment": "Ouvrir le déploiement derrière cet architecte pour changer ses limites, son exécuteur, ses règles de sortie et ses autres paramètres."
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "Ouvrir Agents > Architectes pour créer, modifier ou supprimer les architectes que tout brouillon peut utiliser."
+  }
+ }
+});

@@ -4318,3 +4318,81 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "architects": {
+    "label": "架構師",
+    "tip": "代理架構師：可重複使用的代理架構師部署，可在任何工作室草稿中與你一起設計代理和應用程式。"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "title": "架構師",
+   "subtitle": "此租用戶中的代理架構師。每一個都是 agent-architect 的部署，擁有自己的 Harness 設定檔、模型和提示，任何工作室草稿都可以使用。",
+   "add": "新增架構師",
+   "create": "建立架構師",
+   "edit": "編輯架構師",
+   "view": "架構師詳細資料",
+   "deleteTitle": "刪除架構師",
+   "emptyTitle": "尚無架構師",
+   "emptyBody": "建立一位架構師，在代理工作室中與你一起設計代理和應用程式。選擇它執行時使用的 Harness 設定檔和模型，以及它使用的提示。",
+   "columns": {
+    "name": "名稱",
+    "harnessProfileId": "Harness 設定檔",
+    "model": "模型",
+    "architectPromptTemplateId": "架構師提示",
+    "active": "狀態",
+    "description": "描述",
+    "id": "ID",
+    "lastUpdateUtc": "更新時間",
+    "createdUtc": "建立時間"
+   },
+   "fields": {
+    "name": "名稱",
+    "description": "描述",
+    "harnessProfileId": "Harness 設定檔",
+    "model": "模型",
+    "architectPromptTemplateId": "架構師提示",
+    "architectPromptVersion": "固定的提示版本",
+    "active": "啟用"
+   },
+   "hints": {
+    "model": "留空則使用 Harness 設定檔的預設模型。",
+    "architectPromptTemplateId": "架構師使用的 System 範本。變更會從它的下一輪開始生效。",
+    "architectPromptVersion": "留空則跟隨提示的目前版本，儲存的編輯會從下一輪開始生效。"
+   },
+   "actions": {
+    "prompts": "架構師提示",
+    "deployment": "部署設定"
+   },
+   "errors": {
+    "nameTaken": "此租用戶中的另一個部署已使用這個名稱。",
+    "version": "請輸入從 1 開始的整數，或留空。"
+   },
+   "promptPinned": "{{name}}（版本 {{version}}）",
+   "defaultModel": "設定檔預設",
+   "defaultBadge": "預設",
+   "promptsTitle": "{{name}} 的架構師提示"
+  }
+ },
+ "components": {
+  "studio": {
+   "chat": {
+    "manageArchitects": "管理架構師"
+   }
+  }
+ }
+});

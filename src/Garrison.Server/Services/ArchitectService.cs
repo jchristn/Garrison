@@ -137,20 +137,22 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
-        /// The architect prompt catalog (AD7.12): built-in architect prompts first, then the tenant's clones of them, then
-        /// the tenant's other System templates, each with the architect deployments that bind it.
+        /// The architect prompt catalog (AD7.12), one page at a time: built-in architect prompts first, then the tenant's
+        /// clones of them, then the tenant's other System templates, each with the architect deployments that bind it. The
+        /// order is fixed, so the query's ordering does not apply; search matches part of the template name.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="query">Enumeration query (maxResults, skip, search).</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>Entries.</returns>
-        public async Task<List<ArchitectPromptEntry>> ListPromptsAsync(string tenantId, CancellationToken token)
+        /// <returns>A page of entries.</returns>
+        public async Task<EnumerationResult<ArchitectPromptEntry>> EnumeratePromptsAsync(string tenantId, EnumerationQuery query, CancellationToken token)
         {
-            List<Deployment> architects = await ArchitectDeploymentsAsync(tenantId, token).ConfigureAwait(false);
-            List<ArchitectPromptEntry> builtIns = new List<ArchitectPromptEntry>();
+            if (query == null) throw new ArgumentNullException(nameof(query));
+            List<PromptTemplate> templates = new List<PromptTemplate>();
             foreach (string key in PromptKeys)
             {
                 PromptTemplate? template = await _Server.Database.PromptTemplates.ReadAsync(BuiltInSeeder.PromptId(key), token).ConfigureAwait(false);
-                if (template != null) builtIns.Add(Entry(template, architects));
+                if (template != null) templates.Add(template);
             }
             List<PromptTemplate> tenant = new List<PromptTemplate>();
             int skip = 0;
@@ -161,9 +163,146 @@ namespace Garrison.Server.Services
                 skip += page.Objects.Count;
                 if (page.Objects.Count == 0 || skip >= page.TotalRecords) break;
             }
-            List<ArchitectPromptEntry> clones = tenant.Where(t => t.BuiltInKey != null && PromptKeys.Contains(t.BuiltInKey)).OrderBy(t => t.Name, StringComparer.Ordinal).Select(t => Entry(t, architects)).ToList();
-            List<ArchitectPromptEntry> others = tenant.Where(t => t.BuiltInKey == null || !PromptKeys.Contains(t.BuiltInKey)).OrderBy(t => t.Name, StringComparer.Ordinal).Select(t => Entry(t, architects)).ToList();
-            return builtIns.Concat(clones).Concat(others).ToList();
+            templates.AddRange(tenant.Where(t => t.BuiltInKey != null && PromptKeys.Contains(t.BuiltInKey)).OrderBy(t => t.Name, StringComparer.Ordinal));
+            templates.AddRange(tenant.Where(t => t.BuiltInKey == null || !PromptKeys.Contains(t.BuiltInKey)).OrderBy(t => t.Name, StringComparer.Ordinal));
+            if (!String.IsNullOrEmpty(query.Search)) templates = templates.Where(t => t.Name.Contains(query.Search, StringComparison.OrdinalIgnoreCase)).ToList();
+            List<PromptTemplate> pageTemplates = templates.Skip(query.Skip).Take(query.MaxResults).ToList();
+            List<Deployment> architects = pageTemplates.Count > 0 ? await ArchitectDeploymentsAsync(tenantId, token).ConfigureAwait(false) : new List<Deployment>();
+            return EnumerationResult<ArchitectPromptEntry>.Build(query, templates.Count, pageTemplates.Select(t => Entry(t, architects)).ToList());
+        }
+
+        /// <summary>
+        /// Enumerate the tenant's architects: deployments with managementAccess Drafts and deployments of the built-in
+        /// architect agent.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="query">Enumeration query (maxResults, skip, ordering, search on the name, activeOnly).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>A page of architects.</returns>
+        public async Task<EnumerationResult<Architect>> EnumerateAsync(string tenantId, EnumerationQuery query, CancellationToken token)
+        {
+            if (query == null) throw new ArgumentNullException(nameof(query));
+            Agent? agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, AgentName, token).ConfigureAwait(false);
+            string? agentId = IsBuiltInArchitect(agent) ? agent!.Id : null;
+            EnumerationResult<Deployment> page = await _Server.Database.Deployments.EnumerateArchitectsAsync(tenantId, agentId, query, token).ConfigureAwait(false);
+            Dictionary<string, PromptTemplate?> prompts = new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal);
+            List<Architect> objects = new List<Architect>();
+            foreach (Deployment deployment in page.Objects)
+            {
+                objects.Add(await ToArchitectAsync(deployment, agentId != null && deployment.AgentId == agentId ? agent : null, prompts, token).ConfigureAwait(false));
+            }
+            return EnumerationResult<Architect>.Build(query, page.TotalRecords, objects);
+        }
+
+        /// <summary>
+        /// Read an architect by deployment identifier or name.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="idOrName">Deployment identifier or name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The architect.</returns>
+        /// <exception cref="NotFoundException">Thrown when no architect deployment matches.</exception>
+        public async Task<Architect> ReadAsync(string tenantId, string idOrName, CancellationToken token)
+        {
+            Deployment deployment = await ResolveAsync(tenantId, idOrName, token).ConfigureAwait(false);
+            return await ToArchitectAsync(deployment, null, new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal), token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolve an architect deployment by identifier or name.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="idOrName">Deployment identifier or name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The deployment.</returns>
+        /// <exception cref="NotFoundException">Thrown when no deployment matches or the deployment is not an architect.</exception>
+        public async Task<Deployment> ResolveAsync(string tenantId, string idOrName, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(idOrName)) throw new NotFoundException("Architect not found.");
+            Deployment? deployment = await _Server.Database.Deployments.ReadAsync(tenantId, idOrName, token).ConfigureAwait(false)
+                ?? await _Server.Database.Deployments.ReadByNameAsync(tenantId, idOrName, token).ConfigureAwait(false);
+            if (deployment == null || !await IsArchitectAsync(tenantId, deployment, token).ConfigureAwait(false)) throw new NotFoundException("Architect " + idOrName + " not found.");
+            return deployment;
+        }
+
+        /// <summary>
+        /// Create an architect: a deployment of the tenant's built-in agent-architect with managementAccess Drafts, bound to
+        /// the requested architect prompt or builtin/agent-architect.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="request">Name, harness profile, model, active, and prompt.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The architect.</returns>
+        /// <exception cref="ValidationException">Thrown when a field is missing or invalid, or with InvalidArchitectPrompt.</exception>
+        /// <exception cref="ConflictException">Thrown with NameConflict, or ArchitectAgentMissing when the tenant has no agent-architect.</exception>
+        public async Task<Architect> CreateAsync(RequestContext ctx, string tenantId, ArchitectRequest request, CancellationToken token)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            ValidateRequest(request);
+            Agent? agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, AgentName, token).ConfigureAwait(false);
+            if (!IsBuiltInArchitect(agent)) throw new ConflictException("ArchitectAgentMissing", "This tenant has no built-in agent named " + AgentName + ", so no architect can be created. Restart the server to seed it.");
+            Deployment deployment = new Deployment();
+            deployment.Name = request.Name.Trim();
+            deployment.Description = request.Description;
+            deployment.AgentId = agent!.Id;
+            deployment.HarnessProfileId = request.HarnessProfileId;
+            deployment.Model = String.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim();
+            deployment.Active = request.Active;
+            deployment.ManagementAccess = ManagementAccessEnum.Drafts;
+            deployment.ArchitectPromptTemplateId = String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId) ? null : request.ArchitectPromptTemplateId;
+            deployment.ArchitectPromptVersion = request.ArchitectPromptVersion;
+            Deployment created = await new TenantConfigurationService(_Server).CreateDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
+            return await ToArchitectAsync(created, agent, new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal), token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Change an architect's name, description, harness profile, model, active flag, and (when given) prompt. Other
+        /// deployment settings are kept. A prompt change takes effect on the architect's next turn.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="existing">The architect deployment.</param>
+        /// <param name="request">New fields.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The architect.</returns>
+        /// <exception cref="ValidationException">Thrown when a field is missing or invalid, or with InvalidArchitectPrompt.</exception>
+        /// <exception cref="ConflictException">Thrown with NameConflict or Protected.</exception>
+        public async Task<Architect> UpdateAsync(RequestContext ctx, string tenantId, Deployment existing, ArchitectRequest request, CancellationToken token)
+        {
+            if (existing == null) throw new ArgumentNullException(nameof(existing));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            ValidateRequest(request);
+            // A second read gives an independent copy to change, so the audit can compare it with the original.
+            Deployment changed = await _Server.Database.Deployments.ReadAsync(tenantId, existing.Id, token).ConfigureAwait(false) ?? throw new NotFoundException("Architect " + existing.Name + " not found.");
+            changed.Name = request.Name.Trim();
+            changed.Description = request.Description;
+            changed.HarnessProfileId = request.HarnessProfileId;
+            changed.Model = String.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim();
+            changed.Active = request.Active;
+            if (!String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId))
+            {
+                PromptTemplate template = await ResolvePromptAsync(tenantId, request.ArchitectPromptTemplateId, request.ArchitectPromptVersion, token).ConfigureAwait(false);
+                Bind(changed, template, request.ArchitectPromptVersion);
+            }
+            changed.LastUpdateUtc = DateTime.UtcNow;
+            Deployment updated = await new TenantConfigurationService(_Server).UpdateDeploymentAsync(ctx, tenantId, existing, changed, token).ConfigureAwait(false);
+            return await ToArchitectAsync(updated, null, new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal), token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Delete an architect deployment. Drafts are not affected; their conversations with it end.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="existing">The architect deployment.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ConflictException">Thrown with Protected, ReferencedByTrigger, ReferencedByNotificationEndpoint, or ReferencedByPipeline.</exception>
+        public async Task DeleteAsync(RequestContext ctx, string tenantId, Deployment existing, CancellationToken token)
+        {
+            if (existing == null) throw new ArgumentNullException(nameof(existing));
+            await new TenantConfigurationService(_Server).DeleteDeploymentAsync(ctx, tenantId, existing, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -293,13 +432,58 @@ namespace Garrison.Server.Services
 
         private async Task<List<Deployment>> ArchitectDeploymentsAsync(string tenantId, CancellationToken token)
         {
-            List<Deployment> all = await Garrison.Server.Routes.ConfigurationSupport.DeploymentsAsync(_Server, tenantId, d => true, token).ConfigureAwait(false);
+            Agent? agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, AgentName, token).ConfigureAwait(false);
+            string? agentId = IsBuiltInArchitect(agent) ? agent!.Id : null;
             List<Deployment> architects = new List<Deployment>();
-            foreach (Deployment deployment in all)
+            int skip = 0;
+            while (true)
             {
-                if (await IsArchitectAsync(tenantId, deployment, token).ConfigureAwait(false)) architects.Add(deployment);
+                EnumerationResult<Deployment> page = await _Server.Database.Deployments.EnumerateArchitectsAsync(tenantId, agentId, new EnumerationQuery { Skip = skip, MaxResults = 1000 }, token).ConfigureAwait(false);
+                architects.AddRange(page.Objects);
+                skip += page.Objects.Count;
+                if (page.Objects.Count == 0 || skip >= page.TotalRecords) break;
             }
             return architects;
+        }
+
+        private static void ValidateRequest(ArchitectRequest request)
+        {
+            Dictionary<string, string> fields = new Dictionary<string, string>();
+            if (String.IsNullOrWhiteSpace(request.Name)) fields["name"] = "Required.";
+            if (String.IsNullOrWhiteSpace(request.HarnessProfileId)) fields["harnessProfileId"] = "Required.";
+            if (request.ArchitectPromptVersion.HasValue && String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId)) fields["architectPromptVersion"] = "Give architectPromptTemplateId with a pinned version.";
+            if (fields.Count > 0) throw new ValidationException("The architect is not valid: " + String.Join(", ", fields.Keys) + ".", fields);
+        }
+
+        private async Task<Architect> ToArchitectAsync(Deployment deployment, Agent? agent, Dictionary<string, PromptTemplate?> prompts, CancellationToken token)
+        {
+            if (agent == null || agent.Id != deployment.AgentId) agent = await _Server.Database.Agents.ReadAsync(deployment.TenantId, deployment.AgentId, token).ConfigureAwait(false);
+            DeploymentPromptBinding? binding = deployment.PromptBindings.FirstOrDefault(b => b.Role == "System");
+            string templateId = binding?.TemplateId ?? BuiltInSeeder.PromptId(DefaultPromptKey);
+            if (!prompts.TryGetValue(templateId, out PromptTemplate? template))
+            {
+                template = await _Server.Database.PromptTemplates.ReadAsync(templateId, token).ConfigureAwait(false);
+                prompts[templateId] = template;
+            }
+            Architect architect = new Architect();
+            architect.Id = deployment.Id;
+            architect.TenantId = deployment.TenantId;
+            architect.Name = deployment.Name;
+            architect.Description = deployment.Description;
+            architect.AgentId = deployment.AgentId;
+            architect.AgentName = agent?.Name;
+            architect.HarnessProfileId = deployment.HarnessProfileId;
+            architect.Model = deployment.Model;
+            architect.Active = deployment.Active;
+            architect.ArchitectPromptTemplateId = templateId;
+            architect.ArchitectPromptName = template?.Name ?? templateId;
+            architect.ArchitectPromptVersion = binding?.PinnedVersion;
+            architect.ArchitectPromptCurrentVersion = template?.CurrentVersion ?? 1;
+            architect.ConfigVersion = deployment.ConfigVersion;
+            architect.IsProtected = deployment.IsProtected;
+            architect.CreatedUtc = deployment.CreatedUtc;
+            architect.LastUpdateUtc = deployment.LastUpdateUtc;
+            return architect;
         }
 
         private static ArchitectPromptEntry Entry(PromptTemplate template, List<Deployment> architects)

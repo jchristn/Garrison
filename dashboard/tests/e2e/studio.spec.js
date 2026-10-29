@@ -12,7 +12,7 @@
 
 import fs from 'fs';
 import { test, expect } from '@playwright/test';
-import { installMocks, studioDraft, studioDiff, ARCHITECT_DEPLOYMENT, ARCHITECT_AGENT, studioRun, respond, PRINCIPAL } from './mocks.js';
+import { installMocks, studioDraft, studioDiff, ARCHITECT, ARCHITECT_DEPLOYMENT, ARCHITECT_AGENT, studioRun, respond, PRINCIPAL } from './mocks.js';
 import { installStudioFlow, FLOW_DRAFT_ID } from './studioFlowMocks.js';
 
 const json = (status, body) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -28,8 +28,12 @@ async function login(page) {
   await expect(page.locator('.dashboard')).toBeVisible();
 }
 
-/** Add the architect deployment and the agent-architect agent to the mocked lists. */
+/** Add the architect to the architect list and its deployment to the deployment list. */
 async function withArchitect(page) {
+  await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill(json(200, { objects: [ARCHITECT], totalRecords: 1, skip: 0, maxResults: 1000, endOfResults: true }));
+  });
   await page.route(/\/tenants\/[^/]+\/deployments(\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     const base = respond('GET', new URL(route.request().url()));
@@ -254,17 +258,17 @@ test('the architect chat starts a conversation that names the draft and shows th
   await expect(page.getByTestId('studio-chat-conversation')).toHaveAttribute('href', '/dashboard/conversations/cnv_arch');
 });
 
-test('New architect creates a deployment of agent-architect with the chosen architect prompt', async ({ page }) => {
+test('New architect creates an architect with the chosen architect prompt', async ({ page }) => {
   const bodies = [];
   await page.route(/\/tenants\/[^/]+\/agents(\?.*)?$/, (route) => {
     // Only the dialog's lookup by name; the full list stays as mocked, so the tenant is not empty and the wizard stays shut.
     if (route.request().method() !== 'GET' || !new URL(route.request().url()).searchParams.get('search')) return route.fallback();
     return route.fulfill(json(200, { objects: [ARCHITECT_AGENT], totalRecords: 1 }));
   });
-  await page.route(/\/tenants\/[^/]+\/deployments$/, (route) => {
+  await page.route(/\/tenants\/[^/]+\/studio\/architects$/, (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
     bodies.push(route.request().postDataJSON());
-    return route.fulfill(json(201, { ...ARCHITECT_DEPLOYMENT, id: 'dep_arch_2', name: 'architect-2' }));
+    return route.fulfill(json(201, { ...ARCHITECT, id: 'dep_arch_2', name: 'architect-2' }));
   });
   await login(page);
   await page.goto(DRAFT);
@@ -281,7 +285,7 @@ test('New architect creates a deployment of agent-architect with the chosen arch
   await page.locator('#architect-model').fill('opus');
   await page.getByTestId('architect-create').click();
   await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies).toEqual([{ name: 'architect-2', agentId: 'agt_arch', harnessProfileId: 'hp_0001', managementAccess: 'Drafts', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
+  expect(bodies).toEqual([{ name: 'architect-2', harnessProfileId: 'hp_0001', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
 });
 
 test('runs a two-turn playground conversation and downloads the transcript', async ({ page }) => {
@@ -430,7 +434,7 @@ test('the setup wizard creates the architect with the default prompt when the se
   await expect(page.getByTestId('architect-clone-link')).toHaveAttribute('href', '/dashboard/prompt-templates/pt_builtin_agent_architect');
   await page.getByTestId('wizard-create-architect').click();
   await expect(page.locator('.wizard-steps li.active')).toHaveText('Sample agent');
-  expect(state.architectBodies).toEqual([{ name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_0001', managementAccess: 'Drafts', architectPromptTemplateId: 'pt_builtin_agent_architect' }]);
+  expect(state.architectBodies).toEqual([{ name: 'architect', harnessProfileId: 'hp_0001', architectPromptTemplateId: 'pt_builtin_agent_architect' }]);
   // Going back shows the architect as created; Continue does not create a second one.
   await page.getByRole('button', { name: 'Back' }).click();
   await expect(page.getByTestId('wizard-architect-created')).toContainText('architect is ready');
@@ -465,7 +469,7 @@ test('end to end: wizard architect, two-agent app built by the architect, apply,
   await page.getByTestId('architect-model').fill('opus');
   await page.getByTestId('wizard-create-architect').click();
   await expect(page.locator('.toast').filter({ hasText: 'Agent architect architect created.' })).toBeVisible();
-  expect(state.architectBodies).toEqual([{ name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_0001', managementAccess: 'Drafts', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
+  expect(state.architectBodies).toEqual([{ name: 'architect', harnessProfileId: 'hp_0001', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
   await page.getByRole('button', { name: 'Skip setup' }).click();
   await expect(page.locator('.modal')).toHaveCount(0);
 

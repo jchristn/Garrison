@@ -19,7 +19,7 @@ Start with the workflow you need, then use the configuration and protocol refere
 | Goal | Read |
 | --- | --- |
 | Design agents and apps in drafts, review the diff, try them in the playground, and apply after approval | [Agent Studio](STUDIO.md) |
-| Have the agent architect build drafts with you, and choose or write its prompt | [The agent architect](ARCHITECT.md), [architect prompts](PROMPTS.md#architect-prompts) |
+| Have the agent architect build drafts with you, keep reusable architects, and choose or write their prompts | [The agent architect](ARCHITECT.md), [architects](ARCHITECT.md#architects), [architect prompts](PROMPTS.md#architect-prompts) |
 | Put a group of agents behind one entry agent, its own chat UI, branding, and sign-in | [Agentic apps](APPS.md), [app chat UI](APP_UI.md) |
 | Version agents and move them through dev, staging, and prod, with rollback | [Revisions, environments, and promotion](REVISIONS.md) |
 | Give agents skills, reference files, and document templates | [Agent assets](ASSETS.md) |

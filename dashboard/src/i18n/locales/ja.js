@@ -4317,3 +4317,81 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "architects": {
+    "label": "アーキテクト",
+    "tip": "エージェントアーキテクト: どのスタジオ下書きでもエージェントとアプリを一緒に設計する、再利用可能なエージェントアーキテクトのデプロイメントです。"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "title": "アーキテクト",
+   "subtitle": "このテナントのエージェントアーキテクト。それぞれが独自のハーネスプロファイル、モデル、プロンプトを持つ agent-architect のデプロイメントで、どのスタジオ下書きからも使用できます。",
+   "add": "アーキテクトを追加",
+   "create": "アーキテクトを作成",
+   "edit": "アーキテクトを編集",
+   "view": "アーキテクトの詳細",
+   "deleteTitle": "アーキテクトを削除",
+   "emptyTitle": "アーキテクトはまだありません",
+   "emptyBody": "エージェントスタジオでエージェントとアプリを一緒に設計するアーキテクトを作成します。実行に使うハーネスプロファイルとモデル、そして使用するプロンプトを選んでください。",
+   "columns": {
+    "name": "名前",
+    "harnessProfileId": "ハーネスプロファイル",
+    "model": "モデル",
+    "architectPromptTemplateId": "アーキテクトプロンプト",
+    "active": "状態",
+    "description": "説明",
+    "id": "ID",
+    "lastUpdateUtc": "更新日時",
+    "createdUtc": "作成日時"
+   },
+   "fields": {
+    "name": "名前",
+    "description": "説明",
+    "harnessProfileId": "ハーネスプロファイル",
+    "model": "モデル",
+    "architectPromptTemplateId": "アーキテクトプロンプト",
+    "architectPromptVersion": "固定するプロンプトのバージョン",
+    "active": "有効"
+   },
+   "hints": {
+    "model": "空のままにすると、ハーネスプロファイルの既定のモデルを使用します。",
+    "architectPromptTemplateId": "アーキテクトが使用する System テンプレートです。変更は次のターンから反映されます。",
+    "architectPromptVersion": "空のままにするとプロンプトの現在のバージョンに従うため、保存した編集は次のターンから反映されます。"
+   },
+   "actions": {
+    "prompts": "アーキテクトプロンプト",
+    "deployment": "デプロイメントの設定"
+   },
+   "errors": {
+    "nameTaken": "このテナントの別のデプロイメントがすでにこの名前を使用しています。",
+    "version": "1 以上の整数を入力するか、空のままにしてください。"
+   },
+   "promptPinned": "{{name}} (バージョン {{version}})",
+   "defaultModel": "プロファイルの既定",
+   "defaultBadge": "既定",
+   "promptsTitle": "{{name}} のアーキテクトプロンプト"
+  }
+ },
+ "components": {
+  "studio": {
+   "chat": {
+    "manageArchitects": "アーキテクトを管理"
+   }
+  }
+ }
+});

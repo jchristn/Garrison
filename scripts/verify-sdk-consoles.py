@@ -17,7 +17,7 @@ token=request('/v1.0/token','POST',{'accessKey':access,'secretKey':key})['token'
 profiles=request(api+'/harness-profiles?maxResults=1000&includeBuiltIn=true')['objects'];profile=next(p for p in profiles if p['name']=='builtin/fake')
 bundle=root+'/examples/agentic-apps/support-triage/support-triage.yaml'
 def architect_deployments():
- return {d['id'] for d in request(api+'/deployments?maxResults=1000')['objects'] if d['name']=='agent-architect-sdk'}
+ return {d['id'] for d in request(api+'/studio/architects?maxResults=1000&search=agent-architect-sdk')['objects'] if d['name']=='agent-architect-sdk'}
 architects_before=architect_deployments();drafts=[]
 agent=request(api+'/agents','POST',{'name':'console-fixture-'+str(int(time.time()))});deployment=None
 try:
@@ -27,7 +27,7 @@ try:
  if shutil.which('go'): commands[-1]=('go',['go','-C',root+'/sdk/go','run','./cmd/console',base],bundle)
  for name,cmd,bundle_path in commands:
   text='help\nhealth\nkeys\n'+access+'\n'+key+'\nagents\nruns\nrun '+run['id']+'\nevents '+run['id']+'\noperations '+run['id']+'\nwatch '+run['id']+'\ninvoke '+agent['id']+' console invocation from '+name+'\n'
-  text+='apply '+bundle_path+'\napps\nstudio-draft support-triage\narchitect-prompts\narchitect\nchat support-triage My invoice was charged twice.\nquit\n'
+  text+='apply '+bundle_path+'\napps\nstudio-draft support-triage\narchitect-prompts\narchitect\narchitects\nchat support-triage My invoice was charged twice.\nquit\n'
   process=subprocess.run(cmd,cwd=root,input=text.encode(),stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=300)
   output=process.stdout.decode(errors='replace');assert access not in output and key not in output,'credential leak'
   log_root=pathlib.Path(os.environ.get('GARRISON_CONSOLE_LOG_DIR','/tmp'));log_root.mkdir(parents=True,exist_ok=True)
@@ -44,6 +44,7 @@ try:
     drafts.append(created['id']);seen.add('studio-draft')
    if 'isBuiltIn' in created and created.get('name')=='builtin/agent-architect':seen.add('architect-prompts')
    if created.get('architectPromptTemplateId') and created.get('deploymentId'):seen.add('architect')
+   if 'architectPromptCurrentVersion' in created and created.get('id') and created.get('harnessProfileId'):seen.add('architects')
    if created.get('runId') and created.get('message')=='My invoice was charged twice.':
     assert created['status']=='Succeeded' and created.get('answer'),(name,'app chat',created);seen.add('chat')
    if created.get('inputText') != 'console invocation from '+name: continue
@@ -51,14 +52,14 @@ try:
    while created['status'] in ('Queued','Leased','Running') and time.monotonic()<deadline:
     time.sleep(0.1);created=request(api+'/runs/'+created['id'])
    assert created['status']=='Succeeded',(name,'invocation completion',created['status'])
-  missing={'apply','studio-draft','architect-prompts','architect','chat'}-seen
+  missing={'apply','studio-draft','architect-prompts','architect','architects','chat'}-seen
   assert not missing,(name,'studio walkthrough output missing',sorted(missing))
-  print(name,'PASS health, login, lists, run/events/operations, stream completion, invocation, bundle apply, studio draft, architect prompt, app chat, quit, credential non-disclosure',flush=True)
+  print(name,'PASS health, login, lists, run/events/operations, stream completion, invocation, bundle apply, studio draft, architect prompt, architect list, app chat, quit, credential non-disclosure',flush=True)
 finally:
  for draft in drafts:
   try: request(api+'/studio/drafts/'+draft,'DELETE')
   except Exception: pass
- for architect in architect_deployments()-architects_before:request(api+'/deployments/'+architect,'DELETE')
+ for architect in architect_deployments()-architects_before:request(api+'/studio/architects/'+architect,'DELETE')
  if deployment:request(api+'/deployments/'+deployment['id'],'DELETE')
  request(api+'/agents/'+agent['id'],'DELETE')
  print('Temporary agent/deployment removed',flush=True)

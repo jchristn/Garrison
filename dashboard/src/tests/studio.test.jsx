@@ -15,7 +15,6 @@ import { errorMessage } from '../utils/errors';
 import { ApiError } from '../utils/api';
 import {
   DEFAULT_ARCHITECT_PROMPT,
-  architectDeployments,
   compilePreviewBody,
   compilePreviewSummary,
   defaultArchitectPrompt,
@@ -41,7 +40,7 @@ import {
   studioDraftChannel,
   studioPermissions
 } from '../utils/studio';
-import { ARCHITECT_DEPLOYMENT, architectPrompts, studioDiff, studioDraft, studioGraph } from '../../tests/e2e/mocks.js';
+import { ARCHITECT, architectPrompts, studioDiff, studioDraft, studioGraph } from '../../tests/e2e/mocks.js';
 
 const t = (...args) => i18n.t(...args);
 
@@ -83,7 +82,6 @@ describe('studio helpers', () => {
   });
 
   it('finds architect deployments, the agent-architect agent, and orders architect prompts', () => {
-    expect(architectDeployments([{ id: 'dep_0001', managementAccess: 'None' }, ARCHITECT_DEPLOYMENT]).map((d) => d.id)).toEqual(['dep_arch']);
     expect(findArchitectAgent([{ id: 'a', name: 'agent-architect-x' }, { id: 'b', name: 'agent-architect' }]).id).toBe('b');
     expect(findArchitectAgent([])).toBeNull();
     const shuffled = [architectPrompts()[2], architectPrompts()[1], architectPrompts()[0]];
@@ -199,7 +197,8 @@ describe('API client', () => {
     const calls = [];
     const fetchMock = vi.fn(async (url, init) => {
       calls.push(`${init.method} ${String(url).replace('http://127.0.0.1:8700', '')}${init.body ? ` ${init.body}` : ''}`);
-      const body = String(url).endsWith('/architect-prompts') ? architectPrompts() : {};
+      const path = String(url).split('?')[0];
+      const body = path.endsWith('/architect-prompts') ? { objects: architectPrompts(), totalRecords: 3, maxResults: 1000, skip: 0 } : path.endsWith('/studio/architects') ? { objects: [ARCHITECT], totalRecords: 1 } : path.includes('/studio/architects/') && !path.endsWith('/prompt') ? ARCHITECT : {};
       return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -218,7 +217,12 @@ describe('API client', () => {
       await c.getStudioDraftGraph('default', 'drf_1');
       await c.studioGraphOperation('default', 'drf_1', { version: 6, operation: 'Connect', from: 'a', to: 'b', fanOut: false });
       await c.invokeStudioPlayground('default', 'drf_1', { input: 'hi', wait: false });
-      expect(await c.listArchitectPrompts('default')).toHaveLength(3);
+      expect((await c.listArchitectPrompts('default')).items).toHaveLength(3);
+      expect((await c.listArchitects('default', { search: 'arch', activeOnly: true, pageNumber: 2, pageSize: 5 })).items).toHaveLength(1);
+      expect((await c.getArchitect('default', 'dep_arch')).name).toBe('architect');
+      await c.createArchitect('default', { name: 'architect', harnessProfileId: 'hp_1' });
+      await c.updateArchitect('default', 'dep_arch', { name: 'architect', harnessProfileId: 'hp_1', active: false });
+      await c.deleteArchitect('default', 'dep_arch');
       await c.getArchitectPrompt('default', 'dep_arch');
       await c.setArchitectPrompt('default', 'dep_arch', { architectPromptTemplateId: 'pt_1' });
     } finally {
@@ -238,7 +242,12 @@ describe('API client', () => {
       'GET /v1.0/api/tenants/default/studio/drafts/drf_1/graph',
       'POST /v1.0/api/tenants/default/studio/drafts/drf_1/graph-operations {"version":6,"operation":"Connect","from":"a","to":"b","fanOut":false}',
       'POST /v1.0/api/tenants/default/studio/drafts/drf_1/playground/invoke {"input":"hi","wait":false}',
-      'GET /v1.0/api/tenants/default/studio/architect-prompts',
+      'GET /v1.0/api/tenants/default/studio/architect-prompts?maxResults=1000&skip=0',
+      'GET /v1.0/api/tenants/default/studio/architects?search=arch&activeOnly=true&maxResults=5&skip=5',
+      'GET /v1.0/api/tenants/default/studio/architects/dep_arch',
+      'POST /v1.0/api/tenants/default/studio/architects {"name":"architect","harnessProfileId":"hp_1"}',
+      'PUT /v1.0/api/tenants/default/studio/architects/dep_arch {"name":"architect","harnessProfileId":"hp_1","active":false}',
+      'DELETE /v1.0/api/tenants/default/studio/architects/dep_arch',
       'GET /v1.0/api/tenants/default/studio/architects/dep_arch/prompt',
       'PUT /v1.0/api/tenants/default/studio/architects/dep_arch/prompt {"architectPromptTemplateId":"pt_1"}'
     ]);

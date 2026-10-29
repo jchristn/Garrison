@@ -258,8 +258,9 @@ export default function ArchitectPromptPanel({ architect = null, deployments = [
   const load = useCallback(() => {
     if (!apiClient) return;
     apiClient
-      .listArchitectPrompts(tenantId)
-      .then((list) => {
+      .listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 })
+      .then((page) => {
+        const list = page?.items || [];
         setEntries(sortArchitectPrompts(list));
         setError(null);
       })

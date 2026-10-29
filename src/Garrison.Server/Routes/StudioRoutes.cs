@@ -13,7 +13,8 @@ namespace Garrison.Server.Routes
     using WatsonWebserver.Core;
 
     /// <summary>
-    /// Studio draft routes (AD7.2, AD7.3, AD7.5): drafts, their items, graph, diff, validation, and the request to apply.
+    /// Studio routes (AD7.2, AD7.3, AD7.5): drafts, their items, graph, diff, validation, and the request to apply; and the
+    /// agent architects and architect prompts the drafts are designed with.
     /// Applying happens only when a person approves the resulting DraftApply approval through the approval routes.
     /// </summary>
     public class StudioRoutes
@@ -22,7 +23,8 @@ namespace Garrison.Server.Routes
 
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/studio/drafts";
         private static readonly string _Tag = "Studio";
-        private static readonly string _Architects = "/v1.0/api/tenants/{tenantId}/studio/architect";
+        private static readonly string _Architects = "/v1.0/api/tenants/{tenantId}/studio/architects";
+        private static readonly string _ArchitectPrompts = "/v1.0/api/tenants/{tenantId}/studio/architect-prompts";
         private readonly ServerContext _Server;
         private readonly StudioService _Studio;
         private RouteRegistrar? _Routes = null;
@@ -65,9 +67,14 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/validate", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, DiffAsync, "Validate a draft by manifest dry run", _Tag, null, typeof(StudioDraftDiff));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/request-apply", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Update, RequestApplyAsync, "Ask a person to approve applying the draft (creates a DraftApply approval)", _Tag, typeof(StudioDraftVersionRequest), typeof(Approval));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}/graph", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, GraphAsync, "A draft's apps as a graph of agents, apps, and call edges", _Tag, null, typeof(StudioGraph));
-            routes.Scoped(HttpMethod.GET, _Architects + "-prompts", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, ArchitectPromptsAsync, "List architect prompts: built-ins first, then tenant clones of them, then other tenant System templates, with the architect deployments that bind each", _Tag, null, typeof(List<ArchitectPromptEntry>));
-            routes.Scoped(HttpMethod.GET, _Architects + "s/{deploymentId}/prompt", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ArchitectPromptAsync, "Read the prompt an architect deployment uses", _Tag, null, typeof(ArchitectPromptSelection), "deploymentId");
-            routes.Scoped(HttpMethod.PUT, _Architects + "s/{deploymentId}/prompt", ResourceTypeEnum.Deployment, OperationTypeEnum.Update, SetArchitectPromptAsync, "Choose the prompt an architect deployment uses; takes effect on its next turn", _Tag, typeof(ArchitectPromptRequest), typeof(ArchitectPromptSelection), "deploymentId");
+            routes.Scoped(HttpMethod.GET, _Architects, ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ListArchitectsAsync, "List agent architects: tenant-wide deployments that may edit studio drafts, with their harness, model, and architect prompt (search, activeOnly, ordering, paginated)", _Tag, null, typeof(EnumerationResult<Architect>));
+            routes.Scoped(HttpMethod.POST, _Architects, ResourceTypeEnum.Deployment, OperationTypeEnum.Create, CreateArchitectAsync, "Create an agent architect: a deployment of agent-architect with draft access, bound to the chosen architect prompt", _Tag, typeof(ArchitectRequest), typeof(Architect));
+            routes.Scoped(HttpMethod.GET, _Architects + "/{deploymentId}", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ReadArchitectAsync, "Read an agent architect", _Tag, null, typeof(Architect), "deploymentId");
+            routes.Scoped(HttpMethod.PUT, _Architects + "/{deploymentId}", ResourceTypeEnum.Deployment, OperationTypeEnum.Update, UpdateArchitectAsync, "Change an agent architect's name, description, harness profile, model, active flag, and prompt; other deployment settings are kept", _Tag, typeof(ArchitectRequest), typeof(Architect), "deploymentId");
+            routes.Scoped(HttpMethod.DELETE, _Architects + "/{deploymentId}", ResourceTypeEnum.Deployment, OperationTypeEnum.Delete, DeleteArchitectAsync, "Delete an agent architect (its deployment); drafts are kept", _Tag, null, null, "deploymentId");
+            routes.Scoped(HttpMethod.GET, _ArchitectPrompts, ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, ArchitectPromptsAsync, "List architect prompts, paginated: built-ins first, then tenant clones of them, then other tenant System templates, with the architect deployments that bind each (search matches the name)", _Tag, null, typeof(EnumerationResult<ArchitectPromptEntry>));
+            routes.Scoped(HttpMethod.GET, _Architects + "/{deploymentId}/prompt", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ArchitectPromptAsync, "Read the prompt an architect deployment uses", _Tag, null, typeof(ArchitectPromptSelection), "deploymentId");
+            routes.Scoped(HttpMethod.PUT, _Architects + "/{deploymentId}/prompt", ResourceTypeEnum.Deployment, OperationTypeEnum.Update, SetArchitectPromptAsync, "Choose the prompt an architect deployment uses; takes effect on its next turn", _Tag, typeof(ArchitectPromptRequest), typeof(ArchitectPromptSelection), "deploymentId");
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/playground/invoke", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Update, DraftPlaygroundAsync, "Run a draft's agent in the playground (its document becomes the agent's draft revision; nothing is published)", _Tag, typeof(PlaygroundInvokeRequest), typeof(Run));
             routes.Scoped(HttpMethod.POST, "/v1.0/api/tenants/{tenantId}/agents/{agentId}/playground/invoke", ResourceTypeEnum.Agent, OperationTypeEnum.Execute, AgentPlaygroundAsync, "Run an agent's draft revision in the playground on an ephemeral deployment in the draft environment", _Tag, typeof(PlaygroundInvokeRequest), typeof(Run), "agentId");
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/graph-operations", ResourceTypeEnum.StudioDraft, OperationTypeEnum.Update, GraphOperationAsync, "Apply one graph operation (add or remove a member, connect, disconnect, set the entry agent, move a node)", _Tag, typeof(StudioGraphOperationRequest), typeof(StudioGraph));
@@ -155,7 +162,42 @@ namespace Garrison.Server.Routes
 
         private async Task ArchitectPromptsAsync(HttpContextBase http)
         {
-            await RouteHelpers.JsonAsync(http, 200, await _Server.Get<ArchitectService>().ListPromptsAsync(RouteHelpers.Tenant(http), http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, await _Server.Get<ArchitectService>().EnumeratePromptsAsync(RouteHelpers.Tenant(http), RouteHelpers.Enumeration(http), http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task ListArchitectsAsync(HttpContextBase http)
+        {
+            await RouteHelpers.JsonAsync(http, 200, await _Server.Get<ArchitectService>().EnumerateAsync(RouteHelpers.Tenant(http), RouteHelpers.Enumeration(http), http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task CreateArchitectAsync(HttpContextBase http)
+        {
+            ArchitectRequest request = RouteHelpers.RequiredBody<ArchitectRequest>(http);
+            Architect created = await _Server.Get<ArchitectService>().CreateAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), request, http.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
+        }
+
+        private async Task ReadArchitectAsync(HttpContextBase http)
+        {
+            await RouteHelpers.JsonAsync(http, 200, await _Server.Get<ArchitectService>().ReadAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "deploymentId") ?? String.Empty, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task UpdateArchitectAsync(HttpContextBase http)
+        {
+            string tenantId = RouteHelpers.Tenant(http);
+            ArchitectService architects = _Server.Get<ArchitectService>();
+            Deployment existing = await architects.ResolveAsync(tenantId, RouteHelpers.Param(http, "deploymentId") ?? String.Empty, http.Token).ConfigureAwait(false);
+            ArchitectRequest request = RouteHelpers.RequiredBody<ArchitectRequest>(http);
+            await RouteHelpers.JsonAsync(http, 200, await architects.UpdateAsync(RouteHelpers.Context(http), tenantId, existing, request, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task DeleteArchitectAsync(HttpContextBase http)
+        {
+            string tenantId = RouteHelpers.Tenant(http);
+            ArchitectService architects = _Server.Get<ArchitectService>();
+            Deployment existing = await architects.ResolveAsync(tenantId, RouteHelpers.Param(http, "deploymentId") ?? String.Empty, http.Token).ConfigureAwait(false);
+            await architects.DeleteAsync(RouteHelpers.Context(http), tenantId, existing, http.Token).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task ArchitectPromptAsync(HttpContextBase http)

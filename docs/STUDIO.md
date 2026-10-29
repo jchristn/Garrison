@@ -173,14 +173,14 @@ Every permission is also checked against the person who started the run, so the 
 
 Every tenant has a protected agent named `agent-architect`. It designs agents and apps with a person, in a draft, using the studio tools above. Its published revision pins the skill asset `agent-architect-skills`, which teaches it manifest authoring and Garrison conventions. It cannot be edited or deleted. To change how it behaves, give its deployment a different prompt. [ARCHITECT.md](ARCHITECT.md) covers the architect in depth: its prompts, cloning and selection, the next-turn rule, pins, and how to test it on the fake harness.
 
-It has no deployment until you create one:
+It has no deployment until you create an **architect**, which is a deployment of `agent-architect` with a harness, a model, and an architect prompt:
 
 ```bash
-curl -s -X POST $B/deployments -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"architect","agentId":"<agent-architect id>","harnessProfileId":"hrn_builtin_claude_code","architectPromptTemplateId":"builtin/agent-architect-guided"}'
+curl -s -X POST $B/studio/architects -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"architect","harnessProfileId":"hrn_builtin_claude_code","architectPromptTemplateId":"builtin/agent-architect-guided"}'
 ```
 
-A deployment of `agent-architect` always gets `managementAccess: Drafts`, and binds `builtin/agent-architect` unless you choose another architect prompt. Talk to it like any agent, for example in a conversation. It works only on the drafts of the person talking to it, within that person's permissions.
+An architect always gets `managementAccess: Drafts`, and binds `builtin/agent-architect` unless you choose another architect prompt. Architects belong to the tenant, not to a draft: any draft can use any architect, and a tenant can keep several (a fast one, a careful one, one on a different harness). In the dashboard they live on Agents > Architects, and a draft's Architect tab picks which one to talk to. Talk to it like any agent, for example in a conversation. It works only on the drafts of the person talking to it, within that person's permissions.
 
 ## Routes
 
@@ -199,11 +199,16 @@ All paths are under `/v1.0/api/tenants/{tenantId}/studio/drafts`:
 | `GET /{id}/graph` | Read on `StudioDraft` | `StudioGraph` |
 | `POST /{id}/graph-operations` | Update on `StudioDraft` | `StudioGraph` |
 
-Architect prompts, under `/v1.0/api/tenants/{tenantId}/studio`:
+Architects and architect prompts, under `/v1.0/api/tenants/{tenantId}/studio`. `{deploymentId}` takes the architect's deployment ID or name:
 
 | Method and path | Permission | Result |
 |---|---|---|
-| `GET /architect-prompts` | Read on `PromptTemplate` | `ArchitectPromptEntry[]` |
+| `GET /architects` | Read on `Deployment` | `EnumerationResult<Architect>`; `maxResults` (1 to 1000, default 25), `skip`, `ordering`, `search` (part of a name), `activeOnly` |
+| `POST /architects` | Create on `Deployment` | `Architect`, 201. Body `ArchitectRequest`; 400 `ValidationFailed`, `InvalidArchitectPrompt`; 409 `NameConflict`, `ArchitectAgentMissing` |
+| `GET /architects/{deploymentId}` | Read on `Deployment` | `Architect`; 404 when the deployment is not an architect |
+| `PUT /architects/{deploymentId}` | Update on `Deployment` | `Architect`. Body `ArchitectRequest`; a null `architectPromptTemplateId` keeps the current prompt |
+| `DELETE /architects/{deploymentId}` | Delete on `Deployment` | 204; drafts are kept |
+| `GET /architect-prompts` | Read on `PromptTemplate` | `EnumerationResult<ArchitectPromptEntry>`; `maxResults`, `skip`, `search`. The order is fixed: built-ins, clones, other `System` templates |
 | `GET /architects/{deploymentId}/prompt` | Read on `Deployment` | `ArchitectPromptSelection` |
 | `PUT /architects/{deploymentId}/prompt` | Update on `Deployment` | `ArchitectPromptSelection`; 400 `NotAnArchitectDeployment`, `InvalidArchitectPrompt` |
 

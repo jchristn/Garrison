@@ -4370,3 +4370,81 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "architects": {
+    "label": "Arquitectos",
+    "tip": "Arquitectos de agentes: despliegues reutilizables del arquitecto de agentes que diseñan agentes y aplicaciones contigo en cualquier borrador del estudio."
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "title": "Arquitectos",
+   "subtitle": "Los arquitectos de agentes de este inquilino. Cada uno es un despliegue de agent-architect con su propio perfil de harness, modelo y prompt, y cualquier borrador del estudio puede usarlo.",
+   "add": "Añadir arquitecto",
+   "create": "Crear arquitecto",
+   "edit": "Editar arquitecto",
+   "view": "Detalles del arquitecto",
+   "deleteTitle": "Eliminar arquitecto",
+   "emptyTitle": "Aún no hay arquitectos",
+   "emptyBody": "Crea un arquitecto para diseñar agentes y aplicaciones contigo en Agent Studio. Elige el perfil de harness y el modelo en los que se ejecuta, y el prompt con el que trabaja.",
+   "columns": {
+    "name": "Nombre",
+    "harnessProfileId": "Perfil de harness",
+    "model": "Modelo",
+    "architectPromptTemplateId": "Prompt del arquitecto",
+    "active": "Estado",
+    "description": "Descripción",
+    "id": "ID",
+    "lastUpdateUtc": "Actualizado",
+    "createdUtc": "Creado"
+   },
+   "fields": {
+    "name": "Nombre",
+    "description": "Descripción",
+    "harnessProfileId": "Perfil de harness",
+    "model": "Modelo",
+    "architectPromptTemplateId": "Prompt del arquitecto",
+    "architectPromptVersion": "Versión fijada del prompt",
+    "active": "Activo"
+   },
+   "hints": {
+    "model": "Déjalo vacío para usar el modelo predeterminado del perfil de harness.",
+    "architectPromptTemplateId": "La plantilla System con la que trabaja el arquitecto. Un cambio se aplica en su siguiente turno.",
+    "architectPromptVersion": "Déjalo vacío para seguir la versión actual del prompt, de modo que las ediciones guardadas se apliquen en el siguiente turno."
+   },
+   "actions": {
+    "prompts": "Prompts del arquitecto",
+    "deployment": "Configuración del despliegue"
+   },
+   "errors": {
+    "nameTaken": "Otro despliegue de este inquilino ya usa este nombre.",
+    "version": "Introduce un número entero desde 1, o déjalo vacío."
+   },
+   "promptPinned": "{{name}} (versión {{version}})",
+   "defaultModel": "Predeterminado del perfil",
+   "defaultBadge": "Predeterminado",
+   "promptsTitle": "Prompts del arquitecto para {{name}}"
+  }
+ },
+ "components": {
+  "studio": {
+   "chat": {
+    "manageArchitects": "Gestionar arquitectos"
+   }
+  }
+ }
+});

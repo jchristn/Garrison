@@ -10437,7 +10437,7 @@
     },
     {
       "name": "Architect Prompts",
-      "description": "Architect prompts (AD7.12 to AD7.15): the catalog, clones, selection per architect deployment, and in-use protection. See docs/PROMPTS.md.",
+      "description": "Architect prompts (AD7.12 to AD7.15): the paginated catalog, clones, selection per architect deployment, and in-use protection. See docs/PROMPTS.md.",
       "item": [
         {
           "name": "List architect prompts",
@@ -10445,7 +10445,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architect-prompts",
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architect-prompts?maxResults=100&skip=0",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -10456,9 +10456,19 @@
                 "{{tenantId}}",
                 "studio",
                 "architect-prompts"
+              ],
+              "query": [
+                {
+                  "key": "maxResults",
+                  "value": "100"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                }
               ]
             },
-            "description": "Built-in architect prompts first, then tenant clones of them, then other System templates."
+            "description": "A page of architect prompts (EnumerationResult): built-in architect prompts first, then tenant clones of them, then other System templates. Accepts maxResults (1 to 1000, default 25), skip, and search (part of a name); the order is fixed."
           },
           "event": [
             {
@@ -10468,7 +10478,54 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('default first', function () { pm.expect(json[0].name).to.eql('builtin/agent-architect'); pm.expect(json[0].isDefault).to.eql(true); });"
+                  "pm.test('enumeration shape', function () { ['success', 'maxResults', 'skip', 'totalRecords', 'recordsRemaining', 'endOfResults', 'timestampUtc', 'objects'].forEach(function (k) { pm.expect(json).to.have.property(k); }); pm.expect(json.objects).to.be.an('array'); });",
+                  "pm.test('default first', function () { pm.expect(json.objects[0].name).to.eql('builtin/agent-architect'); pm.expect(json.objects[0].isDefault).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search architect prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architect-prompts?search=guided&maxResults=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architect-prompts"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "guided"
+                },
+                {
+                  "key": "maxResults",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "search matches part of the template name; maxResults=1 returns one entry and reports the rest as remaining."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('enumeration shape', function () { ['success', 'maxResults', 'skip', 'totalRecords', 'recordsRemaining', 'endOfResults', 'timestampUtc', 'objects'].forEach(function (k) { pm.expect(json).to.have.property(k); }); pm.expect(json.objects).to.be.an('array'); });",
+                  "pm.test('one guided entry', function () { pm.expect(json.objects.length).to.eql(1); pm.expect(json.objects[0].name).to.include('guided'); pm.expect(json.maxResults).to.eql(1); });"
                 ]
               }
             }
@@ -10831,6 +10888,577 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Architects",
+      "description": "Agent architects: tenant-wide, reusable deployments that may edit studio drafts (managementAccess Drafts). Any draft can use any architect; the ID is the deployment ID. See docs/ARCHITECT.md.",
+      "item": [
+        {
+          "name": "List architects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects?maxResults=25&skip=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ],
+              "query": [
+                {
+                  "key": "maxResults",
+                  "value": "25"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "A page of the tenant's architects (EnumerationResult<Architect>). Query: maxResults (1 to 1000, default 25), skip, ordering, search (part of a name), activeOnly."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('enumeration shape', function () { ['success', 'maxResults', 'skip', 'totalRecords', 'recordsRemaining', 'endOfResults', 'timestampUtc', 'objects'].forEach(function (k) { pm.expect(json).to.have.property(k); }); pm.expect(json.objects).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "Creates a deployment of agent-architect with managementAccess Drafts. Required: name, harnessProfileId. architectPromptTemplateId defaults to builtin/agent-architect.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-res-{{suffix}}\",\n  \"description\": \"Created by the Postman collection.\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"model\": \"fake-model\",\n  \"active\": true,\n  \"architectPromptTemplateId\": \"builtin/agent-architect-guided\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('architect', function () { pm.expect(json.id).to.match(/^dep_/); pm.expect(json.agentName).to.eql('agent-architect'); pm.expect(json.architectPromptName).to.eql('builtin/agent-architect-guided'); pm.expect(json.active).to.eql(true); pm.expect(json.model).to.eql('fake-model'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('architectId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect without a harness profile is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "name and harnessProfileId are required: 400 ValidationFailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-bad-{{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('names the field', function () { pm.expect(JSON.stringify(json)).to.include('harnessProfileId'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect with a Task template is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "The prompt must be a System template: 400 InvalidArchitectPrompt.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-task-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"architectPromptTemplateId\": \"builtin/default-task\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('InvalidArchitectPrompt', function () { pm.expect(JSON.stringify(json)).to.include('InvalidArchitectPrompt'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect with a taken name is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "Names are unique among the tenant's deployments: 409 NameConflict.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-res-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('NameConflict', function () { pm.expect(JSON.stringify(json)).to.include('NameConflict'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read architect",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectId}}"
+              ]
+            },
+            "description": "Read by deployment ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same architect', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('architectId')); pm.expect(json.architectPromptVersion == null).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read architect by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/postman-architect-res-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "postman-architect-res-{{suffix}}"
+              ]
+            },
+            "description": "The deployment name works in place of the ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same architect', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('architectId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a plain deployment as an architect",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{deploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{deploymentId}}"
+              ]
+            },
+            "description": "A deployment without managementAccess Drafts is not an architect: 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search architects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects?search=postman-architect-res-{{suffix}}&activeOnly=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "postman-architect-res-{{suffix}}"
+                },
+                {
+                  "key": "activeOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "search matches part of the name; activeOnly leaves out inactive architects."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('enumeration shape', function () { ['success', 'maxResults', 'skip', 'totalRecords', 'recordsRemaining', 'endOfResults', 'timestampUtc', 'objects'].forEach(function (k) { pm.expect(json).to.have.property(k); }); pm.expect(json.objects).to.be.an('array'); });",
+                  "pm.test('found', function () { pm.expect(json.objects.map(function (a) { return a.id; })).to.include(pm.collectionVariables.get('architectId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update architect",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectId}}"
+              ]
+            },
+            "description": "Changes name, description, harness profile, model, active, and (when given) the prompt. A null architectPromptTemplateId keeps the current prompt; the deployment's other settings are kept.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-res-{{suffix}}\",\n  \"description\": \"Updated by the Postman collection.\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"model\": \"fake-model\",\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('updated, prompt kept', function () { pm.expect(json.description).to.eql('Updated by the Postman collection.'); pm.expect(json.active).to.eql(false); pm.expect(json.architectPromptName).to.eql('builtin/agent-architect-guided'); pm.expect(json.configVersion).to.be.above(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update architect prompt and pin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectId}}"
+              ]
+            },
+            "description": "Switches the prompt to builtin/agent-architect and pins version 1; takes effect on the architect's next turn.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-res-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"active\": true,\n  \"architectPromptTemplateId\": \"builtin/agent-architect\",\n  \"architectPromptVersion\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('switched and pinned', function () { pm.expect(json.architectPromptName).to.eql('builtin/agent-architect'); pm.expect(json.architectPromptVersion).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete architect",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectId}}"
+              ]
+            },
+            "description": "Deletes the architect's deployment. Drafts are kept."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read deleted architect",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectId}}"
+              ]
+            },
+            "description": "Gone: 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
                 ]
               }
             }
@@ -21374,6 +22002,10 @@
     },
     {
       "key": "architectDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "architectId",
       "value": ""
     },
     {

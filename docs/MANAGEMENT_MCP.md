@@ -49,7 +49,7 @@ Notification endpoint tools are `garrison_list_notification_endpoints`, `garriso
 
 ## Studio and architect prompts
 
-The studio draft tools (`garrison_studio_*`) are ordinary tools for users and credentials with `StudioDraft` permissions, and are also offered to runs whose deployment has `managementAccess: Drafts`; none of them applies a draft ([STUDIO.md](STUDIO.md)). The architect prompt tools (`garrison_studio_list_architect_prompts`, `garrison_studio_get_architect_prompt`, `garrison_studio_set_architect_prompt`) and the prompt template tools (`garrison_clone_prompt_template`, `garrison_update_prompt_template`, `garrison_reset_prompt_template`, `garrison_render_prompt_template`) are management tools, hidden from every run token ([ARCHITECT.md](ARCHITECT.md)).
+The studio draft tools (`garrison_studio_*`) are ordinary tools for users and credentials with `StudioDraft` permissions, and are also offered to runs whose deployment has `managementAccess: Drafts`; none of them applies a draft ([STUDIO.md](STUDIO.md)). The architect tools (`garrison_studio_list_architects`, `garrison_studio_get_architect`, `garrison_studio_create_architect`, `garrison_studio_update_architect`, `garrison_studio_delete_architect`), the architect prompt tools (`garrison_studio_list_architect_prompts`, `garrison_studio_get_architect_prompt`, `garrison_studio_set_architect_prompt`) and the prompt template tools (`garrison_clone_prompt_template`, `garrison_update_prompt_template`, `garrison_reset_prompt_template`, `garrison_render_prompt_template`) are management tools, hidden from every run token ([ARCHITECT.md](ARCHITECT.md)).
 
 ## Manifests
 

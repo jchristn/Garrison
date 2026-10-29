@@ -139,11 +139,6 @@ export function stripDraftPrefix(text) {
   return String(text || '').replace(/^\[Studio draft [^\]\n]*\]\n\n/, '');
 }
 
-/** Deployments that may work on drafts: managementAccess Drafts (every deployment of agent-architect has it). */
-export function architectDeployments(deployments) {
-  return (deployments || []).filter((d) => d?.managementAccess === 'Drafts');
-}
-
 /** The agent-architect agent from a list of agents, by exact name; null when the tenant has none. */
 export function findArchitectAgent(agents) {
   return (agents || []).find((a) => a?.name === ARCHITECT_AGENT) || null;
@@ -392,4 +387,4 @@ export function studioPermissions(t, permissions) {
 }
 
 // The architect form helpers live outside the studio chunk so the setup wizard (AD9.5) can use them.
-export { architectDeploymentBody, architectFormErrors, blankArchitectForm } from './architect';
+export { architectBody, architectFormErrors, blankArchitectForm } from './architect';

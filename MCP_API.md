@@ -397,11 +397,16 @@ Tools for building studio drafts (AD7). Users and credentials can call them with
 
 Every change names the draft version the caller read and fails with `DraftVersionConflict` when the draft moved on. No tool applies a draft. A person decides the `DraftApply` approval that `garrison_studio_request_apply` creates.
 
-Architect prompt and prompt template tools, for users and credentials only. Runs never see or call them, so the architect cannot change its own prompt:
+Architect, architect prompt, and prompt template tools, for users and credentials only. Runs never see or call them, so the architect cannot change itself or its own prompt:
 
 | Tool | Permission | Arguments |
 |---|---|---|
-| `garrison_studio_list_architect_prompts` | PromptTemplate.Read | none |
+| `garrison_studio_list_architects` | Deployment.Read | optional `search` (part of a name), `activeOnly`, `maxResults` (1 to 100, default 25), `skip` |
+| `garrison_studio_get_architect` | Deployment.Read on the resolved ID | `architect` (name or ID) |
+| `garrison_studio_create_architect` | Deployment.Create | `name`, `harnessProfileId`, optional `description`, `model`, `active` (default true), `architectPromptTemplateId` (default `builtin/agent-architect`), `architectPromptVersion` |
+| `garrison_studio_update_architect` | Deployment.Update on the resolved ID | `architect`, optional `name`, `description`, `harnessProfileId`, `model`, `active`, `architectPromptTemplateId`, `architectPromptVersion` |
+| `garrison_studio_delete_architect` | Deployment.Delete on the resolved ID | `architect` |
+| `garrison_studio_list_architect_prompts` | PromptTemplate.Read | optional `search` (part of a name), `maxResults` (1 to 100, default 25), `skip` |
 | `garrison_studio_get_architect_prompt` | Deployment.Read | `deployment` (name or ID) |
 | `garrison_studio_set_architect_prompt` | Deployment.Update | `deployment`, `architectPromptTemplateId`, optional `architectPromptVersion` |
 | `garrison_clone_prompt_template` | PromptTemplate.Create | `template` (name or ID), `name` |
@@ -409,7 +414,9 @@ Architect prompt and prompt template tools, for users and credentials only. Runs
 | `garrison_reset_prompt_template` | PromptTemplate.Update | `template` (a built-in, or a clone of one) |
 | `garrison_render_prompt_template` | PromptTemplate.Read | `template` or `content`, optional `context` |
 
-These behave like the REST prompt template routes ([docs/PROMPTS.md](docs/PROMPTS.md)): an update with new content adds a version, built-ins cannot be updated, and reset adds a version only when the content differs.
+An architect is a deployment that may edit studio drafts, and its ID is the deployment ID (`dep_...`). `garrison_studio_list_architects` and `garrison_studio_list_architect_prompts` return an `EnumerationResult` (`success`, `maxResults`, `skip`, `totalRecords`, `recordsRemaining`, `endOfResults`, `timestampUtc`, `objects`); the get, create, and update tools return an `Architect`, and `garrison_studio_delete_architect` returns `{"id": "dep_...", "deleted": true}`. The architect prompt list keeps its fixed order (built-ins, then clones, then other `System` templates) on every page. `garrison_studio_update_architect` changes only the fields you pass and leaves the deployment's other settings alone; a new prompt takes effect on the architect's next turn. Errors use the REST codes: `ValidationFailed`, `InvalidArchitectPrompt`, `NameConflict`, `ArchitectAgentMissing`, and `NotFound` for a deployment that is not an architect. See [docs/ARCHITECT.md](docs/ARCHITECT.md#architects).
+
+The prompt template tools behave like the REST prompt template routes ([docs/PROMPTS.md](docs/PROMPTS.md)): an update with new content adds a version, built-ins cannot be updated, and reset adds a version only when the content differs.
 
 ## Capability catalog
 

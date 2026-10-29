@@ -3241,3 +3241,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "Agenten-Architekten, die Sie in jedem Studio-Entwurf wiederverwenden können: erstellen, bearbeiten und löschen Sie sie, und wählen Sie Harness-Profil, Modell und Prompt für jeden."
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "Einen Agenten-Architekten erstellen: eine Bereitstellung von agent-architect, die nur Ihre Studio-Entwürfe bearbeitet und sie nie anwendet.",
+   "harnessProfileId": "Das Harness-Profil, auf dem der Architekt läuft. Es bestimmt die Agenten-CLI, die er verwendet (Claude Code, Codex usw.).",
+   "model": "Das Modell, das der Architekt beim Harness anfordert. Leer verwendet das Standardmodell des Harness-Profils.",
+   "architectPromptTemplateId": "Die System-Vorlage, die dem Architekten sagt, wie er arbeitet. Die integrierten Prompts stehen zuerst; klonen Sie einen, um ihn zu ändern.",
+   "architectPromptVersion": "Den Architekten auf eine Version seines Prompts festlegen. Leer folgt der aktuellen Version, sodass eine gespeicherte Änderung ab seinem nächsten Zug gilt.",
+   "defaultModel": "Es ist kein Modell gesetzt, daher verwendet der Architekt das Standardmodell des Harness-Profils.",
+   "defaultBadge": "Dieser Architekt verwendet den integrierten Standard-Prompt builtin/agent-architect.",
+   "activeBadge": "Aktiv: Entwürfe können neue Unterhaltungen mit diesem Architekten beginnen.",
+   "inactiveBadge": "Inaktiv: Der Architekt nimmt keine neuen Züge an, und Entwürfe bieten ihn nicht an, bis Sie ihn wieder aktivieren.",
+   "actions": {
+    "prompts": "Die Architekten-Prompts verwalten: den Prompt dieses Architekten wählen sowie Prompts klonen, bearbeiten, zurücksetzen oder löschen.",
+    "deployment": "Die Bereitstellung hinter diesem Architekten öffnen, um Limits, Executor, Egress-Regeln und weitere Einstellungen zu ändern."
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "Agenten > Architekten öffnen, um die Architekten zu erstellen, zu bearbeiten oder zu löschen, die jeder Entwurf verwenden kann."
+  }
+ }
+});

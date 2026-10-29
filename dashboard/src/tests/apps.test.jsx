@@ -23,7 +23,7 @@ import { findPage, pathFor } from '../config/navConfig';
 import ApiClient, { ApiError } from '../utils/api';
 import { ENUMS } from '../utils/constants';
 import { errorMessage, fieldErrorMessages, withListItemErrors } from '../utils/errors';
-import { architectDeploymentBody, architectFormErrors } from '../utils/architect';
+import { architectBody, architectFormErrors } from '../utils/architect';
 import {
   APP_FIELD_CODES,
   canPromoteTo,
@@ -450,7 +450,7 @@ describe('app environments and promotion (AD9.6)', () => {
   });
 
   it('builds the architect deployment body from the wizard or dialog form', () => {
-    expect(architectDeploymentBody({ name: ' architect ', harnessProfileId: 'hp_1', model: '', promptId: 'pt_guided' }, 'agt_arch')).toEqual({ name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_1', managementAccess: 'Drafts', architectPromptTemplateId: 'pt_guided' });
+    expect(architectBody({ name: ' architect ', harnessProfileId: 'hp_1', model: '', promptId: 'pt_guided' })).toEqual({ name: 'architect', harnessProfileId: 'hp_1', architectPromptTemplateId: 'pt_guided' });
     expect(architectFormErrors({ name: '', harnessProfileId: '' }, t)).toEqual({ name: t('common.errors.required'), harnessProfileId: t('common.errors.required') });
   });
 });

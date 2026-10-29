@@ -776,6 +776,11 @@ namespace Garrison.Server.Protocols
                     case "garrison_render_prompt_template":
                         result = await PromptTemplateToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_studio_list_architects":
+                    case "garrison_studio_get_architect":
+                    case "garrison_studio_create_architect":
+                    case "garrison_studio_update_architect":
+                    case "garrison_studio_delete_architect":
                     case "garrison_studio_list_architect_prompts":
                     case "garrison_studio_get_architect_prompt":
                     case "garrison_studio_set_architect_prompt":
@@ -1669,6 +1674,15 @@ namespace Garrison.Server.Protocols
             }
         }
 
+        private static EnumerationQuery ToolPage(McpArchitectArguments arguments)
+        {
+            EnumerationQuery query = new EnumerationQuery();
+            query.Search = String.IsNullOrWhiteSpace(arguments.Search) ? null : arguments.Search;
+            query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            query.Skip = Math.Max(arguments.Skip ?? 0, 0);
+            return query;
+        }
+
         private async Task<object> ArchitectToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
         {
             McpArchitectArguments arguments = ManagementArguments<McpArchitectArguments>(args);
@@ -1678,7 +1692,43 @@ namespace Garrison.Server.Protocols
                 if (tool.Name == "garrison_studio_list_architect_prompts")
                 {
                     await Require(ctx, tenantId, ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
-                    return await architects.ListPromptsAsync(tenantId, token).ConfigureAwait(false);
+                    return await architects.EnumeratePromptsAsync(tenantId, ToolPage(arguments), token).ConfigureAwait(false);
+                }
+                if (tool.Name == "garrison_studio_list_architects")
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Deployment, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    EnumerationQuery query = ToolPage(arguments);
+                    query.ActiveOnly = arguments.ActiveOnly ?? false;
+                    return await architects.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
+                }
+                if (tool.Name == "garrison_studio_create_architect")
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Deployment, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    ArchitectRequest create = new ArchitectRequest
+                    {
+                        Name = arguments.Name ?? String.Empty, Description = arguments.Description, HarnessProfileId = arguments.HarnessProfileId ?? String.Empty, Model = arguments.Model,
+                        Active = arguments.Active ?? true, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion
+                    };
+                    return await architects.CreateAsync(ctx, tenantId, create, token).ConfigureAwait(false);
+                }
+                if (tool.Name == "garrison_studio_get_architect" || tool.Name == "garrison_studio_update_architect" || tool.Name == "garrison_studio_delete_architect")
+                {
+                    if (String.IsNullOrWhiteSpace(arguments.Architect)) throw ToolError("ValidationFailed", "architect is required.");
+                    Deployment existing = await architects.ResolveAsync(tenantId, arguments.Architect, token).ConfigureAwait(false);
+                    await Require(ctx, tenantId, ResourceTypeEnum.Deployment, tool.Operation, existing.Id, token).ConfigureAwait(false);
+                    if (tool.Name == "garrison_studio_get_architect") return await architects.ReadAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+                    if (tool.Name == "garrison_studio_delete_architect")
+                    {
+                        await architects.DeleteAsync(ctx, tenantId, existing, token).ConfigureAwait(false);
+                        return new McpConfigurationDeletion { Id = existing.Id, Deleted = true };
+                    }
+                    Architect current = await architects.ReadAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+                    ArchitectRequest update = new ArchitectRequest
+                    {
+                        Name = arguments.Name ?? current.Name, Description = arguments.Description ?? current.Description, HarnessProfileId = arguments.HarnessProfileId ?? current.HarnessProfileId,
+                        Model = arguments.Model ?? current.Model, Active = arguments.Active ?? current.Active, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion
+                    };
+                    return await architects.UpdateAsync(ctx, tenantId, existing, update, token).ConfigureAwait(false);
                 }
                 if (String.IsNullOrWhiteSpace(arguments.Deployment)) throw ToolError("ValidationFailed", "deployment is required.");
                 Deployment deployment = await _Context.Database.Deployments.ReadAsync(tenantId, arguments.Deployment, token).ConfigureAwait(false)
@@ -1692,6 +1742,10 @@ namespace Garrison.Server.Protocols
             catch (NotFoundException e)
             {
                 throw ToolError("NotFound", e.Message);
+            }
+            catch (ConflictException e)
+            {
+                throw ToolError(e.Code, e.Message);
             }
             catch (ValidationException e)
             {

@@ -15,7 +15,8 @@ Every surface added in AD1 to AD10, and the tests that cover it. Touchstone suit
 | Agentic apps | `/apps` CRUD, delegation, revisions, publish, promote | `apps-*`: crud-validation, delegation, revisions-promotion, manifest-mcp | `apps.spec.js` | app cases | Agentic Apps |
 | App gateway | `/v1.0/apps/{slug}`, logo, session, conversations, messages, turn stream, files, files stream | `apps-*`: sessions, gateway-conversation; `studio-*`: deploy-dev, build-deploy-chat; `examples-*`: research-overview, support-triage-studio | `app-ui` chat.spec.js, files.spec.js | gateway chat case (support triage bundle) | Agentic Apps (gateway requests; the long-lived files stream is covered by Touchstone and SDKs only) |
 | Studio drafts | `/studio/drafts` CRUD, items, diff, validate, request-apply, graph, graph-operations | `studio-*`: drafts, diff-validate, graph, apply-approval, grant-mcp, tenancy-rbac, deploy-dev, build-deploy-chat | `studio.spec.js`, `canvas.spec.js` | studio draft case | Studio Drafts |
-| Architect prompts | `/studio/architect-prompts`, `/studio/architects/{id}/prompt`, prompt template clone, reset, delete in use | `studio-*`: architect-seed, architect-prompt-flow, architect-seed-replicas, tenancy-rbac | `studio.spec.js` (architect prompt panel) | architect prompt case | Architect Prompts |
+| Architects | `/studio/architects` list (paginated, search, activeOnly), create, read by ID or name, update, delete; 404 for a plain deployment and for another tenant | `studio-*`: architects | `architects.spec.js`, `studio.spec.js` (draft picker, New architect, setup wizard) | agent architects case | Architects |
+| Architect prompts | `/studio/architect-prompts` (paginated), `/studio/architects/{id}/prompt`, prompt template clone, reset, delete in use | `studio-*`: architect-seed, architect-prompt-flow, architect-seed-replicas, tenancy-rbac | `studio.spec.js` (architect prompt panel) | architect prompt case | Architect Prompts |
 | Playground and preview | `/agents/{id}/playground/invoke`, `/studio/drafts/{id}/playground/invoke`, compile-preview with revision and environment | `studio-*`: playground, preview | `studio.spec.js` | playground case | Playground |
 | Approvals | DraftApply decisions on `/approvals/{id}/decide` | `studio-*`: apply-approval, grant-mcp | `studio.spec.js` | studio draft case | Studio Drafts |
 
@@ -31,6 +32,7 @@ Every surface added in AD1 to AD10, and the tests that cover it. Touchstone suit
 | `garrison_list_agent_revisions`, `garrison_get_agent_revision`, `garrison_publish_agent_revision`, `garrison_promote`, `garrison_rollback_promotion` | `revisions-*`: mcp |
 | `garrison_studio_*` draft tools | `studio-*`: grant-mcp, channel, architect-script, build-deploy-chat |
 | `garrison_studio_playground_invoke` | `studio-*`: playground (REST path); MCP dispatch shares `PlaygroundService` |
+| `garrison_studio_list_architects`, `garrison_studio_get_architect`, `garrison_studio_create_architect`, `garrison_studio_update_architect`, `garrison_studio_delete_architect`, paginated `garrison_studio_list_architect_prompts` | `studio-*`: architects |
 | Architect prompt and prompt template tools | `studio-*`: architect-prompt-flow |
 
 ## WebSocket channels
@@ -48,6 +50,7 @@ Every surface added in AD1 to AD10, and the tests that cover it. Touchstone suit
 | Agents > Revisions, Assets, Capabilities | `revisions.spec.js`, `assets.spec.js`, `capabilities.spec.js` |
 | Run detail fan-out groups, conversation files | `fanout.spec.js`, `files.spec.js` |
 | Agents > Apps | `apps.spec.js` |
+| Agents > Architects (list, create, edit, delete, prompts, deployment link) | `architects.spec.js` |
 | Agents > Studio (list, workspace, canvas, playground, preview, architect prompt panel) | `studio.spec.js`, `canvas.spec.js` |
 | Every screen: translations, tooltips, accessibility | `i18n.spec.js`, `tooltips.spec.js`, `accessibility.spec.js` |
 | App UI chat, file panel, branding, sign-in | `app-ui` chat.spec.js, files.spec.js, accessibility.spec.js, i18n.spec.js, tooltips.spec.js |

@@ -955,10 +955,43 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `studio/drafts/${enc(id)}/playground/invoke`), { body });
   }
 
-  /** Architect prompts: built-ins first, then tenant clones, then other System templates (ArchitectPromptEntry[]). */
-  async listArchitectPrompts(tenantId) {
-    const res = await this._request('GET', this._t(tenantId, 'studio/architect-prompts'));
-    return Array.isArray(res) ? res : res?.objects || res?.items || [];
+  /**
+   * Architect prompts, one page at a time: built-ins first, then tenant clones, then other System templates
+   * (EnumerationResult of ArchitectPromptEntry, normalized to { items, ... }). Params: pageNumber, pageSize, search.
+   */
+  listArchitectPrompts(tenantId, params = { pageNumber: 1, pageSize: 1000 }) {
+    return this._list(this._t(tenantId, 'studio/architect-prompts'), params);
+  }
+
+  /**
+   * Agent architects: tenant-wide deployments that may edit studio drafts, with their harness profile, model, and
+   * architect prompt (EnumerationResult of Architect). Params: pageNumber, pageSize, search, ordering, activeOnly.
+   */
+  listArchitects(tenantId, params = {}) {
+    return this._list(this._t(tenantId, 'studio/architects'), params);
+  }
+
+  /** One architect by deployment ID or name. 404 when the deployment is not an architect. */
+  getArchitect(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `studio/architects/${enc(id)}`));
+  }
+
+  /**
+   * Create an architect: body { name, description?, harnessProfileId, model?, active?, architectPromptTemplateId?,
+   * architectPromptVersion? }. 400 InvalidArchitectPrompt, 409 NameConflict, 409 ArchitectAgentMissing.
+   */
+  createArchitect(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'studio/architects'), { body });
+  }
+
+  /** Change an architect (same body as create; no architectPromptTemplateId keeps the current prompt). */
+  updateArchitect(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `studio/architects/${enc(id)}`), { body });
+  }
+
+  /** Delete an architect (its deployment). Drafts are kept. */
+  deleteArchitect(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `studio/architects/${enc(id)}`));
   }
 
   /** The prompt an architect deployment uses (ArchitectPromptSelection). */

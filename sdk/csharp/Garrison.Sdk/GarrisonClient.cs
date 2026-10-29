@@ -209,7 +209,7 @@ namespace Garrison.Sdk
         public AgenticAppsClient Apps { get; }
 
         /// <summary>
-        /// Studio drafts: manifest bundles applied only after a person approves, their app graph, and architect prompts.
+        /// Studio drafts: manifest bundles applied only after a person approves, their app graph, agent architects, and architect prompts.
         /// </summary>
         public StudioDraftsClient StudioDrafts { get; }
 

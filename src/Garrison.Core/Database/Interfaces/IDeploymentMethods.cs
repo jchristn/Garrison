@@ -79,6 +79,17 @@ namespace Garrison.Core.Database.Interfaces
         Task<EnumerationResult<Deployment>> EnumerateAsync(string? tenantId, EnumerationQuery query, CancellationToken token = default);
 
         /// <summary>
+        /// Enumerate a tenant's architect deployments: those with managementAccess Drafts, or deployments of the built-in
+        /// architect agent.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="architectAgentId">Identifier of the tenant's built-in architect agent, or null when the tenant has none.</param>
+        /// <param name="query">Enumeration query (search matches the name).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>A page of records.</returns>
+        Task<EnumerationResult<Deployment>> EnumerateArchitectsAsync(string tenantId, string? architectAgentId, EnumerationQuery query, CancellationToken token = default);
+
+        /// <summary>
         /// List a tenant's deployments for one agent, with child rows.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

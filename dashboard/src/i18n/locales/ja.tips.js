@@ -3241,3 +3241,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "どのスタジオ下書きでも再利用できるエージェントアーキテクト。作成、編集、削除を行い、それぞれのハーネスプロファイル、モデル、プロンプトを選びます。"
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "エージェントアーキテクトを作成します。スタジオ下書きの編集だけを行い、適用は決して行わない agent-architect のデプロイメントです。",
+   "harnessProfileId": "アーキテクトが実行されるハーネスプロファイルです。使用するエージェント CLI (Claude Code、Codex など) が決まります。",
+   "model": "アーキテクトがハーネスに要求するモデルです。空の場合はハーネスプロファイルの既定のモデルを使用します。",
+   "architectPromptTemplateId": "アーキテクトの働き方を指示する System テンプレートです。組み込みのプロンプトが先頭に並びます。変更するには複製してください。",
+   "architectPromptVersion": "アーキテクトをプロンプトの特定のバージョンに固定します。空の場合は現在のバージョンに従うため、保存した編集は次のターンから反映されます。",
+   "defaultModel": "モデルが設定されていないため、アーキテクトはハーネスプロファイルの既定のモデルを使用します。",
+   "defaultBadge": "このアーキテクトは組み込みの既定プロンプト builtin/agent-architect を使用しています。",
+   "activeBadge": "有効: 下書きからこのアーキテクトとの新しい会話を開始できます。",
+   "inactiveBadge": "無効: 再び有効にするまで、アーキテクトは新しいターンを受け付けず、下書きにも表示されません。",
+   "actions": {
+    "prompts": "アーキテクトプロンプトを管理します。このアーキテクトが使うプロンプトを選び、プロンプトの複製、編集、リセット、削除を行います。",
+    "deployment": "このアーキテクトの背後にあるデプロイメントを開き、制限、エグゼキューター、送信ルールなどの設定を変更します。"
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "エージェント > アーキテクトを開き、すべての下書きで使えるアーキテクトを作成、編集、削除します。"
+  }
+ }
+});

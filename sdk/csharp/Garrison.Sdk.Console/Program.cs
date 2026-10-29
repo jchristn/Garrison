@@ -9,6 +9,7 @@ namespace Garrison.Sdk.Console
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Sdk.Clients;
+    using Garrison.Sdk.Enumeration;
     using Garrison.Sdk.Http;
     using Garrison.Sdk.Models;
     using Garrison.Sdk.Requests;
@@ -42,7 +43,7 @@ namespace Garrison.Sdk.Console
                 {
                     switch (command)
                     {
-                        case "help": ConsoleIo.WriteLine("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architect [prompt] | chat <slug> <message> | quit"); break;
+                        case "help": ConsoleIo.WriteLine("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | operations <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | apply <file> | apps | studio-draft <app> | architect-prompts | architects | architect [prompt] | chat <slug> <message> | quit"); break;
                         case "health": Print(await client.HealthAsync(request.Token).ConfigureAwait(false)); break;
                         case "login":
                             Require(parts, 3);
@@ -78,7 +79,10 @@ namespace Garrison.Sdk.Console
                             Print(await client.StudioDrafts.CreateAsync(draft, request.Token).ConfigureAwait(false));
                             break;
                         case "architect-prompts":
-                            foreach (ArchitectPromptEntry entry in await client.StudioDrafts.ListArchitectPromptsAsync(request.Token).ConfigureAwait(false)) Print(entry);
+                            foreach (ArchitectPromptEntry entry in (await client.StudioDrafts.ListArchitectPromptsAsync(null, request.Token).ConfigureAwait(false)).Objects) Print(entry);
+                            break;
+                        case "architects":
+                            foreach (Architect entry in (await client.StudioDrafts.ListArchitectsAsync(null, request.Token).ConfigureAwait(false)).Objects) Print(entry);
                             break;
                         case "architect": Print(await SelectArchitectPromptAsync(client, parts.Length > 1 ? parts[1] : null, request.Token).ConfigureAwait(false)); break;
                         case "chat":
@@ -99,7 +103,6 @@ namespace Garrison.Sdk.Console
             return 0;
         }
 
-        private static readonly string _ArchitectAgent = "agent-architect";
         private static readonly string _ArchitectDeployment = "agent-architect-sdk";
         private static readonly string _FakeHarnessProfile = "hrn_builtin_fake";
 
@@ -110,19 +113,19 @@ namespace Garrison.Sdk.Console
 
         private static async Task<ArchitectPromptSelection> SelectArchitectPromptAsync(GarrisonClient client, string? prompt, CancellationToken token)
         {
-            List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(token).ConfigureAwait(false);
-            if (prompts.Count < 1) throw new InvalidOperationException("The server lists no architect prompts.");
-            string? deploymentId = prompts.SelectMany(p => p.Deployments).FirstOrDefault();
-            if (deploymentId == null)
+            EnumerationResult<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(null, token).ConfigureAwait(false);
+            if (prompts.Objects.Count < 1) throw new InvalidOperationException("The server lists no architect prompts.");
+            EnumerationQuery query = new EnumerationQuery();
+            query.MaxResults = 1;
+            Architect? architect = (await client.StudioDrafts.ListArchitectsAsync(query, token).ConfigureAwait(false)).Objects.FirstOrDefault();
+            if (architect == null)
             {
-                Agent architect = await client.Agents.GetAsync(_ArchitectAgent, token).ConfigureAwait(false);
-                Deployment deployment = new Deployment();
-                deployment.Name = _ArchitectDeployment;
-                deployment.AgentId = architect.Id;
-                deployment.HarnessProfileId = _FakeHarnessProfile;
-                deploymentId = (await client.Deployments.CreateAsync(deployment, token).ConfigureAwait(false)).Id;
+                ArchitectRequest create = new ArchitectRequest();
+                create.Name = _ArchitectDeployment;
+                create.HarnessProfileId = _FakeHarnessProfile;
+                architect = await client.StudioDrafts.CreateArchitectAsync(create, token).ConfigureAwait(false);
             }
-            return await client.StudioDrafts.SetArchitectPromptAsync(deploymentId, prompt ?? prompts[0].Id, null, token).ConfigureAwait(false);
+            return await client.StudioDrafts.SetArchitectPromptAsync(architect.Id, prompt ?? prompts.Objects[0].Id, null, token).ConfigureAwait(false);
         }
 
         private static async Task<AppTurnView> ChatAsync(GarrisonClient client, string slug, string message, CancellationToken token)

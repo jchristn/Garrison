@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -28,7 +28,7 @@ import { errorMessage } from '../utils/errors';
 import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { formatNumber } from '../i18n/formatters';
-import { ARCHITECT_STORAGE_KEY, STUDIO_POLL_MS, architectDeployments, draftStatusTone, graphFromMessage, isDraftOpen, readStored, studioPermissions, writeStored } from '../utils/studio';
+import { ARCHITECT_STORAGE_KEY, STUDIO_POLL_MS, draftStatusTone, graphFromMessage, isDraftOpen, readStored, studioPermissions, writeStored } from '../utils/studio';
 
 /** Tabs of the workspace; `?tab=` opens one. */
 const TAB_KEYS = ['architect', 'items', 'graph', 'apply', 'playground', 'preview', 'release', 'prompts'];
@@ -121,7 +121,16 @@ export default function StudioDraftView({ recordId }) {
   }, [apiClient, tenantId]);
   useEffect(loadDeployments, [loadDeployments]);
 
-  const architects = useMemo(() => architectDeployments(deployments), [deployments]);
+  // The tenant's active architects (GET /studio/architects): reusable across drafts, managed on Agents > Architects.
+  const [architects, setArchitects] = useState([]);
+  const loadArchitects = useCallback(() => {
+    if (!apiClient) return;
+    apiClient
+      .listArchitects(tenantId, { pageNumber: 1, pageSize: 1000, activeOnly: true, ordering: 'NameAscending' })
+      .then((r) => setArchitects(r.items || []))
+      .catch(() => setArchitects([]));
+  }, [apiClient, tenantId]);
+  useEffect(loadArchitects, [loadArchitects]);
   // Fall back to the first architect when the remembered one is gone.
   const currentArchitectId = architects.some((d) => d.id === architectId) ? architectId : architects[0]?.id || '';
   const architect = architects.find((d) => d.id === currentArchitectId) || null;
@@ -300,9 +309,10 @@ export default function StudioDraftView({ recordId }) {
           architects={architects}
           architectId={currentArchitectId}
           onArchitectChange={chooseArchitect}
-          onArchitectCreated={(deployment) => {
-            addToast({ type: 'success', message: t('components.studio.architect.created', { name: deployment?.name || '' }) });
-            if (deployment?.id) chooseArchitect(deployment.id);
+          onArchitectCreated={(created) => {
+            addToast({ type: 'success', message: t('components.studio.architect.created', { name: created?.name || '' }) });
+            if (created?.id) chooseArchitect(created.id);
+            loadArchitects();
             loadDeployments();
           }}
           deniedArchitect={denied.architect}
@@ -315,7 +325,7 @@ export default function StudioDraftView({ recordId }) {
       {activeTab === 'playground' && <StudioPlaygroundPanel draft={draft} graph={graph} blocked={denied.playground} />}
       {activeTab === 'preview' && <StudioPreviewPanel deployments={deployments} blocked={denied.preview} />}
       {activeTab === 'release' && <StudioReleasePanel draft={draft} permissions={permissions} />}
-      {activeTab === 'prompts' && <ArchitectPromptPanel architect={architect} deployments={deployments} denied={denied} />}
+      {activeTab === 'prompts' && <ArchitectPromptPanel architect={architect} deployments={architects} denied={denied} />}
       <ConfirmModal
         open={confirmDiscard}
         danger

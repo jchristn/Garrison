@@ -268,19 +268,40 @@ _, err = client.Approvals.Decide(ctx, approval.ID, garrison.ApprovalDecideReques
 
 `RequestApply` validates the draft (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`), returns an `Approval` with `Kind` `ApprovalKindDraftApply` and `DraftID` set, and moves the draft to `PendingApproval`. Nothing changes until a person decides the approval through `client.Approvals.Decide`: Allow needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request; Deny returns the draft to `Open`. `garrison.ResourceTypeStudioDraft` names drafts in permissions.
 
-## Architect prompts
+## Agent architects
 
-Every tenant has a protected agent named `agent-architect` that designs agents and apps in a draft. A deployment of it always gets `ManagementAccess` `ManagementAccessDrafts`, which lets its runs edit drafts for the person talking to it, never apply them. Its System prompt is chosen per deployment (see [docs/PROMPTS.md](../../docs/PROMPTS.md#architect-prompts)). `Deployment.ArchitectPromptTemplateID` and `ArchitectPromptVersion` choose it on create; without them the deployment binds `builtin/agent-architect`.
+Every tenant has a protected agent named `agent-architect` that designs agents and apps in a draft. An agent architect is a deployment of it, or any deployment with `ManagementAccess` `ManagementAccessDrafts`, which lets its runs edit drafts for the person talking to it, never apply them. `client.StudioDrafts` manages architects directly, so you never build the deployment yourself:
 
 ```go
-prompts, err := client.StudioDrafts.ArchitectPrompts(ctx) // built-ins first, then clones, then other System templates
-clone, err := client.PromptTemplates.Clone(ctx, prompts[0].ID, "my-architect")
-selection, err := client.StudioDrafts.ArchitectPrompt(ctx, deploymentID)
-selection, err = client.StudioDrafts.SetArchitectPrompt(ctx, deploymentID, clone.ID, nil) // nil follows the current version
+model := "claude-sonnet-4-5"
+architect, err := client.StudioDrafts.CreateArchitect(ctx, garrison.ArchitectRequest{
+	Name: "architect", HarnessProfileID: "hrn_builtin_claude_code", Model: &model,
+}) // a nil ArchitectPromptTemplateID binds builtin/agent-architect
+page, err := client.StudioDrafts.Architects(ctx, &garrison.ListOptions{MaxResults: 10, Search: "arch", ActiveOnly: true})
+read, err := client.StudioDrafts.Architect(ctx, "architect") // identifier or name
+guided := "builtin/agent-architect-guided"
+inactive := false
+architect, err = client.StudioDrafts.UpdateArchitect(ctx, architect.ID, garrison.ArchitectRequest{
+	Name: "architect", HarnessProfileID: "hrn_builtin_claude_code", Active: &inactive, ArchitectPromptTemplateID: &guided,
+})
+err = client.StudioDrafts.DeleteArchitect(ctx, architect.ID) // drafts are kept
+```
+
+A `garrison.Architect` has `ID` (the deployment identifier), `TenantID`, `Name`, `Description`, `AgentID`, `AgentName`, `HarnessProfileID`, `Model`, `Active`, `ArchitectPromptTemplateID`, `ArchitectPromptName`, `ArchitectPromptVersion` (nil follows the template's current version), `ArchitectPromptCurrentVersion`, `ConfigVersion`, `IsProtected`, `CreatedUTC`, and `LastUpdateUTC`. A `garrison.ArchitectRequest` takes `Name` and `HarnessProfileID` (both required; 400 without them), `Description`, `Model`, `Active`, `ArchitectPromptTemplateID`, and `ArchitectPromptVersion` (1 or more, or nil). A nil `Active` creates an active architect; on update, pass a pointer to false to turn it off. On update, a nil `ArchitectPromptTemplateID` keeps the current prompt, and deployment settings the request does not name are kept. `CreateArchitect` fails with 409 `NameConflict` for a name in use and 409 `ArchitectAgentMissing` when the tenant has no `agent-architect`; create and update fail with 400 `InvalidArchitectPrompt` for a template that is not a readable `System` template. `Architect`, `UpdateArchitect`, and `DeleteArchitect` fail with 404 for a deployment that is not an architect. `Architects` returns an `EnumerationResult[Architect]` and honors `ListOptions` `MaxResults` (1 to 1000, default 25), `Skip`, `Ordering`, `Search` (part of the name), and `ActiveOnly`. These calls need Read, Create, Update, or Delete on `Deployment`. `Deployment.ArchitectPromptTemplateID` and `ArchitectPromptVersion` are still accepted when `Deployments.Create` creates a deployment of `agent-architect`.
+
+## Architect prompts
+
+An architect's System prompt is chosen per deployment (see [docs/PROMPTS.md](../../docs/PROMPTS.md#architect-prompts)).
+
+```go
+prompts, err := client.StudioDrafts.ArchitectPrompts(ctx, &garrison.ListOptions{MaxResults: 50}) // built-ins first, then clones, then other System templates
+clone, err := client.PromptTemplates.Clone(ctx, prompts.Objects[0].ID, "my-architect")
+selection, err := client.StudioDrafts.SetArchitectPrompt(ctx, architect.ID, clone.ID, nil) // nil follows the current version
+selection, err = client.StudioDrafts.ArchitectPrompt(ctx, architect.ID)
 reset, err := client.PromptTemplates.Reset(ctx, clone.ID) // back to the shipped text, as a new version
 ```
 
-Each `garrison.ArchitectPromptEntry` has `ID`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that use it). A `garrison.ArchitectPromptSelection` has `DeploymentID`, `ArchitectPromptTemplateID`, `ArchitectPromptName`, `ArchitectPromptVersion` (nil when it follows the current version), and `CurrentVersion`. The template is given by identifier or name. Setting a prompt on a deployment that is not an architect fails with 400 `NotAnArchitectDeployment`, and a template that is not a readable `System` template with 400 `InvalidArchitectPrompt`. A template that any deployment binds cannot be deleted (409 `PromptTemplateInUse`).
+`ArchitectPrompts` returns one page, an `EnumerationResult[ArchitectPromptEntry]`. The order is fixed, so `Ordering` does not apply; `MaxResults`, `Skip`, and `Search` (part of the name) do, and opts may be nil. Each `garrison.ArchitectPromptEntry` has `ID`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that use it). A `garrison.ArchitectPromptSelection` has `DeploymentID`, `ArchitectPromptTemplateID`, `ArchitectPromptName`, `ArchitectPromptVersion` (nil when it follows the current version), and `CurrentVersion`. The template is given by identifier or name. Setting a prompt on a deployment that is not an architect fails with 400 `NotAnArchitectDeployment`, and a template that is not a readable `System` template with 400 `InvalidArchitectPrompt`. A template that any deployment binds cannot be deleted (409 `PromptTemplateInUse`).
 
 ## Playground
 
@@ -536,23 +557,17 @@ applied, err := client.Manifests.Apply(ctx, string(bundle), false, false)
 // 2. Open a studio draft holding the app and everything it references.
 draft, err := client.StudioDrafts.Create(ctx, "Support triage changes", "support-triage")
 
-// 3. List architect prompts and select one for an architect deployment.
-prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+// 3. List architect prompts and select one for an agent architect.
+prompts, err := client.StudioDrafts.ArchitectPrompts(ctx, nil)
+architects, err := client.StudioDrafts.Architects(ctx, &garrison.ListOptions{MaxResults: 1})
 architectID := ""
-for _, p := range prompts {
-	if len(p.Deployments) > 0 {
-		architectID = p.Deployments[0]
-		break
-	}
-}
-if architectID == "" {
-	var architect garrison.Agent
-	_ = client.Agents.Get(ctx, "agent-architect", &architect)
-	var created garrison.Deployment
-	_ = client.Deployments.Create(ctx, garrison.Deployment{Name: "agent-architect-sdk", AgentID: architect.ID, HarnessProfileID: "hrn_builtin_fake"}, &created)
+if len(architects.Objects) > 0 {
+	architectID = architects.Objects[0].ID
+} else {
+	created, _ := client.StudioDrafts.CreateArchitect(ctx, garrison.ArchitectRequest{Name: "agent-architect-sdk", HarnessProfileID: "hrn_builtin_fake"})
 	architectID = created.ID
 }
-selection, err := client.StudioDrafts.SetArchitectPrompt(ctx, architectID, prompts[0].ID, nil)
+selection, err := client.StudioDrafts.SetArchitectPrompt(ctx, architectID, prompts.Objects[0].ID, nil)
 
 // 4. Chat with the app through its gateway as an anonymous end user.
 gateway := client.AppGateway("support-triage")
@@ -674,6 +689,12 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | `POST /studio/drafts/{id}/request-apply` | `StudioDrafts.RequestApply` |
 | `GET /studio/drafts/{id}/graph` | `StudioDrafts.Graph` |
 | `POST /studio/drafts/{id}/graph-operations` | `StudioDrafts.GraphOperation` |
+| **Agent architects** | |
+| `GET /studio/architects` | `StudioDrafts.Architects` |
+| `POST /studio/architects` | `StudioDrafts.CreateArchitect` |
+| `GET /studio/architects/{deploymentId}` | `StudioDrafts.Architect` |
+| `PUT /studio/architects/{deploymentId}` | `StudioDrafts.UpdateArchitect` |
+| `DELETE /studio/architects/{deploymentId}` | `StudioDrafts.DeleteArchitect` |
 | **Architect prompts** | |
 | `GET /studio/architect-prompts` | `StudioDrafts.ArchitectPrompts` |
 | `GET /studio/architects/{deploymentId}/prompt` | `StudioDrafts.ArchitectPrompt` |
@@ -696,9 +717,9 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 cd sdk/go && go run ./cmd/console http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architects`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
-The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the first page of architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for the tenant's first agent architect and creates the architect `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, `architects` lists the first page of agent architects, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
 
 ```text
 keys
@@ -706,6 +727,7 @@ apply examples/agentic-apps/support-triage/support-triage.yaml
 studio-draft support-triage
 architect-prompts
 architect
+architects
 chat support-triage My invoice was charged twice.
 ```
 

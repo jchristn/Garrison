@@ -4345,3 +4345,81 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "architects": {
+    "label": "Architects",
+    "tip": "Agent architects: reusable deployments of the agent architect that design agents and apps with you in any studio draft."
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "title": "Architects",
+   "subtitle": "The agent architects in this tenant. Each one is a deployment of agent-architect with its own harness profile, model, and prompt, and any studio draft can use it.",
+   "add": "Add architect",
+   "create": "Create architect",
+   "edit": "Edit architect",
+   "view": "Architect details",
+   "deleteTitle": "Delete architect",
+   "emptyTitle": "No architects yet",
+   "emptyBody": "Create an architect to design agents and apps with you in Agent Studio. Pick the harness profile and model it runs on, and the prompt it works with.",
+   "columns": {
+    "name": "Name",
+    "harnessProfileId": "Harness profile",
+    "model": "Model",
+    "architectPromptTemplateId": "Architect prompt",
+    "active": "Status",
+    "description": "Description",
+    "id": "ID",
+    "lastUpdateUtc": "Updated",
+    "createdUtc": "Created"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Description",
+    "harnessProfileId": "Harness profile",
+    "model": "Model",
+    "architectPromptTemplateId": "Architect prompt",
+    "architectPromptVersion": "Pinned prompt version",
+    "active": "Active"
+   },
+   "hints": {
+    "model": "Leave empty to use the harness profile's default model.",
+    "architectPromptTemplateId": "The System template the architect works with. A change takes effect on its next turn.",
+    "architectPromptVersion": "Leave empty to follow the prompt's current version, so saved edits apply on the next turn."
+   },
+   "actions": {
+    "prompts": "Architect prompts",
+    "deployment": "Deployment settings"
+   },
+   "errors": {
+    "nameTaken": "Another deployment in this tenant already uses this name.",
+    "version": "Enter a whole number from 1, or leave it empty."
+   },
+   "promptPinned": "{{name}} (version {{version}})",
+   "defaultModel": "Profile default",
+   "defaultBadge": "Default",
+   "promptsTitle": "Architect prompts for {{name}}"
+  }
+ },
+ "components": {
+  "studio": {
+   "chat": {
+    "manageArchitects": "Manage architects"
+   }
+  }
+ }
+});

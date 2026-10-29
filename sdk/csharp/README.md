@@ -288,26 +288,41 @@ Every change names the version you read. If the draft moved on, the call throws 
 
 `RequestApplyAsync` returns an `Approval` whose `Kind` is `ApprovalKindEnum.DraftApply` and whose `DraftId` names the draft, and freezes the draft as `PendingApproval` (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty` when it cannot). Decide it with `client.Approvals.DecideAsync`: `Allow` needs Create on `Manifest` (403 `ApproverLacksPermission`), answers 409 `DraftStale` when live configuration moved since the request, and otherwise applies the documents as one manifest apply and marks the draft `Applied`. `Deny` returns the draft to `Open`. `ResourceTypeEnum.StudioDraft` names drafts in permissions.
 
-## Architect prompts
+## Agent architects
 
-The agent architect takes its System prompt from its deployment. A deployment of `agent-architect` always has `ManagementAccess` `Drafts` (`ManagementAccessEnum`: `None`, `Drafts`), which lets its runs edit the studio drafts of the person talking to it and never apply them. On create, `Deployment.ArchitectPromptTemplateId` (identifier or name) and `ArchitectPromptVersion` choose its prompt; without them it binds `builtin/agent-architect`. Both read back as null, so read the choice with `GetArchitectPromptAsync`.
+An agent architect is a deployment that may edit studio drafts for the person talking to it: a deployment of the protected `agent-architect` agent seeded in every tenant, or any deployment granted `ManagementAccess` `Drafts` (`ManagementAccessEnum`: `None`, `Drafts`). Its runs edit drafts and never apply them. `client.StudioDrafts` manages architects directly, so you never build the deployment yourself:
 
 ```csharp
-List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(); // built-ins first
-PromptTemplate clone = await client.PromptTemplates.CloneAsync(prompts[0].Id, "my-architect");
-Agent architect = await client.Agents.GetAsync("agent-architect");
-Deployment deployment = await client.Deployments.CreateAsync(new Deployment
-{
-    Name = "architect",
-    AgentId = architect.Id,
-    HarnessProfileId = "hrn_builtin_claude_code",
-    ArchitectPromptTemplateId = clone.Id
-});
-ArchitectPromptSelection selected = await client.StudioDrafts.GetArchitectPromptAsync(deployment.Id);
-await client.StudioDrafts.SetArchitectPromptAsync(deployment.Id, "builtin/agent-architect-guided", version: null);
+ArchitectRequest request = new ArchitectRequest();
+request.Name = "architect";
+request.HarnessProfileId = "hrn_builtin_claude_code";
+request.Model = "claude-sonnet-4-5";                          // optional; null uses the harness default
+request.ArchitectPromptTemplateId = "builtin/agent-architect"; // optional; null binds builtin/agent-architect
+Architect architect = await client.StudioDrafts.CreateArchitectAsync(request);
+
+EnumerationResult<Architect> page = await client.StudioDrafts.ListArchitectsAsync(new EnumerationQuery { MaxResults = 10, Search = "arch", ActiveOnly = true });
+Architect read = await client.StudioDrafts.GetArchitectAsync("architect");       // identifier or name
+
+request.Active = false;
+request.ArchitectPromptTemplateId = "builtin/agent-architect-guided";
+architect = await client.StudioDrafts.UpdateArchitectAsync(architect.Id, request);
+await client.StudioDrafts.DeleteArchitectAsync(architect.Id);                    // drafts are kept
 ```
 
-`ListArchitectPromptsAsync` lists the built-in architect prompts, then the tenant's clones of them (matched by `BuiltInKey`), then the tenant's other System templates. Each `ArchitectPromptEntry` has `Id`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that bind it). `ArchitectPromptSelection` has `DeploymentId`, `ArchitectPromptTemplateId`, `ArchitectPromptName`, `ArchitectPromptVersion` (null follows the current version, so a saved edit to the clone applies on the next turn), and `CurrentVersion`. `SetArchitectPromptAsync` answers 400 `NotAnArchitectDeployment` for a deployment that is not an architect and 400 `InvalidArchitectPrompt` for a template that is not a System template the tenant can read. Edit a clone with `PromptTemplates.UpdateAsync`, preview it with `RenderAsync`, and return it to the shipped text with `ResetAsync`. A template that a deployment binds cannot be deleted (409 `PromptTemplateInUse`).
+An `Architect` has `Id` (the deployment identifier), `TenantId`, `Name`, `Description`, `AgentId`, `AgentName`, `HarnessProfileId`, `Model`, `Active`, `ArchitectPromptTemplateId`, `ArchitectPromptName`, `ArchitectPromptVersion` (null follows the template's current version), `ArchitectPromptCurrentVersion`, `ConfigVersion`, `IsProtected`, `CreatedUtc`, and `LastUpdateUtc`. `ArchitectRequest` takes `Name` and `HarnessProfileId` (both required; 400 without them), `Description`, `Model`, `Active` (default true), `ArchitectPromptTemplateId`, and `ArchitectPromptVersion` (1 or more, or null). On update, a null `ArchitectPromptTemplateId` keeps the current prompt, and deployment settings the request does not name are kept. Create answers 409 `NameConflict` for a name in use and 409 `ArchitectAgentMissing` when the tenant has no `agent-architect`; both create and update answer 400 `InvalidArchitectPrompt` for a template that is not a System template the tenant can read. `GetArchitectAsync`, `UpdateArchitectAsync`, and `DeleteArchitectAsync` answer 404 for a deployment that is not an architect. `ListArchitectsAsync` takes `MaxResults` (1 to 1000, default 25), `Skip`, `Ordering`, `Search` (part of the name), and `ActiveOnly`. These calls need Read, Create, Update, or Delete on `Deployment`.
+
+`Deployments.CreateAsync` still accepts `Deployment.ArchitectPromptTemplateId` and `ArchitectPromptVersion` on create for a deployment of `agent-architect`; without them it binds `builtin/agent-architect`. Both read back as null on a `Deployment`, so read the choice from the `Architect` or with `GetArchitectPromptAsync`.
+
+## Architect prompts
+
+```csharp
+EnumerationResult<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(new EnumerationQuery { MaxResults = 50 }); // built-ins first
+PromptTemplate clone = await client.PromptTemplates.CloneAsync(prompts.Objects[0].Id, "my-architect");
+ArchitectPromptSelection selected = await client.StudioDrafts.SetArchitectPromptAsync(architect.Id, clone.Id, version: null);
+selected = await client.StudioDrafts.GetArchitectPromptAsync(architect.Id);
+```
+
+`ListArchitectPromptsAsync` returns one page (`EnumerationResult<ArchitectPromptEntry>`) of the built-in architect prompts, then the tenant's clones of them (matched by `BuiltInKey`), then the tenant's other System templates. The order is fixed, so the query's `Ordering` does not apply; it honors `MaxResults`, `Skip`, and `Search` (part of the name). Each `ArchitectPromptEntry` has `Id`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that bind it). `ArchitectPromptSelection` has `DeploymentId`, `ArchitectPromptTemplateId`, `ArchitectPromptName`, `ArchitectPromptVersion` (null follows the current version, so a saved edit to the clone applies on the next turn), and `CurrentVersion`. `SetArchitectPromptAsync` answers 400 `NotAnArchitectDeployment` for a deployment that is not an architect and 400 `InvalidArchitectPrompt` for a template that is not a System template the tenant can read. Edit a clone with `PromptTemplates.UpdateAsync`, preview it with `RenderAsync`, and return it to the shipped text with `ResetAsync`. A template that a deployment binds cannot be deleted (409 `PromptTemplateInUse`).
 
 ## Playground
 
@@ -575,18 +590,17 @@ StudioDraftCreateRequest draftRequest = new StudioDraftCreateRequest();
 draftRequest.FromApp = "support-triage";
 StudioDraft draft = await client.StudioDrafts.CreateAsync(draftRequest);
 
-// 3. List architect prompts and select one for an architect deployment.
-List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync();
-string? architectId = prompts.SelectMany(p => p.Deployments).FirstOrDefault();
-if (architectId == null)
+// 3. List architect prompts and select one for an agent architect.
+EnumerationResult<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync();
+Architect? architect = (await client.StudioDrafts.ListArchitectsAsync(new EnumerationQuery { MaxResults = 1 })).Objects.FirstOrDefault();
+if (architect == null)
 {
-    Deployment architect = new Deployment();
-    architect.Name = "agent-architect-sdk";
-    architect.AgentId = (await client.Agents.GetAsync("agent-architect")).Id;
-    architect.HarnessProfileId = "hrn_builtin_fake";
-    architectId = (await client.Deployments.CreateAsync(architect)).Id;
+    ArchitectRequest architectRequest = new ArchitectRequest();
+    architectRequest.Name = "agent-architect-sdk";
+    architectRequest.HarnessProfileId = "hrn_builtin_fake";
+    architect = await client.StudioDrafts.CreateArchitectAsync(architectRequest);
 }
-ArchitectPromptSelection selected = await client.StudioDrafts.SetArchitectPromptAsync(architectId, prompts[0].Id);
+ArchitectPromptSelection selected = await client.StudioDrafts.SetArchitectPromptAsync(architect.Id, prompts.Objects[0].Id);
 
 // 4. Chat with the app through its gateway as an anonymous end user.
 using (AppGatewayClient gateway = client.AppGateway("support-triage"))
@@ -707,6 +721,12 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | `POST /studio/drafts/{id}/request-apply` | `StudioDrafts.RequestApplyAsync` |
 | `GET /studio/drafts/{id}/graph` | `StudioDrafts.GetGraphAsync` |
 | `POST /studio/drafts/{id}/graph-operations` | `StudioDrafts.ApplyGraphOperationAsync` |
+| **Agent architects** | |
+| `GET /studio/architects` | `StudioDrafts.ListArchitectsAsync` |
+| `POST /studio/architects` | `StudioDrafts.CreateArchitectAsync` |
+| `GET /studio/architects/{deploymentId}` | `StudioDrafts.GetArchitectAsync` |
+| `PUT /studio/architects/{deploymentId}` | `StudioDrafts.UpdateArchitectAsync` |
+| `DELETE /studio/architects/{deploymentId}` | `StudioDrafts.DeleteArchitectAsync` |
 | **Architect prompts** | |
 | `GET /studio/architect-prompts` | `StudioDrafts.ListArchitectPromptsAsync` |
 | `GET /studio/architects/{deploymentId}/prompt` | `StudioDrafts.GetArchitectPromptAsync` |
@@ -729,9 +749,9 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 dotnet run --project sdk/csharp/Garrison.Sdk.Console -f net10.0 -- http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architects`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
-The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the first page of architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for the tenant's first agent architect and creates the architect `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, `architects` lists the first page of agent architects, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
 
 ```text
 keys
@@ -739,6 +759,7 @@ apply examples/agentic-apps/support-triage/support-triage.yaml
 studio-draft support-triage
 architect-prompts
 architect
+architects
 chat support-triage My invoice was charged twice.
 ```
 

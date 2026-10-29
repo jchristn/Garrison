@@ -974,7 +974,7 @@ def t_studio_drafts():
 
 
 def t_architect_prompts():
-    prompts = client.studio_drafts.list_architect_prompts()
+    prompts = client.studio_drafts.list_architect_prompts()["objects"]
     require(prompts and prompts[0]["name"] == "builtin/agent-architect" and prompts[0]["isBuiltIn"] is True, f"architect prompts {prompts[:1]}")
     clone = client.prompt_templates.clone(prompts[0]["id"], f"sdk-py-architect-{SUFFIX}")
     deployment = None
@@ -992,6 +992,50 @@ def t_architect_prompts():
         if deployment is not None:
             client.deployments.delete(deployment["id"])
         client.prompt_templates.delete(clone["id"])
+
+
+def t_architects():
+    name = f"sdk-py-arch-{SUFFIX}"
+    renamed = name + "-renamed"
+    architect_id = None
+    try:
+        created = client.studio_drafts.create_architect({"name": name, "description": "SDK harness architect",
+                                                         "harnessProfileId": "hrn_builtin_fake"})
+        architect_id = created["id"]
+        require(created["name"] == name and created["harnessProfileId"] == "hrn_builtin_fake" and created["active"] is True
+                and created.get("agentName") == "agent-architect", f"created {created}")
+        require(created["architectPromptName"] == "builtin/agent-architect" and created.get("architectPromptVersion") is None, f"created prompt {created}")
+        page = client.studio_drafts.list_architects(max_results=1, search=name)
+        require(len(page["objects"]) == 1 and page["objects"][0]["id"] == architect_id and page["totalRecords"] == 1
+                and page["maxResults"] == 1, f"list page {page}")
+        require(client.studio_drafts.get_architect(architect_id)["name"] == name, "get by id")
+        require(client.studio_drafts.get_architect(name)["id"] == architect_id, "get by name")
+        updated = client.studio_drafts.update_architect(architect_id, {"name": renamed, "harnessProfileId": "hrn_builtin_fake",
+                                                                        "model": "fake-model", "active": False,
+                                                                        "architectPromptTemplateId": "builtin/agent-architect-guided"})
+        require(updated["id"] == architect_id and updated["name"] == renamed and updated.get("model") == "fake-model"
+                and updated["active"] is False, f"updated {updated}")
+        require(updated["architectPromptName"] == "builtin/agent-architect-guided", f"updated prompt {updated}")
+        first = client.studio_drafts.list_architect_prompts(max_results=1)
+        require(len(first["objects"]) == 1 and first["objects"][0]["name"] == "builtin/agent-architect" and first["totalRecords"] >= 2
+                and first["endOfResults"] is False, f"prompt page 1 {first}")
+        second = client.studio_drafts.list_architect_prompts(max_results=1, skip=1)
+        require(len(second["objects"]) == 1 and second["objects"][0]["name"] == "builtin/agent-architect-guided"
+                and architect_id in second["objects"][0]["deployments"], f"prompt page 2 {second}")
+        client.studio_drafts.delete_architect(architect_id)
+        architect_id = None
+        try:
+            client.studio_drafts.get_architect(created["id"])
+            raise AssertionError("a deleted architect was read")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"read after delete {e.status_code}")
+    finally:
+        if architect_id is not None:
+            try:
+                client.studio_drafts.delete_architect(architect_id)
+            except GarrisonError as e:
+                if e.status_code != 404:
+                    raise
 
 
 def t_app_gateway():
@@ -1099,7 +1143,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

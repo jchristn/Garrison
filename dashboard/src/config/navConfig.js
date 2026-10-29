@@ -66,6 +66,8 @@ export const NAV_SECTIONS = [
           { id: 'capabilities', slug: 'capabilities' },
           // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
           { id: 'apps', slug: 'apps' },
+          // Agent architects: reusable deployments of agent-architect that any studio draft can use.
+          { id: 'architects', slug: 'architects' },
           // AD7.10: the agent studio (a tab until AD-023 is confirmed); /dashboard/studio/<id> is a draft's workspace.
           { id: 'studio', slug: 'studio', detail: true }
         ]

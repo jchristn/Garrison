@@ -3240,3 +3240,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "可在任意工作室草稿中复用的代理架构师：创建、编辑和删除它们，并为每个架构师选择 Harness 配置文件、模型和提示词。"
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "创建一个代理架构师：agent-architect 的一个部署，只编辑你的工作室草稿，从不应用它们。",
+   "harnessProfileId": "架构师运行所用的 Harness 配置文件，它决定架构师使用的代理 CLI（Claude Code、Codex 等）。",
+   "model": "架构师向 Harness 请求的模型。留空则使用 Harness 配置文件的默认模型。",
+   "architectPromptTemplateId": "告诉架构师如何工作的 System 模板。内置提示词排在最前；要修改请先克隆一个。",
+   "architectPromptVersion": "将架构师固定到其提示词的某个版本。留空则跟随当前版本，保存的编辑会从其下一轮开始生效。",
+   "defaultModel": "未设置模型，因此架构师使用 Harness 配置文件的默认模型。",
+   "defaultBadge": "此架构师使用内置的默认提示词 builtin/agent-architect。",
+   "activeBadge": "启用：草稿可以与此架构师开始新的对话。",
+   "inactiveBadge": "停用：在你重新启用之前，架构师不接受新的轮次，草稿中也不会提供它。",
+   "actions": {
+    "prompts": "管理架构师提示词：选择此架构师使用的提示词，并克隆、编辑、重置或删除提示词。",
+    "deployment": "打开此架构师背后的部署，以更改其限制、执行器、出站规则和其他设置。"
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "打开 代理 > 架构师，创建、编辑或删除所有草稿都可使用的架构师。"
+  }
+ }
+});

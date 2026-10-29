@@ -2,8 +2,8 @@
 """Garrison Agent Studio walkthrough with the Python SDK.
 
 It applies the support triage bundle (an agentic app with three agents), opens a studio draft from that app, lists the
-architect prompts and selects one for an architect deployment (creating a deployment of the seeded agent-architect
-agent on the fake harness when none exists), and chats with the app through its end-user gateway.
+architect prompts and selects one for an agent architect (creating an architect on the fake harness when none exists),
+and chats with the app through its end-user gateway.
 
 Usage:
     python examples/agent_studio.py [baseUrl] [bundlePath]
@@ -21,7 +21,6 @@ from garrison_sdk import GarrisonClient
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_BUNDLE = os.path.join(HERE, "..", "..", "..", "examples", "agentic-apps", "support-triage", "support-triage.yaml")
 APP = "support-triage"
-ARCHITECT_AGENT = "agent-architect"
 ARCHITECT_DEPLOYMENT = "agent-architect-sdk"
 FAKE_HARNESS_PROFILE = "hrn_builtin_fake"
 
@@ -49,18 +48,18 @@ def main() -> int:
     diff = client.studio_drafts.diff(draft["id"])
     print(f"Draft is {'valid' if diff.get('valid') else 'not valid'} against live configuration")
 
-    # 3. List architect prompts and select one for an architect deployment.
-    prompts = client.studio_drafts.list_architect_prompts()
+    # 3. List architect prompts and select one for an agent architect.
+    prompts = client.studio_drafts.list_architect_prompts()["objects"]
     for entry in prompts:
         print(f"Architect prompt {entry['name']} (version {entry['currentVersion']}, built-in {entry['isBuiltIn']})")
-    deployment_id = next((d for entry in prompts for d in entry.get("deployments", [])), None)
-    if deployment_id is None:
-        architect = client.agents.get(ARCHITECT_AGENT)
-        deployment_id = client.deployments.create({"name": ARCHITECT_DEPLOYMENT, "agentId": architect["id"],
-                                                   "harnessProfileId": FAKE_HARNESS_PROFILE})["id"]
-        print(f"Created architect deployment {deployment_id}")
-    selection = client.studio_drafts.set_architect_prompt(deployment_id, prompts[0]["id"])
-    print(f"Architect deployment {selection['deploymentId']} uses {selection['architectPromptName']}")
+    architects = client.studio_drafts.list_architects(max_results=1)["objects"]
+    if architects:
+        architect = architects[0]
+    else:
+        architect = client.studio_drafts.create_architect({"name": ARCHITECT_DEPLOYMENT, "harnessProfileId": FAKE_HARNESS_PROFILE})
+        print(f"Created architect {architect['name']} ({architect['id']})")
+    selection = client.studio_drafts.set_architect_prompt(architect["id"], prompts[0]["id"])
+    print(f"Architect {selection['deploymentId']} uses {selection['architectPromptName']}")
 
     # 4. Chat with the app through its gateway as an anonymous end user.
     gateway = client.app_gateway(APP)

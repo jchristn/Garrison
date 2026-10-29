@@ -693,6 +693,42 @@ class ArchitectPromptSelection(TypedDict, total=False):
     currentVersion: int
 
 
+class Architect(TypedDict, total=False):
+    """An agent architect: a tenant deployment that may edit studio drafts for the person it works for. id is the
+    deployment identifier; agentId is normally the built-in agent-architect. architectPromptVersion is the pinned version,
+    or None to follow the template's current version (architectPromptCurrentVersion). Timestamps are ISO 8601 UTC."""
+    id: str
+    tenantId: str
+    name: str
+    description: Optional[str]
+    agentId: str
+    agentName: Optional[str]
+    harnessProfileId: str
+    model: Optional[str]
+    active: bool
+    architectPromptTemplateId: str
+    architectPromptName: str
+    architectPromptVersion: Optional[int]
+    architectPromptCurrentVersion: int
+    configVersion: int
+    isProtected: bool
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class ArchitectRequest(TypedDict, total=False):
+    """Create or change an agent architect. name and harnessProfileId are required; active defaults to True.
+    architectPromptTemplateId is a System template identifier or name: None binds builtin/agent-architect on create and
+    keeps the current prompt on update. architectPromptVersion pins a version (1 or more); None follows the current one."""
+    name: str
+    description: Optional[str]
+    harnessProfileId: str
+    model: Optional[str]
+    active: bool
+    architectPromptTemplateId: Optional[str]
+    architectPromptVersion: Optional[int]
+
+
 class HarnessToolProbe(TypedDict, total=False):
     """A harness profile "toolProbes" entry. name is 1 to 63 lowercase letters, digits, dots, and hyphens; executable is
     a bare file name on the worker's PATH; arguments holds at most one of HARNESS_TOOL_PROBE_ARGUMENTS."""
@@ -1796,7 +1832,8 @@ class StudioDrafts:
     """Studio drafts: manifest documents designed before anything changes in live configuration, applied only after a
     person allows the DraftApply approval request_apply creates (decide it with approvals.decide). Every change names the
     draft version the caller read and raises GarrisonError 409 DraftVersionConflict when the draft moved on, or 409
-    DraftNotOpen when it is not Open. Also reads and sets the prompts of architect deployments."""
+    DraftNotOpen when it is not Open. Also manages agent architects and reads and sets the prompts of architect
+    deployments."""
 
     def __init__(self, transport: Transport):
         self._t = transport
@@ -1886,9 +1923,40 @@ class StudioDrafts:
             body["conversationId"] = conversation_id
         return self._t.request("POST", self._item(id) + "/playground/invoke", body=body)
 
-    def list_architect_prompts(self) -> List[ArchitectPromptEntry]:
-        """Architect prompts: built-ins first, then the tenant's clones of them, then its other System templates."""
-        return self._t.request("GET", self._t.tenant_path("/studio/architect-prompts")) or []
+    def _architect(self, deployment_id: str) -> str:
+        return self._t.tenant_path(f"/studio/architects/{_seg(deployment_id)}")
+
+    def list_architects(self, max_results: Optional[int] = None, skip: Optional[int] = None, ordering: Optional[str] = None,
+                        search: Optional[str] = None, active_only: Optional[bool] = None) -> Dict[str, Any]:
+        """A page of agent architects (EnumerationResult of Architect): deployments of the built-in agent-architect and
+        deployments granted managementAccess Drafts. search matches part of the name. Needs Read on Deployment."""
+        return self._t.request("GET", self._t.tenant_path("/studio/architects"), _enum(max_results, skip, ordering, search, active_only))
+
+    def get_architect(self, deployment_id: str) -> Architect:
+        """An agent architect by deployment identifier or name. Raises GarrisonError 404 when the deployment is not an
+        architect."""
+        return self._t.request("GET", self._architect(deployment_id))
+
+    def create_architect(self, request: ArchitectRequest) -> Architect:
+        """Create an agent architect (201): a deployment of the built-in agent-architect with draft access, bound to the
+        chosen prompt (builtin/agent-architect when none is named). Raises GarrisonError 400 for a missing name or harness
+        profile or InvalidArchitectPrompt, or 409 NameConflict or ArchitectAgentMissing."""
+        return self._t.request("POST", self._t.tenant_path("/studio/architects"), body=dict(request))
+
+    def update_architect(self, deployment_id: str, request: ArchitectRequest) -> Architect:
+        """Change an architect's name, description, harness profile, model, active flag, and prompt. A missing or None
+        architectPromptTemplateId keeps the current prompt; other deployment settings are kept."""
+        return self._t.request("PUT", self._architect(deployment_id), body=dict(request))
+
+    def delete_architect(self, deployment_id: str) -> None:
+        """Delete an agent architect (its deployment). Drafts are kept."""
+        self._t.request("DELETE", self._architect(deployment_id))
+
+    def list_architect_prompts(self, max_results: Optional[int] = None, skip: Optional[int] = None,
+                               search: Optional[str] = None) -> Dict[str, Any]:
+        """A page of architect prompts (EnumerationResult of ArchitectPromptEntry): built-ins first, then the tenant's
+        clones of them, then its other System templates. The order is fixed; search matches part of the name."""
+        return self._t.request("GET", self._t.tenant_path("/studio/architect-prompts"), _enum(max_results, skip, None, search))
 
     def get_architect_prompt(self, deployment_id: str) -> ArchitectPromptSelection:
         """The prompt an architect deployment (identifier or name) uses."""

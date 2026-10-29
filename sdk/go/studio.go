@@ -190,6 +190,43 @@ type ArchitectPromptRequest struct {
 	ArchitectPromptVersion    *int   `json:"architectPromptVersion,omitempty"`
 }
 
+// Architect is an agent architect: a tenant deployment that may edit studio drafts for the person it works for. ID is
+// the deployment identifier; AgentID is normally the built-in agent-architect. ArchitectPromptVersion is nil when the
+// architect follows the template's current version (ArchitectPromptCurrentVersion).
+type Architect struct {
+	ID                            string  `json:"id"`
+	TenantID                      string  `json:"tenantId"`
+	Name                          string  `json:"name"`
+	Description                   *string `json:"description,omitempty"`
+	AgentID                       string  `json:"agentId"`
+	AgentName                     *string `json:"agentName,omitempty"`
+	HarnessProfileID              string  `json:"harnessProfileId"`
+	Model                         *string `json:"model,omitempty"`
+	Active                        bool    `json:"active"`
+	ArchitectPromptTemplateID     string  `json:"architectPromptTemplateId"`
+	ArchitectPromptName           string  `json:"architectPromptName"`
+	ArchitectPromptVersion        *int    `json:"architectPromptVersion,omitempty"`
+	ArchitectPromptCurrentVersion int     `json:"architectPromptCurrentVersion"`
+	ConfigVersion                 int     `json:"configVersion"`
+	IsProtected                   bool    `json:"isProtected"`
+	CreatedUTC                    string  `json:"createdUtc,omitempty"`
+	LastUpdateUTC                 string  `json:"lastUpdateUtc,omitempty"`
+}
+
+// ArchitectRequest creates or changes an agent architect. Name and HarnessProfileID are required. Active is sent as
+// is, so set it to true for an architect that accepts runs. ArchitectPromptTemplateID (a System template identifier or
+// name) nil binds builtin/agent-architect on create and keeps the current prompt on update; ArchitectPromptVersion pins
+// a version (1 or more), nil follows the current one.
+type ArchitectRequest struct {
+	Name                      string  `json:"name"`
+	Description               *string `json:"description,omitempty"`
+	HarnessProfileID          string  `json:"harnessProfileId"`
+	Model                     *string `json:"model,omitempty"`
+	Active                    *bool   `json:"active,omitempty"`
+	ArchitectPromptTemplateID *string `json:"architectPromptTemplateId,omitempty"`
+	ArchitectPromptVersion    *int    `json:"architectPromptVersion,omitempty"`
+}
+
 type studioDraftCreateRequest struct {
 	Title   string `json:"title,omitempty"`
 	FromApp string `json:"fromApp,omitempty"`
@@ -205,10 +242,11 @@ type studioDraftVersionRequest struct {
 	Version int `json:"version"`
 }
 
-// StudioDraftsClient manages studio drafts and architect prompts. Listing and reading need Read on StudioDraft,
-// creating Create, editing and requesting apply Update, and deleting Delete. Applying happens only when a person
-// decides the DraftApply approval Allow through Approvals.Decide. Architect prompt calls need Read on PromptTemplate
-// (listing), Read on Deployment (reading a selection), and Update on Deployment (changing it).
+// StudioDraftsClient manages studio drafts, agent architects, and architect prompts. Listing and reading drafts need
+// Read on StudioDraft, creating Create, editing and requesting apply Update, and deleting Delete. Applying happens only
+// when a person decides the DraftApply approval Allow through Approvals.Decide. Architect prompt calls need Read on
+// PromptTemplate (listing), Read on Deployment (reading a selection), and Update on Deployment (changing it). Architect
+// calls need Read, Create, Update, or Delete on Deployment.
 type StudioDraftsClient struct{ c *Client }
 
 func (s *StudioDraftsClient) base() string { return s.c.TenantPath("/studio/drafts") }
@@ -218,8 +256,12 @@ func (s *StudioDraftsClient) item(id string) string {
 func (s *StudioDraftsClient) draftItem(id, kind, name string) string {
 	return s.item(id) + "/items/" + url.PathEscape(kind) + "/" + url.PathEscape(name)
 }
+func (s *StudioDraftsClient) architects() string { return s.c.TenantPath("/studio/architects") }
+func (s *StudioDraftsClient) architectItem(deploymentID string) string {
+	return s.architects() + "/" + url.PathEscape(deploymentID)
+}
 func (s *StudioDraftsClient) architect(deploymentID string) string {
-	return s.c.TenantPath("/studio/architects/" + url.PathEscape(deploymentID) + "/prompt")
+	return s.architectItem(deploymentID) + "/prompt"
 }
 
 // List lists drafts, newest change first. With mine, only the caller's own drafts. opts may be nil; Search finds
@@ -332,17 +374,62 @@ func (s *StudioDraftsClient) GraphOperation(ctx context.Context, id string, req 
 	return &out, nil
 }
 
-// ArchitectPrompts lists the System prompts the agent architect can use: built-ins first, then tenant clones of them,
-// then the tenant's other System templates.
-func (s *StudioDraftsClient) ArchitectPrompts(ctx context.Context) ([]ArchitectPromptEntry, error) {
-	var out []ArchitectPromptEntry
-	if err := s.c.Do(ctx, http.MethodGet, s.c.TenantPath("/studio/architect-prompts"), nil, nil, &out); err != nil {
+// Architects lists agent architects: deployments of the built-in agent-architect and deployments granted
+// managementAccess Drafts. opts may be nil; Search matches part of the name, and ActiveOnly and Ordering apply. Needs
+// Read on Deployment.
+func (s *StudioDraftsClient) Architects(ctx context.Context, opts *ListOptions) (*EnumerationResult[Architect], error) {
+	var out EnumerationResult[Architect]
+	if err := s.c.Do(ctx, http.MethodGet, s.architects(), opts.values(), nil, &out); err != nil {
 		return nil, err
 	}
-	if out == nil {
-		out = []ArchitectPromptEntry{}
+	return &out, nil
+}
+
+// Architect reads an agent architect by deployment identifier or name. It fails with 404 when the deployment is not an
+// architect.
+func (s *StudioDraftsClient) Architect(ctx context.Context, deploymentID string) (*Architect, error) {
+	var out Architect
+	if err := s.c.Do(ctx, http.MethodGet, s.architectItem(deploymentID), nil, nil, &out); err != nil {
+		return nil, err
 	}
-	return out, nil
+	return &out, nil
+}
+
+// CreateArchitect creates an agent architect: a deployment of the built-in agent-architect with draft access, bound to
+// the chosen prompt (builtin/agent-architect when none is named). It fails with 400 for a missing name or harness
+// profile or InvalidArchitectPrompt, and 409 NameConflict or ArchitectAgentMissing.
+func (s *StudioDraftsClient) CreateArchitect(ctx context.Context, req ArchitectRequest) (*Architect, error) {
+	var out Architect
+	if err := s.c.Do(ctx, http.MethodPost, s.architects(), nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateArchitect changes an architect's name, description, harness profile, model, active flag, and prompt. A nil
+// ArchitectPromptTemplateID keeps the current prompt; other deployment settings are kept.
+func (s *StudioDraftsClient) UpdateArchitect(ctx context.Context, deploymentID string, req ArchitectRequest) (*Architect, error) {
+	var out Architect
+	if err := s.c.Do(ctx, http.MethodPut, s.architectItem(deploymentID), nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteArchitect deletes an agent architect (its deployment). Drafts are kept.
+func (s *StudioDraftsClient) DeleteArchitect(ctx context.Context, deploymentID string) error {
+	return s.c.Do(ctx, http.MethodDelete, s.architectItem(deploymentID), nil, nil, nil)
+}
+
+// ArchitectPrompts lists the System prompts the agent architect can use, one page at a time: built-ins first, then
+// tenant clones of them, then the tenant's other System templates. The order is fixed, so Ordering does not apply;
+// opts may be nil, and Search matches part of the name.
+func (s *StudioDraftsClient) ArchitectPrompts(ctx context.Context, opts *ListOptions) (*EnumerationResult[ArchitectPromptEntry], error) {
+	var out EnumerationResult[ArchitectPromptEntry]
+	if err := s.c.Do(ctx, http.MethodGet, s.c.TenantPath("/studio/architect-prompts"), opts.values(), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // ArchitectPrompt reads the prompt an architect deployment (identifier or name) uses. It fails with 400

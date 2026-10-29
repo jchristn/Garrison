@@ -368,6 +368,52 @@ export interface StudioGraphOperationRequest {
  */
 export interface ArchitectPromptEntry { id: string; name: string; description?: string | null; isBuiltIn: boolean; builtInKey?: string | null; currentVersion: number; isDefault: boolean; deployments: string[]; }
 
+/** Paging and search for the architect prompt catalog. Its order is fixed (built-ins first), so there is no ordering. */
+export interface ArchitectPromptListQuery { maxResults?: number; skip?: number; search?: string; }
+
+/** Paging, ordering, search (part of the name), and activeOnly for the agent architect list. */
+export interface ArchitectListQuery { maxResults?: number; skip?: number; ordering?: EnumerationQuery["ordering"]; search?: string; activeOnly?: boolean; }
+
+/**
+ * An agent architect: a tenant deployment that may edit studio drafts for the person it works for. id is the deployment
+ * identifier; agentId is normally the built-in agent-architect. architectPromptVersion is null when it follows the
+ * template's current version (architectPromptCurrentVersion).
+ */
+export interface Architect {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string | null;
+  agentId: string;
+  agentName?: string | null;
+  harnessProfileId: string;
+  model?: string | null;
+  active: boolean;
+  architectPromptTemplateId: string;
+  architectPromptName: string;
+  architectPromptVersion?: number | null;
+  architectPromptCurrentVersion: number;
+  configVersion: number;
+  isProtected: boolean;
+  createdUtc: string;
+  lastUpdateUtc: string;
+}
+
+/**
+ * Create or change an agent architect. name and harnessProfileId are required; active defaults to true.
+ * architectPromptTemplateId (System template identifier or name) omitted or null binds builtin/agent-architect on create
+ * and keeps the current prompt on update; architectPromptVersion pins a version (1 or more), null follows the current one.
+ */
+export interface ArchitectRequest {
+  name: string;
+  description?: string | null;
+  harnessProfileId: string;
+  model?: string | null;
+  active?: boolean;
+  architectPromptTemplateId?: string | null;
+  architectPromptVersion?: number | null;
+}
+
 /** The prompt an architect deployment uses. architectPromptVersion is null when it follows the template's current version. */
 export interface ArchitectPromptSelection { deploymentId: string; architectPromptTemplateId: string; architectPromptName: string; architectPromptVersion?: number | null; currentVersion: number; }
 
@@ -1715,12 +1761,13 @@ export class Apps extends Resource<AgenticApp> {
  * Studio drafts: manifest documents designed before anything changes in live configuration, applied only after a person
  * approves the DraftApply approval {@link StudioDrafts.requestApply} creates (decide it with approvals.decide). Every
  * change names the draft version you read and rejects with 409 DraftVersionConflict when the draft moved on, or 409
- * DraftNotOpen when it is not Open. Also reads and sets the prompt of architect deployments.
+ * DraftNotOpen when it is not Open. Also manages agent architects and reads and sets the prompt of architect deployments.
  */
 export class StudioDrafts {
   constructor(private readonly t: Transport) {}
   private base(): string { return this.t.tenantPath("/studio/drafts"); }
   private item(id: string): string { return `${this.base()}/${seg(id)}`; }
+  private architectItem(deploymentId: string): string { return this.t.tenantPath(`/studio/architects/${seg(deploymentId)}`); }
   /** List drafts, newest change first. mine lists only your own. */
   list(query: StudioDraftListQuery = {}): Promise<EnumerationResult<StudioDraft>> { return this.t.request("GET", this.base(), query as any); }
   /** Start a draft, empty or from an existing app (fromApp) with everything it references. */
@@ -1763,8 +1810,33 @@ export class StudioDrafts {
   playgroundInvoke(id: string, request: PlaygroundInvokeRequest): Promise<Run> {
     return this.t.request("POST", this.item(id) + "/playground/invoke", undefined, { wait: true, waitSeconds: 120, ...request });
   }
-  /** Architect prompts: built-ins first, then tenant clones of them, then other tenant System templates. */
-  async listArchitectPrompts(): Promise<ArchitectPromptEntry[]> { return (await this.t.request("GET", this.t.tenantPath("/studio/architect-prompts"))) ?? []; }
+  /**
+   * List agent architects: deployments of the built-in agent-architect and deployments granted managementAccess Drafts.
+   * search matches part of the name. Needs Read on Deployment.
+   */
+  listArchitects(query: ArchitectListQuery = {}): Promise<EnumerationResult<Architect>> { return this.t.request("GET", this.t.tenantPath("/studio/architects"), query as any); }
+  /** Read an agent architect by deployment identifier or name. Rejects with 404 when the deployment is not an architect. */
+  getArchitect(deploymentId: string): Promise<Architect> { return this.t.request("GET", this.architectItem(deploymentId)); }
+  /**
+   * Create an agent architect: a deployment of the built-in agent-architect with draft access, bound to the chosen prompt
+   * (builtin/agent-architect when none is named). Rejects with 400 (a missing name or harness profile,
+   * InvalidArchitectPrompt) or 409 (NameConflict, ArchitectAgentMissing).
+   */
+  createArchitect(request: ArchitectRequest): Promise<Architect> { return this.t.request("POST", this.t.tenantPath("/studio/architects"), undefined, request); }
+  /**
+   * Change an architect's name, description, harness profile, model, active flag, and prompt. An omitted or null
+   * architectPromptTemplateId keeps the current prompt; other deployment settings are kept.
+   */
+  updateArchitect(deploymentId: string, request: ArchitectRequest): Promise<Architect> { return this.t.request("PUT", this.architectItem(deploymentId), undefined, request); }
+  /** Delete an agent architect (its deployment). Drafts are kept. */
+  async deleteArchitect(deploymentId: string): Promise<void> { await this.t.request("DELETE", this.architectItem(deploymentId)); }
+  /**
+   * List architect prompts, one page at a time: built-ins first, then tenant clones of them, then other tenant System
+   * templates. The order is fixed; search matches part of the name.
+   */
+  listArchitectPrompts(query: ArchitectPromptListQuery = {}): Promise<EnumerationResult<ArchitectPromptEntry>> {
+    return this.t.request("GET", this.t.tenantPath("/studio/architect-prompts"), query as any);
+  }
   /** The prompt an architect deployment (identifier or name) uses. */
   getArchitectPrompt(deploymentId: string): Promise<ArchitectPromptSelection> {
     return this.t.request("GET", this.t.tenantPath(`/studio/architects/${seg(deploymentId)}/prompt`));
@@ -2305,7 +2377,7 @@ export class GarrisonClient {
   readonly fanOutGroups: FanOutGroups;
   /** Agentic apps: definitions, delegation plans, app revisions, and promotion. */
   readonly apps: Apps;
-  /** Studio drafts and architect prompts. */
+  /** Studio drafts, agent architects, and architect prompts. */
   readonly studioDrafts: StudioDrafts;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;

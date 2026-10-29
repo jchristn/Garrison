@@ -421,21 +421,39 @@ if (diff.valid) {
 
 `requestApply` validates the draft (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`), creates an `Approval` of kind `DraftApply` whose `draftId` names the draft, and moves the draft to `PendingApproval`. Deciding it `Allow` with `client.approvals.decide` needs Create on `Manifest` (403 `ApproverLacksPermission`) and applies the draft, which becomes `Applied`. If live configuration moved in the meantime the decision rejects with 409 `DraftStale` and the draft is `Open` again. `Deny` also returns it to `Open`. `STUDIO_DRAFT_RESOURCE_TYPE` (`StudioDraft`) names drafts in permissions.
 
-## Architect prompts
+## Agent architects
 
-The agent architect (`agent-architect`, seeded in every tenant) takes its System prompt from its deployment. `client.studioDrafts.listArchitectPrompts()` returns `ArchitectPromptEntry[]`, built-in prompts first (`builtin/agent-architect`, then `builtin/agent-architect-guided`), then the tenant's clones of them, then the tenant's other System templates. Each entry has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments` (the architect deployments that use it). To change the prompt, clone a built-in with `client.promptTemplates.clone`, edit the clone with `update`, and select it. `promptTemplates.reset` puts a clone back to the shipped text, and `render` previews it.
+An agent architect is a deployment that may edit studio drafts for the person talking to it: a deployment of the protected `agent-architect` agent seeded in every tenant, or any deployment granted `managementAccess` `Drafts` (`ManagementAccess`: `None` or `Drafts`). Its runs edit drafts and never apply them. `client.studioDrafts` manages architects directly, so you never build the deployment yourself:
 
 ```ts
-const clone = await client.promptTemplates.clone("tpl_builtin_agent_architect", "architect-house-style");
-const architect = await client.agents.get("agent-architect");
-const deployment = await client.deployments.create({
-  name: "architect", agentId: architect.id, harnessProfileId: "hrn_builtin_claude_code", architectPromptTemplateId: clone.id,
-}); // managementAccess is always "Drafts" for agent-architect
-const selection = await client.studioDrafts.getArchitectPrompt(deployment.id);
-await client.studioDrafts.setArchitectPrompt(deployment.id, "builtin/agent-architect"); // optional third argument pins a version
+let architect = await client.studioDrafts.createArchitect({
+  name: "architect",
+  harnessProfileId: "hrn_builtin_claude_code",
+  model: "claude-sonnet-4-5",                          // optional; null uses the harness default
+  architectPromptTemplateId: "builtin/agent-architect", // optional; null binds builtin/agent-architect
+});
+const page = await client.studioDrafts.listArchitects({ maxResults: 10, search: "arch", activeOnly: true });
+const read = await client.studioDrafts.getArchitect("architect"); // identifier or name
+architect = await client.studioDrafts.updateArchitect(architect.id, {
+  name: "architect", harnessProfileId: "hrn_builtin_claude_code", active: false, architectPromptTemplateId: "builtin/agent-architect-guided",
+});
+await client.studioDrafts.deleteArchitect(architect.id); // drafts are kept
 ```
 
-`ArchitectPromptSelection` has `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (null follows the current version, so a saved edit applies on the architect's next turn), and `currentVersion`. Only architect deployments take an architect prompt (400 `NotAnArchitectDeployment`), and the template must be a System template the tenant can read (400 `InvalidArchitectPrompt`). `Deployment.managementAccess` (`ManagementAccess`: `None` or `Drafts`) says whether a deployment's runs may edit drafts for the person they work for, and `architectPromptTemplateId` and `architectPromptVersion` are accepted when a deployment is created.
+An `Architect` has `id` (the deployment identifier), `tenantId`, `name`, `description`, `agentId`, `agentName`, `harnessProfileId`, `model`, `active`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (null follows the template's current version), `architectPromptCurrentVersion`, `configVersion`, `isProtected`, `createdUtc`, and `lastUpdateUtc`. An `ArchitectRequest` takes `name` and `harnessProfileId` (both required; 400 without them), `description`, `model`, `active` (default true), `architectPromptTemplateId`, and `architectPromptVersion` (1 or more, or null). On update, an omitted or null `architectPromptTemplateId` keeps the current prompt, and deployment settings the request does not name are kept. `createArchitect` rejects with 409 `NameConflict` for a name in use and 409 `ArchitectAgentMissing` when the tenant has no `agent-architect`; create and update reject with 400 `InvalidArchitectPrompt` for a template that is not a System template the tenant can read. `getArchitect`, `updateArchitect`, and `deleteArchitect` reject with 404 for a deployment that is not an architect. `listArchitects` returns an `EnumerationResult<Architect>` and takes an `ArchitectListQuery`: `maxResults` (1 to 1000, default 25), `skip`, `ordering`, `search` (part of the name), and `activeOnly`. These calls need Read, Create, Update, or Delete on `Deployment`. `deployments.create` still accepts `architectPromptTemplateId` and `architectPromptVersion` for a deployment of `agent-architect`.
+
+## Architect prompts
+
+`client.studioDrafts.listArchitectPrompts(query)` returns one page, an `EnumerationResult<ArchitectPromptEntry>`: built-in prompts first (`builtin/agent-architect`, then `builtin/agent-architect-guided`), then the tenant's clones of them, then the tenant's other System templates. The order is fixed, so the `ArchitectPromptListQuery` takes only `maxResults`, `skip`, and `search` (part of the name). Each entry has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments` (the architect deployments that use it). To change the prompt, clone a built-in with `client.promptTemplates.clone`, edit the clone with `update`, and select it. `promptTemplates.reset` puts a clone back to the shipped text, and `render` previews it.
+
+```ts
+const prompts = (await client.studioDrafts.listArchitectPrompts({ maxResults: 50 })).objects;
+const clone = await client.promptTemplates.clone(prompts[0].id, "architect-house-style");
+await client.studioDrafts.setArchitectPrompt(architect.id, clone.id); // optional third argument pins a version
+const selection = await client.studioDrafts.getArchitectPrompt(architect.id);
+```
+
+`ArchitectPromptSelection` has `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (null follows the current version, so a saved edit applies on the architect's next turn), and `currentVersion`. Only architect deployments take an architect prompt (400 `NotAnArchitectDeployment`), and the template must be a System template the tenant can read (400 `InvalidArchitectPrompt`).
 
 ## Playground
 
@@ -557,14 +575,11 @@ const applied = await client.manifests.apply(readFileSync("examples/agentic-apps
 // 2. Open a studio draft holding the app and everything it references.
 const draft = await client.studioDrafts.create({ title: "Support triage changes", fromApp: "support-triage" });
 
-// 3. List architect prompts and select one for an architect deployment.
-const prompts = await client.studioDrafts.listArchitectPrompts();
-let architectId = prompts.flatMap((p) => p.deployments ?? [])[0];
-if (!architectId) {
-  const architect = await client.agents.get("agent-architect");
-  architectId = (await client.deployments.create({ name: "agent-architect-sdk", agentId: architect.id, harnessProfileId: "hrn_builtin_fake" })).id;
-}
-await client.studioDrafts.setArchitectPrompt(architectId, prompts[0].id);
+// 3. List architect prompts and select one for an agent architect.
+const prompts = (await client.studioDrafts.listArchitectPrompts()).objects;
+let architect = (await client.studioDrafts.listArchitects({ maxResults: 1 })).objects[0];
+if (!architect) architect = await client.studioDrafts.createArchitect({ name: "agent-architect-sdk", harnessProfileId: "hrn_builtin_fake" });
+await client.studioDrafts.setArchitectPrompt(architect.id, prompts[0].id);
 
 // 4. Chat with the app through its gateway as an anonymous end user.
 const gateway = client.appGateway("support-triage");
@@ -665,6 +680,12 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | `POST /studio/drafts/{id}/request-apply` | `studioDrafts.requestApply` |
 | `GET /studio/drafts/{id}/graph` | `studioDrafts.graph` |
 | `POST /studio/drafts/{id}/graph-operations` | `studioDrafts.graphOperation` |
+| **Agent architects** | |
+| `GET /studio/architects` | `studioDrafts.listArchitects` |
+| `POST /studio/architects` | `studioDrafts.createArchitect` |
+| `GET /studio/architects/{deploymentId}` | `studioDrafts.getArchitect` |
+| `PUT /studio/architects/{deploymentId}` | `studioDrafts.updateArchitect` |
+| `DELETE /studio/architects/{deploymentId}` | `studioDrafts.deleteArchitect` |
 | **Architect prompts** | |
 | `GET /studio/architect-prompts` | `studioDrafts.listArchitectPrompts` |
 | `GET /studio/architects/{deploymentId}/prompt` | `studioDrafts.getArchitectPrompt` |
@@ -687,9 +708,9 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 node sdk/js/bin/console.mjs http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, `apply <file>`, `apps`, `studio-draft <app>`, `architect-prompts`, `architects`, `architect [prompt]`, `chat <slug> <message>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
-The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for an architect deployment and creates `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
+The studio commands walk through Garrison Agent Studio: `apply` applies a manifest bundle and prints the counts, `studio-draft` opens a draft holding an app and everything it references, `architect-prompts` lists the first page of architect prompts, `architect` selects one (default the first, `builtin/agent-architect`) for the tenant's first agent architect and creates the architect `agent-architect-sdk` on `hrn_builtin_fake` when the tenant has none, `architects` lists the first page of agent architects, and `chat` starts an anonymous session with an app, sends one message, waits for the turn, and prints it. For example, from the repository root:
 
 ```text
 keys
@@ -697,6 +718,7 @@ apply examples/agentic-apps/support-triage/support-triage.yaml
 studio-draft support-triage
 architect-prompts
 architect
+architects
 chat support-triage My invoice was charged twice.
 ```
 

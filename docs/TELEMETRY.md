@@ -701,6 +701,11 @@ Every route registers through the route registrar, which records it in the opera
 | POST | `/v1.0/api/tenants/{tenantId}/secrets/{id}/rotate` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}/rotate"` | `POST /v1.0/api/tenants/{tenantId}/secrets/{id}/rotate` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}/rotate` | garrison-http, garrison-security |
 | PUT | `/v1.0/api/tenants/{tenantId}/secrets/{id}/value` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}/value"` | `PUT /v1.0/api/tenants/{tenantId}/secrets/{id}/value` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}/value` | garrison-http, garrison-security |
 | GET | `/v1.0/api/tenants/{tenantId}/studio/architect-prompts` | `route="/v1.0/api/tenants/{tenantId}/studio/architect-prompts"` | `GET /v1.0/api/tenants/{tenantId}/studio/architect-prompts` | `route=/v1.0/api/tenants/{tenantId}/studio/architect-prompts` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/studio/architects` | `route="/v1.0/api/tenants/{tenantId}/studio/architects"` | `GET /v1.0/api/tenants/{tenantId}/studio/architects` | `route=/v1.0/api/tenants/{tenantId}/studio/architects` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/studio/architects` | `route="/v1.0/api/tenants/{tenantId}/studio/architects"` | `POST /v1.0/api/tenants/{tenantId}/studio/architects` | `route=/v1.0/api/tenants/{tenantId}/studio/architects` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | `route="/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}"` | `DELETE /v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | `route=/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | `route="/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}"` | `GET /v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | `route=/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | `route="/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}"` | `PUT /v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | `route=/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt` | `route="/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt"` | `GET /v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt` | `route=/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt` | `route="/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt"` | `PUT /v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt` | `route=/v1.0/api/tenants/{tenantId}/studio/architects/{deploymentId}/prompt` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/studio/drafts` | `route="/v1.0/api/tenants/{tenantId}/studio/drafts"` | `GET /v1.0/api/tenants/{tenantId}/studio/drafts` | `route=/v1.0/api/tenants/{tenantId}/studio/drafts` | garrison-http |
@@ -851,19 +856,24 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_rotate_trigger_secret` | `tool="garrison_rotate_trigger_secret"` | `mcp garrison_rotate_trigger_secret` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_start_pipeline` | `tool="garrison_start_pipeline"` | `mcp garrison_start_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_start_run` | `tool="garrison_start_run"` | `mcp garrison_start_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_studio_create_architect` | `tool="garrison_studio_create_architect"` | `mcp garrison_studio_create_architect` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_create_draft` | `tool="garrison_studio_create_draft"` | `mcp garrison_studio_create_draft` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_studio_delete_architect` | `tool="garrison_studio_delete_architect"` | `mcp garrison_studio_delete_architect` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_diff` | `tool="garrison_studio_diff"` | `mcp garrison_studio_diff` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_studio_get_architect` | `tool="garrison_studio_get_architect"` | `mcp garrison_studio_get_architect` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_get_architect_prompt` | `tool="garrison_studio_get_architect_prompt"` | `mcp garrison_studio_get_architect_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_get_draft` | `tool="garrison_studio_get_draft"` | `mcp garrison_studio_get_draft` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_graph` | `tool="garrison_studio_graph"` | `mcp garrison_studio_graph` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_graph_operation` | `tool="garrison_studio_graph_operation"` | `mcp garrison_studio_graph_operation` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_list_architect_prompts` | `tool="garrison_studio_list_architect_prompts"` | `mcp garrison_studio_list_architect_prompts` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_studio_list_architects` | `tool="garrison_studio_list_architects"` | `mcp garrison_studio_list_architects` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_list_drafts` | `tool="garrison_studio_list_drafts"` | `mcp garrison_studio_list_drafts` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_playground_invoke` | `tool="garrison_studio_playground_invoke"` | `mcp garrison_studio_playground_invoke` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_put_item` | `tool="garrison_studio_put_item"` | `mcp garrison_studio_put_item` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_remove_item` | `tool="garrison_studio_remove_item"` | `mcp garrison_studio_remove_item` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_request_apply` | `tool="garrison_studio_request_apply"` | `mcp garrison_studio_request_apply` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_set_architect_prompt` | `tool="garrison_studio_set_architect_prompt"` | `mcp garrison_studio_set_architect_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_studio_update_architect` | `tool="garrison_studio_update_architect"` | `mcp garrison_studio_update_architect` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_studio_validate` | `tool="garrison_studio_validate"` | `mcp garrison_studio_validate` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_test_notification_endpoint` | `tool="garrison_test_notification_endpoint"` | `mcp garrison_test_notification_endpoint` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_update_agent` | `tool="garrison_update_agent"` | `mcp garrison_update_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |

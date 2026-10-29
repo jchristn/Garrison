@@ -3241,3 +3241,43 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agents > Architects: reusable agent architects any studio draft can use, and the studio's link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "architects": "喺任何工作室草稿都可以重用嘅代理架構師：建立、編輯同刪除佢哋，仲可以為每一個揀 Harness 設定檔、模型同提示。"
+  }
+ },
+ "resources": {
+  "architects": {
+   "add": "建立代理架構師：agent-architect 嘅部署，只會編輯你嘅工作室草稿，永遠唔會套用佢哋。",
+   "harnessProfileId": "架構師運行用嘅 Harness 設定檔，決定佢用邊個代理 CLI（Claude Code、Codex 等等）。",
+   "model": "架構師向 Harness 要求嘅模型。留空就用 Harness 設定檔嘅預設模型。",
+   "architectPromptTemplateId": "話俾架構師知點樣做嘢嘅 System 範本。內建提示排喺最前；想改就先複製一個。",
+   "architectPromptVersion": "將架構師固定喺佢提示嘅某個版本。留空就跟目前版本，儲存咗嘅編輯會喺佢下一輪開始生效。",
+   "defaultModel": "冇設定模型，所以架構師用 Harness 設定檔嘅預設模型。",
+   "defaultBadge": "呢個架構師用緊內建嘅預設提示 builtin/agent-architect。",
+   "activeBadge": "啟用：草稿可以同呢個架構師開始新對話。",
+   "inactiveBadge": "停用：喺你重新啟用之前，架構師唔會接新嘅輪次，草稿亦唔會提供佢。",
+   "actions": {
+    "prompts": "管理架構師提示：揀呢個架構師用邊個提示，同埋複製、編輯、重設或者刪除提示。",
+    "deployment": "打開呢個架構師背後嘅部署，改佢嘅限制、執行器、對外規則同其他設定。"
+   }
+  }
+ },
+ "studio": {
+  "chat": {
+   "manageArchitects": "打開 代理 > 架構師，建立、編輯或者刪除所有草稿都用得嘅架構師。"
+  }
+ }
+});

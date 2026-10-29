@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -2135,10 +2136,11 @@ func main() {
 		return nil
 	})
 	check("architect prompts", func(ctx context.Context) (err error) {
-		prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+		page, err := client.StudioDrafts.ArchitectPrompts(ctx, nil)
 		if err != nil {
 			return err
 		}
+		prompts := page.Objects
 		if len(prompts) == 0 || prompts[0].Name != "builtin/agent-architect" || !prompts[0].IsBuiltIn {
 			return fmt.Errorf("architect prompts: %+v", prompts)
 		}
@@ -2192,6 +2194,86 @@ func main() {
 		}
 		if !strings.Contains(rendered.Rendered, "Render Bot") {
 			return fmt.Errorf("ad hoc render %q", rendered.Rendered)
+		}
+		return nil
+	})
+	check("agent architects", func(ctx context.Context) (err error) {
+		name := "sdk-go-arch-" + suffix
+		renamed := name + "-renamed"
+		architectID := ""
+		defer func() {
+			if architectID != "" {
+				if derr := client.StudioDrafts.DeleteArchitect(ctx, architectID); derr != nil && !garrison.IsStatus(derr, 404) && err == nil {
+					err = derr
+				}
+			}
+		}()
+		description := "SDK harness architect"
+		created, err := client.StudioDrafts.CreateArchitect(ctx, garrison.ArchitectRequest{Name: name, Description: &description, HarnessProfileID: "hrn_builtin_fake"})
+		if err != nil {
+			return err
+		}
+		architectID = created.ID
+		if created.Name != name || created.HarnessProfileID != "hrn_builtin_fake" || !created.Active || created.AgentName == nil || *created.AgentName != "agent-architect" {
+			return fmt.Errorf("created architect %+v", created)
+		}
+		if created.ArchitectPromptName != "builtin/agent-architect" || created.ArchitectPromptVersion != nil {
+			return fmt.Errorf("created architect prompt %s", created.ArchitectPromptName)
+		}
+		page, err := client.StudioDrafts.Architects(ctx, &garrison.ListOptions{MaxResults: 1, Search: name})
+		if err != nil {
+			return err
+		}
+		if len(page.Objects) != 1 || page.Objects[0].ID != created.ID || page.TotalRecords != 1 || page.MaxResults != 1 {
+			return fmt.Errorf("architect list page %+v", page)
+		}
+		byID, err := client.StudioDrafts.Architect(ctx, created.ID)
+		if err != nil {
+			return err
+		}
+		if byID.Name != name {
+			return fmt.Errorf("architect by id %s", byID.Name)
+		}
+		byName, err := client.StudioDrafts.Architect(ctx, name)
+		if err != nil {
+			return err
+		}
+		if byName.ID != created.ID {
+			return fmt.Errorf("architect by name %s", byName.ID)
+		}
+		model := "fake-model"
+		guided := "builtin/agent-architect-guided"
+		inactive := false
+		updated, err := client.StudioDrafts.UpdateArchitect(ctx, created.ID, garrison.ArchitectRequest{Name: renamed, HarnessProfileID: "hrn_builtin_fake", Model: &model, Active: &inactive, ArchitectPromptTemplateID: &guided})
+		if err != nil {
+			return err
+		}
+		if updated.ID != created.ID || updated.Name != renamed || updated.Model == nil || *updated.Model != model || updated.Active {
+			return fmt.Errorf("updated architect %+v", updated)
+		}
+		if updated.ArchitectPromptName != guided {
+			return fmt.Errorf("updated architect prompt %s", updated.ArchitectPromptName)
+		}
+		first, err := client.StudioDrafts.ArchitectPrompts(ctx, &garrison.ListOptions{MaxResults: 1})
+		if err != nil {
+			return err
+		}
+		if len(first.Objects) != 1 || first.Objects[0].Name != "builtin/agent-architect" || first.TotalRecords < 2 || first.EndOfResults {
+			return fmt.Errorf("architect prompt page 1 %+v", first)
+		}
+		second, err := client.StudioDrafts.ArchitectPrompts(ctx, &garrison.ListOptions{MaxResults: 1, Skip: 1})
+		if err != nil {
+			return err
+		}
+		if len(second.Objects) != 1 || second.Objects[0].Name != guided || !slices.Contains(second.Objects[0].Deployments, created.ID) {
+			return fmt.Errorf("architect prompt page 2 %+v", second)
+		}
+		if err := client.StudioDrafts.DeleteArchitect(ctx, created.ID); err != nil {
+			return err
+		}
+		architectID = ""
+		if _, err := client.StudioDrafts.Architect(ctx, created.ID); !garrison.IsStatus(err, 404) {
+			return fmt.Errorf("read after delete: expected HTTP 404, got %v", err)
 		}
 		return nil
 	})

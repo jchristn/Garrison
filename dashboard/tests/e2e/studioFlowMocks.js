@@ -4,7 +4,7 @@
 // DraftApply approval, the applied app live in dev, promotion to staging, and rollback. Routes registered here run
 // before the shared mocks (Playwright tries the newest route first) and fall back to them for everything else.
 
-import { ARCHITECT_AGENT, ARCHITECT_DEPLOYMENT, draftApproval, respond, revisionId, studioRun } from './mocks.js';
+import { ARCHITECT, ARCHITECT_AGENT, ARCHITECT_DEPLOYMENT, draftApproval, respond, revisionId, studioRun } from './mocks.js';
 
 const json = (status, body) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 const NOW = Date.parse('2026-10-09T12:00:00Z');
@@ -51,7 +51,7 @@ function appDeployment(agent, env, pinned) {
 }
 
 /**
- * Install the flow. Returns the state so a test can assert on what the dashboard sent: architect deployment bodies,
+ * Install the flow. Returns the state so a test can assert on what the dashboard sent: architect bodies,
  * architect invocations, the apply request, decisions, promotions, and rollbacks.
  */
 export async function installStudioFlow(page) {
@@ -82,18 +82,26 @@ export async function installStudioFlow(page) {
   // Deployments: the shared list, the architect once the wizard created it, and the app's once the draft applied.
   await page.route(/\/tenants\/[^/]+\/deployments(\?.*)?$/, (route) => {
     const method = route.request().method();
-    if (method === 'POST') {
-      const body = route.request().postDataJSON();
-      state.architectBodies.push(body);
-      state.architectCreated = true;
-      return route.fulfill(json(201, { ...ARCHITECT_DEPLOYMENT, name: body.name, model: body.model, architectPromptTemplateId: body.architectPromptTemplateId }));
-    }
     if (method !== 'GET') return route.fallback();
     const base = respond('GET', new URL(route.request().url()));
     const extra = [];
     if (state.architectCreated) extra.push(ARCHITECT_DEPLOYMENT);
     if (state.applied) for (const agent of [PLANNER, WRITER]) extra.push(appDeployment(agent, 'dev', false), appDeployment(agent, 'staging', promoted()));
     return route.fulfill(json(200, { ...base, objects: [...base.objects, ...extra], totalRecords: base.totalRecords + extra.length }));
+  });
+
+  // Architects: none until the wizard creates one.
+  await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => {
+    const method = route.request().method();
+    if (method === 'POST') {
+      const body = route.request().postDataJSON();
+      state.architectBodies.push(body);
+      state.architectCreated = true;
+      return route.fulfill(json(201, { ...ARCHITECT, name: body.name, model: body.model, architectPromptTemplateId: body.architectPromptTemplateId }));
+    }
+    if (method !== 'GET') return route.fallback();
+    const rows = state.architectCreated ? [ARCHITECT] : [];
+    return route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true }));
   });
 
   // The new draft and everything about it.

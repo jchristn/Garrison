@@ -1396,7 +1396,7 @@ namespace Garrison.Sdk.Test
 
                 await CheckAsync("architect prompts", async () =>
                 {
-                    List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(token).ConfigureAwait(false);
+                    List<ArchitectPromptEntry> prompts = (await client.StudioDrafts.ListArchitectPromptsAsync(null, token).ConfigureAwait(false)).Objects;
                     Require(prompts.Count > 0 && prompts[0].Name == "builtin/agent-architect" && prompts[0].IsBuiltIn && prompts[0].IsDefault, "first architect prompt " + (prompts.Count > 0 ? prompts[0].Name : "none"));
                     PromptTemplate clone = await client.PromptTemplates.CloneAsync(prompts[0].Id, "sdk-cs-architect-" + suffix, token).ConfigureAwait(false);
                     string? architectDeploymentId = null;
@@ -1422,6 +1422,73 @@ namespace Garrison.Sdk.Test
                     {
                         if (architectDeploymentId != null) await client.Deployments.DeleteAsync(architectDeploymentId, token).ConfigureAwait(false);
                         await client.PromptTemplates.DeleteAsync(clone.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("agent architects", async () =>
+                {
+                    string name = "sdk-cs-arch-" + suffix;
+                    string renamed = name + "-renamed";
+                    string? architectId = null;
+                    try
+                    {
+                        ArchitectRequest create = new ArchitectRequest();
+                        create.Name = name;
+                        create.Description = "SDK harness architect";
+                        create.HarnessProfileId = "hrn_builtin_fake";
+                        Architect created = await client.StudioDrafts.CreateArchitectAsync(create, token).ConfigureAwait(false);
+                        architectId = created.Id;
+                        Require(created.Name == name && created.HarnessProfileId == "hrn_builtin_fake" && created.Active && created.AgentName == "agent-architect", "created " + created.Name + " " + created.AgentName);
+                        Require(created.ArchitectPromptName == "builtin/agent-architect" && created.ArchitectPromptVersion == null, "created prompt " + created.ArchitectPromptName);
+
+                        EnumerationQuery query = new EnumerationQuery();
+                        query.MaxResults = 1;
+                        query.Search = name;
+                        EnumerationResult<Architect> page = await client.StudioDrafts.ListArchitectsAsync(query, token).ConfigureAwait(false);
+                        Require(page.Objects.Count == 1 && page.Objects[0].Id == created.Id && page.TotalRecords == 1 && page.MaxResults == 1, "list page " + page.Objects.Count + " of " + page.TotalRecords);
+
+                        Architect byId = await client.StudioDrafts.GetArchitectAsync(created.Id, token).ConfigureAwait(false);
+                        Require(byId.Name == name, "get by id " + byId.Name);
+                        Architect byName = await client.StudioDrafts.GetArchitectAsync(name, token).ConfigureAwait(false);
+                        Require(byName.Id == created.Id, "get by name " + byName.Id);
+
+                        ArchitectRequest update = new ArchitectRequest();
+                        update.Name = renamed;
+                        update.HarnessProfileId = "hrn_builtin_fake";
+                        update.Model = "fake-model";
+                        update.Active = false;
+                        update.ArchitectPromptTemplateId = "builtin/agent-architect-guided";
+                        Architect updated = await client.StudioDrafts.UpdateArchitectAsync(created.Id, update, token).ConfigureAwait(false);
+                        Require(updated.Id == created.Id && updated.Name == renamed && updated.Model == "fake-model" && !updated.Active, "updated " + updated.Name + " " + updated.Model + " " + updated.Active);
+                        Require(updated.ArchitectPromptName == "builtin/agent-architect-guided", "updated prompt " + updated.ArchitectPromptName);
+
+                        EnumerationQuery promptQuery = new EnumerationQuery();
+                        promptQuery.MaxResults = 1;
+                        EnumerationResult<ArchitectPromptEntry> first = await client.StudioDrafts.ListArchitectPromptsAsync(promptQuery, token).ConfigureAwait(false);
+                        Require(first.Objects.Count == 1 && first.Objects[0].Name == "builtin/agent-architect" && first.TotalRecords >= 2 && !first.EndOfResults, "prompt page 1 " + first.Objects.Count + " of " + first.TotalRecords);
+                        promptQuery.Skip = 1;
+                        EnumerationResult<ArchitectPromptEntry> second = await client.StudioDrafts.ListArchitectPromptsAsync(promptQuery, token).ConfigureAwait(false);
+                        Require(second.Objects.Count == 1 && second.Objects[0].Name == "builtin/agent-architect-guided" && second.Objects[0].Deployments.Contains(created.Id), "prompt page 2 " + (second.Objects.Count > 0 ? second.Objects[0].Name : "none"));
+
+                        await client.StudioDrafts.DeleteArchitectAsync(created.Id, token).ConfigureAwait(false);
+                        architectId = null;
+                        int status = 0;
+                        try
+                        {
+                            await client.StudioDrafts.GetArchitectAsync(created.Id, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e)
+                        {
+                            status = e.StatusCode;
+                        }
+                        Require(status == 404, "read after delete " + status);
+                    }
+                    finally
+                    {
+                        if (architectId != null)
+                        {
+                            try { await client.StudioDrafts.DeleteArchitectAsync(architectId, token).ConfigureAwait(false); } catch (GarrisonException e) when (e.StatusCode == 404) { }
+                        }
                     }
                 }).ConfigureAwait(false);
 
