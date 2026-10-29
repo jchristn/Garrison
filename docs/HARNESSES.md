@@ -264,6 +264,10 @@ The control plane does not know where the worker will put a run, so templates re
 
 The same values are available to templates as `run.workspaceDir`, `run.configDir`, and `run.homeDir`.
 
+### Asset placements
+
+`assetPlacements` says where the harness expects agent assets of each kind (AD2.3): `kind` (`Skill`, `ReferenceFile`, `DocumentTemplate`), `pathTemplate` (a workspace-relative directory with `{{asset.name}}`), and `listInSystemPrompt` (also list the asset in the system prompt through `builtin/agent-assets-instructions`). The built-ins place Claude Code skills in `.claude/skills/{{asset.name}}` and everything else in `assets/{{asset.name}}`, and list every placed asset. A kind without a placement goes to `assets/{{asset.name}}`, listed. See [ASSETS.md](ASSETS.md) for the full table.
+
 ## Template variables
 
 Every string in a profile is rendered with the Garrison template language (see `docs/PROMPTS.md` for syntax). These are the variables available when compiling a run:

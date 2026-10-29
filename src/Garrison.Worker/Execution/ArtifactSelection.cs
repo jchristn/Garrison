@@ -61,6 +61,7 @@ namespace Garrison.Worker.Execution
                         if ((attributes & FileAttributes.Directory) != 0) { directories.Push(path); continue; }
                         string name = Path.GetRelativePath(root, path).Replace('\\', '/');
                         if (!globs.Any(glob => ArtifactGlob.Matches(glob, name))) continue;
+                        if (settings.ExcludedPaths.Contains(name, StringComparer.Ordinal)) continue;
                         long bytes = new FileInfo(path).Length;
                         if (bytes > settings.MaxFileBytes || bytes > settings.MaxTotalBytes - total)
                         {

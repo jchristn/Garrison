@@ -99,6 +99,13 @@ namespace Garrison.Server.Settings
             set { _Artifacts = value ?? new ArtifactSettings(); }
         }
 
+        /// <summary>Agent asset upload limits (AD2.2).</summary>
+        public AssetSettings Assets
+        {
+            get { return _Assets; }
+            set { _Assets = value ?? new AssetSettings(); }
+        }
+
         /// <summary>
         /// Control-plane refresh of ChatGPT logins stored in CodexAuthJson secrets (G-22).
         /// </summary>
@@ -146,6 +153,7 @@ namespace Garrison.Server.Settings
 
         private LeaseSettings _Leases = new LeaseSettings();
         private ArtifactSettings _Artifacts = new ArtifactSettings();
+        private AssetSettings _Assets = new AssetSettings();
 
         private CodexSettings _Codex = new CodexSettings();
 
@@ -251,6 +259,10 @@ namespace Garrison.Server.Settings
             Int("GARRISON_ARTIFACT_COLLECTION_TIMEOUT_SECONDS", "Artifacts.CollectionTimeoutSeconds", v => Artifacts.CollectionTimeoutSeconds = v);
             Int("GARRISON_ARTIFACT_DOWNLOAD_LIFETIME_SECONDS", "Artifacts.DownloadLifetimeSeconds", v => Artifacts.DownloadLifetimeSeconds = v);
             Bool("GARRISON_ARTIFACT_ALLOW_AMBIENT_CUSTOM_ENDPOINT", "Artifacts.AllowAmbientCredentialsWithCustomEndpoint", v => Artifacts.AllowAmbientCredentialsWithCustomEndpoint = v);
+            Int("GARRISON_ASSETS_MAX_FILE_BYTES", "Assets.MaxFileBytes", v => Assets.MaxFileBytes = v);
+            Int("GARRISON_ASSETS_MAX_VERSION_BYTES", "Assets.MaxVersionBytes", v => Assets.MaxVersionBytes = v);
+            Int("GARRISON_ASSETS_MAX_FILES_PER_VERSION", "Assets.MaxFilesPerVersion", v => Assets.MaxFilesPerVersion = v);
+            Bool("GARRISON_ASSETS_ALLOW_MACRO_FORMATS", "Assets.AllowMacroFormats", v => Assets.AllowMacroFormats = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);

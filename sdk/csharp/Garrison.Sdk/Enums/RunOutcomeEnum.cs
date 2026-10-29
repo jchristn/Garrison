@@ -117,6 +117,12 @@ namespace Garrison.Sdk.Enums
         /// a turn as a fallback (a fresh session seeded with the transcript), so a run only ends with this outcome when
         /// the requeue was not possible.
         /// </summary>
-        ConversationStateLost
+        ConversationStateLost,
+
+        /// <summary>
+        /// AssetIntegrityFailed: a pinned agent asset file delivered to the worker did not match its recorded SHA-256
+        /// digest, so the run was stopped before the harness started.
+        /// </summary>
+        AssetIntegrityFailed
     }
 }

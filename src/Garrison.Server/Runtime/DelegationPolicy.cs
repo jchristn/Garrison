@@ -52,7 +52,8 @@ namespace Garrison.Server.Runtime
             if (callee == null) throw new ArgumentNullException(nameof(callee));
             if (RunService.IsTerminal(parent.Status)) throw new ConflictException("ParentRunFinished", "The calling run has already finished.");
 
-            Agent caller = await _Database.Agents.ReadAsync(parent.TenantId, parent.AgentId, token).ConfigureAwait(false)
+            // The caller's policy comes from the revision the parent run compiled from (AD1.3).
+            Agent caller = await EffectiveAgent.ForRunAsync(_Database, parent, token).ConfigureAwait(false)
                 ?? throw new ConflictException("DelegationDenied", "The calling agent no longer exists.");
 
             if (caller.DelegationMode == DelegationModeEnum.None)
@@ -75,7 +76,7 @@ namespace Garrison.Server.Runtime
             int rootLimit = caller.DelegationMaxDepth;
             if (root != null && root.AgentId != caller.Id)
             {
-                Agent? rootAgent = await _Database.Agents.ReadAsync(parent.TenantId, root.AgentId, token).ConfigureAwait(false);
+                Agent? rootAgent = await EffectiveAgent.ForRunAsync(_Database, root, token).ConfigureAwait(false);
                 if (rootAgent != null) rootLimit = Math.Min(rootLimit, rootAgent.DelegationMaxDepth);
             }
             if (parent.Depth + 1 > rootLimit)

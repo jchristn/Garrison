@@ -337,6 +337,17 @@ Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example 
 
 `AgentMemory.Enabled` defaults to false. `RootDirectory` defaults to `data/agent-memory`; `MaxValueBytes` defaults to 65536 UTF-8 bytes (1 to 1048576). Environment overrides are `GARRISON_AGENT_MEMORY_ENABLE`, `GARRISON_AGENT_MEMORY_ROOT`, and `GARRISON_AGENT_MEMORY_MAX_VALUE_BYTES`. Multiple replicas need a shared persistent root or a shared-store implementation of `IAgentMemoryStore`. See [agent memory](AGENT_MEMORY.md) for tools and provider replacement.
 
+### Agent asset limits
+
+| Setting | Default | Range | Environment |
+|---|---|---|---|
+| `Assets.MaxFileBytes` | 16777216 (16 MiB) | 1024 to 268435456 | `GARRISON_ASSETS_MAX_FILE_BYTES` |
+| `Assets.MaxVersionBytes` | 67108864 (64 MiB) | 1024 to 1073741824 | `GARRISON_ASSETS_MAX_VERSION_BYTES` |
+| `Assets.MaxFilesPerVersion` | 200 | 1 to 1000 | `GARRISON_ASSETS_MAX_FILES_PER_VERSION` |
+| `Assets.AllowMacroFormats` | false | | `GARRISON_ASSETS_ALLOW_MACRO_FORMATS` |
+
+An asset upload over a limit answers 413 naming the setting. Files kept in an external artifact store are also bounded by `Artifacts.MaxFileBytes` when they are read back. See [ASSETS.md](ASSETS.md).
+
 ### Artifact and continuation byte limits
 
 `Artifacts.MaxFileBytes` defaults to 16777216 (16 MiB) and accepts 1024 through 268435456 (256 MiB). Environment: `GARRISON_ARTIFACT_MAX_FILE_BYTES`. This node-local setting is copied into new execution assignments at startup; restart control-plane replicas after changing it. The cap applies to compressed continuation archives and ordinary artifact files. For a 96 MiB archive allowance set 100663296, with REST/proxy body ceilings at least that high. The default REST ceiling is 128 MiB; it does not automatically increase when the artifact cap increases. Normal collection has an additional MaxTotalBytes aggregate limit; snapshot extraction separately enforces 256 MiB uncompressed and 100000 entries. See [continuation size policy](CONTINUATION.md#archive-size-policy) for retention, fidelity and buffering implications.

@@ -124,6 +124,10 @@ namespace Garrison.Server.Modules
             _Approvals.Continuations = continuations;
             _Maintenance.Continuations = continuations;
             _Scheduler.Continuations = continuations;
+            AgentAssetService assets = context.Get<AgentAssetService>();
+            string assetBaseUrl = context.Settings.Rest.PublicBaseUrl ?? ExternalUrls.BindBaseUrl(context);
+            _Scheduler.DecorateSpec = (run, spec) => assets.ApplyDownloadUrls(run, spec, assetBaseUrl);
+            _StructuredOutput.DecorateSpec = _Scheduler.DecorateSpec;
             _Events.Continuations = continuations;
             _Runs.Approvals = _Approvals;
             _Events.Approvals = _Approvals;

@@ -34,13 +34,13 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint", "Bundle" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint", "Bundle" };
 
         /// <summary>
         /// Kinds an export can select (P12.21), in apply order. Secrets are never exported as documents (only as bundle
         /// requirements), and the Bundle document is written by every export.
         /// </summary>
-        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint" };
 
         /// <summary>
         /// Name written to the Bundle document of an export.
@@ -68,6 +68,12 @@ namespace Garrison.Core.Manifests
         /// control plane sets it from the cluster setting Notifications.AllowPrivateDestinations.
         /// </summary>
         public bool AllowPrivateNotificationDestinations { get; set; } = false;
+
+        /// <summary>
+        /// Asset content storage for AgentAsset documents (AD2.6). The control plane sets it; with none set, AgentAsset
+        /// documents that carry file content are refused with AssetStorageUnavailable.
+        /// </summary>
+        public IAssetContentStore? AssetContent { get; set; } = null;
 
         #endregion
 
@@ -282,7 +288,8 @@ namespace Garrison.Core.Manifests
             foreach (HarnessProfile profile in plan.Selected<HarnessProfile>()) documents.Add(Wrap("HarnessProfile", profile.Name, Tree(profile)));
             foreach (McpServer server in plan.Selected<McpServer>()) documents.Add(Wrap("McpServer", server.Name, Tree(server)));
             foreach (WorkspaceTemplate workspace in plan.Selected<WorkspaceTemplate>()) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
-            foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false)));
+            foreach (AgentAsset asset in plan.Selected<AgentAsset>()) documents.Add(Wrap("AgentAsset", asset.Name, await AgentAssetTreeAsync(asset, resolver, true, token).ConfigureAwait(false)));
+            foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token, await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false)).ConfigureAwait(false)));
             foreach (Deployment deployment in plan.Selected<Deployment>()) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
             foreach (Pipeline pipeline in plan.Selected<Pipeline>()) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
             foreach (Trigger trigger in plan.Selected<Trigger>()) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
@@ -353,6 +360,9 @@ namespace Garrison.Core.Manifests
                     break;
                 case "workspacetemplate":
                     await PlanWorkspaceAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "agentasset":
+                    await PlanAgentAssetAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
                     break;
                 case "agent":
                     await PlanAgentAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
@@ -628,6 +638,29 @@ namespace Garrison.Core.Manifests
                 spec["outputSchemaJson"] = TemplateValues.ToJson(output);
                 spec.Remove("outputSchema");
             }
+            bool publish = true;
+            if (spec.TryGetValue("revision", out object? revisionValue))
+            {
+                // AD1.7: revision.publish false writes the agent's draft revision instead of changing what runs.
+                if (revisionValue is Dictionary<string, object?> revisionBlock)
+                {
+                    if (revisionBlock.TryGetValue("publish", out object? publishValue) && publishValue != null) publish = !String.Equals(TemplateValues.ToText(publishValue), "false", StringComparison.OrdinalIgnoreCase);
+                    if (revisionBlock.TryGetValue("changeNote", out object? note) && note != null) planned.AgentChangeNote = TemplateValues.ToText(note);
+                }
+                spec.Remove("revision");
+            }
+            if (spec.TryGetValue("assets", out object? assetsValue))
+            {
+                // AD2.6: the asset pins this agent's next revision carries, by asset name.
+                spec.Remove("assets");
+                planned.AgentAssetPins = new List<AgentRevisionAssetPin>();
+                List<AgentAssetPinSpec> pins = assetsValue == null ? new List<AgentAssetPinSpec>() : Serializer.Deserialize<List<AgentAssetPinSpec>>(TemplateValues.ToJson(assetsValue)) ?? new List<AgentAssetPinSpec>();
+                for (int i = 0; i < pins.Count; i++)
+                {
+                    string assetId = await resolver.RequireAsync("AgentAsset", pins[i].Asset, "assets[" + i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "].asset", token).ConfigureAwait(false);
+                    planned.AgentAssetPins.Add(new AgentRevisionAssetPin { AssetId = assetId, Version = pins[i].Version });
+                }
+            }
             string? toolTemplate = Take(spec, "toolDescriptionTemplate");
             string? skillTemplate = Take(spec, "skillDescriptionTemplate");
             string? remoteSecret = Take(spec, "remoteCredentialSecret");
@@ -648,18 +681,243 @@ namespace Garrison.Core.Manifests
             ConfigurationValidator.Agent(agent);
             planned.Model = agent;
             planned.ResourceId = agent.Id;
+            planned.AgentDraftOnly = !publish && existing != null;
             if (existing == null)
             {
                 planned.Result = ManifestApplyResultEnum.Created;
             }
             else
             {
-                Dictionary<string, object?> agentBefore = await AgentTreeAsync(existing, resolver, token).ConfigureAwait(false);
-                Dictionary<string, object?> agentAfter = await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false);
+                List<AgentRevisionAssetPin> currentPins = await PublishedAssetPinsAsync(existing, token).ConfigureAwait(false);
+                Dictionary<string, object?> agentBefore = await AgentTreeAsync(existing, resolver, token, currentPins).ConfigureAwait(false);
+                Dictionary<string, object?> agentAfter = await AgentTreeAsync(agent, resolver, token, planned.AgentAssetPins ?? currentPins).ConfigureAwait(false);
                 planned.Result = Same(agentBefore, agentAfter) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated;
                 if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(agentBefore, agentAfter);
             }
             resolver.Add("Agent", agent.Name, agent.Id);
+        }
+
+        private async Task PublishAssetPinsAsync(string tenantId, Agent agent, List<AgentRevisionAssetPin> pins, string? changeNote, CancellationToken token)
+        {
+            Agent current = await _Database.Agents.ReadAsync(tenantId, agent.Id, token).ConfigureAwait(false) ?? agent;
+            AgentRevision? latest = String.IsNullOrEmpty(current.LatestPublishedRevisionId) ? null : await _Database.AgentRevisions.ReadAsync(tenantId, current.LatestPublishedRevisionId, token).ConfigureAwait(false);
+            AgentRevision content = AgentRevisionContent.FromAgent(current);
+            content.AssetPins = pins;
+            if (latest != null)
+            {
+                content.Capabilities = latest.Capabilities;
+                content.PromptPins = latest.PromptPins;
+            }
+            if (latest != null && String.Equals(latest.ContentHash, AgentRevisionContent.ComputeHash(content), StringComparison.Ordinal)) return;
+            content.ChangeNote = changeNote;
+            content.AuthorName = "manifest";
+            AgentRevision draft = await _Database.AgentRevisions.SaveDraftAsync(content, token).ConfigureAwait(false);
+            await _Database.AgentRevisions.PublishAsync(tenantId, draft.Id, null, "manifest", token).ConfigureAwait(false);
+        }
+
+        private async Task PlanAgentAssetAsync(string tenantId, ManifestDocument document, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            AgentAssetSpec spec = Deserialize<AgentAssetSpec>(document);
+            Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            AgentAsset? existing = await _Database.AgentAssets.ReadByNameAsync(tenantId, document.Metadata.Name, token).ConfigureAwait(false);
+            AgentAsset asset = new AgentAsset();
+            asset.TenantId = tenantId;
+            asset.Name = document.Metadata.Name;
+            asset.Description = spec.Description;
+            asset.Tags = spec.Tags ?? new List<string>();
+            if (!Enum.TryParse(spec.Kind ?? String.Empty, true, out AgentAssetKindEnum kind)) errors["kind"] = "Kind is SystemPrompt, Skill, ReferenceFile, or DocumentTemplate.";
+            asset.Kind = kind;
+            if (!String.IsNullOrEmpty(spec.PromptTemplate)) asset.PromptTemplateId = await resolver.RequireAsync("PromptTemplate", spec.PromptTemplate, "promptTemplate", token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(spec.ArtifactStore))
+            {
+                ArtifactStore? store = await _Database.ArtifactStores.ReadByNameAsync(tenantId, spec.ArtifactStore, token).ConfigureAwait(false);
+                if (store == null)
+                {
+                    errors["artifactStore"] = "Artifact store '" + spec.ArtifactStore + "' does not exist in this tenant.";
+                    codes["artifactStore"] = "MissingArtifactStore";
+                }
+                else asset.ArtifactStoreId = store.Id;
+            }
+            if (!System.Text.RegularExpressions.Regex.IsMatch(asset.Name, "^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$")) errors["metadata.name"] = "Asset names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
+            if (asset.Kind == AgentAssetKindEnum.SystemPrompt && String.IsNullOrEmpty(asset.PromptTemplateId))
+            {
+                errors["promptTemplate"] = "SystemPrompt assets name the prompt template that holds their text.";
+                codes["promptTemplate"] = "AssetTemplateRequired";
+            }
+            if (asset.Kind != AgentAssetKindEnum.SystemPrompt && !String.IsNullOrEmpty(asset.PromptTemplateId)) errors["promptTemplate"] = "Only SystemPrompt assets name a prompt template.";
+            if (existing != null)
+            {
+                asset.Id = existing.Id;
+                asset.CreatedUtc = existing.CreatedUtc;
+                asset.CurrentVersion = existing.CurrentVersion;
+                if (existing.Kind != asset.Kind) errors["kind"] = "The kind of an existing asset cannot change.";
+                if (existing.CurrentVersion > 0 && !String.Equals(existing.ArtifactStoreId ?? String.Empty, asset.ArtifactStoreId ?? String.Empty, StringComparison.Ordinal)) errors["artifactStore"] = "The asset already has versions; its store cannot change.";
+            }
+
+            bool filesChanged = false;
+            if (spec.Files != null)
+            {
+                if (asset.Kind == AgentAssetKindEnum.SystemPrompt && spec.Files.Count > 0)
+                {
+                    errors["files"] = "SystemPrompt assets have no files.";
+                    codes["files"] = "AssetHasNoFiles";
+                }
+                AgentAssetVersion? current = existing != null && existing.CurrentVersion > 0 ? await _Database.AgentAssets.ReadVersionAsync(tenantId, existing.Id, existing.CurrentVersion, token).ConfigureAwait(false) : null;
+                List<AgentAssetFile> upload = new List<AgentAssetFile>();
+                List<string> wanted = new List<string>();
+                bool missing = false;
+                for (int i = 0; i < spec.Files.Count; i++)
+                {
+                    AgentAssetFileSpec file = spec.Files[i];
+                    string field = "files[" + i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+                    byte[]? content = file.Content != null ? System.Text.Encoding.UTF8.GetBytes(file.Content) : null;
+                    if (content == null && file.ContentBase64 != null)
+                    {
+                        try { content = Convert.FromBase64String(file.ContentBase64); }
+                        catch (FormatException) { errors[field + ".contentBase64"] = "Not valid base64."; continue; }
+                    }
+                    string sha;
+                    if (content != null)
+                    {
+                        sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(content)).ToLowerInvariant();
+                        upload.Add(new AgentAssetFile { Path = file.Path, MediaType = file.MediaType ?? String.Empty, ContentBase64 = Convert.ToBase64String(content) });
+                    }
+                    else if (!String.IsNullOrEmpty(file.Sha256))
+                    {
+                        sha = file.Sha256.ToLowerInvariant();
+                        AgentAssetFile? held = current?.Files.FirstOrDefault(f => f.Path == file.Path && f.Sha256 == sha);
+                        if (held == null)
+                        {
+                            errors[field] = "File " + file.Path + " is given by reference (sha256) but this tenant does not hold that content. Upload it with POST .../agent-assets/" + asset.Name + "/versions, then apply again.";
+                            codes[field] = "AssetContentMissing";
+                            missing = true;
+                            continue;
+                        }
+                        upload.Add(new AgentAssetFile { Path = held.Path, MediaType = held.MediaType, Sha256 = held.Sha256 });
+                    }
+                    else
+                    {
+                        errors[field] = "Give content, contentBase64, or sha256.";
+                        continue;
+                    }
+                    wanted.Add(file.Path + " " + sha);
+                }
+                wanted.Sort(StringComparer.Ordinal);
+                List<string> held2 = current == null ? new List<string>() : current.Files.Select(f => f.Path + " " + f.Sha256).OrderBy(x => x, StringComparer.Ordinal).ToList();
+                filesChanged = !wanted.SequenceEqual(held2, StringComparer.Ordinal);
+                if (filesChanged && !missing)
+                {
+                    // Files given by reference that the tenant holds are re-read from storage when the new version is
+                    // written, so a version can mix inline text and already-uploaded binaries.
+                    if (upload.Any(f => f.ContentBase64 == null))
+                    {
+                        if (AssetContent == null)
+                        {
+                            errors["files"] = "This server cannot read asset content for manifests.";
+                            codes["files"] = "AssetStorageUnavailable";
+                        }
+                        else
+                        {
+                            foreach (AgentAssetFile reference in upload.Where(f => f.ContentBase64 == null).ToList())
+                            {
+                                AgentAssetFile held = current!.Files.First(f => f.Path == reference.Path && f.Sha256 == reference.Sha256);
+                                reference.ContentBase64 = Convert.ToBase64String(await AssetContent.ReadAsync(tenantId, existing!, held, token).ConfigureAwait(false));
+                            }
+                        }
+                    }
+                    planned.AssetUpload = upload;
+                    planned.AssetChangeNote = spec.ChangeNote ?? "Applied from a manifest.";
+                }
+            }
+            if (errors.Count > 0)
+            {
+                ValidationException error = new ValidationException("Asset " + asset.Name + " is invalid.", errors, codes);
+                if (codes.Values.Contains("AssetContentMissing")) error.Code = "AssetContentMissing";
+                else if (codes.Values.Contains("AssetTemplateRequired")) error.Code = "AssetTemplateRequired";
+                throw error;
+            }
+
+            planned.Model = asset;
+            planned.ResourceId = asset.Id;
+            if (existing == null)
+            {
+                planned.Result = ManifestApplyResultEnum.Created;
+            }
+            else
+            {
+                Dictionary<string, object?> before = await AgentAssetTreeAsync(existing, resolver, false, token).ConfigureAwait(false);
+                Dictionary<string, object?> after = await AgentAssetTreeAsync(asset, resolver, false, token).ConfigureAwait(false);
+                bool same = Same(before, after) && !filesChanged;
+                planned.Result = same ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated;
+                if (!same) planned.Changes = Diff(before, after);
+                if (filesChanged) planned.Changes.Add(new ManifestFieldChange("files", "version " + existing.CurrentVersion, "new version"));
+            }
+            resolver.Add("AgentAsset", asset.Name, asset.Id);
+        }
+
+        private async Task<Dictionary<string, object?>> AgentAssetTreeAsync(AgentAsset asset, Resolver resolver, bool withFiles, CancellationToken token)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            tree["kind"] = asset.Kind.ToString();
+            if (asset.Description != null) tree["description"] = asset.Description;
+            if (!String.IsNullOrEmpty(asset.PromptTemplateId)) tree["promptTemplate"] = await resolver.NameAsync("PromptTemplate", asset.PromptTemplateId, token).ConfigureAwait(false) ?? asset.PromptTemplateId;
+            if (!String.IsNullOrEmpty(asset.ArtifactStoreId))
+            {
+                ArtifactStore? store = await _Database.ArtifactStores.ReadAsync(asset.ArtifactStoreId, token).ConfigureAwait(false);
+                tree["artifactStore"] = store?.Name ?? asset.ArtifactStoreId;
+            }
+            if (asset.Tags.Count > 0) tree["tags"] = asset.Tags.Select(t => (object?)t).ToList();
+            if (!withFiles || asset.CurrentVersion < 1) return tree;
+            AgentAssetVersion? version = await _Database.AgentAssets.ReadVersionAsync(asset.TenantId, asset.Id, asset.CurrentVersion, token).ConfigureAwait(false);
+            if (version == null) return tree;
+            List<object?> files = new List<object?>();
+            foreach (AgentAssetFile file in version.Files)
+            {
+                Dictionary<string, object?> item = new Dictionary<string, object?>();
+                item["path"] = file.Path;
+                item["mediaType"] = file.MediaType;
+                bool text = file.SizeBytes <= 262144 && (file.MediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase) || file.MediaType == "application/json" || file.MediaType == "application/yaml");
+                if (text && AssetContent != null)
+                {
+                    item["content"] = System.Text.Encoding.UTF8.GetString(await AssetContent.ReadAsync(asset.TenantId, asset, file, token).ConfigureAwait(false));
+                }
+                else
+                {
+                    item["sha256"] = file.Sha256;
+                    item["sizeBytes"] = file.SizeBytes;
+                    item["note"] = "Binary content is not exported. Upload this file to the asset in the target tenant (POST .../agent-assets/" + asset.Name + "/versions) before applying, or apply where the asset already holds it.";
+                }
+                files.Add(item);
+            }
+            tree["files"] = files;
+            return tree;
+        }
+
+        private async Task PlanRevisionPinAsync(string tenantId, Deployment deployment, int number, Planned planned, CancellationToken token)
+        {
+            bool agentExists = await _Database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false) != null;
+            if (agentExists)
+            {
+                AgentRevision? revision = await _Database.AgentRevisions.ReadByNumberAsync(tenantId, deployment.AgentId, number, token).ConfigureAwait(false);
+                if (revision != null && revision.State == AgentRevisionStateEnum.Published)
+                {
+                    deployment.AgentRevisionId = revision.Id;
+                    return;
+                }
+            }
+            else if (number == 1)
+            {
+                // The agent is created by this bundle; its revision 1 exists once it is written.
+                planned.AgentRevisionNumber = 1;
+                return;
+            }
+            ValidationException error = new ValidationException(
+                "Deployment " + deployment.Name + ": the agent has no published revision " + number + ".",
+                new Dictionary<string, string> { ["agentRevision"] = "Pin a published revision number of the agent." },
+                new Dictionary<string, string> { ["agentRevision"] = "UnknownRevision" });
+            error.Code = "UnknownRevision";
+            throw error;
         }
 
         private async Task PlanDeploymentAsync(string tenantId, ManifestDocument document, Resolver resolver, Planned planned, CancellationToken token)
@@ -677,6 +935,8 @@ namespace Garrison.Core.Manifests
             deployment.Name = document.Metadata.Name;
             deployment.Description = spec.Description;
             deployment.AgentId = await resolver.RequireAsync("Agent", spec.Agent, "agent", token).ConfigureAwait(false);
+            deployment.Environment = spec.Environment ?? "dev";
+            if (spec.AgentRevision.HasValue) await PlanRevisionPinAsync(tenantId, deployment, spec.AgentRevision.Value, planned, token).ConfigureAwait(false);
             deployment.HarnessProfileId = await resolver.RequireAsync("HarnessProfile", spec.HarnessProfile, "harnessProfile", token).ConfigureAwait(false);
             deployment.Model = spec.Model;
             deployment.FallbackModel = spec.FallbackModel;
@@ -1163,11 +1423,35 @@ namespace Garrison.Core.Manifests
                     if (create) await _Database.WorkspaceTemplates.CreateAsync(workspace, token).ConfigureAwait(false);
                     else await _Database.WorkspaceTemplates.UpdateAsync(workspace, token).ConfigureAwait(false);
                     break;
+                case AgentAsset asset:
+                    if (create) await _Database.AgentAssets.CreateAsync(asset, token).ConfigureAwait(false);
+                    else await _Database.AgentAssets.UpdateAsync(asset, token).ConfigureAwait(false);
+                    if (planned.AssetUpload != null)
+                    {
+                        if (AssetContent == null) throw new ValidationException("Asset " + asset.Name + ": this server cannot store asset content from manifests.", new Dictionary<string, string> { ["files"] = "Asset storage is unavailable." }, new Dictionary<string, string> { ["files"] = "AssetStorageUnavailable" });
+                        await AssetContent.UploadAsync(tenantId, asset, planned.AssetUpload, planned.AssetChangeNote, token).ConfigureAwait(false);
+                    }
+                    break;
                 case Agent agent:
+                    if (planned.AgentDraftOnly)
+                    {
+                        AgentRevision draft = AgentRevisionContent.FromAgent(agent);
+                        draft.AssetPins = planned.AgentAssetPins ?? await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false);
+                        draft.ChangeNote = planned.AgentChangeNote;
+                        draft.AuthorName = "manifest";
+                        await _Database.AgentRevisions.SaveDraftAsync(draft, token).ConfigureAwait(false);
+                        break;
+                    }
                     if (create) await _Database.Agents.CreateAsync(agent, token).ConfigureAwait(false);
                     else await _Database.Agents.UpdateAsync(agent, token).ConfigureAwait(false);
+                    if (planned.AgentAssetPins != null) await PublishAssetPinsAsync(tenantId, agent, planned.AgentAssetPins, planned.AgentChangeNote, token).ConfigureAwait(false);
                     break;
                 case Deployment deployment:
+                    if (planned.AgentRevisionNumber.HasValue && String.IsNullOrEmpty(deployment.AgentRevisionId))
+                    {
+                        AgentRevision? first = await _Database.AgentRevisions.ReadByNumberAsync(tenantId, deployment.AgentId, planned.AgentRevisionNumber.Value, token).ConfigureAwait(false);
+                        deployment.AgentRevisionId = first?.Id;
+                    }
                     await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, cache, token).ConfigureAwait(false);
                     if (create) await _Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
                     else await _Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
@@ -1410,12 +1694,34 @@ namespace Garrison.Core.Manifests
             return tree;
         }
 
-        private async Task<Dictionary<string, object?>> AgentTreeAsync(Agent agent, Resolver resolver, CancellationToken token)
+        private async Task<List<AgentRevisionAssetPin>> PublishedAssetPinsAsync(Agent agent, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return new List<AgentRevisionAssetPin>();
+            AgentRevision? revision = await _Database.AgentRevisions.ReadAsync(agent.TenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
+            return revision?.AssetPins ?? new List<AgentRevisionAssetPin>();
+        }
+
+        private async Task<Dictionary<string, object?>> AgentTreeAsync(Agent agent, Resolver resolver, CancellationToken token, List<AgentRevisionAssetPin>? assetPins = null)
         {
             Dictionary<string, object?> tree = Tree(agent);
+            if (assetPins != null && assetPins.Count > 0)
+            {
+                List<object?> assets = new List<object?>();
+                foreach (AgentRevisionAssetPin pin in assetPins)
+                {
+                    Dictionary<string, object?> item = new Dictionary<string, object?>();
+                    item["asset"] = await resolver.NameAsync("AgentAsset", pin.AssetId, token).ConfigureAwait(false) ?? pin.AssetId;
+                    if (pin.Version.HasValue) item["version"] = (long)pin.Version.Value;
+                    assets.Add(item);
+                }
+                tree["assets"] = assets;
+            }
             tree.Remove("toolDescriptionTemplateId");
             tree.Remove("skillDescriptionTemplateId");
             tree.Remove("remoteCredentialSecretId");
+            // Revision pointers are server state (AD1), not configuration.
+            tree.Remove("latestPublishedRevisionId");
+            tree.Remove("draftRevisionId");
             if (!String.IsNullOrEmpty(agent.RemoteCredentialSecretId)) tree["remoteCredentialSecret"] = await resolver.NameAsync("Secret", agent.RemoteCredentialSecretId, token).ConfigureAwait(false) ?? agent.RemoteCredentialSecretId;
             if (!String.IsNullOrEmpty(agent.ToolDescriptionTemplateId)) tree["toolDescriptionTemplate"] = await resolver.NameAsync("PromptTemplate", agent.ToolDescriptionTemplateId, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(agent.SkillDescriptionTemplateId)) tree["skillDescriptionTemplate"] = await resolver.NameAsync("PromptTemplate", agent.SkillDescriptionTemplateId, token).ConfigureAwait(false);
@@ -1445,6 +1751,12 @@ namespace Garrison.Core.Manifests
             spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(deployment.RequiredCapabilities) ? deployment.RequiredCapabilities.Clone() : null;
             spec.PodResources = deployment.PodResources.IsEmpty ? null : deployment.PodResources.Clone();
             spec.Weight = deployment.Weight;
+            spec.Environment = deployment.Environment == "dev" ? null : deployment.Environment;
+            if (!String.IsNullOrEmpty(deployment.AgentRevisionId))
+            {
+                AgentRevision? pinned = await _Database.AgentRevisions.ReadAsync(deployment.TenantId, deployment.AgentRevisionId, token).ConfigureAwait(false);
+                spec.AgentRevision = pinned?.Number;
+            }
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId)) spec.Workspace = await resolver.NameAsync("WorkspaceTemplate", deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
             spec.ArtifactGlobs = deployment.ArtifactGlobs.Count == 0 ? null : new List<string>(deployment.ArtifactGlobs);
             spec.EgressRules = deployment.EgressRules.Count == 0 ? null : deployment.EgressRules.Select(r => r.Clone()).ToList();

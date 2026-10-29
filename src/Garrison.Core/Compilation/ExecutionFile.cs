@@ -25,6 +25,12 @@ namespace Garrison.Core.Compilation
         public string Content { get; set; } = String.Empty;
 
         /// <summary>
+        /// Binary content as base64 (AD2.4, asset files). When set, it is written instead of <see cref="Content"/> and
+        /// placeholders are not resolved in it.
+        /// </summary>
+        public string? ContentBase64 { get; set; } = null;
+
+        /// <summary>
         /// Optional octal mode, for example 600.
         /// </summary>
         public string? Mode { get; set; } = null;

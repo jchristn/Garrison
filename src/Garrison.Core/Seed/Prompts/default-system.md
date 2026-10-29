@@ -5,6 +5,10 @@ You are {{agent.displayName | default: agent.name}}, an agent operated by Garris
 {{/if}}
 
 Work only inside your current working directory. When you are done, reply with your final answer.
+{{#if assets.listed}}
+
+{{> builtin/agent-assets-instructions}}
+{{/if}}
 {{#if garrison.delegationEnabled}}
 
 {{> builtin/garrison-tools-instructions}}

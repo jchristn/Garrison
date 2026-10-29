@@ -4694,6 +4694,1374 @@
       ]
     },
     {
+      "name": "Revisions, Environments and Promotions",
+      "description": "Agent revisions (draft, publish, diff), the tenant environment list, and promotion with rollback (AD1). See docs/REVISIONS.md.",
+      "item": [
+        {
+          "name": "Read environments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/environments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "environments"
+              ]
+            },
+            "description": "The tenant's ordered environment list. A tenant that never set one gets dev, staging, prod (isDefault true)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('environments listed', function () { pm.expect(json.environments.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read revision 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "1"
+              ]
+            },
+            "description": "Every agent starts with revision 1, published, built from its fields. Revisions are addressed by identifier or number."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('revision 1 is published', function () { pm.expect(json.number).to.eql(1); pm.expect(json.state).to.eql('Published'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('revisionOneId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List agent revisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions"
+              ]
+            },
+            "description": "Revisions of the agent, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('at least one revision', function () { pm.expect(json.objects.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create staging deployment pinned to revision 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "description": "A deployment in the staging environment, pinned to revision 1. Promotion repins it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-staging-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"environment\": \"staging\",\n  \"agentRevisionId\": \"{{revisionOneId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('environment and pin stored', function () { pm.expect(json.environment).to.eql('staging'); pm.expect(json.agentRevisionId).to.eql(pm.collectionVariables.get('revisionOneId')); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('stagingDeploymentId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deployment with an unknown environment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "description": "Environments must be in the tenant list; anything else answers 400 with field code UnknownEnvironment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-badenv-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"environment\": \"nowhere\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('UnknownEnvironment', function () { pm.expect(JSON.stringify(json)).to.include('UnknownEnvironment'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save draft revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions"
+              ]
+            },
+            "description": "Create the agent's draft revision, or replace the content of its open draft. Drafts never change what runs.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Postman draft {{suffix}}\",\n  \"changeNote\": \"Edited from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('draft', function () { pm.expect(json.state).to.eql('Draft'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('draftRevisionId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Diff revisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/diff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "diff"
+              ]
+            },
+            "description": "Field-level diff. With no from and to, it compares the open draft with the published revision before it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('description changed', function () { pm.expect(json.changes.some(function (c) { return c.field === 'description'; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish draft revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/{{draftRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "{{draftRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Freeze the draft. It becomes the latest published revision, which unpinned deployments run.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changeNote\": \"Published from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish again is refused",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/{{draftRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "{{draftRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "A published revision never changes: 409 RevisionPublished."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('RevisionPublished', function () { pm.expect(JSON.stringify(json)).to.include('RevisionPublished'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save a draft to discard",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions"
+              ]
+            },
+            "description": "Another draft, discarded in the next request.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Discard me {{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('discardRevisionId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discard draft revision",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/{{discardRevisionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "{{discardRevisionId}}"
+              ]
+            },
+            "description": "Drafts can be discarded; published revisions cannot."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Promote dev to staging",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/promotions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "promotions"
+              ]
+            },
+            "description": "Repin every staging deployment of the agent to the revision dev runs (unpinned dev deployments run the latest published revision). The target defaults to the next environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"sourceEnvironment\": \"dev\",\n  \"note\": \"Postman promotion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('promoted to staging', function () { pm.expect(json.kind).to.eql('Promote'); pm.expect(json.targetEnvironment).to.eql('staging'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('promotionId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Promotion out of order is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/promotions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "promotions"
+              ]
+            },
+            "description": "Skipping staging needs allowSkip: 409 PromotionOrderViolation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"sourceEnvironment\": \"dev\",\n  \"targetEnvironment\": \"prod\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('PromotionOrderViolation', function () { pm.expect(JSON.stringify(json)).to.include('PromotionOrderViolation'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List promotions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/promotions?agentId={{agentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "promotions"
+              ],
+              "query": [
+                {
+                  "key": "agentId",
+                  "value": "{{agentId}}"
+                }
+              ]
+            },
+            "description": "Promotion and rollback records, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('records listed', function () { pm.expect(json.objects.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read promotion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/promotions/{{promotionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "promotions",
+                "{{promotionId}}"
+              ]
+            },
+            "description": "One record with the deployments it repinned and their previous pins."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('items recorded', function () { pm.expect(json.items.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Roll back promotion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/promotions/{{promotionId}}/rollback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "promotions",
+                "{{promotionId}}",
+                "rollback"
+              ]
+            },
+            "description": "Restore the exact pins the promotion replaced.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Postman rollback\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('rollback', function () { pm.expect(json.kind).to.eql('Rollback'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staging is back on revision 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{stagingDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{stagingDeploymentId}}"
+              ]
+            },
+            "description": "The rollback restored the previous pin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('pin restored', function () { pm.expect(json.agentRevisionId).to.eql(pm.collectionVariables.get('revisionOneId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete staging deployment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{stagingDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{stagingDeploymentId}}"
+              ]
+            },
+            "description": "Clean up."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Agent Assets",
+      "description": "Versioned skills, reference files, document templates, and system prompts (AD2). See docs/ASSETS.md.",
+      "item": [
+        {
+          "name": "Create skill asset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets"
+              ]
+            },
+            "description": "A Skill asset. Files are uploaded as versions.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-skill-{{suffix}}\",\n  \"kind\": \"Skill\",\n  \"description\": \"Answer in one sentence\",\n  \"tags\": [\n    \"postman\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('no version yet', function () { pm.expect(json.currentVersion).to.eql(0); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('assetId', json.id); }",
+                  "if (json.name !== undefined && json.name !== null) { pm.collectionVariables.set('assetName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SystemPrompt asset without a template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets"
+              ]
+            },
+            "description": "SystemPrompt assets name a prompt template: 400 AssetTemplateRequired.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-prompt-{{suffix}}\",\n  \"kind\": \"SystemPrompt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('AssetTemplateRequired', function () { pm.expect(JSON.stringify(json)).to.include('AssetTemplateRequired'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List agent assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets?kind=Skill",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets"
+              ],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "Skill"
+                }
+              ]
+            },
+            "description": "Assets of the tenant, optionally by kind."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('listed', function () { pm.expect(json.objects.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read asset by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetName}}"
+              ]
+            },
+            "description": "Assets are addressed by identifier or name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same asset', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('assetId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload asset version",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions"
+              ]
+            },
+            "description": "Every file of the new version, with base64 content. Media types are guessed from extensions when left out.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changeNote\": \"First cut\",\n  \"files\": [\n    {\n      \"path\": \"SKILL.md\",\n      \"contentBase64\": \"IyBQb3N0bWFuIHNraWxsCkFuc3dlciBpbiBvbmUgc2VudGVuY2Uu\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('version 1 with a hash', function () { pm.expect(json.number).to.eql(1); pm.expect(json.files[0].sha256.length).to.eql(64); pm.expect(json.files[0].mediaType).to.eql('text/markdown'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload the same files again",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions"
+              ]
+            },
+            "description": "The same files as the current version return it with 200 instead of a new version.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"files\": [\n    {\n      \"path\": \"SKILL.md\",\n      \"contentBase64\": \"IyBQb3N0bWFuIHNraWxsCkFuc3dlciBpbiBvbmUgc2VudGVuY2Uu\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('still version 1', function () { pm.expect(json.number).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Path traversal is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions"
+              ]
+            },
+            "description": "Paths stay inside the asset: field code InvalidAssetPath.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"files\": [\n    {\n      \"path\": \"../escape.md\",\n      \"contentBase64\": \"IyBQb3N0bWFuIHNraWxsCkFuc3dlciBpbiBvbmUgc2VudGVuY2Uu\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('InvalidAssetPath', function () { pm.expect(JSON.stringify(json)).to.include('InvalidAssetPath'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List asset versions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions"
+              ]
+            },
+            "description": "Versions, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('one version', function () { pm.expect(json.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read asset version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions",
+                "1"
+              ]
+            },
+            "description": "One version with its files."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('file listed', function () { pm.expect(json.files[0].path).to.eql('SKILL.md'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read asset file",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions/1/files?path=SKILL.md",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions",
+                "1",
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "SKILL.md"
+                }
+              ]
+            },
+            "description": "The file bytes with their media type; text files double as a preview."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('content', function () { pm.expect(pm.response.text()).to.include('Postman skill'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pin the asset in a draft revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions"
+              ]
+            },
+            "description": "Revisions pin assets by identifier or name.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Postman asset pin\",\n  \"assetPins\": [\n    {\n      \"assetId\": \"{{assetName}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('pinned', function () { pm.expect(json.assetPins[0].assetId).to.eql(pm.collectionVariables.get('assetId')); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('assetDraftRevisionId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete a pinned asset is refused",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}"
+              ]
+            },
+            "description": "A pinned asset answers 409 AssetInUse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('AssetInUse', function () { pm.expect(JSON.stringify(json)).to.include('AssetInUse'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discard the pinning draft",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/{{assetDraftRevisionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "{{assetDraftRevisionId}}"
+              ]
+            },
+            "description": "Discard the draft so the asset can go."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete asset",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}"
+              ]
+            },
+            "description": "Deletes the asset, its versions, and its content."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Runs",
       "description": "Runs are invocations of an agent. Invoke waits for the result; create returns at once. Events can be polled or streamed.",
       "item": [
@@ -15913,6 +17281,38 @@
     },
     {
       "key": "brokerSecretId",
+      "value": ""
+    },
+    {
+      "key": "revisionOneId",
+      "value": ""
+    },
+    {
+      "key": "stagingDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "draftRevisionId",
+      "value": ""
+    },
+    {
+      "key": "discardRevisionId",
+      "value": ""
+    },
+    {
+      "key": "promotionId",
+      "value": ""
+    },
+    {
+      "key": "assetId",
+      "value": ""
+    },
+    {
+      "key": "assetName",
+      "value": ""
+    },
+    {
+      "key": "assetDraftRevisionId",
       "value": ""
     }
   ]

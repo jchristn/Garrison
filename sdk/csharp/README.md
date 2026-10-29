@@ -79,7 +79,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -147,6 +147,34 @@ EnumerationResult<TriggerFire> fires = await client.Triggers.ListFiresAsync(nigh
 `NotificationEndpoints` manages URLs that receive signed JSON notifications for `NotificationEventEnum` events (`RunSucceeded`, `RunFailed`, `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed`, `ApprovalRequested`). It adds `RotateSecretAsync`, `TestAsync` (sends a `Test` notification and returns the `NotificationDelivery` after its first attempt), `ListDeliveriesAsync` (filter by `NotificationDeliveryStatusEnum`), and `GetDeliveryAsync`. A loopback or private URL answers 400 with field code `DestinationBlocked` in `GarrisonException.Error.FieldCodes` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
 
 `WebhookSignature.Header(secret, unixSeconds, body)` builds a signature and `WebhookSignature.Verify(header, secret, body, toleranceSeconds)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
+
+## Agent revisions and promotion
+
+`AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.
+
+Each `Deployment` has an `Environment` (default `dev`) and an optional `AgentRevisionId` pin; an unpinned deployment runs the agent's current content. `Run.AgentRevisionId` records the revision a run executed.
+
+`Promotions.GetEnvironmentsAsync` reads the tenant's ladder (`dev`, `staging`, `prod` until changed, with `IsDefault` true) and `UpdateEnvironmentsAsync` replaces it. `PromoteAsync(PromotionRequest)` pins the target environment's deployments of the agent to a revision; `TargetEnvironment` defaults to the next rung after `SourceEnvironment`, and `AllowSkip` permits jumping past one. `RollbackAsync` restores each deployment's previous pin and returns a `Rollback` record. `ListAsync(agentId, appId)` and `GetAsync` read the `PromotionRecord` history.
+
+```csharp
+AgentRevision draft = await client.AgentRevisions.SaveDraftAsync("my-agent", new AgentRevision { Description = "Sharper summary." });
+AgentRevision published = await client.AgentRevisions.PublishAsync("my-agent", draft.Id, new RevisionPublishRequest { ChangeNote = "Tighter prompt." });
+PromotionRecord promotion = await client.Promotions.PromoteAsync(new PromotionRequest { AgentId = "my-agent", SourceEnvironment = "dev", AgentRevisionId = published.Id });
+await client.Promotions.RollbackAsync(promotion.Id);
+```
+
+## Agent assets
+
+An agent asset is a versioned system prompt, skill, reference file, or document template (kind `SystemPrompt`, `Skill`, `ReferenceFile`, or `DocumentTemplate`; a `SystemPrompt` asset requires a prompt template ID). Assets are addressed by ID or name and their versions by number. Uploading a version sends every file base64-encoded; uploading files identical to the current version returns that version instead of creating a new one. Each returned file carries its lowercase hex `sha256`. A revision pins assets through `AgentRevision.AssetPins` (`assetId` plus an optional `version`; no version follows the current one), and deleting an asset a revision pins fails with HTTP 409 and code `AssetInUse`. Upload limits answer 413 (`AssetFileTooLarge`, `AssetVersionTooLarge`, `AssetTooManyFiles`). A run whose pinned file fails its SHA-256 check on the worker ends with outcome `AssetIntegrityFailed`.
+
+`AgentAssets` offers `ListAsync(kind, query)`, `GetAsync`, `CreateAsync`, `UpdateAsync`, `DeleteAsync`, `ListVersionsAsync` (newest first), `GetVersionAsync`, `UploadFilesAsync` (files built with `AgentAssetUploadFile.FromBytes` or `FromText`), `UploadVersionAsync` (an `AgentAssetUploadRequest`), `UploadRawAsync` (one file as raw bytes), and `DownloadFileAsync`.
+
+```csharp
+AgentAsset asset = await client.AgentAssets.CreateAsync(new AgentAsset { Name = "release-notes-skill", Kind = AgentAssetKindEnum.Skill });
+AgentAssetVersion version = await client.AgentAssets.UploadFilesAsync(asset.Id, new List<AgentAssetUploadFile> { AgentAssetUploadFile.FromText("SKILL.md", "# Release notes\n") }, "first cut");
+byte[] skill = await client.AgentAssets.DownloadFileAsync(asset.Id, version.Number, "SKILL.md");
+AgentRevision draft = await client.AgentRevisions.SaveDraftAsync("my-agent", new AgentRevision { AssetPins = new List<AgentRevisionAssetPin> { new AgentRevisionAssetPin { AssetId = asset.Id } } });
+```
 
 ## Streaming run events
 

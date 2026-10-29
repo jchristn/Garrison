@@ -44,6 +44,7 @@ namespace Garrison.Core.Manifests
         private readonly Dictionary<string, McpServer> _Servers = new Dictionary<string, McpServer>(StringComparer.Ordinal);
         private readonly Dictionary<string, WorkspaceTemplate> _Workspaces = new Dictionary<string, WorkspaceTemplate>(StringComparer.Ordinal);
         private readonly Dictionary<string, Agent> _Agents = new Dictionary<string, Agent>(StringComparer.Ordinal);
+        private readonly Dictionary<string, AgentAsset> _Assets = new Dictionary<string, AgentAsset>(StringComparer.Ordinal);
         private readonly Dictionary<string, Deployment> _Deployments = new Dictionary<string, Deployment>(StringComparer.Ordinal);
         private readonly Dictionary<string, Pipeline> _Pipelines = new Dictionary<string, Pipeline>(StringComparer.Ordinal);
         private readonly Dictionary<string, Trigger> _Triggers = new Dictionary<string, Trigger>(StringComparer.Ordinal);
@@ -93,6 +94,7 @@ namespace Garrison.Core.Manifests
             foreach (McpServer item in await AllAsync(q => database.McpServers.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Servers[item.Id] = item;
             foreach (WorkspaceTemplate item in await AllAsync(q => database.WorkspaceTemplates.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Workspaces[item.Id] = item;
             foreach (Agent item in await AllAsync(q => database.Agents.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Agents[item.Id] = item;
+            foreach (AgentAsset item in await AllAsync(q => database.AgentAssets.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false)) plan._Assets[item.Id] = item;
             foreach (Deployment item in await AllAsync(q => database.Deployments.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Deployments[item.Id] = item;
             foreach (Pipeline item in await AllAsync(q => database.Pipelines.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Pipelines[item.Id] = item;
             foreach (Trigger item in await AllAsync(q => database.Triggers.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false)) plan._Triggers[item.Id] = item;
@@ -109,7 +111,7 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Select every tenant-owned record of a kind.
         /// </summary>
-        /// <param name="kind">Exportable kind (PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment, Pipeline, Trigger, NotificationEndpoint).</param>
+        /// <param name="kind">Exportable kind (PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, AgentAsset, Agent, Deployment, Pipeline, Trigger, NotificationEndpoint).</param>
         public void SelectKind(string kind)
         {
             foreach (string id in Ids(kind)) Include(kind, id);
@@ -180,6 +182,10 @@ namespace Garrison.Core.Manifests
                             string? delegated = IdByName("Agent", allowed);
                             if (delegated != null) Include("Agent", delegated);
                         }
+                        foreach (AgentRevisionAssetPin pin in await PinnedAssetsAsync(agent, token).ConfigureAwait(false)) Include("AgentAsset", pin.AssetId);
+                        break;
+                    case "AgentAsset":
+                        await TemplateAsync(_Assets[id].PromptTemplateId, token).ConfigureAwait(false);
                         break;
                     case "Deployment":
                         Deployment selected = _Deployments[id];
@@ -266,6 +272,10 @@ namespace Garrison.Core.Manifests
                     case Trigger trigger:
                         await BuiltInTemplateAsync(trigger.InputTemplateId, builtIns, token).ConfigureAwait(false);
                         break;
+                    case AgentAsset asset:
+                        await BuiltInTemplateAsync(asset.PromptTemplateId, builtIns, token).ConfigureAwait(false);
+                        if (!String.IsNullOrEmpty(asset.ArtifactStoreId) && _Stores.TryGetValue(asset.ArtifactStoreId, out ArtifactStore? assetStore)) stores.Add(assetStore.Name);
+                        break;
                 }
             }
 
@@ -307,6 +317,7 @@ namespace Garrison.Core.Manifests
                 case "McpServer": return _Servers.Keys.ToList();
                 case "WorkspaceTemplate": return _Workspaces.Keys.ToList();
                 case "Agent": return _Agents.Keys.ToList();
+                case "AgentAsset": return _Assets.Keys.ToList();
                 case "Deployment": return _Deployments.Keys.ToList();
                 case "Pipeline": return _Pipelines.Keys.ToList();
                 case "Trigger": return _Triggers.Keys.ToList();
@@ -324,6 +335,7 @@ namespace Garrison.Core.Manifests
                 case "McpServer": return _Servers.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "WorkspaceTemplate": return _Workspaces.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Agent": return _Agents.Values.FirstOrDefault(r => r.Name == name)?.Id;
+                case "AgentAsset": return _Assets.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Deployment": return _Deployments.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Pipeline": return _Pipelines.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Trigger": return _Triggers.Values.FirstOrDefault(r => r.Name == name)?.Id;
@@ -345,12 +357,20 @@ namespace Garrison.Core.Manifests
                 case "McpServer": return _Servers.TryGetValue(id, out McpServer? server) ? server : null;
                 case "WorkspaceTemplate": return _Workspaces.TryGetValue(id, out WorkspaceTemplate? workspace) ? workspace : null;
                 case "Agent": return _Agents.TryGetValue(id, out Agent? agent) ? agent : null;
+                case "AgentAsset": return _Assets.TryGetValue(id, out AgentAsset? asset) ? asset : null;
                 case "Deployment": return _Deployments.TryGetValue(id, out Deployment? deployment) ? deployment : null;
                 case "Pipeline": return _Pipelines.TryGetValue(id, out Pipeline? pipeline) ? pipeline : null;
                 case "Trigger": return _Triggers.TryGetValue(id, out Trigger? trigger) ? trigger : null;
                 case "NotificationEndpoint": return _Endpoints.TryGetValue(id, out NotificationEndpoint? endpoint) ? endpoint : null;
                 default: return null;
             }
+        }
+
+        private async Task<List<AgentRevisionAssetPin>> PinnedAssetsAsync(Agent agent, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return new List<AgentRevisionAssetPin>();
+            AgentRevision? revision = await _Database.AgentRevisions.ReadAsync(TenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
+            return revision?.AssetPins ?? new List<AgentRevisionAssetPin>();
         }
 
         private void Include(string kind, string? id)
@@ -429,6 +449,7 @@ namespace Garrison.Core.Manifests
                 case McpServer server: return server.Name;
                 case WorkspaceTemplate workspace: return workspace.Name;
                 case Agent agent: return agent.Name;
+                case AgentAsset asset: return asset.Name;
                 case Deployment deployment: return deployment.Name;
                 case Pipeline pipeline: return pipeline.Name;
                 case Trigger trigger: return trigger.Name;

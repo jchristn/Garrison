@@ -116,6 +116,12 @@ namespace Garrison.Core.Enums
         /// fallback (a fresh session seeded with the transcript), so a run only ends with this outcome when the requeue
         /// was not possible.
         /// </summary>
-        ConversationStateLost
+        ConversationStateLost,
+
+        /// <summary>
+        /// An agent asset file did not match its recorded SHA-256 (or could not be downloaded), so the run failed before
+        /// the harness started (AD2.4).
+        /// </summary>
+        AssetIntegrityFailed
     }
 }

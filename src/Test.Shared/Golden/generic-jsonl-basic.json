@@ -48,6 +48,7 @@
     "scrubValues": [
       "credential-generic_jsonl_basic"
     ],
+    "assetFiles": [],
     "retainForRepair": false,
     "repairAttempt": 0,
     "executor": "Process",

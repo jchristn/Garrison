@@ -73,6 +73,9 @@ namespace Test.Automated
                 using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
                     await Test.Shared.Suites.ArtifactSuite.S3ConformanceAsync(endpoint, access, secret, bucket, region, timeout.Token).ConfigureAwait(false);
                 Console.WriteLine("PASS S3 worker collection, signed downloads, ticket scope, and deletion.");
+                using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+                    await Test.Shared.Suites.AssetSuite.S3ConformanceAsync(endpoint, access, secret, bucket, region, timeout.Token).ConfigureAwait(false);
+                Console.WriteLine("PASS S3 agent asset storage under .garrison-assets/, verified reads, and deletion.");
                 return 0;
             }
 

@@ -78,6 +78,8 @@ namespace Test.Shared
                 suites.AddRange(TriggerSuite.Build());
                 suites.AddRange(NotificationSuite.Build());
                 suites.AddRange(TranscriptSuite.Build());
+                suites.AddRange(RevisionSuite.Build());
+                suites.AddRange(AssetSuite.Build());
                 suites.AddRange(ManifestBundleSuite.Build());
                 suites.AddRange(InputSchemaSuite.Build());
                 suites.AddRange(KeyLifecycleSuite.Build());

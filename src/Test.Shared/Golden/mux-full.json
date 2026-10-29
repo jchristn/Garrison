@@ -184,6 +184,7 @@
       "git-token-mux_full",
       "run-token-golden"
     ],
+    "assetFiles": [],
     "retainForRepair": true,
     "repairAttempt": 0,
     "executor": "Process",

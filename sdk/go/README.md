@@ -64,7 +64,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"); `Agents` adds revision calls, and `Environments` and `Promotions` are typed (see "Agent revisions and promotion"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
 
@@ -133,6 +133,34 @@ failed, err := client.Triggers.ListFires(ctx, nightly.ID, garrison.TriggerFireOu
 `client.NotificationEndpoints` manages URLs that receive signed JSON notifications for the `NotificationEvent` constants. It adds `RotateSecret`, `Test` (sends a `Test` notification and returns the delivery after its first attempt), `ListDeliveries` (filter by status), and `GetDelivery`. A loopback or private URL returns an `*garrison.Error` with status 400 and `FieldCodes["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
 
 `garrison.SignWebhook(secret, unixSeconds, body)` builds a signature and `garrison.VerifyWebhook(header, secret, body, tolerance)` checks one (a zero tolerance means 300 seconds). The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
+
+## Agent revisions and promotion
+
+An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; a revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.
+
+Each deployment belongs to an `Environment` (default `dev`) and may pin `AgentRevisionID`; an unpinned deployment runs the live agent definition, and `Run.AgentRevisionID` records which revision a run used. `client.Environments.Get` and `Update` read and replace the tenant's ordered environment list (`IsDefault` is true while the default `dev`, `staging`, `prod` order applies).
+
+```go
+draft, err := client.Agents.SaveDraft(ctx, agentID, garrison.AgentRevision{Description: "Sharper instructions."})
+published, err := client.Agents.PublishRevision(ctx, agentID, draft.ID, "ready for staging")
+promotion, err := client.Promotions.Promote(ctx, garrison.PromotionRequest{AgentID: agentID, SourceEnvironment: "dev"})
+undo, err := client.Promotions.Rollback(ctx, promotion.ID, "")
+```
+
+`Promote` pins the next environment's deployments (or `TargetEnvironment`; `AllowSkip` permits jumping ahead) and returns a `PromotionRecord` with one `PromotionItem` per repinned deployment. `Rollback` restores the previous pins and marks the original record `RolledBack`. `client.Promotions.List(ctx, agentID, appID, opts)` and `Get` read the history.
+
+## Agent assets
+
+An agent asset is a versioned system prompt, skill, reference file, or document template (kind `SystemPrompt`, `Skill`, `ReferenceFile`, or `DocumentTemplate`; a `SystemPrompt` asset requires a prompt template ID). Assets are addressed by ID or name and their versions by number. Uploading a version sends every file base64-encoded; uploading files identical to the current version returns that version instead of creating a new one. Each returned file carries its lowercase hex `sha256`. A revision pins assets through `AgentRevision.AssetPins` (`assetId` plus an optional `version`; no version follows the current one), and deleting an asset a revision pins fails with HTTP 409 and code `AssetInUse`. Upload limits answer 413 (`AssetFileTooLarge`, `AssetVersionTooLarge`, `AssetTooManyFiles`). A run whose pinned file fails its SHA-256 check on the worker ends with outcome `AssetIntegrityFailed`.
+
+```go
+asset, err := client.AgentAssets.Create(ctx, garrison.AgentAsset{Name: "release-notes-skill", Kind: garrison.AgentAssetKindSkill})
+version, err := client.AgentAssets.UploadVersion(ctx, asset.ID, []garrison.AgentAssetUpload{{Path: "SKILL.md", Content: []byte("# Release notes\n"), MediaType: "text/markdown"}}, "first cut")
+data, err := client.AgentAssets.DownloadFile(ctx, asset.ID, version.Number, "SKILL.md")
+draft, err := client.Agents.SaveDraft(ctx, "my-agent", garrison.AgentRevision{AssetPins: []garrison.AgentRevisionAssetPin{{AssetID: asset.ID}}})
+```
+
+`List(ctx, kind, opts)`, `Get`, `Update`, `Delete`, `ListVersions` (newest first), `GetVersion`, and `UploadRaw` (one file as raw bytes) complete the client. `RunOutcomeAssetIntegrityFailed` names the run outcome.
 
 ## Streaming run events
 

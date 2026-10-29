@@ -10,6 +10,7 @@ namespace Garrison.Core.Database.Ado
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
+    using Garrison.Core.Services;
 
     /// <summary>
     /// Provider-neutral Agent data access. Thread-safe.
@@ -57,6 +58,8 @@ namespace Garrison.Core.Database.Ado
             {
                 await InsertRowAsync(connection, transaction, obj, ct).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, obj, ct).ConfigureAwait(false);
+                // Every agent starts with revision 1, published, built from its fields (AD1.1).
+                await Revisions.InsertInitialAsync(connection, transaction, obj, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
 
             return obj;
@@ -157,6 +160,15 @@ namespace Garrison.Core.Database.Ado
 
                 await DeleteChildrenAsync(connection, transaction, obj.Id, ct).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, obj, ct).ConfigureAwait(false);
+
+                // A direct edit takes effect at once (AD-030): when the content differs from the latest published
+                // revision, it is published as the next revision in the same transaction.
+                string? published = await Revisions.LatestPublishedHashAsync(connection, transaction, obj.Id, ct).ConfigureAwait(false);
+                AgentRevision content = await Revisions.DirectEditContentAsync(connection, transaction, obj, ct).ConfigureAwait(false);
+                if (!String.Equals(published, content.ContentHash, StringComparison.Ordinal))
+                {
+                    await Revisions.InsertInitialAsync(connection, transaction, obj, ct, content).ConfigureAwait(false);
+                }
             }, token).ConfigureAwait(false);
 
             return obj;
@@ -171,6 +183,7 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
+                await Revisions.DeleteForAgentAsync(connection, transaction, id, ct).ConfigureAwait(false);
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
 
@@ -255,6 +268,8 @@ namespace Garrison.Core.Database.Ado
             obj.RegistrationTtlSeconds = AdoConverters.Int(reader, "registrationttlseconds");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
+            obj.LatestPublishedRevisionId = AdoConverters.NullableStr(reader, "latestpublishedrevisionid");
+            obj.DraftRevisionId = AdoConverters.NullableStr(reader, "draftrevisionid");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
             return obj;
@@ -292,6 +307,14 @@ namespace Garrison.Core.Database.Ado
         #endregion
 
         #region Private-Methods
+
+        private AdoAgentRevisionMethods Revisions
+        {
+            get
+            {
+                return (AdoAgentRevisionMethods)_Driver.AgentRevisions;
+            }
+        }
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Agent obj, CancellationToken token)
         {

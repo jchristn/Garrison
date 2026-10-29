@@ -69,6 +69,7 @@
     "scrubValues": [
       "credential-codex_app_server_basic"
     ],
+    "assetFiles": [],
     "retainForRepair": false,
     "repairAttempt": 0,
     "executor": "Process",

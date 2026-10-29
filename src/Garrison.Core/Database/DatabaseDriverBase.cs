@@ -256,6 +256,26 @@ namespace Garrison.Core.Database
         /// </summary>
         public INotificationDeliveryMethods NotificationDeliveries { get; protected set; } = null!;
 
+        /// <summary>
+        /// Agent revisions (AD1).
+        /// </summary>
+        public IAgentRevisionMethods AgentRevisions { get; protected set; } = null!;
+
+        /// <summary>
+        /// Tenant environment lists (AD1.3).
+        /// </summary>
+        public ITenantEnvironmentMethods Environments { get; protected set; } = null!;
+
+        /// <summary>
+        /// Promotion records (AD1.4).
+        /// </summary>
+        public IPromotionRecordMethods Promotions { get; protected set; } = null!;
+
+        /// <summary>
+        /// Agent assets (AD2).
+        /// </summary>
+        public IAgentAssetMethods AgentAssets { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

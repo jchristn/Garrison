@@ -37,7 +37,8 @@ namespace Garrison.Worker.Execution
             // A reused conversation directory was under the previous turn's harness control: never write through a link
             // it planted (SR-24).
             string path = SafePaths.PrepareWrite(baseDirectory, file.Path);
-            await File.WriteAllTextAsync(path, file.Content ?? String.Empty, new UTF8Encoding(false), token).ConfigureAwait(false);
+            if (file.ContentBase64 != null) await File.WriteAllBytesAsync(path, Convert.FromBase64String(file.ContentBase64), token).ConfigureAwait(false);
+            else await File.WriteAllTextAsync(path, file.Content ?? String.Empty, new UTF8Encoding(false), token).ConfigureAwait(false);
 
             string? mode = file.Mode ?? (file.IsSecret ? "600" : null);
             if (!String.IsNullOrEmpty(mode) && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

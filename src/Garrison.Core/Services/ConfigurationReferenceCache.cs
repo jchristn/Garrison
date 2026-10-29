@@ -257,6 +257,8 @@ namespace Garrison.Core.Services
                     return await _Database.WorkspaceTemplates.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 case "Agent":
                     return await _Database.Agents.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
+                case "AgentAsset":
+                    return await _Database.AgentAssets.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 case "Deployment":
                     return await _Database.Deployments.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 case "Pipeline":
@@ -282,6 +284,8 @@ namespace Garrison.Core.Services
                     return await _Database.WorkspaceTemplates.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 case "Agent":
                     return await _Database.Agents.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
+                case "AgentAsset":
+                    return await _Database.AgentAssets.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 case "Deployment":
                     return await _Database.Deployments.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 case "Pipeline":
@@ -307,6 +311,8 @@ namespace Garrison.Core.Services
                     return workspace.Id;
                 case Agent agent:
                     return agent.Id;
+                case AgentAsset asset:
+                    return asset.Id;
                 case Deployment deployment:
                     return deployment.Id;
                 case Pipeline pipeline:
@@ -332,6 +338,8 @@ namespace Garrison.Core.Services
                     return workspace.Name;
                 case Agent agent:
                     return agent.Name;
+                case AgentAsset asset:
+                    return asset.Name;
                 case Deployment deployment:
                     return deployment.Name;
                 case Pipeline pipeline:

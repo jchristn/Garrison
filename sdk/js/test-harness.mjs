@@ -1,5 +1,6 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
+import { createHash } from "node:crypto";
 import { EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
@@ -641,6 +642,70 @@ await check("scheduling, pinned sessions, remote admission, and key rotation", a
     require(denied, "remote deployment override must be rejected before network I/O");
   } finally { await client.agents.delete(remote.id); }
   require((await client.deployments.get(state.deployment)).suspensionEnabled === false, "suspension defaults to opt out");
+});
+await check("agent revisions and promotion", async () => {
+  const agent = await client.agents.create({ name: `sdk-js-rev-${suffix}`, description: "original" });
+  const dev = await client.deployments.create({ name: `sdk-js-rev-${suffix}-dev`, agentId: agent.id, harnessProfileId: state.fake, weight: 0 });
+  const staging = await client.deployments.create({ name: `sdk-js-rev-${suffix}-staging`, agentId: agent.id, harnessProfileId: state.fake, weight: 0, environment: "staging" });
+  try {
+    require((dev.environment ?? "dev") === "dev" && dev.agentRevisionId == null, "dev deployment defaults");
+    require(staging.environment === "staging", "staging environment round trip");
+    const draft = await client.agents.saveDraft(agent.id, { description: "revised" });
+    require(draft.state === "Draft" && draft.description === "revised", "draft saved");
+    require((await client.agents.get(agent.id)).draftRevisionId === draft.id, "agent draftRevisionId");
+    const published = await client.agents.publishRevision(agent.id, draft.id, { changeNote: "sdk harness" });
+    require(published.state === "Published" && published.id === draft.id, "revision published");
+    require((await client.agents.get(agent.id)).latestPublishedRevisionId === published.id, "agent latestPublishedRevisionId");
+    require((await client.agents.getRevision(agent.id, published.number)).id === published.id, "revision by number");
+    require((await client.agents.listRevisions(agent.id)).objects.some((r) => r.id === published.id), "revision listed");
+    const promotion = await client.promotions.promote({ agentId: agent.id, sourceEnvironment: "dev", note: "sdk harness" });
+    require(promotion.kind === "Promote" && promotion.targetEnvironment === "staging", "promotion target defaults to staging");
+    require((await client.deployments.get(staging.id)).agentRevisionId === published.id, "staging pinned to published revision");
+    require((await client.promotions.get(promotion.id)).id === promotion.id, "promotion read");
+    require((await client.promotions.list({ agentId: agent.id })).objects.some((p) => p.id === promotion.id), "promotion listed");
+    const rollback = await client.promotions.rollback(promotion.id, { note: "undo" });
+    require(rollback.kind === "Rollback", "rollback record");
+    require((await client.deployments.get(staging.id)).agentRevisionId == null, "staging pin restored to null");
+    const environments = await client.environments.get();
+    require(environments.isDefault === true, "default environment list");
+    require(environments.environments.map((e) => e.name).join(",") === "dev,staging,prod", "dev, staging, prod order");
+  } finally {
+    await client.deployments.delete(staging.id);
+    await client.deployments.delete(dev.id);
+    await client.agents.delete(agent.id);
+  }
+});
+await check("agent assets", async () => {
+  const asset = await client.agentAssets.create({ name: `sdk-js-asset-${suffix}`, kind: "Skill", description: "JS SDK harness asset." });
+  let agent;
+  try {
+    require(asset.kind === "Skill" && (asset.currentVersion ?? 0) === 0, "asset created with no version");
+    const content = new TextEncoder().encode("# SDK skill\n\nCreated by the JS SDK harness.\n");
+    const expected = createHash("sha256").update(content).digest("hex");
+    const files = [{ path: "SKILL.md", content, mediaType: "text/markdown" }];
+    const first = await client.agentAssets.uploadVersion(asset.id, files, "sdk harness");
+    require(first.number === 1, `first version ${first.number}`);
+    const skill = first.files.find((f) => f.path === "SKILL.md");
+    require(skill && skill.sha256.toLowerCase() === expected, `sha256 ${skill?.sha256}`);
+    const again = await client.agentAssets.uploadVersion(asset.id, files, "sdk harness");
+    require(again.number === 1, `identical upload returned version ${again.number}`);
+    const downloaded = await client.agentAssets.downloadFile(asset.id, 1, "SKILL.md");
+    require(Buffer.from(downloaded).equals(Buffer.from(content)), "downloaded bytes match");
+    require((await client.agentAssets.listVersions(asset.id)).some((v) => v.number === 1), "version listed");
+    require((await client.agentAssets.getVersion(asset.id, 1)).number === 1, "get version");
+    require((await client.agentAssets.get(asset.id)).currentVersion === 1, "current version");
+    require((await client.agentAssets.list({ kind: "Skill", search: asset.name })).objects.some((a) => a.id === asset.id), "asset listed");
+    agent = await client.agents.create({ name: `sdk-js-asset-agent-${suffix}`, description: "asset pin" });
+    const draft = await client.agents.saveDraft(agent.id, { description: "pins an asset", assetPins: [{ assetId: asset.id }] });
+    const published = await client.agents.publishRevision(agent.id, draft.id, { changeNote: "sdk harness" });
+    require((published.assetPins ?? []).some((p) => p.assetId === asset.id), `assetPins ${JSON.stringify(published.assetPins)}`);
+    let inUse = false;
+    try { await client.agentAssets.delete(asset.id); } catch (e) { inUse = e instanceof GarrisonError && e.statusCode === 409 && e.code === "AssetInUse"; }
+    require(inUse, "deleting a pinned asset returns 409 AssetInUse");
+  } finally {
+    if (agent) await client.agents.delete(agent.id);
+    await client.agentAssets.delete(asset.id);
+  }
 });
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);

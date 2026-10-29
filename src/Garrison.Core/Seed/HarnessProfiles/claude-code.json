@@ -194,5 +194,22 @@
   "credentialEnvironmentAllowlist": [
     "ANTHROPIC_API_KEY",
     "CLAUDE_CODE_OAUTH_TOKEN"
+  ],
+  "assetPlacements": [
+    {
+      "kind": "Skill",
+      "pathTemplate": ".claude/skills/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "ReferenceFile",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "DocumentTemplate",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    }
   ]
 }

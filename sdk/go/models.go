@@ -43,6 +43,9 @@ const (
 	// RunOutcomeConversationStateLost means a conversation turn asked to resume a harness session on its affinity
 	// node, but the conversation's directories were gone there and the fallback requeue was not possible.
 	RunOutcomeConversationStateLost = "ConversationStateLost"
+	// RunOutcomeAssetIntegrityFailed means a pinned agent asset file did not match its recorded SHA-256 digest on the
+	// worker, so the run stopped before the harness started.
+	RunOutcomeAssetIntegrityFailed = "AssetIntegrityFailed"
 )
 
 // Conversation fallback reasons (Run.ConversationFallbackReason, Conversation.LastFallbackReason): why a conversation
@@ -347,7 +350,11 @@ type Agent struct {
 	InputSchemaJSON string `json:"inputSchemaJson,omitempty"`
 	// OutputSchemaJSON is JSON Schema text the final output is validated against.
 	OutputSchemaJSON string `json:"outputSchemaJson,omitempty"`
-	CreatedUTC       string `json:"createdUtc,omitempty"`
+	// LatestPublishedRevisionID is the newest published revision (read only); nil when none is published.
+	LatestPublishedRevisionID *string `json:"latestPublishedRevisionId,omitempty"`
+	// DraftRevisionID is the open draft revision (read only); nil when there is no draft.
+	DraftRevisionID *string `json:"draftRevisionId,omitempty"`
+	CreatedUTC      string  `json:"createdUtc,omitempty"`
 	// Warnings is set on create and update responses only; see FieldWarning.
 	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
@@ -366,6 +373,10 @@ type Deployment struct {
 	Name                 string                       `json:"name"`
 	HarnessProfileID     string                       `json:"harnessProfileId"`
 	Model                string                       `json:"model,omitempty"`
+	// AgentRevisionID pins the deployment to a published agent revision; nil runs the live agent definition.
+	AgentRevisionID *string `json:"agentRevisionId,omitempty"`
+	// Environment is the promotion environment this deployment belongs to; empty means "dev".
+	Environment string `json:"environment,omitempty"`
 	// Executor is RunExecutorProcess or RunExecutorKubernetesJob; nil uses the node pool's default, then Process.
 	Executor *string `json:"executor,omitempty"`
 	// TrustLevel is TrustLevelTrusted (the default when empty) or TrustLevelUntrusted.
@@ -553,6 +564,8 @@ type Run struct {
 	AgentID              string                `json:"agentId"`
 	AgentName            string                `json:"agentName"`
 	DeploymentID         string                `json:"deploymentId"`
+	// AgentRevisionID is the agent revision the run executed; nil when the deployment was unpinned.
+	AgentRevisionID *string `json:"agentRevisionId,omitempty"`
 	// Kind is Invoke, Delegated, Test, Retry, Pipeline, or Trigger.
 	Kind     string `json:"kind"`
 	Status   string `json:"status"`

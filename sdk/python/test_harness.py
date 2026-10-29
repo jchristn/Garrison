@@ -5,6 +5,7 @@ Usage: python test_harness.py [baseUrl] [accessKey] [secretKey]
 Requires a running server and a worker able to run the builtin/fake harness profile.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -737,6 +738,78 @@ def t_control_plane_contracts():
     require(client.deployments.get(state["deployment"])["suspensionEnabled"] is False, "suspension defaults to opt out")
 
 
+def t_revisions_promotion():
+    agent = client.agents.create({"name": f"sdk-py-{SUFFIX}-studio", "description": "Python SDK harness revision agent."})
+    dev = client.deployments.create({"name": f"sdk-py-{SUFFIX}-studio-dev", "agentId": agent["id"], "harnessProfileId": state["fake"]})
+    staging = client.deployments.create({"name": f"sdk-py-{SUFFIX}-studio-staging", "agentId": agent["id"],
+                                         "harnessProfileId": state["fake"], "environment": "staging"})
+    try:
+        require(dev.get("environment") == "dev", f"dev deployment environment {dev.get('environment')!r}")
+        require(dev.get("agentRevisionId") is None, "dev deployment should be unpinned")
+        require(staging.get("agentRevisionId") is None, "staging deployment should start unpinned")
+        draft = client.agents.save_draft(agent["id"], {"description": "Changed by the Python SDK harness."})
+        require(draft["state"] == "Draft", f"draft state {draft['state']}")
+        require(client.agents.get(agent["id"]).get("draftRevisionId") == draft["id"], "agent draftRevisionId not set")
+        published = client.agents.publish_revision(agent["id"], draft["id"], change_note="sdk harness")
+        require(published["state"] == "Published", f"published state {published['state']}")
+        require(client.agents.get(agent["id"]).get("latestPublishedRevisionId") == published["id"], "latestPublishedRevisionId not set")
+        listed = client.agents.revisions(agent["id"])["objects"]
+        require(any(r["id"] == published["id"] for r in listed), "published revision not listed")
+        require(client.agents.get_revision(agent["id"], published["number"])["id"] == published["id"], "read by number failed")
+        promotion = client.promotions.promote(agent["id"], "dev")
+        require(promotion["kind"] == "Promote" and promotion["targetEnvironment"] == "staging", f"promotion {promotion}")
+        pinned = client.deployments.get(staging["id"]).get("agentRevisionId")
+        require(pinned == published["id"], f"staging pinned to {pinned!r}, expected {published['id']}")
+        require(client.promotions.get(promotion["id"])["id"] == promotion["id"], "promotion read failed")
+        require(any(p["id"] == promotion["id"] for p in client.promotions.list(agent_id=agent["id"])["objects"]), "promotion not listed")
+        rollback = client.promotions.rollback(promotion["id"], note="sdk harness rollback")
+        require(rollback["kind"] == "Rollback", f"rollback kind {rollback['kind']}")
+        restored = client.deployments.get(staging["id"]).get("agentRevisionId")
+        require(restored is None, f"staging pin after rollback {restored!r}")
+        envs = client.environments.get()
+        names = [e["name"] for e in sorted(envs["environments"], key=lambda e: e["position"])]
+        require(envs["isDefault"] is True and names == ["dev", "staging", "prod"], f"environments {envs}")
+    finally:
+        client.deployments.delete(staging["id"])
+        client.deployments.delete(dev["id"])
+        client.agents.delete(agent["id"])
+
+
+def t_agent_assets():
+    asset = client.agent_assets.create({"name": f"sdk-py-{SUFFIX}-asset", "kind": "Skill", "description": "Python SDK harness asset."})
+    agent = None
+    try:
+        require(asset["kind"] == "Skill" and asset.get("currentVersion", 0) == 0, f"asset {asset}")
+        content = b"# SDK skill\n\nCreated by the Python SDK harness.\n"
+        files = [{"path": "SKILL.md", "content": content, "mediaType": "text/markdown"}]
+        first = client.agent_assets.upload(asset["id"], files, change_note="sdk harness")
+        require(first["number"] == 1, f"first version {first['number']}")
+        skill = next((f for f in first["files"] if f["path"] == "SKILL.md"), None)
+        require(skill is not None and skill["sha256"].lower() == hashlib.sha256(content).hexdigest(), f"sha256 {skill}")
+        again = client.agent_assets.upload(asset["id"], files, change_note="sdk harness")
+        require(again["number"] == 1, f"identical upload returned version {again['number']}")
+        require(client.agent_assets.download_file(asset["id"], 1, "SKILL.md") == content, "downloaded bytes differ")
+        require(any(v["number"] == 1 for v in client.agent_assets.versions(asset["id"])), "version not listed")
+        require(client.agent_assets.get_version(asset["id"], 1)["number"] == 1, "get version failed")
+        require(client.agent_assets.get(asset["id"])["currentVersion"] == 1, "currentVersion not 1")
+        listed = client.agent_assets.list(kind="Skill", search=asset["name"])["objects"]
+        require(any(a["id"] == asset["id"] for a in listed), "asset not listed")
+        agent = client.agents.create({"name": f"sdk-py-{SUFFIX}-asset-agent", "description": "Python SDK harness asset agent."})
+        draft = client.agents.save_draft(agent["id"], {"description": "Pins an asset.", "assetPins": [{"assetId": asset["id"]}]})
+        published = client.agents.publish_revision(agent["id"], draft["id"], change_note="sdk harness")
+        require(any(p["assetId"] == asset["id"] for p in published.get("assetPins") or []), f"assetPins {published.get('assetPins')}")
+        in_use = False
+        try:
+            client.agent_assets.delete(asset["id"])
+        except GarrisonError as e:
+            in_use = e.status_code == 409 and e.code == "AssetInUse"
+        require(in_use, "deleting a pinned asset should fail with 409 AssetInUse")
+    finally:
+        if agent is not None:
+            client.agents.delete(agent["id"])
+        client.agent_assets.delete(asset["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -776,7 +849,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

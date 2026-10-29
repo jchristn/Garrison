@@ -292,6 +292,47 @@ for warning in deployment.get("warnings", []):
 
 Drop `warnings` before sending a dictionary you read back as an update body; the server ignores it, but it is response-only. See "Warnings" in `REST_API.md`.
 
+## Agent revisions and promotion
+
+An agent's content can be saved as revisions. Each agent has at most one open draft; publishing it makes it immutable. Deployments carry an `environment` (default `dev`) and an optional `agentRevisionId` pin; an unpinned deployment runs the agent's live content. Runs record the `agentRevisionId` they used, and agents report `latestPublishedRevisionId` and `draftRevisionId` (both read only).
+
+```python
+draft = client.agents.save_draft("my-agent", {"description": "Tighter summary rules."})
+published = client.agents.publish_revision("my-agent", draft["id"], change_note="Tighten summaries")
+revisions = client.agents.revisions("my-agent")["objects"]          # newest first
+diff = client.agents.diff_revisions("my-agent", 1, published["number"])
+for change in diff["changes"]:
+    print(change["field"], change["changeType"], change["from"], "->", change["to"])
+
+promotion = client.promotions.promote(published["agentId"], "dev")  # target defaults to the next environment
+for item in promotion["items"]:
+    print(item["deploymentName"], item["previousRevisionId"], "->", item["newRevisionId"])
+client.promotions.rollback(promotion["id"], note="Revert")          # restores the previous pins
+client.promotions.list(agent_id=published["agentId"])
+
+envs = client.environments.get()   # {"environments": [{"name", "description", "position"}], "isDefault": True}
+client.environments.update({"environments": [{"name": "dev", "position": 0}, {"name": "prod", "position": 1}]})
+```
+
+Revisions accept an `arv_` ID or a revision number. `promote` takes `target_environment`, `agent_revision_id`, `allow_skip` (to jump over intermediate environments), and `note`. Typed dictionaries `AgentRevision`, `AgentRevisionDiff`, `TenantEnvironmentList`, and `PromotionRecord` describe the responses; `AGENT_REVISION_STATES`, `REVISION_CHANGE_TYPES`, `PROMOTION_KINDS`, `PROMOTION_OUTCOMES`, and `DEFAULT_ENVIRONMENTS` list the enum values.
+
+## Agent assets
+
+An agent asset is a versioned system prompt, skill, reference file, or document template (kind `SystemPrompt`, `Skill`, `ReferenceFile`, or `DocumentTemplate`; a `SystemPrompt` asset requires a prompt template ID). Assets are addressed by ID or name and their versions by number. Uploading a version sends every file base64-encoded; uploading files identical to the current version returns that version instead of creating a new one. Each returned file carries its lowercase hex `sha256`. A revision pins assets through `assetPins` (`assetId` plus an optional `version`; no version follows the current one), and deleting an asset a revision pins fails with HTTP 409 and code `AssetInUse`. Upload limits answer 413 (`AssetFileTooLarge`, `AssetVersionTooLarge`, `AssetTooManyFiles`). A run whose pinned file fails its SHA-256 check on the worker ends with outcome `AssetIntegrityFailed`.
+
+```python
+asset = client.agent_assets.create({"name": "release-notes-skill", "kind": "Skill"})
+version = client.agent_assets.upload(asset["id"], [{"path": "SKILL.md", "content": "# Release notes\n", "mediaType": "text/markdown"}],
+                                     change_note="first cut")      # content may be bytes or str (UTF-8)
+client.agent_assets.upload_raw(asset["id"], "SKILL.md", b"# Release notes v2\n")   # one file as raw bytes
+client.agent_assets.versions(asset["id"])                          # plain list, newest first
+data = client.agent_assets.download_file(asset["id"], version["number"], "SKILL.md")
+client.agents.save_draft("my-agent", {"assetPins": [{"assetId": asset["id"]}]})
+client.agent_assets.list(kind="Skill", search="release")
+```
+
+`AgentAsset`, `AgentAssetVersion`, `AgentAssetFile`, and `AssetPin` type the responses; `AGENT_ASSET_KINDS` lists the kinds and `RUN_OUTCOME_ASSET_INTEGRITY_FAILED` names the run outcome.
+
 ## Errors
 
 Non-success responses raise `GarrisonError` with `status_code`, `code`, `body`, and the parsed `error` payload. Validation failures carry field details in `error["fields"]`. The settings routes return 400 with `error["errors"]`, an object keyed by setting path (for example `Audit.RetentionDays`) whose values say what is wrong; nothing is saved when any value is rejected.

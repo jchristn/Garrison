@@ -158,6 +158,18 @@ namespace Garrison.Core.Models
         public bool DelegationAllowRecursion { get; set; } = false;
 
         /// <summary>
+        /// Identifier of the agent's latest published revision (AD1). Unpinned deployments run this revision. Set by the
+        /// server; ignored on create and update.
+        /// </summary>
+        public string? LatestPublishedRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// Identifier of the agent's open draft revision, or null when there is none (AD1). Set by the server; ignored on
+        /// create and update.
+        /// </summary>
+        public string? DraftRevisionId { get; set; } = null;
+
+        /// <summary>
         /// Protocol for remote agents.
         /// </summary>
         public RemoteProtocolEnum? RemoteProtocol { get; set; } = null;

@@ -179,6 +179,21 @@ namespace Garrison.Sdk
         public NotificationEndpointsClient NotificationEndpoints { get; }
 
         /// <summary>
+        /// Agent revisions: drafts, published snapshots, and diffs.
+        /// </summary>
+        public AgentRevisionsClient AgentRevisions { get; }
+
+        /// <summary>
+        /// Agent assets: versioned system prompts, skills, reference files, and document templates.
+        /// </summary>
+        public AgentAssetsClient AgentAssets { get; }
+
+        /// <summary>
+        /// Tenant environments and promotions of agent revisions between them.
+        /// </summary>
+        public PromotionsClient Promotions { get; }
+
+        /// <summary>
         /// Analytics.
         /// </summary>
         public AnalyticsClient Analytics { get; }
@@ -259,6 +274,9 @@ namespace Garrison.Sdk
             PipelineReviews = new PipelineReviewsClient(Transport);
             Triggers = new TriggersClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
+            AgentRevisions = new AgentRevisionsClient(Transport);
+            AgentAssets = new AgentAssetsClient(Transport);
+            Promotions = new PromotionsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
             ControlNodes = new ControlNodesClient(Transport);

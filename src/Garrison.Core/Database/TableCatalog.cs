@@ -133,6 +133,21 @@ namespace Garrison.Core.Database
                 "notification_endpoint_events",
                 "notification_deliveries",
                 "notification_cursors",
+                "agent_revisions",
+                "agent_revision_prompt_pins",
+                "agent_revision_allowlist",
+                "agent_revision_capabilities",
+                "agent_revision_tags",
+                "tenant_environments",
+                "promotion_records",
+                "promotion_record_items",
+                "agent_assets",
+                "agent_asset_tags",
+                "agent_asset_versions",
+                "agent_asset_version_files",
+                "agent_asset_blobs",
+                "agent_revision_asset_pins",
+                "harness_profile_asset_placements",
         };
 
         private readonly SqlDialect _Dialect;

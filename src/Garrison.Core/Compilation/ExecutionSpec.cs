@@ -197,6 +197,11 @@ namespace Garrison.Core.Compilation
         public string? TraceParent { get; set; } = null;
 
         /// <summary>
+        /// Agent asset files to place in the workspace before launch (AD2.4).
+        /// </summary>
+        public List<ExecutionAssetFile> AssetFiles { get; set; } = new List<ExecutionAssetFile>();
+
+        /// <summary>
         /// Whether the worker keeps the run's work, home, and config directories after a successful execution, because
         /// the control plane may answer the completion report with a structured output repair that resumes the
         /// harness session in the same directories. Set when the agent has an output schema and the harness profile

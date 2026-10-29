@@ -88,6 +88,11 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
+        /// Agent revision the run executed, or null when the deployment was unpinned. Read-only.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
+
+        /// <summary>
         /// Deployment configuration version used.
         /// </summary>
         public int DeploymentVersion { get; set; } = 0;

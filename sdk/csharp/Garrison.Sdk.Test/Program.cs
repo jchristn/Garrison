@@ -4,6 +4,8 @@ namespace Garrison.Sdk.Test
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Security.Cryptography;
+    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Sdk;
@@ -1039,6 +1041,95 @@ namespace Garrison.Sdk.Test
                     finally { await client.Agents.DeleteAsync(remote.Id, token).ConfigureAwait(false); }
                     Deployment current = await client.Deployments.GetAsync(deploymentId ?? throw new InvalidOperationException("no deployment"), token).ConfigureAwait(false);
                     Require(!current.SuspensionEnabled, "suspension defaults to opt out");
+                }).ConfigureAwait(false);
+
+                await CheckAsync("agent revisions and promotion", async () =>
+                {
+                    Agent agent = await client.Agents.CreateAsync(new Agent { Name = "sdk-cs-rev-" + suffix, Description = "Revision fixture." }, token).ConfigureAwait(false);
+                    string? devId = null;
+                    string? stagingId = null;
+                    try
+                    {
+                        Deployment dev = await client.Deployments.CreateAsync(new Deployment { Name = "sdk-cs-rev-dev-" + suffix, AgentId = agent.Id, HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile") }, token).ConfigureAwait(false);
+                        devId = dev.Id;
+                        Require(dev.Environment == "dev" && dev.AgentRevisionId == null, "dev deployment defaults");
+                        Deployment staging = await client.Deployments.CreateAsync(new Deployment { Name = "sdk-cs-rev-staging-" + suffix, AgentId = agent.Id, HarnessProfileId = fakeProfileId, Environment = "staging" }, token).ConfigureAwait(false);
+                        stagingId = staging.Id;
+                        Require(staging.Environment == "staging", "staging environment");
+
+                        AgentRevision draft = await client.AgentRevisions.SaveDraftAsync(agent.Id, new AgentRevision { Description = "Revision fixture, changed." }, token).ConfigureAwait(false);
+                        Require(draft.State == AgentRevisionStateEnum.Draft && draft.Description == "Revision fixture, changed.", "draft saved");
+                        AgentRevision published = await client.AgentRevisions.PublishAsync(agent.Id, draft.Id, new RevisionPublishRequest { ChangeNote = "sdk harness" }, token).ConfigureAwait(false);
+                        Require(published.State == AgentRevisionStateEnum.Published, "published state");
+                        Require((await client.AgentRevisions.GetAsync(agent.Id, published.Number.ToString(), token).ConfigureAwait(false)).Id == published.Id, "get by number");
+                        Require((await client.AgentRevisions.ListAsync(agent.Id, null, token).ConfigureAwait(false)).Objects.Any(r => r.Id == published.Id), "revision list");
+
+                        PromotionRecord promotion = await client.Promotions.PromoteAsync(new PromotionRequest { AgentId = agent.Id, SourceEnvironment = "dev", AgentRevisionId = published.Id, Note = "sdk harness" }, token).ConfigureAwait(false);
+                        Require(promotion.Kind == PromotionKindEnum.Promote && promotion.TargetEnvironment == "staging", "promotion target " + promotion.TargetEnvironment);
+                        Require((await client.Deployments.GetAsync(staging.Id, token).ConfigureAwait(false)).AgentRevisionId == published.Id, "staging pinned to published revision");
+                        Require((await client.Promotions.GetAsync(promotion.Id, token).ConfigureAwait(false)).Items.Any(i => i.DeploymentId == staging.Id), "promotion items");
+
+                        PromotionRecord rollback = await client.Promotions.RollbackAsync(promotion.Id, new PromotionRollbackRequest { Note = "sdk harness" }, token).ConfigureAwait(false);
+                        Require(rollback.Kind == PromotionKindEnum.Rollback && rollback.RollbackOfId == promotion.Id, "rollback record");
+                        Require((await client.Deployments.GetAsync(staging.Id, token).ConfigureAwait(false)).AgentRevisionId == null, "staging pin restored");
+                        Require((await client.Promotions.ListAsync(agent.Id, null, null, token).ConfigureAwait(false)).Objects.Count >= 2, "promotion list");
+
+                        TenantEnvironmentList environments = await client.Promotions.GetEnvironmentsAsync(token).ConfigureAwait(false);
+                        Require(environments.IsDefault && String.Join(",", environments.Environments.OrderBy(e => e.Position).Select(e => e.Name)) == "dev,staging,prod", "default environments");
+                    }
+                    finally
+                    {
+                        if (stagingId != null) await client.Deployments.DeleteAsync(stagingId, token).ConfigureAwait(false);
+                        if (devId != null) await client.Deployments.DeleteAsync(devId, token).ConfigureAwait(false);
+                        await client.Agents.DeleteAsync(agent.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("agent assets", async () =>
+                {
+                    AgentAsset asset = await client.AgentAssets.CreateAsync(new AgentAsset { Name = "sdk-cs-asset-" + suffix, Kind = AgentAssetKindEnum.Skill, Description = "Asset fixture." }, token).ConfigureAwait(false);
+                    string? assetAgentId = null;
+                    try
+                    {
+                        Require(asset.Kind == AgentAssetKindEnum.Skill && asset.CurrentVersion == 0, "asset created with no version");
+                        byte[] content = Encoding.UTF8.GetBytes("# SDK skill\n\nCreated by the C# SDK harness.\n");
+                        string expectedSha = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+                        List<AgentAssetUploadFile> files = new List<AgentAssetUploadFile> { AgentAssetUploadFile.FromBytes("SKILL.md", content, "text/markdown") };
+                        AgentAssetVersion first = await client.AgentAssets.UploadFilesAsync(asset.Id, files, "sdk harness", token).ConfigureAwait(false);
+                        Require(first.Number == 1, "first version number " + first.Number);
+                        AgentAssetFile? skill = first.Files.FirstOrDefault(f => f.Path == "SKILL.md");
+                        Require(skill != null && String.Equals(skill.Sha256, expectedSha, StringComparison.OrdinalIgnoreCase), "file sha256");
+                        AgentAssetVersion again = await client.AgentAssets.UploadFilesAsync(asset.Id, files, "sdk harness", token).ConfigureAwait(false);
+                        Require(again.Number == 1, "identical upload returned version " + again.Number);
+                        byte[] downloaded = await client.AgentAssets.DownloadFileAsync(asset.Id, 1, "SKILL.md", token).ConfigureAwait(false);
+                        Require(downloaded.SequenceEqual(content), "downloaded bytes match");
+                        Require((await client.AgentAssets.ListVersionsAsync(asset.Id, token).ConfigureAwait(false)).Any(v => v.Number == 1), "version list");
+                        Require((await client.AgentAssets.GetVersionAsync(asset.Id, 1, token).ConfigureAwait(false)).Number == 1, "get version");
+                        Require((await client.AgentAssets.GetAsync(asset.Id, token).ConfigureAwait(false)).CurrentVersion == 1, "current version");
+                        Require((await client.AgentAssets.ListAsync(AgentAssetKindEnum.Skill, new EnumerationQuery { Search = asset.Name }, token).ConfigureAwait(false)).Objects.Any(a => a.Id == asset.Id), "asset list");
+
+                        Agent agent = await client.Agents.CreateAsync(new Agent { Name = "sdk-cs-asset-agent-" + suffix, Description = "Asset pin fixture." }, token).ConfigureAwait(false);
+                        assetAgentId = agent.Id;
+                        AgentRevision draft = await client.AgentRevisions.SaveDraftAsync(agent.Id, new AgentRevision { Description = "Pins an asset.", AssetPins = new List<AgentRevisionAssetPin> { new AgentRevisionAssetPin { AssetId = asset.Id } } }, token).ConfigureAwait(false);
+                        AgentRevision published = await client.AgentRevisions.PublishAsync(agent.Id, draft.Id, new RevisionPublishRequest { ChangeNote = "sdk harness" }, token).ConfigureAwait(false);
+                        Require(published.AssetPins.Any(p => p.AssetId == asset.Id), "published revision pins the asset");
+
+                        bool inUse = false;
+                        try
+                        {
+                            await client.AgentAssets.DeleteAsync(asset.Id, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409)
+                        {
+                            inUse = e.Error?.Code == "AssetInUse";
+                        }
+                        Require(inUse, "delete of a pinned asset returns 409 AssetInUse");
+                    }
+                    finally
+                    {
+                        if (assetAgentId != null) await client.Agents.DeleteAsync(assetAgentId, token).ConfigureAwait(false);
+                        await client.AgentAssets.DeleteAsync(asset.Id, token).ConfigureAwait(false);
+                    }
                 }).ConfigureAwait(false);
 
                 await CheckAsync("cleanup", async () =>

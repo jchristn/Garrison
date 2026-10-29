@@ -41,6 +41,9 @@ namespace Garrison.Server.Runtime
         /// <summary>Durable continuation coordinator; null disables portable restore.</summary>
         public ContinuationService? Continuations { get; set; } = null;
 
+        /// <summary>Called with every compiled spec before it is leased, for example to add asset download URLs (AD2.4); null does nothing.</summary>
+        public Action<Run, ExecutionSpec>? DecorateSpec { get; set; } = null;
+
 
         /// <summary>
         /// Cancelled when the replica starts shutting down; waiting lease long-polls then return empty at once so the
@@ -556,6 +559,7 @@ namespace Garrison.Server.Runtime
                 }
 
                 if (Continuations != null) await Continuations.ApplyAsync(run, compiled.Spec, token).ConfigureAwait(false);
+                DecorateSpec?.Invoke(run, compiled.Spec);
 
                 // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the
                 // worker a full lease from now so the run is not reclaimed before its first heartbeat.

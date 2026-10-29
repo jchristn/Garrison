@@ -172,6 +172,8 @@ namespace Garrison.Core.Manifests
                     return (await _Database.WorkspaceTemplates.ReadAsync(id, token).ConfigureAwait(false))?.Name;
                 case "Agent":
                     return (await _Database.Agents.ReadAsync(id, token).ConfigureAwait(false))?.Name;
+                case "AgentAsset":
+                    return (await _Database.AgentAssets.ReadAsync(_TenantId, id, token).ConfigureAwait(false))?.Name;
                 case "Deployment":
                     return (await _Database.Deployments.ReadAsync(id, token).ConfigureAwait(false))?.Name;
                 case "Pipeline":

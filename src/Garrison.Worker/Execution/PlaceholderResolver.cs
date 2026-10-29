@@ -81,6 +81,8 @@ namespace Garrison.Worker.Execution
             foreach (ExecutionEnvironmentVariable variable in spec.Environment) variable.Value = Resolve(variable.Value) ?? String.Empty;
             foreach (ExecutionFile file in spec.Files)
             {
+                // Asset files (AD2.4) are binary and keep their exact bytes and workspace-relative paths.
+                if (file.ContentBase64 != null) continue;
                 file.Path = Resolve(file.Path) ?? String.Empty;
                 file.Content = Resolve(file.Content) ?? String.Empty;
             }

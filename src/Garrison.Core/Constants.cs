@@ -66,6 +66,24 @@ namespace Garrison.Core
         /// <summary>Notification delivery (outbox and delivery log) identifier prefix (P12.14).</summary>
         public const string NotificationDeliveryIdPrefix = "ndl_";
 
+        /// <summary>Agent revision identifier prefix (AD1).</summary>
+        public const string AgentRevisionIdPrefix = "arv_";
+
+        /// <summary>Promotion record identifier prefix (AD1.4).</summary>
+        public const string PromotionRecordIdPrefix = "pro_";
+
+        /// <summary>Promotion record item identifier prefix: one repinned deployment (AD1.4).</summary>
+        public const string PromotionRecordItemIdPrefix = "pri_";
+
+        /// <summary>Agent asset identifier prefix (AD2).</summary>
+        public const string AgentAssetIdPrefix = "aas_";
+
+        /// <summary>Agent asset version identifier prefix (AD2).</summary>
+        public const string AgentAssetVersionIdPrefix = "aav_";
+
+        /// <summary>Key prefix for asset content inside an artifact store (AD-011). Never used for artifacts.</summary>
+        public const string AssetKeyPrefix = ".garrison-assets/";
+
         /// <summary>
         /// Header carrying a Garrison webhook signature, inbound on trigger webhooks and outbound on notifications:
         /// <c>t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of "&lt;t&gt;.&lt;raw body&gt;"&gt;</c> (P12.5, P12.14).

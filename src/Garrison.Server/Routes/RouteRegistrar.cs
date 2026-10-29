@@ -171,6 +171,26 @@ namespace Garrison.Server.Routes
         }
 
         /// <summary>
+        /// Register an authenticated route whose resource type and operation are recorded in the operation scope map, but
+        /// whose handler authorizes them itself because the resource identifier comes from the request body (for example
+        /// the target environment of a promotion). The handler must call <see cref="RequireAsync"/>.
+        /// </summary>
+        /// <param name="method">Method.</param>
+        /// <param name="path">Path template.</param>
+        /// <param name="resourceType">Resource type the handler authorizes.</param>
+        /// <param name="operation">Operation the handler authorizes.</param>
+        /// <param name="handler">Handler.</param>
+        /// <param name="summary">OpenAPI summary.</param>
+        /// <param name="tag">OpenAPI tag.</param>
+        /// <param name="requestBody">Optional request body type.</param>
+        /// <param name="response">Optional response type.</param>
+        public void ScopedByHandler(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null)
+        {
+            Record(method, path, resourceType, operation, RouteAuthorizationEnum.Handler, summary, tag);
+            Add(method, path, handler, Metadata(method, path, summary, tag, requestBody, response, true));
+        }
+
+        /// <summary>
         /// Register a WebSocket endpoint that authenticates and authorizes inside its handler (for example per subscription)
         /// and record it in the operation scope map as handler-authorized, like every other route.
         /// </summary>
@@ -322,6 +342,10 @@ namespace Garrison.Server.Routes
             catch (ConflictException e)
             {
                 await RouteHelpers.ErrorAsync(context, 409, e.Code, e.Message).ConfigureAwait(false);
+            }
+            catch (PayloadTooLargeException e)
+            {
+                await RouteHelpers.ErrorAsync(context, 413, e.Code, e.Message).ConfigureAwait(false);
             }
             catch (ArgumentException e)
             {

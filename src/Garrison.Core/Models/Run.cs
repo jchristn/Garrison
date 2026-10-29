@@ -64,6 +64,12 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
+        /// Agent revision the run compiled from (AD1.3): the deployment's pinned revision, or the agent's latest published
+        /// revision when the deployment is unpinned. Null for runs created before revisions existed.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
+
+        /// <summary>
         /// Agent name at creation.
         /// </summary>
         public string AgentName

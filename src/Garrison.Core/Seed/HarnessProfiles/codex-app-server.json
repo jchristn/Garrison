@@ -139,5 +139,22 @@
   "credentialEnvironmentAllowlist": [
     "CODEX_API_KEY",
     "OPENAI_API_KEY"
+  ],
+  "assetPlacements": [
+    {
+      "kind": "Skill",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "ReferenceFile",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    },
+    {
+      "kind": "DocumentTemplate",
+      "pathTemplate": "assets/{{asset.name}}",
+      "listInSystemPrompt": true
+    }
   ]
 }

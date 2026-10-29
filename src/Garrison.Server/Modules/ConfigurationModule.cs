@@ -68,6 +68,11 @@ namespace Garrison.Server.Modules
             context.Register(_Compiler);
             context.Register(_Manifests);
             context.Register(_Cards);
+            context.Register(new AgentRevisionService(context));
+            context.Register(new PromotionService(context));
+            AgentAssetService assets = new AgentAssetService(context);
+            context.Register(assets);
+            _Manifests.AssetContent = new ManifestAssetContentStore(assets);
         }
 
         /// <inheritdoc />
@@ -87,6 +92,9 @@ namespace Garrison.Server.Modules
             new UsageQuotaRoutes(context).Register(routes);
             new AgentRoutes(context, _Cards!).Register(routes);
             new DeploymentRoutes(context, _Compiler!).Register(routes);
+            new AgentRevisionRoutes(context, context.Get<AgentRevisionService>()).Register(routes);
+            new PromotionRoutes(context, context.Get<PromotionService>()).Register(routes);
+            new AgentAssetRoutes(context, context.Get<AgentAssetService>()).Register(routes);
             new ManifestRoutes(context, _Manifests!).Register(routes);
         }
 

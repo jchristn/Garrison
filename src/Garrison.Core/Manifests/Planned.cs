@@ -61,5 +61,39 @@ namespace Garrison.Core.Manifests
         /// The stored record before this apply, for kinds whose write needs it (Trigger keeps its schedule), or null.
         /// </summary>
         public object? Previous { get; set; } = null;
+
+        /// <summary>
+        /// For an Agent document with revision.publish false on an existing agent: write the content as the agent's
+        /// draft revision instead of updating the agent (AD1.7).
+        /// </summary>
+        public bool AgentDraftOnly { get; set; } = false;
+
+        /// <summary>
+        /// Change note from an Agent document's revision block.
+        /// </summary>
+        public string? AgentChangeNote { get; set; } = null;
+
+        /// <summary>
+        /// For a Deployment document that pins revision 1 of an agent created by the same bundle: the number to resolve
+        /// to an identifier after the agent is written.
+        /// </summary>
+        public int? AgentRevisionNumber { get; set; } = null;
+
+        /// <summary>
+        /// For an Agent document with an assets list: the asset pins to publish (or draft), resolved to identifiers.
+        /// Null when the document has no assets key, so the agent keeps its current pins (AD2.6).
+        /// </summary>
+        public List<AgentRevisionAssetPin>? AgentAssetPins { get; set; } = null;
+
+        /// <summary>
+        /// For an AgentAsset document: files to upload as a new version, with ContentBase64 set (AD2.6). Null when the
+        /// files are unchanged or the document has none.
+        /// </summary>
+        public List<AgentAssetFile>? AssetUpload { get; set; } = null;
+
+        /// <summary>
+        /// For an AgentAsset document: change note of the new version.
+        /// </summary>
+        public string? AssetChangeNote { get; set; } = null;
     }
 }

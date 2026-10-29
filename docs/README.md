@@ -11,6 +11,8 @@ Garrison turns configurable agent harnesses into tenant-scoped services, invoked
 | Create, invoke and delegate between agents | [Quick start](QUICKSTART.md), [harness profiles](HARNESSES.md), [prompt templates](PROMPTS.md) |
 | Call Garrison from your application | [REST](../REST_API.md), [MCP](../MCP_API.md), [A2A](../A2A_API.md), [WebSocket updates](../WEBSOCKETS_API.md), [SDKs](../README.md#sdks) |
 | Move reproducible agent configuration between tenants | [Manifests and bundles](MANIFESTS.md), [management MCP](MANAGEMENT_MCP.md) |
+| Version agents and move them through dev, staging, and prod | [Revisions, environments, and promotion](REVISIONS.md) |
+| Give agents skills, reference files, and document templates | [Agent assets](ASSETS.md) |
 
 ## Build agent workflows
 

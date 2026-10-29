@@ -88,6 +88,26 @@ namespace Garrison.Sdk.Models
         public string? Description { get; set; } = null;
 
         /// <summary>
+        /// Pinned agent revision identifier, or null to run the agent's current content.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// Environment this deployment belongs to. Default dev.
+        /// </summary>
+        public string Environment
+        {
+            get
+            {
+                return _Environment;
+            }
+            set
+            {
+                _Environment = String.IsNullOrWhiteSpace(value) ? "dev" : value;
+            }
+        }
+
+        /// <summary>
         /// Harness profile identifier.
         /// </summary>
         public string HarnessProfileId
@@ -505,6 +525,7 @@ namespace Garrison.Sdk.Models
 
         #region Private-Members
 
+        private string _Environment = "dev";
         private RunPodResources _PodResources = new RunPodResources();
         private string _Id = String.Empty;
         private string _TenantId = String.Empty;

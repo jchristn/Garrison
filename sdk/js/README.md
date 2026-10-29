@@ -66,7 +66,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -230,6 +230,36 @@ for (const model of dims.models) {
   console.log(model, byModel.totals.runs);
 }
 ```
+
+## Agent revisions and promotion
+
+An agent keeps its content in revisions. `client.agents.saveDraft(agent, content)` creates or replaces the single open draft, `publishRevision(agent, revision, { changeNote })` publishes it, and `listRevisions`, `getRevision`, `deleteRevision`, and `diffRevisions(agent, from, to)` read and compare them. `agent` is an identifier or name; `revision` is an `arv_` identifier or a revision number. `Agent` carries read-only `latestPublishedRevisionId` and `draftRevisionId`.
+
+Each deployment has an `environment` (default `dev`) and an optional `agentRevisionId` pin; null follows the latest published revision. `Run.agentRevisionId` records the revision a run executed. `client.environments.get()` returns the tenant's ordered environments (`dev`, `staging`, `prod` by default, with `isDefault` true) and `update(list)` replaces them.
+
+```ts
+const draft = await client.agents.saveDraft("my-agent", { description: "Tighter instructions" });
+const published = await client.agents.publishRevision("my-agent", draft.id, { changeNote: "v2" });
+// Pins the latest published revision on the next environment after dev (staging by default).
+const promotion = await client.promotions.promote({ agentId: published.agentId, sourceEnvironment: "dev" });
+await client.promotions.rollback(promotion.id, { note: "revert" });
+```
+
+`client.promotions.list({ agentId, appId })` and `get(id)` read `PromotionRecord` audit entries; each lists the deployments it re-pinned in `items`.
+
+## Agent assets
+
+An agent asset is a versioned system prompt, skill, reference file, or document template (kind `SystemPrompt`, `Skill`, `ReferenceFile`, or `DocumentTemplate`; a `SystemPrompt` asset requires a prompt template ID). Assets are addressed by ID or name and their versions by number. Uploading a version sends every file base64-encoded; uploading files identical to the current version returns that version instead of creating a new one. Each returned file carries its lowercase hex `sha256`. A revision pins assets through `assetPins` (`assetId` plus an optional `version`; no version follows the current one), and deleting an asset a revision pins fails with HTTP 409 and code `AssetInUse`. Upload limits answer 413 (`AssetFileTooLarge`, `AssetVersionTooLarge`, `AssetTooManyFiles`). A run whose pinned file fails its SHA-256 check on the worker ends with outcome `AssetIntegrityFailed`.
+
+```ts
+const asset = await client.agentAssets.create({ name: "release-notes-skill", kind: "Skill" });
+const version = await client.agentAssets.uploadVersion(asset.id, [{ path: "SKILL.md", content: "# Release notes\n", mediaType: "text/markdown" }], "first cut");
+await client.agentAssets.uploadRaw(asset.id, "SKILL.md", new TextEncoder().encode("# v2\n"));
+const bytes = await client.agentAssets.downloadFile(asset.id, version.number, "SKILL.md");
+await client.agents.saveDraft("my-agent", { assetPins: [{ assetId: asset.id }] });
+```
+
+`list({ kind, search })`, `get`, `update`, `delete`, `listVersions` (a plain array, newest first), and `getVersion` complete the client. String content is UTF-8 encoded. `AGENT_ASSET_KINDS` lists the kinds and `RUN_OUTCOMES` includes `AssetIntegrityFailed`.
 
 ## Manifests
 

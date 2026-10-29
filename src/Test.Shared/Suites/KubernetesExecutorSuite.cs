@@ -47,6 +47,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("k8s-executor", "protocol-limits", "Protocol: oversize, malformed, and wrong-typed lines are counted and ignored; diagnostics keep only non-protocol lines", ProtocolLimitsAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-stdin", "Warm input: a bounded stdin envelope executes once; extra input, malformed JSON, EOF, and oversize input cannot start another run", RunOneStdinAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-fake", "run-one: the fake harness runs through the process executor; harness output that mimics the prefix with the real nonce stays data", RunOneFakeAsync),
+                new TestCaseDescriptor("k8s-executor", "run-one-assets", "run-one: asset files the worker fetched arrive as bytes in the envelope (no URL) and the harness reads them from the workspace (AD2.4)", RunOneAssetsAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-egress-canary", "run-one: the harness starts only once the egress canary is blocked; a reachable canary fails the run PodFailed without starting it", RunOneCanaryAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-persistent-workspace", "run-one: a PersistentVolume workspace is linked into the run directory, shared by later runs, and never deleted", RunOnePersistentAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-bad-spec", "run-one: a missing or empty spec exits 3 without protocol output", RunOneBadSpecAsync),
@@ -344,6 +345,62 @@ namespace Test.Shared.Suites
                     Assert.True(complete.ResultText != "forged by the harness", "The forged completion was not taken");
                 }
                 Assert.True(!Directory.Exists(Path.Combine(envelope.WorkRoot, spec.RunId)), "Run directories are removed");
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(root, true);
+                }
+                catch (IOException)
+                {
+                }
+            }
+        }
+
+        private static async Task RunOneAssetsAsync(CancellationToken token)
+        {
+            string nonce = Nonce();
+            string root = Path.Combine(Path.GetTempPath(), "garrison-run-one-assets-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(root);
+            try
+            {
+                ExecutionSpec spec = new ExecutionSpec();
+                spec.RunId = "run_k8s_" + Guid.NewGuid().ToString("N").Substring(0, 10);
+                spec.TenantId = "ten_test";
+                spec.AgentName = "fake";
+                spec.HarnessType = HarnessTypeEnum.Generic;
+                spec.Executor = RunExecutorEnum.KubernetesJob;
+                spec.Executable = DotnetHost();
+                spec.Arguments = new List<string> { FakeHarnessDll(), "--format", "claude", "--scenario", "assets/notes/notes.md" };
+                spec.Stdin = "hello";
+                spec.Parser = OutputParserEnum.ClaudeStreamJson;
+                spec.TimeoutSeconds = 60;
+                spec.KillGraceSeconds = 1;
+                // What the worker hands the pod after AssetFetcher ran: the bytes, and asset metadata with no URL.
+                spec.Files.Add(new ExecutionFile { BaseDirectory = FileBaseDirectoryEnum.Workspace, Path = "assets/notes/notes.md", ContentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("POD-ASSET-OK")) });
+                spec.AssetFiles.Add(new ExecutionAssetFile { AssetId = "aas_test", AssetName = "notes", Path = "assets/notes/notes.md", Sha256 = "unused", DownloadUrl = null });
+
+                RunPodEnvelope envelope = new RunPodEnvelope();
+                envelope.Nonce = nonce;
+                envelope.Assignment = new RunAssignment { RunId = spec.RunId, Epoch = 1, Spec = spec };
+                envelope.WorkRoot = Path.Combine(root, "runs");
+                envelope.EnvironmentAllowlist = new List<string> { "PATH", "DOTNET_ROOT", "TMPDIR", "LANG" };
+                string serialized = Serializer.Serialize(envelope);
+                Assert.True(!serialized.Contains("asset-download", StringComparison.Ordinal), "The envelope carries no asset download URL");
+                string specPath = Path.Combine(root, "spec.json");
+                await File.WriteAllTextAsync(specPath, serialized, token).ConfigureAwait(false);
+                using (MemoryStream output = new MemoryStream())
+                {
+                    int code = await RunOneCommand.RunAsync(specPath, output, token).ConfigureAwait(false);
+                    Assert.Equal(0, code, "run-one exit code");
+                    string text = Encoding.UTF8.GetString(output.ToArray());
+                    PodLineParser parser = new PodLineParser(nonce);
+                    foreach (string line in Lines(text)) parser.Accept(line);
+                    RunCompleteRequest complete = parser.Completion?.Complete ?? throw new TestAssertionException("No completion. Output: " + text);
+                    Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
+                    Assert.True((complete.ResultText ?? String.Empty).Contains("POD-ASSET-OK", StringComparison.Ordinal), "The harness read the asset file in the pod: " + complete.ResultText);
+                }
             }
             finally
             {

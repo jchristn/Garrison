@@ -453,7 +453,7 @@ namespace Garrison.Server.Protocols
         {
             if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.RunId)) return agents;
             Run? parent = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
-            Agent? caller = parent == null ? null : await _Context.Database.Agents.ReadAsync(tenantId, parent.AgentId, token).ConfigureAwait(false);
+            Agent? caller = parent == null ? null : await EffectiveAgent.ForRunAsync(_Context.Database, parent, token).ConfigureAwait(false);
             if (caller == null || caller.DelegationMode == DelegationModeEnum.None) return new List<Agent>();
             List<Agent> visible = agents;
             if (caller.DelegationMode == DelegationModeEnum.AllowList) visible = visible.Where(a => caller.DelegationAllowList.Contains(a.Name)).ToList();
@@ -741,6 +741,23 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_notification_deliveries":
                         result = await ListNotificationDeliveriesAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_list_agent_revisions":
+                    case "garrison_get_agent_revision":
+                    case "garrison_publish_agent_revision":
+                        result = await AgentRevisionToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_agent_assets":
+                    case "garrison_get_agent_asset":
+                    case "garrison_create_agent_asset":
+                    case "garrison_update_agent_asset":
+                    case "garrison_upload_agent_asset_version":
+                    case "garrison_delete_agent_asset":
+                        result = await AgentAssetToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_promote":
+                    case "garrison_rollback_promotion":
+                        result = await PromotionToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_apply_manifest":
                         result = await ApplyManifestAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
@@ -812,12 +829,13 @@ namespace Garrison.Server.Protocols
                 GarrisonTracing.Fail(span, e);
                 throw;
             }
-            catch (Exception e) when (e is NotFoundException || e is ConflictException || e is ValidationException || e is ArgumentException)
+            catch (Exception e) when (e is NotFoundException || e is ConflictException || e is ValidationException || e is ArgumentException || e is PayloadTooLargeException)
             {
                 GarrisonTracing.Fail(span, e);
                 if (e is ValidationException validation) throw ToolError("ValidationFailed", validation.Describe());
                 if (e is ConflictException conflict) throw ToolError(conflict.Code, e.Message);
                 if (e is NotFoundException) throw ToolError("NotFound", e.Message);
+                if (e is PayloadTooLargeException tooLarge) throw ToolError(tooLarge.Code, e.Message);
                 throw ToolError("BadRequest", e.Message);
             }
             catch (Exception e) when (DatabaseFailures.Classify(e) != DatabaseFailureEnum.None)
@@ -851,6 +869,103 @@ namespace Garrison.Server.Protocols
             if (String.IsNullOrWhiteSpace(args?.RawJson)) return new T();
             try { return Serializer.Deserialize<T>(args.RawJson) ?? new T(); }
             catch (JsonException) { throw ToolError("ValidationFailed", "The tool arguments do not match the tool's typed input contract."); }
+        }
+
+        private async Task<object> AgentRevisionToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpAgentRevisionArguments arguments = ManagementArguments<McpAgentRevisionArguments>(args);
+            if (String.IsNullOrWhiteSpace(arguments.Agent)) throw ToolError("ValidationFailed", "agent is required.");
+            Agent agent = await _Context.Database.Agents.ReadAsync(tenantId, arguments.Agent, token).ConfigureAwait(false)
+                ?? await _Context.Database.Agents.ReadByNameAsync(tenantId, arguments.Agent, token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "Agent " + arguments.Agent + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.AgentRevision, tool.Operation, agent.Id, token).ConfigureAwait(false);
+            AgentRevisionService revisions = _Context.Get<AgentRevisionService>();
+            if (tool.Name == "garrison_list_agent_revisions")
+            {
+                EnumerationQuery query = new EnumerationQuery { MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                return await revisions.EnumerateAsync(tenantId, agent, query, token).ConfigureAwait(false);
+            }
+            if (String.IsNullOrWhiteSpace(arguments.Revision)) throw ToolError("ValidationFailed", "revision is required.");
+            if (tool.Name == "garrison_get_agent_revision") return await revisions.ReadAsync(tenantId, agent, arguments.Revision, token).ConfigureAwait(false);
+            return await revisions.PublishAsync(ctx, tenantId, agent, arguments.Revision, arguments.ChangeNote, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> AgentAssetToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpAgentAssetArguments arguments = ManagementArguments<McpAgentAssetArguments>(args);
+            AgentAssetService assets = _Context.Get<AgentAssetService>();
+            if (tool.Name == "garrison_list_agent_assets")
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.AgentAsset, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                AgentAssetKindEnum? kind = null;
+                if (!String.IsNullOrEmpty(arguments.Kind))
+                {
+                    if (!Enum.TryParse(arguments.Kind, true, out AgentAssetKindEnum parsed)) throw ToolError("ValidationFailed", "kind is SystemPrompt, Skill, ReferenceFile, or DocumentTemplate.");
+                    kind = parsed;
+                }
+                EnumerationQuery query = new EnumerationQuery { Search = arguments.Search, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                return await _Context.Database.AgentAssets.EnumerateAsync(tenantId, kind, query, token).ConfigureAwait(false);
+            }
+            if (tool.Name == "garrison_create_agent_asset")
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.AgentAsset, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                return await assets.CreateAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            }
+            if (String.IsNullOrWhiteSpace(arguments.Asset)) throw ToolError("ValidationFailed", "asset is required.");
+            AgentAsset asset = await _Context.Database.AgentAssets.ReadAsync(tenantId, arguments.Asset, token).ConfigureAwait(false)
+                ?? await _Context.Database.AgentAssets.ReadByNameAsync(tenantId, arguments.Asset, token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "Asset " + arguments.Asset + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.AgentAsset, tool.Operation, asset.Id, token).ConfigureAwait(false);
+            switch (tool.Name)
+            {
+                case "garrison_get_agent_asset":
+                    McpAgentAssetDetail detail = new McpAgentAssetDetail { Asset = asset };
+                    int number = arguments.Version ?? asset.CurrentVersion;
+                    if (number > 0) detail.Version = await _Context.Database.AgentAssets.ReadVersionAsync(tenantId, asset.Id, number, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Version " + number + " of asset " + asset.Name + " not found.");
+                    return detail;
+                case "garrison_update_agent_asset":
+                    return await assets.UpdateAsync(ctx, tenantId, asset, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+                case "garrison_upload_agent_asset_version":
+                    List<AgentAssetFile> files = new List<AgentAssetFile>();
+                    foreach (AgentAssetFileSpec file in arguments.Files ?? new List<AgentAssetFileSpec>())
+                    {
+                        string? base64 = file.ContentBase64 ?? (file.Content != null ? Convert.ToBase64String(Encoding.UTF8.GetBytes(file.Content)) : null);
+                        files.Add(new AgentAssetFile { Path = file.Path, MediaType = file.MediaType ?? String.Empty, ContentBase64 = base64 });
+                    }
+                    return (await assets.UploadVersionAsync(ctx, tenantId, asset, files, null, arguments.ChangeNote, token).ConfigureAwait(false)).Version;
+                default:
+                    await assets.DeleteAsync(ctx, tenantId, asset, token).ConfigureAwait(false);
+                    return new McpConfigurationDeletion { Id = asset.Id, Deleted = true };
+            }
+        }
+
+        private async Task<object> PromotionToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpPromotionArguments arguments = ManagementArguments<McpPromotionArguments>(args);
+            PromotionService promotions = _Context.Get<PromotionService>();
+            Func<string, Task<bool>> authorizeTarget = async environment =>
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Promotion, OperationTypeEnum.Execute, environment, token).ConfigureAwait(false);
+                return true;
+            };
+            PromotionRecord? record;
+            if (tool.Name == "garrison_rollback_promotion")
+            {
+                if (String.IsNullOrWhiteSpace(arguments.PromotionId)) throw ToolError("ValidationFailed", "promotionId is required.");
+                record = await promotions.RollbackAsync(ctx, tenantId, arguments.PromotionId, arguments.Note, authorizeTarget, token).ConfigureAwait(false);
+            }
+            else
+            {
+                PromotionRequest request = new PromotionRequest();
+                request.AgentId = arguments.AgentId ?? String.Empty;
+                request.SourceEnvironment = arguments.SourceEnvironment ?? String.Empty;
+                request.TargetEnvironment = arguments.TargetEnvironment;
+                request.AgentRevisionId = arguments.AgentRevisionId;
+                request.AllowSkip = arguments.AllowSkip;
+                request.Note = arguments.Note;
+                record = await promotions.PromoteAsync(ctx, tenantId, request, authorizeTarget, token).ConfigureAwait(false);
+            }
+            return record ?? throw ToolError("Forbidden", "Not permitted.");
         }
 
         private async Task<object> ManageAgentAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

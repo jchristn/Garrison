@@ -299,6 +299,51 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate an agent revision identifier (prefix arv_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAgentRevisionId()
+        {
+            return New(Constants.AgentRevisionIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a promotion record identifier (prefix pro_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPromotionRecordId()
+        {
+            return New(Constants.PromotionRecordIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a promotion record item identifier (prefix pri_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPromotionRecordItemId()
+        {
+            return New(Constants.PromotionRecordItemIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate an agent asset identifier (prefix aas_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAgentAssetId()
+        {
+            return New(Constants.AgentAssetIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate an agent asset version identifier (prefix aav_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAgentAssetVersionId()
+        {
+            return New(Constants.AgentAssetVersionIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a notification endpoint event row identifier (prefix nev_).
         /// </summary>
         /// <returns>Identifier.</returns>

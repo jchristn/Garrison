@@ -3676,6 +3676,216 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers/trg_mv8
   -H "X-Garrison-Signature: t=$TS,v1=$SIG" --data-binary "$BODY"
 ```
 
+### Agent revisions
+
+An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /agents/{idOrName}/revisions` | Read on `AgentRevision` | `EnumerationResult<AgentRevision>`, newest first, 200 |
+| `POST /agents/{idOrName}/revisions` | Create on `AgentRevision` | The draft `AgentRevision`, 201 |
+| `GET /agents/{idOrName}/revisions/diff?from=&to=` | Read on `AgentRevision` | `AgentRevisionDiff`, 200 |
+| `GET /agents/{idOrName}/revisions/{revIdOrNumber}` | Read on `AgentRevision` | `AgentRevision`, 200 |
+| `DELETE /agents/{idOrName}/revisions/{revIdOrNumber}` | Delete on `AgentRevision` | Empty, 204 |
+| `POST /agents/{idOrName}/revisions/{revIdOrNumber}/publish` | Execute on `AgentRevision` | The published `AgentRevision`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Another tenant's agents and revisions answer 404.
+
+#### `POST /v1.0/api/tenants/{tenantId}/agents/{idOrName}/revisions`
+
+Create the agent's draft, or replace the content of its open draft. The body carries the content fields of `AgentRevision`: `displayName`, `description`, `inputMode`, `inputSchemaJson`, `outputSchemaJson`, `delegationMode`, `delegationMaxDepth`, `delegationAllowRecursion`, `delegationAllowList`, `promptPins` (`role` `ToolDescription` or `SkillDescription`, `templateId`, optional `pinnedVersion`), `capabilities`, `tags`, and `changeNote`. Identity, number, state, and hash are assigned by the server.
+
+| | |
+|---|---|
+| Errors | 400 `ValidationFailed` with fields such as `outputSchemaJson` (`InvalidJsonSchema`), `promptPins[0].templateId`, `changeNote`; 409 `Protected` for a protected built-in agent |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/researcher/revisions" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"description": "Researches one source and writes notes", "delegationMode": "None", "changeNote": "Narrower task"}'
+```
+
+```json
+{
+  "id": "arv_...",
+  "agentId": "agt_...",
+  "number": 2,
+  "state": "Draft",
+  "contentHash": "4f1c...",
+  "description": "Researches one source and writes notes",
+  "inputMode": "Text",
+  "delegationMode": "None",
+  "delegationMaxDepth": 2,
+  "delegationAllowRecursion": false,
+  "delegationAllowList": [],
+  "promptPins": [],
+  "capabilities": [],
+  "tags": [],
+  "authorName": "admin@garrison",
+  "changeNote": "Narrower task",
+  "createdUtc": "2026-11-02T10:00:00Z",
+  "lastUpdateUtc": "2026-11-02T10:00:00Z"
+}
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/agents/{idOrName}/revisions/{revIdOrNumber}/publish`
+
+Publish a draft. Optional body `{"changeNote": "..."}` (at most 2000 characters) replaces the draft's note. The revision becomes the agent's latest published revision, and its content is copied onto the agent.
+
+| | |
+|---|---|
+| Errors | 409 `RevisionUnchanged` when the content equals the latest published revision; 409 `RevisionPublished` when the revision is already published |
+
+#### `GET /v1.0/api/tenants/{tenantId}/agents/{idOrName}/revisions/diff`
+
+`from` and `to` take identifiers or numbers. With no `to`, the open draft is used (or the latest published revision when there is no draft); with no `from`, the published revision before `to`. The response lists `changes`: `field`, `changeType` (`Changed`, `Added`, `Removed`), `from`, and `to`.
+
+```json
+{
+  "agentId": "agt_...",
+  "fromNumber": 1,
+  "toNumber": 2,
+  "identical": false,
+  "changes": [
+    { "field": "description", "changeType": "Changed", "from": "Researches a topic", "to": "Researches one source and writes notes" },
+    { "field": "delegationAllowList", "changeType": "Removed", "from": "researcher", "to": null }
+  ]
+}
+```
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/agents/{idOrName}/revisions/{revIdOrNumber}`
+
+Discard the open draft. A published revision answers 409 `RevisionPublished`.
+
+### Agent assets
+
+Versioned skills, reference files, document templates, and system prompts (AD2). [docs/ASSETS.md](docs/ASSETS.md) explains kinds, storage, limits, placement, and integrity checking.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /agent-assets?kind=&search=` | Read on `AgentAsset` | `EnumerationResult<AgentAsset>`, 200 |
+| `POST /agent-assets` | Create on `AgentAsset` | `AgentAsset`, 201 |
+| `GET /agent-assets/{idOrName}` | Read on `AgentAsset` | `AgentAsset`, 200 |
+| `PUT /agent-assets/{idOrName}` | Update on `AgentAsset` | `AgentAsset`, 200 |
+| `DELETE /agent-assets/{idOrName}` | Delete on `AgentAsset` | Empty, 204 |
+| `GET /agent-assets/{idOrName}/versions` | Read on `AgentAsset` | `AgentAssetVersion[]`, newest first, 200 |
+| `POST /agent-assets/{idOrName}/versions` | Create on `AgentAsset` | `AgentAssetVersion`, 201 (200 when the files equal the current version) |
+| `GET /agent-assets/{idOrName}/versions/{number}` | Read on `AgentAsset` | `AgentAssetVersion`, 200 |
+| `GET /agent-assets/{idOrName}/versions/{number}/files?path=` | Read on `AgentAsset` | The file's bytes with its media type, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Another tenant's assets answer 404. Workers download asset files for a leased run from `GET /v1.0/asset-download/{assetId}?ticket=`, with a download-only ticket the spec carries; it opens exactly one file.
+
+#### `POST /v1.0/api/tenants/{tenantId}/agent-assets`
+
+Body: `name`, `kind` (`SystemPrompt`, `Skill`, `ReferenceFile`, `DocumentTemplate`), optional `description`, `tags`, `promptTemplateId` (required for and only for `SystemPrompt`), and `artifactStoreId` (default: the Garrison database).
+
+| | |
+|---|---|
+| Errors | 400 `AssetTemplateRequired`, `ValidationFailed` (name, `promptTemplateId`, `artifactStoreId`); 409 `NameConflict` |
+
+#### `PUT /v1.0/api/tenants/{tenantId}/agent-assets/{idOrName}`
+
+Replaces name, description, tags, and prompt template. Answers 409 `AssetKindImmutable` when the kind changes and 409 `AssetStoreImmutable` when the store changes on an asset with versions.
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/agent-assets/{idOrName}`
+
+Deletes the asset, its versions, and its content. Answers 409 `AssetInUse`, naming the agents, while any revision pins it.
+
+#### `POST /v1.0/api/tenants/{tenantId}/agent-assets/{idOrName}/versions`
+
+A JSON body lists every file of the new version:
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agent-assets/citation-style/versions" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"changeNote": "Author-date", "files": [{"path": "SKILL.md", "mediaType": "text/markdown", "contentBase64": "IyBDaXRhdGlvbnMK"}]}'
+```
+
+```json
+{
+  "id": "aav_...",
+  "assetId": "aas_...",
+  "number": 1,
+  "totalBytes": 12,
+  "authorName": "admin@garrison",
+  "changeNote": "Author-date",
+  "files": [
+    { "path": "SKILL.md", "mediaType": "text/markdown", "sizeBytes": 12, "sha256": "6c1f...", "storageKey": ".garrison-assets/3b2a.../aas_.../6c1f..." }
+  ],
+  "createdUtc": "2026-11-03T09:00:00Z"
+}
+```
+
+A single file can be sent as raw bytes with `Content-Type: application/octet-stream` and the query parameters `path`, optional `mediaType`, and optional `changeNote`. A media type left out is guessed from the extension.
+
+| | |
+|---|---|
+| Errors | 400 `AssetHasNoFiles` (SystemPrompt assets), field codes `InvalidAssetPath`, `MacroFormatRefused`; 413 `AssetFileTooLarge` (`Assets.MaxFileBytes`), `AssetVersionTooLarge` (`Assets.MaxVersionBytes`), `AssetTooManyFiles` (`Assets.MaxFilesPerVersion`) |
+
+Agent revisions pin assets in `assetPins` (`assetId` as an identifier or name, optional `version`); see [Agent revisions](#agent-revisions).
+
+### Environments and promotions
+
+Environments are labels on deployments (AD1.3); a tenant without a stored list uses `dev`, `staging`, `prod`. A deployment's `environment` defaults to `dev`, and its optional `agentRevisionId` pins a published revision (400 field codes `UnknownEnvironment` and `UnknownRevision`). Promotion repins every deployment of an agent in the next environment in one transaction, and rollback restores the exact previous pins. See [docs/REVISIONS.md](docs/REVISIONS.md).
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /environments` | Read on `Deployment` | `TenantEnvironmentList`, 200 |
+| `PUT /environments` | Update on `Tenant` | `TenantEnvironmentList`, 200 |
+| `GET /promotions?agentId=&appId=` | Read on `Promotion` | `EnumerationResult<PromotionRecord>`, newest first, 200 |
+| `POST /promotions` | Execute on `Promotion` for the target environment | `PromotionRecord`, 201 |
+| `GET /promotions/{id}` | Read on `Promotion` | `PromotionRecord`, 200 |
+| `POST /promotions/{id}/rollback` | Execute on `Promotion` for the promotion's target environment | `PromotionRecord` of kind `Rollback`, 201 |
+
+#### `PUT /v1.0/api/tenants/{tenantId}/environments`
+
+```bash
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/environments" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"environments": [{"name": "dev"}, {"name": "staging"}, {"name": "prod"}]}'
+```
+
+| | |
+|---|---|
+| Errors | 400 `ValidationFailed` (1 to 16 environments; names are 1 to 32 lowercase letters, digits, and hyphens starting with a letter; `draft` is reserved); 409 `EnvironmentInUse` when a removed environment still has deployments |
+
+#### `POST /v1.0/api/tenants/{tenantId}/promotions`
+
+Body: `agentId` (identifier or name), `sourceEnvironment`, optional `targetEnvironment` (default: the next environment), optional `agentRevisionId` (default: what the source environment runs), `allowSkip` (default false), and `note`.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/promotions" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"agentId": "researcher", "sourceEnvironment": "staging"}'
+```
+
+```json
+{
+  "id": "pro_...",
+  "kind": "Promote",
+  "outcome": "Applied",
+  "agentId": "agt_...",
+  "agentRevisionId": "arv_...",
+  "sourceEnvironment": "staging",
+  "targetEnvironment": "prod",
+  "skippedEnvironments": false,
+  "actorType": "User",
+  "actorName": "admin@garrison",
+  "items": [
+    { "deploymentId": "dep_...", "deploymentName": "researcher-prod", "agentId": "agt_...", "previousRevisionId": "arv_...", "newRevisionId": "arv_..." }
+  ],
+  "createdUtc": "2026-11-02T10:05:00Z"
+}
+```
+
+| | |
+|---|---|
+| Errors | 400 `UnknownEnvironment`, `NoNextEnvironment`; 403 without Execute on `Promotion` for the target; 404 for an unknown agent or revision; 409 `PromotionOrderViolation`, `RevisionNotPublished`, `NoSourceRevision`, `AmbiguousSourceRevision`, `NoTargetDeployments` |
+
+#### `POST /v1.0/api/tenants/{tenantId}/promotions/{id}/rollback`
+
+Optional body `{"note": "..."}`. Answers 409 `AlreadyRolledBack` or `NotAPromotion`.
+
 ### Notification endpoints
 
 A notification endpoint (P12.14) receives a signed JSON POST when a subscribed run, pipeline, or approval event happens in the tenant. Delivery is asynchronous and at least once, with retries and exponential backoff, and every attempt is checked against the SSRF rules. [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) explains events, the payload, verification, retries, and the SSRF rules.

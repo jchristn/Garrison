@@ -308,6 +308,19 @@ namespace Garrison.Core.Database.Ado
                 "PRIMARY KEY (tenantid,runid,operation)");
             migrations.Add(new SchemaMigration(34, "Exact scoped per-run database attribution", v34._Statements, v34._Columns));
 
+            // AD1: agent revisions with their child lists, tenant environment lists, promotion records, deployment
+            // revision pins and environment labels, and the revision a run compiled from. Revision 1 of every existing
+            // agent is written by the driver after migration, because its content hash is computed in code.
+            SchemaBuilder v35 = new SchemaBuilder(catalog, dialect);
+            v35.BuildVersion35();
+            migrations.Add(new SchemaMigration(35, "Agent revisions, environments, and promotions", v35._Statements, v35._Columns));
+
+            // AD2: agent assets with versions and per-file rows, database-held asset content, revision asset pins, and
+            // harness asset placements.
+            SchemaBuilder v36 = new SchemaBuilder(catalog, dialect);
+            v36.BuildVersion36();
+            migrations.Add(new SchemaMigration(36, "Agent assets, asset versions, revision asset pins, and harness asset placements", v36._Statements, v36._Columns));
+
             return migrations;
         }
 
@@ -371,6 +384,179 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion36()
+        {
+            SqlDialect d = _Dialect;
+            string blob = d.DatabaseType == Garrison.Core.Enums.DatabaseTypeEnum.Postgresql ? "BYTEA" : "BLOB";
+            Table("agent_assets",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "kind VARCHAR(32) NOT NULL",
+                "description " + d.TypeText,
+                "prompttemplateid " + d.TypeId,
+                "artifactstoreid " + d.TypeId,
+                "currentversion " + d.TypeInt + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("agent_assets", "name", true, "tenantid", "name");
+            Table("agent_asset_tags",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "assetid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "tag VARCHAR(128) NOT NULL");
+            Index("agent_asset_tags", "parent", false, "assetid", "position");
+            Table("agent_asset_versions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "assetid " + d.TypeId + " NOT NULL",
+                "number " + d.TypeInt + " NOT NULL",
+                "totalbytes " + d.TypeBigInt + " NOT NULL",
+                "authorname VARCHAR(256)",
+                "changenote VARCHAR(2000)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("agent_asset_versions", "number", true, "assetid", "number");
+            Table("agent_asset_version_files",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "versionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "path VARCHAR(512) NOT NULL",
+                "mediatype VARCHAR(256) NOT NULL",
+                "sizebytes " + d.TypeBigInt + " NOT NULL",
+                "sha256 VARCHAR(64) NOT NULL",
+                "storagekey VARCHAR(1024) NOT NULL");
+            Index("agent_asset_version_files", "parent", true, "versionid", "path");
+            Table("agent_asset_blobs",
+                "storagekey VARCHAR(1024) NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "sizebytes " + d.TypeBigInt + " NOT NULL",
+                "content " + blob + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Table("agent_revision_asset_pins",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "assetid " + d.TypeId + " NOT NULL",
+                "version " + d.TypeInt);
+            Index("agent_revision_asset_pins", "parent", false, "revisionid", "position");
+            Index("agent_revision_asset_pins", "asset", false, "tenantid", "assetid");
+            Table("harness_profile_asset_placements",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "harnessprofileid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId,
+                "position " + d.TypeInt + " NOT NULL",
+                "kind VARCHAR(32) NOT NULL",
+                "pathtemplate VARCHAR(512) NOT NULL",
+                "listinsystemprompt " + d.TypeBool + " NOT NULL");
+            Index("harness_profile_asset_placements", "parent", false, "harnessprofileid", "position");
+        }
+
+        private void BuildVersion35()
+        {
+            SqlDialect d = _Dialect;
+            Table("agent_revisions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "number " + d.TypeInt + " NOT NULL",
+                "state VARCHAR(16) NOT NULL",
+                "contenthash VARCHAR(64) NOT NULL",
+                "displayname VARCHAR(256)",
+                "description " + d.TypeText,
+                "inputmode VARCHAR(64) NOT NULL",
+                "inputschemajson " + d.TypeText,
+                "outputschemajson " + d.TypeText,
+                "delegationmode VARCHAR(64) NOT NULL",
+                "delegationmaxdepth " + d.TypeInt + " NOT NULL",
+                "delegationallowrecursion " + d.TypeBool + " NOT NULL",
+                "authoruserid " + d.TypeId,
+                "authorname VARCHAR(256)",
+                "changenote VARCHAR(2000)",
+                "publishedbyuserid " + d.TypeId,
+                "publishedbyname VARCHAR(256)",
+                "publishedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("agent_revisions", "number", true, "agentid", "number");
+            Index("agent_revisions", "tenant", false, "tenantid", "agentid");
+            Table("agent_revision_prompt_pins",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "role VARCHAR(64) NOT NULL",
+                "templateid " + d.TypeId + " NOT NULL",
+                "pinnedversion " + d.TypeInt);
+            Index("agent_revision_prompt_pins", "parent", false, "revisionid", "position");
+            Table("agent_revision_allowlist",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "agentname VARCHAR(128) NOT NULL");
+            Index("agent_revision_allowlist", "parent", false, "revisionid", "position");
+            Table("agent_revision_capabilities",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "capability VARCHAR(256) NOT NULL");
+            Index("agent_revision_capabilities", "parent", false, "revisionid", "position");
+            Table("agent_revision_tags",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "tag VARCHAR(128) NOT NULL");
+            Index("agent_revision_tags", "parent", false, "revisionid", "position");
+            Column("agents", "latestpublishedrevisionid", d.TypeId);
+            Column("agents", "draftrevisionid", d.TypeId);
+            Column("deployments", "agentrevisionid", d.TypeId);
+            Column("deployments", "environment", "VARCHAR(32) NOT NULL DEFAULT 'dev'");
+            Column("runs", "agentrevisionid", d.TypeId);
+            Index("deployments", "environment", false, "tenantid", "environment");
+            Table("tenant_environments",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(32) NOT NULL",
+                "description VARCHAR(1000)",
+                "position " + d.TypeInt + " NOT NULL");
+            Index("tenant_environments", "name", true, "tenantid", "name");
+            Table("promotion_records",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "kind VARCHAR(16) NOT NULL",
+                "outcome VARCHAR(16) NOT NULL",
+                "agentid " + d.TypeId,
+                "appid " + d.TypeId,
+                "apprevisionid " + d.TypeId,
+                "agentrevisionid " + d.TypeId,
+                "sourceenvironment VARCHAR(32) NOT NULL",
+                "targetenvironment VARCHAR(32) NOT NULL",
+                "skippedenvironments " + d.TypeBool + " NOT NULL",
+                "rollbackofid " + d.TypeId,
+                "rolledbackbyid " + d.TypeId,
+                "actortype VARCHAR(32) NOT NULL",
+                "actorid VARCHAR(128)",
+                "actorname VARCHAR(256)",
+                "note VARCHAR(2000)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("promotion_records", "tenant", false, "tenantid", "createdutc");
+            Table("promotion_record_items",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "promotionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "deploymentid " + d.TypeId + " NOT NULL",
+                "deploymentname VARCHAR(128) NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "previousrevisionid " + d.TypeId,
+                "newrevisionid " + d.TypeId);
+            Index("promotion_record_items", "parent", false, "promotionid", "position");
         }
 
         private void BuildVersion30()

@@ -42,9 +42,29 @@ namespace Garrison.Worker.Execution
         #region Public-Methods
 
         /// <inheritdoc />
-        public Task<RunCompleteRequest> ExecuteAsync(RunAssignment assignment, IRunReporter reporter, CancellationToken token)
+        public async Task<RunCompleteRequest> ExecuteAsync(RunAssignment assignment, IRunReporter reporter, CancellationToken token)
         {
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
+            if (assignment.Spec != null && assignment.Spec.AssetFiles.Count > 0)
+            {
+                // AD2.4: assets are fetched and verified here, before either executor starts, so a tampered or missing
+                // file never reaches the harness.
+                string? failure = await AssetFetcher.MaterializeAsync(assignment.Spec, token).ConfigureAwait(false);
+                if (failure != null)
+                {
+                    RunCompleteRequest integrity = new RunCompleteRequest();
+                    integrity.Status = RunStatusEnum.Failed;
+                    integrity.Outcome = RunOutcomeEnum.AssetIntegrityFailed;
+                    integrity.ErrorMessage = failure;
+                    integrity.CompletedUtc = DateTime.UtcNow;
+                    return integrity;
+                }
+            }
+            return await DispatchAsync(assignment, reporter, token).ConfigureAwait(false);
+        }
+
+        private Task<RunCompleteRequest> DispatchAsync(RunAssignment assignment, IRunReporter reporter, CancellationToken token)
+        {
             RunExecutorEnum executor = assignment.Spec?.Executor ?? RunExecutorEnum.Process;
             if (executor == RunExecutorEnum.Process && assignment.Spec != null && assignment.Spec.EgressRules.Count > 0)
             {

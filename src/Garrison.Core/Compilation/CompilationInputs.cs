@@ -25,6 +25,16 @@ namespace Garrison.Core.Compilation
         public Agent Agent { get; set; } = new Agent();
 
         /// <summary>
+        /// Agent revision whose content was applied to <see cref="Agent"/> (AD1.3), or null when the agent has none.
+        /// </summary>
+        public AgentRevision? AgentRevision { get; set; } = null;
+
+        /// <summary>
+        /// Asset versions the agent revision pins (AD2.4), excluding SystemPrompt assets, which become the System prompt.
+        /// </summary>
+        public List<CompilationAsset> Assets { get; set; } = new List<CompilationAsset>();
+
+        /// <summary>
         /// Harness profile.
         /// </summary>
         public HarnessProfile Profile { get; set; } = new HarnessProfile();

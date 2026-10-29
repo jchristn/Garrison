@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import base64
 import json
 import secrets
 import time
@@ -183,6 +184,149 @@ class MasterKeyRotationResponse(TypedDict):
     failed: int
 
 
+class PromptPin(TypedDict):
+    """AgentRevision["promptPins"] item: a prompt template pinned to a version for one role."""
+    role: str
+    templateId: str
+    pinnedVersion: int
+
+
+class AssetPin(TypedDict, total=False):
+    """AgentRevision["assetPins"] item: an agent asset pinned to a version, or to its current version when version is None."""
+    assetId: str
+    version: Optional[int]
+
+
+class AgentAsset(TypedDict, total=False):
+    """A versioned agent asset. kind is one of AGENT_ASSET_KINDS; promptTemplateId is required for SystemPrompt assets;
+    artifactStoreId None stores files in the Garrison database; currentVersion 0 means no version yet."""
+    id: str
+    tenantId: str
+    name: str
+    kind: str
+    description: Optional[str]
+    promptTemplateId: Optional[str]
+    artifactStoreId: Optional[str]
+    currentVersion: int
+    tags: List[str]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class AgentAssetFile(TypedDict, total=False):
+    """AgentAssetVersion["files"] item. sha256 is lowercase hex; contentBase64 is only present on upload."""
+    path: str
+    mediaType: Optional[str]
+    sizeBytes: int
+    sha256: str
+    storageKey: str
+    contentBase64: str
+
+
+class AgentAssetVersion(TypedDict, total=False):
+    """An immutable version of an agent asset."""
+    id: str
+    tenantId: str
+    assetId: str
+    number: int
+    totalBytes: int
+    authorName: Optional[str]
+    changeNote: Optional[str]
+    files: List[AgentAssetFile]
+    createdUtc: str
+
+
+class AgentRevision(TypedDict, total=False):
+    """Immutable (Published) or editable (Draft) snapshot of an agent's content. state is one of AGENT_REVISION_STATES."""
+    id: str
+    tenantId: str
+    agentId: str
+    number: int
+    state: str
+    contentHash: str
+    displayName: Optional[str]
+    description: Optional[str]
+    inputMode: str
+    inputSchemaJson: Optional[str]
+    outputSchemaJson: Optional[str]
+    delegationMode: str
+    delegationMaxDepth: int
+    delegationAllowRecursion: bool
+    delegationAllowList: List[str]
+    promptPins: List[PromptPin]
+    assetPins: List[AssetPin]
+    capabilities: List[str]
+    tags: List[str]
+    authorUserId: Optional[str]
+    authorName: Optional[str]
+    changeNote: Optional[str]
+    publishedByUserId: Optional[str]
+    publishedByName: Optional[str]
+    publishedUtc: Optional[str]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+AgentRevisionChange = TypedDict("AgentRevisionChange", {"field": str, "changeType": str, "from": Any, "to": Any})
+AgentRevisionChange.__doc__ = """AgentRevisionDiff["changes"] item. changeType is one of REVISION_CHANGE_TYPES."""
+
+
+class AgentRevisionDiff(TypedDict):
+    """Field-level comparison of two revisions of one agent."""
+    agentId: str
+    fromRevisionId: str
+    fromNumber: int
+    toRevisionId: str
+    toNumber: int
+    identical: bool
+    changes: List[AgentRevisionChange]
+
+
+class TenantEnvironment(TypedDict):
+    """One environment in the tenant's ordered promotion path."""
+    name: str
+    description: Optional[str]
+    position: int
+
+
+class TenantEnvironmentList(TypedDict):
+    """The tenant's environments. isDefault is True when the tenant uses the built-in dev, staging, prod list."""
+    environments: List[TenantEnvironment]
+    isDefault: bool
+
+
+class PromotionItem(TypedDict):
+    """PromotionRecord["items"] item: one deployment whose revision pin changed."""
+    deploymentId: str
+    deploymentName: str
+    agentId: str
+    previousRevisionId: Optional[str]
+    newRevisionId: Optional[str]
+
+
+class PromotionRecord(TypedDict, total=False):
+    """A promotion or rollback. kind is one of PROMOTION_KINDS and outcome one of PROMOTION_OUTCOMES."""
+    id: str
+    tenantId: str
+    kind: str
+    outcome: str
+    agentId: Optional[str]
+    appId: Optional[str]
+    appRevisionId: Optional[str]
+    agentRevisionId: Optional[str]
+    sourceEnvironment: str
+    targetEnvironment: str
+    skippedEnvironments: List[str]
+    rollbackOfId: Optional[str]
+    rolledBackById: Optional[str]
+    actorType: str
+    actorId: Optional[str]
+    actorName: Optional[str]
+    note: Optional[str]
+    items: List[PromotionItem]
+    createdUtc: str
+
+
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
 # Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
@@ -257,6 +401,19 @@ NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed"
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
 WEBHOOK_EVENT_HEADER = "X-Garrison-Event"
+# Agent revisions and environment promotion. Agent["latestPublishedRevisionId"] and ["draftRevisionId"] are read only;
+# Deployment["agentRevisionId"] (None runs the agent's live content) and ["environment"] (default "dev");
+# Run["agentRevisionId"] records the revision a run used. AgentRevision["state"], AgentRevisionDiff change "changeType",
+# PromotionRecord["kind"] and ["outcome"].
+AGENT_REVISION_STATES = ("Draft", "Published")
+REVISION_CHANGE_TYPES = ("Changed", "Added", "Removed")
+PROMOTION_KINDS = ("Promote", "Rollback")
+PROMOTION_OUTCOMES = ("Applied", "RolledBack")
+DEFAULT_ENVIRONMENTS = ("dev", "staging", "prod")
+# Agent assets. AgentAsset["kind"]; a run whose pinned asset file fails its SHA-256 check ends with outcome
+# RUN_OUTCOME_ASSET_INTEGRITY_FAILED.
+AGENT_ASSET_KINDS = ("SystemPrompt", "Skill", "ReferenceFile", "DocumentTemplate")
+RUN_OUTCOME_ASSET_INTEGRITY_FAILED = "AssetIntegrityFailed"
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -439,8 +596,8 @@ class Transport:
             return None
         return response.json()
 
-    def request_bytes(self, path: str) -> bytes:
-        url, data, headers = self._prepare("GET", path, None, None, None)
+    def request_bytes(self, path: str, params: Optional[Dict[str, Any]] = None) -> bytes:
+        url, data, headers = self._prepare("GET", path, params, None, None)
         response = self.session.request("GET", url, data=data, headers=headers, timeout=self.timeout)
         if response.status_code >= 400:
             raise GarrisonError(response.status_code, response.text)
@@ -733,6 +890,131 @@ class Agents(Resource):
 
     def register(self, agent: Dict[str, Any]) -> Dict[str, Any]:
         return self._t.request("POST", self._base() + "/register", body=agent)
+
+    def revisions(self, agent: str, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """List an agent's revisions, newest first, as an enumeration of AgentRevision. agent is an ID or name."""
+        return self._t.request("GET", self._item(agent) + "/revisions", _enum(max_results, skip))
+
+    def get_revision(self, agent: str, revision: Union[str, int]) -> AgentRevision:
+        """Read one revision by arv_ ID or number."""
+        return self._t.request("GET", self._item(agent) + f"/revisions/{_seg(str(revision))}")
+
+    def save_draft(self, agent: str, content: Dict[str, Any]) -> AgentRevision:
+        """Create or replace the agent's single open draft revision (201)."""
+        return self._t.request("POST", self._item(agent) + "/revisions", body=content)
+
+    def delete_revision(self, agent: str, revision: Union[str, int]) -> Any:
+        """Delete a revision (204, returns None)."""
+        return self._t.request("DELETE", self._item(agent) + f"/revisions/{_seg(str(revision))}")
+
+    def publish_revision(self, agent: str, revision: Union[str, int], change_note: Optional[str] = None) -> AgentRevision:
+        """Publish a draft revision, making it immutable."""
+        return self._t.request("POST", self._item(agent) + f"/revisions/{_seg(str(revision))}/publish",
+                               body={"changeNote": change_note})
+
+    def diff_revisions(self, agent: str, from_: Union[str, int], to: Union[str, int]) -> AgentRevisionDiff:
+        """Compare two revisions (IDs or numbers) field by field."""
+        return self._t.request("GET", self._item(agent) + "/revisions/diff", {"from": str(from_), "to": str(to)})
+
+
+class AgentAssets(Resource):
+    """Agent assets: versioned system prompts, skills, reference files, and document templates. Assets are addressed by
+    ID or name; versions by number. delete raises GarrisonError 409 (code AssetInUse) while a revision pins the asset."""
+
+    def list(self, kind: Optional[str] = None, search: Optional[str] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None, ordering: Optional[str] = None) -> Dict[str, Any]:  # type: ignore[override]
+        """List assets as an enumeration of AgentAsset. kind is one of AGENT_ASSET_KINDS."""
+        params = _enum(max_results, skip, ordering, search)
+        params["kind"] = kind
+        return self._t.request("GET", self._base(), params)
+
+    def versions(self, asset: str) -> List[AgentAssetVersion]:
+        """List an asset's versions, newest first (a plain list, not an enumeration)."""
+        return self._t.request("GET", self._item(asset) + "/versions") or []
+
+    def get_version(self, asset: str, number: int) -> AgentAssetVersion:
+        """Read one version by number."""
+        return self._t.request("GET", self._item(asset) + f"/versions/{int(number)}")
+
+    def upload(self, asset: str, files: List[Dict[str, Any]], change_note: Optional[str] = None) -> AgentAssetVersion:
+        """Upload a new version. Each file is {"path", "content" (bytes or str, str is UTF-8 encoded), "mediaType"?}
+        and is base64-encoded here. Identical files return the current version instead of a new one."""
+        encoded = []
+        for item in files:
+            content = item.get("content", b"")
+            data = content.encode("utf-8") if isinstance(content, str) else bytes(content)
+            entry: Dict[str, Any] = {"path": item["path"], "contentBase64": base64.b64encode(data).decode("ascii")}
+            if item.get("mediaType"):
+                entry["mediaType"] = item["mediaType"]
+            encoded.append(entry)
+        body: Dict[str, Any] = {"files": encoded}
+        if change_note is not None:
+            body["changeNote"] = change_note
+        return self._t.request("POST", self._item(asset) + "/versions", body=body)
+
+    def upload_raw(self, asset: str, path: str, content: Union[bytes, str], media_type: Optional[str] = None,
+                   change_note: Optional[str] = None) -> AgentAssetVersion:
+        """Upload a single-file version as raw bytes (str is UTF-8 encoded)."""
+        data = content.encode("utf-8") if isinstance(content, str) else content
+        return self._t.request("POST", self._item(asset) + "/versions",
+                               {"path": path, "mediaType": media_type, "changeNote": change_note},
+                               data, "application/octet-stream")
+
+    def download_file(self, asset: str, number: int, path: str) -> bytes:
+        """Download one file of a version as bytes."""
+        return self._t.request_bytes(self._item(asset) + f"/versions/{int(number)}/files", {"path": path})
+
+
+class Environments:
+    """The tenant's ordered environment list (promotion path)."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def get(self) -> TenantEnvironmentList:
+        return self._t.request("GET", self._t.tenant_path("/environments"))
+
+    def update(self, body: TenantEnvironmentList) -> TenantEnvironmentList:
+        return self._t.request("PUT", self._t.tenant_path("/environments"), body=body)
+
+
+class Promotions:
+    """Promote a published agent revision between environments, and roll promotions back."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _p(self, suffix: str = "") -> str:
+        return self._t.tenant_path("/promotions" + suffix)
+
+    def list(self, agent_id: Optional[str] = None, app_id: Optional[str] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None) -> Dict[str, Any]:
+        """Enumeration of PromotionRecord, optionally filtered by agent or app."""
+        params = _enum(max_results, skip)
+        params.update({"agentId": agent_id, "appId": app_id})
+        return self._t.request("GET", self._p(), params)
+
+    def get(self, id: str) -> PromotionRecord:
+        return self._t.request("GET", self._p(f"/{_seg(id)}"))
+
+    def promote(self, agent_id: str, source_environment: str, target_environment: Optional[str] = None,
+                agent_revision_id: Optional[str] = None, allow_skip: bool = False, note: Optional[str] = None) -> PromotionRecord:
+        """Pin the target environment's deployments of the agent to a published revision (201). The target defaults to the
+        environment after the source; agent_revision_id defaults to the revision the source environment runs (or the
+        latest published one); allow_skip permits jumping over intermediate environments."""
+        body: Dict[str, Any] = {"agentId": agent_id, "sourceEnvironment": source_environment, "allowSkip": allow_skip}
+        if target_environment:
+            body["targetEnvironment"] = target_environment
+        if agent_revision_id:
+            body["agentRevisionId"] = agent_revision_id
+        if note:
+            body["note"] = note
+        return self._t.request("POST", self._p(), body=body)
+
+    def rollback(self, id: str, note: Optional[str] = None) -> PromotionRecord:
+        """Restore the pins a promotion replaced (201). Returns the new Rollback record."""
+        return self._t.request("POST", self._p(f"/{_seg(id)}/rollback"), body={"note": note})
+
 
 
 class Deployments(Resource):
@@ -1226,6 +1508,9 @@ class GarrisonClient:
         self.request_history = RequestHistory(t)
         self.audit = Audit(t)
         self.settings = Settings(t)
+        self.environments = Environments(t)
+        self.promotions = Promotions(t)
+        self.agent_assets = AgentAssets(t, "agent-assets")
 
     @property
     def tenant_id(self) -> Optional[str]:

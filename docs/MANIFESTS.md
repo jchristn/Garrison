@@ -376,6 +376,36 @@ spec:
 
 `kind: PersistentVolume` with `persistentVolumeClaim: <claim>` mounts an existing PersistentVolumeClaim at the workspace path of each run pod, so its contents persist between runs. Only deployments with `executor: KubernetesJob` can use it (see `docs/KUBERNETES.md`, "Pod-per-run executor").
 
+### AgentAsset
+
+```yaml
+apiVersion: garrison/v1
+kind: AgentAsset
+metadata:
+  name: citation-style
+spec:
+  kind: Skill
+  description: How to cite sources
+  tags: [writing]
+  files:
+    - path: SKILL.md
+      content: |
+        # Citations
+        Use author-date.
+    - path: examples/logo.png
+      contentBase64: iVBORw0KGgo...
+```
+
+| Field | Meaning |
+|---|---|
+| `kind` | `SystemPrompt`, `Skill`, `ReferenceFile`, or `DocumentTemplate`. Cannot change on an existing asset |
+| `promptTemplate` | For `SystemPrompt` only, required there (field code `AssetTemplateRequired`) |
+| `artifactStore` | By name. Omit to keep the files in the Garrison database. Cannot change once the asset has versions |
+| `files` | The files of the current version: `path`, optional `mediaType`, and `content` (text), `contentBase64`, or `sha256` (a reference to content the tenant already holds). A changed file list uploads a new version; the same list is unchanged. Omit `files` to leave the versions alone |
+| `changeNote` | Note of a version this document creates |
+
+Export writes text files up to 256 KiB inline and binary files by reference (`sha256`, `sizeBytes`, and a `note`). Applying a reference that the target asset does not already hold fails with `errorCode` `AssetContentMissing`; upload the file there first. See [ASSETS.md](ASSETS.md).
+
 ### Agent
 
 ```yaml
@@ -402,6 +432,20 @@ Agents accept a few shorthands:
 | `delegation.mode`, `delegation.allow`, `delegation.maxDepth`, `delegation.allowRecursion` | `delegationMode`, `delegationAllowList`, `delegationMaxDepth`, `delegationAllowRecursion`. Without `mode`, a non-empty `allow` means `AllowList` and anything else means `None` |
 | `inputSchema`, `outputSchema` as YAML mappings | `inputSchemaJson`, `outputSchemaJson` |
 | `toolDescriptionTemplate`, `skillDescriptionTemplate` | The prompt template, by name |
+
+An agent's content is kept as revisions (see [REVISIONS.md](REVISIONS.md)). Applying an Agent document normally publishes its content as the next revision when it changed. Add a `revision` block to write it as the agent's draft instead, leaving what runs alone until the draft is published:
+
+```yaml
+spec:
+  description: Reviews a change and lists problems, worst first
+  revision:
+    publish: false
+    changeNote: Order findings by severity
+```
+
+An Agent document can also pin assets with `assets: [ { asset: citation-style }, { asset: report-template, version: 2 } ]`. Without an `assets` key the agent keeps its current pins; with one, the next revision carries exactly that list. Export writes the latest published revision's pins, and `followReferences` adds the pinned AgentAsset documents.
+
+With `publish: false`, only the revision content fields (description, display name, schemas, delegation policy, tags, prompt templates) go into the draft; the agent's other fields stay as they are. A new agent is always created with its content as revision 1, published.
 
 Both schemas must be valid JSON Schema documents; one that is not fails the document with field code `InvalidJsonSchema`. An agent with an input schema only accepts input that is a JSON document matching it, on every surface (see "Input schemas" in `REST_API.md`), and the dashboard's Invoke page builds a form from it:
 
@@ -455,6 +499,8 @@ spec:
 | Field | Meaning |
 |---|---|
 | `agent`, `harnessProfile` | By name. Built-in profiles use their `builtin/` names |
+| `environment` | Environment label from the tenant's list (default `dev`; export omits it when `dev`). A name outside the list fails the document with field code `UnknownEnvironment` |
+| `agentRevision` | A published revision number of the agent to pin. Omit it to follow the latest published revision. Numbers keep a bundle portable: in another tenant the number resolves to that tenant's revision. An agent created by the same bundle has only revision 1. An unknown number fails the document with `errorCode` `UnknownRevision` |
 | `prompts` | Role to template name. Append `@<version>` to pin a version (`shouty-task@1`). Roles you leave out get the built-in defaults |
 | `resources.secrets`, `resources.mcpServers` | Bindings with the alias templates use (`{{secret.anthropic}}`) |
 | `workspace`, `artifactStore` | By name |

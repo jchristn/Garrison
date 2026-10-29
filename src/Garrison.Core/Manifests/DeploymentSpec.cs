@@ -16,6 +16,17 @@ namespace Garrison.Core.Manifests
         public string Agent { get; set; } = String.Empty;
 
         /// <summary>
+        /// Environment label (AD1.3). Default dev; omitted from exports when dev.
+        /// </summary>
+        public string? Environment { get; set; } = null;
+
+        /// <summary>
+        /// Agent revision number to pin (AD1.7), or null to follow the agent's latest published revision. Numbers, not
+        /// identifiers, so a bundle applies to another tenant. An agent created by the same bundle has revision 1 only.
+        /// </summary>
+        public int? AgentRevision { get; set; } = null;
+
+        /// <summary>
         /// Harness profile name (tenant or built-in).
         /// </summary>
         public string HarnessProfile { get; set; } = String.Empty;

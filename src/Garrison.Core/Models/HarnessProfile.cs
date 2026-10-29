@@ -371,12 +371,29 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Where this harness expects agent assets (AD2.3), one entry per asset kind. A kind without an entry is placed
+        /// under assets/{{asset.name}} and listed in the system prompt.
+        /// </summary>
+        public List<HarnessAssetPlacement> AssetPlacements
+        {
+            get
+            {
+                return _AssetPlacements;
+            }
+            set
+            {
+                _AssetPlacements = value ?? new List<HarnessAssetPlacement>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
 
         private readonly List<FieldWarning> _ClampWarnings = new List<FieldWarning>();
 
+        private List<HarnessAssetPlacement> _AssetPlacements = new List<HarnessAssetPlacement>();
         private string _Id = IdGenerator.NewHarnessProfileId();
         private string _Name = String.Empty;
         private string _Executable = String.Empty;

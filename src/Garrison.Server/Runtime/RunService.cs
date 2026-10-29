@@ -174,6 +174,9 @@ namespace Garrison.Server.Runtime
             run.AgentName = create.Agent.Name;
             run.DeploymentId = deployment.Id;
             run.DeploymentVersion = deployment.ConfigVersion;
+            // The revision the run compiles from is fixed at creation (AD1.3), so a promotion while it queues does not
+            // change what it runs.
+            if (!remote) run.AgentRevisionId = !String.IsNullOrEmpty(deployment.AgentRevisionId) ? deployment.AgentRevisionId : create.Agent.LatestPublishedRevisionId;
             run.HarnessType = profile.HarnessType;
             run.NodePoolId = deployment.NodePoolId;
             NodePool? pool = !deployment.Executor.HasValue && !String.IsNullOrEmpty(deployment.NodePoolId) ? await _Database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false) : null;

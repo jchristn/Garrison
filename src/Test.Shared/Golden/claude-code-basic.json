@@ -86,6 +86,7 @@
     "scrubValues": [
       "credential-claude_code_basic"
     ],
+    "assetFiles": [],
     "retainForRepair": false,
     "repairAttempt": 0,
     "executor": "Process",

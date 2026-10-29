@@ -16,6 +16,8 @@ namespace Garrison.Core.Compilation
         public string StoreId { get; set; } = String.Empty;
         /// <summary>Explicit workspace-relative globs.</summary>
         public List<string> Globs { get; set; } = new List<string>();
+        /// <summary>Workspace-relative paths never collected, even when a glob matches: the run's placed asset files (AD2, AD-011).</summary>
+        public List<string> ExcludedPaths { get; set; } = new List<string>();
         /// <summary>Maximum bytes per collected file. Default 16 MiB; range 1024 to 256 MiB.</summary>
         public int MaxFileBytes { get { return _MaxFileBytes; } set { _MaxFileBytes = Math.Clamp(value, 1024, 256 * 1024 * 1024); } }
         /// <summary>Maximum aggregate bytes collected per execution. Default 64 MiB; range 1024 to 1 GiB.</summary>

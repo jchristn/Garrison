@@ -75,6 +75,16 @@ namespace Garrison.Sdk.Models
         public string? Description { get; set; } = null;
 
         /// <summary>
+        /// Latest published revision identifier, or null when nothing is published. Read-only.
+        /// </summary>
+        public string? LatestPublishedRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// Open draft revision identifier, or null when there is no draft. Read-only.
+        /// </summary>
+        public string? DraftRevisionId { get; set; } = null;
+
+        /// <summary>
         /// Hosted or remote.
         /// </summary>
         public AgentKindEnum Kind { get; set; } = AgentKindEnum.Hosted;

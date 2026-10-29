@@ -78,6 +78,7 @@
     "scrubValues": [
       "credential-gemini_cli_basic"
     ],
+    "assetFiles": [],
     "retainForRepair": false,
     "repairAttempt": 0,
     "executor": "Process",

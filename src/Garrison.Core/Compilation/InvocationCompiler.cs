@@ -207,7 +207,7 @@ namespace Garrison.Core.Compilation
             if (run.Executor == RunExecutorEnum.RemoteA2A || run.Executor == RunExecutorEnum.RemoteMcp)
                 return await CompileRemoteAsync(run, token).ConfigureAwait(false);
             bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
-            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline, run.AgentRevisionId).ConfigureAwait(false);
             await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
@@ -230,7 +230,7 @@ namespace Garrison.Core.Compilation
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (repair == null) throw new ArgumentNullException(nameof(repair));
-            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token, false, null, run.AgentRevisionId).ConfigureAwait(false);
             await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, null, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
@@ -387,7 +387,7 @@ namespace Garrison.Core.Compilation
             return LeaseSecretPreparer.PrepareAsync(secret, run, token);
         }
 
-        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false, CompilationPipeline? pipeline = null)
+        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false, CompilationPipeline? pipeline = null, string? agentRevisionId = null)
         {
             CompilationInputs inputs = new CompilationInputs();
             inputs.Tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
@@ -395,6 +395,14 @@ namespace Garrison.Core.Compilation
                 ?? throw new CompilationException("ReferenceNotFound", "Deployment " + deploymentId + " was not found.");
             inputs.Agent = await _Database.Agents.ReadAsync(tenantId, inputs.Deployment.AgentId, token).ConfigureAwait(false)
                 ?? throw new CompilationException("ReferenceNotFound", "Agent " + inputs.Deployment.AgentId + " referenced by deployment " + inputs.Deployment.Name + " was not found.");
+            // The agent's definition comes from a revision (AD1.3, AD-012): the run's recorded revision, else the
+            // deployment's pin, else the latest published revision.
+            inputs.AgentRevision = await EffectiveAgent.RevisionAsync(_Database, tenantId, inputs.Agent, inputs.Deployment, agentRevisionId, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(agentRevisionId) && inputs.AgentRevision == null)
+            {
+                throw new CompilationException("ReferenceNotFound", "Revision " + agentRevisionId + " of agent " + inputs.Agent.Name + " was not found.");
+            }
+            if (inputs.AgentRevision != null) AgentRevisionContent.ApplyTo(inputs.AgentRevision, inputs.Agent);
             inputs.Profile = await _Database.HarnessProfiles.ReadAsync(tenantId, inputs.Deployment.HarnessProfileId, token).ConfigureAwait(false)
                 ?? throw new CompilationException("ReferenceNotFound", "Harness profile " + inputs.Deployment.HarnessProfileId + " referenced by deployment " + inputs.Deployment.Name + " was not found.");
 
@@ -417,6 +425,8 @@ namespace Garrison.Core.Compilation
                 }
                 inputs.Prompts[binding.Role] = bound;
             }
+
+            if (inputs.AgentRevision != null) await LoadAssetsAsync(tenantId, inputs, token).ConfigureAwait(false);
 
             foreach (DeploymentResourceBinding binding in inputs.Deployment.ResourceBindings)
             {
@@ -632,6 +642,8 @@ namespace Garrison.Core.Compilation
 
             List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled, approvalsEnabled, spec, scrub);
             context.Set("resources", ResourcesContext(inputs, servers));
+            context.Set("assets", AssetsContext(inputs, spec));
+            if (spec.Artifacts != null) spec.Artifacts.ExcludedPaths = spec.AssetFiles.Select(a => a.Path).ToList();
 
             Func<string, string?> includes = name => inputs.Includes.TryGetValue(name, out BoundPrompt? include) ? include.Content : null;
             HashSet<string> usedIncludes = new HashSet<string>(StringComparer.Ordinal);
@@ -970,6 +982,84 @@ namespace Garrison.Core.Compilation
                 inputs.Includes[name] = include;
                 Scan(template.Content);
             }
+        }
+
+        private async Task LoadAssetsAsync(string tenantId, CompilationInputs inputs, CancellationToken token)
+        {
+            // AD2.4: a SystemPrompt asset becomes the System prompt; the other kinds are placed into the workspace.
+            foreach (AgentRevisionAssetPin pin in inputs.AgentRevision!.AssetPins)
+            {
+                AgentAsset asset = await _Database.AgentAssets.ReadAsync(tenantId, pin.AssetId, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Asset " + pin.AssetId + " pinned by agent " + inputs.Agent.Name + " was not found.");
+                if (asset.Kind == AgentAssetKindEnum.SystemPrompt)
+                {
+                    PromptTemplate template = await _Database.PromptTemplates.ReadAsync(tenantId, asset.PromptTemplateId ?? String.Empty, token).ConfigureAwait(false)
+                        ?? throw new CompilationException("ReferenceNotFound", "Prompt template of system prompt asset " + asset.Name + " was not found.");
+                    BoundPrompt bound = new BoundPrompt();
+                    bound.Role = "System";
+                    bound.TemplateId = template.Id;
+                    bound.TemplateName = template.Name;
+                    bound.Version = template.CurrentVersion;
+                    bound.Content = template.Content;
+                    if (pin.Version.HasValue && pin.Version.Value != template.CurrentVersion)
+                    {
+                        PromptTemplateVersion version = await _Database.PromptTemplateVersions.ReadByVersionAsync(template.Id, pin.Version.Value, token).ConfigureAwait(false)
+                            ?? throw new CompilationException("ReferenceNotFound", "Version " + pin.Version.Value + " of prompt template " + template.Name + " (asset " + asset.Name + ") was not found.");
+                        bound.Version = version.Version;
+                        bound.Content = version.Content;
+                    }
+                    inputs.Prompts["System"] = bound;
+                    continue;
+                }
+                int number = pin.Version ?? asset.CurrentVersion;
+                if (number < 1) throw new CompilationException("AssetHasNoVersions", "Asset " + asset.Name + " pinned by agent " + inputs.Agent.Name + " has no uploaded version.");
+                AgentAssetVersion assetVersion = await _Database.AgentAssets.ReadVersionAsync(tenantId, asset.Id, number, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Version " + number + " of asset " + asset.Name + " was not found.");
+                inputs.Assets.Add(new CompilationAsset { Asset = asset, Version = assetVersion });
+            }
+        }
+
+        private static Dictionary<string, object?> AssetsContext(CompilationInputs inputs, ExecutionSpec spec)
+        {
+            List<object?> listed = new List<object?>();
+            foreach (CompilationAsset placed in inputs.Assets)
+            {
+                HarnessAssetPlacement placement = inputs.Profile.AssetPlacements.FirstOrDefault(p => p.Kind == placed.Asset.Kind)
+                    ?? new HarnessAssetPlacement { Kind = placed.Asset.Kind, PathTemplate = "assets/{{asset.name}}", ListInSystemPrompt = true };
+                string directory = placement.PathTemplate.Replace("{{asset.name}}", placed.Asset.Name, StringComparison.Ordinal).Trim('/');
+                if (directory.Length == 0 || directory.StartsWith("/", StringComparison.Ordinal) || directory.Contains('\\') || directory.Split('/').Any(segment => segment.Length == 0 || segment == "." || segment == ".."))
+                {
+                    throw new CompilationException("InvalidAssetPlacement", "Harness profile " + inputs.Profile.Name + " places " + placed.Asset.Kind + " assets at '" + placement.PathTemplate + "', which leaves the workspace.");
+                }
+                foreach (AgentAssetFile file in placed.Version.Files)
+                {
+                    ExecutionAssetFile target = new ExecutionAssetFile();
+                    target.AssetId = placed.Asset.Id;
+                    target.AssetName = placed.Asset.Name;
+                    target.Kind = placed.Asset.Kind;
+                    target.Version = placed.Version.Number;
+                    target.Path = directory + "/" + file.Path;
+                    target.MediaType = file.MediaType;
+                    target.SizeBytes = file.SizeBytes;
+                    target.Sha256 = file.Sha256;
+                    spec.AssetFiles.Add(target);
+                }
+                if (!placement.ListInSystemPrompt) continue;
+                Dictionary<string, object?> entry = TemplateContext.NewMap();
+                entry["name"] = placed.Asset.Name;
+                entry["path"] = directory;
+                entry["description"] = placed.Asset.Description;
+                entry["version"] = placed.Version.Number;
+                entry["isSkill"] = placed.Asset.Kind == AgentAssetKindEnum.Skill;
+                entry["isReferenceFile"] = placed.Asset.Kind == AgentAssetKindEnum.ReferenceFile;
+                entry["isDocumentTemplate"] = placed.Asset.Kind == AgentAssetKindEnum.DocumentTemplate;
+                entry["files"] = placed.Version.Files.Select(f => (object?)(directory + "/" + f.Path)).ToList();
+                listed.Add(entry);
+            }
+            Dictionary<string, object?> assets = TemplateContext.NewMap();
+            assets["listed"] = listed;
+            assets["count"] = inputs.Assets.Count;
+            return assets;
         }
 
         private static Dictionary<string, object?> ApprovalContext(Deployment deployment, bool enabled)

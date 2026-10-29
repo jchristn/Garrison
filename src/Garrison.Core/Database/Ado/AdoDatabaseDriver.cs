@@ -145,6 +145,10 @@ namespace Garrison.Core.Database.Ado
             TriggerFires = new AdoTriggerFireMethods(this);
             NotificationEndpoints = new AdoNotificationEndpointMethods(this);
             NotificationDeliveries = new AdoNotificationDeliveryMethods(this);
+            AgentRevisions = new AdoAgentRevisionMethods(this);
+            Environments = new AdoTenantEnvironmentMethods(this);
+            Promotions = new AdoPromotionRecordMethods(this);
+            AgentAssets = new AdoAgentAssetMethods(this);
         }
 
         #endregion
@@ -168,6 +172,10 @@ namespace Garrison.Core.Database.Ado
 
                 if (_Settings.ManageSchema) await ApplyMigrationsAsync(token).ConfigureAwait(false);
                 else await VerifyTablesAsync(token).ConfigureAwait(false);
+
+                // Revision 1 of agents that predate revisions (AD1.1): its content hash is computed in code, so it is
+                // written here rather than by the migration, still under the startup lock.
+                await AgentRevisions.BackfillAsync(token).ConfigureAwait(false);
             }
         }
 

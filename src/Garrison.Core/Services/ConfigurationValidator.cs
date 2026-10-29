@@ -735,6 +735,41 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Check a deployment's environment label against the tenant's environment list (AD1.3, code UnknownEnvironment)
+        /// and its revision pin against the agent's published revisions (code UnknownRevision).
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deployment">Deployment.</param>
+        /// <param name="errors">Field errors to add to.</param>
+        /// <param name="codes">Field codes to add to.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        public static async Task EnvironmentAndRevisionAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, Dictionary<string, string> errors, Dictionary<string, string> codes, CancellationToken token = default)
+        {
+            if (database == null) throw new ArgumentNullException(nameof(database));
+            if (deployment == null) throw new ArgumentNullException(nameof(deployment));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (codes == null) throw new ArgumentNullException(nameof(codes));
+            List<TenantEnvironment> environments = await EnvironmentDefaults.ListAsync(database, tenantId, token).ConfigureAwait(false);
+            if (!environments.Any(e => e.Name == deployment.Environment))
+            {
+                errors["environment"] = "Environment " + deployment.Environment + " is not one of this tenant's environments (" + String.Join(", ", environments.Select(e => e.Name)) + ").";
+                codes["environment"] = "UnknownEnvironment";
+            }
+            if (!String.IsNullOrEmpty(deployment.AgentRevisionId))
+            {
+                AgentRevision? revision = await database.AgentRevisions.ReadAsync(tenantId, deployment.AgentRevisionId, token).ConfigureAwait(false);
+                if (revision == null || revision.AgentId != deployment.AgentId || revision.State != AgentRevisionStateEnum.Published)
+                {
+                    errors["agentRevisionId"] = "Pin a published revision of the deployment's agent.";
+                    codes["agentRevisionId"] = "UnknownRevision";
+                }
+            }
+        }
+
+        /// <summary>
         /// Validate a deployment and its references (plan P2.6.2).
         /// </summary>
         /// <param name="database">Database.</param>
@@ -790,6 +825,7 @@ namespace Garrison.Core.Services
                 : cache != null ? await cache.AgentAsync(deployment.AgentId, token).ConfigureAwait(false)
                 : await database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false);
             if (agent == null) errors["agentId"] = "The agent does not exist in this tenant.";
+            await EnvironmentAndRevisionAsync(database, tenantId, deployment, errors, codes, token).ConfigureAwait(false);
             HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null
                 : cache != null ? await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false)
                 : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);

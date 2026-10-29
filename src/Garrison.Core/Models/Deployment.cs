@@ -73,6 +73,26 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
+        /// Agent revision this deployment runs (AD1.3, AD-012), or null to follow the agent's latest published revision.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// Environment label (AD1.3, AD-013), validated against the tenant's environment list. Default dev.
+        /// </summary>
+        public string Environment
+        {
+            get
+            {
+                return _Environment;
+            }
+            set
+            {
+                _Environment = String.IsNullOrWhiteSpace(value) ? "dev" : value;
+            }
+        }
+
+        /// <summary>
         /// Deployment name, unique per tenant.
         /// </summary>
         public string Name
@@ -601,6 +621,7 @@ namespace Garrison.Core.Models
         private string _Id = IdGenerator.NewDeploymentId();
         private string _TenantId = String.Empty;
         private string _AgentId = String.Empty;
+        private string _Environment = "dev";
         private string _Name = String.Empty;
         private string _HarnessProfileId = String.Empty;
         private int _MaxConcurrentRuns = 0;

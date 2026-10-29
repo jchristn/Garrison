@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -1028,6 +1030,196 @@ func main() {
 		}
 		if garrison.VerifyWebhook(garrison.SignWebhook("whsec_test_secret_value", now-3600, body), "whsec_test_secret_value", body, 0) {
 			return errors.New("stale accepted")
+		}
+		return nil
+	})
+	check("agent revisions and promotion", func(ctx context.Context) error {
+		var agent garrison.Agent
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-rev-" + suffix, Description: "Go SDK revision agent."}, &agent); err != nil {
+			return err
+		}
+		var dev, staging garrison.Deployment
+		defer func() {
+			if staging.ID != "" {
+				_ = client.Deployments.Delete(ctx, staging.ID)
+			}
+			if dev.ID != "" {
+				_ = client.Deployments.Delete(ctx, dev.ID)
+			}
+			_ = client.Agents.Delete(ctx, agent.ID)
+		}()
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-rev-" + suffix + "-dev", AgentID: agent.ID, HarnessProfileID: fakeID}, &dev); err != nil {
+			return err
+		}
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-rev-" + suffix + "-staging", AgentID: agent.ID, HarnessProfileID: fakeID, Environment: "staging"}, &staging); err != nil {
+			return err
+		}
+		if staging.Environment != "staging" || staging.AgentRevisionID != nil {
+			return fmt.Errorf("staging deployment fields %q", staging.Environment)
+		}
+		draft, err := client.Agents.SaveDraft(ctx, agent.ID, garrison.AgentRevision{Description: "Go SDK revision agent, revised."})
+		if err != nil {
+			return err
+		}
+		if draft.State != garrison.AgentRevisionStateDraft {
+			return fmt.Errorf("draft state %s", draft.State)
+		}
+		published, err := client.Agents.PublishRevision(ctx, agent.ID, draft.ID, "Go SDK harness")
+		if err != nil {
+			return err
+		}
+		if published.State != garrison.AgentRevisionStatePublished || published.ID != draft.ID {
+			return fmt.Errorf("published state %s", published.State)
+		}
+		revisions, err := client.Agents.ListRevisions(ctx, agent.ID, nil)
+		if err != nil {
+			return err
+		}
+		if len(revisions.Objects) == 0 || revisions.Objects[0].ID != published.ID {
+			return errors.New("revision list")
+		}
+		promotion, err := client.Promotions.Promote(ctx, garrison.PromotionRequest{AgentID: agent.ID, SourceEnvironment: "dev"})
+		if err != nil {
+			return err
+		}
+		if promotion.TargetEnvironment != "staging" || promotion.Kind != garrison.PromotionKindPromote {
+			return fmt.Errorf("promotion target %s", promotion.TargetEnvironment)
+		}
+		if err := client.Deployments.Get(ctx, staging.ID, &staging); err != nil {
+			return err
+		}
+		if staging.AgentRevisionID == nil || *staging.AgentRevisionID != published.ID {
+			return errors.New("staging not pinned to the published revision")
+		}
+		rollback, err := client.Promotions.Rollback(ctx, promotion.ID, "Go SDK harness rollback")
+		if err != nil {
+			return err
+		}
+		if rollback.Kind != garrison.PromotionKindRollback {
+			return fmt.Errorf("rollback kind %s", rollback.Kind)
+		}
+		staging = garrison.Deployment{ID: staging.ID}
+		if err := client.Deployments.Get(ctx, staging.ID, &staging); err != nil {
+			return err
+		}
+		if staging.AgentRevisionID != nil && *staging.AgentRevisionID != "" {
+			return errors.New("staging pin not restored")
+		}
+		envs, err := client.Environments.Get(ctx)
+		if err != nil {
+			return err
+		}
+		names := make([]string, 0, len(envs.Environments))
+		for _, e := range envs.Environments {
+			names = append(names, e.Name)
+		}
+		if strings.Join(names, ",") != "dev,staging,prod" {
+			return fmt.Errorf("environments %v", names)
+		}
+		return nil
+	})
+	check("agent assets", func(ctx context.Context) error {
+		asset, err := client.AgentAssets.Create(ctx, garrison.AgentAsset{Name: "sdk-go-asset-" + suffix, Kind: garrison.AgentAssetKindSkill})
+		if err != nil {
+			return err
+		}
+		var agent garrison.Agent
+		defer func() {
+			if agent.ID != "" {
+				_ = client.Agents.Delete(ctx, agent.ID)
+			}
+			_ = client.AgentAssets.Delete(ctx, asset.ID)
+		}()
+		if asset.Kind != garrison.AgentAssetKindSkill || asset.CurrentVersion != 0 {
+			return fmt.Errorf("asset kind %s version %d", asset.Kind, asset.CurrentVersion)
+		}
+		content := []byte("# SDK skill\n\nCreated by the Go SDK harness.\n")
+		sum := sha256.Sum256(content)
+		expected := hex.EncodeToString(sum[:])
+		files := []garrison.AgentAssetUpload{{Path: "SKILL.md", Content: content, MediaType: "text/markdown"}}
+		first, err := client.AgentAssets.UploadVersion(ctx, asset.ID, files, "Go SDK harness")
+		if err != nil {
+			return err
+		}
+		if first.Number != 1 {
+			return fmt.Errorf("first version %d", first.Number)
+		}
+		found := false
+		for _, f := range first.Files {
+			if f.Path == "SKILL.md" && strings.EqualFold(f.SHA256, expected) {
+				found = true
+			}
+		}
+		if !found {
+			return errors.New("uploaded file sha256 does not match")
+		}
+		again, err := client.AgentAssets.UploadVersion(ctx, asset.ID, files, "Go SDK harness")
+		if err != nil {
+			return err
+		}
+		if again.Number != 1 {
+			return fmt.Errorf("identical upload returned version %d", again.Number)
+		}
+		downloaded, err := client.AgentAssets.DownloadFile(ctx, asset.ID, 1, "SKILL.md")
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(downloaded, content) {
+			return errors.New("downloaded bytes differ")
+		}
+		versions, err := client.AgentAssets.ListVersions(ctx, asset.ID)
+		if err != nil {
+			return err
+		}
+		if len(versions) == 0 || versions[0].Number != 1 {
+			return errors.New("version list")
+		}
+		if _, err := client.AgentAssets.GetVersion(ctx, asset.ID, 1); err != nil {
+			return err
+		}
+		listed, err := client.AgentAssets.List(ctx, garrison.AgentAssetKindSkill, &garrison.ListOptions{Search: asset.Name})
+		if err != nil {
+			return err
+		}
+		inList := false
+		for _, a := range listed.Objects {
+			if a.ID == asset.ID {
+				inList = true
+			}
+		}
+		if !inList {
+			return errors.New("asset not listed")
+		}
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-asset-agent-" + suffix, Description: "Go SDK asset pin agent."}, &agent); err != nil {
+			return err
+		}
+		draft, err := client.Agents.SaveDraft(ctx, agent.ID, garrison.AgentRevision{Description: "Pins an asset.", AssetPins: []garrison.AgentRevisionAssetPin{{AssetID: asset.ID}}})
+		if err != nil {
+			return err
+		}
+		published, err := client.Agents.PublishRevision(ctx, agent.ID, draft.ID, "Go SDK harness")
+		if err != nil {
+			return err
+		}
+		pinned := false
+		for _, p := range published.AssetPins {
+			if p.AssetID == asset.ID {
+				pinned = true
+			}
+		}
+		if !pinned {
+			return fmt.Errorf("published assetPins %v", published.AssetPins)
+		}
+		var apiErr *garrison.Error
+		if err := client.AgentAssets.Delete(ctx, asset.ID); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "AssetInUse" {
+			return fmt.Errorf("deleting a pinned asset should fail with 409 AssetInUse, got %v", err)
+		}
+		if err := client.Agents.Delete(ctx, agent.ID); err != nil {
+			return err
+		}
+		agent.ID = ""
+		if err := client.AgentAssets.Delete(ctx, asset.ID); err != nil {
+			return err
 		}
 		return nil
 	})

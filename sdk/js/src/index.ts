@@ -108,6 +108,103 @@ export interface Agent extends Json, WithWarnings {
   inputSchemaJson?: string | null;
   /** JSON Schema text the final output is validated against. */
   outputSchemaJson?: string | null;
+  /** Read-only: newest published revision (arv_ identifier), or null when none was published. */
+  latestPublishedRevisionId?: string | null;
+  /** Read-only: the single open draft revision, or null when there is none. */
+  draftRevisionId?: string | null;
+}
+
+/** Agent revision lifecycle state. */
+export type AgentRevisionState = "Draft" | "Published";
+/** How one field differs between two revisions. */
+export type RevisionChangeType = "Changed" | "Added" | "Removed";
+/** Promotion record kind. */
+export type PromotionKind = "Promote" | "Rollback";
+/** Promotion record outcome; RolledBack once a later rollback reversed it. */
+export type PromotionOutcome = "Applied" | "RolledBack";
+
+/** A prompt template pinned by a revision. pinnedVersion null follows the latest template version. */
+export interface AgentRevisionPromptPin { role: string; templateId: string; pinnedVersion: number | null; }
+
+/** An agent asset pinned by a revision. version null (or omitted) follows the asset's current version. */
+export interface AgentRevisionAssetPin { assetId: string; version?: number | null; }
+
+/** Kind of agent asset. SystemPrompt assets require promptTemplateId. */
+export type AgentAssetKind = "SystemPrompt" | "Skill" | "ReferenceFile" | "DocumentTemplate";
+export const AGENT_ASSET_KINDS: readonly AgentAssetKind[] = ["SystemPrompt", "Skill", "ReferenceFile", "DocumentTemplate"];
+
+/** A versioned agent asset. artifactStoreId null stores files in the Garrison database; currentVersion 0 means none yet. */
+export interface AgentAsset extends Json {
+  id: string; tenantId: string; name: string; kind: AgentAssetKind; description?: string | null;
+  promptTemplateId?: string | null; artifactStoreId?: string | null; currentVersion: number; tags?: string[];
+  createdUtc: string; lastUpdateUtc: string;
+}
+
+/** A file in an asset version. sha256 is lowercase hex; contentBase64 is only present on upload. */
+export interface AgentAssetFile {
+  path: string; mediaType?: string | null; sizeBytes: number; sha256: string; storageKey?: string | null; contentBase64?: string | null;
+}
+
+/** An immutable version of an agent asset. */
+export interface AgentAssetVersion extends Json {
+  id: string; tenantId: string; assetId: string; number: number; totalBytes: number;
+  authorName?: string | null; changeNote?: string | null; files: AgentAssetFile[]; createdUtc: string;
+}
+
+/** One file to upload. String content is UTF-8 encoded. */
+export interface AgentAssetUpload { path: string; content: Uint8Array | string; mediaType?: string; }
+
+/** Immutable (Published) or editable (Draft) snapshot of an agent's content. */
+export interface AgentRevision extends Json {
+  id: string; tenantId: string; agentId: string; number: number; state: AgentRevisionState; contentHash: string;
+  displayName?: string | null; description?: string | null; inputMode?: "Text" | "Structured";
+  inputSchemaJson?: string | null; outputSchemaJson?: string | null;
+  delegationMode?: string; delegationMaxDepth?: number; delegationAllowRecursion?: boolean; delegationAllowList?: string[];
+  promptPins?: AgentRevisionPromptPin[]; assetPins?: AgentRevisionAssetPin[]; capabilities?: string[]; tags?: string[];
+  authorUserId?: string | null; authorName?: string | null; changeNote?: string | null;
+  publishedByUserId?: string | null; publishedByName?: string | null; publishedUtc?: string | null;
+  createdUtc: string; lastUpdateUtc: string;
+}
+
+/** One differing field between two revisions. */
+export interface AgentRevisionChange { field: string; changeType: RevisionChangeType; from?: string | null; to?: string | null; }
+
+/** Field-level comparison of two revisions of one agent. */
+export interface AgentRevisionDiff {
+  agentId: string; fromRevisionId: string; fromNumber: number; toRevisionId: string; toNumber: number;
+  identical: boolean; changes: AgentRevisionChange[];
+}
+
+/** Body of a revision publish. */
+export interface RevisionPublishRequest { changeNote?: string; }
+
+/** One named environment in the tenant's promotion order. */
+export interface TenantEnvironment { name: string; description?: string | null; position: number; }
+
+/** Ordered tenant environments. isDefault is true when the tenant uses the built-in dev, staging, prod list. */
+export interface TenantEnvironmentList { environments: TenantEnvironment[]; isDefault?: boolean; }
+
+/** Promote an agent revision from one environment to another. targetEnvironment defaults to the next environment in order. */
+export interface PromotionRequest {
+  agentId: string; sourceEnvironment: string; targetEnvironment?: string; agentRevisionId?: string; allowSkip?: boolean; note?: string;
+}
+
+/** Body of a promotion rollback. */
+export interface PromotionRollbackRequest { note?: string; }
+
+/** One deployment a promotion re-pinned. Null revision ids mean unpinned (follows the latest published revision). */
+export interface PromotionItem {
+  deploymentId: string; deploymentName: string; agentId: string; previousRevisionId: string | null; newRevisionId: string | null;
+}
+
+/** Audit record of a promotion or rollback. */
+export interface PromotionRecord extends Json {
+  id: string; tenantId: string; kind: PromotionKind; outcome: PromotionOutcome;
+  agentId?: string | null; appId?: string | null; appRevisionId?: string | null; agentRevisionId?: string | null;
+  sourceEnvironment?: string | null; targetEnvironment: string; skippedEnvironments?: boolean;
+  rollbackOfId?: string | null; rolledBackById?: string | null;
+  actorType?: string | null; actorId?: string | null; actorName?: string | null; note?: string | null;
+  items: PromotionItem[]; createdUtc: string;
 }
 
 /** Field codes for input schema failures (GarrisonError.fieldCodes values). */
@@ -221,6 +318,10 @@ export interface Deployment extends Json, WithWarnings {
   /** Opt in to durable suspension on resumable harnesses. */
   suspensionEnabled?: boolean;
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
+  /** Pinned agent revision; null follows the latest published revision (or live agent content when none). */
+  agentRevisionId?: string | null;
+  /** Environment name, default "dev". */
+  environment?: string;
   /** Executor; null uses the node pool's defaultExecutor, then Process. */
   executor?: RunExecutor | null;
   requiredCapabilities?: ExecutorRequirements;
@@ -683,6 +784,8 @@ export interface TenantRequest extends Json { name?: string; schedulingWeight?: 
 
 export interface Run extends Json {
   id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: RunStatus; outcome: string;
+  /** Agent revision the run executed, or null when it ran live agent content. */
+  agentRevisionId?: string | null;
   /** Executor the run needs, resolved when it was created. */
   executor?: RunExecutor;
   requiredCapabilities?: ExecutorRequirements;
@@ -829,13 +932,14 @@ export interface ConversationFilter {
  * output schema, after the one repair attempt or at once when the harness cannot resume. PodFailed means the run pod of a
  * KubernetesJob run failed outside the harness (unschedulable, image pull, OOMKilled, evicted, or no completion).
  * ConversationStateLost means a conversation turn could not resume because its directories were gone on the affinity
- * node and the fallback requeue was not possible.
+ * node and the fallback requeue was not possible. AssetIntegrityFailed means a pinned agent asset file did not match its
+ * recorded SHA-256 digest on the worker.
  */
 export const RUN_OUTCOMES = [
   "None", "Succeeded", "HarnessFailed", "NotInstalled", "NotCredentialed", "McpPreflightFailed", "NodeLost",
   "OutputLimitExceeded", "SchemaValidationFailed", "TimedOut", "Cancelled", "StaleLease", "CompileFailed",
   "WorkspaceFailed", "Rejected", "NoCapableWorker", "InternalError",
-  "RepetitionDetected", "NoProgress", "PodFailed", "ConversationStateLost"
+  "RepetitionDetected", "NoProgress", "PodFailed", "ConversationStateLost", "AssetIntegrityFailed"
 ] as const;
 
 /** One of {@link RUN_OUTCOMES}. */
@@ -1173,8 +1277,8 @@ export class Transport {
     return (text ? JSON.parse(text) : undefined) as T;
   }
 
-  async requestBytes(path: string): Promise<Uint8Array> {
-    return new Uint8Array(await (await this.send("GET", path)).arrayBuffer());
+  async requestBytes(path: string, params?: Record<string, any>): Promise<Uint8Array> {
+    return new Uint8Array(await (await this.send("GET", path, params)).arrayBuffer());
   }
 
   async requestText(method: string, path: string, params?: Record<string, any>, body?: unknown): Promise<string> {
@@ -1256,6 +1360,45 @@ export class Artifacts {
   }
 }
 
+/** Agent assets addressed by identifier or name; versions by number. delete fails with 409 AssetInUse while a revision pins the asset. */
+export class AgentAssets extends Resource<AgentAsset> {
+  /** List assets, optionally filtered by kind. */
+  list(query?: EnumerationQuery & { kind?: AgentAssetKind }): Promise<EnumerationResult<AgentAsset>> { return this.t.request("GET", this.base(), query as any); }
+  /** Versions of an asset, newest first (a plain array). */
+  listVersions(asset: string): Promise<AgentAssetVersion[]> { return this.t.request("GET", this.item(asset) + "/versions"); }
+  /** Read one version by number. */
+  getVersion(asset: string, number: number): Promise<AgentAssetVersion> { return this.t.request("GET", this.item(asset) + `/versions/${number}`); }
+  /** Upload a new version; content is base64-encoded here. Identical files return the current version. */
+  uploadVersion(asset: string, files: AgentAssetUpload[], changeNote?: string): Promise<AgentAssetVersion> {
+    const body = {
+      changeNote,
+      files: files.map((f) => ({ path: f.path, mediaType: f.mediaType, contentBase64: toBase64(typeof f.content === "string" ? new TextEncoder().encode(f.content) : f.content) })),
+    };
+    return this.t.request("POST", this.item(asset) + "/versions", undefined, body);
+  }
+  /** Upload a single-file version as raw bytes. */
+  uploadRaw(asset: string, path: string, content: Uint8Array | string, mediaType?: string, changeNote?: string): Promise<AgentAssetVersion> {
+    const bytes = typeof content === "string" ? new TextEncoder().encode(content) : content;
+    return this.t.request("POST", this.item(asset) + "/versions", { path, mediaType, changeNote }, bytes, "application/octet-stream");
+  }
+  /** Download one file of a version as bytes. */
+  downloadFile(asset: string, number: number, path: string): Promise<Uint8Array> {
+    return this.t.requestBytes(this.item(asset) + `/versions/${number}/files`, { path });
+  }
+}
+
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function toBase64(bytes: Uint8Array): string {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i], b = bytes[i + 1], c = bytes[i + 2];
+    out += BASE64_ALPHABET[a >> 2] + BASE64_ALPHABET[((a & 3) << 4) | ((b ?? 0) >> 4)];
+    out += b === undefined ? "=" : BASE64_ALPHABET[((b & 15) << 2) | ((c ?? 0) >> 6)];
+    out += c === undefined ? "=" : BASE64_ALPHABET[c & 63];
+  }
+  return out;
+}
+
 /** Daily UTC quotas and accounting. Null limits are unlimited; zero disallows usage only when enforcement is enabled. */
 export interface UsageQuota extends Json {
   /** False by default. Limits apply only when this and active are true. */
@@ -1300,6 +1443,50 @@ export class Agents extends Resource<Agent> {
   }
   card(id: string): Promise<Json> { return this.t.request("GET", this.item(id) + "/card"); }
   register(agent: Partial<Agent>): Promise<Agent> { return this.t.request("POST", this.base() + "/register", undefined, agent); }
+  /** Revisions of an agent (identifier or name), newest first. */
+  listRevisions(agent: string, query?: EnumerationQuery): Promise<EnumerationResult<AgentRevision>> {
+    return this.t.request("GET", this.item(agent) + "/revisions", query as any);
+  }
+  /** Create or replace the agent's single open draft revision. */
+  saveDraft(agent: string, content: Partial<AgentRevision> | Json): Promise<AgentRevision> {
+    return this.t.request("POST", this.item(agent) + "/revisions", undefined, content);
+  }
+  /** Read a revision by arv_ identifier or number. */
+  getRevision(agent: string, revision: string | number): Promise<AgentRevision> {
+    return this.t.request("GET", this.item(agent) + `/revisions/${seg(String(revision))}`);
+  }
+  /** Delete a revision (identifier or number). */
+  deleteRevision(agent: string, revision: string | number): Promise<unknown> {
+    return this.t.request("DELETE", this.item(agent) + `/revisions/${seg(String(revision))}`);
+  }
+  /** Publish a draft revision. */
+  publishRevision(agent: string, revision: string | number, request: RevisionPublishRequest = {}): Promise<AgentRevision> {
+    return this.t.request("POST", this.item(agent) + `/revisions/${seg(String(revision))}/publish`, undefined, request);
+  }
+  /** Field-level diff between two revisions (identifiers or numbers). */
+  diffRevisions(agent: string, from: string | number, to: string | number): Promise<AgentRevisionDiff> {
+    return this.t.request("GET", this.item(agent) + "/revisions/diff", { from: String(from), to: String(to) });
+  }
+}
+
+/** Ordered tenant environments used by promotion. */
+export class Environments {
+  constructor(private t: Transport) {}
+  get(): Promise<TenantEnvironmentList> { return this.t.request("GET", this.t.tenantPath("/environments")); }
+  /** Replace the tenant's environment list. */
+  update(list: TenantEnvironmentList): Promise<TenantEnvironmentList> { return this.t.request("PUT", this.t.tenantPath("/environments"), undefined, list); }
+}
+
+/** Promote agent revisions between environments, and roll promotions back. */
+export class Promotions {
+  constructor(private t: Transport) {}
+  private base(): string { return this.t.tenantPath("/promotions"); }
+  list(filter: EnumerationQuery & { agentId?: string; appId?: string } = {}): Promise<EnumerationResult<PromotionRecord>> { return this.t.request("GET", this.base(), filter as any); }
+  get(id: string): Promise<PromotionRecord> { return this.t.request("GET", `${this.base()}/${seg(id)}`); }
+  promote(request: PromotionRequest): Promise<PromotionRecord> { return this.t.request("POST", this.base(), undefined, request); }
+  rollback(id: string, request: PromotionRollbackRequest = {}): Promise<PromotionRecord> {
+    return this.t.request("POST", `${this.base()}/${seg(id)}/rollback`, undefined, request);
+  }
 }
 
 export class Deployments extends Resource<Deployment> {
@@ -1642,6 +1829,9 @@ export class GarrisonClient {
   readonly credentialScopeAssignments: Resource;
   readonly agents: Agents;
   readonly deployments: Deployments;
+  readonly environments: Environments;
+  readonly promotions: Promotions;
+  readonly agentAssets: AgentAssets;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
@@ -1680,6 +1870,9 @@ export class GarrisonClient {
     this.credentialScopeAssignments = new Resource(t, "credential-scope-assignments");
     this.agents = new Agents(t, "agents");
     this.deployments = new Deployments(t, "deployments");
+    this.environments = new Environments(t);
+    this.promotions = new Promotions(t);
+    this.agentAssets = new AgentAssets(t, "agent-assets");
     this.harnessProfiles = new HarnessProfiles(t, "harness-profiles");
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");
