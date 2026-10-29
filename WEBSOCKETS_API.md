@@ -41,6 +41,7 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `nodes` | Read on Node | `nodes` with every node (up to 500) whenever a node's status or active run count changes |
 | `approvals` | Read on Approval in your tenant | `approvals.changed` with the pending count, the pending approvals (newest first, up to 100), and the count of pending pipeline stage reviews, whenever either changes |
 | `fan-out:{fanOutGroupId}` | Read on Run for the group's parent run | `fan-out.status` with the whole group (`FanOutGroupView`) each time its status, a member's status, or its usage changes |
+| `studio-draft:{draftId}` | Read on StudioDraft (a run token: only drafts of the person it works for) | `studio-draft.changed` each time the draft's version or status moves: `draftId`, `version`, `status`, `changed` (items added, edited, or removed: `kind`, `name`, `operation`, `removed`), and the whole `graph` (`StudioGraph`). See [docs/STUDIO.md](docs/STUDIO.md) |
 | `conversation-files:{conversationId}` | Read on Conversation for that conversation | `files.changed` with the files that changed whenever a turn, a delegated child, or a user writes or deletes a file in the conversation's file space |
 | `pipeline-run:{pipelineRunId}` | Read on PipelineRun for that pipeline run | `pipeline-run.status` with the whole pipeline run (stages, stage run summaries, and reviews) each time its status, a stage, a stage run, or a review changes |
 
@@ -96,6 +97,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `approvals.changed` | `pending`, `reviewsPending`, `approvals` |
 | `pipeline-run.status` | `pipelineRun` |
 | `fan-out.status` | `fanOutGroup` |
+| `studio-draft.changed` | `draftId`, `version`, `status`, `changed`, `graph` |
 | `files.changed` | `conversationId`, `fileSpaceId`, `changed` (each `path`, `version`, `deleted`, `sha256`, `sizeBytes`) |
 | `run.event` | `runId`, `event` |
 | `run.status` | `run` |
@@ -105,7 +107,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 |---|---|
 | `InvalidJson` | The message is not a JSON object with a `type` |
 | `AuthenticationRequired` | The token is invalid, or the connection is not authenticated yet |
-| `SubscriptionDenied` | Unknown channel, missing permission, a run, pipeline run, conversation, or fan-out group that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
+| `SubscriptionDenied` | Unknown channel, missing permission, a run, pipeline run, conversation, fan-out group, or studio draft that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
 | `TooManySubscriptions` | The session already holds 64 subscriptions, each of which polls the database. Unsubscribe from one first |
 
 Errors never close the connection.

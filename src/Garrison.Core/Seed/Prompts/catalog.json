@@ -25,5 +25,9 @@
   { "key": "provider-api-config", "kind": "ConfigFile", "description": "Optional provider API harness configuration, compiled from deployment parameters and resolved MCP servers." },
   { "key": "continuation-resume", "kind": "Task", "description": "Resumes a suspended harness session with reviewed permission decisions; configurable per tenant." },
   { "key": "fan-out-gather-result", "kind": "Task", "description": "Renders the summary garrison_gather returns: the group's status and each member's result, error, and files written; configurable per tenant (AD5.6)." },
-  { "key": "continuation-wait", "kind": "Task", "description": "Requests a resumable harness to finish its current turn at a durable approval or child-wait checkpoint." }
+  { "key": "continuation-wait", "kind": "Task", "description": "Requests a resumable harness to finish its current turn at a durable approval or child-wait checkpoint." },
+  { "key": "agent-architect", "kind": "System", "description": "Default system prompt of the agent architect (AD7.6, AD-025): designs agents and apps in studio drafts and asks a person to approve applying them; composed of builtin/agent-architect-design and builtin/agent-architect-runtime. Clone it to change it." },
+  { "key": "agent-architect-guided", "kind": "System", "description": "Guided system prompt of the agent architect for first-time builders (AD7.6, AD-025): one question at a time, with each step explained. Clone it to change it." },
+  { "key": "agent-architect-design", "kind": "Fragment", "description": "Architect instructions for designing agents and apps in a studio draft: items, the app graph, capability choice, validation, and request-apply (AD7.6)." },
+  { "key": "agent-architect-runtime", "kind": "Fragment", "description": "Architect instructions for deployment settings: harness, model, budget, timeouts, approval rules, and environments (AD7.7)." }
 ]

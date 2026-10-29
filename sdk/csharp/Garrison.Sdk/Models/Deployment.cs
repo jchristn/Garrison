@@ -330,6 +330,25 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
+        /// What this deployment's run tokens may do in the management plane. Default None. Drafts lets the agent architect
+        /// edit studio drafts for the person who started the conversation, and never apply them. A deployment of
+        /// agent-architect always gets Drafts.
+        /// </summary>
+        public ManagementAccessEnum ManagementAccess { get; set; } = ManagementAccessEnum.None;
+
+        /// <summary>
+        /// On create only: the architect prompt to bind as this architect deployment's System prompt, by template identifier
+        /// or name. Null binds builtin/agent-architect for a deployment of agent-architect. Null on read; read the choice
+        /// with <see cref="Clients.StudioDraftsClient.GetArchitectPromptAsync"/>.
+        /// </summary>
+        public string? ArchitectPromptTemplateId { get; set; } = null;
+
+        /// <summary>
+        /// On create only: the architect prompt version to pin, or null to follow the template's current version. Minimum 1.
+        /// </summary>
+        public int? ArchitectPromptVersion { get; set; } = null;
+
+        /// <summary>
         /// Configuration version, incremented on every change.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;

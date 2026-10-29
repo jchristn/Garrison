@@ -80,6 +80,8 @@ namespace Garrison.Server.Modules
             _Manifests.AppValidator = (tenantId, app, appId, ct) => context.Get<AgenticAppService>().ValidateForManifestAsync(tenantId, app, appId, ct);
             context.Register(new FileSpaceService(context));
             context.Register(new StudioService(context));
+            context.Register(new ArchitectService(context));
+            context.Register(new PromptTemplateService(context));
         }
 
         /// <inheritdoc />
@@ -106,13 +108,18 @@ namespace Garrison.Server.Modules
             new AppRoutes(context, context.Get<AgenticAppService>()).Register(routes);
             new AppGatewayRoutes(context, context.Get<AppGatewayService>()).Register(routes);
             new FileSpaceRoutes(context, context.Get<FileSpaceService>()).Register(routes);
+            new StudioRoutes(context, context.Get<StudioService>()).Register(routes);
             new ManifestRoutes(context, _Manifests!).Register(routes);
         }
 
         /// <inheritdoc />
-        public Task StartAsync(ServerContext context, CancellationToken token)
+        public async Task StartAsync(ServerContext context, CancellationToken token)
         {
-            return Task.CompletedTask;
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            ArchitectService architect = context.Get<ArchitectService>();
+            IdentityService? identity = context.TryGet<IdentityService>();
+            if (identity != null) identity.TenantCreated = (tenantId, ct) => architect.SeedTenantAsync(tenantId, ct);
+            await architect.SeedAllAsync(token).ConfigureAwait(false);
         }
 
         /// <inheritdoc />

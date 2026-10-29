@@ -168,6 +168,16 @@ namespace Garrison.Core
         public const string BuiltInPrefix = "builtin/";
 
         /// <summary>
+        /// Name of the protected agent architect seeded in every tenant (AD7.6). Manifest export leaves it out like a built-in.
+        /// </summary>
+        public const string ArchitectAgentName = "agent-architect";
+
+        /// <summary>
+        /// Name of the architect's skill asset seeded in every tenant (AD7.6). Manifest export leaves it out like a built-in.
+        /// </summary>
+        public const string ArchitectSkillAssetName = "agent-architect-skills";
+
+        /// <summary>
         /// Identifier of the default tenant seeded on first boot.
         /// </summary>
         public const string DefaultTenantId = "default";

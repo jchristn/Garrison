@@ -6,6 +6,8 @@ namespace Garrison.Server.WebSockets
     using System.Collections.Specialized;
     using System.Linq;
     using System.Net.WebSockets;
+    using System.Security.Cryptography;
+    using System.Text;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -266,8 +268,23 @@ namespace Garrison.Server.WebSockets
                 if (ctx.PrincipalType == PrincipalTypeEnum.Run && ctx.RunId != group.ParentRunId) return "Fan-out group not found.";
                 return null;
             }
+            if (channel.StartsWith("studio-draft:", StringComparison.Ordinal))
+            {
+                // One studio draft (AD7.9): studio-draft.changed with the version, status, changed items, and graph.
+                string draftId = channel.Substring("studio-draft:".Length);
+                AuthorizationDecision drafts = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, draftId, token).ConfigureAwait(false);
+                if (!drafts.Permitted) return drafts.Reason;
+                StudioDraft? draft = String.IsNullOrEmpty(draftId) ? null : await _Context.Database.StudioDrafts.ReadAsync(ctx.TenantId, draftId, token).ConfigureAwait(false);
+                if (draft == null) return "Draft not found.";
+                if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+                {
+                    StudioService.Owner(ctx, out string? owner, out string? _);
+                    if (draft.OwnerUserId != owner) return "Draft not found.";
+                }
+                return null;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, approvals, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, approvals, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -292,6 +309,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("fan-out:", StringComparison.Ordinal)) await PumpFanOutAsync(session, ctx, subscription.Key.Substring("fan-out:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("studio-draft:", StringComparison.Ordinal)) await PumpStudioDraftAsync(session, ctx, subscription.Key.Substring("studio-draft:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -387,6 +405,29 @@ namespace Garrison.Server.WebSockets
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
             await SendAsync(session, sendLock, new { type = "fan-out.status", fanOutGroup = view }, token).ConfigureAwait(false);
+        }
+
+        private async Task PumpStudioDraftAsync(WebSocketSession session, RequestContext ctx, string draftId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            StudioDraft? draft = await _Context.Database.StudioDrafts.ReadAsync(ctx.TenantId!, draftId, token).ConfigureAwait(false);
+            if (draft == null) return;
+            List<string> items = draft.Items.Select(i => i.Kind + "/" + i.Name + "=" + i.Operation + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(i.Document)))).ToList();
+            string fingerprint = draft.Version + "|" + draft.Status + "|" + String.Join(";", items);
+            if (fingerprint == state.Fingerprint) return;
+            bool first = state.Fingerprint == null;
+            string[] previous = (state.Fingerprint ?? String.Empty).Split('|');
+            HashSet<string> before = new HashSet<string>(previous.Length > 2 ? previous[2].Split(';', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>(), StringComparer.Ordinal);
+            HashSet<string> now = new HashSet<string>(items, StringComparer.Ordinal);
+            state.Fingerprint = fingerprint;
+            List<object> changed = draft.Items.Where((i, n) => first || !before.Contains(items[n]))
+                .Select(i => (object)new { kind = i.Kind, name = i.Name, operation = i.Operation.ToString(), removed = false }).ToList();
+            foreach (string gone in before.Where(b => !now.Any(n => n.Substring(0, n.IndexOf('=')) == b.Substring(0, b.IndexOf('=')))))
+            {
+                string key = gone.Substring(0, gone.IndexOf('='));
+                int slash = key.IndexOf('/');
+                changed.Add(new { kind = key.Substring(0, slash), name = key.Substring(slash + 1), operation = (string?)null, removed = true });
+            }
+            await SendAsync(session, sendLock, new { type = "studio-draft.changed", draftId = draft.Id, version = draft.Version, status = draft.Status.ToString(), changed = changed, graph = StudioService.Graph(draft) }, token).ConfigureAwait(false);
         }
 
         private async Task PumpConversationFilesAsync(WebSocketSession session, RequestContext ctx, string conversationId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)

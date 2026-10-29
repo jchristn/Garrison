@@ -532,7 +532,7 @@ namespace Garrison.Server.Runtime
                 DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
                 string? runToken = null;
-                if (agent != null && (AgentMemoryEnabled || agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.SuspensionEnabled || deployment.ArtifactGlobs.Count > 0 || (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && !String.IsNullOrEmpty(deployment.ArtifactStoreId))))))
+                if (agent != null && (AgentMemoryEnabled || agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ManagementAccess == ManagementAccessEnum.Drafts || deployment.ApprovalsEnabled || deployment.SuspensionEnabled || deployment.ArtifactGlobs.Count > 0 || (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && !String.IsNullOrEmpty(deployment.ArtifactStoreId))))))
                 {
                     runToken = await _Authentication.IssueForRunAsync(run, epoch, deadline, token).ConfigureAwait(false);
                 }

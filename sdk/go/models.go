@@ -400,7 +400,15 @@ type Deployment struct {
 	ApprovalTimeoutDecision string `json:"approvalTimeoutDecision,omitempty"`
 	// ApprovalRules are the approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow.
 	ApprovalRules []DeploymentApprovalRule `json:"approvalRules,omitempty"`
-	CreatedUTC    string                   `json:"createdUtc,omitempty"`
+	// ManagementAccess is ManagementAccessNone (the default when empty) or ManagementAccessDrafts, which lets run
+	// tokens edit studio drafts for the person who started the run. Deployments of agent-architect always get Drafts.
+	ManagementAccess string `json:"managementAccess,omitempty"`
+	// ArchitectPromptTemplateID (create only) is the architect prompt to bind, by template identifier or name; nil
+	// binds builtin/agent-architect on a deployment of agent-architect. Read it back with StudioDrafts.ArchitectPrompt.
+	ArchitectPromptTemplateID *string `json:"architectPromptTemplateId,omitempty"`
+	// ArchitectPromptVersion (create only) pins the architect prompt version; nil follows its current version.
+	ArchitectPromptVersion *int   `json:"architectPromptVersion,omitempty"`
+	CreatedUTC             string `json:"createdUtc,omitempty"`
 	// Warnings is set on create and update responses only; see FieldWarning.
 	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
@@ -438,11 +446,13 @@ const (
 )
 
 // Permission approval kinds (Approval.Kind): a Claude Code tool call, a Codex command (evaluated as Bash), or a
-// Codex file change (evaluated as Edit).
+// Codex file change (evaluated as Edit), or DraftApply: applying a studio draft, decided by a person and not tied to
+// a run (RunID and AgentID are empty, and DraftID names the draft).
 const (
 	ApprovalKindTool       = "Tool"
 	ApprovalKindCommand    = "Command"
 	ApprovalKindFileChange = "FileChange"
+	ApprovalKindDraftApply = "DraftApply"
 )
 
 // DeploymentApprovalRule is one approval rule of a deployment. Pattern uses Claude Code rule syntax, for example
@@ -462,16 +472,18 @@ type DeploymentApprovalRule struct {
 // Approval is a permission request a harness relayed to Garrison and its decision. Decision and DecisionSource
 // are nil while Pending; ExpiresUTC is set on approvals waiting for a person.
 type Approval struct {
-	ID               string  `json:"id"`
-	TenantID         string  `json:"tenantId"`
-	RunID            string  `json:"runId"`
-	RootRunID        *string `json:"rootRunId"`
-	AgentID          string  `json:"agentId"`
-	AgentName        string  `json:"agentName"`
-	DeploymentID     string  `json:"deploymentId"`
-	LeaseEpoch       int64   `json:"leaseEpoch"`
-	HarnessType      string  `json:"harnessType"`
-	Kind             string  `json:"kind"`
+	ID           string  `json:"id"`
+	TenantID     string  `json:"tenantId"`
+	RunID        string  `json:"runId"`
+	RootRunID    *string `json:"rootRunId"`
+	AgentID      string  `json:"agentId"`
+	AgentName    string  `json:"agentName"`
+	DeploymentID string  `json:"deploymentId"`
+	LeaseEpoch   int64   `json:"leaseEpoch"`
+	HarnessType  string  `json:"harnessType"`
+	Kind         string  `json:"kind"`
+	// DraftID is the studio draft a DraftApply approval would apply; nil for tool approvals.
+	DraftID          *string `json:"draftId,omitempty"`
 	ToolName         string  `json:"toolName"`
 	ToolCallID       *string `json:"toolCallId"`
 	InputPreview     *string `json:"inputPreview"`

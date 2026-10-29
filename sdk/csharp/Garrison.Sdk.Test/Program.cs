@@ -1320,6 +1320,108 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("studio draft, graph, and approved apply", async () =>
+                {
+                    Agent live = new Agent();
+                    live.Name = "sdk-cs-studio-" + suffix;
+                    live.Description = "C# SDK harness studio member.";
+                    live = await client.Agents.CreateAsync(live, token).ConfigureAwait(false);
+                    string draftAgentName = "sdk-cs-draft-" + suffix;
+                    string appName = "sdk-cs-studio-app-" + suffix;
+                    StudioDraft? draft = null;
+                    try
+                    {
+                        draft = await client.StudioDrafts.CreateAsync(new StudioDraftCreateRequest { Title = "sdk cs studio " + suffix }, token).ConfigureAwait(false);
+                        Require(draft.Id.StartsWith("sdr_", StringComparison.Ordinal) && draft.Status == StudioDraftStatusEnum.Open && draft.Items.Count == 0, "new draft " + draft.Id + " " + draft.Status);
+                        int readVersion = draft.Version;
+                        string document = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: " + draftAgentName + "\n  description: x\nspec:\n  displayName: x\n";
+                        StudioDraft withItem = await client.StudioDrafts.PutItemAsync(draft.Id, "Agent", draftAgentName, readVersion, document, null, token).ConfigureAwait(false);
+                        Require(withItem.Version > readVersion && withItem.Items.Count == 1 && withItem.Items[0].Operation == StudioDraftOperationEnum.Upsert, "item put, version " + withItem.Version);
+
+                        int staleStatus = 0;
+                        string? staleCode = null;
+                        try
+                        {
+                            await client.StudioDrafts.PutItemAsync(draft.Id, "Agent", draftAgentName, readVersion, document, null, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409)
+                        {
+                            staleStatus = e.StatusCode;
+                            staleCode = e.Error?.Code;
+                        }
+                        Require(staleStatus == 409 && staleCode == "DraftVersionConflict", "stale put: " + staleStatus + " " + staleCode);
+
+                        EnumerationResult<StudioDraft> mine = await client.StudioDrafts.ListAsync(true, new EnumerationQuery { Search = draft.Title }, token).ConfigureAwait(false);
+                        Require(mine.Objects.Any(d => d.Id == draft.Id), "draft not listed as mine");
+
+                        StudioGraphOperationRequest add = new StudioGraphOperationRequest();
+                        add.Version = withItem.Version;
+                        add.Operation = StudioGraphOperationEnum.AddMember;
+                        add.App = appName;
+                        add.Agent = live.Name;
+                        StudioGraph graph = await client.StudioDrafts.ApplyGraphOperationAsync(draft.Id, add, token).ConfigureAwait(false);
+                        Require(graph.Nodes.Any(n => n.Kind == "AgenticApp" && n.Name == appName && n.InDraft), "app node missing");
+                        Require(graph.Nodes.Any(n => n.Kind == "Agent" && n.Name == live.Name && n.EntryOf.Contains(appName)), "entry agent node missing");
+                        StudioGraph read = await client.StudioDrafts.GetGraphAsync(draft.Id, token).ConfigureAwait(false);
+                        Require(read.Version == graph.Version && read.Nodes.Count == graph.Nodes.Count, "graph read");
+
+                        StudioDraftDiff diff = await client.StudioDrafts.DiffAsync(draft.Id, token).ConfigureAwait(false);
+                        Require(diff.Valid && diff.Items.Count == 2 && diff.Items.All(i => i.Change == "Create"), "diff valid " + diff.Valid + " items " + diff.Items.Count);
+                        StudioDraftDiff validated = await client.StudioDrafts.ValidateAsync(draft.Id, token).ConfigureAwait(false);
+                        Require(validated.Valid && validated.Items.Count == 2, "validate");
+
+                        Approval approval = await client.StudioDrafts.RequestApplyAsync(draft.Id, graph.Version, token).ConfigureAwait(false);
+                        Require(approval.Kind == ApprovalKindEnum.DraftApply && approval.DraftId == draft.Id && approval.Status == ApprovalStatusEnum.Pending, "approval " + approval.Kind + " " + approval.Status);
+                        Require((await client.StudioDrafts.GetAsync(draft.Id, token).ConfigureAwait(false)).Status == StudioDraftStatusEnum.PendingApproval, "draft not pending");
+                        await client.Approvals.DecideAsync(approval.Id, new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, token).ConfigureAwait(false);
+                        StudioDraft applied = await client.StudioDrafts.GetAsync(draft.Id, token).ConfigureAwait(false);
+                        Require(applied.Status == StudioDraftStatusEnum.Applied && !String.IsNullOrEmpty(applied.ManifestApplyId), "draft status " + applied.Status);
+                        AgenticApp app = await client.Apps.GetAsync(appName, token).ConfigureAwait(false);
+                        Require(app.Members.Count == 1, "applied app members " + app.Members.Count);
+                    }
+                    finally
+                    {
+                        if (draft != null)
+                        {
+                            try { await client.StudioDrafts.DeleteAsync(draft.Id, token).ConfigureAwait(false); } catch (GarrisonException) { }
+                        }
+                        try { await client.Apps.DeleteAsync(appName, token).ConfigureAwait(false); } catch (GarrisonException e) when (e.StatusCode == 404) { }
+                        try { await client.Agents.DeleteAsync(draftAgentName, token).ConfigureAwait(false); } catch (GarrisonException e) when (e.StatusCode == 404) { }
+                        await client.Agents.DeleteAsync(live.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("architect prompts", async () =>
+                {
+                    List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(token).ConfigureAwait(false);
+                    Require(prompts.Count > 0 && prompts[0].Name == "builtin/agent-architect" && prompts[0].IsBuiltIn && prompts[0].IsDefault, "first architect prompt " + (prompts.Count > 0 ? prompts[0].Name : "none"));
+                    PromptTemplate clone = await client.PromptTemplates.CloneAsync(prompts[0].Id, "sdk-cs-architect-" + suffix, token).ConfigureAwait(false);
+                    string? architectDeploymentId = null;
+                    try
+                    {
+                        Agent architect = await client.Agents.GetAsync("agent-architect", token).ConfigureAwait(false);
+                        Deployment request = new Deployment();
+                        request.Name = "sdk-cs-architect-" + suffix;
+                        request.AgentId = architect.Id;
+                        request.HarnessProfileId = "hrn_builtin_fake";
+                        request.ArchitectPromptTemplateId = clone.Id;
+                        Deployment created = await client.Deployments.CreateAsync(request, token).ConfigureAwait(false);
+                        architectDeploymentId = created.Id;
+                        Require(created.ManagementAccess == ManagementAccessEnum.Drafts, "managementAccess " + created.ManagementAccess);
+                        ArchitectPromptSelection selected = await client.StudioDrafts.GetArchitectPromptAsync(created.Id, token).ConfigureAwait(false);
+                        Require(selected.ArchitectPromptTemplateId == clone.Id && selected.ArchitectPromptVersion == null, "selected " + selected.ArchitectPromptTemplateId);
+                        ArchitectPromptSelection reset = await client.StudioDrafts.SetArchitectPromptAsync(created.Id, "builtin/agent-architect", null, token).ConfigureAwait(false);
+                        Require(reset.ArchitectPromptName == "builtin/agent-architect", "set back to " + reset.ArchitectPromptName);
+                        PromptTemplate restored = await client.PromptTemplates.ResetAsync(clone.Id, token).ConfigureAwait(false);
+                        Require(restored.Id == clone.Id, "reset clone");
+                    }
+                    finally
+                    {
+                        if (architectDeploymentId != null) await client.Deployments.DeleteAsync(architectDeploymentId, token).ConfigureAwait(false);
+                        await client.PromptTemplates.DeleteAsync(clone.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

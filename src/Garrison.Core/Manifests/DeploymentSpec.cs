@@ -120,6 +120,12 @@ namespace Garrison.Core.Manifests
         /// </summary>
         public DeploymentTrustLevelEnum? TrustLevel { get; set; } = null;
 
+        /// <summary>
+        /// Delegated management (AD7.4): Drafts lets this deployment's runs work on studio drafts for the person who started
+        /// them. Null (omitted) means None; export omits None.
+        /// </summary>
+        public ManagementAccessEnum? ManagementAccess { get; set; } = null;
+
         /// <summary>Optional executor capability requirements; defaults preserve legacy placement.</summary>
         public ExecutorRequirements? RequiredCapabilities { get; set; } = null;
 

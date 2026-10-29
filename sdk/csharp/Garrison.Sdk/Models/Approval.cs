@@ -125,6 +125,12 @@ namespace Garrison.Sdk.Models
         public ApprovalKindEnum Kind { get; set; } = ApprovalKindEnum.Tool;
 
         /// <summary>
+        /// The studio draft a DraftApply approval would apply, or null for tool approvals. A DraftApply approval has no run,
+        /// so its run, agent, and deployment fields are empty.
+        /// </summary>
+        public string? DraftId { get; set; } = null;
+
+        /// <summary>
         /// Tool name the rules were evaluated against (Codex commands are Bash, Codex file changes are Edit).
         /// </summary>
         public string ToolName

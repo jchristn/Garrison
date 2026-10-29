@@ -178,7 +178,7 @@ namespace Test.Shared.Suites
                     Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Get, assets + "/" + prompt.Id, null, token).ConfigureAwait(false)).StatusCode, "Another tenant's asset by path");
                     Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Get, "/v1.0/api/tenants/" + other.Id + "/agent-assets/" + prompt.Id, null, token).ConfigureAwait(false)).StatusCode, "Another tenant's asset through their tenant");
                     EnumerationResult<AgentAsset> theirs = await HttpTestHelpers.SendAsync<EnumerationResult<AgentAsset>>(outsider, HttpMethod.Get, "/v1.0/api/tenants/" + other.Id + "/agent-assets", null, 200, token).ConfigureAwait(false);
-                    Assert.Equal(0, theirs.Objects.Count, "Other tenants list none");
+                    Assert.Equal(0, theirs.Objects.Count(a => a.Name != "agent-architect-skills"), "Other tenants list none of ours (only their own seeded architect skill)");
                 }
             }
         }

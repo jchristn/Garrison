@@ -218,6 +218,12 @@ namespace Garrison.Sdk.Enums
         /// Execute publishes app revisions. A resource-scoped assignment of the built-in AppUser role lets a user use one
         /// app's chat UI.
         /// </summary>
-        AgenticApp
+        AgenticApp,
+
+        /// <summary>
+        /// Studio drafts (AD7): manifest bundles designed in the studio before a person approves applying them. Create starts
+        /// a draft; Update edits it and requests its apply; applying needs Create on Manifest when the approval is decided.
+        /// </summary>
+        StudioDraft
     }
 }

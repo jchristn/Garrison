@@ -66,7 +66,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `fanOutGroups`, `apps`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `environments`, `promotions`, `agentAssets`, `fileSpaces`, `capabilities`, `fanOutGroups`, `apps`, `studioDrafts`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -361,6 +361,44 @@ await gateway.endSession();
 ```
 
 `conversations()` lists the session owner's conversations and `conversation(id)` reads one with its turns (`AppTurnView`: `runId`, `turn`, `message`, `status`, `answer`, `error`, `awaitingApproval`). `streamTurn` reads the server-sent event stream with `fetch` and calls the callback for each `turn.event` (a visible `RunEvent`), `turn.status`, and `turn.completed`, and resolves with the completed turn. When the connection drops first it reconnects and resumes after the last event id with `Last-Event-ID`; `maxReconnects` (default 5) and `reconnectDelayMs` (default 1000) tune that. Errors reject with `GarrisonError`: 401 `InvalidCredentials`, `AppSignInRequired`, or `AnonymousDisabled`, 403 `AppAccessDenied`, and 409 `AppNotDeployed`, `ConversationBusy`, or `AppRateLimited`.
+
+## Studio drafts
+
+A studio draft holds manifest documents for agents and apps while they are being designed, and nothing changes in live configuration until a person approves applying it (see [docs/STUDIO.md](../../docs/STUDIO.md)). `client.studioDrafts` lists drafts (`mine: true` for your own, plus the usual `search`, `maxResults`, and `skip`), creates one (empty, or from an existing app with `fromApp`), reads, and deletes them. A `StudioDraft` has `id` (`sdr_...`), `title`, `ownerUserId`, `ownerName`, `targetApp`, `version`, `status` (`StudioDraftStatus`: `Open`, `PendingApproval`, `Applied`, `Discarded`), `approvalId`, `manifestApplyId`, `items` (`StudioDraftItem`: `kind`, `name`, `operation` (`Upsert` or `Delete`), `document`, `baseHash`), and `layout` (canvas positions).
+
+Every change names the draft version you read. If the draft moved on since then, the call rejects with a `GarrisonError` whose `statusCode` is 409 and whose `error.code` is `DraftVersionConflict`, and nothing changes. Read the draft again and retry. A draft that is not `Open` rejects changes with 409 `DraftNotOpen`.
+
+```ts
+let draft = await client.studioDrafts.create({ title: "Research app" });
+draft = await client.studioDrafts.putItem(draft.id, "Agent", "researcher", draft.version,
+  "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: researcher\nspec:\n  displayName: Researcher\n");
+const graph = await client.studioDrafts.graphOperation(draft.id, { version: draft.version, operation: "AddMember", app: "research", agent: "researcher" });
+const diff = await client.studioDrafts.diff(draft.id);           // or validate(draft.id): same result
+if (diff.valid) {
+  const approval = await client.studioDrafts.requestApply(draft.id, graph.version); // kind DraftApply, status Pending
+  await client.approvals.decide(approval.id, { decision: "Allow" });               // a person applies it
+}
+```
+
+`diff` and `validate` return a `StudioDraftDiff`: `valid` and one `StudioDraftDiffItem` per item with `change` (`Create`, `Update`, `Delete`, `Unchanged`, or `Failed`), `changes` (`ManifestFieldChange[]`), `message`, `errorCode`, and `stale` (the live resource changed after the draft was based on it). `removeItem(id, kind, name, version)` drops an item. `graph` returns a `StudioGraph` of `nodes` (`key`, `kind`, `name`, `inDraft`, `deleted`, `entryOf`, `memberOf`, `x`, `y`) and `edges` (`app`, `from`, `to`, `fanOut`), and `graphOperation` applies one `StudioGraphOperation` (`AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`) and returns the new graph. Member and edge operations rewrite the draft's `AgenticApp` item.
+
+`requestApply` validates the draft (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`), creates an `Approval` of kind `DraftApply` whose `draftId` names the draft, and moves the draft to `PendingApproval`. Deciding it `Allow` with `client.approvals.decide` needs Create on `Manifest` (403 `ApproverLacksPermission`) and applies the draft, which becomes `Applied`. If live configuration moved in the meantime the decision rejects with 409 `DraftStale` and the draft is `Open` again. `Deny` also returns it to `Open`. `STUDIO_DRAFT_RESOURCE_TYPE` (`StudioDraft`) names drafts in permissions.
+
+## Architect prompts
+
+The agent architect (`agent-architect`, seeded in every tenant) takes its System prompt from its deployment. `client.studioDrafts.listArchitectPrompts()` returns `ArchitectPromptEntry[]`, built-in prompts first (`builtin/agent-architect`, then `builtin/agent-architect-guided`), then the tenant's clones of them, then the tenant's other System templates. Each entry has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments` (the architect deployments that use it). To change the prompt, clone a built-in with `client.promptTemplates.clone`, edit the clone with `update`, and select it. `promptTemplates.reset` puts a clone back to the shipped text, and `render` previews it.
+
+```ts
+const clone = await client.promptTemplates.clone("tpl_builtin_agent_architect", "architect-house-style");
+const architect = await client.agents.get("agent-architect");
+const deployment = await client.deployments.create({
+  name: "architect", agentId: architect.id, harnessProfileId: "hrn_builtin_claude_code", architectPromptTemplateId: clone.id,
+}); // managementAccess is always "Drafts" for agent-architect
+const selection = await client.studioDrafts.getArchitectPrompt(deployment.id);
+await client.studioDrafts.setArchitectPrompt(deployment.id, "builtin/agent-architect"); // optional third argument pins a version
+```
+
+`ArchitectPromptSelection` has `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (null follows the current version, so a saved edit applies on the architect's next turn), and `currentVersion`. Only architect deployments take an architect prompt (400 `NotAnArchitectDeployment`), and the template must be a System template the tenant can read (400 `InvalidArchitectPrompt`). `Deployment.managementAccess` (`ManagementAccess`: `None` or `Drafts`) says whether a deployment's runs may edit drafts for the person they work for, and `architectPromptTemplateId` and `architectPromptVersion` are accepted when a deployment is created.
 
 ## Manifests
 

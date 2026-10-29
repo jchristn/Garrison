@@ -826,6 +826,71 @@ await check("agentic app, delegation plan, app revision, and gateway", async () 
     await client.apps.delete(app.id);
   }
 });
+await check("studio draft: items, graph, diff, request-apply, and apply", async () => {
+  const live = await client.agents.create({ name: `sdk-js-studio-${suffix}`, description: "JavaScript SDK harness studio member." });
+  const draftAgent = `sdk-js-draft-${suffix}`;
+  const appName = `sdk-js-studio-app-${suffix}`;
+  let draftId;
+  try {
+    const draft = await client.studioDrafts.create({ title: `sdk js studio ${suffix}` });
+    draftId = draft.id;
+    require(draft.id.startsWith("sdr_") && draft.status === "Open" && draft.items.length === 0, `new draft ${JSON.stringify(draft)}`);
+    const document = `apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: ${draftAgent}\n  description: x\nspec:\n  displayName: x\n`;
+    const withItem = await client.studioDrafts.putItem(draft.id, "Agent", draftAgent, draft.version, document);
+    require(withItem.version > draft.version && withItem.items.length === 1 && withItem.items[0].name === draftAgent, `after put ${JSON.stringify(withItem)}`);
+    try {
+      await client.studioDrafts.putItem(draft.id, "Agent", draftAgent, draft.version, document);
+      throw new Error("expected 409 for a stale version");
+    } catch (e) {
+      require(e instanceof GarrisonError && e.statusCode === 409 && e.error?.code === "DraftVersionConflict", `stale put: ${e.message}`);
+    }
+    const graph = await client.studioDrafts.graphOperation(draft.id, { version: withItem.version, operation: "AddMember", app: appName, agent: live.name });
+    require(graph.version > withItem.version, `graph version ${graph.version}`);
+    require(graph.nodes.some((n) => n.kind === "AgenticApp" && n.name === appName), `no app node ${JSON.stringify(graph.nodes)}`);
+    require(graph.nodes.some((n) => n.kind === "Agent" && n.name === live.name && n.entryOf.includes(appName)), `no entry agent node ${JSON.stringify(graph.nodes)}`);
+    const reread = await client.studioDrafts.graph(draft.id);
+    require(reread.version === graph.version && reread.nodes.length === graph.nodes.length, "graph read differs");
+    for (const diff of [await client.studioDrafts.diff(draft.id), await client.studioDrafts.validate(draft.id)]) {
+      require(diff.valid === true && diff.items.length === 2 && diff.items.every((i) => i.change === "Create"), `diff ${JSON.stringify(diff)}`);
+    }
+    require((await client.studioDrafts.list({ mine: true, search: draft.title })).objects.some((d) => d.id === draft.id), "draft not listed");
+    const approval = await client.studioDrafts.requestApply(draft.id, graph.version);
+    require(approval.kind === "DraftApply" && approval.draftId === draft.id && approval.status === "Pending", `approval ${JSON.stringify(approval)}`);
+    require((await client.studioDrafts.get(draft.id)).status === "PendingApproval", "draft not pending");
+    await client.approvals.decide(approval.id, { decision: "Allow" });
+    const applied = await client.studioDrafts.get(draft.id);
+    require(applied.status === "Applied" && applied.manifestApplyId, `applied draft ${JSON.stringify(applied)}`);
+    const app = await client.apps.get(appName);
+    require(app.name === appName, "applied app missing");
+  } finally {
+    if (draftId) await client.studioDrafts.delete(draftId).catch(() => undefined);
+    await client.apps.delete(appName).catch((e) => { if (!(e instanceof GarrisonError && e.statusCode === 404)) throw e; });
+    await client.agents.delete(draftAgent).catch((e) => { if (!(e instanceof GarrisonError && e.statusCode === 404)) throw e; });
+    await client.agents.delete(live.id);
+  }
+});
+await check("architect prompts", async () => {
+  const prompts = await client.studioDrafts.listArchitectPrompts();
+  require(prompts.length > 0 && prompts[0].name === "builtin/agent-architect" && prompts[0].isBuiltIn === true, `architect prompts ${JSON.stringify(prompts[0])}`);
+  const clone = await client.promptTemplates.clone(prompts[0].id, `sdk-js-architect-${suffix}`);
+  let deploymentId;
+  try {
+    const architect = await client.agents.get("agent-architect");
+    const deployment = await client.deployments.create({
+      name: `sdk-js-architect-${suffix}`, agentId: architect.id, harnessProfileId: "hrn_builtin_fake", architectPromptTemplateId: clone.id,
+    });
+    deploymentId = deployment.id;
+    require(deployment.managementAccess === "Drafts", `managementAccess ${deployment.managementAccess}`);
+    const selection = await client.studioDrafts.getArchitectPrompt(deployment.id);
+    require(selection.architectPromptTemplateId === clone.id, `selection ${JSON.stringify(selection)}`);
+    const reset = await client.studioDrafts.setArchitectPrompt(deployment.id, "builtin/agent-architect");
+    require(reset.architectPromptName === "builtin/agent-architect", `set prompt ${JSON.stringify(reset)}`);
+    await client.promptTemplates.reset(clone.id);
+  } finally {
+    if (deploymentId) await client.deployments.delete(deploymentId);
+    await client.promptTemplates.delete(clone.id);
+  }
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

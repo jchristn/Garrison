@@ -324,6 +324,89 @@ export interface AppTurnStreamOptions {
   reconnectDelayMs?: number;
 }
 
+/** Draft states. Open is editable; PendingApproval is frozen while its DraftApply approval waits; Applied and Discarded are final. */
+export const STUDIO_DRAFT_STATUSES = ["Open", "PendingApproval", "Applied", "Discarded"] as const;
+/** One of {@link STUDIO_DRAFT_STATUSES}. */
+export type StudioDraftStatus = typeof STUDIO_DRAFT_STATUSES[number];
+/** What a draft item does on apply: Upsert creates or updates the resource, Delete deletes it (Agent, Deployment, Pipeline, AgenticApp only). */
+export const STUDIO_DRAFT_OPERATIONS = ["Upsert", "Delete"] as const;
+/** One of {@link STUDIO_DRAFT_OPERATIONS}. */
+export type StudioDraftOperation = typeof STUDIO_DRAFT_OPERATIONS[number];
+/** Graph operations on a draft's apps. MoveNode changes only the canvas layout. */
+export const STUDIO_GRAPH_OPERATIONS = ["AddMember", "RemoveMember", "Connect", "Disconnect", "SetEntry", "MoveNode"] as const;
+/** One of {@link STUDIO_GRAPH_OPERATIONS}. */
+export type StudioGraphOperation = typeof STUDIO_GRAPH_OPERATIONS[number];
+/** What a deployment's run tokens may do in the management plane. Drafts lets the agent architect edit studio drafts for the person it works for, never apply them. */
+export const MANAGEMENT_ACCESS_LEVELS = ["None", "Drafts"] as const;
+/** One of {@link MANAGEMENT_ACCESS_LEVELS}. */
+export type ManagementAccess = typeof MANAGEMENT_ACCESS_LEVELS[number];
+/** Resource type name of studio drafts in permissions and the operation scope map. */
+export const STUDIO_DRAFT_RESOURCE_TYPE = "StudioDraft";
+
+/**
+ * One manifest document in a draft, keyed by kind and name. document is the manifest YAML as written (empty for a
+ * Delete). baseHash is the hash of the live document the item started from, or null when the resource did not exist.
+ */
+export interface StudioDraftItem { kind: string; name: string; operation: StudioDraftOperation; document: string; baseHash?: string | null; lastUpdateUtc: string; }
+
+/** A node position on the draft canvas. nodeKey is kind/name, for example Agent/researcher. */
+export interface StudioDraftNode { nodeKey: string; x: number; y: number; }
+
+/**
+ * A studio draft: manifest documents edited before anything changes in live configuration. id has the prefix sdr_.
+ * version rises by one on every change, and every change names the version the caller read (409 DraftVersionConflict
+ * otherwise). approvalId names the DraftApply approval while one exists; manifestApplyId the apply record once Applied.
+ */
+export interface StudioDraft extends Json {
+  id: string; tenantId: string; title: string; ownerUserId?: string | null; ownerName?: string | null;
+  conversationId?: string | null; targetApp?: string | null; version: number; status: StudioDraftStatus;
+  approvalId?: string | null; publishOnApply: boolean; manifestApplyId?: string | null;
+  items: StudioDraftItem[]; layout: StudioDraftNode[]; createdUtc: string; lastUpdateUtc: string;
+}
+
+/** Options for {@link StudioDrafts.list}. mine lists only your own drafts. */
+export interface StudioDraftListQuery extends EnumerationQuery { mine?: boolean; }
+
+/** Body of {@link StudioDrafts.create}. fromApp (identifier or name) exports an app and everything it references into the draft. */
+export interface StudioDraftCreateRequest { title?: string; fromApp?: string; conversationId?: string; }
+
+/**
+ * One item of a draft diff. change is Create, Update (changes lists the fields), Delete, Unchanged, or Failed (message
+ * and errorCode say why). stale is true when the live resource changed after the draft was based on it.
+ */
+export interface StudioDraftDiffItem { kind: string; name: string; change: string; changes: ManifestFieldChange[]; message?: string | null; errorCode?: string | null; stale: boolean; }
+
+/** A draft compared with live configuration. valid is true when nothing failed and nothing is stale. */
+export interface StudioDraftDiff { draftId: string; version: number; valid: boolean; items: StudioDraftDiffItem[]; }
+
+/** A node of a draft graph: an app or an agent. key is kind/name. entryOf and memberOf name apps. x and y are null until placed. */
+export interface StudioGraphNode { key: string; kind: string; name: string; inDraft: boolean; deleted: boolean; entryOf: string[]; memberOf: string[]; x?: number | null; y?: number | null; }
+
+/** A call edge of an app in a draft graph. */
+export interface StudioGraphEdge { app: string; from: string; to: string; fanOut: boolean; }
+
+/** A draft's apps as a graph, at the draft version it was drawn from. */
+export interface StudioGraph { draftId: string; version: number; nodes: StudioGraphNode[]; edges: StudioGraphEdge[]; }
+
+/**
+ * One graph operation. version is the draft version you read. app defaults to the draft's target app. AddMember and
+ * RemoveMember take agent (and role); Connect takes from, to, and fanOut; Disconnect takes from and to; SetEntry takes
+ * agent; MoveNode takes nodeKey, x, and y.
+ */
+export interface StudioGraphOperationRequest {
+  version: number; operation: StudioGraphOperation; app?: string; agent?: string; role?: string;
+  from?: string; to?: string; fanOut?: boolean; nodeKey?: string; x?: number; y?: number;
+}
+
+/**
+ * A prompt an architect deployment can use. Built-ins come first, then the tenant's clones of them (builtInKey set),
+ * then other tenant System templates. deployments names the architect deployments that bind it.
+ */
+export interface ArchitectPromptEntry { id: string; name: string; description?: string | null; isBuiltIn: boolean; builtInKey?: string | null; currentVersion: number; isDefault: boolean; deployments: string[]; }
+
+/** The prompt an architect deployment uses. architectPromptVersion is null when it follows the template's current version. */
+export interface ArchitectPromptSelection { deploymentId: string; architectPromptTemplateId: string; architectPromptName: string; architectPromptVersion?: number | null; currentVersion: number; }
+
 /** States of a fan-out group. Every state other than Running is final. */
 export const FAN_OUT_GROUP_STATUSES = ["Running", "Joined", "TimedOut", "BudgetExceeded", "Cancelled"] as const;
 /** One of {@link FAN_OUT_GROUP_STATUSES}. */
@@ -580,6 +663,12 @@ export interface Deployment extends Json, WithWarnings {
   approvalTimeoutDecision?: ApprovalDecision;
   /** Approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow. */
   approvalRules?: DeploymentApprovalRule[];
+  /** What the deployment's run tokens may do in the management plane. Default None; deployments of agent-architect always get Drafts. */
+  managementAccess?: ManagementAccess;
+  /** On create only: the architect prompt (template identifier or name) to bind as the System prompt. Omitted binds builtin/agent-architect. */
+  architectPromptTemplateId?: string | null;
+  /** On create only: the architect prompt version to pin, or null to follow its current version. */
+  architectPromptVersion?: number | null;
 }
 
 /** State of a permission approval. Pending is the only state that can change. */
@@ -590,8 +679,9 @@ export type ApprovalDecision = "Allow" | "Deny";
 export type ApprovalSource = "Rule" | "Default" | "User" | "Timeout" | "Cancelled" | "DurableResume";
 /** Action of an approval rule or of the deployment default. */
 export type ApprovalRuleAction = "Allow" | "Deny" | "Ask";
-/** Where a permission request came from: a Claude Code tool call, a Codex command (evaluated as Bash), or a Codex file change (evaluated as Edit). */
-export type ApprovalKind = "Tool" | "Command" | "FileChange";
+/** Where a request came from: a Claude Code tool call, a Codex command (evaluated as Bash), or a Codex file change (evaluated as Edit). */
+/** DraftApply asks a person to apply a studio draft; it is not tied to a run. */
+export type ApprovalKind = "Tool" | "Command" | "FileChange" | "DraftApply";
 
 /** One approval rule of a deployment. pattern uses Claude Code rule syntax, for example Bash(git status:*) or mcp__github__*. */
 export interface DeploymentApprovalRule extends Json {
@@ -610,6 +700,8 @@ export interface DeploymentApprovalRule extends Json {
 export interface Approval extends Json {
   id: string; tenantId: string; runId: string; rootRunId?: string | null; agentId: string; agentName: string; deploymentId: string;
   leaseEpoch: number; harnessType: string; kind: ApprovalKind; toolName: string; toolCallId?: string | null;
+  /** The studio draft a DraftApply approval would apply, or null for tool approvals. */
+  draftId?: string | null;
   /** Redacted tool input JSON, at most 4000 characters. */
   inputPreview?: string | null;
   /** One-line summary (command, URL, paths, or query), redacted, at most 500 characters. */
@@ -1705,6 +1797,65 @@ export class Apps extends Resource<AgenticApp> {
 }
 
 /**
+ * Studio drafts: manifest documents designed before anything changes in live configuration, applied only after a person
+ * approves the DraftApply approval {@link StudioDrafts.requestApply} creates (decide it with approvals.decide). Every
+ * change names the draft version you read and rejects with 409 DraftVersionConflict when the draft moved on, or 409
+ * DraftNotOpen when it is not Open. Also reads and sets the prompt of architect deployments.
+ */
+export class StudioDrafts {
+  constructor(private readonly t: Transport) {}
+  private base(): string { return this.t.tenantPath("/studio/drafts"); }
+  private item(id: string): string { return `${this.base()}/${seg(id)}`; }
+  /** List drafts, newest change first. mine lists only your own. */
+  list(query: StudioDraftListQuery = {}): Promise<EnumerationResult<StudioDraft>> { return this.t.request("GET", this.base(), query as any); }
+  /** Start a draft, empty or from an existing app (fromApp) with everything it references. */
+  create(request: StudioDraftCreateRequest = {}): Promise<StudioDraft> { return this.t.request("POST", this.base(), undefined, request); }
+  /** Read a draft with its items and layout. */
+  get(id: string): Promise<StudioDraft> { return this.t.request("GET", this.item(id)); }
+  /** Discard a draft. A pending DraftApply approval is cancelled. */
+  delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.item(id)); }
+  /**
+   * Create or replace one item at the version you read. document is one manifest document whose kind and name match
+   * (400 DocumentMismatch otherwise); operation Delete needs no document.
+   */
+  putItem(id: string, kind: string, name: string, version: number, document: string, operation?: StudioDraftOperation): Promise<StudioDraft> {
+    return this.t.request("PUT", `${this.item(id)}/items/${seg(kind)}/${seg(name)}`, undefined, { version, operation, document });
+  }
+  /** Remove one item at the version you read. */
+  removeItem(id: string, kind: string, name: string, version: number): Promise<StudioDraft> {
+    return this.t.request("DELETE", `${this.item(id)}/items/${seg(kind)}/${seg(name)}`, { version });
+  }
+  /** Compare each item with live configuration (a manifest dry run). */
+  diff(id: string): Promise<StudioDraftDiff> { return this.t.request("GET", this.item(id) + "/diff"); }
+  /** Validate the draft; the same comparison as diff. */
+  validate(id: string): Promise<StudioDraftDiff> { return this.t.request("POST", this.item(id) + "/validate"); }
+  /**
+   * Ask a person to approve applying the draft at the version you read. Returns the DraftApply approval and moves the
+   * draft to PendingApproval. Rejects with 400 DraftStale, DraftInvalid, or DraftEmpty.
+   */
+  requestApply(id: string, version: number): Promise<Approval> { return this.t.request("POST", this.item(id) + "/request-apply", undefined, { version }); }
+  /** The draft's apps as a graph of apps, agents, and call edges. */
+  graph(id: string): Promise<StudioGraph> { return this.t.request("GET", this.item(id) + "/graph"); }
+  /** Apply one graph operation; member and edge operations rewrite the draft's AgenticApp item. */
+  graphOperation(id: string, request: StudioGraphOperationRequest): Promise<StudioGraph> {
+    return this.t.request("POST", this.item(id) + "/graph-operations", undefined, request);
+  }
+  /** Architect prompts: built-ins first, then tenant clones of them, then other tenant System templates. */
+  async listArchitectPrompts(): Promise<ArchitectPromptEntry[]> { return (await this.t.request("GET", this.t.tenantPath("/studio/architect-prompts"))) ?? []; }
+  /** The prompt an architect deployment (identifier or name) uses. */
+  getArchitectPrompt(deploymentId: string): Promise<ArchitectPromptSelection> {
+    return this.t.request("GET", this.t.tenantPath(`/studio/architects/${seg(deploymentId)}/prompt`));
+  }
+  /**
+   * Choose the prompt an architect deployment uses (template identifier or name; version pins one, omitted follows the
+   * current version). Takes effect on its next turn. Rejects with 400 NotAnArchitectDeployment or InvalidArchitectPrompt.
+   */
+  setArchitectPrompt(deploymentId: string, templateId: string, version?: number): Promise<ArchitectPromptSelection> {
+    return this.t.request("PUT", this.t.tenantPath(`/studio/architects/${seg(deploymentId)}/prompt`), undefined, { architectPromptTemplateId: templateId, architectPromptVersion: version ?? null });
+  }
+}
+
+/**
  * Client for an agentic app's end-user gateway at /v1.0/apps/{slug}/. It needs no management credentials: start a
  * session with an email and password, or anonymously when the app allows it, and the session token (prefix gas_) is
  * kept and sent as a bearer token. The token works only on this app's gateway and reaches only the conversations its
@@ -2358,6 +2509,8 @@ export class GarrisonClient {
   readonly fanOutGroups: FanOutGroups;
   /** Agentic apps: definitions, delegation plans, app revisions, and promotion. */
   readonly apps: Apps;
+  /** Studio drafts and architect prompts. */
+  readonly studioDrafts: StudioDrafts;
   readonly harnessProfiles: HarnessProfiles;
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
@@ -2403,6 +2556,7 @@ export class GarrisonClient {
     this.capabilities = new Capabilities(t, "capabilities");
     this.fanOutGroups = new FanOutGroups(t);
     this.apps = new Apps(t, "apps");
+    this.studioDrafts = new StudioDrafts(t);
     this.harnessProfiles = new HarnessProfiles(t, "harness-profiles");
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");

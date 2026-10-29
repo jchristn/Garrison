@@ -8733,6 +8733,974 @@
       ]
     },
     {
+      "name": "Studio Drafts",
+      "description": "Studio drafts (AD7): items, graph, diff, validation, and approval-gated apply. See docs/STUDIO.md.",
+      "item": [
+        {
+          "name": "Create studio draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts"
+              ]
+            },
+            "description": "An empty draft. Nothing changes live until a person approves applying it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman draft {{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('draft', function () { pm.expect(json.id).to.match(/^sdr_/); pm.expect(json.version).to.eql(1); pm.expect(json.status).to.eql('Open'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('draftId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Put draft item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/items/Agent/postman-studio-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "items",
+                "Agent",
+                "postman-studio-{{suffix}}"
+              ]
+            },
+            "description": "One manifest document per kind and name, at the version you read.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 1,\n  \"document\": \"apiVersion: garrison/v1\\nkind: Agent\\nmetadata:\\n  name: postman-studio-{{suffix}}\\n  description: Drafted in Postman\\nspec:\\n  displayName: Studio agent\\n\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('version 2', function () { pm.expect(json.version).to.eql(2); pm.expect(json.items.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stale version is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/items/Agent/postman-studio-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "items",
+                "Agent",
+                "postman-studio-{{suffix}}"
+              ]
+            },
+            "description": "A change against an old version: 409 DraftVersionConflict.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 1,\n  \"document\": \"apiVersion: garrison/v1\\nkind: Agent\\nmetadata:\\n  name: postman-studio-{{suffix}}\\n  description: Drafted in Postman\\nspec:\\n  displayName: Studio agent\\n\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('DraftVersionConflict', function () { pm.expect(JSON.stringify(json)).to.include('DraftVersionConflict'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Graph operation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/graph-operations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "graph-operations"
+              ]
+            },
+            "description": "Add the drafted agent to a new app; the draft gains an AgenticApp item.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 2,\n  \"operation\": \"AddMember\",\n  \"app\": \"postman-app-{{suffix}}\",\n  \"agent\": \"postman-studio-{{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('graph', function () { pm.expect(json.version).to.eql(3); pm.expect(json.nodes.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read draft graph",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/graph",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "graph"
+              ]
+            },
+            "description": "Agents, apps, edges, and positions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('entry', function () { pm.expect(json.nodes.some(function (n) { return n.entryOf && n.entryOf.length === 1; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Diff draft",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/diff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "diff"
+              ]
+            },
+            "description": "Per item: Create, Update, Delete, Unchanged, or Failed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two creates', function () { pm.expect(json.valid).to.eql(true); pm.expect(json.items.filter(function (i) { return i.change === 'Create'; }).length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validate draft",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "validate"
+              ]
+            },
+            "description": "A manifest dry run of the draft."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('valid', function () { pm.expect(json.valid).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/request-apply",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "request-apply"
+              ]
+            },
+            "description": "Creates a DraftApply approval; the draft waits for a person.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('DraftApply', function () { pm.expect(json.kind).to.eql('DraftApply'); pm.expect(json.status).to.eql('Pending'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('draftApprovalId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve draft apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals/{{draftApprovalId}}/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "approvals",
+                "{{draftApprovalId}}",
+                "decide"
+              ]
+            },
+            "description": "Allowing applies the draft as one manifest apply.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"Allow\",\n  \"reason\": \"Reviewed in Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('approved', function () { pm.expect(json.status).to.eql('Approved'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft is applied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}"
+              ]
+            },
+            "description": "The draft links to its manifest apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('applied', function () { pm.expect(json.status).to.eql('Applied'); pm.expect(json.manifestApplyId).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete applied app",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/postman-app-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "postman-app-{{suffix}}"
+              ]
+            },
+            "description": "Clean up the app the draft created."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete drafted agent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/postman-studio-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "postman-studio-{{suffix}}"
+              ]
+            },
+            "description": "Clean up the agent the draft created."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discard draft",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}"
+              ]
+            },
+            "description": "Discards the draft record."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Architect Prompts",
+      "description": "Architect prompts (AD7.12 to AD7.15): the catalog, clones, selection per architect deployment, and in-use protection. See docs/PROMPTS.md.",
+      "item": [
+        {
+          "name": "List architect prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architect-prompts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architect-prompts"
+              ]
+            },
+            "description": "Built-in architect prompts first, then tenant clones of them, then other System templates."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('default first', function () { pm.expect(json[0].name).to.eql('builtin/agent-architect'); pm.expect(json[0].isDefault).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the architect agent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/agent-architect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "agent-architect"
+              ]
+            },
+            "description": "Every tenant has the protected agent-architect."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('protected', function () { pm.expect(json.isProtected).to.eql(true); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('architectAgentId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone architect prompt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/prompt-templates/tpl_builtin_agent_architect/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "prompt-templates",
+                "tpl_builtin_agent_architect",
+                "clone"
+              ]
+            },
+            "description": "A tenant copy at version 1 that keeps the built-in key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-{{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('clone', function () { pm.expect(json.builtInKey).to.eql('agent-architect'); pm.expect(json.currentVersion).to.eql(1); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('architectPromptId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "description": "An architect deployment on the clone; it gets managementAccess Drafts.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-{{suffix}}\",\n  \"agentId\": \"{{architectAgentId}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"architectPromptTemplateId\": \"{{architectPromptId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('drafts', function () { pm.expect(json.managementAccess).to.eql('Drafts'); });",
+                  "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('architectDeploymentId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read architect prompt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectDeploymentId}}/prompt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectDeploymentId}}",
+                "prompt"
+              ]
+            },
+            "description": "Which prompt the architect uses, and any pin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('clone selected', function () { pm.expect(json.architectPromptTemplateId).to.eql(pm.collectionVariables.get('architectPromptId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete selected prompt is refused",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/prompt-templates/{{architectPromptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "prompt-templates",
+                "{{architectPromptId}}"
+              ]
+            },
+            "description": "A bound template cannot be deleted: 409 PromptTemplateInUse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('PromptTemplateInUse', function () { pm.expect(JSON.stringify(json)).to.include('PromptTemplateInUse'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Switch architect prompt",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{architectDeploymentId}}/prompt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{architectDeploymentId}}",
+                "prompt"
+              ]
+            },
+            "description": "Takes effect on the next turn.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"architectPromptTemplateId\": \"builtin/agent-architect-guided\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('guided', function () { pm.expect(json.architectPromptName).to.eql('builtin/agent-architect-guided'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset built-in architect prompt",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/prompt-templates/tpl_builtin_agent_architect/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "prompt-templates",
+                "tpl_builtin_agent_architect",
+                "reset"
+              ]
+            },
+            "description": "Re-applies the shipped content; no new version when it matches."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete architect deployment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{architectDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{architectDeploymentId}}"
+              ]
+            },
+            "description": "Clean up."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete cloned prompt",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/prompt-templates/{{architectPromptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "prompt-templates",
+                "{{architectPromptId}}"
+              ]
+            },
+            "description": "No longer bound, so it can go."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Conversations",
       "description": "A conversation is a multi-turn session with one agent. Each turn is a run; every turn after the first resumes the harness session the earlier turns built. Start one with `startConversation` on invoke, create run, or a deployment test, then send `conversationId` with each later turn.",
       "item": [
@@ -18961,6 +19929,26 @@
     },
     {
       "key": "appSessionToken",
+      "value": ""
+    },
+    {
+      "key": "draftId",
+      "value": ""
+    },
+    {
+      "key": "draftApprovalId",
+      "value": ""
+    },
+    {
+      "key": "architectAgentId",
+      "value": ""
+    },
+    {
+      "key": "architectPromptId",
+      "value": ""
+    },
+    {
+      "key": "architectDeploymentId",
       "value": ""
     }
   ]

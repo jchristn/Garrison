@@ -96,7 +96,7 @@ type Client struct {
 	Agents                     *AgentsClient
 	Deployments                *Resource
 	HarnessProfiles            *HarnessProfilesClient
-	PromptTemplates            *Resource
+	PromptTemplates            *PromptTemplatesClient
 	McpServers                 *Resource
 	Secrets                    *Resource
 	WorkspaceTemplates         *Resource
@@ -120,6 +120,7 @@ type Client struct {
 	Capabilities               *CapabilitiesClient
 	FanOutGroups               *FanOutGroupsClient
 	Apps                       *AppsClient
+	StudioDrafts               *StudioDraftsClient
 	Analytics                  *AnalyticsClient
 	Nodes                      *GlobalResource
 	ControlNodes               *ControlNodesClient
@@ -144,7 +145,7 @@ func NewClient(baseURL string) *Client {
 	c.Agents = &AgentsClient{Resource{c: c, segment: "agents"}}
 	c.Deployments = &Resource{c: c, segment: "deployments"}
 	c.HarnessProfiles = &HarnessProfilesClient{Resource{c: c, segment: "harness-profiles"}}
-	c.PromptTemplates = &Resource{c: c, segment: "prompt-templates"}
+	c.PromptTemplates = &PromptTemplatesClient{Resource{c: c, segment: "prompt-templates"}}
 	c.McpServers = &Resource{c: c, segment: "mcp-servers"}
 	c.Secrets = &Resource{c: c, segment: "secrets"}
 	c.WorkspaceTemplates = &Resource{c: c, segment: "workspace-templates"}
@@ -168,6 +169,7 @@ func NewClient(baseURL string) *Client {
 	c.Capabilities = &CapabilitiesClient{c: c}
 	c.FanOutGroups = &FanOutGroupsClient{c: c}
 	c.Apps = &AppsClient{c: c}
+	c.StudioDrafts = &StudioDraftsClient{c: c}
 	c.Analytics = &AnalyticsClient{c: c}
 	c.Nodes = &GlobalResource{c: c, path: "/v1.0/api/nodes"}
 	c.ControlNodes = &ControlNodesClient{c: c}

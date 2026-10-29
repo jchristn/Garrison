@@ -404,6 +404,17 @@ namespace Garrison.Core.Models
         public ManagementAccessEnum ManagementAccess { get; set; } = ManagementAccessEnum.None;
 
         /// <summary>
+        /// On create only (AD7.14): the architect prompt to bind as this architect deployment's System prompt, by template
+        /// identifier or name. Null binds builtin/agent-architect. Not stored separately: it becomes the System prompt binding.
+        /// </summary>
+        public string? ArchitectPromptTemplateId { get; set; } = null;
+
+        /// <summary>
+        /// On create only (AD7.14): the architect prompt version to pin, or null to follow its current version.
+        /// </summary>
+        public int? ArchitectPromptVersion { get; set; } = null;
+
+        /// <summary>
         /// Configuration version, incremented on every change.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;

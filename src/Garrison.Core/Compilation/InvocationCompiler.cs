@@ -640,7 +640,8 @@ namespace Garrison.Core.Compilation
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
 
-            List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled, approvalsEnabled, spec, scrub);
+            bool managementEnabled = deployment.ManagementAccess == ManagementAccessEnum.Drafts && !String.IsNullOrEmpty(runToken);
+            List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled || managementEnabled, approvalsEnabled, spec, scrub);
             context.Set("resources", ResourcesContext(inputs, servers));
             context.Set("assets", AssetsContext(inputs, spec));
             // AD3.3: the worker syncs the file space into this directory; the server adds the files at lease.
@@ -1296,7 +1297,8 @@ namespace Garrison.Core.Compilation
                 garrison.Url = _Options.McpBaseUrl.TrimEnd('/');
                 garrison.Path = String.IsNullOrEmpty(_Options.McpPath) ? "/mcp" : _Options.McpPath;
                 garrison.Required = true;
-                if (delegationEnabled) garrison.RequiredTools.Add("garrison_invoke_agent");
+                if (delegationEnabled && inputs.Agent.DelegationMode != DelegationModeEnum.None) garrison.RequiredTools.Add("garrison_invoke_agent");
+                if (inputs.Deployment.ManagementAccess == ManagementAccessEnum.Drafts) garrison.RequiredTools.Add("garrison_studio_get_draft");
                 if (approvalsEnabled) garrison.RequiredTools.Add(PermissionPromptTool);
                 garrison.ToolTimeoutSeconds = approvalsEnabled ? Math.Max(600, inputs.Deployment.ApprovalTimeoutSeconds + 120) : 600;
                 garrison.Headers.Add(Variable("Authorization", "Bearer " + runToken, true));

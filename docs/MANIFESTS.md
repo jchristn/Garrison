@@ -445,6 +445,8 @@ spec:
 
 An Agent document can also pin assets with `assets: [ { asset: citation-style }, { asset: report-template, version: 2 } ]`. Without an `assets` key the agent keeps its current pins; with one, the next revision carries exactly that list. Export writes the latest published revision's pins, and `followReferences` adds the pinned AgentAsset documents.
 
+In the same way, `capabilities: [pandoc]` names the capabilities the agent's next revision uses, such as host tools a worker must report before it runs the agent ([CAPABILITIES.md](CAPABILITIES.md)). Without a `capabilities` key the agent keeps its current list, and export writes the latest published revision's list.
+
 With `publish: false`, only the revision content fields (description, display name, schemas, delegation policy, tags, prompt templates) go into the draft; the agent's other fields stay as they are. A new agent is always created with its content as revision 1, published.
 
 Both schemas must be valid JSON Schema documents; one that is not fails the document with field code `InvalidJsonSchema`. An agent with an input schema only accepts input that is a JSON document matching it, on every surface (see "Input schemas" in `REST_API.md`), and the dashboard's Invoke page builds a form from it:

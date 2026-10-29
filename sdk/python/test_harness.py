@@ -922,6 +922,76 @@ def t_apps():
         client.apps.delete(app["id"])
 
 
+def t_studio_drafts():
+    agent_name = f"sdk-py-studio-{SUFFIX}"
+    draft_agent = f"sdk-py-draft-{SUFFIX}"
+    app_name = f"sdk-py-studio-app-{SUFFIX}"
+    live = client.agents.create({"name": agent_name, "description": "Python SDK harness studio agent."})
+    draft = None
+    try:
+        draft = client.studio_drafts.create(title=f"sdk py studio {SUFFIX}")
+        require(draft["id"].startswith("sdr_") and draft["status"] == "Open", f"draft {draft}")
+        document = (f"apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: {draft_agent}\n  description: x\n"
+                    "spec:\n  displayName: x\n")
+        updated = client.studio_drafts.put_item(draft["id"], "Agent", draft_agent, draft["version"], document)
+        require(updated["version"] > draft["version"] and len(updated["items"]) == 1, f"put item {updated}")
+        try:
+            client.studio_drafts.put_item(draft["id"], "Agent", draft_agent, draft["version"], document)
+            raise AssertionError("expected 409 for a stale version")
+        except GarrisonError as e:
+            require(e.status_code == 409 and e.code == "DraftVersionConflict", f"stale put {e.status_code} {e.code}")
+        graph = client.studio_drafts.graph_operation(draft["id"], version=updated["version"], operation="AddMember",
+                                                     app=app_name, agent=agent_name)
+        require(graph["version"] > updated["version"], f"graph version {graph['version']}")
+        require(any(n["kind"] == "AgenticApp" and n["name"] == app_name for n in graph["nodes"]), f"app node {graph['nodes']}")
+        require(any(n["kind"] == "Agent" and n["name"] == agent_name and app_name in n["entryOf"] for n in graph["nodes"]), f"agent node {graph['nodes']}")
+        read_graph = client.studio_drafts.graph(draft["id"])
+        require(read_graph["version"] == graph["version"] and len(read_graph["nodes"]) == len(graph["nodes"]), "graph read")
+        for diff in (client.studio_drafts.diff(draft["id"]), client.studio_drafts.validate(draft["id"])):
+            require(diff["valid"] is True and len(diff["items"]) == 2 and all(i["change"] == "Create" for i in diff["items"]), f"diff {diff}")
+        approval = client.studio_drafts.request_apply(draft["id"], graph["version"])
+        require(approval["kind"] == "DraftApply" and approval.get("draftId") == draft["id"] and approval["status"] == "Pending", f"approval {approval}")
+        client.approvals.decide(approval["id"], "Allow")
+        applied = client.studio_drafts.get(draft["id"])
+        require(applied["status"] == "Applied", f"draft status {applied['status']}")
+        require(client.apps.get(app_name)["name"] == app_name, "applied app missing")
+        require(any(d["id"] == draft["id"] for d in client.studio_drafts.list(mine=True)["objects"]), "draft not listed as mine")
+    finally:
+        if draft is not None:
+            try:
+                client.studio_drafts.delete(draft["id"])
+            except GarrisonError:
+                pass
+        for delete, name in ((client.apps.delete, app_name), (client.agents.delete, draft_agent)):
+            try:
+                delete(name)
+            except GarrisonError as e:
+                if e.status_code != 404:
+                    raise
+        client.agents.delete(live["id"])
+
+
+def t_architect_prompts():
+    prompts = client.studio_drafts.list_architect_prompts()
+    require(prompts and prompts[0]["name"] == "builtin/agent-architect" and prompts[0]["isBuiltIn"] is True, f"architect prompts {prompts[:1]}")
+    clone = client.prompt_templates.clone(prompts[0]["id"], f"sdk-py-architect-{SUFFIX}")
+    deployment = None
+    try:
+        architect = client.agents.get("agent-architect")
+        deployment = client.deployments.create({"name": f"sdk-py-architect-{SUFFIX}", "agentId": architect["id"],
+                                                "harnessProfileId": "hrn_builtin_fake", "architectPromptTemplateId": clone["id"]})
+        require(deployment.get("managementAccess") == "Drafts", f"managementAccess {deployment.get('managementAccess')}")
+        selection = client.studio_drafts.get_architect_prompt(deployment["id"])
+        require(selection["architectPromptTemplateId"] == clone["id"], f"selection {selection}")
+        changed = client.studio_drafts.set_architect_prompt(deployment["id"], "builtin/agent-architect")
+        require(changed["architectPromptName"] == "builtin/agent-architect", f"changed {changed}")
+        client.prompt_templates.reset(clone["id"])
+    finally:
+        if deployment is not None:
+            client.deployments.delete(deployment["id"])
+        client.prompt_templates.delete(clone["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -961,7 +1031,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

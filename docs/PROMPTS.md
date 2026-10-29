@@ -21,7 +21,7 @@ Every content change creates a new version. `GET .../prompt-templates/{id}/versi
 
 ## Built-in templates
 
-Built-ins have no tenant, are visible to every tenant, and cannot be edited or deleted. To change one, clone it (`POST .../prompt-templates/{id}/clone` with a new name) and bind the clone. `POST .../prompt-templates/{id}/reset` restores a clone to the shipped content of the built-in it came from.
+Built-ins have no tenant, are visible to every tenant, and cannot be edited or deleted. To change one, clone it (`POST .../prompt-templates/{id}/clone` with a new name) and bind the clone. `POST .../prompt-templates/{id}/reset` restores a clone to the shipped content of the built-in it came from, as a new version. On a built-in itself, reset re-applies the shipped content: nothing changes when it already matches, and a new version is added when it drifted.
 
 | Template | Kind | Purpose |
 |---|---|---|
@@ -41,6 +41,9 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/claude-code-mcp-config` | ConfigFile | Claude Code `--mcp-config` file |
 | `builtin/mux-mcp-config`, `builtin/mux-endpoints`, `builtin/mux-settings`, `builtin/mux-subagents` | ConfigFile | Mux configuration directory |
 | `builtin/gemini-settings` | ConfigFile | Gemini CLI `settings.json` with MCP servers |
+| `builtin/agent-architect` | System | Default prompt of the agent architect: designs agents and apps in a studio draft and asks a person to approve applying it (see [Architect prompts](#architect-prompts)) |
+| `builtin/agent-architect-guided` | System | Architect prompt for first-time builders: one question at a time, each step explained |
+| `builtin/agent-architect-design`, `builtin/agent-architect-runtime` | Fragment | The architect's instructions for designing in a draft and for deployment settings; both architect prompts include them |
 | `builtin/approval-denied` | Other | The message a harness receives when Garrison denies a permission request (P12.3). Rendered with `approval.id`, `approval.toolName`, `approval.summary`, `approval.reason`, `approval.rulePattern`, `approval.decidedBy`, `approval.source`, `approval.timeoutSeconds`, and one flag per source (`approval.byUser`, `approval.byRule`, `approval.byDefault`, `approval.byTimeout`, `approval.byCancel`). A tenant template named `approval-denied` of kind `Other` replaces it for that tenant |
 
 ### Tool and skill descriptions per tenant
@@ -100,6 +103,22 @@ If a deployment ends up with no `Task` binding at all, the caller's message is s
   ]
 }
 ```
+
+## Architect prompts
+
+The agent architect ([STUDIO.md](STUDIO.md)) takes its System prompt from its deployment, like any agent, and Garrison ships two: `builtin/agent-architect` (the default) and `builtin/agent-architect-guided`. To change one, clone it, edit the clone's name, description, and body, and select the clone. Every save of the clone is a new version with preview and history as usual.
+
+`GET .../studio/architect-prompts` lists the built-in architect prompts first, then the tenant's clones of them (matched by `builtInKey`), then the tenant's other `System` templates. Each entry has `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and the architect deployments that use it. Templates of other tenants never appear.
+
+An architect deployment's choice is its `System` prompt binding:
+
+- `GET .../studio/architects/{deploymentId}/prompt` reads it, and `PUT` with `{architectPromptTemplateId, architectPromptVersion}` changes it. Creating a deployment accepts the same two fields, and a deployment of `agent-architect` created without them binds `builtin/agent-architect`.
+- With no `architectPromptVersion`, each turn renders the template's current version, so a saved edit to the selected clone applies on the architect's next turn with no new revision and no redeploy. A pinned version keeps its text until the pin changes. A turn already running keeps the prompt it started with.
+- Every run records the templates and versions it rendered in `templateVersions`.
+- Only architect deployments take an architect prompt: deployments of `agent-architect`, or of any agent with `managementAccess: Drafts` (400 `NotAnArchitectDeployment`). The template must be a `System` template the tenant can read (400 `InvalidArchitectPrompt`).
+- Runs can never change an architect's prompt, including the architect's own runs.
+
+Deleting a template that any deployment binds, pinned or not, answers 409 `PromptTemplateInUse` with the deployments that use it. Switch them to another template first.
 
 ## Structured output repair
 

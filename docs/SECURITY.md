@@ -93,7 +93,7 @@ The decision for a request is made in this order:
 1. The administrator API key and system administrators (`isAdmin`) are allowed.
 2. A tenant in the path that is not the caller's tenant is reported as not found.
 3. Platform resources (`Settings`, `NodePool`, `Admin`, creating or deleting tenants, and changing nodes) need a system administrator.
-4. Run tokens are limited to reading and invoking agents and to reading, starting, and cancelling runs, and are then checked against the permissions of the user or credential that started the chain. A run token cannot retry a run (403 `RunTokenRetryNotAllowed`), because a retry would start a top-level run outside the delegation policy.
+4. Run tokens are limited to reading and invoking agents and to reading, starting, and cancelling runs (plus studio drafts for deployments with `managementAccess: Drafts`, see "Delegated management"), and are then checked against the permissions of the user or credential that started the chain. A run token cannot retry a run (403 `RunTokenRetryNotAllowed`), because a retry would start a top-level run outside the delegation policy.
 5. The node protocol (`Node` `Execute`) needs a grant that names `Node` explicitly, such as the `NodeAgent` role. The tenant administrator bypass and `All` grants are not enough.
 6. Tenant administrators (`isTenantAdmin`) are allowed within their tenant. A credential owned by a tenant administrator is still limited by its own assignments when it has any.
 7. Everyone else: the grants from all their assignments are expanded. An explicit `Deny` wins, then any `Permit`, otherwise the request is denied. For a credential, its owner's grants are checked as well, so a credential can never do what its owner cannot.
@@ -295,6 +295,18 @@ An agent can only delegate when its `delegationMode` is not `None`. The run toke
 - works only for the attempt it was minted for: after a requeue it is revoked, and a token for an older lease epoch is refused even if it was not (see "Tokens and sessions" above).
 
 Violations fail the invocation with `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, or `DelegationDepthExceeded`. A waiting delegation can also fail with `DelegationCapacityExhausted` when waiting could leave no capacity to run the child; that is a capacity limit, not a policy decision (see `docs/SCALING.md`, "Delegation capacity"), and it bounds how many idle waiting processes one agent tree can pin on a worker.
+
+## Delegated management
+
+Runs cannot change configuration. The one exception is narrow: a deployment with `managementAccess: Drafts` gives its run tokens access to studio drafts ([STUDIO.md](STUDIO.md#delegated-management)). Such a token:
+
+- may create, read, and edit drafts, and request their apply, only for the person who started the run;
+- may read design configuration (deployments, harness profiles, prompt templates, MCP servers, workspace templates, revisions, assets, capabilities, apps, pipelines, triggers), never secrets;
+- is checked against that person's permissions on every call, so a person without design permissions gets an architect that cannot design;
+- can never apply a draft, decide an approval (403 for any run), or delete a live resource;
+- ends with the run, like every run token.
+
+Applying a draft takes a `DraftApply` approval decided by a person who holds Create on `Manifest`. The approval shows the full diff, and the draft is checked again at decision time, so a change made to live configuration after the request is never silently overwritten (409 `DraftStale`). Turning `managementAccess` on or off is audited with the deployment change.
 
 ## Permission approvals
 

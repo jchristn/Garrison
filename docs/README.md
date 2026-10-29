@@ -16,6 +16,7 @@ Garrison turns configurable agent harnesses into tenant-scoped services, invoked
 | Share files across the turns and agents of a conversation | [Conversation file spaces](FILE_SPACES.md) |
 | Let orchestrators find agents, MCP tools, and host tools | [Capability catalog](CAPABILITIES.md) |
 | Put a group of agents behind their own chat UI | [Agentic apps](APPS.md), [app chat UI](APP_UI.md) |
+| Design agents and apps in drafts, review the diff, and apply after approval | [Agent Studio](STUDIO.md) |
 
 ## Build agent workflows
 

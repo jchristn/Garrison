@@ -3885,6 +3885,10 @@ Errors: 400 `ValidationFailed` with field codes `InvalidName`, `InvalidSlug`, `U
 
 The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
 
+### Studio drafts
+
+Manifest bundles designed in the studio and applied only after a person approves (AD7). [docs/STUDIO.md](docs/STUDIO.md) explains drafts, versions, diffs, the graph, `DraftApply` approvals, and the `managementAccess: Drafts` grant. Routes are under `/studio/drafts`, and the architect prompt routes under `/studio/architect-prompts` and `/studio/architects/{deploymentId}/prompt`; the tables are in [docs/STUDIO.md](docs/STUDIO.md#routes). A `DraftApply` approval is decided with `POST /approvals/{id}/decide`, which then needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request.
+
 ### Fan-out groups
 
 Groups of child runs a run started with `garrison_fan_out` (AD5); see [MCP_API.md](MCP_API.md#fan-out-and-gather) for how they are started, joined, and bounded.
@@ -4895,7 +4899,8 @@ A permission request relayed from a harness and its decision (P12.3). See [Appro
 |---|---|---|
 | `id` | `string` | Identifier (`apr_`). |
 | `tenantId` | `string` | Tenant identifier. |
-| `runId` | `string` | Run that asked. |
+| `runId` | `string` | Run that asked. Empty for `DraftApply`. |
+| `draftId` | `string?` | Studio draft to apply, for `DraftApply`. |
 | `rootRunId` | `string?` | Root of the run's delegation tree, or null for a root run. |
 | `agentId` | `string` | Agent of the run. |
 | `agentName` | `string` | Agent name at request time. |
@@ -4939,7 +4944,7 @@ A permission request relayed from a harness and its decision (P12.3). See [Appro
 
 #### `ApprovalKindEnum`
 
-`Tool` (Claude Code permission prompt), `Command` (Codex app-server command approval), `FileChange` (Codex app-server file change approval)
+`Tool` (Claude Code permission prompt), `Command` (Codex app-server command approval), `FileChange` (Codex app-server file change approval), `DraftApply` (applying a studio draft; no run, `draftId` set, see [docs/STUDIO.md](docs/STUDIO.md#applying-a-draft))
 
 #### `ApprovalRuleActionEnum`
 
@@ -5389,6 +5394,8 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `nodePoolId` | `string?` | Required node pool. |
 | `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`; for an `Untrusted` deployment or one with `egressRules`, null never resolves to `Process` and uses `KubernetesJob`. A PersistentVolume workspace template requires `KubernetesJob`. `Process` on an `Untrusted` deployment is rejected (`UntrustedNeedsIsolation`), and on a deployment with `egressRules` too (`EgressRulesNeedKubernetesJob`). |
 | `trustLevel` | `DeploymentTrustLevelEnum` | `Trusted` (default) or `Untrusted`. Untrusted runs need at least `Container` isolation and queue with `NoIsolatingWorker` until a worker can provide it. See [Deployment trust level](#deployment-trust-level-trustlevel). |
+| `managementAccess` | `ManagementAccessEnum` | `None` (default) or `Drafts`. With `Drafts`, this deployment's runs may read design configuration and create and edit studio drafts for the person who started them, within that person's permissions. They can never apply a draft, decide its approval, delete live resources, or read secrets. See [docs/STUDIO.md](docs/STUDIO.md#delegated-management). |
+| `architectPromptTemplateId`, `architectPromptVersion` | `string?`, `int?` | On create only, for architect deployments: the architect prompt to bind as the `System` prompt, and an optional pinned version. A deployment of `agent-architect` without them binds `builtin/agent-architect`. See [docs/PROMPTS.md](docs/PROMPTS.md#architect-prompts). |
 | `egressRules` | `DeploymentEgressRule[]` | Egress allowlist; empty (default) means none. With rules, run pods reach only DNS, the Garrison MCP port, and these rules, and runs need a worker that enforces them. At most 64. See [Deployment egress allowlist](#deployment-egress-allowlist-egressrules). |
 | `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
 | `workspaceTemplateId` | `string?` | Workspace template. |

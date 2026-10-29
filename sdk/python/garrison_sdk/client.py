@@ -493,6 +493,124 @@ class AppDelegationPlan(TypedDict, total=False):
     members: List[AppDelegationMember]
 
 
+class StudioDraftItem(TypedDict, total=False):
+    """One manifest document in a studio draft, keyed by kind and name. operation is one of STUDIO_DRAFT_OPERATIONS
+    (Upsert creates or updates the resource; Delete deletes it when the draft is applied). document is the manifest YAML
+    as written (empty for a Delete). baseHash is the hash of the live document the item started from, or None when the
+    resource did not exist."""
+    kind: str
+    name: str
+    operation: str
+    document: str
+    baseHash: Optional[str]
+    lastUpdateUtc: str
+
+
+class StudioDraftNode(TypedDict, total=False):
+    """A canvas position of one graph node (nodeKey is kind/name, for example AgenticApp/research)."""
+    nodeKey: str
+    x: float
+    y: float
+
+
+class StudioDraft(TypedDict, total=False):
+    """A studio draft: manifest documents a person or the agent architect edits before anyone asks to apply them. id has
+    the prefix sdr_. status is one of STUDIO_DRAFT_STATUSES. version rises by one on every change, and every change names
+    the version the caller read (409 DraftVersionConflict when it moved on). approvalId names the DraftApply approval while
+    the draft waits for a decision; manifestApplyId names the manifest apply once applied. publishOnApply publishes the
+    agents the draft creates or updates."""
+    id: str
+    tenantId: str
+    title: str
+    ownerUserId: Optional[str]
+    ownerName: Optional[str]
+    conversationId: Optional[str]
+    targetApp: Optional[str]
+    version: int
+    status: str
+    approvalId: Optional[str]
+    publishOnApply: bool
+    manifestApplyId: Optional[str]
+    items: List[StudioDraftItem]
+    layout: List[StudioDraftNode]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class StudioDraftDiffItem(TypedDict, total=False):
+    """One item compared with live configuration. change is Create, Update, Delete, Unchanged, or Failed; changes lists
+    the fields of an Update (field, before, after); message and errorCode say why an item failed. stale is True when the
+    live resource changed after the draft was based on it."""
+    kind: str
+    name: str
+    change: str
+    changes: List[Dict[str, Any]]
+    message: Optional[str]
+    errorCode: Optional[str]
+    stale: bool
+
+
+class StudioDraftDiff(TypedDict, total=False):
+    """A draft compared with live configuration (a manifest dry run). valid is True when nothing failed and nothing is
+    stale."""
+    draftId: str
+    version: int
+    valid: bool
+    items: List[StudioDraftDiffItem]
+
+
+class StudioGraphNode(TypedDict, total=False):
+    """A node of a draft's graph. key is kind/name; kind is Agent or AgenticApp. inDraft marks nodes the draft holds,
+    deleted those it deletes. entryOf and memberOf name the apps an agent is the entry of or belongs to. x and y are the
+    canvas position, or None when the node was never placed."""
+    key: str
+    kind: str
+    name: str
+    inDraft: bool
+    deleted: bool
+    entryOf: List[str]
+    memberOf: List[str]
+    x: Optional[float]
+    y: Optional[float]
+
+
+# A call edge of one app in the draft, between agent names. fanOut (default True) allows garrison_fan_out. Declared with
+# the functional form because "from" is a Python keyword.
+StudioGraphEdge = TypedDict("StudioGraphEdge", {"app": str, "from": str, "to": str, "fanOut": bool}, total=False)
+
+
+class StudioGraph(TypedDict, total=False):
+    """A draft's apps drawn as agents, apps, and call edges, at the draft version it was read at."""
+    draftId: str
+    version: int
+    nodes: List[StudioGraphNode]
+    edges: List[StudioGraphEdge]
+
+
+class ArchitectPromptEntry(TypedDict, total=False):
+    """One prompt an architect deployment may use. isBuiltIn marks the shipped prompts; builtInKey matches a tenant clone
+    to the built-in it came from. isDefault marks builtin/agent-architect. deployments names the architect deployments
+    that bind the template."""
+    id: str
+    name: str
+    description: Optional[str]
+    isBuiltIn: bool
+    builtInKey: Optional[str]
+    currentVersion: int
+    isDefault: bool
+    deployments: List[str]
+
+
+class ArchitectPromptSelection(TypedDict, total=False):
+    """The System prompt an architect deployment uses. architectPromptVersion is the pinned version, or None to follow
+    the template's current version (currentVersion)."""
+    deploymentId: str
+    architectPromptTemplateId: str
+    architectPromptName: str
+    architectPromptVersion: Optional[int]
+    currentVersion: int
+
+
 class HarnessToolProbe(TypedDict, total=False):
     """A harness profile "toolProbes" entry. name is 1 to 63 lowercase letters, digits, dots, and hyphens; executable is
     a bare file name on the worker's PATH; arguments holds at most one of HARNESS_TOOL_PROBE_ARGUMENTS."""
@@ -657,7 +775,8 @@ APPROVAL_STATUSES = ("Pending", "Approved", "Denied", "Expired", "Cancelled")
 APPROVAL_DECISIONS = ("Allow", "Deny")
 APPROVAL_SOURCES = ("Rule", "Default", "User", "Timeout", "Cancelled", "DurableResume")
 APPROVAL_RULE_ACTIONS = ("Allow", "Deny", "Ask")
-APPROVAL_KINDS = ("Tool", "Command", "FileChange")
+# DraftApply approvals apply a studio draft; they carry "draftId" and are not tied to a run.
+APPROVAL_KINDS = ("Tool", "Command", "FileChange", "DraftApply")
 # Pipelines (ordered agent stages with optional review gates). PipelineRun["status"] and ["outcome"],
 # PipelineRunStage["status"], PipelineReview["status"], ["decision"] (and stage "reviewTimeoutAction"), ["decisionSource"].
 PIPELINE_RUN_STATUSES = ("Running", "AwaitingReview", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut")
@@ -718,6 +837,17 @@ APP_AUTH_MODES = ("TenantUsers", "AppUsers", "Anonymous")
 # nothing in the management API. Permissions name the app resource type as APP_RESOURCE_TYPE.
 APP_USER_ROLE = "AppUser"
 APP_RESOURCE_TYPE = "AgenticApp"
+
+# Studio drafts. StudioDraft["status"]: Open (editable), PendingApproval (frozen while its DraftApply approval waits),
+# Applied, or Discarded. StudioDraftItem["operation"]: Upsert or Delete. graph_operation "operation": one of
+# STUDIO_GRAPH_OPERATIONS. Permissions name drafts as STUDIO_DRAFT_RESOURCE_TYPE.
+STUDIO_DRAFT_STATUSES = ("Open", "PendingApproval", "Applied", "Discarded")
+STUDIO_DRAFT_OPERATIONS = ("Upsert", "Delete")
+STUDIO_GRAPH_OPERATIONS = ("AddMember", "RemoveMember", "Connect", "Disconnect", "SetEntry", "MoveNode")
+STUDIO_DRAFT_RESOURCE_TYPE = "StudioDraft"
+# Deployment["managementAccess"]: None (the default) or Drafts, which lets the deployment's run tokens edit the studio
+# drafts of the person who started the run. A deployment of agent-architect always gets Drafts.
+MANAGEMENT_ACCESS = ("None", "Drafts")
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -1402,6 +1532,103 @@ class Apps(Resource):
         return self._t.request("POST", self._item(id) + "/promote", body=body)
 
 
+class StudioDrafts:
+    """Studio drafts: manifest documents designed before anything changes in live configuration, applied only after a
+    person allows the DraftApply approval request_apply creates (decide it with approvals.decide). Every change names the
+    draft version the caller read and raises GarrisonError 409 DraftVersionConflict when the draft moved on, or 409
+    DraftNotOpen when it is not Open. Also reads and sets the prompts of architect deployments."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _base(self) -> str:
+        return self._t.tenant_path("/studio/drafts")
+
+    def _item(self, id: str) -> str:
+        return f"{self._base()}/{_seg(id)}"
+
+    def list(self, mine: bool = False, search: Optional[str] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None, ordering: Optional[str] = None) -> Dict[str, Any]:
+        """A page of drafts, newest change first. mine=True returns only your own."""
+        query = _enum(max_results, skip, ordering, search)
+        if mine:
+            query["mine"] = "true"
+        return self._t.request("GET", self._base(), query)
+
+    def create(self, title: Optional[str] = None, from_app: Optional[str] = None) -> StudioDraft:
+        """Start a draft (201), empty or, with from_app (app identifier or name), holding the app and everything it
+        references. Starting from an app also needs Read on AgenticApp."""
+        body: Dict[str, Any] = {}
+        if title:
+            body["title"] = title
+        if from_app:
+            body["fromApp"] = from_app
+        return self._t.request("POST", self._base(), body=body)
+
+    def get(self, id: str) -> StudioDraft:
+        return self._t.request("GET", self._item(id))
+
+    def delete(self, id: str) -> Any:
+        """Discard a draft; a pending apply approval is cancelled."""
+        return self._t.request("DELETE", self._item(id))
+
+    def put_item(self, id: str, kind: str, name: str, version: int, document: str = "",
+                 operation: Optional[str] = None) -> StudioDraft:
+        """Create or replace one item at the version you read. operation is Upsert (the default; document is one manifest
+        document whose kind and name match) or Delete. Raises GarrisonError 400 with codes UnsupportedKind,
+        InvalidDocument, DocumentMismatch, or DeleteNotSupported."""
+        body: Dict[str, Any] = {"version": int(version), "document": document}
+        if operation:
+            body["operation"] = operation
+        return self._t.request("PUT", self._item(id) + f"/items/{_seg(kind)}/{_seg(name)}", body=body)
+
+    def remove_item(self, id: str, kind: str, name: str, version: int) -> StudioDraft:
+        """Remove one item at the version you read."""
+        return self._t.request("DELETE", self._item(id) + f"/items/{_seg(kind)}/{_seg(name)}", {"version": int(version)})
+
+    def diff(self, id: str) -> StudioDraftDiff:
+        """Compare each item with live configuration (a manifest dry run of the draft)."""
+        return self._t.request("GET", self._item(id) + "/diff")
+
+    def validate(self, id: str) -> StudioDraftDiff:
+        """Validate the draft; the same comparison as diff."""
+        return self._t.request("POST", self._item(id) + "/validate")
+
+    def request_apply(self, id: str, version: int) -> Dict[str, Any]:
+        """Ask a person to approve applying the draft (201). Returns the DraftApply Approval and moves the draft to
+        PendingApproval. Raises GarrisonError 400 DraftStale, DraftInvalid, or DraftEmpty."""
+        return self._t.request("POST", self._item(id) + "/request-apply", body={"version": int(version)})
+
+    def graph(self, id: str) -> StudioGraph:
+        """The draft's apps as a graph of agents, apps, and call edges."""
+        return self._t.request("GET", self._item(id) + "/graph")
+
+    def graph_operation(self, id: str, request: Optional[Dict[str, Any]] = None, **fields: Any) -> StudioGraph:
+        """Apply one graph operation and return the graph. Pass the body as request, as keyword arguments, or both
+        (keywords win): version (required), operation (one of STUDIO_GRAPH_OPERATIONS), app (defaults to the draft's
+        target app), agent, role, from_ (or "from" in request), to, fanOut, nodeKey, x, and y. Raises GarrisonError 400
+        with codes NotAMember, SelfEdge, NoSuchEdge, or AppDeleted."""
+        body: Dict[str, Any] = dict(request or {})
+        for key, value in fields.items():
+            body["from" if key == "from_" else key] = value
+        return self._t.request("POST", self._item(id) + "/graph-operations", body=body)
+
+    def list_architect_prompts(self) -> List[ArchitectPromptEntry]:
+        """Architect prompts: built-ins first, then the tenant's clones of them, then its other System templates."""
+        return self._t.request("GET", self._t.tenant_path("/studio/architect-prompts")) or []
+
+    def get_architect_prompt(self, deployment_id: str) -> ArchitectPromptSelection:
+        """The prompt an architect deployment (identifier or name) uses."""
+        return self._t.request("GET", self._t.tenant_path(f"/studio/architects/{_seg(deployment_id)}/prompt"))
+
+    def set_architect_prompt(self, deployment_id: str, template_id: str, version: Optional[int] = None) -> ArchitectPromptSelection:
+        """Choose the prompt an architect deployment uses (template identifier or name); takes effect on its next turn.
+        version pins a template version; None follows the current one. Raises GarrisonError 400 NotAnArchitectDeployment
+        or InvalidArchitectPrompt."""
+        return self._t.request("PUT", self._t.tenant_path(f"/studio/architects/{_seg(deployment_id)}/prompt"),
+                               body={"architectPromptTemplateId": template_id, "architectPromptVersion": version})
+
+
 class FanOutGroups:
     """Fan-out groups: child runs a run started with the garrison_fan_out MCP tool. Groups are only created by runs, so
     this client reads and cancels them. A group that does not exist or belongs to another tenant raises GarrisonError
@@ -1973,6 +2200,7 @@ class GarrisonClient:
         self.capabilities = Capabilities(t, "capabilities")
         self.fan_out_groups = FanOutGroups(t)
         self.apps = Apps(t, "apps")
+        self.studio_drafts = StudioDrafts(t)
 
     @property
     def tenant_id(self) -> Optional[str]:

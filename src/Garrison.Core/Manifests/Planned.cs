@@ -86,6 +86,12 @@ namespace Garrison.Core.Manifests
         public List<AgentRevisionAssetPin>? AgentAssetPins { get; set; } = null;
 
         /// <summary>
+        /// For an Agent document with a capabilities list: the capability names its next revision uses (AD4.5, AD7.8). Null
+        /// when the document has no capabilities key, so the agent keeps its current ones.
+        /// </summary>
+        public List<string>? AgentCapabilities { get; set; } = null;
+
+        /// <summary>
         /// For an AgentAsset document: files to upload as a new version, with ContentBase64 set (AD2.6). Null when the
         /// files are unchanged or the document has none.
         /// </summary>

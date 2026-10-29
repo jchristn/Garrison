@@ -12,6 +12,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Responses;
     using Garrison.Core.Services;
     using Garrison.Core.Templates;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -59,7 +60,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.GET, _Base + "/{id}/versions/{version}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, VersionAsync, "Read one template version", "Prompt Templates", null, typeof(PromptTemplateVersion));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/restore/{version}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Update, RestoreAsync, "Restore a version as a new version", "Prompt Templates", null, typeof(PromptTemplate));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/clone", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Create, CloneAsync, "Clone a template (built-in or tenant)", "Prompt Templates", typeof(CloneRequest), typeof(PromptTemplate));
-            routes.Scoped(HttpMethod.POST, _Base + "/{id}/reset", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Update, ResetAsync, "Reset a cloned built-in template to the shipped default", "Prompt Templates", null, typeof(PromptTemplate));
+            routes.Scoped(HttpMethod.POST, _Base + "/{id}/reset", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Update, ResetAsync, "Reset a built-in template, or a clone of one, to the shipped content (a new version only when it differs)", "Prompt Templates", null, typeof(PromptTemplate));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/render", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, RenderAsync, "Render a stored template with sample data", "Prompt Templates", typeof(PromptRenderRequest), typeof(PromptRenderResponse));
         }
 
@@ -97,19 +98,9 @@ namespace Garrison.Server.Routes
 
         private async Task UpdateAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             PromptTemplate existing = await LoadAsync(http).ConfigureAwait(false);
-            ConfigurationSupport.EnsureEditable(existing.TenantId, existing.IsBuiltIn, existing.IsProtected, tenantId, "Prompt template " + existing.Name);
             PromptTemplateRequest request = RouteHelpers.RequiredBody<PromptTemplateRequest>(http);
-            ConfigurationValidator.PromptTemplate(request.Name, request.Content);
-            await EnsureNameAsync(tenantId, request.Name, existing.Id, http).ConfigureAwait(false);
-
-            bool contentChanged = existing.Content != request.Content;
-            Apply(existing, request);
-            if (contentChanged) existing.CurrentVersion = existing.CurrentVersion + 1;
-            PromptTemplate updated = await _Server.Database.PromptTemplates.UpdateAsync(existing, http.Token).ConfigureAwait(false);
-            if (contentChanged) await AddVersionAsync(updated, request.ChangeNote ?? "Updated.", http).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "PromptTemplate", updated.Id, "Updated prompt template " + updated.Name + (contentChanged ? " to version " + updated.CurrentVersion : String.Empty) + ".").ConfigureAwait(false);
+            PromptTemplate updated = await _Server.Get<PromptTemplateService>().UpdateAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), existing, request, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
         }
 
@@ -118,7 +109,8 @@ namespace Garrison.Server.Routes
             string tenantId = RouteHelpers.Tenant(http);
             PromptTemplate existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, existing.IsBuiltIn, existing.IsProtected, tenantId, "Prompt template " + existing.Name);
-            await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.PromptBindings.Any(b => b.TemplateId == existing.Id), "Prompt template " + existing.Name, http.Token).ConfigureAwait(false);
+            List<Deployment> users = await ConfigurationSupport.DeploymentsAsync(_Server, tenantId, d => d.PromptBindings.Any(b => b.TemplateId == existing.Id), http.Token).ConfigureAwait(false);
+            if (users.Count > 0) throw new ConflictException("PromptTemplateInUse", "Prompt template " + existing.Name + " is bound by deployment(s) " + String.Join(", ", users.Select(d => d.Id + " (" + d.Name + ")")) + ". Unbind it or switch those deployments to another template first.");
             await _Server.Database.PromptTemplateVersions.DeleteByTemplateAsync(existing.Id, http.Token).ConfigureAwait(false);
             await _Server.Database.PromptTemplates.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "PromptTemplate", existing.Id, "Deleted prompt template " + existing.Name + ".").ConfigureAwait(false);
@@ -155,51 +147,17 @@ namespace Garrison.Server.Routes
 
         private async Task CloneAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             PromptTemplate source = await LoadAsync(http).ConfigureAwait(false);
             CloneRequest request = RouteHelpers.RequiredBody<CloneRequest>(http);
-            ConfigurationValidator.PromptTemplate(request.Name, source.Content);
-            await EnsureNameAsync(tenantId, request.Name, null, http).ConfigureAwait(false);
-
-            PromptTemplate copy = new PromptTemplate();
-            copy.TenantId = tenantId;
-            copy.Name = request.Name;
-            copy.Description = source.Description;
-            copy.Kind = source.Kind;
-            copy.Content = source.Content;
-            copy.BuiltInKey = source.BuiltInKey;
-            copy.CurrentVersion = 1;
-            foreach (PromptTemplateVariable variable in source.Variables)
-            {
-                PromptTemplateVariable v = new PromptTemplateVariable();
-                v.Name = variable.Name;
-                v.Description = variable.Description;
-                v.Required = variable.Required;
-                v.DefaultValue = variable.DefaultValue;
-                copy.Variables.Add(v);
-            }
-            PromptTemplate created = await _Server.Database.PromptTemplates.CreateAsync(copy, http.Token).ConfigureAwait(false);
-            await AddVersionAsync(created, "Cloned from " + source.Name + " version " + source.CurrentVersion + ".", http).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "PromptTemplate", created.Id, "Cloned prompt template " + source.Name + " to " + created.Name + ".").ConfigureAwait(false);
+            PromptTemplate created = await _Server.Get<PromptTemplateService>().CloneAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), source, request.Name, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
         }
 
         private async Task ResetAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             PromptTemplate template = await LoadAsync(http).ConfigureAwait(false);
-            ConfigurationSupport.EnsureEditable(template.TenantId, template.IsBuiltIn, template.IsProtected, tenantId, "Prompt template " + template.Name);
-            string? content = BuiltInSeeder.PromptDefault(template.BuiltInKey);
-            if (content == null) throw new ConflictException("NoBuiltInDefault", "Prompt template " + template.Name + " was not cloned from a built-in, so there is no default to reset to.");
-            if (template.Content != content)
-            {
-                template.Content = content;
-                template.CurrentVersion = template.CurrentVersion + 1;
-                template = await _Server.Database.PromptTemplates.UpdateAsync(template, http.Token).ConfigureAwait(false);
-                await AddVersionAsync(template, "Reset to the built-in default.", http).ConfigureAwait(false);
-                await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "PromptTemplate", template.Id, "Reset prompt template " + template.Name + " to the built-in default.").ConfigureAwait(false);
-            }
-            await RouteHelpers.JsonAsync(http, 200, template).ConfigureAwait(false);
+            PromptTemplate reset = await _Server.Get<PromptTemplateService>().ResetAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), template, http.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, reset).ConfigureAwait(false);
         }
 
         private async Task RenderAsync(HttpContextBase http)
@@ -217,42 +175,7 @@ namespace Garrison.Server.Routes
 
         private async Task<PromptRenderResponse> RenderPreviewAsync(string tenantId, string name, string content, PromptRenderRequest request, HttpContextBase http)
         {
-            PromptRenderResponse response = new PromptRenderResponse();
-            TemplateAnalysis analysis = TemplateAnalyzer.Analyze(content, name, false);
-            response.Variables = analysis.Variables;
-            response.Includes = analysis.Includes;
-            response.Errors.AddRange(analysis.Errors);
-            if (!analysis.Valid)
-            {
-                response.Success = false;
-                return response;
-            }
-
-            Dictionary<string, string> includes = new Dictionary<string, string>(StringComparer.Ordinal);
-            Queue<string> pending = new Queue<string>(analysis.Includes);
-            while (pending.Count > 0)
-            {
-                string include = pending.Dequeue();
-                if (includes.ContainsKey(include)) continue;
-                PromptTemplate? found = await _Server.Database.PromptTemplates.ReadByNameAsync(tenantId, include, http.Token).ConfigureAwait(false);
-                if (found == null) continue;
-                includes[include] = found.Content;
-                foreach (string nested in TemplateAnalyzer.Analyze(found.Content, include, false).Includes) pending.Enqueue(nested);
-            }
-
-            TemplateRenderOptions options = new TemplateRenderOptions();
-            options.TemplateName = name;
-            options.IncludeResolver = n => includes.TryGetValue(n, out string? c) ? c : null;
-            try
-            {
-                response.Rendered = TemplateRenderer.Render(content, TemplateSampleContext.Build(request.Context), options);
-            }
-            catch (TemplateException e)
-            {
-                response.Success = false;
-                response.Errors.Add(e.Message);
-            }
-            return response;
+            return await _Server.Get<PromptTemplateService>().RenderAsync(tenantId, name, content, request, http.Token).ConfigureAwait(false);
         }
 
         private async Task<PromptTemplate> LoadAsync(HttpContextBase http)
@@ -270,49 +193,17 @@ namespace Garrison.Server.Routes
 
         private async Task EnsureNameAsync(string tenantId, string name, string? currentId, HttpContextBase http)
         {
-            PromptTemplate? existing = await _Server.Database.PromptTemplates.ReadByNameAsync(tenantId, name, http.Token).ConfigureAwait(false);
-            ConfigurationSupport.EnsureNameAvailable(existing?.TenantId == tenantId ? existing : null, existing?.Id, currentId, name);
+            await _Server.Get<PromptTemplateService>().EnsureNameAsync(tenantId, name, currentId, http.Token).ConfigureAwait(false);
         }
 
         private async Task AddVersionAsync(PromptTemplate template, string note, HttpContextBase http)
         {
-            PromptTemplateVersion version = new PromptTemplateVersion();
-            version.TenantId = template.TenantId;
-            version.TemplateId = template.Id;
-            version.Version = template.CurrentVersion;
-            version.Content = template.Content;
-            version.ChangeNote = note;
-            version.CreatedBy = RouteHelpers.Context(http).PrincipalName;
-            await _Server.Database.PromptTemplateVersions.CreateAsync(version, http.Token).ConfigureAwait(false);
+            await _Server.Get<PromptTemplateService>().AddVersionAsync(RouteHelpers.Context(http), template, note, http.Token).ConfigureAwait(false);
         }
 
         private static void Apply(PromptTemplate template, PromptTemplateRequest request)
         {
-            template.Name = request.Name;
-            template.Description = request.Description;
-            template.Kind = request.Kind;
-            template.Content = request.Content;
-            template.IsBuiltIn = false;
-            List<PromptTemplateVariable> variables = new List<PromptTemplateVariable>();
-            foreach (PromptTemplateVariable variable in request.Variables)
-            {
-                PromptTemplateVariable v = new PromptTemplateVariable();
-                v.Name = variable.Name;
-                v.Description = variable.Description;
-                v.Required = variable.Required;
-                v.DefaultValue = variable.DefaultValue;
-                variables.Add(v);
-            }
-            if (variables.Count == 0)
-            {
-                foreach (string path in TemplateAnalyzer.Analyze(request.Content, request.Name, false).Variables)
-                {
-                    PromptTemplateVariable v = new PromptTemplateVariable();
-                    v.Name = path;
-                    variables.Add(v);
-                }
-            }
-            template.Variables = variables;
+            PromptTemplateService.Apply(template, request);
         }
 
         #endregion

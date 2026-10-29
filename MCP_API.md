@@ -376,6 +376,39 @@ Management tools for apps (AD6), for users and credentials only:
 
 Validation errors use the REST field codes. See [docs/APPS.md](docs/APPS.md).
 
+## Studio drafts
+
+Tools for building studio drafts (AD7). Users and credentials can call them with the matching `StudioDraft` permission. A run can call them only when its deployment sets `managementAccess: Drafts`, and then only on drafts of the person it works for, within that person's permissions ([docs/STUDIO.md](docs/STUDIO.md#delegated-management)).
+
+| Tool | Permission | Arguments |
+|---|---|---|
+| `garrison_studio_list_drafts` | StudioDraft.Read | optional `search` |
+| `garrison_studio_create_draft` | StudioDraft.Create | optional `title`, `fromApp` |
+| `garrison_studio_get_draft` | StudioDraft.Read | `draftId` |
+| `garrison_studio_put_item` | StudioDraft.Update | `draftId`, `version`, `kind`, `name`, `document` (YAML), optional `operation` (`Upsert`, `Delete`) |
+| `garrison_studio_remove_item` | StudioDraft.Update | `draftId`, `version`, `kind`, `name` |
+| `garrison_studio_graph` | StudioDraft.Read | `draftId` |
+| `garrison_studio_graph_operation` | StudioDraft.Update | `draftId`, `version`, `graphOperation` (`AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`), and that operation's `app`, `agent`, `role`, `from`, `to`, `fanOut`, `nodeKey`, `x`, `y` |
+| `garrison_studio_diff` | StudioDraft.Read | `draftId` |
+| `garrison_studio_validate` | StudioDraft.Read | `draftId` |
+| `garrison_studio_request_apply` | StudioDraft.Update | `draftId`, `version` |
+
+Every change names the draft version the caller read and fails with `DraftVersionConflict` when the draft moved on. No tool applies a draft. A person decides the `DraftApply` approval that `garrison_studio_request_apply` creates.
+
+Architect prompt and prompt template tools, for users and credentials only. Runs never see or call them, so the architect cannot change its own prompt:
+
+| Tool | Permission | Arguments |
+|---|---|---|
+| `garrison_studio_list_architect_prompts` | PromptTemplate.Read | none |
+| `garrison_studio_get_architect_prompt` | Deployment.Read | `deployment` (name or ID) |
+| `garrison_studio_set_architect_prompt` | Deployment.Update | `deployment`, `architectPromptTemplateId`, optional `architectPromptVersion` |
+| `garrison_clone_prompt_template` | PromptTemplate.Create | `template` (name or ID), `name` |
+| `garrison_update_prompt_template` | PromptTemplate.Update | `template`, optional `name`, `description`, `kind`, `content`, `changeNote` |
+| `garrison_reset_prompt_template` | PromptTemplate.Update | `template` (a built-in, or a clone of one) |
+| `garrison_render_prompt_template` | PromptTemplate.Read | `template` or `content`, optional `context` |
+
+These behave like the REST prompt template routes ([docs/PROMPTS.md](docs/PROMPTS.md)): an update with new content adds a version, built-ins cannot be updated, and reset adds a version only when the content differs.
+
 ## Capability catalog
 
 When delegation is on, runs also get the catalog tools (AD4). See [docs/CAPABILITIES.md](docs/CAPABILITIES.md).

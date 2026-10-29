@@ -79,7 +79,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -258,6 +258,54 @@ PromotionRecord record = await client.Apps.PromoteAsync(app.Id, new AppPromotion
 `AppDelegationPlan.Members` holds one `AppDelegationMember` per member: the graph's `DesiredMode` (`AllowList`, or `None` for a member that calls nobody), `DesiredAllowList`, and `DesiredMaxDepth`, the latest published revision's `PublishedMode`, `PublishedAllowList`, and `PublishedMaxDepth`, `Drift`, and after an apply `DraftRevisionNumber` or `SkippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `CreateRevisionAsync` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `ListRevisionsAsync` returns them newest first and `GetRevisionAsync` reads one by identifier (`apv_...`) or number. `PromoteAsync` moves every member's pin to every deployment of that member in the target environment under one `PromotionRecord` (409 `NoTargetDeployments` names a member without one); roll it back with `client.Promotions.RollbackAsync`. Promotion needs Execute on `Promotion` for the target environment.
 
 `ResourceTypeEnum.AgenticApp` names apps in permissions. The built-in role `AppUser` lets a user use one app's chat UI when assigned with resource scope on the app identifier, and grants nothing in the management API. `Conversation.AppId` names the app whose chat UI started a conversation.
+
+## Studio drafts
+
+A studio draft holds manifest documents, one per resource, that a person or the agent architect edits before anything changes in live configuration (see [docs/STUDIO.md](../../docs/STUDIO.md)). Applying one takes a person's approval. `client.StudioDrafts` covers the routes under `/v1.0/api/tenants/{tenantId}/studio/drafts`.
+
+```csharp
+StudioDraft draft = await client.StudioDrafts.CreateAsync(new StudioDraftCreateRequest { Title = "research app" }); // or FromApp = "research"
+draft = await client.StudioDrafts.PutItemAsync(draft.Id, "Agent", "researcher", draft.Version, yamlText);
+StudioGraph graph = await client.StudioDrafts.ApplyGraphOperationAsync(draft.Id, new StudioGraphOperationRequest
+{
+    Version = draft.Version,
+    Operation = StudioGraphOperationEnum.AddMember,
+    App = "research",
+    Agent = "researcher"
+});
+StudioDraftDiff diff = await client.StudioDrafts.DiffAsync(draft.Id);           // or ValidateAsync
+Approval approval = await client.StudioDrafts.RequestApplyAsync(draft.Id, graph.Version);
+await client.Approvals.DecideAsync(approval.Id, new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow });
+```
+
+A `StudioDraft` has `Id` (`sdr_...`), `Title`, `OwnerUserId`, `OwnerName`, `ConversationId`, `TargetApp`, `Version`, `Status` (`StudioDraftStatusEnum`: `Open`, `PendingApproval`, `Applied`, `Discarded`), `ApprovalId`, `PublishOnApply`, `ManifestApplyId`, `Items` (`StudioDraftItem`: `Kind`, `Name`, `Operation`, `Document`, `BaseHash`), and `Layout` (`StudioDraftNode`: `NodeKey`, `X`, `Y`). `ListAsync(mine: true, query)` returns your own drafts, newest change first, and `query.Search` matches the title.
+
+Every change names the version you read. If the draft moved on, the call throws `GarrisonException` with status 409 and `Error.Code` `DraftVersionConflict`, and changes nothing; read the draft again and retry. A draft that is not `Open` answers 409 `DraftNotOpen`. `PutItemAsync` takes one manifest document whose kind and name match the path, and an optional `StudioDraftOperationEnum` (`Upsert`, the default, or `Delete`; drafts delete only `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`). `RemoveItemAsync(id, kind, name, version)` drops an item.
+
+`DiffAsync` and `ValidateAsync` return a `StudioDraftDiff`: `Valid` is true when nothing failed and nothing is stale, and each `StudioDraftDiffItem` has `Change` (`Create`, `Update` with `Changes`, `Delete`, `Unchanged`, or `Failed` with `Message` and `ErrorCode`) and `Stale`, set when the live resource changed after the draft was based on it. `GetGraphAsync` draws the draft's apps as `StudioGraphNode` entries (`Key`, `Kind`, `Name`, `InDraft`, `Deleted`, `EntryOf`, `MemberOf`, `X`, `Y`) and `StudioGraphEdge` entries (`App`, `From`, `To`, `FanOut`). `ApplyGraphOperationAsync` runs one `StudioGraphOperationEnum`: `AddMember` (`Agent`, optional `Role`; the first member becomes the entry agent), `RemoveMember`, `Connect` (`From`, `To`, optional `FanOut`), `Disconnect`, `SetEntry`, or `MoveNode` (`NodeKey`, `X`, `Y`).
+
+`RequestApplyAsync` returns an `Approval` whose `Kind` is `ApprovalKindEnum.DraftApply` and whose `DraftId` names the draft, and freezes the draft as `PendingApproval` (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty` when it cannot). Decide it with `client.Approvals.DecideAsync`: `Allow` needs Create on `Manifest` (403 `ApproverLacksPermission`), answers 409 `DraftStale` when live configuration moved since the request, and otherwise applies the documents as one manifest apply and marks the draft `Applied`. `Deny` returns the draft to `Open`. `ResourceTypeEnum.StudioDraft` names drafts in permissions.
+
+## Architect prompts
+
+The agent architect takes its System prompt from its deployment. A deployment of `agent-architect` always has `ManagementAccess` `Drafts` (`ManagementAccessEnum`: `None`, `Drafts`), which lets its runs edit the studio drafts of the person talking to it and never apply them. On create, `Deployment.ArchitectPromptTemplateId` (identifier or name) and `ArchitectPromptVersion` choose its prompt; without them it binds `builtin/agent-architect`. Both read back as null, so read the choice with `GetArchitectPromptAsync`.
+
+```csharp
+List<ArchitectPromptEntry> prompts = await client.StudioDrafts.ListArchitectPromptsAsync(); // built-ins first
+PromptTemplate clone = await client.PromptTemplates.CloneAsync(prompts[0].Id, "my-architect");
+Agent architect = await client.Agents.GetAsync("agent-architect");
+Deployment deployment = await client.Deployments.CreateAsync(new Deployment
+{
+    Name = "architect",
+    AgentId = architect.Id,
+    HarnessProfileId = "hrn_builtin_claude_code",
+    ArchitectPromptTemplateId = clone.Id
+});
+ArchitectPromptSelection selected = await client.StudioDrafts.GetArchitectPromptAsync(deployment.Id);
+await client.StudioDrafts.SetArchitectPromptAsync(deployment.Id, "builtin/agent-architect-guided", version: null);
+```
+
+`ListArchitectPromptsAsync` lists the built-in architect prompts, then the tenant's clones of them (matched by `BuiltInKey`), then the tenant's other System templates. Each `ArchitectPromptEntry` has `Id`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that bind it). `ArchitectPromptSelection` has `DeploymentId`, `ArchitectPromptTemplateId`, `ArchitectPromptName`, `ArchitectPromptVersion` (null follows the current version, so a saved edit to the clone applies on the next turn), and `CurrentVersion`. `SetArchitectPromptAsync` answers 400 `NotAnArchitectDeployment` for a deployment that is not an architect and 400 `InvalidArchitectPrompt` for a template that is not a System template the tenant can read. Edit a clone with `PromptTemplates.UpdateAsync`, preview it with `RenderAsync`, and return it to the shipped text with `ResetAsync`. A template that a deployment binds cannot be deleted (409 `PromptTemplateInUse`).
 
 ## Streaming run events
 

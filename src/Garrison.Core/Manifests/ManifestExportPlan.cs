@@ -94,8 +94,15 @@ namespace Garrison.Core.Manifests
             }
             foreach (McpServer item in await AllAsync(q => database.McpServers.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Servers[item.Id] = item;
             foreach (WorkspaceTemplate item in await AllAsync(q => database.WorkspaceTemplates.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Workspaces[item.Id] = item;
-            foreach (Agent item in await AllAsync(q => database.Agents.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Agents[item.Id] = item;
-            foreach (AgentAsset item in await AllAsync(q => database.AgentAssets.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false)) plan._Assets[item.Id] = item;
+            foreach (Agent item in await AllAsync(q => database.Agents.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false))
+            {
+                // The seeded architect is in every tenant, so it is left out like a built-in (AD7.6).
+                if (!(item.IsProtected && item.Name == Constants.ArchitectAgentName)) plan._Agents[item.Id] = item;
+            }
+            foreach (AgentAsset item in await AllAsync(q => database.AgentAssets.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false))
+            {
+                if (item.Name != Constants.ArchitectSkillAssetName) plan._Assets[item.Id] = item;
+            }
             foreach (Deployment item in await AllAsync(q => database.Deployments.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Deployments[item.Id] = item;
             foreach (Pipeline item in await AllAsync(q => database.Pipelines.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Pipelines[item.Id] = item;
             foreach (AgenticApp item in await AllAsync(q => database.Apps.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Apps[item.Id] = item;

@@ -98,6 +98,76 @@ func (h *HarnessProfilesClient) Builtin(ctx context.Context) ([]HarnessProfile, 
 	return out, err
 }
 
+// PromptTemplateVariable documents one variable a prompt template uses.
+type PromptTemplateVariable struct {
+	ID           string  `json:"id,omitempty"`
+	Name         string  `json:"name"`
+	Description  *string `json:"description,omitempty"`
+	Required     bool    `json:"required"`
+	DefaultValue *string `json:"defaultValue,omitempty"`
+}
+
+// PromptTemplate is a versioned prompt template. Built-ins (IsBuiltIn) have a nil TenantID and a name starting with
+// builtin/; a clone of a built-in keeps its BuiltInKey so Reset can restore the shipped text. Kind is System, Task,
+// Fragment, Repair, ToolDescription, or another PromptTemplateKind value. Every content change is a new version.
+type PromptTemplate struct {
+	ID             string                   `json:"id,omitempty"`
+	TenantID       *string                  `json:"tenantId,omitempty"`
+	Name           string                   `json:"name"`
+	Description    *string                  `json:"description,omitempty"`
+	Kind           string                   `json:"kind,omitempty"`
+	Content        string                   `json:"content"`
+	CurrentVersion int                      `json:"currentVersion,omitempty"`
+	IsBuiltIn      bool                     `json:"isBuiltIn,omitempty"`
+	BuiltInKey     *string                  `json:"builtInKey,omitempty"`
+	Active         bool                     `json:"active"`
+	IsProtected    bool                     `json:"isProtected,omitempty"`
+	Variables      []PromptTemplateVariable `json:"variables,omitempty"`
+	CreatedUTC     string                   `json:"createdUtc,omitempty"`
+	LastUpdateUTC  string                   `json:"lastUpdateUtc,omitempty"`
+}
+
+// PromptRenderResponse is the result of rendering a template: the Rendered text, Success, the Variables and Includes
+// the template used, and Errors when rendering failed.
+type PromptRenderResponse struct {
+	Rendered  string   `json:"rendered"`
+	Success   bool     `json:"success"`
+	Variables []string `json:"variables"`
+	Includes  []string `json:"includes"`
+	Errors    []string `json:"errors"`
+}
+
+// PromptTemplatesClient manages prompt templates. List, Get, Create, Update, and Delete decode into out like any
+// Resource (garrison.PromptTemplate fits); Clone, Reset, and Render are typed.
+type PromptTemplatesClient struct{ Resource }
+
+// Clone copies a template (built-in or tenant, by identifier) to a new tenant template named name.
+func (p *PromptTemplatesClient) Clone(ctx context.Context, id, name string) (*PromptTemplate, error) {
+	var out PromptTemplate
+	if err := p.c.Do(ctx, http.MethodPost, p.item(id)+"/clone", nil, map[string]string{"name": name}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Reset restores a clone of a built-in template to the shipped text as a new version.
+func (p *PromptTemplatesClient) Reset(ctx context.Context, id string) (*PromptTemplate, error) {
+	var out PromptTemplate
+	if err := p.c.Do(ctx, http.MethodPost, p.item(id)+"/reset", nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Render renders a stored template with sample data; renderContext may be nil.
+func (p *PromptTemplatesClient) Render(ctx context.Context, id string, renderContext map[string]any) (*PromptRenderResponse, error) {
+	var out PromptRenderResponse
+	if err := p.c.Do(ctx, http.MethodPost, p.item(id)+"/render", nil, map[string]any{"context": renderContext}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // GlobalResource is a platform-level collection (tenants, nodes, node pools).
 type GlobalResource struct {
 	c    *Client

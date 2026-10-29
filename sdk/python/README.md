@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `fan_out_groups`, `apps`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `agent_assets`, `file_spaces`, `capabilities`, `fan_out_groups`, `apps`, `studio_drafts`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -78,7 +78,7 @@ result = client.approvals.check(deployment_id, "Bash", {"command": "git status -
 print(result["action"], result["source"], result.get("rulePattern"))
 ```
 
-`approvals.list` filters by `status`, `run_id`, `root_run_id`, `agent_id`, `deployment_id`, `decision_source`, `from_utc`, and `to_utc`; for a pending count, pass `status="Pending", max_results=1` and read `totalRecords`. `approvals.get` raises `GarrisonError` (404) for an approval outside the tenant. `approvals.decide` raises 409 (`ApprovalNotPending`) when the approval was already decided, and `remember=True` adds a rule to the deployment (`rule_pattern`, or the approval's `suggestedRule`) and needs Update on that deployment. `approvals.check` records nothing; the input uses Claude Code tool input names (`command`, `cwd`, `url`, `file_path`, `notebook_path`, `path`, `paths`, `pattern`, `query`). Runs carry `pendingApprovals`, `awaitingApproval` (the run stays `Running` while it waits), and `approvalWaitMs`. The module exports `APPROVAL_STATUSES`, `APPROVAL_DECISIONS`, `APPROVAL_SOURCES`, `APPROVAL_RULE_ACTIONS`, and `APPROVAL_KINDS`.
+`approvals.list` filters by `status`, `run_id`, `root_run_id`, `agent_id`, `deployment_id`, `decision_source`, `from_utc`, and `to_utc`; for a pending count, pass `status="Pending", max_results=1` and read `totalRecords`. `approvals.get` raises `GarrisonError` (404) for an approval outside the tenant. `approvals.decide` raises 409 (`ApprovalNotPending`) when the approval was already decided, and `remember=True` adds a rule to the deployment (`rule_pattern`, or the approval's `suggestedRule`) and needs Update on that deployment. `approvals.check` records nothing; the input uses Claude Code tool input names (`command`, `cwd`, `url`, `file_path`, `notebook_path`, `path`, `paths`, `pattern`, `query`). Runs carry `pendingApprovals`, `awaitingApproval` (the run stays `Running` while it waits), and `approvalWaitMs`. The module exports `APPROVAL_STATUSES`, `APPROVAL_DECISIONS`, `APPROVAL_SOURCES`, `APPROVAL_RULE_ACTIONS`, and `APPROVAL_KINDS` (which includes `DraftApply`, for studio drafts; those approvals carry `draftId`).
 
 ## Pipelines
 
@@ -406,6 +406,46 @@ record = client.apps.promote(app["id"], "dev")      # PromotionRecord; roll back
 Each `AppDelegationMember` in `plan["members"]` has the graph's `desiredMode` (`AllowList`, or `None` for a member that calls nobody), `desiredAllowList`, and `desiredMaxDepth`, the latest published revision's `publishedMode`, `publishedAllowList`, and `publishedMaxDepth`, `drift`, and after an apply `draftRevisionNumber` or `skippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `create_revision` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `revisions` lists them newest first and `get_revision` reads one by identifier (`apv_...`) or number. `promote` moves every member's pin to every deployment of that member in the target environment under one promotion record (409 `NoTargetDeployments` names a member without one) and needs Execute on `Promotion` for the target environment.
 
 `APP_RESOURCE_TYPE` (`AgenticApp`) names apps in permissions, and `APP_USER_ROLE` (`AppUser`) is the built-in role that lets a user use one app's chat UI when assigned with resource scope on the app identifier. A conversation's `appId` names the app whose chat UI started it.
+
+## Studio drafts
+
+A studio draft holds manifest documents, one per resource, that a person or the agent architect edits before anything changes in live configuration (see [docs/STUDIO.md](../../docs/STUDIO.md)). Applying one takes a person's approval. `client.studio_drafts` covers the draft routes under `/v1.0/api/tenants/{tenantId}/studio/drafts`.
+
+```python
+draft = client.studio_drafts.create(title="research app")       # or from_app="research" to start from a live app
+draft = client.studio_drafts.put_item(draft["id"], "Agent", "researcher", draft["version"], yaml_text)
+graph = client.studio_drafts.graph_operation(draft["id"], version=draft["version"], operation="AddMember",
+                                             app="research", agent="researcher")
+diff = client.studio_drafts.diff(draft["id"])                    # or validate(); diff["valid"] and per-item "change"
+approval = client.studio_drafts.request_apply(draft["id"], graph["version"])
+client.approvals.decide(approval["id"], "Allow")                 # applies the draft; it becomes Applied
+```
+
+A `StudioDraft` has `id` (`sdr_...`), `title`, `ownerUserId`, `ownerName`, `targetApp`, `version`, `status` (`STUDIO_DRAFT_STATUSES`: `Open`, `PendingApproval`, `Applied`, `Discarded`), `approvalId`, `publishOnApply`, `manifestApplyId`, `items` (`kind`, `name`, `operation`, `document`, `baseHash`), and `layout` (`nodeKey`, `x`, `y`). `list(mine=True, search=...)` returns your own drafts, newest change first.
+
+Every change names the version you read. If the draft moved on, the call raises `GarrisonError` 409 with `code` `DraftVersionConflict` and changes nothing; read the draft again and retry. A draft that is not `Open` raises 409 `DraftNotOpen`. `put_item` takes one manifest document whose kind and name match the path, with `operation` `Upsert` (the default) or `Delete` (`STUDIO_DRAFT_OPERATIONS`; drafts delete only `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`). `remove_item(id, kind, name, version)` drops an item.
+
+`diff` and `validate` compare each item with live configuration: `change` is `Create`, `Update` (with `changes`), `Delete`, `Unchanged`, or `Failed` (with `message` and `errorCode`), and `stale` marks an item whose live resource changed after the draft was based on it. `valid` is true when nothing failed and nothing is stale. `graph` draws the draft's apps as `nodes` (`key`, `kind`, `name`, `inDraft`, `deleted`, `entryOf`, `memberOf`, `x`, `y`) and `edges` (`app`, `from`, `to`, `fanOut`). `graph_operation` takes the body as a dictionary or keywords (`from_` stands for `from`), with `operation` one of `STUDIO_GRAPH_OPERATIONS`: `AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`.
+
+`request_apply` returns an approval whose `kind` is `DraftApply` and whose `draftId` names the draft, and freezes the draft as `PendingApproval` (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty` when it cannot). Decide it with `client.approvals.decide`: `Allow` needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request; `Deny` returns the draft to `Open`. Permissions name drafts as `STUDIO_DRAFT_RESOURCE_TYPE` (`StudioDraft`).
+
+## Architect prompts
+
+The agent architect takes its System prompt from its deployment. A deployment of `agent-architect` always has `managementAccess` `Drafts` (`MANAGEMENT_ACCESS`: `None`, `Drafts`), which lets its runs edit the studio drafts of the person talking to it, never apply them. Creating such a deployment accepts `architectPromptTemplateId` (identifier or name) and `architectPromptVersion`; without them it binds `builtin/agent-architect`.
+
+```python
+prompts = client.studio_drafts.list_architect_prompts()          # built-ins first, then clones, then other System templates
+clone = client.prompt_templates.clone(prompts[0]["id"], "my-architect")
+architect = client.agents.get("agent-architect")
+deployment = client.deployments.create({"name": "architect", "agentId": architect["id"],
+                                        "harnessProfileId": "hrn_builtin_claude_code",
+                                        "architectPromptTemplateId": clone["id"]})
+selection = client.studio_drafts.get_architect_prompt(deployment["id"])
+client.studio_drafts.set_architect_prompt(deployment["id"], "builtin/agent-architect", version=None)
+client.prompt_templates.reset(clone["id"])                       # back to the shipped text
+```
+
+Each `ArchitectPromptEntry` has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments` (the architect deployments that use it). `ArchitectPromptSelection` has `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (None follows the current version), and `currentVersion`. `set_architect_prompt` raises 400 `NotAnArchitectDeployment` for a deployment that is not an architect, and `InvalidArchitectPrompt` for a template that is not a readable `System` template. Prompt templates also offer `clone`, `update`, `reset`, `render`, and `render_content`.
 
 ## Errors
 

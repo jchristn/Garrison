@@ -32,6 +32,15 @@ namespace Garrison.Server.Services
 
         #endregion
 
+        #region Public-Members
+
+        /// <summary>
+        /// Called after a tenant is created, for per-tenant seeding such as the agent architect (AD7.6). Null for none.
+        /// </summary>
+        public Func<string, CancellationToken, Task>? TenantCreated { get; set; } = null;
+
+        #endregion
+
         #region Constructors-and-Factories
 
         /// <summary>
@@ -80,6 +89,7 @@ namespace Garrison.Server.Services
             tenant.RequireUntrustedDeployments = request.RequireUntrustedDeployments ?? false;
             await _Database.Tenants.CreateAsync(tenant, token).ConfigureAwait(false);
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Tenant", tenant.Id, "Tenant created.", tenant.Id, token).ConfigureAwait(false);
+            if (TenantCreated != null) await TenantCreated(tenant.Id, token).ConfigureAwait(false);
             return tenant;
         }
 

@@ -296,7 +296,7 @@ namespace Garrison.Core.Manifests
             foreach (McpServer server in plan.Selected<McpServer>()) documents.Add(Wrap("McpServer", server.Name, Tree(server)));
             foreach (WorkspaceTemplate workspace in plan.Selected<WorkspaceTemplate>()) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
             foreach (AgentAsset asset in plan.Selected<AgentAsset>()) documents.Add(Wrap("AgentAsset", asset.Name, await AgentAssetTreeAsync(asset, resolver, true, token).ConfigureAwait(false)));
-            foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token, await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false)).ConfigureAwait(false)));
+            foreach (Agent agent in plan.Selected<Agent>()) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token, await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false), await PublishedCapabilitiesAsync(agent, token).ConfigureAwait(false)).ConfigureAwait(false)));
             foreach (Deployment deployment in plan.Selected<Deployment>()) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
             foreach (Pipeline pipeline in plan.Selected<Pipeline>()) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
             foreach (AgenticApp app in plan.Selected<AgenticApp>()) documents.Add(Wrap("AgenticApp", app.Name, await AppTreeAsync(app, resolver, token).ConfigureAwait(false)));
@@ -675,6 +675,12 @@ namespace Garrison.Core.Manifests
                     planned.AgentAssetPins.Add(new AgentRevisionAssetPin { AssetId = assetId, Version = pins[i].Version });
                 }
             }
+            if (spec.TryGetValue("capabilities", out object? capabilitiesValue))
+            {
+                // AD7.8: the capabilities (for example host tools such as pandoc) this agent's next revision uses.
+                spec.Remove("capabilities");
+                planned.AgentCapabilities = capabilitiesValue == null ? new List<string>() : Serializer.Deserialize<List<string>>(TemplateValues.ToJson(capabilitiesValue)) ?? new List<string>();
+            }
             string? toolTemplate = Take(spec, "toolDescriptionTemplate");
             string? skillTemplate = Take(spec, "skillDescriptionTemplate");
             string? remoteSecret = Take(spec, "remoteCredentialSecret");
@@ -703,25 +709,23 @@ namespace Garrison.Core.Manifests
             else
             {
                 List<AgentRevisionAssetPin> currentPins = await PublishedAssetPinsAsync(existing, token).ConfigureAwait(false);
-                Dictionary<string, object?> agentBefore = await AgentTreeAsync(existing, resolver, token, currentPins).ConfigureAwait(false);
-                Dictionary<string, object?> agentAfter = await AgentTreeAsync(agent, resolver, token, planned.AgentAssetPins ?? currentPins).ConfigureAwait(false);
+                List<string> currentCapabilities = await PublishedCapabilitiesAsync(existing, token).ConfigureAwait(false);
+                Dictionary<string, object?> agentBefore = await AgentTreeAsync(existing, resolver, token, currentPins, currentCapabilities).ConfigureAwait(false);
+                Dictionary<string, object?> agentAfter = await AgentTreeAsync(agent, resolver, token, planned.AgentAssetPins ?? currentPins, planned.AgentCapabilities ?? currentCapabilities).ConfigureAwait(false);
                 planned.Result = Same(agentBefore, agentAfter) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated;
                 if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(agentBefore, agentAfter);
             }
             resolver.Add("Agent", agent.Name, agent.Id);
         }
 
-        private async Task PublishAssetPinsAsync(string tenantId, Agent agent, List<AgentRevisionAssetPin> pins, string? changeNote, CancellationToken token)
+        private async Task PublishAssetPinsAsync(string tenantId, Agent agent, List<AgentRevisionAssetPin>? pins, List<string>? capabilities, string? changeNote, CancellationToken token)
         {
             Agent current = await _Database.Agents.ReadAsync(tenantId, agent.Id, token).ConfigureAwait(false) ?? agent;
             AgentRevision? latest = String.IsNullOrEmpty(current.LatestPublishedRevisionId) ? null : await _Database.AgentRevisions.ReadAsync(tenantId, current.LatestPublishedRevisionId, token).ConfigureAwait(false);
             AgentRevision content = AgentRevisionContent.FromAgent(current);
-            content.AssetPins = pins;
-            if (latest != null)
-            {
-                content.Capabilities = latest.Capabilities;
-                content.PromptPins = latest.PromptPins;
-            }
+            content.AssetPins = pins ?? latest?.AssetPins ?? new List<AgentRevisionAssetPin>();
+            content.Capabilities = capabilities ?? latest?.Capabilities ?? new List<string>();
+            if (latest != null) content.PromptPins = latest.PromptPins;
             if (latest != null && String.Equals(latest.ContentHash, AgentRevisionContent.ComputeHash(content), StringComparison.Ordinal)) return;
             content.ChangeNote = changeNote;
             content.AuthorName = "manifest";
@@ -967,6 +971,7 @@ namespace Garrison.Core.Manifests
             if (spec.EffectPolicy.HasValue) deployment.EffectPolicy = spec.EffectPolicy.Value;
             deployment.Executor = spec.Executor;
             deployment.TrustLevel = spec.TrustLevel ?? DeploymentTrustLevelEnum.Trusted;
+            deployment.ManagementAccess = spec.ManagementAccess ?? ManagementAccessEnum.None;
             deployment.RequiredCapabilities = spec.RequiredCapabilities?.Clone() ?? new ExecutorRequirements();
             deployment.PodResources = spec.PodResources == null ? new RunPodResources() : spec.PodResources.Clone();
             deployment.Weight = spec.Weight;
@@ -1572,6 +1577,7 @@ namespace Garrison.Core.Manifests
                     {
                         AgentRevision draft = AgentRevisionContent.FromAgent(agent);
                         draft.AssetPins = planned.AgentAssetPins ?? await PublishedAssetPinsAsync(agent, token).ConfigureAwait(false);
+                        draft.Capabilities = planned.AgentCapabilities ?? await PublishedCapabilitiesAsync(agent, token).ConfigureAwait(false);
                         draft.ChangeNote = planned.AgentChangeNote;
                         draft.AuthorName = "manifest";
                         await _Database.AgentRevisions.SaveDraftAsync(draft, token).ConfigureAwait(false);
@@ -1579,7 +1585,7 @@ namespace Garrison.Core.Manifests
                     }
                     if (create) await _Database.Agents.CreateAsync(agent, token).ConfigureAwait(false);
                     else await _Database.Agents.UpdateAsync(agent, token).ConfigureAwait(false);
-                    if (planned.AgentAssetPins != null) await PublishAssetPinsAsync(tenantId, agent, planned.AgentAssetPins, planned.AgentChangeNote, token).ConfigureAwait(false);
+                    if (planned.AgentAssetPins != null || planned.AgentCapabilities != null) await PublishAssetPinsAsync(tenantId, agent, planned.AgentAssetPins, planned.AgentCapabilities, planned.AgentChangeNote, token).ConfigureAwait(false);
                     break;
                 case Deployment deployment:
                     if (planned.AgentRevisionNumber.HasValue && String.IsNullOrEmpty(deployment.AgentRevisionId))
@@ -1841,9 +1847,17 @@ namespace Garrison.Core.Manifests
             return revision?.AssetPins ?? new List<AgentRevisionAssetPin>();
         }
 
-        private async Task<Dictionary<string, object?>> AgentTreeAsync(Agent agent, Resolver resolver, CancellationToken token, List<AgentRevisionAssetPin>? assetPins = null)
+        private async Task<List<string>> PublishedCapabilitiesAsync(Agent agent, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return new List<string>();
+            AgentRevision? revision = await _Database.AgentRevisions.ReadAsync(agent.TenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
+            return revision?.Capabilities ?? new List<string>();
+        }
+
+        private async Task<Dictionary<string, object?>> AgentTreeAsync(Agent agent, Resolver resolver, CancellationToken token, List<AgentRevisionAssetPin>? assetPins = null, List<string>? capabilities = null)
         {
             Dictionary<string, object?> tree = Tree(agent);
+            if (capabilities != null && capabilities.Count > 0) tree["capabilities"] = capabilities.Select(c => (object?)c).ToList();
             if (assetPins != null && assetPins.Count > 0)
             {
                 List<object?> assets = new List<object?>();
@@ -1888,6 +1902,7 @@ namespace Garrison.Core.Manifests
             spec.EffectPolicy = deployment.EffectPolicy;
             spec.Executor = deployment.Executor;
             spec.TrustLevel = deployment.TrustLevel == DeploymentTrustLevelEnum.Trusted ? null : deployment.TrustLevel;
+            spec.ManagementAccess = deployment.ManagementAccess == ManagementAccessEnum.None ? null : deployment.ManagementAccess;
             spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(deployment.RequiredCapabilities) ? deployment.RequiredCapabilities.Clone() : null;
             spec.PodResources = deployment.PodResources.IsEmpty ? null : deployment.PodResources.Clone();
             spec.Weight = deployment.Weight;

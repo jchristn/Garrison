@@ -487,7 +487,16 @@ namespace Garrison.Server.Services
                 (resourceType == ResourceTypeEnum.Agent && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Execute)) ||
                 (resourceType == ResourceTypeEnum.Run && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Update)) ||
                 (resourceType == ResourceTypeEnum.Artifact && operation == OperationTypeEnum.Create);
-            if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may discover and invoke agents, read runs, or upload configured artifacts for their own execution.");
+            if (!allowed && IsDraftGrant(resourceType, operation))
+            {
+                // Delegated management (AD7.4, AD-017): a run of a deployment with managementAccess Drafts may work on studio
+                // drafts and read design configuration, within what the person who started it may do. Never apply,
+                // delete live resources, or read secrets.
+                Run? run = String.IsNullOrEmpty(ctx.RunId) ? null : await _Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+                Deployment? deployment = run == null ? null : await _Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false);
+                allowed = deployment != null && deployment.ManagementAccess == ManagementAccessEnum.Drafts;
+            }
+            if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may discover and invoke agents, read runs, or upload configured artifacts for their own execution; deployments with managementAccess Drafts may also work on studio drafts.");
 
             if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator) return AuthorizationDecision.Permit("Run on behalf of a system administrator.");
             if (String.IsNullOrEmpty(ctx.OriginPrincipalId)) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run has no originating principal.");
@@ -528,6 +537,16 @@ namespace Garrison.Server.Services
             if (!ceiling.Permitted) ceiling.Reason = "Originating principal ceiling: " + ceiling.Reason;
             ceiling.BypassReason = null;
             return ceiling;
+        }
+
+        private static bool IsDraftGrant(ResourceTypeEnum resourceType, OperationTypeEnum operation)
+        {
+            if (resourceType == ResourceTypeEnum.StudioDraft) return operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Update;
+            if (operation != OperationTypeEnum.Read) return false;
+            return resourceType == ResourceTypeEnum.Deployment || resourceType == ResourceTypeEnum.HarnessProfile || resourceType == ResourceTypeEnum.PromptTemplate
+                || resourceType == ResourceTypeEnum.McpServer || resourceType == ResourceTypeEnum.Workspace || resourceType == ResourceTypeEnum.AgentRevision
+                || resourceType == ResourceTypeEnum.AgentAsset || resourceType == ResourceTypeEnum.Capability || resourceType == ResourceTypeEnum.AgenticApp
+                || resourceType == ResourceTypeEnum.Pipeline || resourceType == ResourceTypeEnum.Trigger;
         }
 
         private async Task<List<PermissionGrant>> ExpandAsync(string? roleId, string? roleName, ResourceScopeEnum scope, string? resourceId, bool inherits, string tenantId, CancellationToken token)

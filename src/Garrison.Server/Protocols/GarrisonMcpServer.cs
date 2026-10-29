@@ -400,11 +400,13 @@ namespace Garrison.Server.Protocols
         {
             bool administrator = SeesAdministratorArguments(ctx);
             string? tenantId = ctx.IsAuthenticated ? ctx.TenantId : null;
+            bool studio = ctx.PrincipalType != PrincipalTypeEnum.Run || await DraftGrantAsync(ctx, token).ConfigureAwait(false);
             List<ToolDefinition> tools = new List<ToolDefinition>();
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
                 if (tool.Name.StartsWith("garrison_memory_", StringComparison.Ordinal) && !_Context.Settings.AgentMemory.Enabled) continue;
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
+                if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -421,6 +423,16 @@ namespace Garrison.Server.Protocols
             result.Tools = tools;
             result.CacheScope = "private";
             return result;
+        }
+
+        private async Task<bool> DraftGrantAsync(RequestContext ctx, CancellationToken token)
+        {
+            // Runs see the studio tools only when their deployment grants managementAccess Drafts (AD7.4).
+            if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return false;
+            Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
+            if (run == null) return false;
+            Deployment? deployment = await _Context.Database.Deployments.ReadAsync(ctx.TenantId, run.DeploymentId, token).ConfigureAwait(false);
+            return deployment != null && deployment.ManagementAccess == ManagementAccessEnum.Drafts;
         }
 
         private async Task<List<Agent>> AgentToolsAsync(RequestContext ctx, string tenantId, CancellationToken token)
@@ -757,6 +769,29 @@ namespace Garrison.Server.Protocols
                     case "garrison_create_app":
                     case "garrison_update_app":
                         result = await AppToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_clone_prompt_template":
+                    case "garrison_update_prompt_template":
+                    case "garrison_reset_prompt_template":
+                    case "garrison_render_prompt_template":
+                        result = await PromptTemplateToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_studio_list_architect_prompts":
+                    case "garrison_studio_get_architect_prompt":
+                    case "garrison_studio_set_architect_prompt":
+                        result = await ArchitectToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_studio_list_drafts":
+                    case "garrison_studio_create_draft":
+                    case "garrison_studio_get_draft":
+                    case "garrison_studio_put_item":
+                    case "garrison_studio_remove_item":
+                    case "garrison_studio_graph":
+                    case "garrison_studio_graph_operation":
+                    case "garrison_studio_diff":
+                    case "garrison_studio_validate":
+                    case "garrison_studio_request_apply":
+                        result = await StudioToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_agent_assets":
                     case "garrison_get_agent_asset":
@@ -1576,6 +1611,165 @@ namespace Garrison.Server.Protocols
                 throw ToolError("NotFound", e.Message);
             }
             catch (ConflictException e)
+            {
+                throw ToolError(e.Code, e.Message);
+            }
+            catch (ValidationException e)
+            {
+                throw ToolError(e.Code ?? "ValidationFailed", e.Message);
+            }
+        }
+
+        private async Task<object> PromptTemplateToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpPromptTemplateArguments arguments = ManagementArguments<McpPromptTemplateArguments>(args);
+            PromptTemplateService templates = _Context.Get<PromptTemplateService>();
+            try
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.PromptTemplate, tool.Operation, null, token).ConfigureAwait(false);
+                if (tool.Name == "garrison_render_prompt_template" && String.IsNullOrWhiteSpace(arguments.Template))
+                {
+                    if (arguments.Content == null) throw ToolError("ValidationFailed", "template or content is required.");
+                    return await templates.RenderAsync(tenantId, "ad hoc", arguments.Content, new PromptRenderRequest { Content = arguments.Content, Context = arguments.Context }, token).ConfigureAwait(false);
+                }
+                if (String.IsNullOrWhiteSpace(arguments.Template)) throw ToolError("ValidationFailed", "template is required.");
+                PromptTemplate template = await _Context.Database.PromptTemplates.ReadAsync(tenantId, arguments.Template, token).ConfigureAwait(false)
+                    ?? await _Context.Database.PromptTemplates.ReadByNameAsync(tenantId, arguments.Template, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotFound", "Prompt template " + arguments.Template + " not found.");
+                switch (tool.Name)
+                {
+                    case "garrison_clone_prompt_template":
+                        if (String.IsNullOrWhiteSpace(arguments.Name)) throw ToolError("ValidationFailed", "name is required.");
+                        return await templates.CloneAsync(ctx, tenantId, template, arguments.Name, token).ConfigureAwait(false);
+                    case "garrison_reset_prompt_template":
+                        return await templates.ResetAsync(ctx, tenantId, template, token).ConfigureAwait(false);
+                    case "garrison_render_prompt_template":
+                        return await templates.RenderAsync(tenantId, template.Name, arguments.Content ?? template.Content, new PromptRenderRequest { Context = arguments.Context }, token).ConfigureAwait(false);
+                    default:
+                        PromptTemplateRequest update = new PromptTemplateRequest
+                        {
+                            Name = arguments.Name ?? template.Name, Description = arguments.Description ?? template.Description, Kind = arguments.Kind ?? template.Kind,
+                            Content = arguments.Content ?? template.Content, ChangeNote = arguments.ChangeNote, Variables = arguments.Content == null ? template.Variables : new List<PromptTemplateVariable>()
+                        };
+                        return await templates.UpdateAsync(ctx, tenantId, template, update, token).ConfigureAwait(false);
+                }
+            }
+            catch (NotFoundException e)
+            {
+                throw ToolError("NotFound", e.Message);
+            }
+            catch (ConflictException e)
+            {
+                throw ToolError(e.Code, e.Message);
+            }
+            catch (ValidationException e)
+            {
+                throw ToolError(e.Code ?? "ValidationFailed", e.Message);
+            }
+        }
+
+        private async Task<object> ArchitectToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpArchitectArguments arguments = ManagementArguments<McpArchitectArguments>(args);
+            ArchitectService architects = _Context.Get<ArchitectService>();
+            try
+            {
+                if (tool.Name == "garrison_studio_list_architect_prompts")
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    return await architects.ListPromptsAsync(tenantId, token).ConfigureAwait(false);
+                }
+                if (String.IsNullOrWhiteSpace(arguments.Deployment)) throw ToolError("ValidationFailed", "deployment is required.");
+                Deployment deployment = await _Context.Database.Deployments.ReadAsync(tenantId, arguments.Deployment, token).ConfigureAwait(false)
+                    ?? await _Context.Database.Deployments.ReadByNameAsync(tenantId, arguments.Deployment, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotFound", "Deployment " + arguments.Deployment + " not found.");
+                await Require(ctx, tenantId, ResourceTypeEnum.Deployment, tool.Operation, deployment.Id, token).ConfigureAwait(false);
+                if (tool.Name == "garrison_studio_get_architect_prompt") return await architects.GetPromptAsync(tenantId, deployment, token).ConfigureAwait(false);
+                ArchitectPromptRequest request = new ArchitectPromptRequest { ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId ?? String.Empty, ArchitectPromptVersion = arguments.ArchitectPromptVersion };
+                return await architects.SetPromptAsync(ctx, tenantId, deployment, request, token).ConfigureAwait(false);
+            }
+            catch (NotFoundException e)
+            {
+                throw ToolError("NotFound", e.Message);
+            }
+            catch (ValidationException e)
+            {
+                throw ToolError(e.Code ?? "ValidationFailed", e.Message);
+            }
+        }
+
+        private async Task<object> StudioToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpStudioArguments arguments = ManagementArguments<McpStudioArguments>(args);
+            StudioService studio = _Context.Get<StudioService>();
+            try
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.StudioDraft, tool.Operation, null, token).ConfigureAwait(false);
+                if (tool.Name == "garrison_studio_list_drafts")
+                {
+                    string? owner = null;
+                    if (ctx.PrincipalType == PrincipalTypeEnum.Run) StudioService.Owner(ctx, out owner, out string? _);
+                    return await _Context.Database.StudioDrafts.EnumerateAsync(tenantId, owner, new EnumerationQuery { Search = arguments.Title, MaxResults = 100 }, token).ConfigureAwait(false);
+                }
+                if (tool.Name == "garrison_studio_create_draft")
+                {
+                    StudioDraftCreateRequest create = new StudioDraftCreateRequest { Title = arguments.Title, FromApp = arguments.FromApp };
+                    if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+                    {
+                        Run? run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId ?? String.Empty, token).ConfigureAwait(false);
+                        create.ConversationId = run?.ConversationId;
+                    }
+                    return await studio.CreateAsync(ctx, tenantId, create, token).ConfigureAwait(false);
+                }
+                if (String.IsNullOrWhiteSpace(arguments.DraftId)) throw ToolError("ValidationFailed", "draftId is required.");
+                StudioDraft draft = await studio.ReadAsync(tenantId, arguments.DraftId, token).ConfigureAwait(false);
+                if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+                {
+                    // A run works only on drafts of the person it acts for (AD-017).
+                    StudioService.Owner(ctx, out string? owner, out string? _);
+                    if (draft.OwnerUserId != owner) throw ToolError("NotFound", "Draft not found.");
+                }
+                int version = arguments.Version ?? draft.Version;
+                switch (tool.Name)
+                {
+                    case "garrison_studio_get_draft":
+                        return draft;
+                    case "garrison_studio_graph":
+                        return StudioService.Graph(draft);
+                    case "garrison_studio_diff":
+                    case "garrison_studio_validate":
+                        return await studio.DiffAsync(ctx, tenantId, draft, token).ConfigureAwait(false);
+                }
+                if (!arguments.Version.HasValue) throw ToolError("ValidationFailed", "version is required: the draft version you read.");
+                switch (tool.Name)
+                {
+                    case "garrison_studio_put_item":
+                        if (String.IsNullOrWhiteSpace(arguments.Kind) || String.IsNullOrWhiteSpace(arguments.Name)) throw ToolError("ValidationFailed", "kind and name are required.");
+                        return await studio.PutItemAsync(tenantId, draft.Id, arguments.Kind, arguments.Name, new StudioDraftItemRequest { Version = version, Operation = arguments.Operation, Document = arguments.Document ?? String.Empty }, token).ConfigureAwait(false);
+                    case "garrison_studio_remove_item":
+                        if (String.IsNullOrWhiteSpace(arguments.Kind) || String.IsNullOrWhiteSpace(arguments.Name)) throw ToolError("ValidationFailed", "kind and name are required.");
+                        return await studio.RemoveItemAsync(tenantId, draft.Id, arguments.Kind, arguments.Name, version, token).ConfigureAwait(false);
+                    case "garrison_studio_graph_operation":
+                        if (!arguments.GraphOperation.HasValue) throw ToolError("ValidationFailed", "graphOperation is required.");
+                        StudioGraphOperationRequest operation = new StudioGraphOperationRequest
+                        {
+                            Version = version, Operation = arguments.GraphOperation.Value, App = arguments.App, Agent = arguments.Agent, Role = arguments.Role,
+                            From = arguments.From, To = arguments.To, FanOut = arguments.FanOut, NodeKey = arguments.NodeKey, X = arguments.X ?? 0, Y = arguments.Y ?? 0
+                        };
+                        return await studio.ApplyGraphOperationAsync(tenantId, draft.Id, operation, token).ConfigureAwait(false);
+                    default:
+                        return await studio.RequestApplyAsync(ctx, tenantId, draft.Id, version, token).ConfigureAwait(false);
+                }
+            }
+            catch (NotFoundException e)
+            {
+                throw ToolError("NotFound", e.Message);
+            }
+            catch (ConflictException e)
+            {
+                throw ToolError(e.Code, e.Message);
+            }
+            catch (AppAccessException e)
             {
                 throw ToolError(e.Code, e.Message);
             }

@@ -64,7 +64,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"); `Agents` adds revision calls, and `Environments` and `Promotions` are typed (see "Agent revisions and promotion"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `PromptTemplates` adds typed `Clone`, `Reset`, and `Render` (returning `garrison.PromptTemplate` and `garrison.PromptRenderResponse`); `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"); `Agents` adds revision calls, and `Environments` and `Promotions` are typed (see "Agent revisions and promotion"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `StudioDrafts`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
 
@@ -241,6 +241,44 @@ record, err := client.Apps.Promote(ctx, app.ID, garrison.AppPromotionRequest{Sou
 Each `garrison.AppDelegationMember` has the graph's `DesiredMode` (`AllowList`, or `None` for a member that calls nobody), `DesiredAllowList`, and `DesiredMaxDepth`, the latest published revision's `PublishedMode`, `PublishedAllowList`, and `PublishedMaxDepth`, `Drift`, and after an apply `DraftRevisionNumber` or `SkippedReason` (`DraftConflict` when the member's open draft already changes its delegation another way). `CreateRevision` pins every member's latest published revision (409 `NoPublishedRevision` when a member has none); `Revisions` lists them newest first and `GetRevision` reads one by identifier (`apv_...`) or number. `Promote` returns a `PromotionRecord`: every member's pin moves to every deployment of that member in the target environment together (409 `NoTargetDeployments` names a member without one); roll it back with `client.Promotions.Rollback`. Promotion needs Execute on `Promotion` for the target environment.
 
 `garrison.ResourceTypeAgenticApp` names apps in permissions, and `garrison.AppUserRole` (`AppUser`) is the built-in role that lets a user use one app's chat UI when assigned with resource scope on the app identifier. `Conversation.AppID` names the app whose chat UI started a conversation.
+
+## Studio drafts
+
+A studio draft holds manifest documents, one per resource, that a person or the agent architect edits before anything changes in live configuration (see [docs/STUDIO.md](../../docs/STUDIO.md)). `client.StudioDrafts` lists (`List(ctx, mine, opts)`, where `mine` keeps only your own and `opts.Search` matches the title), creates (`Create(ctx, title, fromApp)`; a non-empty `fromApp` starts from an existing app and everything it references), reads, and deletes drafts. A `garrison.StudioDraft` has `ID` (`sdr_...`), `Title`, `OwnerUserID`, `OwnerName`, `TargetApp`, `Version`, `Status` (`StudioDraftStatusOpen`, `StudioDraftStatusPendingApproval`, `StudioDraftStatusApplied`, `StudioDraftStatusDiscarded`), `ApprovalID`, `PublishOnApply`, `ManifestApplyID`, `Items` (`Kind`, `Name`, `Operation`, `Document`, `BaseHash`), and `Layout`.
+
+Every change names the draft version you read. When someone else changed the draft first, the call fails with 409 `DraftVersionConflict` and changes nothing, so read it again and retry. Only an `Open` draft changes (409 `DraftNotOpen`).
+
+```go
+draft, err := client.StudioDrafts.Create(ctx, "research app", "")
+doc := "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: researcher\nspec:\n  displayName: Researcher\n"
+draft, err = client.StudioDrafts.PutItem(ctx, draft.ID, "Agent", "researcher", draft.Version, doc, garrison.StudioDraftOperationUpsert)
+graph, err := client.StudioDrafts.GraphOperation(ctx, draft.ID, garrison.StudioGraphOperationRequest{
+	Version: draft.Version, Operation: garrison.StudioGraphOperationAddMember, App: "research", Agent: "researcher",
+})
+diff, err := client.StudioDrafts.Diff(ctx, draft.ID) // Validate returns the same shape
+approval, err := client.StudioDrafts.RequestApply(ctx, draft.ID, graph.Version)
+_, err = client.Approvals.Decide(ctx, approval.ID, garrison.ApprovalDecideRequest{Decision: garrison.ApprovalDecisionAllow})
+```
+
+`PutItem` takes the operation (`StudioDraftOperationUpsert`, or `StudioDraftOperationDelete` for `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`; empty means Upsert) and one manifest document whose kind and name match the item. `RemoveItem(ctx, id, kind, name, version)` drops an item. `Diff` and `Validate` return a `garrison.StudioDraftDiff`: `Valid` (nothing failed and nothing is stale) and one `StudioDraftDiffItem` per item with `Change` (`Create`, `Update`, `Delete`, `Unchanged`, or `Failed`), `Changes` (`ManifestFieldChange`), `Message`, `ErrorCode`, and `Stale`.
+
+`Graph` returns a `garrison.StudioGraph` with `Nodes` (`Key`, `Kind`, `Name`, `InDraft`, `Deleted`, `EntryOf`, `MemberOf`, `X`, `Y`) and `Edges` (`App`, `From`, `To`, `FanOut`). `GraphOperation` changes it one step at a time with a `StudioGraphOperationRequest`: `StudioGraphOperationAddMember` (`Agent`, optional `Role`; the first member becomes the entry agent), `RemoveMember`, `Connect` (`From`, `To`, optional `FanOut`), `Disconnect`, `SetEntry`, and `MoveNode` (`NodeKey`, `X`, `Y`). `App` defaults to the draft's target app.
+
+`RequestApply` validates the draft (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`), returns an `Approval` with `Kind` `ApprovalKindDraftApply` and `DraftID` set, and moves the draft to `PendingApproval`. Nothing changes until a person decides the approval through `client.Approvals.Decide`: Allow needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request; Deny returns the draft to `Open`. `garrison.ResourceTypeStudioDraft` names drafts in permissions.
+
+## Architect prompts
+
+Every tenant has a protected agent named `agent-architect` that designs agents and apps in a draft. A deployment of it always gets `ManagementAccess` `ManagementAccessDrafts`, which lets its runs edit drafts for the person talking to it, never apply them. Its System prompt is chosen per deployment (see [docs/PROMPTS.md](../../docs/PROMPTS.md#architect-prompts)). `Deployment.ArchitectPromptTemplateID` and `ArchitectPromptVersion` choose it on create; without them the deployment binds `builtin/agent-architect`.
+
+```go
+prompts, err := client.StudioDrafts.ArchitectPrompts(ctx) // built-ins first, then clones, then other System templates
+clone, err := client.PromptTemplates.Clone(ctx, prompts[0].ID, "my-architect")
+selection, err := client.StudioDrafts.ArchitectPrompt(ctx, deploymentID)
+selection, err = client.StudioDrafts.SetArchitectPrompt(ctx, deploymentID, clone.ID, nil) // nil follows the current version
+reset, err := client.PromptTemplates.Reset(ctx, clone.ID) // back to the shipped text, as a new version
+```
+
+Each `garrison.ArchitectPromptEntry` has `ID`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that use it). A `garrison.ArchitectPromptSelection` has `DeploymentID`, `ArchitectPromptTemplateID`, `ArchitectPromptName`, `ArchitectPromptVersion` (nil when it follows the current version), and `CurrentVersion`. The template is given by identifier or name. Setting a prompt on a deployment that is not an architect fails with 400 `NotAnArchitectDeployment`, and a template that is not a readable `System` template with 400 `InvalidArchitectPrompt`. A template that any deployment binds cannot be deleted (409 `PromptTemplateInUse`).
 
 ## Streaming run events
 

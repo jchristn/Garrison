@@ -2007,6 +2007,175 @@ func main() {
 		}
 		return nil
 	})
+	check("studio draft, graph, and approved apply", func(ctx context.Context) (err error) {
+		var live garrison.Agent
+		liveName := "sdk-go-studio-" + suffix
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: liveName, Description: "Go SDK studio member."}, &live); err != nil {
+			return err
+		}
+		draftAgent := "sdk-go-draft-" + suffix
+		appName := "sdk-go-studio-app-" + suffix
+		draft, err := client.StudioDrafts.Create(ctx, "sdk go studio "+suffix, "")
+		if err != nil {
+			_ = client.Agents.Delete(ctx, live.ID)
+			return err
+		}
+		defer func() {
+			_ = client.StudioDrafts.Delete(ctx, draft.ID)
+			if derr := client.Apps.Delete(ctx, appName); derr != nil && !garrison.IsStatus(derr, http.StatusNotFound) && err == nil {
+				err = derr
+			}
+			if derr := client.Agents.Delete(ctx, draftAgent); derr != nil && !garrison.IsStatus(derr, http.StatusNotFound) && err == nil {
+				err = derr
+			}
+			if derr := client.Agents.Delete(ctx, live.ID); derr != nil && err == nil {
+				err = derr
+			}
+		}()
+		if draft.Status != garrison.StudioDraftStatusOpen || len(draft.Items) != 0 {
+			return fmt.Errorf("new draft: status %s, %d items", draft.Status, len(draft.Items))
+		}
+		document := "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: " + draftAgent + "\n  description: x\nspec:\n  displayName: x\n"
+		edited, err := client.StudioDrafts.PutItem(ctx, draft.ID, "Agent", draftAgent, draft.Version, document, garrison.StudioDraftOperationUpsert)
+		if err != nil {
+			return err
+		}
+		if edited.Version <= draft.Version || len(edited.Items) != 1 || edited.Items[0].Name != draftAgent {
+			return fmt.Errorf("after put: version %d, %d items", edited.Version, len(edited.Items))
+		}
+		var apiErr *garrison.Error
+		_, err = client.StudioDrafts.PutItem(ctx, draft.ID, "Agent", draftAgent, draft.Version, document, "")
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "DraftVersionConflict" {
+			return fmt.Errorf("expected 409 DraftVersionConflict for a stale version, got %v", err)
+		}
+		graph, err := client.StudioDrafts.GraphOperation(ctx, draft.ID, garrison.StudioGraphOperationRequest{
+			Version: edited.Version, Operation: garrison.StudioGraphOperationAddMember, App: appName, Agent: liveName,
+		})
+		if err != nil {
+			return err
+		}
+		hasApp, isEntry := false, false
+		for _, n := range graph.Nodes {
+			if n.Kind == "AgenticApp" && n.Name == appName {
+				hasApp = true
+			}
+			if n.Kind == "Agent" && n.Name == liveName {
+				for _, e := range n.EntryOf {
+					isEntry = isEntry || e == appName
+				}
+			}
+		}
+		if !hasApp || !isEntry || graph.Version <= edited.Version {
+			return fmt.Errorf("graph after AddMember: %+v", graph)
+		}
+		read, err := client.StudioDrafts.Graph(ctx, draft.ID)
+		if err != nil {
+			return err
+		}
+		if read.Version != graph.Version || len(read.Nodes) != len(graph.Nodes) {
+			return fmt.Errorf("graph read: version %d, %d nodes", read.Version, len(read.Nodes))
+		}
+		checkDiff := func(diff *garrison.StudioDraftDiff) error {
+			if !diff.Valid || len(diff.Items) != 2 {
+				return fmt.Errorf("diff: valid %v, %d items", diff.Valid, len(diff.Items))
+			}
+			for _, item := range diff.Items {
+				if item.Change != "Create" {
+					return fmt.Errorf("diff item %s/%s is %s", item.Kind, item.Name, item.Change)
+				}
+			}
+			return nil
+		}
+		diff, err := client.StudioDrafts.Diff(ctx, draft.ID)
+		if err != nil {
+			return err
+		}
+		if err := checkDiff(diff); err != nil {
+			return err
+		}
+		validated, err := client.StudioDrafts.Validate(ctx, draft.ID)
+		if err != nil {
+			return err
+		}
+		if err := checkDiff(validated); err != nil {
+			return err
+		}
+		approval, err := client.StudioDrafts.RequestApply(ctx, draft.ID, graph.Version)
+		if err != nil {
+			return err
+		}
+		if approval.Kind != garrison.ApprovalKindDraftApply || approval.DraftID == nil || *approval.DraftID != draft.ID || approval.Status != garrison.ApprovalStatusPending {
+			return fmt.Errorf("draft approval: kind %s status %s", approval.Kind, approval.Status)
+		}
+		if _, err := client.Approvals.Decide(ctx, approval.ID, garrison.ApprovalDecideRequest{Decision: garrison.ApprovalDecisionAllow}); err != nil {
+			return err
+		}
+		applied, err := client.StudioDrafts.Get(ctx, draft.ID)
+		if err != nil {
+			return err
+		}
+		if applied.Status != garrison.StudioDraftStatusApplied {
+			return fmt.Errorf("draft status after allow: %s", applied.Status)
+		}
+		if _, err := client.Apps.Get(ctx, appName); err != nil {
+			return fmt.Errorf("applied app: %w", err)
+		}
+		return nil
+	})
+	check("architect prompts", func(ctx context.Context) (err error) {
+		prompts, err := client.StudioDrafts.ArchitectPrompts(ctx)
+		if err != nil {
+			return err
+		}
+		if len(prompts) == 0 || prompts[0].Name != "builtin/agent-architect" || !prompts[0].IsBuiltIn {
+			return fmt.Errorf("architect prompts: %+v", prompts)
+		}
+		clone, err := client.PromptTemplates.Clone(ctx, prompts[0].ID, "sdk-go-architect-"+suffix)
+		if err != nil {
+			return err
+		}
+		var dep garrison.Deployment
+		defer func() {
+			if dep.ID != "" {
+				if derr := client.Deployments.Delete(ctx, dep.ID); derr != nil && err == nil {
+					err = derr
+				}
+			}
+			if derr := client.PromptTemplates.Delete(ctx, clone.ID); derr != nil && err == nil {
+				err = derr
+			}
+		}()
+		var architect garrison.Agent
+		if err := client.Agents.Get(ctx, "agent-architect", &architect); err != nil {
+			return err
+		}
+		if err := client.Deployments.Create(ctx, garrison.Deployment{
+			Name: "sdk-go-architect-" + suffix, AgentID: architect.ID, HarnessProfileID: "hrn_builtin_fake", ArchitectPromptTemplateID: &clone.ID,
+		}, &dep); err != nil {
+			return err
+		}
+		if dep.ManagementAccess != garrison.ManagementAccessDrafts {
+			return fmt.Errorf("architect deployment managementAccess %q", dep.ManagementAccess)
+		}
+		selection, err := client.StudioDrafts.ArchitectPrompt(ctx, dep.ID)
+		if err != nil {
+			return err
+		}
+		if selection.ArchitectPromptTemplateID != clone.ID {
+			return fmt.Errorf("architect prompt %s, want %s", selection.ArchitectPromptTemplateID, clone.ID)
+		}
+		changed, err := client.StudioDrafts.SetArchitectPrompt(ctx, dep.ID, "builtin/agent-architect", nil)
+		if err != nil {
+			return err
+		}
+		if changed.ArchitectPromptName != "builtin/agent-architect" {
+			return fmt.Errorf("architect prompt after set: %s", changed.ArchitectPromptName)
+		}
+		if _, err := client.PromptTemplates.Reset(ctx, clone.ID); err != nil {
+			return err
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {
