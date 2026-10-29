@@ -76,6 +76,7 @@ Each tool checks the same permission its REST equivalent does. Every tool also a
 | `garrison_get_run_transcript` | Read on Run | `runId` | `format` (`markdown`, the default, or `json`), `includeThinking` (default false) |
 | `garrison_get_conversation_transcript` | Read on Conversation (user and API credentials only) | `conversationId` | `format` (`markdown` or `json`), `includeThinking` (default false) |
 | `garrison_cancel_run` | Update on Run | `runId` | none |
+| `garrison_upload_artifact` | Create on Artifact (a run token only for its own run, at its current lease epoch) | `runId`, `storeId`, `name`, `epoch`, `repairAttempt`, `contentBase64` | `mediaType`. Uploads one workspace file that the producing deployment's artifact globs select; provider credentials stay on the server |
 | `garrison_list_runs` | Read on Run | none | `status`, `agent`, `maxResults` (1 to 100, default 25) |
 | `garrison_list_approvals` | Read on Approval | none | `status` (`Pending`, `Approved`, `Denied`, `Expired`, `Cancelled`), `runId`, `agent`, `maxResults` (1 to 100, default 25) |
 | `garrison_get_approval` | Read on Approval | `approvalId` | none |
