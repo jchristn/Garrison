@@ -2570,7 +2570,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/prompt-templates?maxResults=100",
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/prompt-templates?search=default-system",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2583,8 +2583,8 @@
               ],
               "query": [
                 {
-                  "key": "maxResults",
-                  "value": "100"
+                  "key": "search",
+                  "value": "default-system"
                 }
               ]
             },
@@ -4732,6 +4732,54 @@
           ]
         },
         {
+          "name": "Replace environments (same list)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/environments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "environments"
+              ]
+            },
+            "description": "Replaces the ordered environment list; here with the defaults.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"environments\": [\n    {\n      \"name\": \"dev\"\n    },\n    {\n      \"name\": \"staging\"\n    },\n    {\n      \"name\": \"prod\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('three', function () { pm.expect(json.environments.length).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Read revision 1",
           "request": {
             "method": "GET",
@@ -4800,6 +4848,43 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('at least one revision', function () { pm.expect(json.objects.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read revision by number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/revisions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "revisions",
+                "1"
+              ]
+            },
+            "description": "Revisions are read by number or identifier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('number 1', function () { pm.expect(json.number).to.eql(1); });"
                 ]
               }
             }
@@ -4930,7 +5015,7 @@
             "description": "Create the agent's draft revision, or replace the content of its open draft. Drafts never change what runs.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"description\": \"Postman draft {{suffix}}\",\n  \"changeNote\": \"Edited from Postman\"\n}",
+              "raw": "{\n  \"description\": \"Postman draft {{suffix}}\",\n  \"changeNote\": \"Edited from Postman\",\n  \"displayName\": \"Postman Echo\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5637,6 +5722,55 @@
           ]
         },
         {
+          "name": "Update asset",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}"
+              ]
+            },
+            "description": "Change the description and tags; kind and store cannot change.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-skill-{{suffix}}\",\n  \"kind\": \"Skill\",\n  \"description\": \"Updated from Postman\",\n  \"tags\": [\n    \"postman\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('updated', function () { pm.expect(json.description).to.eql('Updated from Postman'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Upload asset version",
           "request": {
             "method": "POST",
@@ -5854,6 +5988,42 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('file listed', function () { pm.expect(json.files[0].path).to.eql('SKILL.md'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read asset version by number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agent-assets/{{assetId}}/versions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agent-assets",
+                "{{assetId}}",
+                "versions",
+                "1"
+              ]
+            },
+            "description": "Version by number."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
                 ]
               }
             }
@@ -8368,6 +8538,40 @@
           ]
         },
         {
+          "name": "List agentic apps",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps"
+              ]
+            },
+            "description": "Apps in the tenant."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('listed', function () { pm.expect(json.objects.some(function (a) { return a.id === pm.collectionVariables.get('appId'); })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Unreachable member is refused",
           "request": {
             "method": "POST",
@@ -8451,6 +8655,55 @@
           ]
         },
         {
+          "name": "Update agentic app",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}"
+              ]
+            },
+            "description": "Replace the app; here the welcome text and the live environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\",\n      \"role\": \"Talks to people\"\n    }\n  ],\n  \"authMode\": \"Anonymous\",\n  \"anonymousEnabled\": true,\n  \"displayName\": \"Postman Desk\",\n  \"primaryColor\": \"#1F6FEB\",\n  \"welcomeText\": \"Ask me anything, again.\",\n  \"liveEnvironment\": \"dev\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('updated', function () { pm.expect(json.welcomeText).to.eql('Ask me anything, again.'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "App delegation plan",
           "request": {
             "method": "GET",
@@ -8481,6 +8734,42 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('one member', function () { pm.expect(json.members.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Write delegation drafts",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/delegation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "delegation"
+              ]
+            },
+            "description": "Writes the graph's delegation into drifting members' draft revisions; a one-member app has nothing to write."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('plan', function () { pm.expect(json.members.length).to.eql(1); });"
                 ]
               }
             }
@@ -8569,6 +8858,129 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List app revisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "revisions"
+              ]
+            },
+            "description": "Newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('one revision', function () { pm.expect(json.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read app revision",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/revisions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "revisions",
+                "1"
+              ]
+            },
+            "description": "By number or identifier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Promotion without target deployments is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/apps/{{appId}}/promote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "apps",
+                "{{appId}}",
+                "promote"
+              ]
+            },
+            "description": "Every member needs a deployment in the target environment: 409 NoTargetDeployments.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceEnvironment\": \"dev\",\n  \"targetEnvironment\": \"prod\",\n  \"allowSkip\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('NoTargetDeployments', function () { pm.expect(JSON.stringify(json)).to.include('NoTargetDeployments'); });"
                 ]
               }
             }
@@ -8697,6 +9109,543 @@
           ]
         },
         {
+          "name": "Gateway: no logo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/logo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "logo"
+              ]
+            },
+            "description": "The app has no logo asset: 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: start conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations"
+              ]
+            },
+            "description": "Starts a conversation on the entry agent's live deployment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hello from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.conversationId !== undefined && json.conversationId !== null) { pm.collectionVariables.set('appConversationId', json.conversationId); }",
+                  "if (json.turn.runId !== undefined && json.turn.runId !== null) { pm.collectionVariables.set('appTurnRunId', json.turn.runId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: read conversation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}"
+              ]
+            },
+            "description": "The turns so far.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('one turn', function () { pm.expect(json.turns.length).to.eql(1); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(function () {}, 3000);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: turn stream",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}/turns/{{appTurnRunId}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}",
+                "turns",
+                "{{appTurnRunId}}",
+                "stream"
+              ]
+            },
+            "description": "Server-sent events for the turn, ending with turn.completed.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('completed', function () { pm.expect(pm.response.text()).to.include('turn.completed'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: send a message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}",
+                "messages"
+              ]
+            },
+            "description": "The next turn.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"And again\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: list conversations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations"
+              ]
+            },
+            "description": "The session owner's conversations.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: list files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}",
+                "files"
+              ]
+            },
+            "description": "The conversation file space.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: missing file content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}/files/content?path=missing.txt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}",
+                "files",
+                "content"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "missing.txt"
+                }
+              ]
+            },
+            "description": "A file that does not exist: 404.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: missing file versions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}/files/versions?path=missing.txt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}",
+                "files",
+                "versions"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "missing.txt"
+                }
+              ]
+            },
+            "description": "A file that does not exist: 404.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: download URL for a missing file",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/conversations/{{appConversationId}}/files/download-url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "conversations",
+                "{{appConversationId}}",
+                "files",
+                "download-url"
+              ]
+            },
+            "description": "The conversation has no file space yet, so there is nothing to download: 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"missing.txt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: sign out",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "session"
+              ]
+            },
+            "description": "Ends the app session.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{appSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete app",
           "request": {
             "method": "DELETE",
@@ -8781,6 +9730,46 @@
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
                   "pm.test('draft', function () { pm.expect(json.id).to.match(/^sdr_/); pm.expect(json.version).to.eql(1); pm.expect(json.status).to.eql('Open'); });",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('draftId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my studio drafts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts?mine=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts"
+              ],
+              "query": [
+                {
+                  "key": "mine",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Drafts, newest change first; mine=true for your own."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
                 ]
               }
             }
@@ -8893,6 +9882,103 @@
           ]
         },
         {
+          "name": "Put a scratch item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/items/Agent/postman-scratch-{{suffix}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "items",
+                "Agent",
+                "postman-scratch-{{suffix}}"
+              ]
+            },
+            "description": "An item to remove again.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 2,\n  \"document\": \"apiVersion: garrison/v1\\nkind: Agent\\nmetadata:\\n  name: postman-scratch-{{suffix}}\\nspec:\\n  displayName: Scratch\\n\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove the scratch item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/items/Agent/postman-scratch-{{suffix}}?version=3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "items",
+                "Agent",
+                "postman-scratch-{{suffix}}"
+              ],
+              "query": [
+                {
+                  "key": "version",
+                  "value": "3"
+                }
+              ]
+            },
+            "description": "Removes the item; the version moves on."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('version 4', function () { pm.expect(json.version).to.eql(4); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Graph operation",
           "request": {
             "method": "POST",
@@ -8921,7 +10007,7 @@
             "description": "Add the drafted agent to a new app; the draft gains an AgenticApp item.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"version\": 2,\n  \"operation\": \"AddMember\",\n  \"app\": \"postman-app-{{suffix}}\",\n  \"agent\": \"postman-studio-{{suffix}}\"\n}",
+              "raw": "{\n  \"version\": 4,\n  \"operation\": \"AddMember\",\n  \"app\": \"postman-app-{{suffix}}\",\n  \"agent\": \"postman-studio-{{suffix}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8937,7 +10023,7 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('graph', function () { pm.expect(json.version).to.eql(3); pm.expect(json.nodes.length).to.eql(2); });"
+                  "pm.test('graph', function () { pm.expect(json.version).to.eql(5); pm.expect(json.nodes.length).to.eql(2); });"
                 ]
               }
             }
@@ -9083,7 +10169,7 @@
             "description": "Creates a DraftApply approval; the draft waits for a person.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"version\": 3\n}",
+              "raw": "{\n  \"version\": 5\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9187,6 +10273,58 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('applied', function () { pm.expect(json.status).to.eql('Applied'); pm.expect(json.manifestApplyId).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Try the drafted agent in the playground",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/drafts/{{draftId}}/playground/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "drafts",
+                "{{draftId}}",
+                "playground",
+                "invoke"
+              ]
+            },
+            "description": "Runs the draft's agent document as a draft revision on a playground copy of a deployment; this agent has none yet: 400 NoDeployment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent\": \"postman-studio-{{suffix}}\",\n  \"input\": \"Hello\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('NoDeployment', function () { pm.expect(JSON.stringify(json)).to.include('NoDeployment'); });"
                 ]
               }
             }
@@ -20248,6 +21386,14 @@
     },
     {
       "key": "playRevisionId",
+      "value": ""
+    },
+    {
+      "key": "appConversationId",
+      "value": ""
+    },
+    {
+      "key": "appTurnRunId",
       "value": ""
     }
   ]
