@@ -96,6 +96,21 @@ namespace Garrison.Sdk.Responses
         }
 
         /// <summary>
+        /// For an agent the draft holds: the capabilities its document names (host tools such as pandoc, AD7.8). Never null.
+        /// </summary>
+        public List<string> Capabilities
+        {
+            get
+            {
+                return _Capabilities;
+            }
+            set
+            {
+                _Capabilities = value ?? new List<string>();
+            }
+        }
+
+        /// <summary>
         /// Horizontal canvas position, or null when the node was never placed.
         /// </summary>
         public double? X { get; set; } = null;
@@ -114,6 +129,7 @@ namespace Garrison.Sdk.Responses
         private string _Name = String.Empty;
         private List<string> _EntryOf = new List<string>();
         private List<string> _MemberOf = new List<string>();
+        private List<string> _Capabilities = new List<string>();
 
         #endregion
     }

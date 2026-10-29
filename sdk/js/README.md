@@ -380,7 +380,7 @@ if (diff.valid) {
 }
 ```
 
-`diff` and `validate` return a `StudioDraftDiff`: `valid` and one `StudioDraftDiffItem` per item with `change` (`Create`, `Update`, `Delete`, `Unchanged`, or `Failed`), `changes` (`ManifestFieldChange[]`), `message`, `errorCode`, and `stale` (the live resource changed after the draft was based on it). `removeItem(id, kind, name, version)` drops an item. `graph` returns a `StudioGraph` of `nodes` (`key`, `kind`, `name`, `inDraft`, `deleted`, `entryOf`, `memberOf`, `x`, `y`) and `edges` (`app`, `from`, `to`, `fanOut`), and `graphOperation` applies one `StudioGraphOperation` (`AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`) and returns the new graph. Member and edge operations rewrite the draft's `AgenticApp` item.
+`diff` and `validate` return a `StudioDraftDiff`: `valid` and one `StudioDraftDiffItem` per item with `change` (`Create`, `Update`, `Delete`, `Unchanged`, or `Failed`), `changes` (`ManifestFieldChange[]`), `message`, `errorCode`, and `stale` (the live resource changed after the draft was based on it). `removeItem(id, kind, name, version)` drops an item. `graph` returns a `StudioGraph` of `nodes` (`key`, `kind`, `name`, `inDraft`, `deleted`, `entryOf`, `memberOf`, `capabilities`, `x`, `y`) and `edges` (`app`, `from`, `to`, `fanOut`, `depth`), and `graphOperation` applies one `StudioGraphOperation` (`AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`) and returns the new graph. Member and edge operations rewrite the draft's `AgenticApp` item. A node's `capabilities` lists, for an agent the draft holds, the capabilities its document names (host tools such as pandoc), and an edge's `depth` is the delegation depth it needs: one plus the longest chain of calls below the called member.
 
 `requestApply` validates the draft (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`), creates an `Approval` of kind `DraftApply` whose `draftId` names the draft, and moves the draft to `PendingApproval`. Deciding it `Allow` with `client.approvals.decide` needs Create on `Manifest` (403 `ApproverLacksPermission`) and applies the draft, which becomes `Applied`. If live configuration moved in the meantime the decision rejects with 409 `DraftStale` and the draft is `Open` again. `Deny` also returns it to `Open`. `STUDIO_DRAFT_RESOURCE_TYPE` (`StudioDraft`) names drafts in permissions.
 
@@ -399,6 +399,33 @@ await client.studioDrafts.setArchitectPrompt(deployment.id, "builtin/agent-archi
 ```
 
 `ArchitectPromptSelection` has `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (null follows the current version, so a saved edit applies on the architect's next turn), and `currentVersion`. Only architect deployments take an architect prompt (400 `NotAnArchitectDeployment`), and the template must be a System template the tenant can read (400 `InvalidArchitectPrompt`). `Deployment.managementAccess` (`ManagementAccess`: `None` or `Drafts`) says whether a deployment's runs may edit drafts for the person they work for, and `architectPromptTemplateId` and `architectPromptVersion` are accepted when a deployment is created.
+
+## Playground
+
+The studio playground runs an agent's draft revision before anything is published (see [docs/STUDIO.md](../../docs/STUDIO.md#playground)). Each run goes to a temporary copy of one of the agent's deployments (its `dev` deployment, or the first one) in the reserved environment `PLAYGROUND_ENVIRONMENT` (`draft`), pinned to the revision being tried. Playground runs have `kind` `"Playground"` (`RunKind`, `RUN_KINDS`) and set `agentRevisionId`.
+
+```ts
+const draft = await client.agents.saveDraft("researcher", { description: "Tighter scope." });
+const run = await client.agents.playgroundInvoke("researcher", { input: "Summarize the release notes", agentRevisionId: draft.id, waitSeconds: 60 });
+// Try a studio draft: its document for agent (default the target app's entry agent) becomes the agent's draft revision.
+const tried = await client.studioDrafts.playgroundInvoke(studioDraftId, { input: "Summarize the release notes", agent: "researcher" });
+```
+
+`PlaygroundInvokeRequest` has `input`, `agent` (studio draft route only), `agentRevisionId` (agent route only; omitted runs the open draft, or the latest published revision when there is none), `sourceDeploymentId` (agent route only; omitted uses the agent's `dev` deployment, else its first), `conversationId`, `wait` (default true), and `waitSeconds` (default 120; the server clamps it to 1 through 3600). The agent route needs Execute on `Agent`. The studio draft route writes the draft's document as the agent's draft revision and runs it without changing live configuration; it needs Update on `StudioDraft` and on `AgentRevision`, and rejects with 400 `AgentNotLive` for an agent the draft creates. An agent with no deployment to copy rejects with 400 `NoDeployment`.
+
+## Compile preview
+
+`client.deployments.compilePreview(id, input?, parameters?, options?)` compiles a deployment with sample input and returns a `CompilePreviewResponse` (`spec`, `commandLine`, `templateVersions`, `deploymentId`, `agentRevisionId`) with secret values redacted. `CompilePreviewOptions` has two studio options:
+
+- `agentRevisionId` compiles with another revision of the agent, such as a draft before it is published. It also needs Read on `AgentRevision`.
+- `environment` compiles the same agent's deployment in that environment instead (400 `NoDeploymentInEnvironment` when there is none).
+
+```ts
+const preview = await client.deployments.compilePreview(devDeploymentId, "Preview the draft", {}, { agentRevisionId: draft.id });
+console.log(preview.deploymentId, preview.agentRevisionId, preview.commandLine);
+```
+
+`deploymentId` is the deployment that was compiled (another one when `environment` was set) and `agentRevisionId` the revision used (null when the agent has no revisions).
 
 ## Manifests
 

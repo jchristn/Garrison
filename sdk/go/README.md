@@ -64,7 +64,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `PromptTemplates` adds typed `Clone`, `Reset`, and `Render` (returning `garrison.PromptTemplate` and `garrison.PromptRenderResponse`); `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"); `Agents` adds revision calls, and `Environments` and `Promotions` are typed (see "Agent revisions and promotion"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `StudioDrafts`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `PromptTemplates` adds typed `Clone`, `Reset`, and `Render` (returning `garrison.PromptTemplate` and `garrison.PromptRenderResponse`); `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"); `Agents` adds revision calls, and `Environments` and `Promotions` are typed (see "Agent revisions and promotion"). `Deployments` adds a typed `CompilePreview` (see "Compile preview"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `StudioDrafts`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
 
@@ -262,7 +262,7 @@ _, err = client.Approvals.Decide(ctx, approval.ID, garrison.ApprovalDecideReques
 
 `PutItem` takes the operation (`StudioDraftOperationUpsert`, or `StudioDraftOperationDelete` for `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`; empty means Upsert) and one manifest document whose kind and name match the item. `RemoveItem(ctx, id, kind, name, version)` drops an item. `Diff` and `Validate` return a `garrison.StudioDraftDiff`: `Valid` (nothing failed and nothing is stale) and one `StudioDraftDiffItem` per item with `Change` (`Create`, `Update`, `Delete`, `Unchanged`, or `Failed`), `Changes` (`ManifestFieldChange`), `Message`, `ErrorCode`, and `Stale`.
 
-`Graph` returns a `garrison.StudioGraph` with `Nodes` (`Key`, `Kind`, `Name`, `InDraft`, `Deleted`, `EntryOf`, `MemberOf`, `X`, `Y`) and `Edges` (`App`, `From`, `To`, `FanOut`). `GraphOperation` changes it one step at a time with a `StudioGraphOperationRequest`: `StudioGraphOperationAddMember` (`Agent`, optional `Role`; the first member becomes the entry agent), `RemoveMember`, `Connect` (`From`, `To`, optional `FanOut`), `Disconnect`, `SetEntry`, and `MoveNode` (`NodeKey`, `X`, `Y`). `App` defaults to the draft's target app.
+`Graph` returns a `garrison.StudioGraph` with `Nodes` (`Key`, `Kind`, `Name`, `InDraft`, `Deleted`, `EntryOf`, `MemberOf`, `Capabilities`, `X`, `Y`) and `Edges` (`App`, `From`, `To`, `FanOut`, `Depth`). `Capabilities` lists, for an agent the draft holds, the capabilities its document names (host tools such as pandoc), and `Depth` is the delegation depth an edge needs: one plus the longest chain of calls below the called member. `GraphOperation` changes it one step at a time with a `StudioGraphOperationRequest`: `StudioGraphOperationAddMember` (`Agent`, optional `Role`; the first member becomes the entry agent), `RemoveMember`, `Connect` (`From`, `To`, optional `FanOut`), `Disconnect`, `SetEntry`, and `MoveNode` (`NodeKey`, `X`, `Y`). `App` defaults to the draft's target app.
 
 `RequestApply` validates the draft (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`), returns an `Approval` with `Kind` `ApprovalKindDraftApply` and `DraftID` set, and moves the draft to `PendingApproval`. Nothing changes until a person decides the approval through `client.Approvals.Decide`: Allow needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request; Deny returns the draft to `Open`. `garrison.ResourceTypeStudioDraft` names drafts in permissions.
 
@@ -279,6 +279,39 @@ reset, err := client.PromptTemplates.Reset(ctx, clone.ID) // back to the shipped
 ```
 
 Each `garrison.ArchitectPromptEntry` has `ID`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that use it). A `garrison.ArchitectPromptSelection` has `DeploymentID`, `ArchitectPromptTemplateID`, `ArchitectPromptName`, `ArchitectPromptVersion` (nil when it follows the current version), and `CurrentVersion`. The template is given by identifier or name. Setting a prompt on a deployment that is not an architect fails with 400 `NotAnArchitectDeployment`, and a template that is not a readable `System` template with 400 `InvalidArchitectPrompt`. A template that any deployment binds cannot be deleted (409 `PromptTemplateInUse`).
+
+## Playground
+
+The studio playground runs an agent's draft revision before anything is published (see [docs/STUDIO.md](../../docs/STUDIO.md#playground)). Each run goes to a temporary copy of one of the agent's deployments (its `dev` deployment, or the first one) in the reserved environment `garrison.PlaygroundEnvironment` (`draft`), pinned to the revision being tried. Playground runs have `Kind` `garrison.RunKindPlayground` and set `AgentRevisionID`.
+
+```go
+draft, err := client.Agents.SaveDraft(ctx, "researcher", garrison.AgentRevision{Description: "Tighter scope."})
+run, err := client.Agents.PlaygroundInvoke(ctx, "researcher", garrison.PlaygroundInvokeRequest{
+	Input: "Summarize the release notes", AgentRevisionID: draft.ID, WaitSeconds: 60,
+})
+// Try a studio draft: its document for Agent (default the target app's entry agent) becomes the agent's draft revision.
+run, err = client.StudioDrafts.PlaygroundInvoke(ctx, studioDraftID, garrison.PlaygroundInvokeRequest{
+	Input: "Summarize the release notes", Agent: "researcher",
+})
+```
+
+`garrison.PlaygroundInvokeRequest` has `Input`, `Agent` (studio draft route only), `AgentRevisionID` (agent route only; empty runs the open draft, or the latest published revision when there is none), `SourceDeploymentID` (agent route only; empty uses the agent's `dev` deployment, else its first), `ConversationID`, `Wait` (nil means true), and `WaitSeconds` (0 means the server default of 120; clamped to 1 through 3600). The agent route needs Execute on `Agent`. The studio draft route writes the draft's document as the agent's draft revision and runs it without changing live configuration; it needs Update on `StudioDraft` and on `AgentRevision`, and fails with 400 `AgentNotLive` for an agent the draft creates. An agent with no deployment to copy fails with 400 `NoDeployment`. `Run.Kind` takes the `RunKind*` constants.
+
+## Compile preview
+
+`client.Deployments` is a `*garrison.DeploymentsClient`: the generic resource methods plus `CompilePreview(ctx, id, req)`, which compiles a deployment with sample input and returns a `*garrison.CompilePreviewResponse` with `Spec` and `TemplateVersions` (raw JSON), `CommandLine`, `DeploymentID`, and `AgentRevisionID`. Secret values are redacted. `garrison.CompilePreviewRequest` takes `Input`, `Parameters`, and two studio options:
+
+- `AgentRevisionID` compiles with another revision of the agent, such as a draft before it is published. It also needs Read on `AgentRevision`.
+- `Environment` compiles the same agent's deployment in that environment instead (400 `NoDeploymentInEnvironment` when there is none).
+
+```go
+preview, err := client.Deployments.CompilePreview(ctx, devDeploymentID, garrison.CompilePreviewRequest{
+	Input: "Preview the draft", AgentRevisionID: draft.ID,
+})
+fmt.Println(preview.DeploymentID, *preview.AgentRevisionID, preview.CommandLine)
+```
+
+`DeploymentID` is the deployment that was compiled (another one when `Environment` was set) and `AgentRevisionID` the revision used (nil when the agent has no revisions).
 
 ## Streaming run events
 

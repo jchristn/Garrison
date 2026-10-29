@@ -893,6 +893,26 @@ await check("architect prompts", async () => {
     await client.promptTemplates.delete(clone.id);
   }
 });
+await check("playground and compile preview of a draft revision", async () => {
+  const agent = await client.agents.create({ name: `sdk-js-playground-${suffix}`, description: "JavaScript SDK harness playground agent." });
+  let deploymentId;
+  try {
+    const dev = await client.deployments.create({ name: `sdk-js-playground-${suffix}`, agentId: agent.id, harnessProfileId: "hrn_builtin_fake", environment: "dev" });
+    deploymentId = dev.id;
+    const draft = await client.agents.saveDraft(agent.id, { description: `JavaScript SDK playground draft ${suffix}` });
+    require(draft.state === "Draft", `draft state ${draft.state}`);
+    const run = await client.agents.playgroundInvoke(agent.name, { input: "Hello from the JavaScript SDK playground", agentRevisionId: draft.id, wait: true, waitSeconds: 60 });
+    require(run.status === "Succeeded", `playground status ${run.status} ${run.errorMessage}`);
+    require(run.kind === "Playground", `playground kind ${run.kind}`);
+    require(run.agentRevisionId === draft.id, `playground revision ${run.agentRevisionId} expected ${draft.id}`);
+    const preview = await client.deployments.compilePreview(dev.id, "Preview the draft", {}, { agentRevisionId: draft.id });
+    require(preview.agentRevisionId === draft.id, `preview revision ${preview.agentRevisionId} expected ${draft.id}`);
+    require(preview.deploymentId === dev.id, `preview deployment ${preview.deploymentId}`);
+  } finally {
+    if (deploymentId) await client.deployments.delete(deploymentId).catch((e) => { if (!(e instanceof GarrisonError && e.statusCode === 404)) throw e; });
+    await client.agents.delete(agent.id);
+  }
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

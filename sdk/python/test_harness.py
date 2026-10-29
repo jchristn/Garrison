@@ -994,6 +994,32 @@ def t_architect_prompts():
         client.prompt_templates.delete(clone["id"])
 
 
+def t_playground():
+    agent = client.agents.create({"name": f"sdk-py-playground-{SUFFIX}", "description": "Python SDK harness playground agent."})
+    dev = None
+    try:
+        dev = client.deployments.create({"name": f"sdk-py-playground-{SUFFIX}", "agentId": agent["id"],
+                                         "harnessProfileId": "hrn_builtin_fake", "environment": "dev"})
+        draft = client.agents.save_draft(agent["id"], {"description": f"Python SDK playground draft {SUFFIX}"})
+        require(draft["state"] == "Draft", f"draft state {draft['state']}")
+        run = client.agents.playground_invoke(agent["name"], "Hello from the Python SDK playground",
+                                              agent_revision_id=draft["id"], wait=True, wait_seconds=60)
+        require(run["status"] == "Succeeded", f"playground status {run['status']} {run.get('errorMessage')}")
+        require(run.get("kind") == "Playground", f"playground kind {run.get('kind')}")
+        require(run.get("agentRevisionId") == draft["id"], f"playground revision {run.get('agentRevisionId')} expected {draft['id']}")
+        preview = client.deployments.compile_preview(dev["id"], "Preview the draft", agent_revision_id=draft["id"])
+        require(preview.get("agentRevisionId") == draft["id"], f"preview revision {preview.get('agentRevisionId')} expected {draft['id']}")
+        require(preview.get("deploymentId") == dev["id"], f"preview deployment {preview.get('deploymentId')}")
+    finally:
+        if dev is not None:
+            try:
+                client.deployments.delete(dev["id"])
+            except GarrisonError as e:
+                if e.status_code != 404:
+                    raise
+        client.agents.delete(agent["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -1033,7 +1059,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

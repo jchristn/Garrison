@@ -59,6 +59,22 @@ namespace Garrison.Sdk.Responses
         /// </summary>
         public bool FanOut { get; set; } = true;
 
+        /// <summary>
+        /// Delegation depth the edge needs: one plus the longest chain of calls below the called member. Minimum 1; default 1.
+        /// Values below 1 are raised to 1.
+        /// </summary>
+        public int Depth
+        {
+            get
+            {
+                return _Depth;
+            }
+            set
+            {
+                _Depth = Math.Max(1, value);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -66,6 +82,7 @@ namespace Garrison.Sdk.Responses
         private string _App = String.Empty;
         private string _From = String.Empty;
         private string _To = String.Empty;
+        private int _Depth = 1;
 
         #endregion
     }

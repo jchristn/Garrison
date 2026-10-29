@@ -36,6 +36,25 @@ namespace Garrison.Sdk.Clients
             if (request == null) throw new ArgumentNullException(nameof(request));
             return await Transport.SendAsync<Run>(HttpMethod.Post, Collection() + "/" + Segment(agent) + "/invoke", request, null, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
+
+        /// <summary>
+        /// Run the agent's draft revision in the studio playground (AD9.1). The run goes to an ephemeral copy of one of the
+        /// agent's deployments in the reserved draft environment, pinned to the revision, and has kind Playground. Needs
+        /// Execute on Agent.
+        /// </summary>
+        /// <param name="agent">Agent identifier or name.</param>
+        /// <param name="request">Input, optional revision, source deployment, conversation, and wait settings.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Run.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 404 for an unknown agent.</exception>
+        public async Task<Run> PlaygroundInvokeAsync(string agent, PlaygroundInvokeRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return await Transport.SendAsync<Run>(HttpMethod.Post, Collection() + "/" + Segment(agent) + "/playground/invoke", request, null, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
         /// <summary>
         /// Read the agent's A2A agent card as raw JSON.
         /// </summary>

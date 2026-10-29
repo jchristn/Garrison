@@ -23,5 +23,15 @@ namespace Garrison.Sdk.Responses
         /// Shell-quoted command line for display only.
         /// </summary>
         public string CommandLine { get; set; } = String.Empty;
+
+        /// <summary>
+        /// Deployment that was compiled; differs from the addressed one when an environment was requested.
+        /// </summary>
+        public string DeploymentId { get; set; } = String.Empty;
+
+        /// <summary>
+        /// Agent revision used, or null when the agent has no revisions.
+        /// </summary>
+        public string? AgentRevisionId { get; set; } = null;
     }
 }

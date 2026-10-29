@@ -216,6 +216,24 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Try a draft in the studio playground (AD9.1): the draft's document for the agent (default: the target app's entry
+        /// agent) is written as that agent's draft revision, then run on an ephemeral deployment in the reserved draft
+        /// environment. Live configuration does not change. Needs Update on StudioDraft and on AgentRevision.
+        /// </summary>
+        /// <param name="id">Draft identifier.</param>
+        /// <param name="request">Input, optional agent, conversation, and wait settings.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The playground run.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when id is null or empty, or request is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 400 AgentNotLive for an agent the draft creates.</exception>
+        public async Task<Run> PlaygroundInvokeAsync(string id, PlaygroundInvokeRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return await Transport.SendAsync<Run>(HttpMethod.Post, DraftItem(id) + "/playground/invoke", request, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
         /// List architect prompts: the built-in ones first, then the tenant's clones of them, then the tenant's other System
         /// templates, each with the architect deployments that bind it. Needs Read on PromptTemplate.
         /// </summary>

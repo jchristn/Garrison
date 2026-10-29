@@ -94,7 +94,7 @@ type Client struct {
 	UserRoleAssignments        *Resource
 	CredentialScopeAssignments *Resource
 	Agents                     *AgentsClient
-	Deployments                *Resource
+	Deployments                *DeploymentsClient
 	HarnessProfiles            *HarnessProfilesClient
 	PromptTemplates            *PromptTemplatesClient
 	McpServers                 *Resource
@@ -143,7 +143,7 @@ func NewClient(baseURL string) *Client {
 	c.UserRoleAssignments = &Resource{c: c, segment: "user-role-assignments"}
 	c.CredentialScopeAssignments = &Resource{c: c, segment: "credential-scope-assignments"}
 	c.Agents = &AgentsClient{Resource{c: c, segment: "agents"}}
-	c.Deployments = &Resource{c: c, segment: "deployments"}
+	c.Deployments = &DeploymentsClient{Resource{c: c, segment: "deployments"}}
 	c.HarnessProfiles = &HarnessProfilesClient{Resource{c: c, segment: "harness-profiles"}}
 	c.PromptTemplates = &PromptTemplatesClient{Resource{c: c, segment: "prompt-templates"}}
 	c.McpServers = &Resource{c: c, segment: "mcp-servers"}

@@ -108,25 +108,29 @@ type StudioDraftDiff struct {
 
 // StudioGraphNode is an app or agent in a draft's graph. Key is Kind/Name. InDraft is true when the draft holds the
 // resource, Deleted when the draft deletes it. EntryOf and MemberOf name the apps the agent is the entry of or belongs
-// to. X and Y are nil until the node is placed.
+// to. Capabilities lists, for an agent the draft holds, the capabilities its document names (host tools such as
+// pandoc). X and Y are nil until the node is placed.
 type StudioGraphNode struct {
-	Key      string   `json:"key"`
-	Kind     string   `json:"kind"`
-	Name     string   `json:"name"`
-	InDraft  bool     `json:"inDraft"`
-	Deleted  bool     `json:"deleted"`
-	EntryOf  []string `json:"entryOf"`
-	MemberOf []string `json:"memberOf"`
-	X        *float64 `json:"x,omitempty"`
-	Y        *float64 `json:"y,omitempty"`
+	Key          string   `json:"key"`
+	Kind         string   `json:"kind"`
+	Name         string   `json:"name"`
+	InDraft      bool     `json:"inDraft"`
+	Deleted      bool     `json:"deleted"`
+	EntryOf      []string `json:"entryOf"`
+	MemberOf     []string `json:"memberOf"`
+	Capabilities []string `json:"capabilities"`
+	X            *float64 `json:"x,omitempty"`
+	Y            *float64 `json:"y,omitempty"`
 }
 
-// StudioGraphEdge is a call one member of App may make to another, by agent name.
+// StudioGraphEdge is a call one member of App may make to another, by agent name. Depth is the delegation depth the
+// edge needs: one plus the longest chain of calls below the called member (minimum 1).
 type StudioGraphEdge struct {
 	App    string `json:"app"`
 	From   string `json:"from"`
 	To     string `json:"to"`
 	FanOut bool   `json:"fanOut"`
+	Depth  int    `json:"depth"`
 }
 
 // StudioGraph is a draft's apps drawn as nodes and call edges, at the draft's Version.

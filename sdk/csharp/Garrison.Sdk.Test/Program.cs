@@ -1424,6 +1424,55 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("playground and compile preview of a draft revision", async () =>
+                {
+                    Agent agent = new Agent();
+                    agent.Name = "sdk-cs-playground-" + suffix;
+                    agent.Description = "C# SDK harness playground agent.";
+                    agent = await client.Agents.CreateAsync(agent, token).ConfigureAwait(false);
+                    string? deploymentId = null;
+                    try
+                    {
+                        Deployment request = new Deployment();
+                        request.Name = "sdk-cs-playground-" + suffix;
+                        request.AgentId = agent.Id;
+                        request.HarnessProfileId = "hrn_builtin_fake";
+                        request.Environment = "dev";
+                        Deployment dev = await client.Deployments.CreateAsync(request, token).ConfigureAwait(false);
+                        deploymentId = dev.Id;
+
+                        AgentRevision draftContent = new AgentRevision();
+                        draftContent.Description = "C# SDK playground draft " + suffix;
+                        AgentRevision draft = await client.AgentRevisions.SaveDraftAsync(agent.Id, draftContent, token).ConfigureAwait(false);
+                        Require(draft.State == AgentRevisionStateEnum.Draft, "draft state " + draft.State);
+
+                        PlaygroundInvokeRequest invoke = new PlaygroundInvokeRequest();
+                        invoke.Input = "Hello from the C# SDK playground";
+                        invoke.AgentRevisionId = draft.Id;
+                        invoke.Wait = true;
+                        invoke.WaitSeconds = 60;
+                        Run run = await client.Agents.PlaygroundInvokeAsync(agent.Name, invoke, token).ConfigureAwait(false);
+                        Require(run.Status == RunStatusEnum.Succeeded, "playground status " + run.Status + " " + run.ErrorMessage);
+                        Require(run.Kind == RunKindEnum.Playground, "playground kind " + run.Kind);
+                        Require(run.AgentRevisionId == draft.Id, "playground revision " + run.AgentRevisionId + " expected " + draft.Id);
+
+                        CompilePreviewRequest preview = new CompilePreviewRequest();
+                        preview.Input = "Preview the draft";
+                        preview.AgentRevisionId = draft.Id;
+                        CompilePreviewResponse compiled = await client.Deployments.CompilePreviewAsync(dev.Id, preview, token).ConfigureAwait(false);
+                        Require(compiled.AgentRevisionId == draft.Id, "preview revision " + compiled.AgentRevisionId + " expected " + draft.Id);
+                        Require(compiled.DeploymentId == dev.Id, "preview deployment " + compiled.DeploymentId);
+                    }
+                    finally
+                    {
+                        if (deploymentId != null)
+                        {
+                            try { await client.Deployments.DeleteAsync(deploymentId, token).ConfigureAwait(false); } catch (GarrisonException e) when (e.StatusCode == 404) { }
+                        }
+                        await client.Agents.DeleteAsync(agent.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

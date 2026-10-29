@@ -2187,6 +2187,65 @@ func main() {
 		}
 		return nil
 	})
+	check("playground and compile preview of a draft revision", func(ctx context.Context) (err error) {
+		var agent garrison.Agent
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-playground-" + suffix, Description: "Go SDK harness playground agent."}, &agent); err != nil {
+			return err
+		}
+		var dev garrison.Deployment
+		defer func() {
+			if dev.ID != "" {
+				if derr := client.Deployments.Delete(ctx, dev.ID); derr != nil && err == nil {
+					var apiErr *garrison.Error
+					if !errors.As(derr, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+						err = derr
+					}
+				}
+			}
+			if derr := client.Agents.Delete(ctx, agent.ID); derr != nil && err == nil {
+				err = derr
+			}
+		}()
+		if err := client.Deployments.Create(ctx, garrison.Deployment{
+			Name: "sdk-go-playground-" + suffix, AgentID: agent.ID, HarnessProfileID: "hrn_builtin_fake", Environment: "dev",
+		}, &dev); err != nil {
+			return err
+		}
+		draft, err := client.Agents.SaveDraft(ctx, agent.ID, garrison.AgentRevision{Description: "Go SDK playground draft " + suffix})
+		if err != nil {
+			return err
+		}
+		if draft.State != garrison.AgentRevisionStateDraft {
+			return fmt.Errorf("draft state %s", draft.State)
+		}
+		wait := true
+		run, err := client.Agents.PlaygroundInvoke(ctx, agent.Name, garrison.PlaygroundInvokeRequest{
+			Input: "Hello from the Go SDK playground", AgentRevisionID: draft.ID, Wait: &wait, WaitSeconds: 60,
+		})
+		if err != nil {
+			return err
+		}
+		if run.Status != "Succeeded" {
+			return fmt.Errorf("playground status %s", run.Status)
+		}
+		if run.Kind != garrison.RunKindPlayground {
+			return fmt.Errorf("playground kind %s", run.Kind)
+		}
+		if run.AgentRevisionID == nil || *run.AgentRevisionID != draft.ID {
+			return fmt.Errorf("playground revision %v, want %s", run.AgentRevisionID, draft.ID)
+		}
+		preview, err := client.Deployments.CompilePreview(ctx, dev.ID, garrison.CompilePreviewRequest{Input: "Preview the draft", AgentRevisionID: draft.ID})
+		if err != nil {
+			return err
+		}
+		if preview.AgentRevisionID == nil || *preview.AgentRevisionID != draft.ID {
+			return fmt.Errorf("preview revision %v, want %s", preview.AgentRevisionID, draft.ID)
+		}
+		if preview.DeploymentID != dev.ID {
+			return fmt.Errorf("preview deployment %s, want %s", preview.DeploymentID, dev.ID)
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {

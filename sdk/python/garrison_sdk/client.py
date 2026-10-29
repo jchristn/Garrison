@@ -562,7 +562,8 @@ class StudioDraftDiff(TypedDict, total=False):
 class StudioGraphNode(TypedDict, total=False):
     """A node of a draft's graph. key is kind/name; kind is Agent or AgenticApp. inDraft marks nodes the draft holds,
     deleted those it deletes. entryOf and memberOf name the apps an agent is the entry of or belongs to. x and y are the
-    canvas position, or None when the node was never placed."""
+    canvas position, or None when the node was never placed. capabilities lists, for an agent the draft holds, the
+    capabilities its document names (host tools such as pandoc)."""
     key: str
     kind: str
     name: str
@@ -570,13 +571,16 @@ class StudioGraphNode(TypedDict, total=False):
     deleted: bool
     entryOf: List[str]
     memberOf: List[str]
+    capabilities: List[str]
     x: Optional[float]
     y: Optional[float]
 
 
-# A call edge of one app in the draft, between agent names. fanOut (default True) allows garrison_fan_out. Declared with
-# the functional form because "from" is a Python keyword.
-StudioGraphEdge = TypedDict("StudioGraphEdge", {"app": str, "from": str, "to": str, "fanOut": bool}, total=False)
+# A call edge of one app in the draft, between agent names. fanOut (default True) allows garrison_fan_out. depth is the
+# delegation depth the edge needs: one plus the longest chain of calls below the called member (minimum 1). Declared
+# with the functional form because "from" is a Python keyword.
+StudioGraphEdge = TypedDict("StudioGraphEdge", {"app": str, "from": str, "to": str, "fanOut": bool, "depth": int},
+                            total=False)
 
 
 class StudioGraph(TypedDict, total=False):
@@ -585,6 +589,16 @@ class StudioGraph(TypedDict, total=False):
     version: int
     nodes: List[StudioGraphNode]
     edges: List[StudioGraphEdge]
+
+
+class CompilePreviewResponse(TypedDict, total=False):
+    """A compile preview with secret values redacted. deploymentId is the deployment that was compiled (another one
+    when an environment was requested); agentRevisionId is the revision used, or None when the agent has none."""
+    spec: Dict[str, Any]
+    commandLine: str
+    templateVersions: List[Dict[str, Any]]
+    deploymentId: str
+    agentRevisionId: Optional[str]
 
 
 class ArchitectPromptEntry(TypedDict, total=False):
@@ -790,6 +804,10 @@ PIPELINE_REVIEW_SOURCES = ("User", "Timeout", "Cancelled")
 # Triggers (cron schedules and signed webhooks). Trigger["type"], ["targetType"], TriggerFire["source"] and ["outcome"].
 # Run["kind"] is "Trigger" and Run["triggerId"] (and PipelineRun["triggerId"]) is set for runs a trigger started.
 TRIGGER_TYPES = ("Cron", "Webhook")
+# Run["kind"] values. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft"
+# environment (PLAYGROUND_ENVIRONMENT); see Agents.playground_invoke and StudioDrafts.playground_invoke.
+RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground")
+PLAYGROUND_ENVIRONMENT = "draft"
 TRIGGER_TARGET_TYPES = ("Agent", "Pipeline")
 TRIGGER_FIRE_SOURCES = ("Cron", "Webhook", "Manual")
 TRIGGER_FIRE_OUTCOMES = ("Started", "Failed", "Skipped")
@@ -1319,6 +1337,22 @@ class Agents(Resource):
             body["cancelOnDisconnect"] = cancel_on_disconnect
         return self._t.request("POST", self._item(agent) + "/invoke", body=_conversation(body, conversation_id, start_conversation))
 
+    def playground_invoke(self, agent: str, input: str, agent_revision_id: Optional[str] = None,
+                          source_deployment_id: Optional[str] = None, conversation_id: Optional[str] = None,
+                          wait: bool = True, wait_seconds: int = 120) -> Dict[str, Any]:
+        """Run an agent's revision (ID or name) in the studio playground, on an ephemeral copy of one of its deployments
+        in the reserved "draft" environment. agent_revision_id defaults to the agent's open draft revision, else its
+        latest published one; source_deployment_id defaults to its dev deployment, else its first one. The run has
+        kind "Playground". wait_seconds is clamped to 1 through 3600 by the server. Needs Execute on Agent."""
+        body: Dict[str, Any] = {"input": input, "wait": wait, "waitSeconds": wait_seconds}
+        if agent_revision_id:
+            body["agentRevisionId"] = agent_revision_id
+        if source_deployment_id:
+            body["sourceDeploymentId"] = source_deployment_id
+        if conversation_id:
+            body["conversationId"] = conversation_id
+        return self._t.request("POST", self._item(agent) + "/playground/invoke", body=body)
+
     def card(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._item(id) + "/card")
 
@@ -1613,6 +1647,19 @@ class StudioDrafts:
             body["from" if key == "from_" else key] = value
         return self._t.request("POST", self._item(id) + "/graph-operations", body=body)
 
+    def playground_invoke(self, id: str, input: str, agent: Optional[str] = None, conversation_id: Optional[str] = None,
+                          wait: bool = True, wait_seconds: int = 120) -> Dict[str, Any]:
+        """Try the draft in the playground: its document for agent (name or ID; default the target app's entry agent)
+        is written as that agent's draft revision, then run on an ephemeral deployment in the "draft" environment. Live
+        configuration does not change. Returns the Run (kind "Playground"). Needs Update on StudioDraft and on
+        AgentRevision. Raises GarrisonError 400 AgentNotLive for an agent the draft creates (apply it first)."""
+        body: Dict[str, Any] = {"input": input, "wait": wait, "waitSeconds": wait_seconds}
+        if agent:
+            body["agent"] = agent
+        if conversation_id:
+            body["conversationId"] = conversation_id
+        return self._t.request("POST", self._item(id) + "/playground/invoke", body=body)
+
     def list_architect_prompts(self) -> List[ArchitectPromptEntry]:
         """Architect prompts: built-ins first, then the tenant's clones of them, then its other System templates."""
         return self._t.request("GET", self._t.tenant_path("/studio/architect-prompts")) or []
@@ -1703,8 +1750,18 @@ class Promotions:
 
 
 class Deployments(Resource):
-    def compile_preview(self, id: str, input: str = "Hello from the compile preview.", parameters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        return self._t.request("POST", self._item(id) + "/compile-preview", body={"input": input, "parameters": parameters or {}})
+    def compile_preview(self, id: str, input: str = "Hello from the compile preview.", parameters: Optional[Dict[str, str]] = None,
+                        agent_revision_id: Optional[str] = None, environment: Optional[str] = None) -> CompilePreviewResponse:
+        """Compile the deployment with sample input; secret values are redacted. agent_revision_id compiles with another
+        revision of the agent, such as a draft (also needs Read on AgentRevision). environment compiles the same agent's
+        deployment in that environment instead (GarrisonError 400 NoDeploymentInEnvironment when there is none). The
+        response names the deploymentId compiled and the agentRevisionId used."""
+        body: Dict[str, Any] = {"input": input, "parameters": parameters or {}}
+        if agent_revision_id:
+            body["agentRevisionId"] = agent_revision_id
+        if environment:
+            body["environment"] = environment
+        return self._t.request("POST", self._item(id) + "/compile-preview", body=body)
 
     def test(self, id: str, input: str, wait: bool = True, wait_seconds: int = 60, conversation_id: Optional[str] = None,
              start_conversation: bool = False) -> Dict[str, Any]:

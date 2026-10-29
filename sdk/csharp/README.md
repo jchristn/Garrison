@@ -282,7 +282,7 @@ A `StudioDraft` has `Id` (`sdr_...`), `Title`, `OwnerUserId`, `OwnerName`, `Conv
 
 Every change names the version you read. If the draft moved on, the call throws `GarrisonException` with status 409 and `Error.Code` `DraftVersionConflict`, and changes nothing; read the draft again and retry. A draft that is not `Open` answers 409 `DraftNotOpen`. `PutItemAsync` takes one manifest document whose kind and name match the path, and an optional `StudioDraftOperationEnum` (`Upsert`, the default, or `Delete`; drafts delete only `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`). `RemoveItemAsync(id, kind, name, version)` drops an item.
 
-`DiffAsync` and `ValidateAsync` return a `StudioDraftDiff`: `Valid` is true when nothing failed and nothing is stale, and each `StudioDraftDiffItem` has `Change` (`Create`, `Update` with `Changes`, `Delete`, `Unchanged`, or `Failed` with `Message` and `ErrorCode`) and `Stale`, set when the live resource changed after the draft was based on it. `GetGraphAsync` draws the draft's apps as `StudioGraphNode` entries (`Key`, `Kind`, `Name`, `InDraft`, `Deleted`, `EntryOf`, `MemberOf`, `X`, `Y`) and `StudioGraphEdge` entries (`App`, `From`, `To`, `FanOut`). `ApplyGraphOperationAsync` runs one `StudioGraphOperationEnum`: `AddMember` (`Agent`, optional `Role`; the first member becomes the entry agent), `RemoveMember`, `Connect` (`From`, `To`, optional `FanOut`), `Disconnect`, `SetEntry`, or `MoveNode` (`NodeKey`, `X`, `Y`).
+`DiffAsync` and `ValidateAsync` return a `StudioDraftDiff`: `Valid` is true when nothing failed and nothing is stale, and each `StudioDraftDiffItem` has `Change` (`Create`, `Update` with `Changes`, `Delete`, `Unchanged`, or `Failed` with `Message` and `ErrorCode`) and `Stale`, set when the live resource changed after the draft was based on it. `GetGraphAsync` draws the draft's apps as `StudioGraphNode` entries (`Key`, `Kind`, `Name`, `InDraft`, `Deleted`, `EntryOf`, `MemberOf`, `Capabilities`, `X`, `Y`) and `StudioGraphEdge` entries (`App`, `From`, `To`, `FanOut`, `Depth`). `Capabilities` lists, for an agent the draft holds, the capabilities its document names (host tools such as pandoc), and `Depth` is the delegation depth an edge needs: one plus the longest chain of calls below the called member. `ApplyGraphOperationAsync` runs one `StudioGraphOperationEnum`: `AddMember` (`Agent`, optional `Role`; the first member becomes the entry agent), `RemoveMember`, `Connect` (`From`, `To`, optional `FanOut`), `Disconnect`, `SetEntry`, or `MoveNode` (`NodeKey`, `X`, `Y`).
 
 `RequestApplyAsync` returns an `Approval` whose `Kind` is `ApprovalKindEnum.DraftApply` and whose `DraftId` names the draft, and freezes the draft as `PendingApproval` (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty` when it cannot). Decide it with `client.Approvals.DecideAsync`: `Allow` needs Create on `Manifest` (403 `ApproverLacksPermission`), answers 409 `DraftStale` when live configuration moved since the request, and otherwise applies the documents as one manifest apply and marks the draft `Applied`. `Deny` returns the draft to `Open`. `ResourceTypeEnum.StudioDraft` names drafts in permissions.
 
@@ -306,6 +306,46 @@ await client.StudioDrafts.SetArchitectPromptAsync(deployment.Id, "builtin/agent-
 ```
 
 `ListArchitectPromptsAsync` lists the built-in architect prompts, then the tenant's clones of them (matched by `BuiltInKey`), then the tenant's other System templates. Each `ArchitectPromptEntry` has `Id`, `Name`, `Description`, `IsBuiltIn`, `BuiltInKey`, `CurrentVersion`, `IsDefault`, and `Deployments` (the architect deployments that bind it). `ArchitectPromptSelection` has `DeploymentId`, `ArchitectPromptTemplateId`, `ArchitectPromptName`, `ArchitectPromptVersion` (null follows the current version, so a saved edit to the clone applies on the next turn), and `CurrentVersion`. `SetArchitectPromptAsync` answers 400 `NotAnArchitectDeployment` for a deployment that is not an architect and 400 `InvalidArchitectPrompt` for a template that is not a System template the tenant can read. Edit a clone with `PromptTemplates.UpdateAsync`, preview it with `RenderAsync`, and return it to the shipped text with `ResetAsync`. A template that a deployment binds cannot be deleted (409 `PromptTemplateInUse`).
+
+## Playground
+
+The studio playground runs an agent's draft revision before anything is published (see [docs/STUDIO.md](../../docs/STUDIO.md#playground)). Each run goes to a temporary copy of one of the agent's deployments (its `dev` deployment, or the first one) in the reserved `draft` environment, pinned to the revision being tried. Playground runs have `Kind` `RunKindEnum.Playground` and set `AgentRevisionId`.
+
+```csharp
+AgentRevision draft = await client.AgentRevisions.SaveDraftAsync("researcher", new AgentRevision { Description = "Tighter scope." });
+Run run = await client.Agents.PlaygroundInvokeAsync("researcher", new PlaygroundInvokeRequest
+{
+    Input = "Summarize the release notes",
+    AgentRevisionId = draft.Id, // null runs the open draft, or the latest published revision when there is none
+    WaitSeconds = 60
+});
+
+Run fromDraft = await client.StudioDrafts.PlaygroundInvokeAsync(studioDraftId, new PlaygroundInvokeRequest
+{
+    Input = "Summarize the release notes",
+    Agent = "researcher" // null runs the draft's target app's entry agent
+});
+```
+
+`PlaygroundInvokeRequest` has `Input`, `Agent` (studio draft route only), `AgentRevisionId` and `SourceDeploymentId` (agent route only; the source defaults to the agent's `dev` deployment, else its first), `ConversationId`, `Wait` (default true), and `WaitSeconds` (default 120, clamped to 1 through 3600). The agent route needs Execute on `Agent`. The studio draft route first writes the draft's document for that agent as the agent's draft revision, then runs it; live configuration does not change. It needs Update on `StudioDraft` and on `AgentRevision`, and an agent the draft creates must be applied first (400 `AgentNotLive`). An agent with no deployment to copy fails with 400 `NoDeployment`.
+
+## Compile preview
+
+`client.Deployments.CompilePreviewAsync(id, request)` compiles a deployment with sample input and returns the `Spec`, `CommandLine`, and `TemplateVersions` with secret values redacted. Two options on `CompilePreviewRequest` come from the studio:
+
+- `AgentRevisionId` compiles with another revision of the agent, such as a draft before it is published, so you can see its placed asset paths and system prompt. It also needs Read on `AgentRevision`.
+- `Environment` compiles the same agent's deployment in that environment instead (400 `NoDeploymentInEnvironment` when there is none).
+
+```csharp
+CompilePreviewResponse preview = await client.Deployments.CompilePreviewAsync(devDeploymentId, new CompilePreviewRequest
+{
+    Input = "Preview the draft",
+    AgentRevisionId = draft.Id
+});
+Console.WriteLine(preview.DeploymentId + " " + preview.AgentRevisionId);
+```
+
+`CompilePreviewResponse.DeploymentId` is the deployment that was compiled and `AgentRevisionId` the revision used (null when the agent has no revisions).
 
 ## Streaming run events
 

@@ -425,7 +425,7 @@ A `StudioDraft` has `id` (`sdr_...`), `title`, `ownerUserId`, `ownerName`, `targ
 
 Every change names the version you read. If the draft moved on, the call raises `GarrisonError` 409 with `code` `DraftVersionConflict` and changes nothing; read the draft again and retry. A draft that is not `Open` raises 409 `DraftNotOpen`. `put_item` takes one manifest document whose kind and name match the path, with `operation` `Upsert` (the default) or `Delete` (`STUDIO_DRAFT_OPERATIONS`; drafts delete only `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`). `remove_item(id, kind, name, version)` drops an item.
 
-`diff` and `validate` compare each item with live configuration: `change` is `Create`, `Update` (with `changes`), `Delete`, `Unchanged`, or `Failed` (with `message` and `errorCode`), and `stale` marks an item whose live resource changed after the draft was based on it. `valid` is true when nothing failed and nothing is stale. `graph` draws the draft's apps as `nodes` (`key`, `kind`, `name`, `inDraft`, `deleted`, `entryOf`, `memberOf`, `x`, `y`) and `edges` (`app`, `from`, `to`, `fanOut`). `graph_operation` takes the body as a dictionary or keywords (`from_` stands for `from`), with `operation` one of `STUDIO_GRAPH_OPERATIONS`: `AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`.
+`diff` and `validate` compare each item with live configuration: `change` is `Create`, `Update` (with `changes`), `Delete`, `Unchanged`, or `Failed` (with `message` and `errorCode`), and `stale` marks an item whose live resource changed after the draft was based on it. `valid` is true when nothing failed and nothing is stale. `graph` draws the draft's apps as `nodes` (`key`, `kind`, `name`, `inDraft`, `deleted`, `entryOf`, `memberOf`, `capabilities`, `x`, `y`) and `edges` (`app`, `from`, `to`, `fanOut`, `depth`). A node's `capabilities` lists, for an agent the draft holds, the capabilities its document names (host tools such as pandoc), and an edge's `depth` is the delegation depth it needs: one plus the longest chain of calls below the called member. `graph_operation` takes the body as a dictionary or keywords (`from_` stands for `from`), with `operation` one of `STUDIO_GRAPH_OPERATIONS`: `AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`.
 
 `request_apply` returns an approval whose `kind` is `DraftApply` and whose `draftId` names the draft, and freezes the draft as `PendingApproval` (400 `DraftStale`, `DraftInvalid`, or `DraftEmpty` when it cannot). Decide it with `client.approvals.decide`: `Allow` needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request; `Deny` returns the draft to `Open`. Permissions name drafts as `STUDIO_DRAFT_RESOURCE_TYPE` (`StudioDraft`).
 
@@ -446,6 +446,34 @@ client.prompt_templates.reset(clone["id"])                       # back to the s
 ```
 
 Each `ArchitectPromptEntry` has `id`, `name`, `description`, `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and `deployments` (the architect deployments that use it). `ArchitectPromptSelection` has `deploymentId`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (None follows the current version), and `currentVersion`. `set_architect_prompt` raises 400 `NotAnArchitectDeployment` for a deployment that is not an architect, and `InvalidArchitectPrompt` for a template that is not a readable `System` template. Prompt templates also offer `clone`, `update`, `reset`, `render`, and `render_content`.
+
+## Playground
+
+The studio playground runs an agent's draft revision before anything is published (see [docs/STUDIO.md](../../docs/STUDIO.md#playground)). Each run goes to a temporary copy of one of the agent's deployments (its `dev` deployment, or the first one) in the reserved environment `PLAYGROUND_ENVIRONMENT` (`"draft"`), pinned to the revision being tried. Playground runs have `kind` `"Playground"` (see `RUN_KINDS`) and set `agentRevisionId`.
+
+```python
+draft = client.agents.save_draft("researcher", {"description": "Tighter scope."})
+run = client.agents.playground_invoke("researcher", "Summarize the release notes",
+                                      agent_revision_id=draft["id"], wait_seconds=60)
+# Try a studio draft: its document for agent (default the target app's entry agent) becomes the agent's draft revision.
+tried = client.studio_drafts.playground_invoke(studio_draft_id, "Summarize the release notes", agent="researcher")
+```
+
+`agents.playground_invoke(agent, input, agent_revision_id=None, source_deployment_id=None, conversation_id=None, wait=True, wait_seconds=120)` runs the given revision (default the open draft, or the latest published revision when there is none) on a copy of `source_deployment_id` (default the agent's `dev` deployment, else its first). It needs Execute on `Agent`. `studio_drafts.playground_invoke(id, input, agent=None, conversation_id=None, wait=True, wait_seconds=120)` writes the draft's document as the agent's draft revision and runs it without changing live configuration; it needs Update on `StudioDraft` and on `AgentRevision`, and raises 400 `AgentNotLive` for an agent the draft creates. An agent with no deployment to copy raises 400 `NoDeployment`. The server clamps `wait_seconds` to 1 through 3600.
+
+## Compile preview
+
+`client.deployments.compile_preview(id, input, parameters, agent_revision_id=None, environment=None)` compiles a deployment with sample input and returns a `CompilePreviewResponse` (`spec`, `commandLine`, `templateVersions`, `deploymentId`, `agentRevisionId`) with secret values redacted. The two keyword options come from the studio:
+
+- `agent_revision_id` compiles with another revision of the agent, such as a draft before it is published. It also needs Read on `AgentRevision`.
+- `environment` compiles the same agent's deployment in that environment instead (400 `NoDeploymentInEnvironment` when there is none).
+
+```python
+preview = client.deployments.compile_preview(dev_deployment_id, "Preview the draft", agent_revision_id=draft["id"])
+print(preview["deploymentId"], preview["agentRevisionId"], preview["commandLine"])
+```
+
+`deploymentId` is the deployment that was compiled (another one when `environment` was set) and `agentRevisionId` the revision used (None when the agent has no revisions).
 
 ## Errors
 

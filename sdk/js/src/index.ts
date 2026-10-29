@@ -379,11 +379,14 @@ export interface StudioDraftDiffItem { kind: string; name: string; change: strin
 /** A draft compared with live configuration. valid is true when nothing failed and nothing is stale. */
 export interface StudioDraftDiff { draftId: string; version: number; valid: boolean; items: StudioDraftDiffItem[]; }
 
-/** A node of a draft graph: an app or an agent. key is kind/name. entryOf and memberOf name apps. x and y are null until placed. */
-export interface StudioGraphNode { key: string; kind: string; name: string; inDraft: boolean; deleted: boolean; entryOf: string[]; memberOf: string[]; x?: number | null; y?: number | null; }
+/**
+ * A node of a draft graph: an app or an agent. key is kind/name. entryOf and memberOf name apps. capabilities lists, for
+ * an agent the draft holds, the capabilities its document names (host tools such as pandoc). x and y are null until placed.
+ */
+export interface StudioGraphNode { key: string; kind: string; name: string; inDraft: boolean; deleted: boolean; entryOf: string[]; memberOf: string[]; capabilities: string[]; x?: number | null; y?: number | null; }
 
-/** A call edge of an app in a draft graph. */
-export interface StudioGraphEdge { app: string; from: string; to: string; fanOut: boolean; }
+/** A call edge of an app in a draft graph. depth is the delegation depth the edge needs: one plus the longest chain of calls below the called member (minimum 1). */
+export interface StudioGraphEdge { app: string; from: string; to: string; fanOut: boolean; depth: number; }
 
 /** A draft's apps as a graph, at the draft version it was drawn from. */
 export interface StudioGraph { draftId: string; version: number; nodes: StudioGraphNode[]; edges: StudioGraphEdge[]; }
@@ -1103,6 +1106,11 @@ export interface McpServer extends Json, WithWarnings {
 export type RunStatus = "Queued" | "Leased" | "Running" | "Cancelling" | "Succeeded" | "Failed" | "Cancelled" | "TimedOut" | "Rejected" | "Suspended";
 export const RUN_STATUSES: readonly RunStatus[] = ["Queued", "Leased", "Running", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected", "Suspended"] as const;
 export const QUEUE_FULL_ERROR = "QueueFull" as const;
+/** Why a run was created. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft" environment. */
+export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground";
+export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground"] as const;
+/** The reserved environment playground deployments live in; users cannot create deployments in it. */
+export const PLAYGROUND_ENVIRONMENT = "draft" as const;
 export type EffectOperationState = "Authorized" | "Dispatched" | "Completed" | "Unknown";
 export const EFFECT_OPERATION_STATES: readonly EffectOperationState[] = ["Authorized", "Dispatched", "Completed", "Unknown"] as const;
 /** Read-only placement diagnostics; eligibility never reserves capacity. */
@@ -1119,6 +1127,8 @@ export interface Run extends Json {
   id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: RunStatus; outcome: string;
   /** Agent revision the run executed, or null when it ran live agent content. */
   agentRevisionId?: string | null;
+  /** Why the run was created. */
+  kind?: RunKind;
   /** Executor the run needs, resolved when it was created. */
   executor?: RunExecutor;
   requiredCapabilities?: ExecutorRequirements;
@@ -1344,6 +1354,29 @@ export interface RunEvent extends Json {
 }
 
 export interface RunStreamItem { name: string; data: string; event?: RunEvent; run?: Run; }
+
+/**
+ * Studio playground request. agentRevisionId defaults to the agent's open draft revision, else its latest published one
+ * (agent route only). sourceDeploymentId names the deployment whose settings the playground copies; default the agent's
+ * dev deployment, else its first one (agent route only). agent names the agent to run for a studio draft; default the
+ * target app's entry agent. wait defaults to true; waitSeconds defaults to 120 and the server clamps it to 1 through 3600.
+ */
+export interface PlaygroundInvokeRequest {
+  input: string; agent?: string; agentRevisionId?: string; sourceDeploymentId?: string; conversationId?: string;
+  wait?: boolean; waitSeconds?: number;
+}
+
+/**
+ * Compile preview options. agentRevisionId compiles with another revision of the agent, such as a draft (needs Read on
+ * AgentRevision). environment compiles the same agent's deployment in that environment instead (400
+ * NoDeploymentInEnvironment when there is none).
+ */
+export interface CompilePreviewOptions { agentRevisionId?: string; environment?: string; }
+
+/** A compile preview with secret values redacted. deploymentId is the deployment compiled; agentRevisionId the revision used. */
+export interface CompilePreviewResponse extends Json {
+  spec: Json; commandLine: string; templateVersions: Json[]; deploymentId: string; agentRevisionId?: string | null;
+}
 
 export interface InvokeOptions {
   wait?: boolean; waitSeconds?: number; parameters?: Record<string, string>; deploymentId?: string; priority?: number;
@@ -1840,6 +1873,14 @@ export class StudioDrafts {
   graphOperation(id: string, request: StudioGraphOperationRequest): Promise<StudioGraph> {
     return this.t.request("POST", this.item(id) + "/graph-operations", undefined, request);
   }
+  /**
+   * Try the draft in the playground: its document for request.agent (default the target app's entry agent) becomes that
+   * agent's draft revision, then runs on an ephemeral deployment in the draft environment. Live configuration does not
+   * change. Needs Update on StudioDraft and on AgentRevision. Rejects with 400 AgentNotLive for an agent the draft creates.
+   */
+  playgroundInvoke(id: string, request: PlaygroundInvokeRequest): Promise<Run> {
+    return this.t.request("POST", this.item(id) + "/playground/invoke", undefined, { wait: true, waitSeconds: 120, ...request });
+  }
   /** Architect prompts: built-ins first, then tenant clones of them, then other tenant System templates. */
   async listArchitectPrompts(): Promise<ArchitectPromptEntry[]> { return (await this.t.request("GET", this.t.tenantPath("/studio/architect-prompts"))) ?? []; }
   /** The prompt an architect deployment (identifier or name) uses. */
@@ -2110,6 +2151,13 @@ export class Agents extends Resource<Agent> {
       inputContentType: options.inputContentType,
     });
   }
+  /**
+   * Run an agent's revision (identifier or name) in the studio playground, on an ephemeral copy of one of its
+   * deployments in the reserved draft environment. The run has kind Playground. Needs Execute on Agent.
+   */
+  playgroundInvoke(agent: string, request: PlaygroundInvokeRequest): Promise<Run> {
+    return this.t.request("POST", this.item(agent) + "/playground/invoke", undefined, { wait: true, waitSeconds: 120, ...request });
+  }
   card(id: string): Promise<Json> { return this.t.request("GET", this.item(id) + "/card"); }
   register(agent: Partial<Agent>): Promise<Agent> { return this.t.request("POST", this.base() + "/register", undefined, agent); }
   /** Revisions of an agent (identifier or name), newest first. */
@@ -2159,8 +2207,9 @@ export class Promotions {
 }
 
 export class Deployments extends Resource<Deployment> {
-  compilePreview(id: string, input = "Hello from the compile preview.", parameters: Record<string, string> = {}): Promise<Json> {
-    return this.t.request("POST", this.item(id) + "/compile-preview", undefined, { input, parameters });
+  /** Compile the deployment with sample input; secret values are redacted. options select another agent revision or environment. */
+  compilePreview(id: string, input = "Hello from the compile preview.", parameters: Record<string, string> = {}, options: CompilePreviewOptions = {}): Promise<CompilePreviewResponse> {
+    return this.t.request("POST", this.item(id) + "/compile-preview", undefined, { input, parameters, agentRevisionId: options.agentRevisionId, environment: options.environment });
   }
   test(id: string, input: string, options: InvokeOptions = {}): Promise<Run> {
     return this.t.request("POST", this.item(id) + "/test", undefined, {
