@@ -4,49 +4,91 @@
 
 # Garrison
 
-> **Alpha (v0.2.0).** APIs, schema, settings, and image layout can change without notice.
+> **Alpha (v0.2.0).** A 0.x version means alpha: APIs, schema, settings, and image layout can change without notice.
 
-**Turn agent harnesses into managed services on your own infrastructure.** Garrison runs Claude Code, Codex, Mux, Gemini CLI, opencode, pi, and configurable command-line agents on pull-based workers. Publish specialists through REST, MCP and A2A, control their tools and credentials, and follow execution from a shared operator console. Tenant-scoped permissions, approvals and audit records let teams share an execution platform with explicit boundaries.
+**Build, deploy, and run agentic apps on the agent harnesses you already use.** Garrison is a self-hosted, multi-tenant platform for agentic applications. Its runtime turns Claude Code, Codex, Gemini CLI, Mux, opencode, pi, provider APIs, and any command-line agent into managed services on pull-based workers, reachable over REST, MCP, and A2A. Garrison Agent Studio, new in 0.2.0, sits on top: an architect agent drafts apps with you, you review the diff and try the draft in a playground, a person approves it, and the app goes live at its own URL with a branded chat UI for its end users.
 
-Build agent-to-agent delegation and multi-stage pipelines with human review, start work from schedules or signed webhooks, and collect artifacts and transcripts. Current source also supports remote A2A/MCP agents, direct compatible model API execution, tenant queue bounds and scheduling weights, opt-in durable checkpoints, workspace caches, placement explanations, scoped SQL diagnostics and application telemetry.
+The release covers the whole loop. **Build** with the agent architect, versioned agent assets, and a capability catalog. **Test** in the playground against draft revisions. **Deploy** through approvals into `dev`, then promote to `staging` and `prod` with rollback. **Run and scale** on leased workers with Process or KubernetesJob executors, fan-out and gather, and conversation file spaces. **Operate** apps with RBAC, quotas, triggers, and notifications. **Observe** runs, run trees, transcripts, metrics, traces, and Grafana dashboards.
 
-Optional persistent memory is agent-scoped and backed by a replaceable interface; the supplied filesystem provider needs no separate memory service. Enable it through `docker/compose.agent-memory.yaml`. NotDory remains an optional external MCP example.
-
-Source and documentation: https://github.com/jchristn/Garrison. Start with `docs/README.md`; `docs/CONTINUATION.md`, `docs/effect-safety.md` and `docs/SECURITY.md` explain checkpoint compatibility, recovery guarantees and Process versus Kubernetes isolation.
-
-**Image availability:** this is a registry description draft for the current checkout. Previously published tags can predate these features. Build the matching server/worker/dashboard from source to use the current implementation; updating this document does not publish images or change the alpha version.
+- Website: [usegarrison.ai](https://usegarrison.ai)
+- Source and documentation: [github.com/jchristn/Garrison](https://github.com/jchristn/Garrison) ([docs index](https://github.com/jchristn/Garrison/blob/main/docs/README.md), [Agent Studio](https://github.com/jchristn/Garrison/blob/main/docs/STUDIO.md), [agent architect](https://github.com/jchristn/Garrison/blob/main/docs/ARCHITECT.md), [agentic apps](https://github.com/jchristn/Garrison/blob/main/docs/APPS.md), [changelog](https://github.com/jchristn/Garrison/blob/main/CHANGELOG.md))
 
 ## Images
 
 | Image | Contents | Ports |
 |---|---|---|
-| `jchristn77/garrison-server` | Control plane: REST, A2A, WebSocket, MCP, scheduler | 8700 (REST, A2A, WebSocket), 8701 (MCP), 9464 (Prometheus) |
-| `jchristn77/garrison-worker` | Worker node with Claude Code, Codex, Mux, the provider API harness, and the fake test harness installed (Gemini CLI, opencode, and pi optional at build time) | 8710 (health), 9465 (Prometheus) |
-| `jchristn77/garrison-dashboard` | React operator console served by nginx, proxying `/v1.0` to the server | 80 |
+| `jchristn77/garrison-server` | Control plane: REST, A2A, WebSocket, MCP, app gateway, scheduler | 8700 (REST, A2A, WebSocket, app gateway), 8701 (MCP), 9464 (Prometheus) |
+| `jchristn77/garrison-worker` | Worker node with Claude Code, Codex, Mux, the provider API harness, and the fake test harness installed | 8710 (health), 9465 (Prometheus) |
+| `jchristn77/garrison-dashboard` | nginx serving the React operator console at `/` and the end-user app UI at `/apps/{slug}/`, proxying `/v1.0` to the server | 80 |
 
-The image build/publish tooling targets `linux/amd64` and `linux/arm64` with `latest` and version tags such as `v0.2.0`. Server and worker run as UID 10001; the dashboard uses nginx. Tags describe a published build, not necessarily this checkout. The worker image records the bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`). The current worker Dockerfile pins Claude Code 2.1.296, Codex 0.159.3, and Mux 1.3.0.
+Each image is published under version tags such as `v0.2.0` and under `latest`:
 
-## Kubernetes
+| Tag | Meaning |
+|---|---|
+| `v0.2.0` | The Agent Studio release. Pin this in anything you keep |
+| `latest` | The most recent release, currently `v0.2.0` |
 
-Garrison is meant to run on Kubernetes. The repository's `k8s/` directory has a Kustomize base with overlays for minikube, K3S, and production, a Helm chart, and scripts that generate secrets, deploy, and smoke-test. See `docs/KUBERNETES.md` in the repository.
+All three images are built for `linux/amd64` and `linux/arm64/v8`. Server and worker run as UID 10001; the dashboard runs nginx. Use the same tag for all three: the server, worker, and dashboard of one release are tested together, and the Compose file and Kubernetes manifests in the repository reference `v0.2.0` for each.
+
+The worker records its bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`, `io.garrison.harness.opencode`, `io.garrison.harness.pi`, `io.garrison.tools.docs`). The `v0.2.0` worker pins Claude Code 2.1.296, Codex 0.159.3, and Mux 1.3.0.
+
+### Building a worker with more tools
+
+The published worker is the default build. Gemini CLI, opencode, pi, and the document tools are off by default and can be added by building the worker from the repository with build arguments:
+
+| Build argument | Default | Installs |
+|---|---|---|
+| `INCLUDE_GEMINI` | `false` | Gemini CLI (`GEMINI_CLI_VERSION`, default 0.55.1) |
+| `INCLUDE_OPENCODE` | `false` | opencode (`OPENCODE_VERSION`, default 1.19.5) |
+| `INCLUDE_PI` | `false` | pi coding agent (`PI_VERSION`, default 1.4.0) |
+| `INCLUDE_DOC_TOOLS` | `false` | pandoc, headless LibreOffice Writer, and fonts, for document conversion agents such as the doc-converter example |
+
+```bash
+git clone https://github.com/jchristn/Garrison && cd Garrison
+docker build -f src/Garrison.Worker/Dockerfile --build-arg INCLUDE_DOC_TOOLS=true --build-arg INCLUDE_OPENCODE=true \
+  -t my-registry/garrison-worker:v0.2.0-tools .
+```
+
+Workers report the tools they find, so runs that need pandoc or LibreOffice go only to workers built with them, and wait with `blockedReason` `NoToolWorker` until one is Ready. See [capabilities](https://github.com/jchristn/Garrison/blob/main/docs/CAPABILITIES.md) and [harnesses](https://github.com/jchristn/Garrison/blob/main/docs/HARNESSES.md).
 
 ## Docker Compose
 
-The repository's `docker/` directory runs one server, two workers, the dashboard, PostgreSQL, and Prometheus/Grafana/Tempo/Loki/Alloy through its update script. Keys/passwords are generated; provider credentials are supplied separately and enable the corresponding sample deployments:
+The repository's `docker/` directory runs one server, two workers, the dashboard, PostgreSQL, and Prometheus, Grafana, Tempo, Loki, and Alloy. Its update script generates keys and passwords into `docker/.env`; provider credentials are optional and enable the matching sample deployments.
 
 ```bash
 git clone https://github.com/jchristn/Garrison && cd Garrison/docker
-./update.sh               # generates keys into .env, builds the images, starts the stack; --pull uses published tags, which may be older
+./update.sh --pull        # pull the v0.2.0 images and start the stack; without --pull it builds them from the checkout
 ```
 
-Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with the password `update.sh` printed (`GARRISON_ADMIN_PASSWORD` in `docker/.env`). See `docs/DOCKER.md` in the repository.
+Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with the password `update.sh` printed (`GARRISON_ADMIN_PASSWORD` in `docker/.env`). Allow 8 GB of Docker memory and about 10 GB of disk as a starting point; harness workloads and telemetry retention can need more. See [docs/DOCKER.md](https://github.com/jchristn/Garrison/blob/main/docs/DOCKER.md).
 
-Allow an 8 GB Docker memory budget and about 10 GB disk as a starting point for Compose; harness workloads and telemetry retention can require more. Grafana starts on loopback port 3000, with its generated password in `.env`. See `docs/DOCKER.md` for all ports and persistent data.
+### A first app in the studio
 
-## Trying it with Docker
+With the stack up, this builds a one-agent app on the fake harness, so no model credentials are needed. Run it from the repository root:
 
+```bash
+API=http://127.0.0.1:8700/v1.0/api/tenants/default
+GARRISON_ADMIN_PASSWORD=$(grep -E '^GARRISON_ADMIN_PASSWORD=' docker/.env | cut -d= -f2-)
+TOKEN=$(jq -n --arg p "$GARRISON_ADMIN_PASSWORD" '{email:"admin@garrison",password:$p,tenantId:"default"}' |
+  curl -s -X POST http://127.0.0.1:8700/v1.0/token -H "Content-Type: application/json" --data-binary @- | jq -r .token)
+D=$API/studio/drafts
+DRAFT=$(curl -s -X POST $D -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"title":"Help desk"}' | jq -r .id)
+put() { curl -s -X PUT "$D/$DRAFT/items/$1/$2" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "$(jq -n --argjson v "$3" --arg doc "$4" '{version:$v,document:$doc}')" | jq -r .version; }
+V=$(put Agent desk-entry 1 $'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: desk-entry\nspec:\n  displayName: Help desk\n')
+V=$(put Deployment desk-entry-dev $V $'apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: desk-entry-dev\nspec:\n  agent: desk-entry\n  harnessProfile: builtin/fake\n  environment: dev\n')
+V=$(put AgenticApp desk $V $'apiVersion: garrison/v1\nkind: AgenticApp\nmetadata:\n  name: desk\nspec:\n  entry: desk-entry\n  members:\n    - { agent: desk-entry }\n  environments:\n    - { environment: dev, deployment: desk-entry-dev }\n  liveEnvironment: dev\n  authMode: Anonymous\n  anonymousEnabled: true\n')
+APPROVAL=$(curl -s -X POST $D/$DRAFT/request-apply -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "{\"version\":$V}" | jq -r .id)
+curl -s -X POST $API/approvals/$APPROVAL/decide -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"decision":"Allow"}' | jq -r .status
+```
 
-For the current-source features, build and tag these images from the checkout first or use the source-building Compose script above. The standalone container commands below use whichever build `latest` names.
+Approving the `DraftApply` approval applies the draft and deploys it to `dev`. Open http://127.0.0.1:8080/apps/desk/ and send a message. The [quickstart](https://github.com/jchristn/Garrison/blob/main/docs/QUICKSTART.md) continues with the playground and promotion, and the [example apps](https://github.com/jchristn/Garrison/blob/main/examples/agentic-apps/README.md) include a research app that fans out to two researchers and hands back a PDF.
+
+## Kubernetes
+
+The repository's `k8s/` directory has a Kustomize base with overlays for minikube, K3S, and production, a Helm chart, and scripts that generate secrets, deploy, smoke-test, and port-forward. The supplied ingresses send `/v1.0` to the server and everything else to the dashboard, which covers both the app gateway (`/v1.0/apps/`) and the app UI (`/apps/`). See [docs/KUBERNETES.md](https://github.com/jchristn/Garrison/blob/main/docs/KUBERNETES.md).
+
+## Trying it with plain Docker
 
 The containers below use Sqlite and a user-defined network, which is enough to see a run go end to end. The server has no usable default keys or passwords: it refuses to start while any of them is empty or a public built-in default (unless `GARRISON_ALLOW_INSECURE_DEFAULTS=true`, which is for local development only), so generate them first and keep them.
 
@@ -67,17 +109,17 @@ docker run -d --name garrison-server --network garrison \
   -e GARRISON_MCP_PUBLIC_URL=http://garrison-server:8701 \
   -e GARRISON_PUBLIC_BASE_URL=http://garrison-server:8700 \
   -e GARRISON_EXTERNAL_BASE_URL=http://127.0.0.1:8700 \
-  jchristn77/garrison-server:latest
+  jchristn77/garrison-server:v0.2.0
 
 docker run -d --name garrison-worker-0 --network garrison \
   -e GARRISON_WORKER_SERVER_URL=http://garrison-server:8700 \
   -e GARRISON_WORKER_NODE_NAME=worker-0 \
   -e GARRISON_WORKER_ACCESS_KEY="$NODE_ACCESS_KEY" -e GARRISON_WORKER_SECRET_KEY="$NODE_SECRET_KEY" \
-  jchristn77/garrison-worker:latest
+  jchristn77/garrison-worker:v0.2.0
 
 docker run -d --name garrison-dashboard --network garrison \
   -p 127.0.0.1:8080:80 \
-  jchristn77/garrison-dashboard:latest
+  jchristn77/garrison-dashboard:v0.2.0
 ```
 
 Open http://127.0.0.1:8080 and sign in as `admin@garrison` with `$ADMIN_PASSWORD`, or call the API directly:
@@ -87,7 +129,7 @@ curl -s http://127.0.0.1:8700/v1.0/api/health
 curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "x-api-key: $ADMIN_API_KEY"
 ```
 
-The example persists server data in the `garrison-server-data` volume at `/app/data`; back up that volume and the generated keys together. Worker workspaces are ephemeral in this standalone example. Multiple control-plane replicas need PostgreSQL (`GARRISON_DB_TYPE=Postgresql` plus the `GARRISON_DB_*` variables below).
+The example keeps server data in the `garrison-server-data` volume at `/app/data`; back up that volume and the generated keys together. Worker workspaces are ephemeral here. Multiple control-plane replicas need PostgreSQL (`GARRISON_DB_TYPE=Postgresql` plus the `GARRISON_DB_*` variables below).
 
 ## Server environment variables
 
@@ -114,6 +156,8 @@ The example persists server data in the `garrison-server-data` volume at `/app/d
 | `GARRISON_EXPECTED_REPLICAS` | Control-plane replicas (above 1 needs PostgreSQL) | `1` |
 | `GARRISON_SETTINGS_READONLY` | Treat the settings file as read-only (ConfigMap) | `false` |
 | `GARRISON_TELEMETRY_ENABLE`, `GARRISON_OTLP_ENABLE`, `GARRISON_OTLP_ENDPOINT` | Metrics and OTLP export | `true`, `false`, `http://127.0.0.1:4317` |
+| `GARRISON_APPS_SESSION_MINUTES`, `GARRISON_APPS_ANONYMOUS_SESSION_MINUTES`, `GARRISON_APPS_MESSAGES_PER_MINUTE` | App UI session lengths and per-session message rate | `480`, `60`, `30` |
+| `GARRISON_ASSETS_MAX_FILE_BYTES`, `GARRISON_FILESPACES_MAX_FILE_BYTES` | Largest agent asset file and largest file space file | 16 MiB, 32 MiB |
 
 ## Worker environment variables
 
@@ -129,6 +173,8 @@ The example persists server data in the `garrison-server-data` volume at `/app/d
 | `GARRISON_WORKER_HEALTH_PORT` | Health listener | `8710` |
 | `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT` | Worker metrics and traces | `true`, `9465`, `false`, `http://127.0.0.1:4317` |
 | `GARRISON_WORKER_SETTINGS_FILE` | Settings file path | `/opt/garrison/worker/garrison-worker.json` in the image |
+
+The full list, with ranges and every other setting, is in [docs/CONFIGURATION.md](https://github.com/jchristn/Garrison/blob/main/docs/CONFIGURATION.md).
 
 Harness credentials such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` do not belong in the worker's environment: the worker passes only an allowlist of variables (`PATH`, `LANG`, proxy and certificate settings, and a few others) to harnesses. Store keys as Garrison secrets and map them to harness variables in the deployment.
 
@@ -146,6 +192,13 @@ Harness credentials such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` do not belon
 | Server | `GET /v1.0/api/health` on 8700 (no authentication) |
 | Worker | `GET /health/live` and `GET /health/ready` on 8710 |
 
+## Health
+
+| Container | Endpoint |
+|---|---|
+| Server | `GET /v1.0/api/health` on 8700 (no authentication); reports version `0.2.0` |
+| Worker | `GET /health/live` and `GET /health/ready` on 8710 |
+
 ## Licenses
 
-Garrison is MIT licensed. See `THIRD_PARTY_NOTICES.md` and `assets/licenses/` in the source distribution for application dependency terms. Container runtimes, base-image packages, and bundled harness CLIs retain their own notices.
+Garrison is MIT licensed. See [THIRD_PARTY_NOTICES.md](https://github.com/jchristn/Garrison/blob/main/THIRD_PARTY_NOTICES.md) and [assets/licenses](https://github.com/jchristn/Garrison/blob/main/assets/licenses) for application dependency terms. Container runtimes, base-image packages, and bundled harness CLIs keep their own notices.

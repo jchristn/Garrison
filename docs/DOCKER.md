@@ -24,6 +24,7 @@ Then it checks that the host ports are free, builds the three Garrison images fr
 | What | Default URL or value |
 |---|---|
 | Dashboard | http://127.0.0.1:8080 |
+| Agentic app UIs | http://127.0.0.1:8080/apps/{slug}/ |
 | REST and A2A | http://127.0.0.1:8700 |
 | MCP | http://127.0.0.1:8701/mcp |
 | Sign-in | tenant `default`, email `admin@garrison`, password `GARRISON_ADMIN_PASSWORD` from `.env` |
@@ -174,6 +175,8 @@ Deleting the volumes removes the database (agents, runs, secrets, users) and the
 - Agents call back into Garrison (delegation) at `http://garrison-server:8701`, the in-network address, so delegation works without exposing anything extra.
 - Garrison uses two URLs. Runs get the internal ones (`GARRISON_PUBLIC_BASE_URL=http://garrison-server:8700` and `GARRISON_MCP_PUBLIC_URL=http://garrison-server:8701`). A2A agent cards and server info advertise `GARRISON_EXTERNAL_BASE_URL`, which defaults to `http://127.0.0.1:<GARRISON_REST_PORT>`, the address you use from the host. If other machines or a proxy reach the stack under a different name, set `GARRISON_EXTERNAL_BASE_URL` in `.env` (for example `https://garrison.example.com`) and run `./update.sh`.
 - The containers have fixed names (`garrison-server`, `garrison-worker-1`, and so on), so one machine runs one copy of this stack. A second copy, even under a different Compose project name, collides on those names.
+- The dashboard container also serves the end-user app UI at `/apps/{slug}/` and proxies the app gateway (`/v1.0/apps/`) to the server, so an app you build in the studio is reachable on port 8080 with nothing else to configure ([APP_UI.md](APP_UI.md)). [QUICKSTART.md](QUICKSTART.md#9-build-an-app-in-the-studio) builds one on the fake harness.
+- The workers run the published default worker image. To give them Gemini CLI, opencode, pi, or the document tools (pandoc and LibreOffice for the doc-converter example), build the worker with `INCLUDE_GEMINI`, `INCLUDE_OPENCODE`, `INCLUDE_PI`, or `INCLUDE_DOC_TOOLS` set to `true` ([CAPABILITIES.md](CAPABILITIES.md)).
 - Docker Compose is a single-host deployment. For multiple control-plane replicas, autoscaling, and production settings use Kubernetes (`docs/KUBERNETES.md`).
 
 ## Optional agent memory

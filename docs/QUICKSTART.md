@@ -299,7 +299,7 @@ curl -s -X POST $API/approvals/$APPROVAL/decide -H "Authorization: Bearer $TOKEN
 
 Open http://127.0.0.1:8080/apps/desk/ and send a message: the fake harness answers with an echo. To try a change before it goes live, edit the agent in a new draft and run it in the playground (`POST $D/<draft>/playground/invoke` with `{"input":"..."}`); the playground runs the draft as an unpublished revision and leaves the live app alone. When `dev` looks right, promote the app to `staging` and `prod` ([APPS.md](APPS.md#app-revisions-and-promotion)).
 
-To have the agent architect build drafts with you, create a deployment of the seeded `agent-architect` agent on a real harness (Studio > New architect in the dashboard) and talk to it there.
+To have the agent architect build drafts with you, create a deployment of the seeded `agent-architect` agent on a real harness ([ARCHITECT.md](ARCHITECT.md) shows the request) and talk to it there.
 
 ## When something fails
 

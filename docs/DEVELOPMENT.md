@@ -74,6 +74,18 @@ npm install
 npm run dev          # proxies /v1.0 to http://127.0.0.1:8700, or GARRISON_API_URL
 ```
 
+### App UI
+
+The end-user chat UI for agentic apps lives in `app-ui/` and builds the same way:
+
+```bash
+cd app-ui
+npm install
+npm run dev          # http://127.0.0.1:3100/apps/{slug}/, proxies /v1.0 to GARRISON_API_URL (default http://127.0.0.1:8700)
+```
+
+Create an app first (the studio path in [QUICKSTART.md](QUICKSTART.md#9-build-an-app-in-the-studio) builds one on the fake harness), then open its slug. `npm run lint`, `npm test`, `npm run build`, and `npm run test:e2e` work as in the dashboard; [APP_UI.md](APP_UI.md#development) has the details.
+
 ## Tests
 
 The server, worker, and library tests are Touchstone suites in `src/Test.Shared`, run by three runners:
@@ -95,6 +107,14 @@ dotnet test src/Test.Nunit -f net10.0
 | `WorkerSuite` | The process executor, environment isolation, scrubbing, timeouts, cancellation |
 | `RuntimeSuite` | Scheduling, leasing, fencing, maintenance, an in-process cluster with workers |
 | `ProtocolSuite` | MCP and A2A end to end through the fake harness |
+| `RevisionSuite` | Agent revisions, environments, promotion, and rollback |
+| `AssetSuite` | Agent assets: storage, limits, placements, integrity, manifests |
+| `FileSpaceSuite` | Conversation file spaces: resolution, sync, conflicts, MCP tools, pipelines |
+| `CapabilitySuite` | The capability catalog, tool probes, placement, and hints |
+| `FanOutSuite` | Fan-out groups, join policies, budgets, cancellation, and capacity |
+| `AppSuite` | Agentic apps, app sessions, delegation derivation, promotion, and the app gateway |
+| `StudioSuite` | Studio drafts, `DraftApply` approvals, the Drafts grant, the architect, architect prompts, the playground, and deploy to `dev` |
+| `ExamplesSuite` | The example agentic apps end to end on the fake harness (`scripts/run-research-example.sh`) |
 
 | Variable | Effect |
 |---|---|

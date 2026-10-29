@@ -1,28 +1,33 @@
 # Architecture
 
-Garrison is a control plane for headless agent harnesses. It accepts requests to run an agent over REST, MCP, or A2A, turns each request into a fully resolved command line, and hands that to a worker that pulls it. This page describes the parts, how a run moves through them, and the decisions that shape the design. `GARRISON_PLAN.md` has the full decision log.
+Garrison is two things built on one model. The runtime is a control plane for headless agent harnesses: it accepts requests to run an agent over REST, MCP, or A2A, turns each request into a fully resolved command line, and hands that to a worker that pulls it. The studio (Garrison Agent Studio) sits on top of the runtime and uses it to build, test, deploy, and serve agentic apps: drafts, the agent architect, the playground, promotion, and an end-user app gateway. Nothing in the studio bypasses the runtime. The architect is an agent, playground runs are runs, and an app's conversation is a series of runs with its entry agent.
+
+This page describes the parts, how a run moves through them, and the decisions that shape the design. `GARRISON_PLAN.md` and `AGENT_DESIGN_DEPLOY_PLAN.md` have the full decision logs.
 
 ## The parts
 
 ```text
-                    clients: dashboard, SDKs, curl, MCP clients, A2A agents
-                                       |
-                 +---------------------+----------------------+
-                 |  REST + SSE + WebSocket + A2A  :8700        |
-                 |  MCP (proxy -> Voltaic loopback) :8701      |   control plane ("Command")
-                 |  Prometheus                    :9464        |   N replicas; shared durable state
-                 +---------------------+----------------------+
-                                       |
-                              Sqlite or PostgreSQL
-                  (state, leases, and the event backplane: LISTEN/NOTIFY or a polled table)
-                                       ^
-                 +---------------------+----------------------+
-                 |  register, heartbeat, lease (long poll),   |   workers ("Post")
-                 |  started, events, complete, drain           |   M replicas, pull only
-                 |  health :8710                               |
-                 +---------------------------------------------+
-                         | spawns
-                 claude / codex / mux / gemini / any CLI
+     operators: dashboard, SDKs, curl, MCP clients, A2A agents        end users: app UI at /apps/{slug}/
+                                |                                                  |
+                 +--------------+---------------------------------------------------+-----------+
+                 |  REST + SSE + WebSocket + A2A  :8700      app gateway /v1.0/apps/{slug}/      |
+                 |  MCP (proxy -> Voltaic loopback) :8701    (app sessions only)                 |
+                 |  studio: drafts, diff, DraftApply approvals, playground, promotion            |   control plane ("Command")
+                 |  scheduler, fan-out groups, capability catalog, file space and asset service  |   N replicas; shared state
+                 |  Prometheus :9464                                                             |
+                 +---------------------------------------+---------------------------------------+
+                                                         |
+                                              Sqlite or PostgreSQL
+                    (state, leases, drafts, revisions, the event backplane: LISTEN/NOTIFY or a polled table)
+                    artifact stores (Database, Filesystem, S3): artifacts, assets, file spaces, checkpoints
+                                                         ^
+                 +---------------------------------------+---------------------------------------+
+                 |  register, heartbeat, lease (long poll), started, events, complete, drain     |   workers ("Post")
+                 |  asset download and hash check, file space sync in and out, health :8710      |   M replicas, pull only
+                 +-------------------------------------------------------------------------------+
+                                     | spawns (Process) or creates a pod per run (KubernetesJob)
+              claude / codex / gemini / mux / opencode / pi / provider API / any CLI
+                   (the agent architect, app members, and fan-out members are all runs here)
 ```
 
 | Component | Project | Responsibility |
@@ -31,13 +36,14 @@ Garrison is a control plane for headless agent harnesses. It accepts requests to
 | Core library | `src/Garrison.Core` | Models, the Sqlite and PostgreSQL data layer, security primitives, the template language, the invocation compiler, manifests, built-in seeding |
 | Harness library | `src/Garrison.Harnesses` | Process runner, output parsers, outcome classification, secret scrubbing, MCP pre-flight, harness probes |
 | Worker | `src/Garrison.Worker` | Registration, heartbeats, lease/start fencing, Process/KubernetesJob/remote executors, per-run directories and snapshot/cache transport, event buffering, health |
-| Fake harness | `src/Garrison.FakeHarness` | A deterministic stand-in for Claude Code, Codex, and Mux used by tests and the smoke test |
+| Fake harness | `src/Garrison.FakeHarness` | A deterministic stand-in for Claude Code, Codex, and Mux used by tests, the smoke test, and the examples. It can also make scripted MCP calls, which is how the tests drive fan-out and the architect without a model |
 | Dashboard | `dashboard/` | React operator console over the REST and WebSocket APIs |
+| App UI | `app-ui/` | React end-user chat UI for agentic apps over the app gateway, served by the dashboard image under `/apps/` |
 | SDKs | `sdk/` | C#, Python, JavaScript and TypeScript, and Go clients |
 
 Each control-plane replica registers itself in `control_nodes` and heartbeats it every 5 seconds with its status (`Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, and activity (requests in flight, open streams, held long polls), the way workers heartbeat their `nodes` rows. `GET /v1.0/api/control-nodes` shows both kinds of node side by side with the workers, marks the replica that holds the leader lease, and names the replica that answered (`respondingNodeId`). See `docs/SCALING.md`.
 
-The control plane is assembled from four modules, each registering its routes and services: identity (tenants, users, credentials, roles, permissions, assignments, sessions, audit, request history, settings), configuration (harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, agents, deployments, manifests), runtime (runs, nodes, node pools, the scheduler, the node protocol, maintenance, WebSocket), and protocols (MCP and A2A). All HTTP is served by Watson 7. MCP is answered by Voltaic on a loopback port behind a small Garrison relay on the MCP port, which maps cluster-wide MCP session identifiers to Voltaic's in-process sessions so that any replica can serve any MCP session.
+The control plane is assembled from four modules, each registering its routes and services: identity (tenants, users, credentials, roles, permissions, assignments, sessions, audit, request history, settings), configuration (harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, agents and their revisions, deployments, promotions, manifests, agent assets, the capability catalog, agentic apps and the app gateway, file spaces, and studio drafts), runtime (runs, nodes, node pools, the scheduler, the node protocol, maintenance, WebSocket), and protocols (MCP and A2A). All HTTP is served by Watson 7. MCP is answered by Voltaic on a loopback port behind a small Garrison relay on the MCP port, which maps cluster-wide MCP session identifiers to Voltaic's in-process sessions so that any replica can serve any MCP session.
 
 ## The life of a run
 
@@ -91,6 +97,24 @@ Pending -> Queued -> Leased -> Running -> Succeeded | Failed | TimedOut | Cancel
 
 A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `RepetitionDetected`, `NoProgress`, `PodFailed`, `CompileFailed`, and so on (see `docs/HARNESSES.md`).
 
+## The studio on top of the runtime
+
+The studio adds no second execution path. It adds configuration that is reviewed before it goes live, and a way for end users to reach the result.
+
+**Drafts and approval.** A studio draft holds manifest documents. People and the agent architect edit it through REST or the studio MCP tools, each change naming the draft version it read; every change publishes a `studio-draft:{draftId}` WebSocket message, so a chat panel and a canvas over the same draft stay in step without private state. A diff compares the draft with live configuration through a manifest dry run. Applying it creates a `DraftApply` approval, and only a person's decision runs the manifest apply, publishes the changed agents' revisions, and repins their `dev` deployments. See [STUDIO.md](STUDIO.md).
+
+**The architect is a run.** `agent-architect` is a seeded, protected agent. Its deployment carries `managementAccess: Drafts`, so the run token minted for each architect turn can call the draft tools for the person who started it, and the compiler renders its `System` prompt from whichever architect prompt the deployment selects, at that template's current version unless pinned. See [ARCHITECT.md](ARCHITECT.md).
+
+**Revisions, environments, promotion.** Agents keep immutable revisions; deployments pin one or follow the latest published revision, and carry an environment label. The compiler reads agent fields from the effective revision. Promotion repins the next environment's deployments in one transaction and records the previous pins for rollback. Playground runs use a temporary deployment in the reserved `draft` environment. See [REVISIONS.md](REVISIONS.md).
+
+**Assets and file spaces travel in the ExecutionSpec.** At lease time the spec lists each pinned asset file with its hash, target path, and a short-lived download ticket, and names the run's conversation file space. The worker downloads and verifies assets, syncs the file space into the workspace before launch, and writes changed files back, fenced by the run's epoch, before cleanup. For KubernetesJob runs the worker does the transfers and passes bytes to the pod, so pods still hold no credentials. See [ASSETS.md](ASSETS.md) and [FILE_SPACES.md](FILE_SPACES.md).
+
+**Fan-out is delegation in parallel.** `garrison_fan_out` admits every member through the same delegation checks and capacity handshake as a single waited delegation, and records a fan-out group. Groups are evaluated when a member finishes, when the parent gathers, and by the leader sweep. With `suspensionEnabled`, gather checkpoints the parent through the existing continuation path. See [FAN_OUT.md](FAN_OUT.md).
+
+**The capability catalog** is derived: agent descriptors from published revisions, MCP tools from cached tool lists, and host tools from worker tool probes that become node labels and run requirements. See [CAPABILITIES.md](CAPABILITIES.md).
+
+**The app gateway.** An agentic app maps a slug to an entry agent and its deployment in the app's live environment. `/v1.0/apps/{slug}/` accepts only app session tokens, starts conversations on the entry deployment, and streams turn events and file changes as server-sent events that resume after `Last-Event-ID`. Runs started through an app run as the app, with the end user recorded as the caller, and the app's edges supply each member's delegation allow list. The `app-ui/` single-page app is served by the dashboard image under `/apps/`. See [APPS.md](APPS.md) and [APP_UI.md](APP_UI.md).
+
 ## Design decisions
 
 **Workers pull.** The control plane never opens a connection to a worker. Workers need only outbound access to the REST port, which makes them easy to run in other clusters, behind NAT, or on developer machines, and lets the two halves scale on their own.
@@ -127,18 +151,27 @@ Run placement and database-usage diagnostics are read-only Run Read endpoints. P
 Tenant
  +- User --- Credential
  |    \______ role assignments (tenant or resource scope) ___ Role --- Permission
- +- HarnessProfile (arguments, environment, files)            (built-ins shared)
- +- PromptTemplate (versions, variables)                       (built-ins shared)
+ +- HarnessProfile (arguments, environment, files, asset placements, tool probes)   (built-ins shared)
+ +- PromptTemplate (versions, variables)                                             (built-ins shared)
  +- McpServer (headers, environment)   Secret   WorkspaceTemplate   ArtifactStore
- +- Agent (skills, delegation rules, schemas)
- |    +- Deployment (profile, prompt bindings, resource bindings, overrides,
- |                   parameters, allowed run overrides, node selector)
- +- Run (parameters, requirements, template versions) --- RunEvent
- |    +- Approval, child waits, EffectOperation, EffectCheckpoint, RunDatabaseUsage
+ +- TenantEnvironment (ordered labels: dev, staging, prod)
+ +- AgentAsset --- AgentAssetVersion (files, SHA-256 content in an artifact store)
+ +- Agent (latest published and draft revision pointers)
+ |    +- AgentRevision (content, prompt pins, allow list, asset pins, capabilities)
+ |    +- Deployment (profile, prompt bindings, resource bindings, environment, revision pin,
+ |                   managementAccess, overrides, parameters, node selector)
+ +- PromotionRecord (previous and new pins per deployment)
+ +- AgenticApp (members, edges, environments, branding) --- AppRevision   AppSession
+ +- StudioDraft (items, layout, version)
+ +- CapabilityDescriptor (agent, MCP tool, harness built-in, manual; hints)
+ +- ConversationFileSpace (conversation, pipeline run, or root run) --- files --- versions
+ +- Run (parameters, requirements, template versions, revision, file space) --- RunEvent
+ |    +- Approval (including DraftApply), child waits, FanOutGroup --- members
+ |    +- EffectOperation, EffectCheckpoint, RunDatabaseUsage
  |    +- Artifact metadata (Database, Filesystem or S3 content)
  +- Secret --- CredentialLease (broker metadata, never issued token values)
  +- AuditRecord, ManifestApply
-NodePool (optional tenant dedication) --- Node (labels, capabilities)
+NodePool (optional tenant dedication) --- Node (labels, capabilities, tool labels)
 ControlNode (one per control-plane replica, keyed by its node ID)
 RequestHistoryEntry, ClusterSetting, CoordinationLease, AuthSession
 ```
@@ -153,12 +186,13 @@ Identifiers are K-sortable strings with a type prefix (`agt_`, `run_`, `nod_`, a
 | WebSocket live updates | `WEBSOCKETS_API.md` |
 | MCP | `MCP_API.md` |
 | A2A | `A2A_API.md` |
+| App gateway (end users) | [APPS.md](APPS.md#the-app-gateway) |
 
-All four use the same tenants, credentials, and RBAC.
+The first four use the same tenants, credentials, and RBAC. The app gateway accepts only app session tokens, and the management surfaces refuse them.
 
 ## Further reading
 
-`docs/HARNESSES.md` and `docs/PROMPTS.md` cover configuration; `docs/MANIFESTS.md` covers declarative configuration; `docs/SECURITY.md`, `docs/SCALING.md`, and `docs/TELEMETRY.md` cover operations; `docs/DOCKER.md` and `docs/KUBERNETES.md` cover deployment and `docs/QUICKSTART.md` a first multi-agent setup; `docs/DEVELOPMENT.md` covers building and testing.
+[STUDIO.md](STUDIO.md), [ARCHITECT.md](ARCHITECT.md), and [APPS.md](APPS.md) cover the studio and apps; `docs/HARNESSES.md` and `docs/PROMPTS.md` cover configuration; `docs/MANIFESTS.md` covers declarative configuration; `docs/SECURITY.md`, `docs/SCALING.md`, and `docs/TELEMETRY.md` cover operations; `docs/DOCKER.md` and `docs/KUBERNETES.md` cover deployment and `docs/QUICKSTART.md` a first multi-agent setup; `docs/DEVELOPMENT.md` covers building and testing.
 
 
 ## Executor capability negotiation

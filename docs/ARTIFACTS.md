@@ -42,6 +42,8 @@ Download URLs grant access to one file until expiry; they cannot authenticate ot
 
 Artifacts belong to one run and are chosen by `artifactGlobs`. A conversation file space (AD3) is a separate folder, `files/` by default, that every turn and delegated child of a conversation shares; it is synced in at run start and written back at run end, whatever the globs say. A glob that matches files under the mount path, such as `**/*`, collects them as artifacts too, so narrow the globs when the files belong only in the space. Space files are stored under the `.garrison-files/` prefix of the deployment's store; artifacts are stored by identifier, so the two never share a key. See [FILE_SPACES.md](FILE_SPACES.md).
 
+Agent assets (AD2) are the third kind of stored file and go the other way: they are inputs an agent brings to every run, such as skills, reference files, and document templates, pinned by the agent's revision and placed into the workspace before launch. They live under the `.garrison-assets/` prefix of the asset's store, never appear in artifact listings, are not removed by artifact retention, and are excluded from artifact collection even when a glob matches their placed paths. In short: assets go in, artifacts come out of one run, and a file space is shared by every run of a conversation. See [ASSETS.md](ASSETS.md).
+
 ## Limits and validation
 
 Server settings under `Artifacts` apply after restart:

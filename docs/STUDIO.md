@@ -118,7 +118,7 @@ Every permission is also checked against the person who started the run, so the 
 
 ## The agent architect
 
-Every tenant has a protected agent named `agent-architect`. It designs agents and apps with a person, in a draft, using the studio tools above. Its published revision pins the skill asset `agent-architect-skills`, which teaches it manifest authoring and Garrison conventions. It cannot be edited or deleted. To change how it behaves, give its deployment a different prompt ([PROMPTS.md](PROMPTS.md#architect-prompts)).
+Every tenant has a protected agent named `agent-architect`. It designs agents and apps with a person, in a draft, using the studio tools above. Its published revision pins the skill asset `agent-architect-skills`, which teaches it manifest authoring and Garrison conventions. It cannot be edited or deleted. To change how it behaves, give its deployment a different prompt. [ARCHITECT.md](ARCHITECT.md) covers the architect in depth: its prompts, cloning and selection, the next-turn rule, pins, and how to test it on the fake harness.
 
 It has no deployment until you create one:
 

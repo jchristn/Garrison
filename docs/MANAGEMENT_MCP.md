@@ -35,6 +35,22 @@ Trigger tools are `garrison_list_triggers`, `garrison_get_trigger`, `garrison_cr
 
 Notification endpoint tools are `garrison_list_notification_endpoints`, `garrison_get_notification_endpoint`, `garrison_create_notification_endpoint`, `garrison_update_notification_endpoint`, `garrison_delete_notification_endpoint`, `garrison_list_notification_deliveries`, `garrison_rotate_notification_endpoint_secret`, and `garrison_test_notification_endpoint`, keyed by `endpoint` (name or ID). The URL is checked against the same SSRF rules as over REST, and the `signingSecret` is returned once, by create. `garrison_rotate_notification_endpoint_secret` returns the new `signingSecret` once, and `garrison_test_notification_endpoint` sends a signed test notification and returns the delivery (see [NOTIFICATIONS.md](NOTIFICATIONS.md)). Deleting an agent, deployment, or pipeline that a trigger or endpoint names fails with `ReferencedByTrigger` or `ReferencedByNotificationEndpoint`.
 
+## Revisions and promotion
+
+`garrison_list_agent_revisions`, `garrison_get_agent_revision`, and `garrison_publish_agent_revision` read an agent's revisions and publish its open draft. `garrison_promote` moves a revision from one environment to the next, and `garrison_rollback_promotion` restores the pins a promotion replaced. Promotion needs Execute on `Promotion` for the target environment, so a `Releaser` assigned to `staging` can promote there and nowhere else ([REVISIONS.md](REVISIONS.md)).
+
+## Agent assets
+
+`garrison_list_agent_assets` and `garrison_get_agent_asset` are ordinary read tools, also offered to runs with the permission. `garrison_create_agent_asset`, `garrison_update_agent_asset`, `garrison_upload_agent_asset_version`, and `garrison_delete_agent_asset` are management tools: users and credentials only, never runs, including studio runs ([ASSETS.md](ASSETS.md)).
+
+## Agentic apps
+
+`garrison_list_apps`, `garrison_get_app`, `garrison_create_app`, and `garrison_update_app` take the same fields as the REST app routes, with agents given by name or ID ([APPS.md](APPS.md)). Deleting, publishing app revisions, and promoting an app are REST only.
+
+## Studio and architect prompts
+
+The studio draft tools (`garrison_studio_*`) are ordinary tools for users and credentials with `StudioDraft` permissions, and are also offered to runs whose deployment has `managementAccess: Drafts`; none of them applies a draft ([STUDIO.md](STUDIO.md)). The architect prompt tools (`garrison_studio_list_architect_prompts`, `garrison_studio_get_architect_prompt`, `garrison_studio_set_architect_prompt`) and the prompt template tools (`garrison_clone_prompt_template`, `garrison_update_prompt_template`, `garrison_reset_prompt_template`, `garrison_render_prompt_template`) are management tools, hidden from every run token ([ARCHITECT.md](ARCHITECT.md)).
+
 ## Manifests
 
 `garrison_apply_manifest` accepts `manifest` YAML/JSON text. Set `dryRun: true` to validate without changing configuration; the default applies it. Inspect `failedCount` and the per-document results. Reapplying unchanged documents remains idempotent.

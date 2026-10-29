@@ -82,7 +82,7 @@ Token issuance is limited per source address (`Auth.RateLimitPerMinute`, 60), an
 
 Every route and MCP tool is registered together with its authorization rule in an operation scope map: anonymous (health, token issuance, A2A cards), any authenticated caller with checks made inside the handler (self-service routes, A2A JSON-RPC, and the live-updates WebSocket `/v1.0/ws`, which authorizes each subscription and allows at most 64 per connection), or a resource type and operation. Each route's rule is listed in `REST_API.md`.
 
-**Resource types:** `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, plus `All`.
+**Resource types:** `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `AgentRevision`, `Promotion`, `AgentAsset`, `ConversationFileSpace`, `Capability`, `FanOutGroup`, `AgenticApp`, `StudioDraft`, plus `All`.
 
 **Operations:** `Create`, `Read`, `Write`, `Update`, `Delete`, `Execute`, `Admin`, plus `All`.
 
@@ -129,6 +129,8 @@ Denials are audited with the permission that was missing, and the response carri
 | `SecretUser` | Use secrets in configuration (`Execute` on `Secret`) without managing them; assign with resource scope to allow one secret |
 | `NodeAgent` | The node protocol only; for worker credentials |
 | `AgentRegistrar` | Self-registration of remote agents |
+| `Releaser` | Execute on `Promotion`, plus Read on agents, agent revisions, and deployments. Assign it with resource scope and the target environment's name as the resource identifier to limit which environments a person may promote to ([REVISIONS.md](REVISIONS.md#permissions)) |
+| `AppUser` | Execute on `AgenticApp` and nothing else. Assign it with resource scope on one app so a person can use that app's chat UI ([APPS.md](APPS.md#sign-in)) |
 | `Custom` | No permissions; a starting point for tenant-defined roles |
 
 Triggers and notification endpoints (resource types `Trigger` and `NotificationEndpoint`): `Viewer`, `Auditor`, and `AgentOperator` can read them; `Editor` and `AgentDeveloper` can create, change, and delete them and run their actions (manual fire, test send); `AgentOperator` can also fire triggers by hand. Saving a trigger additionally needs Execute on the agent or pipeline it starts.
@@ -306,7 +308,17 @@ Runs cannot change configuration. The one exception is narrow: a deployment with
 - can never apply a draft, decide an approval (403 for any run), or delete a live resource;
 - ends with the run, like every run token.
 
+The architect cannot change its own instructions either: the architect prompt and prompt template MCP tools are hidden from every run token and refused if called ([ARCHITECT.md](ARCHITECT.md#who-may-change-the-prompt)).
+
 Applying a draft takes a `DraftApply` approval decided by a person who holds Create on `Manifest`. The approval shows the full diff, and the draft is checked again at decision time, so a change made to live configuration after the request is never silently overwritten (409 `DraftStale`). Turning `managementAccess` on or off is audited with the deployment change.
+
+## App sessions and anonymous use
+
+End users of an agentic app never hold management credentials. The app gateway (`/v1.0/apps/{slug}/`) issues its own session tokens, prefixed `gas_` and stored only as SHA-256 hashes. A session token works only on the gateway routes of the app that issued it and only for the conversations its owner started; anything else answers 404, and the management API refuses the token with 401. Sessions end after `Apps.SessionMinutes` (480 by default) for signed-in users, after `Apps.AnonymousSessionMinutes` (60) for anonymous ones, on sign-out, or as soon as the user loses access to the app, and each session may send at most `Apps.MessagesPerMinute` messages a minute.
+
+Anonymous use is off unless an app sets both `authMode: Anonymous` and `anonymousEnabled: true`. Everyone with the URL can then start a session, so treat an anonymous app as public: give its agents only the tools, secrets, and delegation edges you would expose to anyone, and set a budget or quota on its deployments. `AppUsers`, the default mode, admits only tenant users who hold the `AppUser` role on that app.
+
+Runs started through an app run as the app, with the end user recorded as the caller. The end user gets no management permission from them, and the app's edges, written into each member's delegation allow list, bound what those runs may call. Thinking, tool calls, and warnings reach end users only when the app sets `showOperatorDetail`. See [APPS.md](APPS.md).
 
 ## Permission approvals
 

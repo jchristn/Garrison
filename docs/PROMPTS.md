@@ -108,7 +108,7 @@ If a deployment ends up with no `Task` binding at all, the caller's message is s
 
 ## Architect prompts
 
-The agent architect ([STUDIO.md](STUDIO.md)) takes its System prompt from its deployment, like any agent, and Garrison ships two: `builtin/agent-architect` (the default) and `builtin/agent-architect-guided`. To change one, clone it, edit the clone's name, description, and body, and select the clone. Every save of the clone is a new version with preview and history as usual.
+The agent architect ([STUDIO.md](STUDIO.md), [ARCHITECT.md](ARCHITECT.md)) takes its System prompt from its deployment, like any agent, and Garrison ships two: `builtin/agent-architect` (the default) and `builtin/agent-architect-guided`. To change one, clone it, edit the clone's name, description, and body, and select the clone. Every save of the clone is a new version with preview and history as usual.
 
 `GET .../studio/architect-prompts` lists the built-in architect prompts first, then the tenant's clones of them (matched by `builtInKey`), then the tenant's other `System` templates. Each entry has `isBuiltIn`, `builtInKey`, `currentVersion`, `isDefault`, and the architect deployments that use it. Templates of other tenants never appear.
 

@@ -138,7 +138,7 @@ REST_PORT=9700 MCP_PORT=9701 DASHBOARD_PORT=9080 k8s/scripts/port-forward.sh   #
 
 It keeps running in the foreground; Ctrl+C stops it. The Windows script reads the same three variables.
 
-**The Ingress.** The K3S overlay creates a Traefik Ingress for host `garrison.local`, which serves the dashboard at `/`, the REST API under `/v1.0`, and MCP under `/mcp`. Add `127.0.0.1 garrison.local` to your hosts file (`/etc/hosts`, which needs `sudo`) and open `http://garrison.local:8080` with K3S in Docker, or `http://garrison.local` on a host install. Without editing the hosts file, curl can still reach it:
+**The Ingress.** The K3S overlay creates a Traefik Ingress for host `garrison.local`, which serves the dashboard at `/`, the REST API under `/v1.0`, and MCP under `/mcp`. Agentic apps need no extra rule: the app UI at `/apps/{slug}/` is served by the dashboard and the app gateway under `/v1.0/apps/` by the server, so both fall under the existing paths ([APP_UI.md](APP_UI.md#kubernetes)). Add `127.0.0.1 garrison.local` to your hosts file (`/etc/hosts`, which needs `sudo`) and open `http://garrison.local:8080` with K3S in Docker, or `http://garrison.local` on a host install. Without editing the hosts file, curl can still reach it:
 
 ```bash
 curl -s --resolve garrison.local:8080:127.0.0.1 http://garrison.local:8080/v1.0/api/health

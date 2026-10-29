@@ -1,6 +1,8 @@
 # Garrison documentation
 
-Garrison turns configurable agent harnesses into tenant-scoped services, invoked over REST, MCP or A2A and executed by workers you operate. Start with the workflow you need, then use the configuration and protocol references for exact contracts. This documentation describes the current source checkout; published images may predate these capabilities.
+Garrison is a runtime for headless agent harnesses and, as of 0.2.0, an agent studio on top of it: one platform to build, test, deploy, run, operate, and observe agentic applications. The runtime turns Claude Code, Codex, Gemini CLI, Mux, opencode, pi, provider APIs, or any CLI into tenant-scoped agents that workers pull and run, invoked over REST, MCP, or A2A. The studio (Garrison Agent Studio) is where those agents get designed into apps, reviewed as drafts, tried in a playground, approved, and promoted from `dev` to `prod`.
+
+Start with the workflow you need, then use the configuration and protocol references for exact contracts. These documents describe the source checkout of `v0.2.0`.
 
 ## Start and integrate
 
@@ -11,12 +13,20 @@ Garrison turns configurable agent harnesses into tenant-scoped services, invoked
 | Create, invoke and delegate between agents | [Quick start](QUICKSTART.md), [harness profiles](HARNESSES.md), [prompt templates](PROMPTS.md) |
 | Call Garrison from your application | [REST](../REST_API.md), [MCP](../MCP_API.md), [A2A](../A2A_API.md), [WebSocket updates](../WEBSOCKETS_API.md), [SDKs](../README.md#sdks) |
 | Move reproducible agent configuration between tenants | [Manifests and bundles](MANIFESTS.md), [management MCP](MANAGEMENT_MCP.md) |
-| Version agents and move them through dev, staging, and prod | [Revisions, environments, and promotion](REVISIONS.md) |
+
+## Build and ship agentic apps
+
+| Goal | Read |
+| --- | --- |
+| Design agents and apps in drafts, review the diff, try them in the playground, and apply after approval | [Agent Studio](STUDIO.md) |
+| Have the agent architect build drafts with you, and choose or write its prompt | [The agent architect](ARCHITECT.md), [architect prompts](PROMPTS.md#architect-prompts) |
+| Put a group of agents behind one entry agent, its own chat UI, branding, and sign-in | [Agentic apps](APPS.md), [app chat UI](APP_UI.md) |
+| Version agents and move them through dev, staging, and prod, with rollback | [Revisions, environments, and promotion](REVISIONS.md) |
 | Give agents skills, reference files, and document templates | [Agent assets](ASSETS.md) |
 | Share files across the turns and agents of a conversation | [Conversation file spaces](FILE_SPACES.md) |
-| Let orchestrators find agents, MCP tools, and host tools | [Capability catalog](CAPABILITIES.md) |
-| Put a group of agents behind their own chat UI | [Agentic apps](APPS.md), [app chat UI](APP_UI.md) |
-| Design agents and apps in drafts, review the diff, and apply after approval | [Agent Studio](STUDIO.md) |
+| Let orchestrators find agents, MCP tools, and host tools, and choose where a capability comes from | [Capability catalog](CAPABILITIES.md) |
+| Start several agents at once and gather their results | [Fan-out and gather](FAN_OUT.md) |
+| Apply a finished example app | [Example agentic apps](../examples/agentic-apps/README.md) |
 
 ## Build agent workflows
 
@@ -44,7 +54,7 @@ Garrison turns configurable agent harnesses into tenant-scoped services, invoked
 
 ## Status, validation and contributing
 
-Garrison remains alpha. Durable suspension, memory and daily quota enforcement have explicit enablement requirements; retry policies do not make arbitrary shell or third-party effects exactly-once. Protocol and feature guides state their supported boundaries.
+Garrison is alpha: a 0.x version means the REST API, MCP tools, schema, settings, and SDKs can still change. Durable suspension, memory and daily quota enforcement have explicit enablement requirements; retry policies do not make arbitrary shell or third-party effects exactly-once. Protocol and feature guides state their supported boundaries.
 
 - [Current completed, deferred and conditional scope](REMAINING_PLAN_MATRIX.md).
 - [Latest recovery, continuation and cache acceptance](testing/D063_VALIDATION.md).

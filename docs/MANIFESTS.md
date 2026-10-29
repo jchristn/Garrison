@@ -21,7 +21,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | Always `garrison/v1` |
-| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, `Pipeline`, `Trigger`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
+| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
 | `metadata.name` | The record's name, which is also how other documents refer to it. Names starting with `builtin/` are reserved |
 | `metadata.description` | Optional; becomes the record's description |
 | `spec` | The record's fields in camelCase, as in the REST API, with the conveniences listed below |
@@ -512,6 +512,7 @@ spec:
 | `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `maxConcurrentRuns`, `maxAttempts`, `weight` | As in the REST API |
 | `effectPolicy` | `AtMostOnce`, `AtLeastOnce`, or `Journaled`: what happens to a run that was already running when its worker was lost (see "Effect policy" in `REST_API.md`). Omit it for `AtMostOnce`; export always writes it. `Journaled` behaves as `AtMostOnce` until the effect journal exists |
 | `retryOnNodeLoss` | Deprecated; use `effectPolicy`. Still accepted for one release: `true` means `AtLeastOnce` and `false` means `AtMostOnce`. A document that sets both with different meanings fails with `errorCode` `EffectPolicyConflict` and `errorField` `effectPolicy` (also on a dry run). Export never writes it, so an exported document that used it re-applies unchanged with `effectPolicy` instead |
+| `managementAccess` | `Drafts` lets the deployment's runs work on studio drafts for the person who started them ([STUDIO.md](STUDIO.md#delegated-management)). Omit it for `None`; export omits `None`. A deployment of `agent-architect` always has `Drafts` |
 | `executor` | `Process` or `KubernetesJob` (a pod per run). Omit it to use the node pool's default, then `Process` (an `Untrusted` deployment never resolves to `Process` and uses `KubernetesJob`) |
 | `trustLevel` | `Trusted` or `Untrusted`. Omit it for `Trusted`; export writes it only for `Untrusted` deployments. `Untrusted` runs need at least Container isolation and wait in the queue (`NoIsolatingWorker`) until a worker can provide it. In a tenant with `requireUntrustedDeployments`, a document that creates or changes a `Trusted` deployment fails with `errorCode` `TenantRequiresUntrusted` and `errorField` `trustLevel`; an unchanged existing deployment is left alone |
 | `podResources` | Run pod `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit` for `KubernetesJob` runs. It is not called `resources` because that key holds the secret and MCP server bindings |
@@ -558,6 +559,49 @@ spec:
 | `stages[].parameters` | A map of run parameter overrides. They must be allowed run overrides of the named `deployment`, so a stage with parameters needs one. Quote values YAML would read as numbers or booleans |
 
 Applying a changed Pipeline document replaces its stages and increases the pipeline's version; pipeline runs that already started keep their own copy of the stages. An unchanged document reports `Unchanged` and keeps the version. A protected pipeline cannot be changed by a manifest. Export writes every tenant pipeline in this form and leaves out fields that hold their defaults.
+
+### AgenticApp
+
+```yaml
+apiVersion: garrison/v1
+kind: AgenticApp
+metadata:
+  name: research
+  description: Research overviews
+spec:
+  slug: research
+  entry: orchestrator
+  members:
+    - { agent: orchestrator, role: Talks to people and plans the work }
+    - { agent: researcher }
+  edges:
+    - { from: orchestrator, to: researcher, fanOut: true }
+  environments:
+    - { environment: dev, deployment: orchestrator-dev }
+  liveEnvironment: dev
+  authMode: Anonymous
+  anonymousEnabled: true
+  showOperatorDetail: false
+  branding:
+    displayName: Research Desk
+    logo: research-logo
+    primaryColor: "#1F6FEB"
+    welcomeText: Ask for an overview of any topic.
+```
+
+| Field | Meaning |
+|---|---|
+| `slug` | The app's URL name, unique across the cluster. Default: the name |
+| `entry` | The member that talks to end users |
+| `members` | Each `agent` by name, with an optional `role` |
+| `edges` | Calls members may make, `from` and `to` by agent name, with an optional `fanOut` flag. Every member must be reachable from the entry agent, and the edges may not form a cycle |
+| `environments` | The entry deployment per environment, by name. Without `deployment`, the app uses the entry agent's first active deployment in that environment |
+| `liveEnvironment` | The environment the app UI talks to. Default `dev` |
+| `authMode`, `anonymousEnabled`, `showOperatorDetail` | Sign-in and what end users see, as in [APPS.md](APPS.md#sign-in) |
+| `branding` | `displayName`, `logo` (an `AgentAsset` by name; its first image is the logo), `primaryColor`, `accentColor`, `welcomeText` |
+| `active` | Whether the app accepts sessions. Default `true`; set `false` to close the app to end users without deleting it |
+
+Agents, deployments, and the logo asset can come from the same bundle. Apps sort after pipelines, so their members already exist when the app is applied. Export with `followReferences` brings the members, their deployments, and what those refer to, which is how the studio starts a draft from a live app ([STUDIO.md](STUDIO.md#starting-from-an-app)). [examples/agentic-apps](../examples/agentic-apps/README.md) has two complete bundles.
 
 ### Trigger
 
