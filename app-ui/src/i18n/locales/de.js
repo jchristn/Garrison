@@ -26,6 +26,7 @@ const de = {
     anonymous: 'Ohne Anmeldung fortfahren',
     anonymousNote: 'Unterhaltungen ohne Anmeldung bleiben nur in diesem Browser-Tab erhalten.',
     or: 'oder',
+    poweredBy: 'Erstellt mit Garrison Agent Studio',
     sessionEnded: 'Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um fortzufahren.'
   },
   header: {
@@ -141,6 +142,7 @@ const de = {
     details: 'Zeigt die Schritte, die der Agent beim Antworten ausgeführt hat: Werkzeugaufrufe, Fortschritt und Warnungen.',
     answerLink: 'Öffnet einen Link aus der Antwort in einem neuen Tab: {{href}}',
     tableHeader: 'Spalte einer Tabelle in der Antwort: {{text}}',
+    poweredBy: 'Öffnet usegarrison.ai in einem neuen Tab: mehr über Garrison Agent Studio, die Plattform, auf der diese App läuft.',
     skipToChat: 'Springt über Kopfzeile und Unterhaltungsliste hinweg direkt zum Nachrichtenfeld.'
   }
 };

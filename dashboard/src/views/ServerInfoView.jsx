@@ -7,7 +7,7 @@ import CodeBlock from '../components/CodeBlock';
 import { ErrorBanner, LoadingState } from '../components/States';
 import { Badge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
-import { APP_VERSION } from '../utils/constants';
+import { APP_VERSION, DOCS_URL, GITHUB_URL, STUDIO_DOCS_URL, WEBSITE_URL } from '../utils/constants';
 import { roleKey } from '../utils/principal';
 import { errorMessage } from '../utils/errors';
 import { formatDateTime } from '../i18n/formatters';
@@ -29,7 +29,11 @@ function Row({ label, value, copy, tip: tipText }) {
   );
 }
 
-/** Endpoints, version, feature flags, and the authenticated principal. */
+/**
+ * System > About (AD12.12): the product (Garrison Agent Studio, its positioning, the server and dashboard versions, and
+ * links to the documentation and the website), then the endpoints, server details, feature flags, and the signed-in
+ * principal.
+ */
 export default function ServerInfoView() {
   const { t, i18n } = useTranslation();
   const { apiClient, serverUrl, principal } = useAuth();
@@ -55,6 +59,34 @@ export default function ServerInfoView() {
       <PageHeader title={t('views.serverInfo.title')} subtitle={t('views.serverInfo.subtitle')} />
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!info && !error && <LoadingState />}
+      <section className="panel about-panel" data-testid="about">
+        <img src="/assets/logo.png" alt="" />
+        <div>
+          <h2 className="section-title" data-testid="about-product" {...tip(t('tips.views.serverInfo.product'))}>
+            {t('common.productName')}
+          </h2>
+          <p className="about-positioning" data-testid="about-positioning">
+            {t('views.serverInfo.positioning')}
+          </p>
+          <p className="text-muted" data-testid="about-versions">
+            {t('views.serverInfo.versions', { server: info?.version || health?.version || '-', dashboard: APP_VERSION })}
+          </p>
+          <div className="about-links">
+            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className="button-secondary button-sm" data-testid="about-docs" {...tip(t('tips.views.serverInfo.docs'))}>
+              {t('views.serverInfo.docs')}
+            </a>
+            <a href={STUDIO_DOCS_URL} target="_blank" rel="noopener noreferrer" className="button-secondary button-sm" data-testid="about-studio-docs" {...tip(t('tips.views.serverInfo.studioDocs'))}>
+              {t('views.serverInfo.studioDocs')}
+            </a>
+            <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" className="button-secondary button-sm" data-testid="about-website" {...tip(t('tips.views.serverInfo.website'))}>
+              {t('views.serverInfo.website')}
+            </a>
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="button-secondary button-sm" data-testid="about-source" {...tip(t('tips.views.serverInfo.source'))}>
+              {t('views.serverInfo.source')}
+            </a>
+          </div>
+        </div>
+      </section>
       <div className="info-grid">
         <section className="panel">
           <h2 className="section-title">{t('views.serverInfo.endpoints')}</h2>

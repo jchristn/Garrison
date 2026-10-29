@@ -3151,3 +3151,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio：用你已在使用的智能体 Harness 构建、部署和运行智能体应用。",
+  "tabs": {
+   "serverInfo": "关于 Garrison Agent Studio：服务器和控制台版本、文档和网站链接、REST、MCP 和 A2A 地址，以及你当前登录所用的身份。"
+  }
+ },
+ "common": {
+  "openStudio": "打开智能体工作室，智能体架构师会与你一起起草智能体和应用。在有人批准草稿之前，什么都不会上线。"
+ },
+ "wizard": {
+  "start": "开始设置：添加凭据，设置智能体架构师，应用示例智能体并测试。",
+  "skipStudio": "不创建架构师并继续。之后可以在智能体工作室中通过“新建架构师”创建。",
+  "createArchitect": "按这些选择创建 agent-architect 的部署，并进入下一步。它的运行只能编辑你的工作室草稿。",
+  "continue": "架构师已存在。进入设置的下一步。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "打开智能体工作室并描述你想要的应用；智能体架构师会起草，上线前由人批准。"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "此草稿应用后构建的应用：各环境中的部署、从 dev 晋升到 staging 和 prod，以及从历史记录回滚。"
+   }
+  },
+  "serverInfo": {
+   "product": "此控制台所属的产品：智能体工作室在 Garrison 运行时之上构建智能体应用。",
+   "docs": "在新标签页中打开 Garrison 文档：架构、配置、Harness、工作室、应用和安全。",
+   "studioDocs": "在新标签页中打开智能体工作室指南：草稿、智能体架构师、应用草稿和晋升。",
+   "website": "在新标签页中打开 usegarrison.ai，查看产品概览、截图和演示。",
+   "source": "在新标签页中打开 GitHub 上的 Garrison 仓库：源代码、问题和版本发布。"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "查看应用在各环境中的部署及其固定修订和覆盖，将其晋升到下一个环境，并回滚某次晋升。"
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "应用 URL 使用其入口部署的环境：{{environment}}。可在应用的“环境”步骤中更改。",
+   "environments": "每个成员在每个环境中的部署：各自固定的修订（跟随最新已发布修订时显示“最新”）和环境变量覆盖。",
+   "source": "比较的起点环境，通常是你测试过的环境。晋升也从这里开始。",
+   "target": "要比较并晋升到的环境。保持为下一个环境即可遵循晋升顺序。",
+   "promote": "打开从 {{source}} 到 {{target}} 的晋升对话框：每个成员的固定修订会在一个事务中移到其在 {{target}} 中的部署。",
+   "noNext": "{{source}} 之后没有环境，因此无处可晋升。",
+   "denied": "执行此操作需要对 {{environment}} 的晋升拥有执行权限。请向管理员申请 Releaser 角色。",
+   "noDeployment": "此成员在 {{environment}} 中没有部署。在它有部署之前，晋升到 {{environment}} 会失败。",
+   "overrides": "此部署的环境变量覆盖：为其运行设置的变量。机密值从不显示。",
+   "entry": "入口智能体：使用应用的人首先与此成员对话。",
+   "history": "此应用的每次晋升和回滚，最新的在前。已应用的晋升可以回滚一次，以恢复它替换掉的固定修订。",
+   "refresh": "重新读取此应用的部署和晋升历史。",
+   "columns": {
+    "member": "应用的成员智能体，入口智能体在前。",
+    "environment": "每个成员在 {{environment}} 中的部署，以及其固定修订和环境变量覆盖。",
+    "difference": "所比较的两个环境之间，每个成员的固定修订和覆盖是否一致。"
+   },
+   "diff": {
+    "Same": "{{source}} 和 {{target}} 中的固定修订和覆盖一致。",
+    "Differs": "{{source}} 和 {{target}} 之间的固定修订或覆盖不同。晋升会移动固定修订；每个部署保留自己的覆盖。",
+    "Missing": "此成员在 {{target}} 中没有部署。从 {{source}} 晋升会失败，什么也不会移动。"
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "从实时配置读取的此草稿所构建的应用：各环境中的部署、晋升和回滚。",
+   "app": "当草稿构建多个应用时，选择要显示哪一个。"
+  }
+ }
+});

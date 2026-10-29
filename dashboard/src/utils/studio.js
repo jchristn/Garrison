@@ -2,6 +2,7 @@
 // their tests. Plain functions (no JSX) so Node-based tests can import them.
 
 import { holds } from './apps';
+import { ARCHITECT_AGENT_NAME } from './constants';
 import { enumLabel } from './enums';
 
 /** Draft statuses, in the order the list's status chips show them. */
@@ -20,7 +21,7 @@ export const DRAFT_KINDS = ['PromptTemplate', 'HarnessProfile', 'McpServer', 'Wo
 export const DELETABLE_KINDS = ['Agent', 'Deployment', 'Pipeline', 'AgenticApp'];
 
 /** The protected agent every tenant has; its deployments are architects. */
-export const ARCHITECT_AGENT = 'agent-architect';
+export const ARCHITECT_AGENT = ARCHITECT_AGENT_NAME;
 
 /** The architect prompt a new architect deployment binds when nothing else is chosen. */
 export const DEFAULT_ARCHITECT_PROMPT = 'builtin/agent-architect';
@@ -389,3 +390,6 @@ export function studioPermissions(t, permissions) {
     deletePrompt: d('PromptTemplate', 'Delete')
   };
 }
+
+// The architect form helpers live outside the studio chunk so the setup wizard (AD9.5) can use them.
+export { architectDeploymentBody, architectFormErrors, blankArchitectForm } from './architect';

@@ -4226,3 +4226,118 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "Or open Agent Studio and describe what you need: the agent architect drafts it for you to review.",
+   "openStudio": "Open Agent Studio"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Agent Studio"
+   },
+   "serverInfo": {
+    "label": "About",
+    "tip": "Product, versions, links, endpoints, and your identity"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "Agent Studio"
+  },
+  "welcomeItemStudio": "Give the agent architect a harness and model, so it can design agents and apps with you in Agent Studio (optional).",
+  "studioBody": "The agent architect designs agents and apps with you in Agent Studio. Choose the harness profile and model it runs on, and the architect prompt that guides it. Its deployment may only edit your studio drafts. You can skip this step and create an architect later from the studio.",
+  "createArchitect": "Create the architect",
+  "architectCreated": "Agent architect {{name}} created.",
+  "architectReady": "The agent architect {{name}} is ready. After setup, open Agent Studio and start a draft with it.",
+  "continue": "Continue"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "The setup wizard adds a credential, gives the agent architect a harness and model, applies a sample agent, and runs a test. Or open Agent Studio and describe the app you want.",
+   "openStudio": "Open Agent Studio"
+  },
+  "studio": {
+   "title": "Agent Studio"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Release"
+   }
+  },
+  "serverInfo": {
+   "title": "About",
+   "subtitle": "Versions, links, endpoints, and the identity you are signed in with.",
+   "positioning": "Build, deploy, and run agentic apps on the agent harnesses you already use.",
+   "versions": "Server version {{server}}, dashboard version {{dashboard}}",
+   "docs": "Documentation",
+   "studioDocs": "Agent Studio guide",
+   "website": "Website",
+   "source": "Source code"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Environments"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "Environments and promotion",
+    "intro": "Each member's deployments per environment, with the revision each one pins and its environment overrides. Compare two environments before you promote, and roll a promotion back from the history.",
+    "live": "Live in {{environment}}",
+    "environments": "Environments",
+    "source": "Compare",
+    "target": "with",
+    "member": "Member",
+    "entry": "Entry",
+    "noDeployment": "No deployment",
+    "secretOverride": "{{name}} (secret)",
+    "difference": "{{source}} to {{target}}",
+    "differenceNone": "Difference",
+    "diff": {
+     "Same": "Same",
+     "Missing": "No deployment in {{target}}",
+     "revisions": "Revisions differ",
+     "overrides": "Overrides differ",
+     "both": "Revisions and overrides differ"
+    },
+    "promote": "Promote {{source}} to {{target}}",
+    "promoteNothing": "Promote",
+    "missing": "No deployment in {{target}}: {{names}}. Promoting now would fail and move nothing; add a deployment there first.",
+    "history": "Promotion history",
+    "historyEmpty": "This app has not been promoted yet."
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "Release",
+    "app": "App",
+    "noAppsTitle": "This draft builds no app",
+    "noAppsBody": "Add an app to the draft, on the Graph tab or by asking the architect, to promote it from here once it is applied.",
+    "notLiveTitle": "{{name}} is not live yet",
+    "notLiveBody": "Apply the draft first. Applying publishes its agents and deploys them to dev; then you can promote the app from here."
+   }
+  }
+ }
+});

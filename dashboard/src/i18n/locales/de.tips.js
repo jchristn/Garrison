@@ -3152,3 +3152,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio: agentische Apps mit den Agent-Harnesses bauen, bereitstellen und betreiben, die Sie bereits nutzen.",
+  "tabs": {
+   "serverInfo": "Über Garrison Agent Studio: Server- und Dashboard-Version, Links zur Dokumentation und zur Webseite, die REST-, MCP- und A2A-Adressen und die Identität, mit der Sie angemeldet sind."
+  }
+ },
+ "common": {
+  "openStudio": "Das Agenten-Studio öffnen, wo der Agenten-Architekt mit Ihnen Agenten und Apps entwirft. Nichts geht live, bevor eine Person den Entwurf genehmigt."
+ },
+ "wizard": {
+  "start": "Einrichtung beginnen: Zugangsdaten hinzufügen, den Agenten-Architekten einrichten, einen Beispielagenten anwenden und testen.",
+  "skipStudio": "Ohne Architekten fortfahren. Sie können später im Agenten-Studio mit Neuer Architekt einen erstellen.",
+  "createArchitect": "Eine Bereitstellung von agent-architect mit dieser Auswahl erstellen und zum nächsten Schritt gehen. Ihre Läufe dürfen nur Ihre Studio-Entwürfe bearbeiten.",
+  "continue": "Der Architekt existiert bereits. Weiter zum nächsten Schritt der Einrichtung."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Das Agenten-Studio öffnen und die gewünschte App beschreiben; der Agenten-Architekt entwirft sie, und eine Person genehmigt sie, bevor sie live geht."
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Die Apps dieses Entwurfs nach dem Anwenden: ihre Bereitstellungen pro Umgebung, Hochstufung von dev nach staging und prod und Zurücksetzen aus dem Verlauf."
+   }
+  },
+  "serverInfo": {
+   "product": "Das Produkt, zu dem diese Konsole gehört: Das Agenten-Studio baut agentische Apps auf der Garrison-Laufzeit.",
+   "docs": "Die Garrison-Dokumentation in einem neuen Tab öffnen: Architektur, Konfiguration, Harnesses, das Studio, Apps und Sicherheit.",
+   "studioDocs": "Den Leitfaden zum Agenten-Studio in einem neuen Tab öffnen: Entwürfe, der Agenten-Architekt, das Anwenden eines Entwurfs und die Hochstufung.",
+   "website": "usegarrison.ai in einem neuen Tab öffnen: Produktüberblick, Screenshots und Anleitungen.",
+   "source": "Das Garrison-Repository auf GitHub in einem neuen Tab öffnen: Quellcode, Issues und Releases."
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Die Bereitstellungen der App pro Umgebung mit festgelegten Revisionen und Überschreibungen ansehen, sie in die nächste Umgebung hochstufen und eine Hochstufung zurücksetzen."
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "Die Umgebung, deren Einstiegsbereitstellung die App-URL nutzt: {{environment}}. Ändern Sie sie im Schritt Umgebungen der App.",
+   "environments": "Die Bereitstellungen jedes Mitglieds in jeder Umgebung: die festgelegte Revision (Neueste, wenn sie der neuesten veröffentlichten folgt) und die Umgebungsüberschreibungen.",
+   "source": "Die Umgebung, von der aus verglichen wird, meist die, in der Sie getestet haben. Dort beginnt auch das Hochstufen.",
+   "target": "Die Umgebung, mit der verglichen und in die hochgestuft wird. Lassen Sie die nächste Umgebung stehen, um der Reihenfolge zu folgen.",
+   "promote": "Den Hochstufungsdialog für {{source}} nach {{target}} öffnen: Die festgelegte Revision jedes Mitglieds geht in einer Transaktion an seine Bereitstellungen in {{target}}.",
+   "noNext": "Nach {{source}} gibt es keine Umgebung, also nichts, wohin hochgestuft werden kann.",
+   "denied": "Dafür brauchen Sie die Berechtigung Ausführen auf Hochstufung für {{environment}}. Bitten Sie einen Administrator um die Rolle Releaser.",
+   "noDeployment": "Dieses Mitglied hat keine Bereitstellung in {{environment}}. Ein Hochstufen nach {{environment}} schlägt fehl, bis es eine hat.",
+   "overrides": "Umgebungsüberschreibungen dieser Bereitstellung: Variablen für ihre Läufe. Geheime Werte werden nie angezeigt.",
+   "entry": "Der Einstiegsagent: Wer die App nutzt, spricht zuerst mit diesem Mitglied.",
+   "history": "Jede Hochstufung und jedes Zurücksetzen dieser App, die neuesten zuerst. Eine angewendete Hochstufung lässt sich einmal zurücksetzen; das stellt die ersetzten Festlegungen wieder her.",
+   "refresh": "Die Bereitstellungen und den Hochstufungsverlauf dieser App erneut lesen.",
+   "columns": {
+    "member": "Die Mitgliedsagenten der App, der Einstiegsagent zuerst.",
+    "environment": "Bereitstellungen jedes Mitglieds in {{environment}}, mit festgelegter Revision und Umgebungsüberschreibungen.",
+    "difference": "Ob Festlegungen und Überschreibungen jedes Mitglieds zwischen den beiden verglichenen Umgebungen übereinstimmen."
+   },
+   "diff": {
+    "Same": "Festgelegte Revisionen und Überschreibungen in {{source}} und {{target}} stimmen überein.",
+    "Differs": "Festgelegte Revisionen oder Überschreibungen unterscheiden sich zwischen {{source}} und {{target}}. Hochstufen verschiebt die Festlegungen; jede Bereitstellung behält ihre Überschreibungen.",
+    "Missing": "Dieses Mitglied hat keine Bereitstellung in {{target}}. Ein Hochstufen aus {{source}} würde fehlschlagen und nichts verschieben."
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "Die Apps dieses Entwurfs aus der Live-Konfiguration: Bereitstellungen pro Umgebung, Hochstufen und Zurücksetzen.",
+   "app": "Wählen Sie, welche App des Entwurfs angezeigt wird, wenn er mehr als eine baut."
+  }
+ }
+});

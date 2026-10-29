@@ -3154,3 +3154,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio: crea, despliega y ejecuta aplicaciones agénticas con los harnesses de agentes que ya usas.",
+  "tabs": {
+   "serverInfo": "Acerca de Garrison Agent Studio: las versiones del servidor y del panel, enlaces a la documentación y al sitio web, las direcciones REST, MCP y A2A, y la identidad con la que has iniciado sesión."
+  }
+ },
+ "common": {
+  "openStudio": "Abre el Estudio de agentes, donde el arquitecto de agentes redacta agentes y aplicaciones contigo. Nada se activa hasta que una persona aprueba el borrador."
+ },
+ "wizard": {
+  "start": "Empieza la configuración: añade una credencial, prepara el arquitecto de agentes, aplica un agente de ejemplo y pruébalo.",
+  "skipStudio": "Continúa sin arquitecto. Puedes crear uno más tarde en el Estudio de agentes con Nuevo arquitecto.",
+  "createArchitect": "Crea un despliegue de agent-architect con estas opciones y pasa al siguiente paso. Sus ejecuciones solo pueden editar tus borradores del estudio.",
+  "continue": "El arquitecto ya existe. Pasa al siguiente paso de la configuración."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Abre el Estudio de agentes y describe la aplicación que quieres; el arquitecto de agentes la redacta y una persona la aprueba antes de que se active."
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Las aplicaciones que crea este borrador, una vez aplicado: sus despliegues por entorno, la promoción de dev a staging y prod, y la reversión desde el historial."
+   }
+  },
+  "serverInfo": {
+   "product": "El producto al que pertenece esta consola: el Estudio de agentes crea aplicaciones agénticas sobre el runtime de Garrison.",
+   "docs": "Abre la documentación de Garrison en una pestaña nueva: arquitectura, configuración, harnesses, el estudio, aplicaciones y seguridad.",
+   "studioDocs": "Abre la guía del Estudio de agentes en una pestaña nueva: borradores, el arquitecto de agentes, aplicar un borrador y la promoción.",
+   "website": "Abre usegarrison.ai en una pestaña nueva para ver la presentación del producto, capturas y recorridos.",
+   "source": "Abre el repositorio de Garrison en GitHub en una pestaña nueva: código fuente, incidencias y versiones."
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Mira los despliegues de la aplicación por entorno con sus revisiones fijadas y sobrescrituras, promuévela al siguiente entorno y revierte una promoción."
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "El entorno cuyo despliegue de entrada usa la URL de la aplicación: {{environment}}. Cámbialo en el paso Entornos de la aplicación.",
+   "environments": "Los despliegues de cada miembro en cada entorno: la revisión que fija cada uno (Última cuando sigue la última revisión publicada) y sus sobrescrituras de entorno.",
+   "source": "El entorno desde el que se compara, normalmente el que probaste. También es donde empieza Promover.",
+   "target": "El entorno con el que se compara y al que se promueve. Déjalo en el siguiente entorno para seguir el orden de promoción.",
+   "promote": "Abre el diálogo de promoción de {{source}} a {{target}}: la revisión fijada de cada miembro pasa a sus despliegues en {{target}} en una sola transacción.",
+   "noNext": "No hay ningún entorno después de {{source}}, así que no hay adónde promover.",
+   "denied": "Para esto necesitas el permiso Ejecutar sobre Promoción en {{environment}}. Pide a un administrador el rol Releaser.",
+   "noDeployment": "Este miembro no tiene despliegue en {{environment}}. Una promoción a {{environment}} falla hasta que tenga uno.",
+   "overrides": "Sobrescrituras de entorno de este despliegue: variables definidas para sus ejecuciones. Los valores secretos nunca se muestran.",
+   "entry": "El agente de entrada: quienes usan la aplicación hablan primero con este miembro.",
+   "history": "Cada promoción y reversión de esta aplicación, de la más reciente a la más antigua. Una promoción aplicada se puede revertir una vez, lo que restaura las fijaciones que sustituyó.",
+   "refresh": "Vuelve a leer los despliegues y el historial de promociones de esta aplicación.",
+   "columns": {
+    "member": "Los agentes miembros de la aplicación, primero el agente de entrada.",
+    "environment": "Despliegues de cada miembro en {{environment}}, con su revisión fijada y sus sobrescrituras de entorno.",
+    "difference": "Si las fijaciones y sobrescrituras de cada miembro coinciden entre los dos entornos que comparas."
+   },
+   "diff": {
+    "Same": "Las revisiones fijadas y las sobrescrituras de {{source}} y {{target}} coinciden.",
+    "Differs": "Las revisiones fijadas o las sobrescrituras difieren entre {{source}} y {{target}}. Promover mueve las fijaciones; cada despliegue conserva sus propias sobrescrituras.",
+    "Missing": "Este miembro no tiene despliegue en {{target}}. Promover desde {{source}} fallaría sin mover nada."
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "Las aplicaciones que crea este borrador, leídas de la configuración activa: despliegues por entorno, promover y revertir.",
+   "app": "Elige qué aplicación del borrador mostrar cuando el borrador crea más de una."
+  }
+ }
+});

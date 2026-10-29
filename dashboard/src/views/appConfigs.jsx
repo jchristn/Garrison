@@ -9,6 +9,7 @@ import AgenticAppGraph from '../components/AgenticAppGraph';
 import AgenticAppShare from '../components/AgenticAppShare';
 import AgenticAppDelegationModal from '../components/AgenticAppDelegationModal';
 import AgenticAppRevisionsModal from '../components/AgenticAppRevisionsModal';
+import AgenticAppReleaseModal from '../components/AgenticAppReleaseModal';
 import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i18n/formatters';
 import { resourceTip, enumTip, optionalText } from '../utils/tips';
 import { enumLabel, enumOptions } from '../utils/enums';
@@ -72,11 +73,14 @@ function memberOptions(d, nameOf) {
  * Agentic apps (AD6): a group of agents behind one chat UI at /apps/{slug}/. The editor has five steps: the app,
  * members and the call graph (with a read-only graph), environments and the live one, who may use the app (with the
  * shareable URL), and branding. Row actions show the delegation the graph implies and the app's revisions, from which
- * revisions are taken, published, and promoted. Actions the caller lacks the permission for stay visible but disabled,
+ * revisions are taken, published, and promoted, and the app's environments (pins and overrides per environment, the
+ * difference between two, Promote, and the promotion history with Rollback, AD9.6). Actions the caller lacks the permission for stay visible but disabled,
  * with the missing permission in the tooltip.
  */
 export const appsConfig = {
   id: ID,
+  // An empty list points to Agent Studio as well as to Add (AD12.12).
+  studioEmptyState: true,
   formSize: 'xlarge',
   api: {
     list: (c, tenant, p) => c.listApps(tenant, p),
@@ -256,6 +260,11 @@ export const appsConfig = {
         tip: ctx.t('tips.resources.apps.actions.revisions'),
         onClick: () =>
           ctx.setExtraModal(<AgenticAppRevisionsModal app={r} denied={denied} permissions={permissions} nameOf={nameOf} onClose={() => ctx.setExtraModal(null)} onChanged={() => ctx.reload()} />)
+      },
+      {
+        label: ctx.t('resources.apps.actions.environments'),
+        tip: ctx.t('tips.resources.apps.actions.environments'),
+        onClick: () => ctx.setExtraModal(<AgenticAppReleaseModal app={r} permissions={permissions} onClose={() => ctx.setExtraModal(null)} onChanged={() => ctx.reload()} />)
       }
     ];
   }

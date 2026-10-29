@@ -1204,6 +1204,31 @@ export function promotionRecord(i) {
   };
 }
 
+/**
+ * The research app's promotion record (AD9.6): app revision 1 promoted from dev to staging, moving echo-agent's pin on
+ * deployment-2 from revision 1 to revision 2. Applied, so it can be rolled back.
+ */
+export function appPromotionRecord() {
+  const id = 'pro_0010';
+  return {
+    id,
+    tenantId: TENANT,
+    kind: 'Promote',
+    outcome: 'Applied',
+    appId: 'app_0001',
+    appRevisionId: 'apr_0001_1',
+    sourceEnvironment: 'dev',
+    targetEnvironment: 'staging',
+    skippedEnvironments: false,
+    actorType: 'User',
+    actorId: 'usr_admin',
+    actorName: 'admin@garrison',
+    note: 'Release 1',
+    items: [{ id: 'pri_0010_0', promotionRecordId: id, deploymentId: 'dep_0002', deploymentName: 'deployment-2', agentId: 'agt_0001', previousRevisionId: revisionId('agt_0001', 1), newRevisionId: revisionId('agt_0001', 2) }],
+    createdUtc: iso(45)
+  };
+}
+
 // ---------------------------------------------------------------- agent assets (AD2.8)
 
 const ASSET_ROWS = {
@@ -1763,6 +1788,8 @@ function fanOutRoutes(method, url, parts) {
 function revisionRoutes(method, url, parts) {
   if (parts[0] === 'environments' && parts.length === 1) return ENVIRONMENTS;
   if (parts[0] === 'promotions') {
+    // AD9.6: ?appId= lists the app's own promotion records (research has one, from dev to staging).
+    if (parts.length === 1 && method === 'GET' && url.searchParams.get('appId')) return pageOf(url.searchParams.get('appId') === 'app_0001' ? [appPromotionRecord()] : [], url);
     if (parts.length === 1) return method === 'GET' ? pageOf([1, 2, 3].map(promotionRecord), url) : { ...promotionRecord(1), id: 'pro_0099', createdUtc: iso(0) };
     if (parts[2] === 'rollback') return { ...promotionRecord(2), id: 'pro_0098', rollbackOfId: parts[1], createdUtc: iso(0) };
     if (parts.length === 2) return { ...promotionRecord(/^pro_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1), id: parts[1] };

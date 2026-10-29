@@ -26,6 +26,7 @@ const it = {
     anonymous: 'Continua senza accedere',
     anonymousNote: 'Le conversazioni avviate senza accedere restano solo in questa scheda del browser.',
     or: 'oppure',
+    poweredBy: 'Realizzata con Garrison Agent Studio',
     sessionEnded: 'La sessione è scaduta. Accedi di nuovo per continuare.'
   },
   header: {
@@ -141,6 +142,7 @@ const it = {
     details: "Mostra i passaggi seguiti dall'agente per rispondere: chiamate a strumenti, avanzamento e avvisi.",
     answerLink: 'Apre un link della risposta in una nuova scheda: {{href}}',
     tableHeader: 'Colonna di una tabella nella risposta: {{text}}',
+    poweredBy: 'Apre usegarrison.ai in una nuova scheda per scoprire Garrison Agent Studio, la piattaforma su cui funziona questa app.',
     skipToChat: "Salta l'intestazione e la lista delle conversazioni e passa alla casella del messaggio."
   }
 };

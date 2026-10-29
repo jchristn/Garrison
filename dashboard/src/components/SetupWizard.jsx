@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
@@ -8,14 +8,22 @@ import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { SAMPLE_MANIFEST, STORAGE_KEYS } from '../utils/constants';
+import { ARCHITECT_AGENT_NAME, SAMPLE_MANIFEST, STORAGE_KEYS } from '../utils/constants';
+import { architectDeploymentBody, architectFormErrors, blankArchitectForm } from '../utils/architect';
 import { enumOptions } from '../utils/enums';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 
-const STEPS = ['welcome', 'secret', 'manifest', 'invoke'];
+// The architect fields come with the studio chunk, loaded only when the Agent Studio step opens.
+const ArchitectFields = lazy(() => import('./studio/ArchitectFields'));
 
-/** First-run setup: add a harness credential, apply a sample manifest, and test-invoke an agent. Skippable and relaunchable. */
+const STEPS = ['welcome', 'secret', 'studio', 'manifest', 'invoke'];
+
+/**
+ * First-run setup: add a harness credential, give the agent architect a deployment (AD9.5, AD9.9: harness profile,
+ * model, and architect prompt; the server gives it managementAccess Drafts), apply a sample manifest, and test-invoke
+ * an agent. Every step but the welcome can be skipped, and the wizard can be relaunched from the sidebar.
+ */
 export default function SetupWizard() {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
@@ -28,6 +36,10 @@ export default function SetupWizard() {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Say hello and describe what you can do.');
+  const [architectForm, setArchitectForm] = useState(blankArchitectForm);
+  const [architectAgent, setArchitectAgent] = useState(undefined);
+  const [architectErrors, setArchitectErrors] = useState({});
+  const [architect, setArchitect] = useState(null);
 
   const close = (dismiss) => {
     if (dismiss) localStorage.setItem(`${STORAGE_KEYS.setupDismissed}:${tenantId}`, 'true');
@@ -47,6 +59,33 @@ export default function SetupWizard() {
       addToast({ type: 'success', message: t('wizard.secretSaved') });
       setStep((s) => s + 1);
     } catch (e) {
+      addToast({ type: 'error', message: errorMessage(t, e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changeArchitect = (patch) => {
+    setArchitectForm((f) => ({ ...f, ...patch }));
+    setArchitectErrors((e) => ({ ...e, ...Object.fromEntries(Object.keys(patch).map((k) => [k, undefined])) }));
+  };
+
+  const createArchitect = async () => {
+    if (architect) {
+      setStep((s) => s + 1);
+      return;
+    }
+    const errors = architectFormErrors(architectForm, t);
+    setArchitectErrors(errors);
+    if (Object.keys(errors).length || !architectAgent) return;
+    setBusy(true);
+    try {
+      const created = await apiClient.createDeployment(tenantId, architectDeploymentBody(architectForm, architectAgent.id));
+      setArchitect(created || { name: architectForm.name });
+      addToast({ type: 'success', message: t('wizard.architectCreated', { name: created?.name || architectForm.name }) });
+      setStep((s) => s + 1);
+    } catch (e) {
+      if (e?.fields) setArchitectErrors(e.fields);
       addToast({ type: 'error', message: errorMessage(t, e) });
     } finally {
       setBusy(false);
@@ -112,6 +151,23 @@ export default function SetupWizard() {
               {secret.value ? t('wizard.saveSecret') : t('wizard.skipStep')}
             </button>
           )}
+          {current === 'studio' && !architect && (
+            <button type="button" className="button-secondary" onClick={() => setStep((s) => s + 1)} disabled={busy} data-testid="wizard-skip-studio" {...tip(t('tips.wizard.skipStudio'))}>
+              {t('wizard.skipStep')}
+            </button>
+          )}
+          {current === 'studio' && (
+            <button
+              type="button"
+              className="button-primary"
+              onClick={createArchitect}
+              disabled={busy || (!architect && !architectAgent)}
+              data-testid="wizard-create-architect"
+              {...tip(t(architect ? 'tips.wizard.continue' : architectAgent === null ? 'tips.studio.architect.noAgent' : 'tips.wizard.createArchitect'))}
+            >
+              {architect ? t('wizard.continue') : busy ? t('components.studio.architect.creating') : t('wizard.createArchitect')}
+            </button>
+          )}
           {current === 'manifest' && (
             <button type="button" className="button-primary" onClick={applyManifest} disabled={busy} {...tip(t('tips.wizard.apply'))}>
               {t('views.manifests.apply')}
@@ -137,6 +193,7 @@ export default function SetupWizard() {
           <p>{t('wizard.welcomeBody')}</p>
           <ul className="plain-list">
             <li>{t('wizard.welcomeItem1')}</li>
+            <li>{t('wizard.welcomeItemStudio')}</li>
             <li>{t('wizard.welcomeItem2')}</li>
             <li>{t('wizard.welcomeItem3')}</li>
           </ul>
@@ -148,6 +205,27 @@ export default function SetupWizard() {
           <FormField id="wiz-secret-name" field={{ name: 'name', type: 'text', label: t('resources.secrets.fields.name'), required: true, tip: t('tips.wizard.secretName') }} value={secret.name} onChange={(v) => setSecret({ ...secret, name: v })} />
           <FormField id="wiz-secret-kind" field={{ name: 'kind', type: 'select', label: t('resources.secrets.fields.kind'), required: true, options: enumOptions(t, 'secretKind'), tip: t('tips.resources.secrets.kind') }} value={secret.kind} onChange={(v) => setSecret({ ...secret, kind: v })} />
           <FormField id="wiz-secret-value" field={{ name: 'value', type: 'password', label: t('resources.secrets.fields.value'), span: 'full', tip: t('tips.resources.secrets.value') }} value={secret.value} onChange={(v) => setSecret({ ...secret, value: v })} />
+        </div>
+      )}
+      {current === 'studio' && (
+        <div className="wizard-body" data-testid="wizard-studio">
+          <p>{t('wizard.studioBody')}</p>
+          {architect ? (
+            <div className="info-banner" role="status" data-testid="wizard-architect-created">
+              {t('wizard.architectReady', { name: architect.name || architectForm.name })}
+            </div>
+          ) : (
+            <>
+              {architectAgent === null && (
+                <div className="warning-banner" role="alert" data-testid="architect-no-agent">
+                  {t('components.studio.architect.noAgent', { name: ARCHITECT_AGENT_NAME })}
+                </div>
+              )}
+              <Suspense fallback={<p className="text-muted">{t('common.generic.loading')}</p>}>
+                <ArchitectFields form={architectForm} onChange={changeArchitect} fieldErrors={architectErrors} onAgent={setArchitectAgent} idPrefix="wiz-architect" />
+              </Suspense>
+            </>
+          )}
         </div>
       )}
       {current === 'manifest' && (

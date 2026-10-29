@@ -4247,3 +4247,118 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "Ou ouvrez l'Atelier d'agents et décrivez ce qu'il vous faut : l'architecte d'agents le rédige pour que vous le relisiez.",
+   "openStudio": "Ouvrir l'Atelier d'agents"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Atelier d'agents"
+   },
+   "serverInfo": {
+    "label": "À propos",
+    "tip": "Produit, versions, liens, points de terminaison et votre identité"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "Atelier d'agents"
+  },
+  "welcomeItemStudio": "Donner à l'architecte d'agents un harness et un modèle, pour qu'il conçoive avec vous des agents et des applications dans l'Atelier d'agents (facultatif).",
+  "studioBody": "L'architecte d'agents conçoit avec vous des agents et des applications dans l'Atelier d'agents. Choisissez le profil de harness et le modèle avec lesquels il s'exécute, et le prompt d'architecte qui le guide. Son déploiement ne peut modifier que vos brouillons de l'atelier. Vous pouvez ignorer cette étape et créer un architecte plus tard depuis l'atelier.",
+  "createArchitect": "Créer l'architecte",
+  "architectCreated": "Architecte d'agents {{name}} créé.",
+  "architectReady": "L'architecte d'agents {{name}} est prêt. Après la configuration, ouvrez l'Atelier d'agents et commencez un brouillon avec lui.",
+  "continue": "Continuer"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "L'assistant de configuration ajoute un identifiant, donne à l'architecte d'agents un harness et un modèle, applique un agent d'exemple et lance un test. Ou ouvrez l'Atelier d'agents et décrivez l'application que vous voulez.",
+   "openStudio": "Ouvrir l'Atelier d'agents"
+  },
+  "studio": {
+   "title": "Atelier d'agents"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Mise en production"
+   }
+  },
+  "serverInfo": {
+   "title": "À propos",
+   "subtitle": "Versions, liens, points de terminaison et l'identité avec laquelle vous êtes connecté.",
+   "positioning": "Créez, déployez et exécutez des applications agentiques avec les harnesses d'agents que vous utilisez déjà.",
+   "versions": "Version du serveur {{server}}, version du tableau de bord {{dashboard}}",
+   "docs": "Documentation",
+   "studioDocs": "Guide de l'Atelier d'agents",
+   "website": "Site web",
+   "source": "Code source"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Environnements"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "Environnements et promotion",
+    "intro": "Les déploiements de chaque membre par environnement, avec la révision que chacun épingle et ses remplacements d'environnement. Comparez deux environnements avant de promouvoir, et annulez une promotion depuis l'historique.",
+    "live": "En service dans {{environment}}",
+    "environments": "Environnements",
+    "source": "Comparer",
+    "target": "avec",
+    "member": "Membre",
+    "entry": "Entrée",
+    "noDeployment": "Aucun déploiement",
+    "secretOverride": "{{name}} (valeur secrète)",
+    "difference": "De {{source}} vers {{target}}",
+    "differenceNone": "Différence",
+    "diff": {
+     "Same": "Identique",
+     "Missing": "Aucun déploiement dans {{target}}",
+     "revisions": "Les révisions diffèrent",
+     "overrides": "Les remplacements diffèrent",
+     "both": "Les révisions et les remplacements diffèrent"
+    },
+    "promote": "Promouvoir {{source}} vers {{target}}",
+    "promoteNothing": "Promouvoir",
+    "missing": "Aucun déploiement dans {{target}} : {{names}}. Une promotion échouerait maintenant sans rien déplacer ; ajoutez d'abord un déploiement à cet endroit.",
+    "history": "Historique des promotions",
+    "historyEmpty": "Cette application n'a pas encore été promue."
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "Mise en production",
+    "app": "Application",
+    "noAppsTitle": "Ce brouillon ne crée aucune application",
+    "noAppsBody": "Ajoutez une application au brouillon, dans l'onglet Graphe ou en le demandant à l'architecte, pour la promouvoir d'ici une fois appliquée.",
+    "notLiveTitle": "{{name}} n'est pas encore en service",
+    "notLiveBody": "Appliquez d'abord le brouillon. L'application publie ses agents et les déploie dans dev ; vous pourrez ensuite promouvoir l'application d'ici."
+   }
+  }
+ }
+});

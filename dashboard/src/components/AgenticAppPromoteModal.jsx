@@ -25,16 +25,17 @@ function FieldError({ message }) {
  * the next one, and a target that skips one needs Allow skipping. Refusals stay in the dialog as translated messages,
  * among them 409 NoTargetDeployments naming the member that has no deployment there (nothing moves) and 403 without
  * Execute on Promotion for the target. `permissions` warns before submitting when the caller cannot promote to the
- * chosen target.
+ * chosen target. `initialSource` and `initialTarget` preselect the pair (the Environments panel passes the pair it
+ * compared); without them the source is the app's live environment and the target the next one.
  */
-export default function AgenticAppPromoteModal({ app, revisions = [], permissions = null, onClose, onPromoted }) {
+export default function AgenticAppPromoteModal({ app, revisions = [], permissions = null, initialSource = '', initialTarget = '', onClose, onPromoted }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const { addToast } = useToast();
   const published = revisions.filter((r) => r.state === 'Published');
   const [environments, setEnvironments] = useState([]);
-  const [form, setForm] = useState({ sourceEnvironment: app?.liveEnvironment || 'dev', targetEnvironment: '', appRevision: '', allowSkip: false, note: '' });
+  const [form, setForm] = useState({ sourceEnvironment: initialSource || app?.liveEnvironment || 'dev', targetEnvironment: initialTarget || '', appRevision: '', allowSkip: false, note: '' });
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);

@@ -11,7 +11,7 @@ export default function PageHeader({ title, subtitle, actions }) {
   const { t } = useTranslation();
   const { embedded } = useHub();
   useEffect(() => {
-    if (title && !embedded) document.title = `${title} | ${t('common.appName')}`;
+    if (title && !embedded) document.title = `${title} | ${t('common.productName')}`;
   }, [title, t, embedded]);
 
   if (embedded) {

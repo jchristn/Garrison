@@ -77,10 +77,10 @@ test('hub tabs are URL-synced and keyboard accessible', async ({ page }) => {
   await page.locator('.sidebar-item[data-nav="configuration"]').click();
   await expect(page).toHaveURL(/\/dashboard\/configuration$/);
   await expect(page.locator('.page-header-title')).toHaveText('Configuration');
-  await expect(page).toHaveTitle('Harness Profiles | Configuration | Garrison');
+  await expect(page).toHaveTitle('Harness Profiles | Configuration | Garrison Agent Studio');
   await page.getByRole('tab', { name: 'MCP Servers' }).click();
   await expect(page).toHaveURL(/\/dashboard\/configuration\?tab=mcp-servers$/);
-  await expect(page).toHaveTitle('MCP Servers | Configuration | Garrison');
+  await expect(page).toHaveTitle('MCP Servers | Configuration | Garrison Agent Studio');
   await page.getByRole('tab', { name: 'MCP Servers' }).press('ArrowRight');
   await expect(page).toHaveURL(/tab=secrets$/);
   await expect(page.getByRole('tab', { name: 'Secrets' })).toBeFocused();

@@ -26,6 +26,7 @@ const fr = {
     anonymous: 'Continuer sans se connecter',
     anonymousNote: 'Les conversations commencées sans connexion restent dans cet onglet du navigateur.',
     or: 'ou',
+    poweredBy: 'Créée avec Garrison Agent Studio',
     sessionEnded: 'Votre session a expiré. Reconnectez-vous pour continuer.'
   },
   header: {
@@ -141,6 +142,7 @@ const fr = {
     details: "Affiche les étapes suivies par l'agent pour répondre : appels d'outils, progression et avertissements.",
     answerLink: 'Ouvre un lien de la réponse dans un nouvel onglet : {{href}}',
     tableHeader: "Colonne d'un tableau de la réponse : {{text}}",
+    poweredBy: 'Ouvre usegarrison.ai dans un nouvel onglet pour découvrir Garrison Agent Studio, la plateforme sur laquelle fonctionne cette application.',
     skipToChat: "Passe l'en-tête et la liste des conversations pour aller directement à la zone de message."
   }
 };

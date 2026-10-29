@@ -4198,3 +4198,118 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "または、エージェントスタジオを開いて必要なものを説明してください。エージェントアーキテクトが下書きを作り、あなたが確認します。",
+   "openStudio": "エージェントスタジオを開く"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "エージェントスタジオ"
+   },
+   "serverInfo": {
+    "label": "製品情報",
+    "tip": "製品、バージョン、リンク、エンドポイント、現在の ID"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "エージェントスタジオ"
+  },
+  "welcomeItemStudio": "エージェントアーキテクトにハーネスとモデルを割り当て、エージェントスタジオで一緒にエージェントやアプリを設計できるようにします (任意)。",
+  "studioBody": "エージェントアーキテクトは、エージェントスタジオであなたと一緒にエージェントやアプリを設計します。実行に使うハーネスプロファイルとモデル、そしてアーキテクトを導くアーキテクトプロンプトを選んでください。このデプロイメントが編集できるのはあなたのスタジオの下書きだけです。この手順はスキップでき、後でスタジオからアーキテクトを作成できます。",
+  "createArchitect": "アーキテクトを作成",
+  "architectCreated": "エージェントアーキテクト {{name}} を作成しました。",
+  "architectReady": "エージェントアーキテクト {{name}} の準備ができました。セットアップ後にエージェントスタジオを開き、下書きを始めてください。",
+  "continue": "続行"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "セットアップウィザードは、認証情報を追加し、エージェントアーキテクトにハーネスとモデルを割り当て、サンプルエージェントを適用してテストを実行します。または、エージェントスタジオを開いて作りたいアプリを説明してください。",
+   "openStudio": "エージェントスタジオを開く"
+  },
+  "studio": {
+   "title": "エージェントスタジオ"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "リリース"
+   }
+  },
+  "serverInfo": {
+   "title": "製品情報",
+   "subtitle": "バージョン、リンク、エンドポイント、サインイン中の ID。",
+   "positioning": "使い慣れたエージェントハーネスで、エージェント型アプリを構築、デプロイ、実行します。",
+   "versions": "サーバーのバージョン {{server}}、ダッシュボードのバージョン {{dashboard}}",
+   "docs": "ドキュメント",
+   "studioDocs": "エージェントスタジオのガイド",
+   "website": "Web サイト",
+   "source": "ソースコード"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "環境"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "環境と昇格",
+    "intro": "各メンバーの環境ごとのデプロイメントと、それぞれが固定しているリビジョンおよび環境変数の上書きです。昇格の前に 2 つの環境を比較し、履歴から昇格をロールバックできます。",
+    "live": "{{environment}} で公開中",
+    "environments": "環境",
+    "source": "比較元",
+    "target": "比較先",
+    "member": "メンバー",
+    "entry": "入口",
+    "noDeployment": "デプロイメントなし",
+    "secretOverride": "{{name}} (シークレット)",
+    "difference": "{{source}} から {{target}}",
+    "differenceNone": "差分",
+    "diff": {
+     "Same": "同じ",
+     "Missing": "{{target}} にデプロイメントなし",
+     "revisions": "リビジョンが異なる",
+     "overrides": "上書きが異なる",
+     "both": "リビジョンと上書きが異なる"
+    },
+    "promote": "{{source}} から {{target}} へ昇格",
+    "promoteNothing": "昇格",
+    "missing": "{{target}} にデプロイメントがありません: {{names}}。今昇格すると失敗し、何も移動しません。先にそこにデプロイメントを追加してください。",
+    "history": "昇格履歴",
+    "historyEmpty": "このアプリはまだ昇格されていません。"
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "リリース",
+    "app": "アプリ",
+    "noAppsTitle": "この下書きはアプリを作成しません",
+    "noAppsBody": "グラフタブで、またはアーキテクトに頼んで下書きにアプリを追加すると、適用後にここから昇格できます。",
+    "notLiveTitle": "{{name}} はまだ公開されていません",
+    "notLiveBody": "まず下書きを適用してください。適用するとエージェントが公開され、dev にデプロイされます。その後、ここからアプリを昇格できます。"
+   }
+  }
+ }
+});

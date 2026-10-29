@@ -5,9 +5,12 @@ import LanguageSelect from './LanguageSelect.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import { errorText } from '../utils/errors.js';
 
+// The platform website the sign-in footer links to (AD12.12).
+const WEBSITE_URL = 'https://usegarrison.ai';
+
 // Sign-in screen for an app (AD-021). Every auth mode accepts an email and password (TenantUsers: any user of the
 // app's tenant; AppUsers: users with the AppUser role on the app). When the app allows anonymous sessions,
-// "Continue without signing in" starts one.
+// "Continue without signing in" starts one. A small footer names the platform the app runs on (AD12.12).
 export default function SignIn({ client, info, logoUrl, notice, onSignedIn, theme, onToggleTheme }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
@@ -81,6 +84,11 @@ export default function SignIn({ client, info, logoUrl, notice, onSignedIn, them
           </div>
         ) : null}
       </section>
+      <p className="signin-powered">
+        <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" data-testid="powered-by" {...tip(t('tips.poweredBy'))}>
+          {t('signIn.poweredBy')}
+        </a>
+      </p>
     </main>
   );
 }

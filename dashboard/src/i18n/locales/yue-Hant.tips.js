@@ -3152,3 +3152,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio：用你已經用緊嘅代理程式 Harness 建立、部署同運行代理式應用程式。",
+  "tabs": {
+   "serverInfo": "關於 Garrison Agent Studio：伺服器同控制台版本、文件同網站連結、REST、MCP 同 A2A 位址，同你而家登入用緊嘅身份。"
+  }
+ },
+ "common": {
+  "openStudio": "打開代理程式工作室，代理程式架構師會同你一齊起草代理程式同應用程式。未有人批核草稿之前，乜都唔會上線。"
+ },
+ "wizard": {
+  "start": "開始設定：加認證、設定代理程式架構師、套用範例代理程式同測試佢。",
+  "skipStudio": "唔建立架構師，繼續。之後可以喺代理程式工作室用「新架構師」建立。",
+  "createArchitect": "按呢啲選擇建立 agent-architect 嘅部署，然後去下一步。佢嘅運行只可以改你嘅工作室草稿。",
+  "continue": "架構師已經有咗。去設定嘅下一步。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "打開代理程式工作室，講低你想要嘅應用程式；代理程式架構師會起草，上線之前要有人批核。"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "呢份草稿套用之後建立嘅應用程式：各個環境嘅部署、由 dev 推進去 staging 同 prod，同埋喺紀錄度還原。"
+   }
+  },
+  "serverInfo": {
+   "product": "呢個控制台所屬嘅產品：代理程式工作室喺 Garrison 運行環境之上建立代理式應用程式。",
+   "docs": "喺新分頁打開 Garrison 文件：架構、配置、Harness、工作室、應用程式同安全。",
+   "studioDocs": "喺新分頁打開代理程式工作室指南：草稿、代理程式架構師、套用草稿同推進。",
+   "website": "喺新分頁打開 usegarrison.ai，睇產品概覽、截圖同示範。",
+   "source": "喺新分頁打開 GitHub 上面嘅 Garrison 存放庫：原始碼、問題同發佈版本。"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "睇應用程式喺各個環境嘅部署同佢哋固定咗嘅修訂同覆寫，推進去下一個環境，同還原某次推進。"
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "應用程式 URL 用佢入口部署嘅環境：{{environment}}。可以喺應用程式嘅「環境」步驟改。",
+   "environments": "每個成員喺每個環境嘅部署：各自固定咗嘅修訂（跟最新已發佈修訂就顯示「最新」）同環境覆寫。",
+   "source": "比較嘅起點環境，通常係你測試過嗰個。推進都係由呢度開始。",
+   "target": "要比較同推進去嘅環境。保留做下一個環境就會跟推進次序。",
+   "promote": "打開由 {{source}} 去 {{target}} 嘅推進對話框：每個成員固定咗嘅修訂會喺一個交易入面移去佢喺 {{target}} 嘅部署。",
+   "noNext": "{{source}} 之後冇環境，所以冇地方可以推進。",
+   "denied": "做呢樣嘢需要 {{environment}} 嘅推進執行權限。請搵管理員俾你 Releaser 角色。",
+   "noDeployment": "呢個成員喺 {{environment}} 冇部署。佢有部署之前，推進去 {{environment}} 會失敗。",
+   "overrides": "呢個部署嘅環境覆寫：為佢嘅運行設定嘅變數。機密值永遠唔會顯示。",
+   "entry": "入口代理程式：用個應用程式嘅人會先同呢個成員傾。",
+   "history": "呢個應用程式每次推進同還原，最新嘅排先。已套用嘅推進可以還原一次，還返佢取代咗嘅固定修訂。",
+   "refresh": "再讀一次呢個應用程式嘅部署同推進紀錄。",
+   "columns": {
+    "member": "應用程式嘅成員代理程式，入口代理程式排先。",
+    "environment": "每個成員喺 {{environment}} 嘅部署，同佢哋固定咗嘅修訂同環境覆寫。",
+    "difference": "比較緊嘅兩個環境之間，每個成員嘅固定修訂同覆寫係咪一樣。"
+   },
+   "diff": {
+    "Same": "{{source}} 同 {{target}} 嘅固定修訂同覆寫一樣。",
+    "Differs": "{{source}} 同 {{target}} 之間嘅固定修訂或者覆寫唔同。推進會移固定修訂；每個部署保留自己嘅覆寫。",
+    "Missing": "呢個成員喺 {{target}} 冇部署。由 {{source}} 推進會失敗，乜都唔會郁。"
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "由即時配置讀取嘅、呢份草稿建立嘅應用程式：各個環境嘅部署、推進同還原。",
+   "app": "草稿建立多過一個應用程式嗰陣，揀要顯示邊個。"
+  }
+ }
+});

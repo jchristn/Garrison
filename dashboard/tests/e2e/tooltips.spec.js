@@ -342,6 +342,20 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await page.locator('.modal').last().locator('.modal-header .icon-button').click();
   await expect(page.getByTestId('app-revisions')).toBeVisible();
   await closeModal(page);
+  // AD9.6: the Environments dialog (pins and overrides per environment, the difference, history) and its rollback.
+  await appRow.locator('.action-menu-trigger').click();
+  await page.getByRole('menuitem', { name: 'Environments', exact: true }).click();
+  await expect(page.getByTestId('app-release-history')).toBeVisible();
+  await audit(page, 'app environments');
+  await page.getByTestId('app-release-rollback').first().click();
+  await expect(page.getByTestId('app-release-rollback-note')).toBeVisible();
+  await audit(page, 'app environments rollback');
+  await page.locator('.modal').last().locator('.modal-header .icon-button').click();
+  await page.getByTestId('app-release-promote').click();
+  await expect(page.getByTestId('app-promote-submit')).toBeVisible();
+  await audit(page, 'app environments promote');
+  await page.locator('.modal').last().locator('.modal-header .icon-button').click();
+  await closeModal(page);
 
   // AD7.10, AD7.16, AD9.2, AD9.3: the studio workspace on every tab (an open draft and one pending approval), the new
   // item form and the item editor, the New architect dialog, the apply approval decided inline, the architect prompt
@@ -529,6 +543,10 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await page.getByRole('button', { name: 'Start' }).click();
   await audit(page, 'wizard credential');
   await page.getByRole('button', { name: 'Skip this step' }).click();
+  await expect(page.getByTestId('wizard-studio')).toBeVisible();
+  await settle(page);
+  await audit(page, 'wizard agent studio');
+  await page.getByTestId('wizard-skip-studio').click();
   await audit(page, 'wizard manifest');
   await page.locator('.modal-footer').getByRole('button', { name: 'Apply' }).click();
   await expect(page.locator('.wizard-steps li.active')).toContainText('Test run');

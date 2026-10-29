@@ -4199,3 +4199,118 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "或者打开智能体工作室，描述你的需求：智能体架构师会起草，由你审阅。",
+   "openStudio": "打开智能体工作室"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "智能体工作室"
+   },
+   "serverInfo": {
+    "label": "关于",
+    "tip": "产品、版本、链接、端点和你的身份"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "智能体工作室"
+  },
+  "welcomeItemStudio": "为智能体架构师指定 Harness 和模型，让它在智能体工作室中与你一起设计智能体和应用（可选）。",
+  "studioBody": "智能体架构师在智能体工作室中与你一起设计智能体和应用。请选择它运行所用的 Harness 配置文件和模型，以及指导它的架构师提示词。它的部署只能编辑你的工作室草稿。你可以跳过此步，稍后在工作室中创建架构师。",
+  "createArchitect": "创建架构师",
+  "architectCreated": "已创建智能体架构师 {{name}}。",
+  "architectReady": "智能体架构师 {{name}} 已就绪。设置完成后，打开智能体工作室并用它开始一个草稿。",
+  "continue": "继续"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "设置向导会添加凭据，为智能体架构师指定 Harness 和模型，应用一个示例智能体并运行测试。也可以打开智能体工作室，描述你想要的应用。",
+   "openStudio": "打开智能体工作室"
+  },
+  "studio": {
+   "title": "智能体工作室"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "发布"
+   }
+  },
+  "serverInfo": {
+   "title": "关于",
+   "subtitle": "版本、链接、端点以及你当前登录所用的身份。",
+   "positioning": "用你已在使用的智能体 Harness 构建、部署和运行智能体应用。",
+   "versions": "服务器版本 {{server}}，控制台版本 {{dashboard}}",
+   "docs": "文档",
+   "studioDocs": "智能体工作室指南",
+   "website": "网站",
+   "source": "源代码"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "环境"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "环境和晋升",
+    "intro": "每个成员在各环境中的部署，以及每个部署固定的修订和环境变量覆盖。晋升前可比较两个环境，也可以从历史记录中回滚某次晋升。",
+    "live": "在 {{environment}} 中上线",
+    "environments": "环境",
+    "source": "比较",
+    "target": "与",
+    "member": "成员",
+    "entry": "入口",
+    "noDeployment": "无部署",
+    "secretOverride": "{{name}}（机密）",
+    "difference": "{{source}} 到 {{target}}",
+    "differenceNone": "差异",
+    "diff": {
+     "Same": "相同",
+     "Missing": "{{target}} 中无部署",
+     "revisions": "修订不同",
+     "overrides": "覆盖不同",
+     "both": "修订和覆盖都不同"
+    },
+    "promote": "从 {{source}} 晋升到 {{target}}",
+    "promoteNothing": "晋升",
+    "missing": "{{target}} 中没有部署：{{names}}。现在晋升会失败，什么也不会移动；请先在那里添加部署。",
+    "history": "晋升历史",
+    "historyEmpty": "此应用尚未晋升过。"
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "发布",
+    "app": "应用",
+    "noAppsTitle": "此草稿不构建任何应用",
+    "noAppsBody": "在关系图选项卡中或请架构师向草稿添加一个应用，应用草稿后即可在此晋升。",
+    "notLiveTitle": "{{name}} 尚未上线",
+    "notLiveBody": "请先应用草稿。应用后会发布其智能体并部署到 dev；之后即可在此晋升该应用。"
+   }
+  }
+ }
+});

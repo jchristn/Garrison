@@ -3154,3 +3154,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio : créez, déployez et exécutez des applications agentiques avec les harnesses d'agents que vous utilisez déjà.",
+  "tabs": {
+   "serverInfo": "À propos de Garrison Agent Studio : les versions du serveur et du tableau de bord, des liens vers la documentation et le site web, les adresses REST, MCP et A2A, et l'identité avec laquelle vous êtes connecté."
+  }
+ },
+ "common": {
+  "openStudio": "Ouvrir l'Atelier d'agents, où l'architecte d'agents rédige avec vous des agents et des applications. Rien n'entre en service avant qu'une personne approuve le brouillon."
+ },
+ "wizard": {
+  "start": "Commencer la configuration : ajouter un identifiant, préparer l'architecte d'agents, appliquer un agent d'exemple et le tester.",
+  "skipStudio": "Continuer sans architecte. Vous pourrez en créer un plus tard dans l'Atelier d'agents avec Nouvel architecte.",
+  "createArchitect": "Créer un déploiement de agent-architect avec ces choix et passer à l'étape suivante. Ses exécutions ne peuvent modifier que vos brouillons de l'atelier.",
+  "continue": "L'architecte existe déjà. Passer à l'étape suivante de la configuration."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Ouvrir l'Atelier d'agents et décrire l'application voulue ; l'architecte d'agents la rédige, et une personne l'approuve avant sa mise en service."
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Les applications de ce brouillon, une fois appliqué : leurs déploiements par environnement, la promotion de dev vers staging et prod, et l'annulation depuis l'historique."
+   }
+  },
+  "serverInfo": {
+   "product": "Le produit auquel appartient cette console : l'Atelier d'agents crée des applications agentiques au-dessus du moteur d'exécution Garrison.",
+   "docs": "Ouvrir la documentation de Garrison dans un nouvel onglet : architecture, configuration, harnesses, l'atelier, les applications et la sécurité.",
+   "studioDocs": "Ouvrir le guide de l'Atelier d'agents dans un nouvel onglet : brouillons, l'architecte d'agents, l'application d'un brouillon et la promotion.",
+   "website": "Ouvrir usegarrison.ai dans un nouvel onglet : présentation du produit, captures d'écran et démonstrations.",
+   "source": "Ouvrir le dépôt Garrison sur GitHub dans un nouvel onglet : code source, tickets et versions."
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Voir les déploiements de l'application par environnement avec leurs révisions épinglées et leurs remplacements, la promouvoir vers l'environnement suivant et annuler une promotion."
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "L'environnement dont l'URL de l'application utilise le déploiement d'entrée : {{environment}}. Changez-le à l'étape Environnements de l'application.",
+   "environments": "Les déploiements de chaque membre dans chaque environnement : la révision que chacun épingle (Dernière quand il suit la dernière révision publiée) et ses remplacements d'environnement.",
+   "source": "L'environnement de départ de la comparaison, en général celui où vous avez testé. La promotion part aussi de là.",
+   "target": "L'environnement comparé et cible de la promotion. Laissez l'environnement suivant pour respecter l'ordre de promotion.",
+   "promote": "Ouvrir la boîte de dialogue de promotion de {{source}} vers {{target}} : la révision épinglée de chaque membre passe à ses déploiements dans {{target}} en une seule transaction.",
+   "noNext": "Il n'y a aucun environnement après {{source}}, donc rien vers quoi promouvoir.",
+   "denied": "Il vous faut l'autorisation Exécuter sur la promotion pour {{environment}}. Demandez le rôle Releaser à un administrateur.",
+   "noDeployment": "Ce membre n'a aucun déploiement dans {{environment}}. Une promotion vers {{environment}} échoue tant qu'il n'en a pas.",
+   "overrides": "Remplacements d'environnement de ce déploiement : variables définies pour ses exécutions. Les valeurs secrètes ne sont jamais affichées.",
+   "entry": "L'agent d'entrée : les personnes qui utilisent l'application parlent d'abord à ce membre.",
+   "history": "Chaque promotion et chaque annulation de cette application, de la plus récente à la plus ancienne. Une promotion appliquée peut être annulée une fois, ce qui rétablit les épinglages qu'elle a remplacés.",
+   "refresh": "Relire les déploiements et l'historique des promotions de cette application.",
+   "columns": {
+    "member": "Les agents membres de l'application, l'agent d'entrée en premier.",
+    "environment": "Déploiements de chaque membre dans {{environment}}, avec leur révision épinglée et leurs remplacements d'environnement.",
+    "difference": "Si les épinglages et les remplacements de chaque membre concordent entre les deux environnements comparés."
+   },
+   "diff": {
+    "Same": "Les révisions épinglées et les remplacements de {{source}} et {{target}} concordent.",
+    "Differs": "Les révisions épinglées ou les remplacements diffèrent entre {{source}} et {{target}}. La promotion déplace les épinglages ; chaque déploiement garde ses propres remplacements.",
+    "Missing": "Ce membre n'a aucun déploiement dans {{target}}. Une promotion depuis {{source}} échouerait sans rien déplacer."
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "Les applications de ce brouillon, lues dans la configuration active : déploiements par environnement, promotion et annulation.",
+   "app": "Choisir l'application du brouillon à afficher quand le brouillon en crée plusieurs."
+  }
+ }
+});

@@ -3152,3 +3152,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio: build, deploy, and run agentic apps on the agent harnesses you already use.",
+  "tabs": {
+   "serverInfo": "About Garrison Agent Studio: the server and dashboard versions, links to the documentation and the website, the REST, MCP, and A2A addresses, and the identity you are signed in as."
+  }
+ },
+ "common": {
+  "openStudio": "Open Agent Studio, where the agent architect drafts agents and apps with you. Nothing goes live until a person approves the draft."
+ },
+ "wizard": {
+  "start": "Begin setup: add a credential, set up the agent architect, apply a sample agent, and test it.",
+  "skipStudio": "Continue without an architect. You can create one later in Agent Studio with New architect.",
+  "createArchitect": "Create a deployment of agent-architect with these choices and go to the next step. Its runs may only edit your studio drafts.",
+  "continue": "The architect already exists. Go on to the next step of the setup."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Open Agent Studio and describe the app you want; the agent architect drafts it, and a person approves it before it goes live."
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "The apps this draft builds, once applied: their deployments per environment, promotion from dev to staging and prod, and rollback from the history."
+   }
+  },
+  "serverInfo": {
+   "product": "The product this console belongs to: Agent Studio builds agentic apps on top of the Garrison runtime.",
+   "docs": "Open the Garrison documentation in a new tab: architecture, configuration, harnesses, the studio, apps, and security.",
+   "studioDocs": "Open the Agent Studio guide in a new tab: drafts, the agent architect, applying a draft, and promotion.",
+   "website": "Open usegarrison.ai in a new tab for the product overview, screenshots, and walkthroughs.",
+   "source": "Open the Garrison repository on GitHub in a new tab: source code, issues, and releases."
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "See the app's deployments per environment with their pinned revisions and overrides, promote it to the next environment, and roll a promotion back."
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "The environment whose entry deployment the app URL uses: {{environment}}. Change it on the app's Environments step.",
+   "environments": "Every member's deployments in each environment: the revision each one pins (Latest when it follows the latest published revision) and its environment overrides.",
+   "source": "The environment to compare from, usually the one you tested in. It is also where Promote starts.",
+   "target": "The environment to compare with and promote to. Leave it on the next environment to follow the promotion order.",
+   "promote": "Open the promote dialog for {{source}} to {{target}}: each member's pinned revision moves to its deployments in {{target}} in one transaction.",
+   "noNext": "There is no environment after {{source}}, so there is nothing to promote to.",
+   "denied": "You need Execute permission on Promotion for {{environment}} to do this. Ask an administrator for the Releaser role.",
+   "noDeployment": "This member has no deployment in {{environment}}. A promotion to {{environment}} fails until it has one.",
+   "overrides": "Environment overrides of this deployment: variables set for its runs. Secret values are never shown.",
+   "entry": "The entry agent: people who use the app talk to this member first.",
+   "history": "Every promotion and rollback of this app, newest first. An applied promotion can be rolled back once, which restores the pins it replaced.",
+   "refresh": "Read the deployments and the promotion history of this app again.",
+   "columns": {
+    "member": "The app's member agents, the entry agent first.",
+    "environment": "Deployments of each member in {{environment}}, with their pinned revision and environment overrides.",
+    "difference": "Whether each member's pins and overrides match between the two environments you compare."
+   },
+   "diff": {
+    "Same": "The pinned revisions and the overrides in {{source}} and {{target}} match.",
+    "Differs": "The pinned revisions or the overrides differ between {{source}} and {{target}}. Promoting moves the pins; each deployment keeps its own overrides.",
+    "Missing": "This member has no deployment in {{target}}. Promoting from {{source}} would fail and move nothing."
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "The apps this draft builds, read from live configuration: deployments per environment, promote, and rollback.",
+   "app": "Choose which of the draft's apps to show when the draft builds more than one."
+  }
+ }
+});

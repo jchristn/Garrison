@@ -3154,3 +3154,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio: crea, distribuisci ed esegui app agentiche con gli harness di agenti che usi già.",
+  "tabs": {
+   "serverInfo": "Informazioni su Garrison Agent Studio: le versioni del server e della dashboard, i link alla documentazione e al sito web, gli indirizzi REST, MCP e A2A e l'identità con cui hai effettuato l'accesso."
+  }
+ },
+ "common": {
+  "openStudio": "Apri lo Studio degli agenti, dove l'architetto di agenti prepara con te agenti e app. Nulla diventa attivo finché una persona non approva la bozza."
+ },
+ "wizard": {
+  "start": "Inizia la configurazione: aggiungi una credenziale, prepara l'architetto di agenti, applica un agente di esempio e provalo.",
+  "skipStudio": "Continua senza architetto. Potrai crearne uno in seguito nello Studio degli agenti con Nuovo architetto.",
+  "createArchitect": "Crea una distribuzione di agent-architect con queste scelte e passa al passaggio successivo. Le sue esecuzioni possono modificare solo le tue bozze dello studio.",
+  "continue": "L'architetto esiste già. Passa al passaggio successivo della configurazione."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Apri lo Studio degli agenti e descrivi l'app che vuoi; l'architetto di agenti la prepara e una persona la approva prima che diventi attiva."
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Le app di questa bozza, una volta applicata: le loro distribuzioni per ambiente, la promozione da dev a staging e prod e il ripristino dalla cronologia."
+   }
+  },
+  "serverInfo": {
+   "product": "Il prodotto a cui appartiene questa console: lo Studio degli agenti crea app agentiche sopra il runtime di Garrison.",
+   "docs": "Apri la documentazione di Garrison in una nuova scheda: architettura, configurazione, harness, lo studio, le app e la sicurezza.",
+   "studioDocs": "Apri la guida allo Studio degli agenti in una nuova scheda: bozze, l'architetto di agenti, l'applicazione di una bozza e la promozione.",
+   "website": "Apri usegarrison.ai in una nuova scheda per la presentazione del prodotto, gli screenshot e le guide.",
+   "source": "Apri il repository Garrison su GitHub in una nuova scheda: codice sorgente, segnalazioni e versioni."
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Vedi le distribuzioni dell'app per ambiente con le revisioni fissate e le sostituzioni, promuovila all'ambiente successivo e ripristina una promozione."
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "L'ambiente la cui distribuzione di ingresso è usata dall'URL dell'app: {{environment}}. Cambialo nel passaggio Ambienti dell'app.",
+   "environments": "Le distribuzioni di ogni membro in ogni ambiente: la revisione che ciascuna fissa (Ultima quando segue l'ultima revisione pubblicata) e le sostituzioni dell'ambiente.",
+   "source": "L'ambiente da cui parte il confronto, di solito quello in cui hai provato. Anche Promuovi parte da qui.",
+   "target": "L'ambiente con cui confrontare e verso cui promuovere. Lascia l'ambiente successivo per seguire l'ordine di promozione.",
+   "promote": "Apri la finestra di promozione da {{source}} a {{target}}: la revisione fissata di ogni membro passa alle sue distribuzioni in {{target}} in un'unica transazione.",
+   "noNext": "Non c'è nessun ambiente dopo {{source}}, quindi non c'è nulla verso cui promuovere.",
+   "denied": "Per questo ti serve l'autorizzazione Eseguire su Promozione per {{environment}}. Chiedi a un amministratore il ruolo Releaser.",
+   "noDeployment": "Questo membro non ha distribuzioni in {{environment}}. Una promozione a {{environment}} fallisce finché non ne ha una.",
+   "overrides": "Sostituzioni dell'ambiente di questa distribuzione: variabili impostate per le sue esecuzioni. I valori segreti non vengono mai mostrati.",
+   "entry": "L'agente di ingresso: chi usa l'app parla prima con questo membro.",
+   "history": "Ogni promozione e ripristino di questa app, dal più recente. Una promozione applicata si può ripristinare una volta, e così tornano le revisioni fissate che aveva sostituito.",
+   "refresh": "Rileggi le distribuzioni e la cronologia delle promozioni di questa app.",
+   "columns": {
+    "member": "Gli agenti membri dell'app, per primo l'agente di ingresso.",
+    "environment": "Distribuzioni di ogni membro in {{environment}}, con la revisione fissata e le sostituzioni dell'ambiente.",
+    "difference": "Se le revisioni fissate e le sostituzioni di ogni membro coincidono tra i due ambienti confrontati."
+   },
+   "diff": {
+    "Same": "Le revisioni fissate e le sostituzioni di {{source}} e {{target}} coincidono.",
+    "Differs": "Le revisioni fissate o le sostituzioni sono diverse tra {{source}} e {{target}}. La promozione sposta le revisioni fissate; ogni distribuzione mantiene le proprie sostituzioni.",
+    "Missing": "Questo membro non ha distribuzioni in {{target}}. Promuovere da {{source}} fallirebbe senza spostare nulla."
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "Le app di questa bozza, lette dalla configurazione attiva: distribuzioni per ambiente, promozione e ripristino.",
+   "app": "Scegli quale app della bozza mostrare quando la bozza ne crea più di una."
+  }
+ }
+});

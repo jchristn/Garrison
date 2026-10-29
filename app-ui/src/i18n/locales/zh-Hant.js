@@ -26,6 +26,7 @@ const zhHant = {
     anonymous: '不登入，直接繼續',
     anonymousNote: '未登入時開始的對話只會保留在這個瀏覽器分頁中。',
     or: '或',
+    poweredBy: '使用 Garrison Agent Studio 建置',
     sessionEnded: '你的工作階段已結束。請重新登入以繼續。'
   },
   header: {
@@ -141,6 +142,7 @@ const zhHant = {
     details: '顯示代理程式在回覆過程中執行的步驟，包括工具呼叫、進度和警告。',
     answerLink: '在新分頁中開啟回覆裡的這個連結，網址為：{{href}}',
     tableHeader: '這是回覆中某個表格的欄位標題，內容為：{{text}}',
+    poweredBy: '在新分頁中開啟 usegarrison.ai，進一步了解執行此應用程式的平台 Garrison Agent Studio。',
     skipToChat: '略過頁首和對話清單，直接把焦點移到下方的訊息輸入框裡。'
   }
 };

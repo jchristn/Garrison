@@ -26,6 +26,7 @@ const zhHans = {
     anonymous: '不登录，直接继续',
     anonymousNote: '未登录时开始的对话只保存在当前浏览器标签页中。',
     or: '或',
+    poweredBy: '使用 Garrison Agent Studio 构建',
     sessionEnded: '你的会话已结束。请重新登录后继续。'
   },
   header: {
@@ -141,6 +142,7 @@ const zhHans = {
     details: '显示智能体在回复过程中执行的步骤，包括工具调用、进度和警告。',
     answerLink: '在新标签页中打开回复里的这个链接，地址为：{{href}}',
     tableHeader: '这是回复中某个表格的列标题，内容为：{{text}}',
+    poweredBy: '在新标签页中打开 usegarrison.ai，了解运行此应用的平台 Garrison Agent Studio 的更多信息。',
     skipToChat: '跳过页眉和对话列表，直接把焦点移动到下方的消息输入框里。'
   }
 };

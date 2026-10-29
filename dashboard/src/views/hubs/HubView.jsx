@@ -45,7 +45,7 @@ export default function HubView({ hubKey, apiClient }) {
 
   const requested = searchParams.get(TAB_PARAM);
   const active = tabs.find((tab) => tab.id === requested) || tabs[0];
-  const appName = t('common.appName');
+  const appName = t('common.productName');
 
   useEffect(() => {
     if (!title) return;

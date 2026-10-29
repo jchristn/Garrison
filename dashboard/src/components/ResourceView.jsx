@@ -13,6 +13,7 @@ import FieldWarnings, { fieldWarningsOf } from './FieldWarnings';
 import { tip } from './Tooltip';
 import { EmptyState, ErrorBanner } from './States';
 import { PlusIcon, TrashIcon } from './Icons';
+import { pathFor } from '../config/navConfig';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -437,12 +438,21 @@ export default function ResourceView({ config }) {
         <div className="table-frame">
           <EmptyState
             title={t(`${prefix}.emptyTitle`)}
-            body={t(`${prefix}.emptyBody`)}
+            body={config.studioEmptyState ? `${t(`${prefix}.emptyBody`)} ${t('common.states.studioHint')}` : t(`${prefix}.emptyBody`)}
             action={
-              config.api.create && canManage && (
-                <button type="button" className="button-primary" onClick={openCreate} {...addProps} {...tip(addTip)}>
-                  <PlusIcon /> {t(`${prefix}.add`)}
-                </button>
+              (config.studioEmptyState || (config.api.create && canManage)) && (
+                <div className="flex gap-sm state-actions">
+                  {config.studioEmptyState && (
+                    <button type="button" className="button-secondary" onClick={() => navigate(pathFor('studio'))} data-testid="empty-open-studio" {...tip(t('tips.common.openStudio'))}>
+                      {t('common.states.openStudio')}
+                    </button>
+                  )}
+                  {config.api.create && canManage && (
+                    <button type="button" className="button-primary" onClick={openCreate} {...addProps} {...tip(addTip)}>
+                      <PlusIcon /> {t(`${prefix}.add`)}
+                    </button>
+                  )}
+                </div>
               )
             }
           />

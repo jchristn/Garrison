@@ -4247,3 +4247,118 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "Oppure apri lo Studio degli agenti e descrivi ciò che ti serve: l'architetto di agenti lo prepara perché tu lo riveda.",
+   "openStudio": "Apri lo Studio degli agenti"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Studio degli agenti"
+   },
+   "serverInfo": {
+    "label": "Informazioni",
+    "tip": "Prodotto, versioni, link, endpoint e la tua identità"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "Studio degli agenti"
+  },
+  "welcomeItemStudio": "Dare all'architetto di agenti un harness e un modello, così progetta con te agenti e app nello Studio degli agenti (facoltativo).",
+  "studioBody": "L'architetto di agenti progetta con te agenti e app nello Studio degli agenti. Scegli il profilo harness e il modello con cui viene eseguito e il prompt dell'architetto che lo guida. La sua distribuzione può modificare solo le tue bozze dello studio. Puoi saltare questo passaggio e creare un architetto in seguito dallo studio.",
+  "createArchitect": "Crea l'architetto",
+  "architectCreated": "Architetto di agenti {{name}} creato.",
+  "architectReady": "L'architetto di agenti {{name}} è pronto. Dopo la configurazione, apri lo Studio degli agenti e inizia una bozza con lui.",
+  "continue": "Continua"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "La configurazione guidata aggiunge una credenziale, dà all'architetto di agenti un harness e un modello, applica un agente di esempio ed esegue un test. Oppure apri lo Studio degli agenti e descrivi l'app che vuoi.",
+   "openStudio": "Apri lo Studio degli agenti"
+  },
+  "studio": {
+   "title": "Studio degli agenti"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Rilascio"
+   }
+  },
+  "serverInfo": {
+   "title": "Informazioni",
+   "subtitle": "Versioni, link, endpoint e l'identità con cui hai effettuato l'accesso.",
+   "positioning": "Crea, distribuisci ed esegui app agentiche con gli harness di agenti che usi già.",
+   "versions": "Versione del server {{server}}, versione della dashboard {{dashboard}}",
+   "docs": "Documentazione",
+   "studioDocs": "Guida allo Studio degli agenti",
+   "website": "Sito web",
+   "source": "Codice sorgente"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Ambienti"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "Ambienti e promozione",
+    "intro": "Le distribuzioni di ogni membro per ambiente, con la revisione che ciascuna fissa e le sostituzioni dell'ambiente. Confronta due ambienti prima di promuovere e ripristina una promozione dalla cronologia.",
+    "live": "Attiva in {{environment}}",
+    "environments": "Ambienti",
+    "source": "Confronta",
+    "target": "con",
+    "member": "Membro",
+    "entry": "Ingresso",
+    "noDeployment": "Nessuna distribuzione",
+    "secretOverride": "{{name}} (segreto)",
+    "difference": "Da {{source}} a {{target}}",
+    "differenceNone": "Differenza",
+    "diff": {
+     "Same": "Uguale",
+     "Missing": "Nessuna distribuzione in {{target}}",
+     "revisions": "Le revisioni sono diverse",
+     "overrides": "Le sostituzioni sono diverse",
+     "both": "Revisioni e sostituzioni sono diverse"
+    },
+    "promote": "Promuovi da {{source}} a {{target}}",
+    "promoteNothing": "Promuovi",
+    "missing": "Nessuna distribuzione in {{target}}: {{names}}. Promuovere ora fallirebbe senza spostare nulla; aggiungi prima una distribuzione lì.",
+    "history": "Cronologia delle promozioni",
+    "historyEmpty": "Questa app non è ancora stata promossa."
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "Rilascio",
+    "app": "Applicazione",
+    "noAppsTitle": "Questa bozza non crea nessuna app",
+    "noAppsBody": "Aggiungi un'app alla bozza, nella scheda Grafo o chiedendolo all'architetto, per promuoverla da qui una volta applicata.",
+    "notLiveTitle": "{{name}} non è ancora attiva",
+    "notLiveBody": "Applica prima la bozza. L'applicazione pubblica i suoi agenti e li distribuisce in dev; poi puoi promuovere l'app da qui."
+   }
+  }
+ }
+});

@@ -23,8 +23,14 @@ import { findPage, pathFor } from '../config/navConfig';
 import ApiClient, { ApiError } from '../utils/api';
 import { ENUMS } from '../utils/constants';
 import { errorMessage, fieldErrorMessages, withListItemErrors } from '../utils/errors';
+import { architectDeploymentBody, architectFormErrors } from '../utils/architect';
 import {
   APP_FIELD_CODES,
+  canPromoteTo,
+  compareEnvironments,
+  draftAppNames,
+  environmentMatrix,
+  sortPromotions,
   appDuplicate,
   appErrors,
   appPromotionBody,
@@ -394,13 +400,58 @@ describe('Apps page configuration', () => {
     expect(errorMessage(t, inUse)).toContain('research');
   });
 
-  it('opens the delegation and revisions dialogs from the row menu', () => {
+  it('opens the delegation, revisions, and environments dialogs from the row menu', () => {
     const setExtraModal = vi.fn();
     const actions = appsConfig.rowActions(agenticApp(1), { ...ctx, setExtraModal, lookups: { agents: NAMES } });
-    expect(actions.map((a) => a.label)).toEqual(['Delegation', 'Revisions and promotion']);
-    actions[0].onClick();
-    actions[1].onClick();
-    expect(setExtraModal).toHaveBeenCalledTimes(2);
+    expect(actions.map((a) => a.label)).toEqual(['Delegation', 'Revisions and promotion', 'Environments']);
+    actions.forEach((a) => a.onClick());
+    expect(setExtraModal).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('app environments and promotion (AD9.6)', () => {
+  const app = { entryAgentId: 'agt_2', members: [{ agentId: 'agt_1', agentName: 'writer' }, { agentId: 'agt_2', agentName: 'planner' }] };
+  const deployments = [
+    { id: 'd1', name: 'planner-dev', agentId: 'agt_2', environment: 'dev', environmentOverrides: [{ name: 'LOG', valueTemplate: 'debug' }] },
+    { id: 'd2', name: 'planner-staging', agentId: 'agt_2', environment: 'staging', agentRevisionId: 'arv_2_1', environmentOverrides: [{ name: 'LOG', valueTemplate: 'info' }, { name: 'KEY', valueTemplate: '{{secret.k}}', isSecret: true }] },
+    { id: 'd3', name: 'writer-dev', agentId: 'agt_1', environment: 'dev', agentRevisionId: 'arv_1_2' },
+    { id: 'd4', name: 'other', agentId: 'agt_9', environment: 'dev' }
+  ];
+
+  it('lays out each member per environment, the entry agent first, with pins and overrides', () => {
+    const rows = environmentMatrix(app, deployments, ['dev', 'staging', 'prod'], { arv_2_1: 1, arv_1_2: 2 });
+    expect(rows.map((r) => r.name)).toEqual(['planner', 'writer']);
+    expect(rows[0].entry).toBe(true);
+    expect(rows[0].cells.dev[0]).toMatchObject({ name: 'planner-dev', revisionId: null, overrides: [{ name: 'LOG', value: 'debug', isSecret: false }] });
+    expect(rows[0].cells.staging[0]).toMatchObject({ revisionNumber: 1, overrides: [{ name: 'KEY', value: null, isSecret: true }, { name: 'LOG', value: 'info', isSecret: false }] });
+    expect(rows[1].cells.staging).toEqual([]);
+    expect(rows[1].cells.dev[0].revisionNumber).toBe(2);
+  });
+
+  it('compares two environments: missing, differing revisions or overrides, and the same', () => {
+    const [planner, writer] = environmentMatrix(app, deployments, ['dev', 'staging'], {});
+    expect(compareEnvironments(writer, 'dev', 'staging').status).toBe('Missing');
+    expect(compareEnvironments(planner, 'dev', 'staging')).toEqual({ status: 'Differs', revisions: true, overrides: true });
+    expect(compareEnvironments(planner, 'staging', 'staging').status).toBe('Same');
+  });
+
+  it('checks Execute on Promotion per target environment and sorts records newest first', () => {
+    const staging = { grants: [{ permissionType: 'Permit', resourceTypes: ['Promotion'], operations: ['Execute'], scope: 'Resource', resourceId: 'staging' }] };
+    expect(canPromoteTo(staging, 'staging')).toBe(true);
+    expect(canPromoteTo(staging, 'prod')).toBe(false);
+    expect(canPromoteTo(null, 'prod')).toBe(true);
+    expect(sortPromotions([{ id: 'a', createdUtc: '2026-01-01' }, { id: 'b', createdUtc: '2026-02-01' }]).map((r) => r.id)).toEqual(['b', 'a']);
+  });
+
+  it('names the apps a studio draft builds, its target app first', () => {
+    const draft = { targetApp: 'research', items: [{ kind: 'Agent', name: 'x' }, { kind: 'AgenticApp', name: 'docs' }, { kind: 'AgenticApp', name: 'old', operation: 'Delete' }, { kind: 'AgenticApp', name: 'research' }] };
+    expect(draftAppNames(draft)).toEqual(['research', 'docs']);
+    expect(draftAppNames({ items: [] })).toEqual([]);
+  });
+
+  it('builds the architect deployment body from the wizard or dialog form', () => {
+    expect(architectDeploymentBody({ name: ' architect ', harnessProfileId: 'hp_1', model: '', promptId: 'pt_guided' }, 'agt_arch')).toEqual({ name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_1', managementAccess: 'Drafts', architectPromptTemplateId: 'pt_guided' });
+    expect(architectFormErrors({ name: '', harnessProfileId: '' }, t)).toEqual({ name: t('common.errors.required'), harnessProfileId: t('common.errors.required') });
   });
 });
 

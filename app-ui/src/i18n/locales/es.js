@@ -26,6 +26,7 @@ const es = {
     anonymous: 'Continuar sin iniciar sesión',
     anonymousNote: 'Las conversaciones que empieces sin iniciar sesión solo se guardan en esta pestaña del navegador.',
     or: 'o',
+    poweredBy: 'Creada con Garrison Agent Studio',
     sessionEnded: 'Tu sesión ha terminado. Vuelve a iniciar sesión para continuar.'
   },
   header: {
@@ -141,6 +142,7 @@ const es = {
     details: 'Muestra los pasos que siguió el agente al responder: llamadas a herramientas, progreso y avisos.',
     answerLink: 'Abre un enlace de la respuesta en una pestaña nueva: {{href}}',
     tableHeader: 'Columna de una tabla de la respuesta: {{text}}',
+    poweredBy: 'Abre usegarrison.ai en una pestaña nueva para conocer Garrison Agent Studio, la plataforma en la que funciona esta aplicación.',
     skipToChat: 'Salta el encabezado y la lista de conversaciones para ir al cuadro de mensaje.'
   }
 };

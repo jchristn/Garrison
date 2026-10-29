@@ -277,8 +277,10 @@ button[aria-disabled="true"]:hover { filter: none; }
   flex-shrink: 0;
 }
 .sidebar-brand img { width: 28px; height: 28px; border-radius: var(--radius-sm); }
-.sidebar-brand span { font-weight: 700; font-size: var(--font-size-lg); }
-.sidebar-collapsed .sidebar-brand span { display: none; }
+.sidebar-brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.sidebar-brand-name { font-weight: 700; font-size: var(--font-size-lg); }
+.sidebar-brand-product { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-collapsed .sidebar-brand-text { display: none; }
 .sidebar-nav { flex: 1; overflow-y: auto; padding: var(--spacing-sm); }
 .sidebar-group { margin-bottom: var(--spacing-md); }
 .sidebar-group-label {
@@ -483,6 +485,7 @@ button[aria-disabled="true"]:hover { filter: none; }
 }
 .state-block h3 { color: var(--color-text); font-size: var(--font-size-lg); }
 .state-block p { max-width: 46ch; font-size: var(--font-size-sm); }
+.state-actions { flex-wrap: wrap; justify-content: center; }
 .error-banner {
   display: flex;
   align-items: center;
@@ -1377,3 +1380,19 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
   .studio-filters { flex-direction: column; align-items: stretch; }
   .studio-filters .filter-search { min-width: 0; }
 }
+
+/* ================= App environments and promotion (AD9.6) ================= */
+.app-release { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.app-release-head { display: flex; flex-wrap: wrap; gap: var(--spacing-md); align-items: flex-start; justify-content: space-between; }
+.app-release-compare .flex, .app-release-history-head { flex-wrap: wrap; }
+.app-release-cell li + li { margin-top: var(--spacing-xs); }
+.app-release-overrides { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: 2px; font-size: var(--font-size-xs); }
+.app-release-overrides code { overflow-wrap: anywhere; }
+.data-table td.app-release-pair { background: var(--color-surface-alt); }
+
+/* ================= About (AD12.12) ================= */
+.about-panel { display: flex; gap: var(--spacing-lg); align-items: flex-start; flex-wrap: wrap; }
+.about-panel img { width: 64px; height: 64px; border-radius: var(--radius-md); }
+.about-panel h2 { margin: 0; }
+.about-positioning { margin: var(--spacing-xs) 0 var(--spacing-sm); color: var(--color-text-secondary); max-width: 70ch; }
+.about-links { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }

@@ -20,6 +20,21 @@ export const STORAGE_KEYS = {
 
 export const GITHUB_URL = 'https://github.com/jchristn/Garrison';
 
+/** The product website (AD12.12). */
+export const WEBSITE_URL = 'https://usegarrison.ai';
+
+/** The documentation index in the repository. */
+export const DOCS_URL = `${GITHUB_URL}/blob/main/docs/README.md`;
+
+/** The Agent Studio guide in the repository. */
+export const STUDIO_DOCS_URL = `${GITHUB_URL}/blob/main/docs/STUDIO.md`;
+
+/**
+ * The protected agent every tenant has; its deployments are agent architects (AD7.6). Kept here, outside the studio
+ * chunk, so the first-run check and the setup wizard can name it without loading the studio.
+ */
+export const ARCHITECT_AGENT_NAME = 'agent-architect';
+
 /** Default API URL: runtime config from /config.js, else the page origin (nginx or Vite proxy). */
 export function defaultServerUrl() {
   const configured = typeof window !== 'undefined' ? window.GARRISON_CONFIG?.apiUrl : '';

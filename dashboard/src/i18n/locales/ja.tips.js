@@ -3152,3 +3152,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio: 使い慣れたエージェントハーネスで、エージェント型アプリを構築、デプロイ、実行します。",
+  "tabs": {
+   "serverInfo": "Garrison Agent Studio について: サーバーとダッシュボードのバージョン、ドキュメントと Web サイトへのリンク、REST、MCP、A2A のアドレス、サインイン中の ID。"
+  }
+ },
+ "common": {
+  "openStudio": "エージェントスタジオを開きます。エージェントアーキテクトがあなたと一緒にエージェントやアプリの下書きを作ります。人が下書きを承認するまで何も公開されません。"
+ },
+ "wizard": {
+  "start": "セットアップを開始します: 認証情報を追加し、エージェントアーキテクトを準備し、サンプルエージェントを適用してテストします。",
+  "skipStudio": "アーキテクトなしで続行します。後でエージェントスタジオの「新しいアーキテクト」から作成できます。",
+  "createArchitect": "これらの選択で agent-architect のデプロイメントを作成し、次の手順に進みます。その実行が編集できるのはあなたのスタジオの下書きだけです。",
+  "continue": "アーキテクトはすでにあります。セットアップの次の手順に進みます。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "エージェントスタジオを開き、作りたいアプリを説明します。エージェントアーキテクトが下書きを作り、公開前に人が承認します。"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "この下書きが作るアプリ (適用後): 環境ごとのデプロイメント、dev から staging と prod への昇格、履歴からのロールバック。"
+   }
+  },
+  "serverInfo": {
+   "product": "このコンソールが属する製品です。エージェントスタジオは Garrison のランタイムの上でエージェント型アプリを構築します。",
+   "docs": "Garrison のドキュメントを新しいタブで開きます: アーキテクチャ、構成、ハーネス、スタジオ、アプリ、セキュリティ。",
+   "studioDocs": "エージェントスタジオのガイドを新しいタブで開きます: 下書き、エージェントアーキテクト、下書きの適用、昇格。",
+   "website": "usegarrison.ai を新しいタブで開きます: 製品の概要、スクリーンショット、ウォークスルー。",
+   "source": "GitHub の Garrison リポジトリを新しいタブで開きます: ソースコード、Issue、リリース。"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "アプリの環境ごとのデプロイメントを、固定されたリビジョンと上書きとともに表示し、次の環境へ昇格し、昇格をロールバックします。"
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "アプリの URL が入口デプロイメントを使う環境: {{environment}}。アプリの「環境」ステップで変更します。",
+   "environments": "各メンバーの環境ごとのデプロイメント: それぞれが固定しているリビジョン (最新の公開リビジョンに従う場合は「最新」) と環境変数の上書き。",
+   "source": "比較の基準となる環境です。通常はテストした環境です。昇格もここから始まります。",
+   "target": "比較し、昇格する先の環境です。昇格の順序に従うには次の環境のままにします。",
+   "promote": "{{source}} から {{target}} への昇格ダイアログを開きます。各メンバーの固定リビジョンが 1 つのトランザクションで {{target}} のデプロイメントに移ります。",
+   "noNext": "{{source}} の次の環境がないため、昇格先がありません。",
+   "denied": "この操作には {{environment}} の昇格に対する実行権限が必要です。管理者に Releaser ロールを依頼してください。",
+   "noDeployment": "このメンバーには {{environment}} のデプロイメントがありません。デプロイメントができるまで {{environment}} への昇格は失敗します。",
+   "overrides": "このデプロイメントの環境変数の上書き: 実行に設定される変数です。シークレットの値は表示されません。",
+   "entry": "入口エージェント: アプリの利用者は最初にこのメンバーと話します。",
+   "history": "このアプリのすべての昇格とロールバック (新しい順)。適用された昇格は一度だけロールバックでき、置き換えた固定を元に戻します。",
+   "refresh": "このアプリのデプロイメントと昇格履歴を再読み込みします。",
+   "columns": {
+    "member": "アプリのメンバーエージェント (入口エージェントが先頭)。",
+    "environment": "{{environment}} における各メンバーのデプロイメントと、その固定リビジョンおよび環境変数の上書き。",
+    "difference": "比較する 2 つの環境の間で、各メンバーの固定と上書きが一致するかどうか。"
+   },
+   "diff": {
+    "Same": "{{source}} と {{target}} の固定リビジョンと上書きは一致しています。",
+    "Differs": "{{source}} と {{target}} の間で固定リビジョンまたは上書きが異なります。昇格で固定は移りますが、上書きは各デプロイメントのものが残ります。",
+    "Missing": "このメンバーには {{target}} のデプロイメントがありません。{{source}} から昇格すると失敗し、何も移動しません。"
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "この下書きが作るアプリをライブ構成から読み込んだものです: 環境ごとのデプロイメント、昇格、ロールバック。",
+   "app": "下書きが複数のアプリを作る場合に、表示するアプリを選びます。"
+  }
+ }
+});

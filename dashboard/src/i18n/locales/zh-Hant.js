@@ -4199,3 +4199,118 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "或者開啟代理程式工作室，描述你的需求：代理程式架構師會起草，由你審閱。",
+   "openStudio": "開啟代理程式工作室"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "代理程式工作室"
+   },
+   "serverInfo": {
+    "label": "關於",
+    "tip": "產品、版本、連結、端點和你的身分"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "代理程式工作室"
+  },
+  "welcomeItemStudio": "為代理程式架構師指定 Harness 和模型，讓它在代理程式工作室中與你一起設計代理程式和應用程式（選用）。",
+  "studioBody": "代理程式架構師在代理程式工作室中與你一起設計代理程式和應用程式。請選擇它執行所用的 Harness 設定檔和模型，以及引導它的架構師提示。它的部署只能編輯你的工作室草稿。你可以略過此步驟，稍後在工作室中建立架構師。",
+  "createArchitect": "建立架構師",
+  "architectCreated": "已建立代理程式架構師 {{name}}。",
+  "architectReady": "代理程式架構師 {{name}} 已就緒。設定完成後，開啟代理程式工作室並用它開始一份草稿。",
+  "continue": "繼續"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "設定精靈會新增認證，為代理程式架構師指定 Harness 和模型，套用範例代理程式並執行測試。也可以開啟代理程式工作室，描述你想要的應用程式。",
+   "openStudio": "開啟代理程式工作室"
+  },
+  "studio": {
+   "title": "代理程式工作室"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "發行"
+   }
+  },
+  "serverInfo": {
+   "title": "關於",
+   "subtitle": "版本、連結、端點，以及你目前登入所用的身分。",
+   "positioning": "用你已在使用的代理程式 Harness 建置、部署和執行代理式應用程式。",
+   "versions": "伺服器版本 {{server}}，儀表板版本 {{dashboard}}",
+   "docs": "文件",
+   "studioDocs": "代理程式工作室指南",
+   "website": "網站",
+   "source": "原始碼"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "環境"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "環境與推進",
+    "intro": "每個成員在各環境中的部署，以及每個部署固定的修訂和環境變數覆寫。推進前可比較兩個環境，也可以從記錄中復原某次推進。",
+    "live": "在 {{environment}} 上線",
+    "environments": "環境",
+    "source": "比較",
+    "target": "與",
+    "member": "成員",
+    "entry": "入口",
+    "noDeployment": "沒有部署",
+    "secretOverride": "{{name}}（祕密）",
+    "difference": "{{source}} 到 {{target}}",
+    "differenceNone": "差異",
+    "diff": {
+     "Same": "相同",
+     "Missing": "{{target}} 中沒有部署",
+     "revisions": "修訂不同",
+     "overrides": "覆寫不同",
+     "both": "修訂和覆寫都不同"
+    },
+    "promote": "從 {{source}} 推進到 {{target}}",
+    "promoteNothing": "推進",
+    "missing": "{{target}} 中沒有部署：{{names}}。現在推進會失敗，什麼都不會移動；請先在那裡新增部署。",
+    "history": "推進記錄",
+    "historyEmpty": "此應用程式尚未推進過。"
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "發行",
+    "app": "應用程式",
+    "noAppsTitle": "此草稿不建置任何應用程式",
+    "noAppsBody": "在關係圖分頁中或請架構師在草稿中新增應用程式，套用草稿後即可在此推進。",
+    "notLiveTitle": "{{name}} 尚未上線",
+    "notLiveBody": "請先套用草稿。套用後會發布其代理程式並部署到 dev；之後即可在此推進該應用程式。"
+   }
+  }
+ }
+});

@@ -17,8 +17,8 @@ function hubVisible(hub, principal) {
 }
 
 /**
- * Grouped, role-aware sidebar rendered from config/navConfig.js, with a utility footer (setup
- * wizard, tour, version). Each item is a hub; tabbed hubs show their pages as in-page tabs.
+ * Grouped, role-aware sidebar rendered from config/navConfig.js, with the Garrison Agent Studio brand (AD12.12) and a
+ * utility footer (setup wizard, tour, version). Each item is a hub; tabbed hubs show their pages as in-page tabs.
  */
 export default function Sidebar({ onNavigateMobile }) {
   const { t, i18n } = useTranslation();
@@ -35,9 +35,12 @@ export default function Sidebar({ onNavigateMobile }) {
 
   return (
     <aside className="dashboard-sidebar" data-tour="sidebar">
-      <div className="sidebar-brand">
+      <div className="sidebar-brand" data-testid="sidebar-brand" {...tip(t('tips.nav.brand'))}>
         <img src="/assets/logo.png" alt="" />
-        <span>{t('common.appName')}</span>
+        <span className="sidebar-brand-text">
+          <span className="sidebar-brand-name">{t('common.appName')}</span>
+          <span className="sidebar-brand-product">{t('common.productLine')}</span>
+        </span>
       </div>
       <nav className="sidebar-nav" aria-label={t('nav.primary')}>
         {NAV_SECTIONS.map((section) => {

@@ -27,6 +27,7 @@ const en = {
     anonymous: 'Continue without signing in',
     anonymousNote: 'Conversations you start without signing in stay in this browser tab.',
     or: 'or',
+    poweredBy: 'Built with Garrison Agent Studio',
     sessionEnded: 'Your session ended. Sign in again to continue.'
   },
   header: {
@@ -142,6 +143,7 @@ const en = {
     details: 'Show the steps the agent took while answering: tool calls, progress, and warnings.',
     answerLink: 'Opens a link from the answer in a new tab: {{href}}',
     tableHeader: 'Column of a table in the answer: {{text}}',
+    poweredBy: 'Open usegarrison.ai in a new tab to learn about Garrison Agent Studio, the platform this app runs on.',
     skipToChat: 'Jump past the header and conversation list to the message box.'
   }
 };

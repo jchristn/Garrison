@@ -16,7 +16,7 @@ import { ControlNodeStatus, LeaderBadge, HeartbeatAge } from '../components/Cont
 import { isHeartbeatStale } from '../utils/controlNodes';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { requestRangeToParams, nodeStatusTone } from '../utils/constants';
+import { ARCHITECT_AGENT_NAME, requestRangeToParams, nodeStatusTone } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatNumber, formatRelativeTime, formatTime } from '../i18n/formatters';
 import { overviewKpis } from '../utils/overview';
@@ -106,7 +106,24 @@ export default function HomeView() {
 
   const kpis = overviewKpis(overview);
   const val = (v) => (v === null || v === undefined ? '-' : formatNumber(v));
-  const noAgents = overview && overview.agents === 0;
+  // The seeded agent architect (AD7.6) does not make a tenant non-empty: with one agent, check whether it is that one.
+  const [onlyArchitect, setOnlyArchitect] = useState(false);
+  const agentCount = overview ? overview.agents : null;
+  useEffect(() => {
+    if (!apiClient || agentCount !== 1) {
+      setOnlyArchitect(false);
+      return undefined;
+    }
+    let active = true;
+    apiClient
+      .listAgents(tenantId, { pageNumber: 1, pageSize: 2 })
+      .then((r) => active && setOnlyArchitect((r.items || []).every((a) => a?.name === ARCHITECT_AGENT_NAME)))
+      .catch(() => active && setOnlyArchitect(false));
+    return () => {
+      active = false;
+    };
+  }, [apiClient, tenantId, agentCount]);
+  const noAgents = overview && (overview.agents === 0 || onlyArchitect);
 
   return (
     <div>
@@ -124,9 +141,14 @@ export default function HomeView() {
             <strong>{t('views.home.getStartedTitle')}</strong>
             <p className="text-muted">{t('views.home.getStartedBody')}</p>
           </div>
-          <button type="button" className="button-primary" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>
-            {t('views.home.runSetup')}
-          </button>
+          <div className="flex gap-sm">
+            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('studio'))} data-testid="setup-callout-studio" {...tip(t('tips.views.home.openStudio'))}>
+              {t('views.home.openStudio')}
+            </button>
+            <button type="button" className="button-primary" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>
+              {t('views.home.runSetup')}
+            </button>
+          </div>
         </div>
       )}
 

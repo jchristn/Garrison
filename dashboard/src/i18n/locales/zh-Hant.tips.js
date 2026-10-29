@@ -3151,3 +3151,88 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "brand": "Garrison Agent Studio：用你已在使用的代理程式 Harness 建置、部署和執行代理式應用程式。",
+  "tabs": {
+   "serverInfo": "關於 Garrison Agent Studio：伺服器和儀表板版本、文件和網站連結、REST、MCP 和 A2A 位址，以及你目前登入所用的身分。"
+  }
+ },
+ "common": {
+  "openStudio": "開啟代理程式工作室，代理程式架構師會與你一起起草代理程式和應用程式。在有人核准草稿之前，什麼都不會上線。"
+ },
+ "wizard": {
+  "start": "開始設定：新增認證、設定代理程式架構師、套用範例代理程式並測試。",
+  "skipStudio": "不建立架構師並繼續。之後可以在代理程式工作室中透過「新增架構師」建立。",
+  "createArchitect": "依這些選擇建立 agent-architect 的部署，並前往下一步。它的執行只能編輯你的工作室草稿。",
+  "continue": "架構師已存在。前往設定的下一步。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "開啟代理程式工作室並描述你想要的應用程式；代理程式架構師會起草，上線前由人核准。"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "此草稿套用後建置的應用程式：各環境中的部署、從 dev 推進到 staging 和 prod，以及從記錄中復原。"
+   }
+  },
+  "serverInfo": {
+   "product": "此主控台所屬的產品：代理程式工作室在 Garrison 執行階段之上建置代理式應用程式。",
+   "docs": "在新分頁中開啟 Garrison 文件：架構、設定、Harness、工作室、應用程式和安全性。",
+   "studioDocs": "在新分頁中開啟代理程式工作室指南：草稿、代理程式架構師、套用草稿和推進。",
+   "website": "在新分頁中開啟 usegarrison.ai，查看產品概覽、螢幕擷取畫面和逐步導覽。",
+   "source": "在新分頁中開啟 GitHub 上的 Garrison 存放庫：原始碼、問題和發行版本。"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "查看應用程式在各環境中的部署及其固定修訂和覆寫，將其推進到下一個環境，並復原某次推進。"
+   }
+  }
+ },
+ "apps": {
+  "release": {
+   "live": "應用程式 URL 使用其入口部署的環境：{{environment}}。可在應用程式的「環境」步驟中變更。",
+   "environments": "每個成員在每個環境中的部署：各自固定的修訂（跟隨最新已發布修訂時顯示「最新」）和環境變數覆寫。",
+   "source": "比較的起點環境，通常是你測試過的環境。推進也從這裡開始。",
+   "target": "要比較並推進到的環境。保持為下一個環境即可遵循推進順序。",
+   "promote": "開啟從 {{source}} 到 {{target}} 的推進對話方塊：每個成員的固定修訂會在一個交易中移到其在 {{target}} 中的部署。",
+   "noNext": "{{source}} 之後沒有環境，因此無處可推進。",
+   "denied": "此操作需要 {{environment}} 的升級推進執行權限。請向管理員申請 Releaser 角色。",
+   "noDeployment": "此成員在 {{environment}} 中沒有部署。在它有部署之前，推進到 {{environment}} 會失敗。",
+   "overrides": "此部署的環境變數覆寫：為其執行設定的變數。祕密值一律不顯示。",
+   "entry": "入口代理程式：使用應用程式的人會先與此成員對話。",
+   "history": "此應用程式的每次推進和復原，最新的在前。已套用的推進可以復原一次，以還原它取代掉的固定修訂。",
+   "refresh": "重新讀取此應用程式的部署和推進記錄。",
+   "columns": {
+    "member": "應用程式的成員代理程式，入口代理程式在前。",
+    "environment": "每個成員在 {{environment}} 中的部署，以及其固定修訂和環境變數覆寫。",
+    "difference": "所比較的兩個環境之間，每個成員的固定修訂和覆寫是否一致。"
+   },
+   "diff": {
+    "Same": "{{source}} 和 {{target}} 中的固定修訂和覆寫一致。",
+    "Differs": "{{source}} 和 {{target}} 之間的固定修訂或覆寫不同。推進會移動固定修訂；每個部署保留自己的覆寫。",
+    "Missing": "此成員在 {{target}} 中沒有部署。從 {{source}} 推進會失敗，什麼都不會移動。"
+   }
+  }
+ },
+ "studio": {
+  "release": {
+   "title": "從即時設定讀取的此草稿所建置的應用程式：各環境中的部署、推進和復原。",
+   "app": "當草稿建置多個應用程式時，選擇要顯示哪一個。"
+  }
+ }
+});

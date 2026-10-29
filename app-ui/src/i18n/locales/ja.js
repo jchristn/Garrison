@@ -26,6 +26,7 @@ const ja = {
     anonymous: 'サインインせずに続ける',
     anonymousNote: 'サインインせずに始めた会話は、このブラウザーのタブにだけ残ります。',
     or: 'または',
+    poweredBy: 'Garrison Agent Studio で構築',
     sessionEnded: 'セッションが終了しました。続けるにはもう一度サインインしてください。'
   },
   header: {
@@ -141,6 +142,7 @@ const ja = {
     details: 'エージェントが回答中に行った手順 (ツール呼び出し、進行状況、警告) を表示します。',
     answerLink: '回答内のリンクを新しいタブで開きます: {{href}}',
     tableHeader: '回答に含まれる表の列見出しです: {{text}}',
+    poweredBy: 'usegarrison.ai を新しいタブで開き、このアプリが動いているプラットフォーム Garrison Agent Studio について確認します。',
     skipToChat: 'ヘッダーと会話一覧を飛ばして、メッセージの入力欄へ直接移動します。'
   }
 };

@@ -24,7 +24,9 @@ export function isProductTerm(value) {
 
 export const UNTRANSLATED_ALLOWLIST = {
   '*': [
-    'Alias', 'Audit', 'Editor', 'Streaming', 'Prompts'
+    'Alias', 'Audit', 'Editor', 'Streaming', 'Prompts',
+    // The product name stays in English in every language (AD12.12).
+    'Garrison Agent Studio', 'Agent Studio'
   ],
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
@@ -40,7 +42,8 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
-    'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset'
+    'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset',
+    'Documentation'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',

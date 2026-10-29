@@ -395,3 +395,87 @@ export async function loadCallerPermissions(apiClient, tenantId, principal) {
   }
   return null;
 }
+
+// ---------------------------------------------------------------- environments and promotion (AD9.6)
+
+/**
+ * What one deployment contributes to an environment: its name, the revision it pins (null when it follows the latest
+ * published revision), and its environment overrides (name, value, and whether the value is a secret reference).
+ */
+export function deploymentPinView(deployment, numbers = {}) {
+  const revisionId = deployment?.agentRevisionId || null;
+  return {
+    deploymentId: deployment?.id || '',
+    name: deployment?.name || deployment?.id || '',
+    active: deployment?.active !== false,
+    revisionId,
+    revisionNumber: revisionId && numbers[revisionId] !== undefined ? numbers[revisionId] : null,
+    overrides: (deployment?.environmentOverrides || [])
+      .filter((o) => o && o.name)
+      .map((o) => ({ name: o.name, value: o.isSecret ? null : o.valueTemplate ?? '', isSecret: !!o.isSecret }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  };
+}
+
+/**
+ * The per-environment view of an app: one row per member (the entry agent first), each with the member's deployments
+ * per environment name. `deployments` is every deployment the caller can read; `numbers` maps revision IDs to numbers.
+ */
+export function environmentMatrix(app, deployments, environmentList, numbers = {}) {
+  const ids = memberIds(app);
+  const ordered = app?.entryAgentId && ids.includes(app.entryAgentId) ? [app.entryAgentId, ...ids.filter((id) => id !== app.entryAgentId)] : ids;
+  const names = Object.fromEntries((app?.members || []).filter((m) => m.agentName).map((m) => [m.agentId, m.agentName]));
+  return ordered.map((agentId) => {
+    const cells = {};
+    for (const env of environmentList) cells[env] = [];
+    for (const d of deployments || []) {
+      if (d.agentId !== agentId) continue;
+      const env = d.environment || 'dev';
+      if (!cells[env]) cells[env] = [];
+      cells[env].push(deploymentPinView(d, numbers));
+    }
+    for (const env of Object.keys(cells)) cells[env].sort((a, b) => a.name.localeCompare(b.name));
+    return { agentId, name: names[agentId] || agentId, entry: agentId === app?.entryAgentId, cells };
+  });
+}
+
+/** A comparable signature of an environment cell: the pins and overrides, ignoring deployment names. */
+function cellSignature(cell) {
+  const pins = [...new Set((cell || []).map((d) => d.revisionId || 'latest'))].sort();
+  const overrides = [...new Set((cell || []).flatMap((d) => d.overrides.map((o) => `${o.name}=${o.isSecret ? '(secret)' : o.value}`)))].sort();
+  return JSON.stringify({ pins, overrides });
+}
+
+/**
+ * How a member differs between two environments: 'Missing' when the target has no deployment of it (a promotion would
+ * fail with NoTargetDeployments), 'Same' when the pinned revisions and the overrides match, else 'Differs'. A row also
+ * says which of the two parts differ: { status, revisions, overrides }.
+ */
+export function compareEnvironments(row, source, target) {
+  const from = row?.cells?.[source] || [];
+  const to = row?.cells?.[target] || [];
+  if (!to.length) return { status: 'Missing', revisions: false, overrides: false };
+  const a = JSON.parse(cellSignature(from));
+  const b = JSON.parse(cellSignature(to));
+  const revisions = JSON.stringify(a.pins) !== JSON.stringify(b.pins);
+  const overrides = JSON.stringify(a.overrides) !== JSON.stringify(b.overrides);
+  return { status: revisions || overrides ? 'Differs' : 'Same', revisions, overrides };
+}
+
+/** Promotion records of one app, newest first (the server already sorts; this keeps the order stable). */
+export function sortPromotions(records) {
+  const list = Array.isArray(records) ? records : records?.items || records?.objects || [];
+  return [...list].sort((a, b) => String(b.createdUtc || '').localeCompare(String(a.createdUtc || '')));
+}
+
+/** True when the caller may promote to (or roll back in) `environment`: Execute on Promotion for that environment. */
+export function canPromoteTo(permissions, environment) {
+  if (!environment) return true;
+  return holds(permissions, 'Promotion', 'Execute', { resourceId: environment });
+}
+
+/** Names of the apps a studio draft builds: its target app first, then its AgenticApp items in draft order, once each. */
+export function draftAppNames(draft) {
+  const names = (draft?.items || []).filter((i) => i.kind === 'AgenticApp' && i.operation !== 'Delete').map((i) => i.name);
+  return [...new Set([draft?.targetApp, ...names].filter(Boolean))];
+}

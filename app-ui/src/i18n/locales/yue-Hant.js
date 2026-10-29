@@ -26,6 +26,7 @@ const yueHant = {
     anonymous: '唔登入，直接繼續',
     anonymousNote: '唔登入開始嘅對話，只會留喺呢個瀏覽器分頁度。',
     or: '或者',
+    poweredBy: '用 Garrison Agent Studio 建立',
     sessionEnded: '你嘅工作階段已經完咗。請再登入一次先可以繼續。'
   },
   header: {
@@ -141,6 +142,7 @@ const yueHant = {
     details: '顯示代理程式回覆嗰陣做過嘅步驟，包括工具調用、進度同警告。',
     answerLink: '喺新分頁打開回覆入面嘅呢條連結，網址係：{{href}}',
     tableHeader: '呢個係回覆入面某個表格嘅欄位標題，內容係：{{text}}',
+    poweredBy: '喺新分頁打開 usegarrison.ai，睇吓運行呢個應用程式嘅平台 Garrison Agent Studio 係乜。',
     skipToChat: '跳過頁首同對話清單，直接將焦點移去下面嘅訊息輸入框度。'
   }
 };

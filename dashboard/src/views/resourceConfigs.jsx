@@ -1113,6 +1113,8 @@ export const usageQuotasConfig = {
 
 export const agentsConfig = {
   id: 'agents',
+  // An empty list points to Agent Studio as well as to Add (AD12.12).
+  studioEmptyState: true,
   explainer: 'agents',
   explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listAgents', 'createAgent', 'updateAgent', 'deleteAgent'),
@@ -1331,6 +1333,8 @@ function trustBadge(t, r, tenant) {
 
 export const deploymentsConfig = {
   id: 'deployments',
+  // An empty list points to Agent Studio as well as to Add (AD12.12).
+  studioEmptyState: true,
   explainer: 'deployments',
   explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listDeployments', 'createDeployment', 'updateDeployment', 'deleteDeployment'),

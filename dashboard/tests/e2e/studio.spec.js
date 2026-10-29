@@ -4,11 +4,16 @@
 // update over the mocked studio-draft socket, the architect chat (first message carries the draft), the New architect
 // dialog, a two-turn playground conversation with its transcript download, the compile preview, and the architect
 // prompt panel (clone a built-in, edit and save the clone, select it, the disabled built-in edit, and a delete refused
-// with PromptTemplateInUse).
+// with PromptTemplateInUse). AD9.5, AD9.6, AD9.9, AD12.11: the setup wizard's Agent Studio step (create the architect
+// with a chosen or the default prompt, or skip it), and the whole flow on a stateful mock (studioFlowMocks.js): the
+// wizard creates the architect, the architect builds a two-agent app in a draft over two turns, the DraftApply is
+// allowed inline, the app is live in dev with its URL, it is promoted to staging and rolled back; and the Release tab
+// and Apps tab Environments dialog for a caller without Execute on Promotion.
 
 import fs from 'fs';
 import { test, expect } from '@playwright/test';
-import { installMocks, studioDraft, studioDiff, ARCHITECT_DEPLOYMENT, ARCHITECT_AGENT, studioRun, respond } from './mocks.js';
+import { installMocks, studioDraft, studioDiff, ARCHITECT_DEPLOYMENT, ARCHITECT_AGENT, studioRun, respond, PRINCIPAL } from './mocks.js';
+import { installStudioFlow, FLOW_DRAFT_ID } from './studioFlowMocks.js';
 
 const json = (status, body) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 const STUDIO = '/dashboard/agents?tab=studio';
@@ -252,7 +257,8 @@ test('the architect chat starts a conversation that names the draft and shows th
 test('New architect creates a deployment of agent-architect with the chosen architect prompt', async ({ page }) => {
   const bodies = [];
   await page.route(/\/tenants\/[^/]+\/agents(\?.*)?$/, (route) => {
-    if (route.request().method() !== 'GET') return route.fallback();
+    // Only the dialog's lookup by name; the full list stays as mocked, so the tenant is not empty and the wizard stays shut.
+    if (route.request().method() !== 'GET' || !new URL(route.request().url()).searchParams.get('search')) return route.fallback();
     return route.fulfill(json(200, { objects: [ARCHITECT_AGENT], totalRecords: 1 }));
   });
   await page.route(/\/tenants\/[^/]+\/deployments$/, (route) => {
@@ -407,4 +413,201 @@ test('architect prompt panel: clone a built-in, edit and select it; built-ins ar
   await page.getByTestId('architect-prompt-delete-agent-architect-team').click();
   await page.locator('.modal').getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByTestId('architect-prompt-in-use')).toContainText('agent-architect-team cannot be deleted while deployments use it: architect');
+});
+
+test('the setup wizard creates the architect with the default prompt when the select is left alone', async ({ page }) => {
+  const state = await installStudioFlow(page);
+  await login(page);
+  // A tenant whose only agent is the seeded architect counts as empty, so the wizard opens.
+  await expect(page.locator('.wizard-steps')).toBeVisible();
+  await expect(page.locator('.wizard-steps li')).toHaveText(['Welcome', 'Credential', 'Agent Studio', 'Sample agent', 'Test run']);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Skip this step' }).click();
+  await expect(page.locator('.wizard-steps li.active')).toHaveText('Agent Studio');
+  await expect(page.getByTestId('architect-prompt')).toHaveValue('pt_builtin_agent_architect');
+  await expect(page.getByTestId('architect-prompt').locator('option').first()).toHaveText('builtin/agent-architect (default)');
+  await expect(page.getByTestId('wizard-studio').locator('pre, code').first()).toContainText('You are echo-agent');
+  await expect(page.getByTestId('architect-clone-link')).toHaveAttribute('href', '/dashboard/prompt-templates/pt_builtin_agent_architect');
+  await page.getByTestId('wizard-create-architect').click();
+  await expect(page.locator('.wizard-steps li.active')).toHaveText('Sample agent');
+  expect(state.architectBodies).toEqual([{ name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_0001', managementAccess: 'Drafts', architectPromptTemplateId: 'pt_builtin_agent_architect' }]);
+  // Going back shows the architect as created; Continue does not create a second one.
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByTestId('wizard-architect-created')).toContainText('architect is ready');
+  await page.getByTestId('wizard-create-architect').click();
+  await expect(page.locator('.wizard-steps li.active')).toHaveText('Sample agent');
+  expect(state.architectBodies).toHaveLength(1);
+});
+
+test('skipping the Agent Studio step leaves the wizard working as before', async ({ page }) => {
+  const state = await installStudioFlow(page);
+  await login(page);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Skip this step' }).click();
+  await expect(page.getByTestId('wizard-studio')).toBeVisible();
+  await page.getByTestId('wizard-skip-studio').click();
+  await expect(page.locator('.wizard-steps li.active')).toHaveText('Sample agent');
+  await page.locator('.modal-footer').getByRole('button', { name: 'Apply' }).click();
+  await expect(page.locator('.wizard-steps li.active')).toHaveText('Test run');
+  expect(state.architectBodies).toEqual([]);
+});
+
+test('end to end: wizard architect, two-agent app built by the architect, apply, live in dev, promote to staging, roll back', async ({ page }) => {
+  const state = await installStudioFlow(page);
+  await login(page);
+
+  // 1. The setup wizard creates the architect with the guided prompt.
+  await expect(page.locator('.wizard-steps')).toBeVisible();
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Skip this step' }).click();
+  await page.getByTestId('architect-prompt').selectOption('pt_builtin_agent_architect_guided');
+  await expect(page.getByTestId('wizard-studio')).toContainText('One question at a time for first-time builders');
+  await page.getByTestId('architect-model').fill('opus');
+  await page.getByTestId('wizard-create-architect').click();
+  await expect(page.locator('.toast').filter({ hasText: 'Agent architect architect created.' })).toBeVisible();
+  expect(state.architectBodies).toEqual([{ name: 'architect', agentId: 'agt_arch', harnessProfileId: 'hp_0001', managementAccess: 'Drafts', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
+  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await expect(page.locator('.modal')).toHaveCount(0);
+
+  // 2. A new draft; the architect builds a two-agent app over two turns.
+  await page.goto(STUDIO);
+  await page.getByTestId('add-button').click();
+  await page.getByTestId('studio-draft-title').fill('Docs app');
+  await page.getByTestId('studio-new-draft-create').click();
+  await expect(page).toHaveURL(new RegExp(`/dashboard/studio/${FLOW_DRAFT_ID}$`));
+  await expect(page.getByTestId('studio-architect')).toHaveValue('dep_arch');
+  await page.getByTestId('studio-chat-message').fill('Build an app with a planner that hands outlines to a writer.');
+  await page.getByTestId('studio-chat-send').click();
+  await expect(page.getByTestId('studio-chat-answer').first()).toContainText('I added a planner and a writer');
+  await expect(page.getByTestId('studio-draft-version')).toHaveText('Version 2');
+  await page.getByTestId('studio-chat-message').fill('Now put them in an app called docs.');
+  await page.getByTestId('studio-chat-send').click();
+  await expect(page.getByTestId('studio-chat-answer').nth(1)).toContainText('I added the docs app');
+  await expect(page.getByTestId('studio-draft-version')).toHaveText('Version 3');
+  expect(state.invokes).toEqual([
+    { input: 'Build an app with a planner that hands outlines to a writer.', deploymentId: 'dep_arch', startConversation: true, studioDraftId: FLOW_DRAFT_ID },
+    { input: 'Now put them in an app called docs.', conversationId: 'cnv_docs' }
+  ]);
+  await page.getByRole('tab', { name: 'Items' }).click();
+  const items = page.getByTestId('studio-items-table');
+  await expect(items.locator('tbody tr')).toHaveCount(7);
+  await expect(items.locator('tr[data-item="AgenticApp/docs"]')).toBeVisible();
+  await expect(items.locator('tr[data-item="Agent/planner"]')).toBeVisible();
+  await expect(items.locator('tr[data-item="Agent/writer"]')).toBeVisible();
+
+  // The Release tab says the app is not live before the draft is applied.
+  await page.getByRole('tab', { name: 'Release' }).click();
+  await expect(page.getByTestId('studio-release-not-live')).toContainText('docs is not live yet');
+
+  // 3. Request apply and allow the DraftApply inline.
+  await page.getByRole('tab', { name: 'Diff and apply' }).click();
+  await expect(page.getByTestId('studio-diff-table').locator('tr[data-diff="AgenticApp/docs"]')).toContainText('Create');
+  await page.getByTestId('studio-request-apply').click();
+  await expect(page.getByTestId('studio-approval')).toContainText('Pending');
+  expect(state.applyRequests).toEqual([{ version: 3 }]);
+  await page.locator('#studio-decide-reason').fill('Ship it to dev');
+  await page.getByTestId('studio-approval-allow').click();
+  await expect(page.getByTestId('studio-approval')).toContainText('Approved');
+  await expect(page.getByTestId('studio-applied')).toBeVisible();
+  expect(state.decisions).toEqual([{ decision: 'Allow', reason: 'Ship it to dev' }]);
+
+  // 4. The app is live in dev, with its URL.
+  await page.getByRole('tab', { name: 'Release' }).click();
+  const release = page.getByTestId('app-release');
+  await expect(release).toHaveAttribute('data-app', 'docs');
+  await expect(release.getByTestId('app-url')).toHaveAttribute('data-url', /\/apps\/docs\/$/);
+  await expect(release.getByTestId('app-open-link')).toHaveAttribute('href', /\/apps\/docs\/$/);
+  await expect(page.getByTestId('app-release-live')).toHaveText('Live in dev');
+  const matrix = page.getByTestId('app-release-matrix');
+  await expect(matrix.locator('tbody tr')).toHaveCount(2);
+  const planner = matrix.locator('tr[data-member="planner"]');
+  await expect(planner).toContainText('Entry');
+  await expect(planner.locator('td[data-environment="dev"]')).toContainText('planner-dev');
+  await expect(planner.locator('td[data-environment="dev"]')).toContainText('LOG_LEVEL=debug');
+  await expect(planner.locator('td[data-environment="staging"] [data-pin]')).toHaveAttribute('data-pin', 'latest');
+  await expect(planner.locator('td[data-cell="difference"]')).toHaveText('Overrides differ');
+  await expect(page.getByTestId('app-release-history-empty')).toBeVisible();
+
+  // 5. Promote dev to staging.
+  await expect(page.getByTestId('app-release-promote')).toHaveText('Promote dev to staging');
+  await page.getByTestId('app-release-promote').click();
+  await page.locator('#app-promote-note').fill('First staging release');
+  await page.getByTestId('app-promote-submit').click();
+  await expect(page.getByTestId('app-promote-submit')).toHaveCount(0);
+  expect(state.promotions).toEqual([{ sourceEnvironment: 'dev', targetEnvironment: 'staging', note: 'First staging release' }]);
+  const history = page.getByTestId('app-release-history');
+  await expect(history.locator('tbody tr')).toHaveCount(1);
+  await expect(history.locator('tr[data-promotion="pro_0100"]')).toHaveAttribute('data-outcome', 'Applied');
+  await expect(history.locator('tr[data-promotion="pro_0100"]')).toContainText('dev to staging');
+  await expect(planner.locator('td[data-environment="staging"] [data-pin]')).toHaveAttribute('data-pin', '1');
+  await expect(planner.locator('td[data-cell="difference"]')).toHaveText('Revisions and overrides differ');
+
+  // ... and roll it back from the history.
+  await history.locator('tr[data-promotion="pro_0100"]').getByTestId('app-release-rollback').click();
+  await page.getByTestId('app-release-rollback-note').fill('Wrong prompt');
+  await page.locator('.modal').getByRole('button', { name: 'Roll back' }).click();
+  await expect(history.locator('tbody tr')).toHaveCount(2);
+  await expect(history.locator('tr[data-promotion="pro_0100"]')).toHaveAttribute('data-outcome', 'RolledBack');
+  await expect(history.locator('tr[data-promotion="pro_0101"]')).toHaveAttribute('data-kind', 'Rollback');
+  await expect(history.locator('tr[data-promotion="pro_0100"]').getByTestId('app-release-rollback')).toHaveCount(0);
+  await expect(planner.locator('td[data-environment="staging"] [data-pin]')).toHaveAttribute('data-pin', 'latest');
+  expect(state.rollbacks).toEqual([{ note: 'Wrong prompt' }]);
+});
+
+test('promote and rollback stay visible but disabled, with the reason, without Execute on Promotion for the target', async ({ page }) => {
+  await page.route(/\/v1\.0\/token\/details$/, (route) => route.fulfill(json(200, { ...PRINCIPAL, isAdmin: false, isTenantAdmin: false })));
+  await page.route(/\/users\/usr_admin\/permissions$/, (route) =>
+    route.fulfill(
+      json(200, {
+        principalType: 'User',
+        principalId: 'usr_admin',
+        tenantId: 'default',
+        isAdmin: false,
+        isTenantAdmin: false,
+        grants: [
+          { source: 'Builder', permissionType: 'Permit', resourceTypes: ['AgenticApp', 'Agent', 'Deployment', 'StudioDraft'], operations: ['Read'], scope: 'Tenant', inheritsToChildren: true },
+          { source: 'Releaser', permissionType: 'Permit', resourceTypes: ['Promotion'], operations: ['Execute'], scope: 'Resource', resourceId: 'prod', inheritsToChildren: false }
+        ],
+        hasPermission: []
+      })
+    )
+  );
+  let changed = 0;
+  page.on('request', (r) => {
+    if (/\/(promote|rollback)$/.test(new URL(r.url()).pathname)) changed += 1;
+  });
+  await login(page);
+
+  // Agents > Apps, row action Environments.
+  await page.goto('/dashboard/agents?tab=apps');
+  await page.locator('.data-table tbody tr', { has: page.locator('strong', { hasText: /^research$/ }) }).locator('.action-menu-trigger').click();
+  await page.locator('.action-menu-dropdown [role="menuitem"]', { hasText: /^Environments$/ }).click();
+  const promote = page.getByTestId('app-release-promote');
+  await expect(promote).toHaveText('Promote dev to staging');
+  await expect(promote).toHaveAttribute('aria-disabled', 'true');
+  await expect(promote).toHaveAttribute('data-tip', 'You need Execute permission on Promotion for staging to do this. Ask an administrator for the Releaser role.');
+  await promote.hover();
+  await expect(page.locator('.tooltip')).toContainText('Execute permission on Promotion for staging');
+  await promote.click({ force: true });
+  await expect(page.getByTestId('app-promote-submit')).toHaveCount(0);
+  // The per-environment difference: agent-2 has no staging deployment, so a promotion would move nothing.
+  await expect(page.locator('tr[data-member="agent-2"] td[data-cell="difference"]')).toHaveText('No deployment in staging');
+  await expect(page.getByTestId('app-release-missing')).toContainText('agent-2');
+  const rollback = page.locator('tr[data-promotion="pro_0010"]').getByTestId('app-release-rollback');
+  await expect(rollback).toHaveAttribute('aria-disabled', 'true');
+  await expect(rollback).toHaveAttribute('data-tip', /Execute permission on Promotion for staging/);
+  await rollback.click({ force: true });
+  await expect(page.getByTestId('app-release-rollback-note')).toHaveCount(0);
+  // Promoting to prod is allowed: choosing staging to prod enables the action.
+  await page.getByTestId('app-release-source').selectOption('staging');
+  await expect(promote).toHaveText('Promote staging to prod');
+  await expect(promote).not.toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Escape');
+
+  // The studio's Release tab for the research draft says the same.
+  await page.goto(`${DRAFT}?tab=release`);
+  await expect(page.getByTestId('app-release')).toHaveAttribute('data-app', 'research');
+  await expect(page.getByTestId('app-release-promote')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByTestId('app-release-promote')).toHaveAttribute('data-tip', /Execute permission on Promotion for staging/);
+  expect(changed).toBe(0);
 });

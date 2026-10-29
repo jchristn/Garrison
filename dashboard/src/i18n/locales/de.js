@@ -4233,3 +4233,118 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "Oder öffnen Sie das Agenten-Studio und beschreiben Sie, was Sie brauchen: Der Agenten-Architekt entwirft es, und Sie prüfen es.",
+   "openStudio": "Agenten-Studio öffnen"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Agenten-Studio"
+   },
+   "serverInfo": {
+    "label": "Info",
+    "tip": "Produkt, Versionen, Links, Endpunkte und Ihre Identität"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "Agenten-Studio"
+  },
+  "welcomeItemStudio": "Dem Agenten-Architekten einen Harness und ein Modell geben, damit er im Agenten-Studio mit Ihnen Agenten und Apps entwirft (optional).",
+  "studioBody": "Der Agenten-Architekt entwirft im Agenten-Studio mit Ihnen Agenten und Apps. Wählen Sie das Harness-Profil und das Modell, mit denen er läuft, und den Architekten-Prompt, der ihn anleitet. Seine Bereitstellung darf nur Ihre Studio-Entwürfe bearbeiten. Sie können diesen Schritt überspringen und später im Studio einen Architekten erstellen.",
+  "createArchitect": "Architekten erstellen",
+  "architectCreated": "Agenten-Architekt {{name}} erstellt.",
+  "architectReady": "Der Agenten-Architekt {{name}} ist bereit. Öffnen Sie nach der Einrichtung das Agenten-Studio und beginnen Sie mit ihm einen Entwurf.",
+  "continue": "Weiter"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "Der Einrichtungsassistent fügt Zugangsdaten hinzu, gibt dem Agenten-Architekten einen Harness und ein Modell, wendet einen Beispielagenten an und führt einen Test aus. Oder öffnen Sie das Agenten-Studio und beschreiben Sie die gewünschte App.",
+   "openStudio": "Agenten-Studio öffnen"
+  },
+  "studio": {
+   "title": "Agenten-Studio"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Auslieferung"
+   }
+  },
+  "serverInfo": {
+   "title": "Info",
+   "subtitle": "Versionen, Links, Endpunkte und die Identität, mit der Sie angemeldet sind.",
+   "positioning": "Agentische Apps mit den Agent-Harnesses bauen, bereitstellen und betreiben, die Sie bereits nutzen.",
+   "versions": "Serverversion {{server}}, Dashboard-Version {{dashboard}}",
+   "docs": "Dokumentation",
+   "studioDocs": "Leitfaden zum Agenten-Studio",
+   "website": "Webseite",
+   "source": "Quellcode"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Umgebungen"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "Umgebungen und Hochstufung",
+    "intro": "Die Bereitstellungen jedes Mitglieds pro Umgebung, mit der Revision, die jede festlegt, und ihren Umgebungsüberschreibungen. Vergleichen Sie zwei Umgebungen vor dem Hochstufen, und setzen Sie eine Hochstufung aus dem Verlauf zurück.",
+    "live": "Live-Umgebung: {{environment}}",
+    "environments": "Umgebungen",
+    "source": "Vergleichen",
+    "target": "mit",
+    "member": "Mitglied",
+    "entry": "Einstieg",
+    "noDeployment": "Keine Bereitstellung",
+    "secretOverride": "{{name}} (geheim)",
+    "difference": "{{source}} nach {{target}}",
+    "differenceNone": "Unterschied",
+    "diff": {
+     "Same": "Gleich",
+     "Missing": "Keine Bereitstellung in {{target}}",
+     "revisions": "Revisionen unterscheiden sich",
+     "overrides": "Überschreibungen unterscheiden sich",
+     "both": "Revisionen und Überschreibungen unterscheiden sich"
+    },
+    "promote": "{{source}} nach {{target}} hochstufen",
+    "promoteNothing": "Hochstufen",
+    "missing": "Keine Bereitstellung in {{target}}: {{names}}. Ein Hochstufen würde jetzt fehlschlagen und nichts verschieben; erstellen Sie dort zuerst eine Bereitstellung.",
+    "history": "Hochstufungsverlauf",
+    "historyEmpty": "Diese App wurde noch nicht hochgestuft."
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "Auslieferung",
+    "app": "App",
+    "noAppsTitle": "Dieser Entwurf baut keine App",
+    "noAppsBody": "Fügen Sie dem Entwurf eine App hinzu, im Tab Graph oder über den Architekten, um sie nach dem Anwenden hier hochzustufen.",
+    "notLiveTitle": "{{name}} ist noch nicht live",
+    "notLiveBody": "Wenden Sie zuerst den Entwurf an. Das veröffentlicht seine Agenten und stellt sie in dev bereit; danach können Sie die App hier hochstufen."
+   }
+  }
+ }
+});

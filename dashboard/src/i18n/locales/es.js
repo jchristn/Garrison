@@ -4251,3 +4251,118 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Agent Studio positioning and the About page (AD12.12), the setup wizard's Agent Studio step (AD9.5, AD9.9), and app
+// environments, promotion, and rollback in the Apps tab and the studio (AD9.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "common": {
+  "productName": "Garrison Agent Studio",
+  "productLine": "Agent Studio",
+  "states": {
+   "studioHint": "O abre el Estudio de agentes y describe lo que necesitas: el arquitecto de agentes lo redacta para que lo revises.",
+   "openStudio": "Abrir el Estudio de agentes"
+  }
+ },
+ "nav": {
+  "items": {
+   "studio": {
+    "label": "Estudio de agentes"
+   },
+   "serverInfo": {
+    "label": "Acerca de",
+    "tip": "Producto, versiones, enlaces, endpoints y tu identidad"
+   }
+  }
+ },
+ "wizard": {
+  "steps": {
+   "studio": "Estudio de agentes"
+  },
+  "welcomeItemStudio": "Dar al arquitecto de agentes un harness y un modelo para que diseñe agentes y aplicaciones contigo en el Estudio de agentes (opcional).",
+  "studioBody": "El arquitecto de agentes diseña agentes y aplicaciones contigo en el Estudio de agentes. Elige el perfil de harness y el modelo con los que se ejecuta, y el prompt de arquitecto que lo guía. Su despliegue solo puede editar tus borradores del estudio. Puedes omitir este paso y crear un arquitecto más tarde desde el estudio.",
+  "createArchitect": "Crear el arquitecto",
+  "architectCreated": "Arquitecto de agentes {{name}} creado.",
+  "architectReady": "El arquitecto de agentes {{name}} está listo. Después de la configuración, abre el Estudio de agentes y empieza un borrador con él.",
+  "continue": "Continuar"
+ },
+ "views": {
+  "home": {
+   "getStartedBody": "El asistente de configuración añade una credencial, da al arquitecto de agentes un harness y un modelo, aplica un agente de ejemplo y ejecuta una prueba. O abre el Estudio de agentes y describe la aplicación que quieres.",
+   "openStudio": "Abrir el Estudio de agentes"
+  },
+  "studio": {
+   "title": "Estudio de agentes"
+  },
+  "studioDraft": {
+   "tabs": {
+    "release": "Publicación"
+   }
+  },
+  "serverInfo": {
+   "title": "Acerca de",
+   "subtitle": "Versiones, enlaces, endpoints y la identidad con la que has iniciado sesión.",
+   "positioning": "Crea, despliega y ejecuta aplicaciones agénticas con los harnesses de agentes que ya usas.",
+   "versions": "Versión del servidor {{server}}, versión del panel {{dashboard}}",
+   "docs": "Documentación",
+   "studioDocs": "Guía del Estudio de agentes",
+   "website": "Sitio web",
+   "source": "Código fuente"
+  }
+ },
+ "resources": {
+  "apps": {
+   "actions": {
+    "environments": "Entornos"
+   }
+  }
+ },
+ "components": {
+  "apps": {
+   "release": {
+    "title": "Entornos y promoción",
+    "intro": "Los despliegues de cada miembro por entorno, con la revisión que fija cada uno y sus sobrescrituras de entorno. Compara dos entornos antes de promover y revierte una promoción desde el historial.",
+    "live": "Activa en {{environment}}",
+    "environments": "Entornos",
+    "source": "Comparar",
+    "target": "con",
+    "member": "Miembro",
+    "entry": "Entrada",
+    "noDeployment": "Sin despliegue",
+    "secretOverride": "{{name}} (secreto)",
+    "difference": "De {{source}} a {{target}}",
+    "differenceNone": "Diferencia",
+    "diff": {
+     "Same": "Igual",
+     "Missing": "Sin despliegue en {{target}}",
+     "revisions": "Las revisiones difieren",
+     "overrides": "Las sobrescrituras difieren",
+     "both": "Las revisiones y las sobrescrituras difieren"
+    },
+    "promote": "Promover de {{source}} a {{target}}",
+    "promoteNothing": "Promover",
+    "missing": "Sin despliegue en {{target}}: {{names}}. Promover ahora fallaría sin mover nada; añade primero un despliegue allí.",
+    "history": "Historial de promociones",
+    "historyEmpty": "Esta aplicación aún no se ha promovido."
+   }
+  },
+  "studio": {
+   "release": {
+    "title": "Publicación",
+    "app": "Aplicación",
+    "noAppsTitle": "Este borrador no crea ninguna aplicación",
+    "noAppsBody": "Añade una aplicación al borrador, en la pestaña Grafo o pidiéndoselo al arquitecto, para promoverla desde aquí cuando se aplique.",
+    "notLiveTitle": "{{name}} aún no está activa",
+    "notLiveBody": "Aplica primero el borrador. Al aplicarlo se publican sus agentes y se despliegan en dev; después puedes promover la aplicación desde aquí."
+   }
+  }
+ }
+});

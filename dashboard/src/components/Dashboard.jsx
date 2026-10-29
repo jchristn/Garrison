@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { findHub, hubBySlug, detailPageBySlug, pageBySlug, DASHBOARD_BASE } from '../config/navConfig';
 import { allowed } from '../utils/principal';
-import { STORAGE_KEYS, APPROVAL_POLL_MS } from '../utils/constants';
+import { ARCHITECT_AGENT_NAME, STORAGE_KEYS, APPROVAL_POLL_MS } from '../utils/constants';
 import { ApprovalsProvider } from '../context/ApprovalsContext';
 import { combinedPending } from '../utils/approvals';
 import Sidebar from './Sidebar';
@@ -142,14 +142,16 @@ export default function Dashboard() {
     return () => ws?.close();
   }, [apiClient]);
 
-  // Offer the setup wizard automatically for an empty tenant.
+  // Offer the setup wizard automatically for an empty tenant. The agent architect is seeded in every tenant (AD7.6), so
+  // a tenant whose only agent is agent-architect still counts as empty.
   useEffect(() => {
     if (!apiClient || !tenantId) return;
     if (localStorage.getItem(`${STORAGE_KEYS.setupDismissed}:${tenantId}`) === 'true') return;
     apiClient
-      .listAgents(tenantId, { pageNumber: 1, pageSize: 1 })
+      .listAgents(tenantId, { pageNumber: 1, pageSize: 2 })
       .then((r) => {
-        if ((r.totalCount ?? 0) === 0) setWizardOpen(true);
+        const others = (r.items || []).filter((a) => a?.name !== ARCHITECT_AGENT_NAME);
+        if ((r.totalCount ?? 0) <= (r.items || []).length && others.length === 0) setWizardOpen(true);
       })
       .catch(() => {});
   }, [apiClient, tenantId, setWizardOpen]);

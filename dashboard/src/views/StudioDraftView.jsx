@@ -17,6 +17,7 @@ import StudioDiffPanel from '../components/studio/StudioDiffPanel';
 import StudioPlaygroundPanel from '../components/studio/StudioPlaygroundPanel';
 import StudioPreviewPanel from '../components/studio/StudioPreviewPanel';
 import ArchitectPromptPanel from '../components/studio/ArchitectPromptPanel';
+import StudioReleasePanel from '../components/studio/StudioReleasePanel';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -30,14 +31,15 @@ import { formatNumber } from '../i18n/formatters';
 import { ARCHITECT_STORAGE_KEY, STUDIO_POLL_MS, architectDeployments, draftStatusTone, graphFromMessage, isDraftOpen, readStored, studioPermissions, writeStored } from '../utils/studio';
 
 /** Tabs of the workspace; `?tab=` opens one. */
-const TAB_KEYS = ['architect', 'items', 'graph', 'apply', 'playground', 'preview', 'prompts'];
+const TAB_KEYS = ['architect', 'items', 'graph', 'apply', 'playground', 'preview', 'release', 'prompts'];
 
 /**
- * One studio draft (AD7.10, AD7.16, AD9.2, AD9.3, AD8.2 to AD8.6): the chat with the agent architect, the items with
- * their YAML editor, the canvas (graph operations, property panels, and runtime per environment), diff, validation, apply with the approval decided inline, the playground, the compile
- * preview, and the architect prompt. The draft follows the WebSocket channel studio-draft:{id} and polls every few
- * seconds when that is not available; a change from someone else (or the architect) refreshes the items, the graph, the
- * diff, and the version, and says what moved.
+ * One studio draft (AD7.10, AD7.16, AD9.2, AD9.3, AD8.2 to AD8.6, AD9.6): the chat with the agent architect, the items
+ * with their YAML editor, the canvas (graph operations, property panels, and runtime per environment), diff,
+ * validation, apply with the approval decided inline, the playground, the compile preview, the release of the draft's
+ * apps (environments, promote, and rollback), and the architect prompt. The draft follows the WebSocket channel
+ * studio-draft:{id} and polls every few seconds when that is not available; a change from someone else (or the
+ * architect) refreshes the items, the graph, the diff, and the version, and says what moved.
  */
 export default function StudioDraftView({ recordId }) {
   const { t, i18n } = useTranslation();
@@ -312,6 +314,7 @@ export default function StudioDraftView({ recordId }) {
       {activeTab === 'apply' && <StudioDiffPanel draft={draft} diff={diff} onDiff={setDiff} onReload={load} blocked={editBlocked} deniedDecide={denied.decide} />}
       {activeTab === 'playground' && <StudioPlaygroundPanel draft={draft} graph={graph} blocked={denied.playground} />}
       {activeTab === 'preview' && <StudioPreviewPanel deployments={deployments} blocked={denied.preview} />}
+      {activeTab === 'release' && <StudioReleasePanel draft={draft} permissions={permissions} />}
       {activeTab === 'prompts' && <ArchitectPromptPanel architect={architect} deployments={deployments} denied={denied} />}
       <ConfirmModal
         open={confirmDiscard}
