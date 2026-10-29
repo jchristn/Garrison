@@ -24,7 +24,7 @@ curl -s http://127.0.0.1:8700/v1.0/a2a/default/docs-echo/.well-known/agent-card.
 {
   "name": "docs-echo",
   "description": "Echoes its input",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0",
   "supportedInterfaces": [
     { "url": "http://127.0.0.1:8700/v1.0/a2a/default/docs-echo", "protocolBinding": "JSONRPC", "protocolVersion": "1.0" }
   ],

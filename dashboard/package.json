@@ -1,6 +1,6 @@
 {
   "name": "garrison-dashboard",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0",
   "private": true,
   "description": "Operator console for Garrison, a multi-tenant control plane for headless agent harnesses.",
   "type": "module",

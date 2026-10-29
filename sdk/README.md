@@ -13,7 +13,7 @@ None of the packages is published yet: not to NuGet, PyPI, or npm, and the Go mo
 
 Every quick start signs in with email and password (`admin@garrison` in tenant `default`), which works the same on Docker, source builds, and Kubernetes. The access and secret keys that the harnesses use are `GARRISON_DEFAULT_ACCESS_KEY` and `GARRISON_DEFAULT_SECRET_KEY` in `docker/.env` on Docker, `access_garrison_default` and `secret_garrison_default_change_me` on a source build in development mode (`GARRISON_ALLOW_INSECURE_DEFAULTS=true`), and random values in Secret `garrison-secrets` under `default-access-key` and `default-secret-key` on Kubernetes. Each README shows how to read them.
 
-All four SDKs are version `0.1.0-alpha` and cover the same surface:
+All four SDKs are version `0.2.0` and cover the same surface:
 
 - Authentication with user tokens, access key pairs, HMAC-signed requests, or the admin API key.
 - Tenant resources: agents, deployments, harness profiles, prompt templates, MCP servers, secrets, workspace templates, artifact stores, users, credentials, roles, permissions, and assignments.

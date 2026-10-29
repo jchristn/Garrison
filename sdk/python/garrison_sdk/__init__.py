@@ -27,4 +27,4 @@ __all__ = ["RunDatabaseUsage", "NodePlacementResponse", "RunPlacementResponse", 
            "TRIGGER_FIRE_OUTCOMES", "TRIGGER_FIRE_SOURCES", "TRIGGER_TARGET_TYPES", "TRIGGER_TYPES", "TRUST_LEVELS",
            "TRANSCRIPT_FORMATS", "Transcript", "TranscriptApproval", "TranscriptEntry", "TranscriptTurn", "TranscriptUsage",
            "WEBHOOK_DELIVERY_HEADER", "WEBHOOK_EVENT_HEADER", "WEBHOOK_SIGNATURE_HEADER", "sign_webhook", "verify_webhook"]
-__version__ = "0.1.0-alpha"
+__version__ = "0.2.0"

@@ -2,6 +2,8 @@
 
 All notable changes to Garrison are recorded here. The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org). Versions below 1.0 are alpha and may break compatibility in any release.
 
+## [0.2.0] - Unreleased
+
 ## [0.1.0-alpha] - Unreleased
 
 The first build of Garrison: a multi-tenant control plane that runs headless agent harnesses on pull-based worker nodes and exposes them over REST, MCP, and A2A. This release is the MVP milestone in `GARRISON_PLAN.md`.

@@ -121,6 +121,7 @@ Other checks:
 cd dashboard && npm run lint && npm run build && npm test     # and npm run test:e2e for Playwright
 scripts/run-sdk-harnesses.sh                                  # builds, starts a server and worker on 18700, runs all four SDK harnesses
 scripts/check-em-dash.sh                                      # fails on any em-dash in the repository
+scripts/check-version.sh                                      # fails when a version mirror disagrees with src/Directory.Build.props
 ```
 
 ### Postman and Newman
@@ -147,7 +148,7 @@ The rules in `CLAUDE.md` are not optional. The ones that most often catch a firs
 - Workers never touch the database.
 - Loopback is `127.0.0.1`, never `localhost`.
 - No em-dashes anywhere, including comments, docs, and commit messages.
-- Do not change version numbers (`0.1.0-alpha` in `src/Directory.Build.props` and its mirrors) unless asked.
+- Do not change version numbers (`0.2.0` in `src/Directory.Build.props` and its mirrors) unless asked. Versions and tags are `v0.x.y` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
 
 ### Adding a route
 
@@ -166,7 +167,7 @@ Most new CLIs need only a harness profile (see `docs/HARNESSES.md`). A new outpu
 ## Images
 
 ```bash
-./build-server.sh v0.1.0-alpha     # and build-worker.sh, build-dashboard.sh, or build-all.sh
+./build-server.sh v0.2.0     # and build-worker.sh, build-dashboard.sh, or build-all.sh
 ```
 
 These legacy `build-*.sh` scripts publish immediately through Docker Build Cloud and update both the supplied tag and `latest`; they are publishing commands, not local build commands. For local images use `docker build` with the relevant Dockerfile or `docker/update.sh`. For reviewable multi-architecture OCI archives without publishing, use `k8s/scripts/publish-images.sh`; publishing requires its explicit `--push` flag. See the [Kubernetes image workflow](KUBERNETES.md#build-and-publish-multi-architecture-images).

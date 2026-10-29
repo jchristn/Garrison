@@ -69,7 +69,7 @@ test('Control plane lists replicas with status, leader, versions, uptime, heartb
   await expect(b.locator('.pill', { hasText: 'Leader' })).toHaveCount(0);
   // Status is a translated pill with color and text.
   await expect(a.locator('.pill-success', { hasText: 'Ready' })).toHaveAttribute('data-tip', /serving REST, MCP, and A2A/);
-  await expect(a).toContainText('0.1.0-alpha');
+  await expect(a).toContainText('0.2.0');
   await expect(a).toContainText('7');
   await expect(a.locator('[data-tip*="LISTEN and NOTIFY"]')).toHaveText('PostgreSQL notifications');
   await expect(a).toContainText('3 hr, 25 min');

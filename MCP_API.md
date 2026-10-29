@@ -40,7 +40,7 @@ HTTP/1.1 200 OK
 MCP-Session-Id: mcs_mv2u...
 Content-Type: application/json
 
-{"jsonrpc":"2.0","result":{"protocolVersion":"2025-06-18","capabilities":{...},"serverInfo":{"name":"Garrison","version":"0.1.0-alpha"}},"id":1}
+{"jsonrpc":"2.0","result":{"protocolVersion":"2025-06-18","capabilities":{...},"serverInfo":{"name":"Garrison","version":"0.2.0"}},"id":1}
 ```
 
 Send the returned `MCP-Session-Id` header on later requests. Session identifiers start with `mcs_` and are valid on every control-plane replica, so MCP needs no sticky sessions behind a load balancer: a replica that has not seen a session yet checks it in the database, confirms it belongs to the same principal, and takes it over. A session expires after `Mcp.SessionIdleTimeoutSeconds` (3600) without use, and `DELETE /mcp` with the header ends it everywhere. Another principal presenting the identifier gets 404. Server-sent event streams are resumable with `Last-Event-ID` on the replica that started them; after moving to another replica a client opens a new stream. Most clients handle all of this for you. With Claude Code, for example:

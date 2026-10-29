@@ -8,7 +8,7 @@
     <RootNamespace>Garrison.Sdk</RootNamespace>
     <AssemblyName>Garrison.Sdk</AssemblyName>
     <PackageId>Garrison.Sdk</PackageId>
-    <Version>0.1.0-alpha</Version>
+    <Version>0.2.0</Version>
     <Authors>Joel Christner</Authors>
     <Company>Joel Christner</Company>
     <Product>Garrison</Product>

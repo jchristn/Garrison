@@ -33,6 +33,7 @@ dotnet test src/Test.Nunit -f net10.0
 cd dashboard && npm install && npm run lint && npm run build && npm test
 scripts/run-sdk-harnesses.sh
 scripts/check-em-dash.sh
+scripts/check-version.sh
 ```
 
 Local development: run `Garrison.Server` (Sqlite, port 8700, MCP 8701) and one or more `Garrison.Worker` processes (each with a distinct `GARRISON_WORKER_NODE_NAME` and `GARRISON_WORKER_HEALTH_PORT`).
@@ -91,7 +92,7 @@ These come from `~/Code/Agents/requirements` and apply to every change.
 
 ### Versioning
 
-- The product version is `0.1.0-alpha`, defined once in `src/Directory.Build.props` and mirrored in the dashboard, SDK manifests, and Helm chart.
+- The product version is `0.2.0`, defined once in `src/Directory.Build.props` and mirrored in the dashboard, SDK manifests, Helm chart, and image tags (`v0.2.0`). Versions and tags are `v0.x.y` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
 - Never change a version number unless the user explicitly asks for that change.
 
 ### Git

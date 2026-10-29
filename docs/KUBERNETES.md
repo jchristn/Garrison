@@ -74,7 +74,7 @@ If you already built the images with Docker (for example with `docker/update.sh`
 
 ```bash
 minikube start --driver=docker --cpus=4 --memory=3g
-for i in server worker dashboard; do minikube image load jchristn77/garrison-$i:v0.1.0-alpha; done
+for i in server worker dashboard; do minikube image load jchristn77/garrison-$i:v0.2.0; done
 SKIP_BUILD=1 k8s/scripts/deploy-minikube.sh
 ```
 

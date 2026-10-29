@@ -1,0 +1,76 @@
+# Places that mirror the Garrison version from src/Directory.Build.props. Read by
+# scripts/check-version.sh and scripts/check-version.bat.
+#
+# Format: <path>|<regular expression>. @V@ stands for a version token (for example 0.2.0
+# or 0.1.0-alpha); every match must carry the version from src/Directory.Build.props, and
+# each line must match at least once, so a mirror that moves or disappears also fails.
+# Expressions must work in both grep -E and .NET regular expressions.
+#
+# Files left alone on purpose (AGENT_DESIGN_DEPLOY_PLAN.md, phase AD0): the notdory
+# compose file, Kubernetes component, and doc (third-party images), recorded fixtures,
+# benchmarks/, CHANGELOG.md history, docs/REMAINING_PLAN_MATRIX.md, AB_IMPROVEMENTS.md,
+# and GARRISON_PLAN.md.
+
+# .NET build, images, and tests
+src/Directory.Build.props|<Version>@V@</Version>
+src/Garrison.Core/Constants.cs|ProductVersion = "@V@"
+src/Garrison.Server/Dockerfile|ARG GARRISON_VERSION=@V@
+src/Garrison.Worker/Dockerfile|ARG GARRISON_VERSION=@V@
+dashboard/Dockerfile|ARG GARRISON_VERSION=@V@
+src/Test.Shared/Suites/ScaleOutSuite.cs|node\.Version = "@V@"
+src/Test.Shared/Infrastructure/ExecutorConformanceManifests.cs|garrison-worker:v@V@
+
+# Deployment and build files
+docker/compose.yaml|garrison-(\*|worker|server|dashboard):v@V@
+k8s/base/kustomization.yaml|newTag: v@V@
+k8s/components/worker-pools/worker-mux.yaml|garrison-worker:v@V@
+k8s/helm/garrison/Chart.yaml|^version: @V@
+k8s/helm/garrison/Chart.yaml|^appVersion: "@V@"
+k8s/helm/garrison/values-production.yaml|image\.tag=v@V@
+k8s/scripts/common.sh|GARRISON_TAG:-v@V@
+k8s/scripts/deploy-k3s.bat|GARRISON_TAG=v@V@
+k8s/scripts/deploy-minikube.bat|GARRISON_TAG=v@V@
+k8s/tests/cluster-up.sh|garrison-\*:v@V@
+k8s/tests/common.sh|(else|echo) v@V@
+k8s/tests/isolation-test.sh|IMAGE_TAG=v@V@
+k8s/tests/effect-safety/Dockerfile|garrison-worker:v@V@
+k8s/tests/effect-safety/run.py|garrison-server:v@V@
+scripts/check-executor-conformance.sh|garrison-worker:v@V@
+build-server.sh|for example v@V@
+build-worker.sh|for example v@V@
+build-dashboard.sh|for example v@V@
+build-server.bat|for example v@V@
+build-worker.bat|for example v@V@
+build-dashboard.bat|for example v@V@
+
+# Dashboard
+dashboard/package.json|^  "version": "@V@"
+dashboard/package-lock.json|^  "version": "@V@"
+dashboard/src/utils/constants.js|APP_VERSION = '@V@'
+dashboard/tests/e2e/controlPlane.spec.js|toContainText\('@V@'\)
+dashboard/tests/e2e/mocks.js|(nodeVersion|[^a-zA-Z]version): '@V@'
+
+# SDKs
+sdk/README.md|SDKs are version `@V@`
+sdk/csharp/Garrison.Sdk/Garrison.Sdk.csproj|<Version>@V@</Version>
+sdk/csharp/Garrison.Sdk.Console/Garrison.Sdk.Console.csproj|<Version>@V@</Version>
+sdk/go/client.go|const Version = "@V@"
+sdk/js/package.json|^  "version": "@V@"
+sdk/js/package-lock.json|^  "version": "@V@"
+sdk/python/pyproject.toml|^version = "@V@"
+sdk/python/garrison_sdk/__init__.py|__version__ = "@V@"
+
+# Postman and documentation
+assets/postman/Garrison.postman_collection.json|MCP APIs \(v@V@\)
+README.md|Alpha \(v@V@\)
+DOCKERHUB_README.md|Alpha \(v@V@\)
+DOCKERHUB_README.md|tags such as `v@V@`
+REST_API.md|^      "version": "@V@"
+MCP_API.md|"name":"Garrison","version":"@V@"
+A2A_API.md|^  "version": "@V@"
+docs/DEVELOPMENT.md|build-server\.sh v@V@
+docs/DEVELOPMENT.md|version numbers \(`@V@`
+docs/DOCKER.md|garrison-(server|worker|dashboard):v@V@
+docs/KUBERNETES.md|garrison-\$i:v@V@
+CLAUDE.md|product version is `@V@`
+CLAUDE.md|image tags \(`v@V@`\)

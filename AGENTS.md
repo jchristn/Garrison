@@ -17,6 +17,7 @@ Use the .NET 10 SDK and Node.js 22. Run from the repository root unless noted:
 - `dotnet test src/Test.Xunit -f net10.0` and `dotnet test src/Test.Nunit -f net10.0`: run adapter tests.
 - In `dashboard/`, run `npm install`, then `npm run dev`; validate with `npm run lint`, `npm run build`, and `npm test`.
 - `scripts/check-em-dash.sh`: enforce the repository-wide punctuation rule.
+- `scripts/check-version.sh`: check that every version mirror listed in `scripts/version-mirrors.txt` matches `src/Directory.Build.props`.
 
 ## Coding Style & Naming Conventions
 

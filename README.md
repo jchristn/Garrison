@@ -4,7 +4,7 @@
 
 # Garrison
 
-> **Alpha (v0.1.0-alpha).** The REST API, MCP tools, A2A surface, database schema, settings, manifests, and SDKs can all change without notice. Do not run it against data you cannot afford to lose.
+> **Alpha (v0.2.0).** The REST API, MCP tools, A2A surface, database schema, settings, manifests, and SDKs can all change without notice. Do not run it against data you cannot afford to lose.
 
 **Turn agent harnesses into managed services.** Garrison is a self-hosted, multi-tenant control plane for running Claude Code, Codex, Mux, Gemini CLI, and configurable command-line agents on your own workers. Publish reusable specialists through REST, MCP and A2A, give them the tools and credentials they need, and manage execution, approvals, results and audit history in one place.
 
