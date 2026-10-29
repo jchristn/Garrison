@@ -179,6 +179,9 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     ['/dashboard/conversations/cnv_0001', 'conversation detail'],
     ['/dashboard/conversations/cnv_0002', 'busy conversation detail'],
     ['/dashboard/runs/run_0042', 'conversation turn run detail'],
+    // AD5.8: a parent run with two fan-out groups (one running with a budget) and a member run of one of them.
+    ['/dashboard/runs/run_0044?tab=children', 'fan-out parent run detail'],
+    ['/dashboard/runs/run_0062', 'fan-out member run detail'],
     ['/dashboard/invoke?agentId=agt_0001&conversationId=cnv_0001', 'invoke continuing a conversation'],
     ['/dashboard/prompt-templates/pt_0004', 'template editor'],
     ['/dashboard/prompt-templates/new', 'new template'],
@@ -314,6 +317,16 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await expect(page.getByTestId('asset-file-preview')).toContainText('Write short sentences.');
   await page.getByTestId('asset-upload-input').setInputFiles([{ name: 'notes.md', mimeType: 'text/markdown', buffer: Buffer.from('# Notes') }]);
   await audit(page, 'asset versions with preview and upload');
+  await closeModal(page);
+
+  // AD5.8: the run tree with fan-out groups, and the Cancel group confirmation.
+  await page.goto('/dashboard/runs/run_0044?tab=children');
+  await settle(page);
+  await expect(page.getByTestId('fan-out-group')).toHaveCount(2);
+  await audit(page, 'run tree with fan-out groups');
+  await page.getByTestId('fan-out-cancel').click();
+  await expect(page.locator('.modal')).toBeVisible();
+  await audit(page, 'cancel fan-out group confirmation');
   await closeModal(page);
 
   // AD3.8: the conversation Files tab with deleted files shown and files chosen for upload, a file's version dialog

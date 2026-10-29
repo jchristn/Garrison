@@ -3322,3 +3322,89 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "En ejecución",
+   "Joined": "Reunido",
+   "TimedOut": "Tiempo agotado",
+   "BudgetExceeded": "Presupuesto superado",
+   "Cancelled": "Cancelado"
+  },
+  "fanOutJoinPolicy": {
+   "All": "Todos",
+   "Any": "Cualquiera",
+   "Quorum": "Quórum"
+  },
+  "resourceType": {
+   "FanOutGroup": "Grupo de fan-out"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Grupo de fan-out"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "Grupo de fan-out",
+   "groupTitle": "Grupo de fan-out {{id}}",
+   "otherChildren": "Otras ejecuciones secundarias",
+   "detailsUnavailable": "No se pudieron cargar los detalles del grupo, así que solo se muestran sus ejecuciones miembro.",
+   "policy": "Política de reunión",
+   "quorumPolicy": "{{policy}}: {{quorum}} de {{total}}",
+   "progress": "Progreso",
+   "progressValue": "{{finished}} de {{total}} terminados, {{succeeded}} con éxito",
+   "cost": "Costo",
+   "tokens": "Tokens",
+   "usedOf": "{{used}} de {{limit}}",
+   "noLimit": "{{used}} (sin límite)",
+   "deadline": "Plazo",
+   "noDeadline": "Ninguno",
+   "started": "Inicio",
+   "completed": "Fin",
+   "pending": "Aún en ejecución: {{labels}}",
+   "failed": "Sin éxito: {{labels}}",
+   "live": "En vivo",
+   "polling": "Consulta periódica",
+   "cancel": "Cancelar grupo",
+   "cancelTitle": "Cancelar grupo de fan-out",
+   "confirmCancel": "¿Cancelar el grupo de fan-out {{id}}? Los miembros que siguen en ejecución se cancelan y la ejecución principal verá el grupo como cancelado.",
+   "cancelledToast": "Se canceló el grupo de fan-out {{id}}.",
+   "columns": {
+    "label": "Etiqueta",
+    "agent": "Agente",
+    "status": "Estado",
+    "costUsd": "Costo",
+    "tokens": "Tokens",
+    "run": "Ejecución"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "La ejecución principal terminó o se canceló.",
+   "fanOutCostExceeded": "Los miembros gastaron {{cost}} USD, por encima del presupuesto de {{budget}} USD.",
+   "fanOutTokensExceeded": "Los miembros usaron {{tokens}} tokens, por encima del presupuesto de {{budget}}.",
+   "fanOutTimedOut": "Se agotó el tiempo límite del grupo de {{seconds}} segundos con {{running}} miembros aún en ejecución.",
+   "fanOutAnySucceeded": "Un miembro tuvo éxito.",
+   "fanOutNoneSucceeded": "Todos los miembros terminaron y ninguno tuvo éxito.",
+   "fanOutQuorumMet": "{{succeeded}} miembros tuvieron éxito y se alcanzó el quórum de {{quorum}}.",
+   "fanOutQuorumUnreachable": "Fallaron demasiados miembros para alcanzar el quórum de {{quorum}}.",
+   "fanOutAllFinished": "Todos los miembros terminaron.",
+   "fanOutCancelledByTool": "La ejecución principal lo canceló con garrison_cancel_fan_out.",
+   "fanOutCancelledBy": "Cancelado por {{who}}."
+  }
+ }
+});

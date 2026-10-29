@@ -2604,3 +2604,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "此修訂使用能力 {{name}}。代理程式會在目錄中以此名稱找到它。"
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "此群組正在等待成員。符合匯合策略、到達截止時間、用完預算或有人取消時，群組就會結束。",
+   "Joined": "已符合匯合策略，或所有成員都已結束，因此上層執行可以使用成員的結果。",
+   "TimedOut": "在符合匯合策略之前已到截止時間。仍在執行的成員已被取消。",
+   "BudgetExceeded": "成員的費用或 Token 數超出了群組的預算。仍在執行的成員已被取消。",
+   "Cancelled": "有人取消了此群組，或其上層執行已結束或被取消。仍在執行的成員已被取消。"
+  },
+  "fanOutJoinPolicy": {
+   "All": "每個成員都結束後群組才匯合，不論是否成功。",
+   "Any": "只要有一個成員成功，群組就匯合。除非呼叫要求保留，其餘成員會被取消。",
+   "Quorum": "指定數量的成員成功後群組匯合；若失敗的成員多到無法達到該數量，也會立即匯合。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "此執行所屬的扇出群組。上層執行將它與其他成員一起啟動，並匯合它們的結果。",
+   "openFanOutGroup": "在上層執行的執行樹中開啟此扇出群組，查看其他成員、匯合策略和預算。"
+  }
+ },
+ "fanOut": {
+  "group": "此執行透過 garrison_fan_out 一起啟動的子執行，依同一策略、預算和截止時間匯合。",
+  "otherChildren": "此執行在扇出群組之外逐一委派的子執行。",
+  "reason": "此群組結束的原因，依伺服器記錄顯示。",
+  "policy": "群組何時算完成：全部等待每個成員，任一等待一次成功，法定數等待指定次數的成功。",
+  "progress": "已結束的成員數、成功的成員數，以及群組內的成員總數。",
+  "cost": "成員目前記錄的費用；若群組設有最高費用，則與之對照顯示。",
+  "costValue": "所有成員記錄的費用總和。模型沒有價格的成員不計入。",
+  "tokens": "成員目前使用的輸入和輸出 Token；若群組設有上限，則與之對照顯示。",
+  "tokensValue": "所有成員的輸入 Token 與輸出 Token 之和。",
+  "budgetBar": "已使用預算的 {{percent}}%。用量超出預算時，群組會以超出預算結束。",
+  "deadline": "群組逾時的時間。屆時仍在執行的成員會被取消。",
+  "started": "上層執行啟動此群組的時間。",
+  "completed": "群組結束並停止等待成員的時間。",
+  "pending": "尚未結束的成員的標籤。",
+  "failed": "已結束但未成功的成員的標籤。",
+  "live": "成員狀態或群組用量一有變化，更新就會透過即時連線送達。",
+  "polling": "即時連線無法使用，因此每 {{seconds}} 秒重新載入一次群組。",
+  "cancel": "立即取消此群組。仍在執行的成員會被取消，上層執行會收到目前已匯集的結果。",
+  "confirmCancel": "取消此群組以及所有仍在執行的成員。此動作無法復原。",
+  "openMember": "開啟成員 {{label}} 的執行，查看其紀錄、結果和遙測資料。",
+  "columns": {
+   "label": "上層執行在啟動群組時為此成員取的名稱。",
+   "agent": "此成員執行的代理程式，由上層執行選擇。",
+   "status": "成員執行目前的狀態，以及結束時的結果。",
+   "costUsd": "此成員執行記錄的費用。",
+   "tokens": "此成員執行使用的輸入和輸出 Token。",
+   "run": "成員的執行。開啟即可查看紀錄和結果。"
+  }
+ }
+});

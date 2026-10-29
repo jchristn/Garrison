@@ -2605,3 +2605,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "Diese Revision nutzt die Fähigkeit {{name}}. Agents finden sie im Katalog unter diesem Namen."
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "Die Gruppe wartet auf ihre Mitglieder. Sie endet, wenn die Zusammenführungsregel erfüllt ist, die Frist abläuft, das Budget aufgebraucht ist oder jemand sie abbricht.",
+   "Joined": "Die Zusammenführungsregel ist erfüllt oder alle Mitglieder sind beendet, daher kann der übergeordnete Lauf die Ergebnisse nutzen.",
+   "TimedOut": "Die Frist ist abgelaufen, bevor die Zusammenführungsregel erfüllt war. Noch laufende Mitglieder wurden abgebrochen.",
+   "BudgetExceeded": "Kosten oder Token der Mitglieder haben das Budget der Gruppe überschritten. Noch laufende Mitglieder wurden abgebrochen.",
+   "Cancelled": "Jemand hat die Gruppe abgebrochen, oder ihr übergeordneter Lauf ist beendet oder wurde abgebrochen. Noch laufende Mitglieder wurden abgebrochen."
+  },
+  "fanOutJoinPolicy": {
+   "All": "Die Gruppe wird zusammengeführt, wenn jedes Mitglied beendet ist, ob erfolgreich oder nicht.",
+   "Any": "Die Gruppe wird zusammengeführt, sobald ein Mitglied erfolgreich ist. Die übrigen werden abgebrochen, sofern der Aufruf sie nicht weiterlaufen lässt.",
+   "Quorum": "Die Gruppe wird zusammengeführt, sobald die angegebene Zahl von Mitgliedern erfolgreich ist oder so viele gescheitert sind, dass das nicht mehr möglich ist."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Die Fan-out-Gruppe, zu der dieser Lauf gehört. Der übergeordnete Lauf hat sie zusammen mit weiteren Mitgliedern gestartet und führt deren Ergebnisse zusammen.",
+   "openFanOutGroup": "Den Laufbaum des übergeordneten Laufs bei dieser Fan-out-Gruppe öffnen, um die anderen Mitglieder, die Regel und das Budget zu sehen."
+  }
+ },
+ "fanOut": {
+  "group": "Unterläufe, die dieser Lauf gemeinsam mit garrison_fan_out gestartet hat, zusammengeführt unter einer Regel, einem Budget und einer Frist.",
+  "otherChildren": "Unterläufe, an die dieser Lauf einzeln delegiert hat, außerhalb jeder Fan-out-Gruppe.",
+  "reason": "Warum die Gruppe geendet hat, wie der Server es aufgezeichnet hat.",
+  "policy": "Wann die Gruppe als fertig gilt: Alle wartet auf jedes Mitglied, Beliebiges auf einen Erfolg, Quorum auf die angegebene Zahl von Erfolgen.",
+  "progress": "Beendete Mitglieder, erfolgreiche Mitglieder und die Zahl der Mitglieder in der Gruppe.",
+  "cost": "Bisher erfasste Kosten der Mitglieder, gemessen an den Höchstkosten der Gruppe, falls festgelegt.",
+  "costValue": "Gesamte erfasste Kosten aller Mitglieder. Mitglieder, deren Modell keinen Preis hat, zählen nicht mit.",
+  "tokens": "Bisher verbrauchte Eingabe- und Ausgabetoken der Mitglieder, gemessen am Höchstwert der Gruppe, falls festgelegt.",
+  "tokensValue": "Eingabe- plus Ausgabetoken aller Mitglieder zusammen.",
+  "budgetBar": "{{percent}} % des Budgets verbraucht. Die Gruppe endet mit Budget überschritten, sobald der Verbrauch darüber liegt.",
+  "deadline": "Wann die Gruppe das Zeitlimit erreicht. Dann noch laufende Mitglieder werden abgebrochen.",
+  "started": "Wann der übergeordnete Lauf diese Gruppe gestartet hat.",
+  "completed": "Wann die Gruppe geendet und aufgehört hat, auf Mitglieder zu warten.",
+  "pending": "Bezeichnungen der Mitglieder, die noch nicht beendet sind.",
+  "failed": "Bezeichnungen der Mitglieder, die ohne Erfolg beendet wurden.",
+  "live": "Aktualisierungen kommen über die Live-Verbindung, sobald sich der Status eines Mitglieds oder der Verbrauch der Gruppe ändert.",
+  "polling": "Die Live-Verbindung ist nicht verfügbar, daher wird die Gruppe alle {{seconds}} Sekunden neu geladen.",
+  "cancel": "Diese Gruppe jetzt abbrechen. Noch laufende Mitglieder werden abgebrochen, und der übergeordnete Lauf erhält die bisher gesammelten Ergebnisse.",
+  "confirmCancel": "Die Gruppe und jedes noch laufende Mitglied abbrechen. Das lässt sich nicht rückgängig machen.",
+  "openMember": "Den Lauf des Mitglieds {{label}} öffnen, um Transkript, Ergebnis und Telemetrie zu sehen.",
+  "columns": {
+   "label": "Der Name, den der übergeordnete Lauf diesem Mitglied beim Start der Gruppe gegeben hat.",
+   "agent": "Der Agent, den dieses Mitglied ausführt, vom übergeordneten Lauf gewählt.",
+   "status": "Wo der Lauf des Mitglieds gerade steht und wie er geendet hat.",
+   "costUsd": "Erfasste Kosten des Laufs dieses Mitglieds.",
+   "tokens": "Eingabe- und Ausgabetoken, die der Lauf dieses Mitglieds verbraucht hat.",
+   "run": "Der Lauf des Mitglieds. Öffnen Sie ihn für Transkript und Ergebnis."
+  }
+ }
+});

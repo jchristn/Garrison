@@ -3269,3 +3269,89 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "実行中",
+   "Joined": "合流済み",
+   "TimedOut": "タイムアウト",
+   "BudgetExceeded": "予算超過",
+   "Cancelled": "キャンセル済み"
+  },
+  "fanOutJoinPolicy": {
+   "All": "すべて",
+   "Any": "いずれか",
+   "Quorum": "定足数"
+  },
+  "resourceType": {
+   "FanOutGroup": "ファンアウトグループ"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "ファンアウトグループ"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "ファンアウトグループ",
+   "groupTitle": "ファンアウトグループ {{id}}",
+   "otherChildren": "その他の子の実行",
+   "detailsUnavailable": "グループの詳細を読み込めなかったため、メンバーの実行だけを表示しています。",
+   "policy": "合流ポリシー",
+   "quorumPolicy": "{{policy}}: {{total}} 件中 {{quorum}} 件",
+   "progress": "進捗",
+   "progressValue": "{{total}} 件中 {{finished}} 件終了、{{succeeded}} 件成功",
+   "cost": "コスト",
+   "tokens": "トークン",
+   "usedOf": "{{limit}} 中 {{used}}",
+   "noLimit": "{{used}} (上限なし)",
+   "deadline": "期限",
+   "noDeadline": "なし",
+   "started": "開始",
+   "completed": "終了",
+   "pending": "まだ実行中: {{labels}}",
+   "failed": "成功しなかったメンバー: {{labels}}",
+   "live": "ライブ",
+   "polling": "定期取得",
+   "cancel": "グループをキャンセル",
+   "cancelTitle": "ファンアウトグループをキャンセル",
+   "confirmCancel": "ファンアウトグループ {{id}} をキャンセルしますか? 実行中のメンバーはキャンセルされ、親の実行にはグループがキャンセル済みとして見えます。",
+   "cancelledToast": "ファンアウトグループ {{id}} をキャンセルしました。",
+   "columns": {
+    "label": "ラベル",
+    "agent": "エージェント",
+    "status": "ステータス",
+    "costUsd": "コスト",
+    "tokens": "トークン",
+    "run": "実行"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "親の実行が終了したか、キャンセルされました。",
+   "fanOutCostExceeded": "メンバーが {{cost}} USD を使い、予算 {{budget}} USD を超えました。",
+   "fanOutTokensExceeded": "メンバーが {{tokens}} トークンを使い、予算 {{budget}} を超えました。",
+   "fanOutTimedOut": "グループのタイムアウト {{seconds}} 秒が経過し、{{running}} 件のメンバーがまだ実行中でした。",
+   "fanOutAnySucceeded": "メンバーの 1 件が成功しました。",
+   "fanOutNoneSucceeded": "すべてのメンバーが終了し、成功したものはありませんでした。",
+   "fanOutQuorumMet": "{{succeeded}} 件のメンバーが成功し、定足数 {{quorum}} に達しました。",
+   "fanOutQuorumUnreachable": "失敗したメンバーが多すぎて、定足数 {{quorum}} に達することができません。",
+   "fanOutAllFinished": "すべてのメンバーが終了しました。",
+   "fanOutCancelledByTool": "親の実行が garrison_cancel_fan_out でキャンセルしました。",
+   "fanOutCancelledBy": "{{who}} がキャンセルしました。"
+  }
+ }
+});

@@ -2605,3 +2605,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "This revision uses capability {{name}}. Agents find it in the catalog by this name."
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "The group is waiting for its members. It ends when the join policy is met, the deadline passes, the budget runs out, or someone cancels it.",
+   "Joined": "The join policy was met, or every member finished, so the parent run can use the members' results.",
+   "TimedOut": "The deadline passed before the join policy was met. Members still running were cancelled.",
+   "BudgetExceeded": "The members' cost or tokens went over the group's budget. Members still running were cancelled.",
+   "Cancelled": "Someone cancelled the group, or its parent run finished or was cancelled. Members still running were cancelled."
+  },
+  "fanOutJoinPolicy": {
+   "All": "The group joins when every member has finished, whether it succeeded or not.",
+   "Any": "The group joins as soon as one member succeeds. The others are cancelled unless the call asked to keep them running.",
+   "Quorum": "The group joins once the given number of members succeed, or as soon as too many have failed for that to happen."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "The fan-out group this run belongs to. Its parent run started it together with other members and joins their results.",
+   "openFanOutGroup": "Open the parent run's run tree at this fan-out group to see the other members, the join policy, and the budget."
+  }
+ },
+ "fanOut": {
+  "group": "Child runs this run started together with garrison_fan_out, joined under one policy, budget, and deadline.",
+  "otherChildren": "Child runs this run delegated to one at a time, outside any fan-out group.",
+  "reason": "Why the group ended, as the server recorded it.",
+  "policy": "When the group counts as done: All waits for every member, Any for one success, Quorum for the given number of successes.",
+  "progress": "Members that finished, members that succeeded, and the number of members in the group.",
+  "cost": "Cost the members recorded so far, against the group's maximum cost when one is set.",
+  "costValue": "Total recorded cost of all members. Members whose model has no price add nothing.",
+  "tokens": "Input and output tokens the members used so far, against the group's maximum when one is set.",
+  "tokensValue": "Input plus output tokens of all members together.",
+  "budgetBar": "{{percent}}% of the budget used. The group ends as Over budget when usage goes past it.",
+  "deadline": "When the group times out. Members still running at that moment are cancelled.",
+  "started": "When the parent run started this group.",
+  "completed": "When the group ended and stopped waiting for members.",
+  "pending": "Labels of the members that have not finished yet.",
+  "failed": "Labels of the members that finished without succeeding.",
+  "live": "Updates arrive over the live connection as soon as a member's status or the group's usage changes.",
+  "polling": "The live connection is not available, so the group is reloaded every {{seconds}} seconds.",
+  "cancel": "Cancel this group now. Members still running are cancelled, and the parent run gets the results gathered so far.",
+  "confirmCancel": "Cancel the group and every member that is still running. This cannot be undone.",
+  "openMember": "Open the run of member {{label}} to see its transcript, result, and telemetry.",
+  "columns": {
+   "label": "The name the parent run gave this member when it started the group.",
+   "agent": "The agent this member runs, chosen by the parent run.",
+   "status": "Where the member's run is now, and how it ended.",
+   "costUsd": "Recorded cost of this member's run.",
+   "tokens": "Input and output tokens this member's run used.",
+   "run": "The member's run. Open it for the transcript and the result."
+  }
+ }
+});

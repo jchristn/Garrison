@@ -3297,3 +3297,89 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "Running",
+   "Joined": "Joined",
+   "TimedOut": "Timed out",
+   "BudgetExceeded": "Over budget",
+   "Cancelled": "Cancelled"
+  },
+  "fanOutJoinPolicy": {
+   "All": "All",
+   "Any": "Any",
+   "Quorum": "Quorum"
+  },
+  "resourceType": {
+   "FanOutGroup": "Fan-out group"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Fan-out group"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "Fan-out group",
+   "groupTitle": "Fan-out group {{id}}",
+   "otherChildren": "Other child runs",
+   "detailsUnavailable": "The group's details could not be loaded, so only its member runs are listed.",
+   "policy": "Join policy",
+   "quorumPolicy": "{{policy}}: {{quorum}} of {{total}}",
+   "progress": "Progress",
+   "progressValue": "{{finished}} of {{total}} finished, {{succeeded}} succeeded",
+   "cost": "Cost",
+   "tokens": "Tokens",
+   "usedOf": "{{used}} of {{limit}}",
+   "noLimit": "{{used}} (no limit)",
+   "deadline": "Deadline",
+   "noDeadline": "None",
+   "started": "Started",
+   "completed": "Ended",
+   "pending": "Still running: {{labels}}",
+   "failed": "Did not succeed: {{labels}}",
+   "live": "Live",
+   "polling": "Polling",
+   "cancel": "Cancel group",
+   "cancelTitle": "Cancel fan-out group",
+   "confirmCancel": "Cancel fan-out group {{id}}? Members still running are cancelled, and the parent run sees the group as Cancelled.",
+   "cancelledToast": "Fan-out group {{id}} was cancelled.",
+   "columns": {
+    "label": "Label",
+    "agent": "Agent",
+    "status": "Status",
+    "costUsd": "Cost",
+    "tokens": "Tokens",
+    "run": "Run"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "The parent run finished or was cancelled.",
+   "fanOutCostExceeded": "The members spent {{cost}} USD, over the budget of {{budget}} USD.",
+   "fanOutTokensExceeded": "The members used {{tokens}} tokens, over the budget of {{budget}}.",
+   "fanOutTimedOut": "The group's timeout of {{seconds}} seconds passed with {{running}} members still running.",
+   "fanOutAnySucceeded": "A member succeeded.",
+   "fanOutNoneSucceeded": "Every member finished and none succeeded.",
+   "fanOutQuorumMet": "{{succeeded}} members succeeded, meeting the quorum of {{quorum}}.",
+   "fanOutQuorumUnreachable": "Too many members failed for the quorum of {{quorum}} to be met.",
+   "fanOutAllFinished": "Every member finished.",
+   "fanOutCancelledByTool": "Cancelled by the parent run with garrison_cancel_fan_out.",
+   "fanOutCancelledBy": "Cancelled by {{who}}."
+  }
+ }
+});

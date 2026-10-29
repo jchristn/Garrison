@@ -3270,3 +3270,89 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "執行中",
+   "Joined": "已匯合",
+   "TimedOut": "已逾時",
+   "BudgetExceeded": "超出預算",
+   "Cancelled": "已取消"
+  },
+  "fanOutJoinPolicy": {
+   "All": "全部",
+   "Any": "任一",
+   "Quorum": "法定數"
+  },
+  "resourceType": {
+   "FanOutGroup": "扇出群組"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "扇出群組"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "扇出群組",
+   "groupTitle": "扇出群組 {{id}}",
+   "otherChildren": "其他子執行",
+   "detailsUnavailable": "無法載入此群組的詳細資料，因此只列出其成員執行。",
+   "policy": "匯合策略",
+   "quorumPolicy": "{{policy}}：{{total}} 個中 {{quorum}} 個",
+   "progress": "進度",
+   "progressValue": "{{total}} 個中已結束 {{finished}} 個，成功 {{succeeded}} 個",
+   "cost": "費用",
+   "tokens": "Token 數",
+   "usedOf": "{{used}} / {{limit}}",
+   "noLimit": "{{used}}（無上限）",
+   "deadline": "截止時間",
+   "noDeadline": "無",
+   "started": "開始時間",
+   "completed": "結束時間",
+   "pending": "仍在執行：{{labels}}",
+   "failed": "未成功：{{labels}}",
+   "live": "即時",
+   "polling": "定時重新整理",
+   "cancel": "取消群組",
+   "cancelTitle": "取消扇出群組",
+   "confirmCancel": "要取消扇出群組 {{id}} 嗎？仍在執行的成員會被取消，上層執行會看到此群組已取消。",
+   "cancelledToast": "已取消扇出群組 {{id}}。",
+   "columns": {
+    "label": "標籤",
+    "agent": "代理程式",
+    "status": "狀態",
+    "costUsd": "費用",
+    "tokens": "Token 數",
+    "run": "執行"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "上層執行已結束或已被取消。",
+   "fanOutCostExceeded": "成員花費了 {{cost}} USD，超出 {{budget}} USD 的預算。",
+   "fanOutTokensExceeded": "成員使用了 {{tokens}} 個 Token，超出 {{budget}} 的預算。",
+   "fanOutTimedOut": "此群組 {{seconds}} 秒的逾時已到，仍有 {{running}} 個成員在執行。",
+   "fanOutAnySucceeded": "有一個成員成功了。",
+   "fanOutNoneSucceeded": "所有成員都已結束，沒有一個成功。",
+   "fanOutQuorumMet": "{{succeeded}} 個成員成功，達到法定數 {{quorum}}。",
+   "fanOutQuorumUnreachable": "失敗的成員太多，已無法達到法定數 {{quorum}}。",
+   "fanOutAllFinished": "所有成員都已結束。",
+   "fanOutCancelledByTool": "上層執行透過 garrison_cancel_fan_out 取消了此群組。",
+   "fanOutCancelledBy": "由 {{who}} 取消。"
+  }
+ }
+});

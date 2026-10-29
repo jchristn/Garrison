@@ -3304,3 +3304,89 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "Läuft",
+   "Joined": "Zusammengeführt",
+   "TimedOut": "Zeit überschritten",
+   "BudgetExceeded": "Budget überschritten",
+   "Cancelled": "Abgebrochen"
+  },
+  "fanOutJoinPolicy": {
+   "All": "Alle",
+   "Any": "Beliebiges",
+   "Quorum": "Quorum"
+  },
+  "resourceType": {
+   "FanOutGroup": "Fan-out-Gruppe"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Fan-out-Gruppe"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "Fan-out-Gruppe",
+   "groupTitle": "Fan-out-Gruppe {{id}}",
+   "otherChildren": "Weitere Unterläufe",
+   "detailsUnavailable": "Die Details der Gruppe konnten nicht geladen werden, daher sind nur ihre Mitgliedsläufe aufgeführt.",
+   "policy": "Zusammenführungsregel",
+   "quorumPolicy": "{{policy}}: {{quorum}} von {{total}}",
+   "progress": "Fortschritt",
+   "progressValue": "{{finished}} von {{total}} beendet, {{succeeded}} erfolgreich",
+   "cost": "Kosten",
+   "tokens": "Token",
+   "usedOf": "{{used}} von {{limit}}",
+   "noLimit": "{{used}} (ohne Limit)",
+   "deadline": "Frist",
+   "noDeadline": "Keine",
+   "started": "Gestartet",
+   "completed": "Beendet",
+   "pending": "Läuft noch: {{labels}}",
+   "failed": "Nicht erfolgreich: {{labels}}",
+   "live": "Live",
+   "polling": "Abfrage",
+   "cancel": "Gruppe abbrechen",
+   "cancelTitle": "Fan-out-Gruppe abbrechen",
+   "confirmCancel": "Fan-out-Gruppe {{id}} abbrechen? Noch laufende Mitglieder werden abgebrochen, und der übergeordnete Lauf sieht die Gruppe als abgebrochen.",
+   "cancelledToast": "Fan-out-Gruppe {{id}} wurde abgebrochen.",
+   "columns": {
+    "label": "Bezeichnung",
+    "agent": "Agent",
+    "status": "Status",
+    "costUsd": "Kosten",
+    "tokens": "Token",
+    "run": "Lauf"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "Der übergeordnete Lauf ist beendet oder wurde abgebrochen.",
+   "fanOutCostExceeded": "Die Mitglieder haben {{cost}} USD ausgegeben, mehr als das Budget von {{budget}} USD.",
+   "fanOutTokensExceeded": "Die Mitglieder haben {{tokens}} Token verbraucht, mehr als das Budget von {{budget}}.",
+   "fanOutTimedOut": "Das Zeitlimit der Gruppe von {{seconds}} Sekunden ist abgelaufen, während noch {{running}} Mitglieder liefen.",
+   "fanOutAnySucceeded": "Ein Mitglied war erfolgreich.",
+   "fanOutNoneSucceeded": "Alle Mitglieder sind beendet, keines war erfolgreich.",
+   "fanOutQuorumMet": "{{succeeded}} Mitglieder waren erfolgreich, damit ist das Quorum von {{quorum}} erreicht.",
+   "fanOutQuorumUnreachable": "Zu viele Mitglieder sind gescheitert, um das Quorum von {{quorum}} noch zu erreichen.",
+   "fanOutAllFinished": "Alle Mitglieder sind beendet.",
+   "fanOutCancelledByTool": "Vom übergeordneten Lauf mit garrison_cancel_fan_out abgebrochen.",
+   "fanOutCancelledBy": "Abgebrochen von {{who}}."
+  }
+ }
+});

@@ -2604,3 +2604,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "此修订使用能力 {{name}}。智能体通过此名称在目录中找到它。"
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "该组正在等待其成员。满足汇合策略、到达截止时间、用完预算或有人取消时，该组结束。",
+   "Joined": "已满足汇合策略，或所有成员都已结束，因此父运行可以使用成员的结果。",
+   "TimedOut": "在满足汇合策略之前已到截止时间。仍在运行的成员已被取消。",
+   "BudgetExceeded": "成员的费用或 Token 数超出了该组的预算。仍在运行的成员已被取消。",
+   "Cancelled": "有人取消了该组，或其父运行已结束或被取消。仍在运行的成员已被取消。"
+  },
+  "fanOutJoinPolicy": {
+   "All": "每个成员都结束后该组汇合，无论是否成功。",
+   "Any": "只要有一个成员成功，该组就汇合。除非调用要求保留，其余成员会被取消。",
+   "Quorum": "指定数量的成员成功后该组汇合；如果失败的成员多到无法达到该数量，也会立即汇合。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "此运行所属的扇出组。父运行将它与其他成员一起启动，并汇合它们的结果。",
+   "openFanOutGroup": "在父运行的运行树中打开此扇出组，查看其他成员、汇合策略和预算。"
+  }
+ },
+ "fanOut": {
+  "group": "此运行通过 garrison_fan_out 一起启动的子运行，按同一策略、预算和截止时间汇合。",
+  "otherChildren": "此运行在扇出组之外逐个委派的子运行。",
+  "reason": "该组结束的原因，按服务器记录显示。",
+  "policy": "该组何时算作完成：全部等待每个成员，任一等待一次成功，法定数等待指定次数的成功。",
+  "progress": "已结束的成员数、成功的成员数，以及组内成员总数。",
+  "cost": "成员目前记录的费用；如果该组设置了最高费用，则与之对比显示。",
+  "costValue": "所有成员记录的费用总和。模型没有价格的成员不计入。",
+  "tokens": "成员目前使用的输入和输出 Token；如果该组设置了上限，则与之对比显示。",
+  "tokensValue": "所有成员的输入 Token 与输出 Token 之和。",
+  "budgetBar": "已使用预算的 {{percent}}%。用量超出预算时，该组以超出预算结束。",
+  "deadline": "该组超时的时间。届时仍在运行的成员会被取消。",
+  "started": "父运行启动此组的时间。",
+  "completed": "该组结束并停止等待成员的时间。",
+  "pending": "尚未结束的成员的标签。",
+  "failed": "结束但未成功的成员的标签。",
+  "live": "成员状态或该组用量一有变化，更新就会通过实时连接送达。",
+  "polling": "实时连接不可用，因此每 {{seconds}} 秒重新加载一次该组。",
+  "cancel": "立即取消此组。仍在运行的成员会被取消，父运行会收到目前已汇集的结果。",
+  "confirmCancel": "取消该组以及所有仍在运行的成员。此操作无法撤销。",
+  "openMember": "打开成员 {{label}} 的运行，查看其记录、结果和遥测数据。",
+  "columns": {
+   "label": "父运行在启动该组时为此成员取的名称。",
+   "agent": "此成员运行的代理，由父运行选择。",
+   "status": "成员运行的当前状态，以及结束时的结果。",
+   "costUsd": "此成员运行记录的费用。",
+   "tokens": "此成员运行使用的输入和输出 Token。",
+   "run": "成员的运行。打开即可查看记录和结果。"
+  }
+ }
+});

@@ -1251,6 +1251,24 @@ class ApiClient {
     return this._list(this._t(tenantId, `runs/${enc(id)}/children`), {});
   }
 
+  // ------------------------------------------------------------------ fan-out groups (AD5)
+
+  /** The fan-out groups a run started, oldest first (a plain array of FanOutGroupView). */
+  async listRunFanOutGroups(tenantId, id) {
+    const res = await this._request('GET', this._t(tenantId, `runs/${enc(id)}/fan-out-groups`));
+    return Array.isArray(res) ? res : Array.isArray(res?.objects) ? res.objects : [];
+  }
+
+  /** One fan-out group with its members' state and results (FanOutGroupView). */
+  getFanOutGroup(tenantId, groupId) {
+    return this._request('GET', this._t(tenantId, `fan-out-groups/${enc(groupId)}`));
+  }
+
+  /** Cancel a running fan-out group; members still running are cancelled. Answers the group as it is now. */
+  cancelFanOutGroup(tenantId, groupId) {
+    return this._request('POST', this._t(tenantId, `fan-out-groups/${enc(groupId)}/cancel`));
+  }
+
   /**
    * Stream run events over SSE using fetch (EventSource cannot send the bearer header). Calls onEvent for each
    * parsed data payload. Returns an AbortController; abort() stops the stream.

@@ -1403,6 +1403,85 @@ function fileSpaceRoutes(method, url, parts) {
   return undefined;
 }
 
+// ---------------------------------------------------------------- fan-out groups (AD5.8)
+
+/** run_0044 (Running) started two fan-out groups: fog_0001 (Any, joined) and fog_0002 (Quorum of 2, three members, running). */
+export const FAN_OUT_PARENT_RUN = 'run_0044';
+
+const FAN_OUT_MEMBERS = {
+  fog_0001: [
+    { label: 'draft', agent: 'writer-agent', run: 64, status: 'Succeeded', outcome: 'Succeeded', costUsd: 0.03, tokens: 2100, resultText: 'Draft written to files/draft.md.', filesWritten: ['draft.md'] },
+    { label: 'outline', agent: 'writer-agent', run: 65, status: 'Failed', outcome: 'HarnessFailed', costUsd: 0.01, tokens: 600, errorMessage: 'Harness reported failure.' }
+  ],
+  fog_0002: [
+    { label: 'pricing', agent: 'research-agent', run: 61, status: 'Succeeded', outcome: 'Succeeded', costUsd: 0.12, tokens: 4200, resultText: 'Three pricing tiers found.', filesWritten: ['notes/pricing.md'] },
+    { label: 'reviews', agent: 'research-agent', run: 62, status: 'Running', outcome: 'None', costUsd: 0.05, tokens: 1800 },
+    { label: 'competitors', agent: 'echo-agent', run: 63, status: 'Queued', outcome: 'None', tokens: 0 }
+  ]
+};
+
+/** One member as FanOutMemberView (null fields omitted, as the server sends them). */
+function fanOutMember(m) {
+  const out = { label: m.label, agent: m.agent, runId: `run_${pad(m.run)}`, status: m.status, resultTruncated: false, filesWritten: m.filesWritten || [], tokens: m.tokens };
+  if (m.outcome) out.outcome = m.outcome;
+  if (m.resultText) out.resultText = m.resultText;
+  if (m.errorMessage) out.errorMessage = m.errorMessage;
+  if (m.costUsd !== undefined) out.costUsd = m.costUsd;
+  return out;
+}
+
+/** GET /fan-out-groups/{id}: FanOutGroupView. */
+export function fanOutGroup(id) {
+  const key = FAN_OUT_MEMBERS[id] ? id : 'fog_0002';
+  const rows = FAN_OUT_MEMBERS[key];
+  const members = rows.map(fanOutMember);
+  const finished = rows.filter((m) => !['Queued', 'Running'].includes(m.status));
+  const base = {
+    fanOutGroupId: id,
+    parentRunId: FAN_OUT_PARENT_RUN,
+    total: rows.length,
+    finished: finished.length,
+    succeeded: rows.filter((m) => m.status === 'Succeeded').length,
+    pending: rows.filter((m) => !finished.includes(m)).map((m) => m.label),
+    failed: finished.filter((m) => m.status !== 'Succeeded').map((m) => m.label),
+    members,
+    costUsd: Math.round(rows.reduce((sum, m) => sum + (m.costUsd || 0), 0) * 100) / 100,
+    tokens: rows.reduce((sum, m) => sum + m.tokens, 0)
+  };
+  if (key === 'fog_0001') return { ...base, status: 'Joined', statusReason: 'A member succeeded.', joinPolicy: 'Any', quorum: 1, createdUtc: iso(40), completedUtc: iso(36) };
+  return { ...base, status: 'Running', joinPolicy: 'Quorum', quorum: 2, maxCostUsd: 0.5, maxTokens: 20000, deadlineUtc: iso(-25), createdUtc: iso(5) };
+}
+
+/** The member runs of run_0044's groups, shaped like Run records (children of the parent). */
+export function fanOutMemberRuns() {
+  return Object.entries(FAN_OUT_MEMBERS).flatMap(([groupId, rows]) => rows.map((m) => fanOutMemberRun(groupId, m)));
+}
+
+function fanOutMemberRun(groupId, m) {
+  const id = `run_${pad(m.run)}`;
+  return { ...FACTORIES.runs(m.run), id, agentName: m.agent, status: m.status, outcome: m.outcome || 'None', kind: 'Delegated', depth: 1, parentRunId: FAN_OUT_PARENT_RUN, rootRunId: FAN_OUT_PARENT_RUN, fanOutGroupId: groupId, costUsd: m.costUsd ?? null };
+}
+
+function fanOutRoutes(method, url, parts) {
+  if (parts[0] === 'runs' && parts[2] === 'fan-out-groups') return parts[1] === FAN_OUT_PARENT_RUN ? ['fog_0001', 'fog_0002'].map(fanOutGroup) : [];
+  if (parts[0] === 'runs' && parts[2] === 'children' && parts[1] === FAN_OUT_PARENT_RUN) {
+    const objects = [...fanOutMemberRuns(), { ...FACTORIES.runs(4), id: 'run_child', kind: 'Delegated', depth: 1, parentRunId: FAN_OUT_PARENT_RUN, rootRunId: FAN_OUT_PARENT_RUN }];
+    return { success: true, maxResults: 100, skip: 0, totalRecords: objects.length, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects };
+  }
+  if (parts[0] === 'runs' && parts.length === 2 && method === 'GET') {
+    const member = fanOutMemberRuns().find((r) => r.id === parts[1]);
+    if (member) return member;
+  }
+  if (parts[0] !== 'fan-out-groups') return undefined;
+  const group = fanOutGroup(parts[1]);
+  if (parts[2] === 'cancel') {
+    if (group.status !== 'Running') return group;
+    const members = group.members.map((m) => (['Queued', 'Running'].includes(m.status) ? { ...m, status: 'Cancelled', outcome: 'Cancelled' } : m));
+    return { ...group, members, status: 'Cancelled', statusReason: 'Cancelled by admin@garrison.', finished: group.total, pending: [], failed: members.filter((m) => m.status !== 'Succeeded').map((m) => m.label), completedUtc: iso(0) };
+  }
+  return parts.length === 2 ? group : undefined;
+}
+
 function revisionRoutes(method, url, parts) {
   if (parts[0] === 'environments' && parts.length === 1) return ENVIRONMENTS;
   if (parts[0] === 'promotions') {
@@ -1856,6 +1935,8 @@ export function respond(method, url) {
     }
     if (collection === 'conversations' && parts.length === 2 && method === 'GET') return { ...FACTORIES.conversations(/^cnv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1), id: parts[1] };
     if (collection === 'usage-quotas' && parts[2] === 'usage') return { quotaId: parts[1], windowStartUtc: iso(0), windowEndUtc: iso(1440), runsUsed: 10, tokensUsed: 1000, costUsd: 0.25, unknownCostRuns: 2, activeRuns: 1, costAccountingComplete: false };
+    const fannedOut = fanOutRoutes(method, url, parts);
+    if (fannedOut !== undefined) return fannedOut;
     if (collection === 'runs' && parts[2] === 'children') return { success: true, maxResults: 100, skip: 0, totalRecords: 1, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: [{ ...FACTORIES.runs(4), id: 'run_child', kind: 'Delegated', depth: 1, parentRunId: parts[1], rootRunId: parts[1] }] };
     // run_0003 style IDs map to that factory row; any other ID gets run 7 (a failed run carrying every field).
     if (collection === 'runs' && parts.length === 2 && method === 'GET') return { ...FACTORIES.runs(/^run_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 7), id: parts[1] };

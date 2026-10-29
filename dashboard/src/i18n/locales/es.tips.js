@@ -2607,3 +2607,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "Esta revisión usa la capacidad {{name}}. Los agentes la encuentran en el catálogo por este nombre."
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "El grupo espera a sus miembros. Termina cuando se cumple la política de reunión, vence el plazo, se agota el presupuesto o alguien lo cancela.",
+   "Joined": "Se cumplió la política de reunión, o terminaron todos los miembros, así que la ejecución principal puede usar sus resultados.",
+   "TimedOut": "El plazo venció antes de que se cumpliera la política de reunión. Se cancelaron los miembros que seguían en ejecución.",
+   "BudgetExceeded": "El costo o los tokens de los miembros superaron el presupuesto del grupo. Se cancelaron los miembros que seguían en ejecución.",
+   "Cancelled": "Alguien canceló el grupo, o su ejecución principal terminó o se canceló. Se cancelaron los miembros que seguían en ejecución."
+  },
+  "fanOutJoinPolicy": {
+   "All": "El grupo se reúne cuando todos los miembros terminan, con éxito o sin él.",
+   "Any": "El grupo se reúne en cuanto un miembro tiene éxito. Los demás se cancelan salvo que la llamada pidiera mantenerlos en ejecución.",
+   "Quorum": "El grupo se reúne cuando tiene éxito el número indicado de miembros, o en cuanto fallan tantos que ya no es posible."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "El grupo de fan-out al que pertenece esta ejecución. Su ejecución principal lo inició junto con otros miembros y reúne sus resultados.",
+   "openFanOutGroup": "Abrir el árbol de ejecuciones de la ejecución principal en este grupo de fan-out para ver los otros miembros, la política y el presupuesto."
+  }
+ },
+ "fanOut": {
+  "group": "Ejecuciones secundarias que esta ejecución inició juntas con garrison_fan_out, reunidas bajo una política, un presupuesto y un plazo.",
+  "otherChildren": "Ejecuciones secundarias a las que esta ejecución delegó de una en una, fuera de cualquier grupo de fan-out.",
+  "reason": "Por qué terminó el grupo, según lo registró el servidor.",
+  "policy": "Cuándo se da el grupo por terminado: Todos espera a cada miembro, Cualquiera a un éxito y Quórum al número indicado de éxitos.",
+  "progress": "Miembros que terminaron, miembros con éxito y el número de miembros del grupo.",
+  "cost": "Costo registrado por los miembros hasta ahora, frente al costo máximo del grupo cuando hay uno.",
+  "costValue": "Costo total registrado de todos los miembros. Los miembros cuyo modelo no tiene precio no suman nada.",
+  "tokens": "Tokens de entrada y salida usados por los miembros hasta ahora, frente al máximo del grupo cuando hay uno.",
+  "tokensValue": "Tokens de entrada más tokens de salida de todos los miembros juntos.",
+  "budgetBar": "{{percent}} % del presupuesto usado. El grupo termina como Presupuesto superado cuando el uso lo rebasa.",
+  "deadline": "Cuándo se agota el tiempo del grupo. Los miembros que sigan en ejecución en ese momento se cancelan.",
+  "started": "Cuándo la ejecución principal inició este grupo.",
+  "completed": "Cuándo terminó el grupo y dejó de esperar a los miembros.",
+  "pending": "Etiquetas de los miembros que todavía no han terminado.",
+  "failed": "Etiquetas de los miembros que terminaron sin éxito.",
+  "live": "Las actualizaciones llegan por la conexión en vivo en cuanto cambia el estado de un miembro o el uso del grupo.",
+  "polling": "La conexión en vivo no está disponible, así que el grupo se vuelve a cargar cada {{seconds}} segundos.",
+  "cancel": "Cancelar este grupo ahora. Los miembros que siguen en ejecución se cancelan y la ejecución principal recibe los resultados reunidos hasta el momento.",
+  "confirmCancel": "Cancelar el grupo y todos los miembros que siguen en ejecución. No se puede deshacer.",
+  "openMember": "Abrir la ejecución del miembro {{label}} para ver su transcripción, su resultado y su telemetría.",
+  "columns": {
+   "label": "El nombre que la ejecución principal dio a este miembro al iniciar el grupo.",
+   "agent": "El agente que ejecuta este miembro, elegido por la ejecución principal.",
+   "status": "En qué punto está la ejecución del miembro y cómo terminó.",
+   "costUsd": "Costo registrado de la ejecución de este miembro.",
+   "tokens": "Tokens de entrada y salida que usó la ejecución de este miembro.",
+   "run": "La ejecución del miembro. Ábrala para ver la transcripción y el resultado."
+  }
+ }
+});

@@ -1223,3 +1223,15 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .capability-row-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--spacing-xs); flex-wrap: wrap; }
 .capability-add { display: flex; gap: var(--spacing-sm); align-items: center; margin-top: var(--spacing-sm); flex-wrap: wrap; }
 .capability-add select { min-width: 16rem; max-width: 100%; }
+
+/* ================= Fan-out groups in the run tree (AD5.8) ================= */
+.fanout-group { border: 1px solid var(--color-border); border-inline-start: 3px solid var(--color-primary); border-radius: var(--radius-sm); padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); scroll-margin-top: var(--spacing-lg, 1.5rem); }
+.fanout-group.is-highlighted { box-shadow: 0 0 0 2px var(--color-primary-soft); }
+.fanout-group-header { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; justify-content: space-between; }
+.fanout-group-header .section-title { display: inline-flex; align-items: center; gap: var(--spacing-xs); margin: 0; min-width: 0; }
+.fanout-summary { margin: 0; }
+.fanout-labels { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin: 0; color: var(--color-text-secondary); }
+.fanout-budget { display: inline-flex; flex-direction: column; gap: 0.25rem; min-width: 8rem; }
+.fanout-budget-bar { display: block; height: 6px; border-radius: 3px; background: var(--color-surface-alt); overflow: hidden; }
+.fanout-budget-fill { display: block; height: 100%; background: var(--color-primary); }
+.fanout-budget-bar.is-over .fanout-budget-fill { background: var(--color-danger); }

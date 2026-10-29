@@ -2607,3 +2607,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "Questa revisione usa la capacità {{name}}. Gli agenti la trovano nel catalogo con questo nome."
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "Il gruppo attende i suoi membri. Termina quando la regola di riunione è soddisfatta, la scadenza passa, il budget si esaurisce o qualcuno lo annulla.",
+   "Joined": "La regola di riunione è soddisfatta, oppure tutti i membri sono terminati, quindi l'esecuzione padre può usarne i risultati.",
+   "TimedOut": "La scadenza è passata prima che la regola di riunione fosse soddisfatta. I membri ancora in esecuzione sono stati annullati.",
+   "BudgetExceeded": "Il costo o i token dei membri hanno superato il budget del gruppo. I membri ancora in esecuzione sono stati annullati.",
+   "Cancelled": "Qualcuno ha annullato il gruppo, oppure la sua esecuzione padre è terminata o è stata annullata. I membri ancora in esecuzione sono stati annullati."
+  },
+  "fanOutJoinPolicy": {
+   "All": "Il gruppo si riunisce quando ogni membro è terminato, riuscito o no.",
+   "Any": "Il gruppo si riunisce non appena un membro riesce. Gli altri vengono annullati, a meno che la chiamata non abbia chiesto di lasciarli in esecuzione.",
+   "Quorum": "Il gruppo si riunisce quando riesce il numero indicato di membri, oppure non appena ne falliscono così tanti che non è più possibile."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Il gruppo di fan-out a cui appartiene questa esecuzione. L'esecuzione padre lo ha avviato insieme ad altri membri e ne riunisce i risultati.",
+   "openFanOutGroup": "Aprire l'albero delle esecuzioni dell'esecuzione padre su questo gruppo di fan-out per vedere gli altri membri, la regola e il budget."
+  }
+ },
+ "fanOut": {
+  "group": "Esecuzioni figlie che questa esecuzione ha avviato insieme con garrison_fan_out, riunite sotto una regola, un budget e una scadenza.",
+  "otherChildren": "Esecuzioni figlie a cui questa esecuzione ha delegato una alla volta, fuori da qualsiasi gruppo di fan-out.",
+  "reason": "Perché il gruppo è terminato, come lo ha registrato il server.",
+  "policy": "Quando il gruppo è considerato concluso: Tutti attende ogni membro, Uno qualsiasi un successo, Quorum il numero di successi indicato.",
+  "progress": "Membri terminati, membri riusciti e numero di membri del gruppo.",
+  "cost": "Costo registrato finora dai membri, rispetto al costo massimo del gruppo quando è impostato.",
+  "costValue": "Costo totale registrato di tutti i membri. I membri il cui modello non ha un prezzo non aggiungono nulla.",
+  "tokens": "Token di input e di output usati finora dai membri, rispetto al massimo del gruppo quando è impostato.",
+  "tokensValue": "Token di input più token di output di tutti i membri insieme.",
+  "budgetBar": "{{percent}}% del budget usato. Il gruppo termina come Budget superato quando il consumo lo oltrepassa.",
+  "deadline": "Quando scade il tempo del gruppo. I membri ancora in esecuzione in quel momento vengono annullati.",
+  "started": "Quando l'esecuzione padre ha avviato questo gruppo.",
+  "completed": "Quando il gruppo è terminato e ha smesso di attendere i membri.",
+  "pending": "Etichette dei membri non ancora terminati.",
+  "failed": "Etichette dei membri terminati senza successo.",
+  "live": "Gli aggiornamenti arrivano dalla connessione in tempo reale appena cambia lo stato di un membro o il consumo del gruppo.",
+  "polling": "La connessione in tempo reale non è disponibile, quindi il gruppo viene ricaricato ogni {{seconds}} secondi.",
+  "cancel": "Annullare subito questo gruppo. I membri ancora in esecuzione vengono annullati e l'esecuzione padre riceve i risultati raccolti finora.",
+  "confirmCancel": "Annullare il gruppo e ogni membro ancora in esecuzione. Non si può annullare.",
+  "openMember": "Aprire l'esecuzione del membro {{label}} per vederne trascrizione, risultato e telemetria.",
+  "columns": {
+   "label": "Il nome che l'esecuzione padre ha dato a questo membro all'avvio del gruppo.",
+   "agent": "L'agente eseguito da questo membro, scelto dall'esecuzione padre.",
+   "status": "A che punto è l'esecuzione del membro e come è terminata.",
+   "costUsd": "Costo registrato dell'esecuzione di questo membro.",
+   "tokens": "Token di input e di output usati dall'esecuzione di questo membro.",
+   "run": "L'esecuzione del membro. Aprila per la trascrizione e il risultato."
+  }
+ }
+});

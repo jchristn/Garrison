@@ -2605,3 +2605,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "呢個修訂用到能力 {{name}}。代理程式會喺目錄用呢個名搵到佢。"
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "呢個組等緊佢嘅成員。符合匯合策略、到咗截止時間、用晒預算或者有人取消嗰陣，個組就會結束。",
+   "Joined": "已經符合匯合策略，或者所有成員都完咗，所以上層執行可以用成員嘅結果。",
+   "TimedOut": "未符合匯合策略之前已經到咗截止時間。仲執行緊嘅成員已經被取消。",
+   "BudgetExceeded": "成員嘅費用或者 Token 數超出咗個組嘅預算。仲執行緊嘅成員已經被取消。",
+   "Cancelled": "有人取消咗呢個組，或者佢嘅上層執行完咗或者被取消咗。仲執行緊嘅成員已經被取消。"
+  },
+  "fanOutJoinPolicy": {
+   "All": "每個成員都完咗之後個組先匯合，唔理成唔成功。",
+   "Any": "只要有一個成員成功，個組就匯合。除非呼叫要求保留，其餘成員會被取消。",
+   "Quorum": "指定數量嘅成員成功之後個組就匯合；如果失敗嘅成員多到冇可能夠數，都會即刻匯合。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "呢個執行所屬嘅扇出組。上層執行將佢同其他成員一齊啟動，再匯合佢哋嘅結果。",
+   "openFanOutGroup": "喺上層執行嘅執行樹度打開呢個扇出組，睇其他成員、匯合策略同預算。"
+  }
+ },
+ "fanOut": {
+  "group": "呢個執行用 garrison_fan_out 一齊啟動嘅子執行，按同一個策略、預算同截止時間匯合。",
+  "otherChildren": "呢個執行喺扇出組以外逐個委派嘅子執行。",
+  "reason": "呢個組點解結束，按伺服器記錄顯示。",
+  "policy": "個組幾時算完成：全部等每個成員，任何一個等一次成功，法定數等指定次數嘅成功。",
+  "progress": "完咗嘅成員數、成功嘅成員數，同埋組入面嘅成員總數。",
+  "cost": "成員到而家記錄嘅費用；如果個組設咗最高費用，就同佢對照顯示。",
+  "costValue": "所有成員記錄嘅費用總和。模型冇價錢嘅成員唔計。",
+  "tokens": "成員到而家用咗嘅輸入同輸出 Token；如果個組設咗上限，就同佢對照顯示。",
+  "tokensValue": "所有成員嘅輸入 Token 加輸出 Token。",
+  "budgetBar": "用咗預算嘅 {{percent}}%。用量超出預算嗰陣，個組會以超出預算結束。",
+  "deadline": "個組逾時嘅時間。到時仲執行緊嘅成員會被取消。",
+  "started": "上層執行啟動呢個組嘅時間。",
+  "completed": "個組結束同停止等成員嘅時間。",
+  "pending": "仲未完嘅成員嘅標籤。",
+  "failed": "完咗但係唔成功嘅成員嘅標籤。",
+  "live": "成員狀態或者個組用量一有變，更新就會經即時連線送到。",
+  "polling": "即時連線用唔到，所以每 {{seconds}} 秒重新載入一次個組。",
+  "cancel": "即刻取消呢個組。仲執行緊嘅成員會被取消，上層執行會收到到而家匯集到嘅結果。",
+  "confirmCancel": "取消呢個組同所有仲執行緊嘅成員。呢個動作冇得還原。",
+  "openMember": "打開成員 {{label}} 嘅執行，睇佢嘅紀錄、結果同遙測資料。",
+  "columns": {
+   "label": "上層執行啟動個組嗰陣幫呢個成員改嘅名。",
+   "agent": "呢個成員執行嘅代理，由上層執行揀。",
+   "status": "成員執行而家嘅狀態，同埋完咗嗰陣嘅結果。",
+   "costUsd": "呢個成員執行記錄嘅費用。",
+   "tokens": "呢個成員執行用咗嘅輸入同輸出 Token。",
+   "run": "成員嘅執行。打開就可以睇紀錄同結果。"
+  }
+ }
+});

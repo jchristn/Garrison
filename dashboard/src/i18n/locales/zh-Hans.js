@@ -3270,3 +3270,89 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "运行中",
+   "Joined": "已汇合",
+   "TimedOut": "已超时",
+   "BudgetExceeded": "超出预算",
+   "Cancelled": "已取消"
+  },
+  "fanOutJoinPolicy": {
+   "All": "全部",
+   "Any": "任一",
+   "Quorum": "法定数"
+  },
+  "resourceType": {
+   "FanOutGroup": "扇出组"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "扇出组"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "扇出组",
+   "groupTitle": "扇出组 {{id}}",
+   "otherChildren": "其他子运行",
+   "detailsUnavailable": "无法加载该组的详细信息，因此只列出其成员运行。",
+   "policy": "汇合策略",
+   "quorumPolicy": "{{policy}}：{{total}} 个中 {{quorum}} 个",
+   "progress": "进度",
+   "progressValue": "{{total}} 个中已结束 {{finished}} 个，成功 {{succeeded}} 个",
+   "cost": "费用",
+   "tokens": "Token 数",
+   "usedOf": "{{used}} / {{limit}}",
+   "noLimit": "{{used}}（无上限）",
+   "deadline": "截止时间",
+   "noDeadline": "无",
+   "started": "开始时间",
+   "completed": "结束时间",
+   "pending": "仍在运行：{{labels}}",
+   "failed": "未成功：{{labels}}",
+   "live": "实时",
+   "polling": "定时刷新",
+   "cancel": "取消组",
+   "cancelTitle": "取消扇出组",
+   "confirmCancel": "要取消扇出组 {{id}} 吗？仍在运行的成员会被取消，父运行会看到该组已取消。",
+   "cancelledToast": "已取消扇出组 {{id}}。",
+   "columns": {
+    "label": "标签",
+    "agent": "代理",
+    "status": "状态",
+    "costUsd": "费用",
+    "tokens": "Token 数",
+    "run": "运行"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "父运行已结束或已被取消。",
+   "fanOutCostExceeded": "成员花费了 {{cost}} USD，超出了 {{budget}} USD 的预算。",
+   "fanOutTokensExceeded": "成员使用了 {{tokens}} 个 Token，超出了 {{budget}} 的预算。",
+   "fanOutTimedOut": "该组 {{seconds}} 秒的超时已到，仍有 {{running}} 个成员在运行。",
+   "fanOutAnySucceeded": "有一个成员成功了。",
+   "fanOutNoneSucceeded": "所有成员都已结束，没有一个成功。",
+   "fanOutQuorumMet": "{{succeeded}} 个成员成功，达到了法定数 {{quorum}}。",
+   "fanOutQuorumUnreachable": "失败的成员太多，已无法达到法定数 {{quorum}}。",
+   "fanOutAllFinished": "所有成员都已结束。",
+   "fanOutCancelledByTool": "父运行通过 garrison_cancel_fan_out 取消了该组。",
+   "fanOutCancelledBy": "由 {{who}} 取消。"
+  }
+ }
+});

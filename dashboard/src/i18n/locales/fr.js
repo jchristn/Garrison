@@ -3318,3 +3318,89 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "En cours",
+   "Joined": "Rassemblé",
+   "TimedOut": "Délai dépassé",
+   "BudgetExceeded": "Budget dépassé",
+   "Cancelled": "Annulé"
+  },
+  "fanOutJoinPolicy": {
+   "All": "Tous",
+   "Any": "N'importe lequel",
+   "Quorum": "Quorum"
+  },
+  "resourceType": {
+   "FanOutGroup": "Groupe de fan-out"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Groupe de fan-out"
+  }
+ },
+ "components": {
+  "fanOut": {
+   "group": "Groupe de fan-out",
+   "groupTitle": "Groupe de fan-out {{id}}",
+   "otherChildren": "Autres exécutions enfants",
+   "detailsUnavailable": "Les détails du groupe n'ont pas pu être chargés ; seules ses exécutions membres sont listées.",
+   "policy": "Règle de rassemblement",
+   "quorumPolicy": "{{policy}} : {{quorum}} sur {{total}}",
+   "progress": "Avancement",
+   "progressValue": "{{finished}} sur {{total}} terminés, {{succeeded}} réussis",
+   "cost": "Coût",
+   "tokens": "Jetons",
+   "usedOf": "{{used}} sur {{limit}}",
+   "noLimit": "{{used}} (sans limite)",
+   "deadline": "Échéance",
+   "noDeadline": "Aucune",
+   "started": "Démarré",
+   "completed": "Terminé",
+   "pending": "Encore en cours : {{labels}}",
+   "failed": "Sans succès : {{labels}}",
+   "live": "En direct",
+   "polling": "Interrogation",
+   "cancel": "Annuler le groupe",
+   "cancelTitle": "Annuler le groupe de fan-out",
+   "confirmCancel": "Annuler le groupe de fan-out {{id}} ? Les membres encore en cours sont annulés, et l'exécution parente voit le groupe comme annulé.",
+   "cancelledToast": "Le groupe de fan-out {{id}} a été annulé.",
+   "columns": {
+    "label": "Libellé",
+    "agent": "Agent",
+    "status": "État",
+    "costUsd": "Coût",
+    "tokens": "Jetons",
+    "run": "Exécution"
+   }
+  }
+ },
+ "common": {
+  "serverText": {
+   "fanOutParentEnded": "L'exécution parente s'est terminée ou a été annulée.",
+   "fanOutCostExceeded": "Les membres ont dépensé {{cost}} USD, au-delà du budget de {{budget}} USD.",
+   "fanOutTokensExceeded": "Les membres ont utilisé {{tokens}} jetons, au-delà du budget de {{budget}}.",
+   "fanOutTimedOut": "Le délai du groupe de {{seconds}} secondes est écoulé alors que {{running}} membres étaient encore en cours.",
+   "fanOutAnySucceeded": "Un membre a réussi.",
+   "fanOutNoneSucceeded": "Tous les membres sont terminés et aucun n'a réussi.",
+   "fanOutQuorumMet": "{{succeeded}} membres ont réussi, le quorum de {{quorum}} est atteint.",
+   "fanOutQuorumUnreachable": "Trop de membres ont échoué pour atteindre le quorum de {{quorum}}.",
+   "fanOutAllFinished": "Tous les membres sont terminés.",
+   "fanOutCancelledByTool": "Annulé par l'exécution parente avec garrison_cancel_fan_out.",
+   "fanOutCancelledBy": "Annulé par {{who}}."
+  }
+ }
+});

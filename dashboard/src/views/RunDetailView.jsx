@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import RunTimeline from '../components/RunTimeline';
 import ArtifactsView from './ArtifactsView';
@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES, ENUMS } from '../utils/constants';
-import { pathFor } from '../config/navConfig';
+import { pathFor, TAB_PARAM } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatDateTime, formatNumber } from '../i18n/formatters';
 import { runTelemetry, formatMs, formatUsd } from '../utils/telemetry';
@@ -40,6 +40,10 @@ import RunApprovals from '../components/RunApprovals';
 import ApprovalDecideModal from '../components/ApprovalDecideModal';
 import { AwaitingApprovalBadge } from '../components/ApprovalBadges';
 import { errorDetail } from '../utils/errors';
+import RunChildrenTree from '../components/RunChildrenTree';
+
+/** Tabs of the page; `?tab=children&group={fanOutGroupId}` opens the run tree at one fan-out group (AD5.8). */
+const TAB_KEYS = ['artifacts', 'transcript', 'result', 'input', 'stderr', 'children', 'approvals'];
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -79,11 +83,14 @@ export default function RunDetailView({ recordId }) {
   const { tenantId } = useApp();
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get(TAB_PARAM);
+  const highlightGroup = searchParams.get('group');
   const [run, setRun] = useState(null);
   const [events, setEvents] = useState([]);
   const [children, setChildren] = useState([]);
   const [error, setError] = useState(null);
-  const [tab, setTab] = useState('transcript');
+  const [tab, setTab] = useState(TAB_KEYS.includes(requestedTab) ? requestedTab : 'transcript');
   const [filter, setFilter] = useState('all');
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -143,6 +150,11 @@ export default function RunDetailView({ recordId }) {
       .then((r) => setChildren(r.items || []))
       .catch(() => setChildren([]));
   }, [apiClient, tenantId, recordId, loadRun, pollEvents]);
+
+  // A link with ?tab= (a member run's link to its fan-out group) opens that tab, also when the page is already shown.
+  useEffect(() => {
+    if (TAB_KEYS.includes(requestedTab)) setTab(requestedTab);
+  }, [requestedTab, recordId]);
 
   const terminal = run && TERMINAL_RUN_STATUSES.includes(run.status);
 
@@ -338,6 +350,25 @@ export default function RunDetailView({ recordId }) {
             '-'
           )}
         </Detail>
+        {run.fanOutGroupId && (
+          <Detail label={t('views.runDetail.fanOutGroup')} tip={t('tips.views.runDetail.fanOutGroup')}>
+            {run.parentRunId ? (
+              <a
+                href={pathFor('runs', run.parentRunId, { tab: 'children', group: run.fanOutGroupId })}
+                data-testid="run-fan-out-link"
+                {...tip(t('tips.views.runDetail.openFanOutGroup'))}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(pathFor('runs', run.parentRunId, { tab: 'children', group: run.fanOutGroupId }));
+                }}
+              >
+                <code>{run.fanOutGroupId}</code>
+              </a>
+            ) : (
+              <CopyableId value={run.fanOutGroupId} max={40} />
+            )}
+          </Detail>
+        )}
         {run.conversationId && (
           <>
             <Detail label={t('views.runDetail.conversation')} tip={t('tips.views.runDetail.conversation')}>
@@ -521,21 +552,7 @@ export default function RunDetailView({ recordId }) {
           </div>
         )}
         {tab === 'stderr' && <CodeBlock value={run.stderrTail} emptyText={t('views.runDetail.noStderr')} />}
-        {tab === 'children' &&
-          (children.length === 0 ? (
-            <div className="text-muted">{t('views.runDetail.noChildren')}</div>
-          ) : (
-            <ul className="plain-list">
-              {children.map((c) => (
-                <li key={c.id}>
-                  <a href={pathFor('runs', c.id)} {...tip(t('tips.views.runDetail.openChild'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', c.id)); }}>
-                    {c.agentName}
-                  </a>{' '}
-                  <RunStatus status={c.status} t={t} /> <code className="text-muted">{c.id}</code>
-                </li>
-              ))}
-            </ul>
-          ))}
+        {tab === 'children' && <RunChildrenTree runId={recordId} items={children} highlightGroup={highlightGroup} />}
         {tab === 'approvals' && <RunApprovals approvals={approvals} loading={approvalsLoading} error={approvalsError} onDecide={(approval, decision) => setDeciding({ approval, decision })} />}
       </div>
 

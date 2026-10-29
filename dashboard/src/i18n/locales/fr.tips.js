@@ -2607,3 +2607,66 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "revisionName": "Cette révision utilise la capacité {{name}}. Les agents la trouvent dans le catalogue sous ce nom."
  }
 });
+
+// Fan-out groups in the run tree of Run detail: status, join policy, budget, members, and Cancel group (AD5.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "fanOutGroupStatus": {
+   "Running": "Le groupe attend ses membres. Il se termine quand la règle de rassemblement est remplie, que l'échéance passe, que le budget est épuisé ou que quelqu'un l'annule.",
+   "Joined": "La règle de rassemblement est remplie, ou tous les membres sont terminés : l'exécution parente peut utiliser leurs résultats.",
+   "TimedOut": "L'échéance est passée avant que la règle de rassemblement soit remplie. Les membres encore en cours ont été annulés.",
+   "BudgetExceeded": "Le coût ou les jetons des membres ont dépassé le budget du groupe. Les membres encore en cours ont été annulés.",
+   "Cancelled": "Quelqu'un a annulé le groupe, ou son exécution parente s'est terminée ou a été annulée. Les membres encore en cours ont été annulés."
+  },
+  "fanOutJoinPolicy": {
+   "All": "Le groupe se rassemble quand chaque membre est terminé, qu'il ait réussi ou non.",
+   "Any": "Le groupe se rassemble dès qu'un membre réussit. Les autres sont annulés, sauf si l'appel a demandé de les laisser tourner.",
+   "Quorum": "Le groupe se rassemble dès que le nombre indiqué de membres a réussi, ou dès que trop ont échoué pour que ce soit encore possible."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "fanOutGroup": "Le groupe de fan-out auquel appartient cette exécution. Son exécution parente l'a lancé avec d'autres membres et rassemble leurs résultats.",
+   "openFanOutGroup": "Ouvrir l'arbre d'exécutions de l'exécution parente sur ce groupe de fan-out pour voir les autres membres, la règle et le budget."
+  }
+ },
+ "fanOut": {
+  "group": "Exécutions enfants que cette exécution a lancées ensemble avec garrison_fan_out, rassemblées sous une règle, un budget et une échéance.",
+  "otherChildren": "Exécutions enfants auxquelles cette exécution a délégué une par une, hors de tout groupe de fan-out.",
+  "reason": "Pourquoi le groupe s'est terminé, tel que le serveur l'a enregistré.",
+  "policy": "Quand le groupe est considéré comme terminé : Tous attend chaque membre, N'importe lequel un succès, Quorum le nombre de succès indiqué.",
+  "progress": "Membres terminés, membres réussis et nombre de membres du groupe.",
+  "cost": "Coût enregistré par les membres jusqu'ici, rapporté au coût maximal du groupe s'il y en a un.",
+  "costValue": "Coût total enregistré de tous les membres. Les membres dont le modèle n'a pas de prix n'ajoutent rien.",
+  "tokens": "Jetons d'entrée et de sortie utilisés par les membres jusqu'ici, rapportés au maximum du groupe s'il y en a un.",
+  "tokensValue": "Jetons d'entrée plus jetons de sortie de tous les membres réunis.",
+  "budgetBar": "{{percent}} % du budget utilisé. Le groupe se termine en Budget dépassé quand l'usage va au-delà.",
+  "deadline": "Moment où le délai du groupe expire. Les membres encore en cours à cet instant sont annulés.",
+  "started": "Moment où l'exécution parente a lancé ce groupe.",
+  "completed": "Moment où le groupe s'est terminé et a cessé d'attendre ses membres.",
+  "pending": "Libellés des membres qui ne sont pas encore terminés.",
+  "failed": "Libellés des membres qui se sont terminés sans succès.",
+  "live": "Les mises à jour arrivent par la connexion en direct dès que l'état d'un membre ou l'usage du groupe change.",
+  "polling": "La connexion en direct n'est pas disponible, le groupe est donc rechargé toutes les {{seconds}} secondes.",
+  "cancel": "Annuler ce groupe maintenant. Les membres encore en cours sont annulés et l'exécution parente reçoit les résultats rassemblés jusqu'ici.",
+  "confirmCancel": "Annuler le groupe et chaque membre encore en cours. Cette action est irréversible.",
+  "openMember": "Ouvrir l'exécution du membre {{label}} pour voir sa transcription, son résultat et sa télémétrie.",
+  "columns": {
+   "label": "Le nom que l'exécution parente a donné à ce membre en lançant le groupe.",
+   "agent": "L'agent qu'exécute ce membre, choisi par l'exécution parente.",
+   "status": "Où en est l'exécution du membre et comment elle s'est terminée.",
+   "costUsd": "Coût enregistré de l'exécution de ce membre.",
+   "tokens": "Jetons d'entrée et de sortie utilisés par l'exécution de ce membre.",
+   "run": "L'exécution du membre. Ouvrez-la pour la transcription et le résultat."
+  }
+ }
+});
