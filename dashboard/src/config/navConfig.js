@@ -76,6 +76,8 @@ export const NAV_SECTIONS = [
         tabs: [
           { id: 'harnessProfiles', slug: 'harness-profiles' },
           { id: 'promptTemplates', slug: 'prompt-templates', detail: true },
+          // AD2.8: versioned system prompts, skills, reference files, and document templates that agent revisions pin.
+          { id: 'agentAssets', slug: 'agent-assets' },
           { id: 'mcpServers', slug: 'mcp-servers' },
           { id: 'secrets', slug: 'secrets' },
           { id: 'workspaces', slug: 'workspaces' },

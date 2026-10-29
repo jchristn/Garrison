@@ -59,7 +59,7 @@ class ApiClient {
     return normalizeEnumeration(result, requestedPageNumber, requestedPageSize);
   }
 
-  async _request(method, path, { query = null, body = null, headers = {}, raw = false, text: asText = false } = {}) {
+  async _request(method, path, { query = null, body = null, headers = {}, raw = false, text: asText = false, withStatus = false } = {}) {
     const init = { method, headers: this._headers(headers) };
     if (body !== null && body !== undefined) init.body = raw ? body : JSON.stringify(body);
 
@@ -86,8 +86,33 @@ class ApiClient {
     }
 
     if (!response.ok) throw new ApiError(response.status, parsed ?? response.statusText);
+    if (withStatus) return { status: response.status, body: response.status === 204 ? null : parsed };
     if (response.status === 204) return null;
     return parsed;
+  }
+
+  /** GET that answers raw bytes as a Blob; a failed request throws ApiError with the parsed error body. */
+  async _blob(path, query) {
+    const headers = this._headers();
+    delete headers['Content-Type'];
+    let response;
+    try {
+      response = await fetch(this._url(path, query), { method: 'GET', headers });
+    } catch (e) {
+      throw new ApiError(0, { code: 'NetworkError', message: e?.message || 'Network error' });
+    }
+    if (response.status === 401) window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      let parsed = text || response.statusText;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        /* not JSON */
+      }
+      throw new ApiError(response.status, parsed);
+    }
+    return response.blob();
   }
 
   async _list(path, params = {}) {
@@ -656,6 +681,169 @@ class ApiClient {
 
   registerAgent(tenantId, body) {
     return this._request('POST', this._t(tenantId, 'agents/register'), { body });
+  }
+
+  // ------------------------------------------------------------------ agent revisions (AD1)
+
+  /** An agent's revisions, newest first. Each is Draft or Published; at most one draft is open at a time. */
+  listAgentRevisions(tenantId, agentId, params = { pageNumber: 1, pageSize: 1000 }) {
+    return this._list(this._t(tenantId, `agents/${enc(agentId)}/revisions`), params);
+  }
+
+  /** One revision by identifier or number. */
+  getAgentRevision(tenantId, agentId, revisionId) {
+    return this._request('GET', this._t(tenantId, `agents/${enc(agentId)}/revisions/${enc(revisionId)}`));
+  }
+
+  /** Create the agent's draft revision, or replace the content of its open draft (201). */
+  saveAgentDraft(tenantId, agentId, body) {
+    return this._request('POST', this._t(tenantId, `agents/${enc(agentId)}/revisions`), { body });
+  }
+
+  /** Discard the open draft (204). 409 RevisionPublished for a published revision. */
+  discardAgentRevision(tenantId, agentId, revisionId) {
+    return this._request('DELETE', this._t(tenantId, `agents/${enc(agentId)}/revisions/${enc(revisionId)}`));
+  }
+
+  /**
+   * Publish a draft. body: { changeNote? }. 409 RevisionUnchanged when it equals the latest published revision,
+   * 409 RevisionPublished when it is already published.
+   */
+  publishAgentRevision(tenantId, agentId, revisionId, body = {}) {
+    return this._request('POST', this._t(tenantId, `agents/${enc(agentId)}/revisions/${enc(revisionId)}/publish`), { body });
+  }
+
+  /** Field-level diff between two revisions (identifiers or numbers): { identical, changes: [{ field, changeType, from, to }] }. */
+  diffAgentRevisions(tenantId, agentId, from, to) {
+    return this._request('GET', this._t(tenantId, `agents/${enc(agentId)}/revisions/diff`), { query: { from, to } });
+  }
+
+  // ------------------------------------------------------------------ agent assets (AD2)
+
+  /** Agent assets. params: { kind, search, pageNumber, pageSize }. */
+  listAgentAssets(tenantId, params) {
+    return this._list(this._t(tenantId, 'agent-assets'), params);
+  }
+
+  /** One asset by identifier or name. */
+  getAgentAsset(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `agent-assets/${enc(id)}`));
+  }
+
+  /** Create an asset. 400 AssetTemplateRequired when a SystemPrompt asset has no prompt template (or another kind has one). */
+  createAgentAsset(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'agent-assets'), { body });
+  }
+
+  /** Update an asset. 409 AssetKindImmutable or AssetStoreImmutable when the kind or the artifact store changes. */
+  updateAgentAsset(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `agent-assets/${enc(id)}`), { body });
+  }
+
+  /** Delete an asset and its versions (204). 409 AssetInUse while an agent revision pins it; the message names the agents. */
+  deleteAgentAsset(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `agent-assets/${enc(id)}`));
+  }
+
+  /** An asset's versions, newest first (a plain array). */
+  listAgentAssetVersions(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `agent-assets/${enc(id)}/versions`));
+  }
+
+  /** One version with its files. */
+  getAgentAssetVersion(tenantId, id, number) {
+    return this._request('GET', this._t(tenantId, `agent-assets/${enc(id)}/versions/${enc(number)}`));
+  }
+
+  /**
+   * Upload a new version. body: { changeNote?, files: [{ path, mediaType?, contentBase64 }] }. Returns
+   * { created, version }: created is true for 201 (a new version) and false for 200 (the files equal the current
+   * version, which is returned). 413 AssetFileTooLarge, AssetVersionTooLarge, AssetTooManyFiles; 400 with field codes
+   * InvalidAssetPath and MacroFormatRefused, or AssetHasNoFiles for SystemPrompt assets.
+   */
+  async uploadAgentAssetVersion(tenantId, id, body) {
+    const res = await this._request('POST', this._t(tenantId, `agent-assets/${enc(id)}/versions`), { body, withStatus: true });
+    return { created: res.status === 201, version: res.body };
+  }
+
+  /** One file of a version as a Blob (download, or a read-only preview of text files). */
+  getAgentAssetFile(tenantId, id, number, path) {
+    return this._blob(this._t(tenantId, `agent-assets/${enc(id)}/versions/${enc(number)}/files`), { path });
+  }
+
+  // ------------------------------------------------------------------ conversation file spaces (AD3)
+
+  /**
+   * The conversation's shared files: { fileSpaceId, fileCount, totalBytes, files: [ConversationFile] }. fileSpaceId is
+   * null until the first turn or upload creates the space. includeDeleted lists soft-deleted files too.
+   */
+  listConversationFiles(tenantId, id, includeDeleted = false) {
+    return this._request('GET', this._t(tenantId, `conversations/${enc(id)}/files`), { query: { includeDeleted: includeDeleted ? 'true' : 'false' } });
+  }
+
+  /** One file's bytes as a Blob: the current version, or `version` when given. */
+  getConversationFileContent(tenantId, id, path, version) {
+    return this._blob(this._t(tenantId, `conversations/${enc(id)}/files/content`), { path, version });
+  }
+
+  /** A file's versions, newest first (a plain array of ConversationFileVersion). */
+  listConversationFileVersions(tenantId, id, path) {
+    return this._request('GET', this._t(tenantId, `conversations/${enc(id)}/files/versions`), { query: { path } });
+  }
+
+  /**
+   * Write a file. body: { path, content | contentBase64, mediaType?, baseVersion? }. Answers 201
+   * { requestedPath, path, version, conflict, sha256 }; with a stale baseVersion, conflict is true and path is the
+   * conflict name the upload was kept under. 400 InvalidFilePath (field code on path); 413 FileTooLarge,
+   * FileSpaceFull, TooManyFiles naming the FileSpaces setting.
+   */
+  uploadConversationFile(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `conversations/${enc(id)}/files`), { body });
+  }
+
+  /** Soft-delete a file (204). Its versions are kept. */
+  deleteConversationFile(tenantId, id, path) {
+    return this._request('DELETE', this._t(tenantId, `conversations/${enc(id)}/files`), { query: { path } });
+  }
+
+  /** A link that opens one file version without credentials until it expires: { url, expiresUtc }. */
+  conversationFileDownloadUrl(tenantId, id, path, version) {
+    return this._request('POST', this._t(tenantId, `conversations/${enc(id)}/files/download-url`), { query: { path, version } });
+  }
+
+  // ------------------------------------------------------------------ environments and promotions (AD1)
+
+  /** The tenant's ordered environment list: { environments: [{ name, description, position }], isDefault }. */
+  getEnvironments(tenantId) {
+    return this._request('GET', this._t(tenantId, 'environments'));
+  }
+
+  /** Replace the tenant's environment list. 409 EnvironmentInUse when a removed environment still has deployments. */
+  updateEnvironments(tenantId, body) {
+    return this._request('PUT', this._t(tenantId, 'environments'), { body });
+  }
+
+  /** Promotion and rollback records, newest first. params: { agentId, pageNumber, pageSize }. */
+  listPromotions(tenantId, params = { pageNumber: 1, pageSize: 100 }) {
+    return this._list(this._t(tenantId, 'promotions'), params);
+  }
+
+  getPromotion(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `promotions/${enc(id)}`));
+  }
+
+  /**
+   * Promote a revision to the next environment. body: { agentId, sourceEnvironment, targetEnvironment?,
+   * agentRevisionId?, allowSkip?, note? }. 409 PromotionOrderViolation when the target is not the next environment
+   * and allowSkip is off; 403 without Execute on Promotion for the target.
+   */
+  promote(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'promotions'), { body });
+  }
+
+  /** Roll a promotion back, restoring the exact previous pins. body: { note? }. 409 AlreadyRolledBack. */
+  rollbackPromotion(tenantId, id, body = {}) {
+    return this._request('POST', this._t(tenantId, `promotions/${enc(id)}/rollback`), { body });
   }
 
   listDeployments(tenantId, params) {

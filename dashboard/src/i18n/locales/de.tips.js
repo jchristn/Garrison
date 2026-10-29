@@ -109,6 +109,7 @@ const tips = {
       mcpServers: 'Werkzeugserver, die Agenten nutzen können. Registrieren Sie sie hier und binden Sie sie dann an Bereitstellungen.',
       secrets: 'Verschlüsselte API-Schlüssel und Token. Bereitstellungen binden sie über einen Alias; die Werte werden nie wieder angezeigt.',
       workspaces: 'Vorlagen für das Verzeichnis, in dem ein Lauf arbeitet: leer, aus Git geklont oder mit Dateien befüllt.',
+      agentAssets: 'Versionierte Systemprompts, Fähigkeiten, Referenzdateien und Dokumentvorlagen, die Agentenrevisionen fixieren, mit Hochladen und Verlauf.',
       artifactStores: 'Ziele für Dateien, die Läufe erzeugen und die Sie nach dem Ende des Laufs behalten möchten.',
       modelPrices: "Vom Betreiber konfigurierte USD-Tarife zur Kostenschätzung, wenn der Harness keine Kosten meldet. Gemeldete Kosten, auch null, haben Vorrang.",
       usageQuotas: "Tägliche UTC-Limits für Läufe, Token, bekannte Kosten und aktuelle Parallelität eines Mandanten, Agenten oder einer Bereitstellung.",
@@ -1011,7 +1012,7 @@ const tips = {
     },
     manifestApplies: {
       createdUtc: 'Wann das Manifest angewendet oder im Probelauf getestet wurde.',
-      principalName: 'Wer es angewendet hat.',
+      principalName: 'Der Benutzer oder Zugangsschlüssel, der das Manifest angewendet hat.',
       dryRun: 'Ja bedeutet, dass nur geprüft und nichts geschrieben wurde.',
       counts: 'Wie viele Dokumente Datensätze erstellt, aktualisiert, unverändert gelassen haben oder fehlgeschlagen sind.'
     },
@@ -2178,5 +2179,281 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "includeBuiltIn": "Die integrierten Prompt-Vorlagen und Harness-Profile hinzufügen, auf die das Paket verweist. Beim Anwenden bleiben sie unverändert; es wird nur geprüft, dass sie existieren."
    }
   }
+ }
+});
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "Eine unveröffentlichte Revision. Pro Agent ist nur ein Entwurf offen; keine Bereitstellung führt ihn aus, bevor er veröffentlicht ist.",
+   "Published": "Eine eingefrorene Revision. Bereitstellungen, die der neuesten Revision folgen oder diese fixieren, führen sie aus."
+  },
+  "promotionKind": {
+   "Promote": "Hat die Bereitstellungen einer Umgebung auf eine Revision aus der vorherigen Umgebung fixiert.",
+   "Rollback": "Hat die von einer Hochstufung ersetzten Revisionsfixierungen genau wie zuvor wiederhergestellt."
+  },
+  "promotionOutcome": {
+   "Applied": "Die von diesem Eintrag gesetzten Fixierungen sind noch aktiv.",
+   "RolledBack": "Eine spätere Zurücksetzung hat die von dieser Hochstufung ersetzten Fixierungen wiederhergestellt."
+  },
+  "revisionChangeType": {
+   "Changed": "Das Feld hat in der neueren Revision einen anderen Wert.",
+   "Added": "Das Feld oder der Listeneintrag existiert nur in der neueren Revision.",
+   "Removed": "Das Feld oder der Listeneintrag existiert nur in der älteren Revision."
+  }
+ },
+ "filters": {
+  "environment": "Nur Bereitstellungen einer Umgebung anzeigen, etwa dev, staging oder prod. Gilt für die geladene Seite."
+ },
+ "resources": {
+  "deployments": {
+   "environment": "Die Umgebung, zu der diese Bereitstellung gehört. Hochstufungen bewegen eine Revision in der Reihenfolge des Mandanten von einer Umgebung zur nächsten.",
+   "agentRevisionId": "Die Agentenrevision, die diese Bereitstellung ausführt. Neueste folgt jeder neu veröffentlichten Revision; eine fixierte Revision bleibt, bis sie geändert oder hochgestuft wird.",
+   "environmentBadge": "Diese Bereitstellung läuft in der Umgebung {{environment}}.",
+   "followsLatest": "Nicht fixiert: Diese Bereitstellung führt die neueste veröffentlichte Revision des Agenten aus.",
+   "pinnedRevision": "Fixiert: Diese Bereitstellung führt {{revision}} aus, bis sich die Fixierung ändert.",
+   "actions": {
+    "promote": "Die Revision des Agenten von einer Umgebung in die nächste hochstufen und die Fixierungen aller dortigen Bereitstellungen aktualisieren.",
+    "promotions": "Frühere Hochstufungen und Zurücksetzungen ansehen und eine Hochstufung zurücksetzen, um die vorherigen Fixierungen wiederherzustellen."
+   }
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "reviewDraft": "Den Reiter Revisionen öffnen, um den Entwurf mit der neuesten veröffentlichten Revision zu vergleichen und ihn zu veröffentlichen oder zu verwerfen.",
+   "tabs": {
+    "revisions": "Jede gespeicherte Revision dieses Agenten: zwei beliebige vergleichen, den Entwurf veröffentlichen oder verwerfen."
+   },
+   "columns": {
+    "environment": "Die Umgebung, zu der die Bereitstellung gehört; wird von Hochstufungen verwendet.",
+    "revision": "Die Revision, die die Bereitstellung ausführt: Neueste folgt jeder Veröffentlichung, eine Nummer ist eine Fixierung."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "number": "Revisionsnummer. Die Nummern steigen mit jeder gespeicherten Revision dieses Agenten.",
+   "state": "Entwürfe können sich noch ändern; veröffentlichte Revisionen sind eingefroren.",
+   "author": "Wer diese Revision gespeichert hat: der Benutzer oder Zugangsschlüssel, der sie angelegt oder zuletzt ersetzt hat.",
+   "changeNote": "Was sich geändert hat und warum, wie beim Veröffentlichen notiert.",
+   "publishedUtc": "Wann die Revision veröffentlicht wurde. Leer beim Entwurf.",
+   "actions": "Eine Revision vergleichen, veröffentlichen oder verwerfen."
+  },
+  "latest": "Die neueste veröffentlichte Revision. Bereitstellungen ohne Fixierung führen diese aus.",
+  "compare": "Zeigen, was sich zwischen dieser Revision und der veröffentlichten Revision davor geändert hat.",
+  "publish": "Diesen Entwurf veröffentlichen, damit er die neueste veröffentlichte Revision wird.",
+  "discard": "Diesen Entwurf löschen. Veröffentlichte Revisionen sind nicht betroffen.",
+  "discardConfirm": "Den Entwurf endgültig löschen. Das lässt sich nicht rückgängig machen.",
+  "from": "Die ältere Seite des Vergleichs: Werte werden als Vorher gezeigt.",
+  "to": "Die neuere Seite des Vergleichs: Werte werden als Nachher gezeigt.",
+  "publishSubmit": "Den Entwurf jetzt veröffentlichen. Bereitstellungen, die der neuesten Revision folgen, führen ihn ab dem nächsten Lauf aus.",
+  "changeNote": "Optionale Notiz, die mit der veröffentlichten Revision gespeichert und in der Revisionsliste gezeigt wird. Bis zu 2000 Zeichen.",
+  "diffColumns": {
+   "field": "Das abweichende Revisionsfeld, etwa description oder promptPins.",
+   "change": "Ob das Feld geändert, hinzugefügt oder entfernt wurde.",
+   "before": "Der Wert in der älteren Revision.",
+   "after": "Der Wert in der neueren Revision."
+  }
+ },
+ "promote": {
+  "agent": "Der Agent, dessen Revision hochgestuft wird. Seine Bereitstellungen in der Zielumgebung werden aktualisiert.",
+  "revision": "Auf der Quellrevision lassen, um das hochzustufen, was die Quellumgebung ausführt, oder eine veröffentlichte Revision wählen.",
+  "source": "Die Umgebung, aus der die Revision stammt.",
+  "target": "Die zu aktualisierende Umgebung. Standard ist die Umgebung nach der Quelle in der Reihenfolge des Mandanten.",
+  "allowSkip": "Erforderlich, wenn das Ziel nicht die nächste Umgebung ist. Übersprungene Umgebungen werden mit der Hochstufung protokolliert.",
+  "note": "Optionale Notiz, die mit dem Hochstufungseintrag gespeichert wird. Bis zu 2000 Zeichen.",
+  "submit": "Die Hochstufung jetzt anwenden. Jede Bereitstellung des Agenten in der Zielumgebung erhält die neue Fixierung."
+ },
+ "promotions": {
+  "agentFilter": "Nur Hochstufungen und Zurücksetzungen eines Agenten anzeigen.",
+  "refresh": "Den Hochstufungsverlauf neu vom Server laden.",
+  "columns": {
+   "createdUtc": "Wann die Hochstufung oder Zurücksetzung angewendet wurde.",
+   "kind": "Hochstufung oder Zurücksetzung einer früheren Hochstufung.",
+   "outcome": "Ob die Fixierungen noch gelten oder später zurückgesetzt wurden.",
+   "agent": "Der Agent, dessen Bereitstellungen aktualisiert wurden.",
+   "revision": "Die Revision, die hochgestuft wurde.",
+   "environments": "Quell- und Zielumgebung der Hochstufung.",
+   "deployments": "Jede aktualisierte Bereitstellung mit ihrer Fixierung vorher und nachher.",
+   "actor": "Wer die Hochstufung oder Zurücksetzung angewendet hat.",
+   "note": "Die beim Anlegen des Eintrags angegebene Notiz.",
+   "actions": "Eine angewendete Hochstufung zurücksetzen."
+  },
+  "skipped": "Diese Hochstufung hat mindestens eine Umgebung übersprungen, was Umgebungen überspringen erforderte.",
+  "rollback": "Die Revisionsfixierungen wiederherstellen, die diese Bereitstellungen vor dieser Hochstufung hatten.",
+  "rollbackConfirm": "Die Zurücksetzung jetzt anwenden. Sie wird im Hochstufungsverlauf protokolliert.",
+  "rollbackNote": "Optionale Notiz, die mit dem Zurücksetzungseintrag gespeichert wird. Bis zu 2000 Zeichen."
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "Der Systemprompt des Agents, geliefert von einer Prompt-Vorlage. Er hat keine hochgeladenen Dateien.",
+   "Skill": "Ein Fähigkeitsordner, den der Harness lädt, abgelegt dort, wo das Harness-Profil Fähigkeiten erwartet.",
+   "ReferenceFile": "Eine Datei, die der Agent während einer Ausführung lesen kann, abgelegt im Arbeitsbereich der Ausführung.",
+   "DocumentTemplate": "Eine Dokumentvorlage, etwa eine .docx- oder .dotx-Datei, die der Agent während einer Ausführung ausfüllt."
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "Eine Ressourcendatei hat die SHA-256-Prüfung nicht bestanden oder konnte vor dem Start nicht heruntergeladen werden, daher wurde der Harness nie gestartet."
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "add": "Erstellen Sie eine neue Ressource. Laden Sie danach ihre Dateien als Version hoch und fixieren Sie sie in einer Agent-Revision.",
+   "name": "Eindeutiger Name der Ressource in diesem Mandanten. Revisionen und Manifeste können über diesen Namen auf die Ressource verweisen.",
+   "kind": "Systemprompt, Fähigkeit, Referenzdatei oder Dokumentvorlage. Nach dem Erstellen der Ressource unveränderlich.",
+   "currentVersion": "Die neueste Version. Fixierungen, die der aktuellen Version folgen, verwenden sie ab der nächsten Ausführung.",
+   "description": "Was die Ressource enthält und welche Agents sie verwenden, in einfachen Worten.",
+   "tags": "Schlagwörter zum Finden und Gruppieren von Ressourcen. Sie haben keine Wirkung auf Ausführungen.",
+   "artifactStoreId": "Wo die Dateien der Ressource gespeichert werden. Garrison-Datenbank bedeutet, dass sie in der Datenbank der Steuerungsebene liegen.",
+   "promptTemplateId": "Die Prompt-Vorlage, die den Text einer Systemprompt-Ressource liefert. Nur für Systemprompts erforderlich.",
+   "databaseStore": "Die Dateien werden in der Garrison-Datenbank gespeichert, nicht in einem externen Artefaktspeicher.",
+   "kindFilter": "Nur Ressourcen einer Art anzeigen: Systemprompts, Fähigkeiten, Referenzdateien oder Dokumentvorlagen.",
+   "actions": {
+    "versions": "Öffnen Sie den Versionsverlauf: Dateien durchsuchen, Textdateien in der Vorschau ansehen, herunterladen und eine neue Version hochladen."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "assetPins": "Ressourcen, die diese Revision fixiert, jeweils auf eine feste Version oder der aktuellen Version der Ressource folgend."
+  }
+ },
+ "assets": {
+  "files": "Wählen Sie eine oder mehrere Dateien von Ihrem Computer. Sie werden im Browser gelesen und zusammen als eine Version hochgeladen.",
+  "path": "Wo die Datei innerhalb der Ressource liegt, als relativer Pfad mit Schrägstrichen, zum Beispiel docs/guide.md.",
+  "uploadColumns": {
+   "path": "Der Pfad jeder Datei innerhalb der Ressource. Bearbeiten Sie ihn bei Bedarf vor dem Hochladen.",
+   "mediaType": "Der vom Browser gemeldete Medientyp. Ist er leer, ermittelt der Server ihn aus der Dateiendung.",
+   "size": "Größe der Datei, wie sie von Ihrem Computer gelesen wurde.",
+   "actions": "Nehmen Sie eine Datei vor dem Senden aus diesem Upload heraus."
+  },
+  "removeFile": "Nehmen Sie diese Datei aus dem Upload heraus. Erst beim Hochladen wird etwas gesendet.",
+  "changeNote": "Optionale Notiz, die mit der neuen Version gespeichert und im Versionsverlauf angezeigt wird. Bis zu 2000 Zeichen.",
+  "upload": "Laden Sie die gewählten Dateien als eine neue Version hoch. Bei identischen Dateien wird stattdessen die aktuelle Version zurückgegeben.",
+  "current": "Dies ist die aktuelle Version der Ressource, die von Fixierungen verwendet wird, die der aktuellen Version folgen.",
+  "showFiles": "Zeigen Sie die Dateien dieser Version mit Größen, Prüfsummen, Vorschauen und Downloads an.",
+  "versionColumns": {
+   "number": "Versionsnummer. Jeder Upload mit anderen Dateien erhält die nächste Nummer.",
+   "author": "Wer diese Version hochgeladen hat.",
+   "changeNote": "Die beim Hochladen dieser Version angegebene Notiz.",
+   "totalBytes": "Gesamtgröße aller Dateien in dieser Version.",
+   "createdUtc": "Wann diese Version hochgeladen wurde.",
+   "actions": "Zeigen Sie die Dateien einer Version an."
+  },
+  "fileColumns": {
+   "path": "Pfad der Datei innerhalb der Ressource; dort wird sie für eine Ausführung abgelegt.",
+   "mediaType": "Mit der Datei gespeicherter Medientyp.",
+   "sizeBytes": "Größe der Datei in dieser Version.",
+   "sha256": "Anfang der SHA-256-Prüfsumme der Datei. Worker prüfen sie vor dem Start einer Ausführung.",
+   "actions": "Zeigen Sie Textdateien direkt in der Vorschau an oder laden Sie beliebige Dateien herunter."
+  },
+  "sha256Full": "Vollständige SHA-256-Prüfsumme dieser Datei: {{sha}}",
+  "preview": "Zeigen Sie diese Textdatei schreibgeschützt unter der Dateiliste an. Hier kann nichts bearbeitet werden.",
+  "download": "Laden Sie diese Datei dieser Version auf Ihren Computer herunter.",
+  "pinsSave": "Speichern Sie diese Ressourcen-Fixierungen im Entwurf. Veröffentlichen Sie den Entwurf danach, damit Bereitstellungen sie verwenden.",
+  "pinAsset": "Die Ressource, die in dieser Revision fixiert werden soll. Jede Ressource kann einmal fixiert werden.",
+  "pinVersion": "Fixieren Sie eine feste Version oder wählen Sie Aktuelle Version, um zur Laufzeit die neueste Version der Ressource zu verwenden.",
+  "removePin": "Entfernen Sie diese Ressource aus den Fixierungen der Revision.",
+  "addPin": "Fügen Sie den Fixierungen der Revision eine weitere Ressource hinzu.",
+  "editPins": "Fügen Sie Ressourcen-Fixierungen dieses Revisionsentwurfs hinzu, entfernen oder ändern Sie sie.",
+  "pinsNewDraft": "Legen Sie einen neuen Entwurf aus der zuletzt veröffentlichten Revision an und wählen Sie seine Ressourcen-Fixierungen.",
+  "pinnedVersion": "Diese Ressource ist auf eine feste Version fixiert, daher verwenden Ausführungen sie auch nach neuen Uploads weiter.",
+  "pinnedCurrent": "Diese Ressource folgt ihrer aktuellen Version, daher verwenden Ausführungen den neuesten Upload."
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "conversationDetail": {
+   "tabs": {
+    "turns": "Die Runden dieser Konversation, die älteste zuerst, und das Feld zum Senden der nächsten.",
+    "files": "Der gemeinsame Ordner, den jede Runde und jeder delegierte Agent dieser Konversation liest und schreibt, mit Versionsverlauf und Downloads."
+   }
+  },
+  "runDetail": {
+   "fileSpace": "Der gemeinsame Dateibereich, den dieser Lauf beim Start in sein Arbeitsverzeichnis kopiert und am Ende zurückschreibt. Alle Läufe einer Konversation, eines Pipeline-Laufs oder eines Delegationsbaums teilen ihn.",
+   "openFiles": "Den Tab Dateien der Konversation dieses Laufs öffnen, um die gemeinsamen Dateien anzusehen, herunterzuladen oder hochzuladen."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fileSpaceMountPath": "Ordner im Arbeitsverzeichnis des Laufs, in den der gemeinsame Dateibereich synchronisiert wird, zum Beispiel files. Relativ, mit Schrägstrichen, höchstens 128 Zeichen."
+  }
+ },
+ "files": {
+  "summary": "Wie viele aktuelle Dateien der gemeinsame Ordner enthält und ihre Gesamtgröße. Gelöschte Dateien zählen nicht.",
+  "live": "Die Liste aktualisiert sich, sobald eine Runde, ein delegierter Agent oder eine Person eine Datei ändert.",
+  "polling": "Die Live-Verbindung ist nicht verfügbar, daher wird die Liste alle {{seconds}} Sekunden neu geladen, solange dieser Tab offen ist.",
+  "includeDeleted": "Auch gelöschte Dateien auflisten. Ihre Versionen bleiben erhalten und können weiter heruntergeladen werden.",
+  "refresh": "Die Dateiliste jetzt erneut vom Server laden.",
+  "columns": {
+   "path": "Pfad der Datei im gemeinsamen Ordner. Läufe finden sie im Ordner für den Dateibereich des Deployments.",
+   "currentVersion": "Die neueste Version. Jeder Schreibvorgang durch eine Runde, einen Agenten oder einen Upload fügt eine hinzu.",
+   "sizeBytes": "Größe der aktuellen Version der Datei.",
+   "mediaType": "Mit der aktuellen Version gespeicherter Medientyp.",
+   "lastUpdateUtc": "Wann sich die Datei zuletzt geändert hat.",
+   "actions": "Versionsverlauf anzeigen, die aktuelle Version herunterladen oder die Datei löschen."
+  },
+  "deleted": "Diese Datei wurde gelöscht. Spätere Runden sehen sie nicht mehr, ihre Versionen bleiben aber erhalten.",
+  "versions": "Den Versionsverlauf dieser Datei öffnen, mit Download und Textvorschau für jede Version.",
+  "download": "Die aktuelle Version dieser Datei über einen kurzlebigen Link herunterladen.",
+  "delete": "Diese Datei aus dem gemeinsamen Ordner löschen. Ihre Versionen bleiben erhalten.",
+  "confirmDelete": "Die Datei jetzt löschen. Spätere Runden sehen sie nicht mehr.",
+  "versionColumns": {
+   "number": "Versionsnummer. Jeder Schreibvorgang fügt die nächste Nummer hinzu.",
+   "sizeBytes": "Größe der Datei in dieser Version.",
+   "mediaType": "Mit dieser Version gespeicherter Medientyp.",
+   "sha256": "Anfang der SHA-256-Prüfsumme dieser Version. Worker prüfen sie beim Synchronisieren der Datei.",
+   "writtenBy": "Der Agent, dessen Lauf diese Version geschrieben hat, oder die Person, die sie hochgeladen hat.",
+   "createdUtc": "Wann diese Version geschrieben wurde.",
+   "actions": "Textversionen direkt in der Vorschau ansehen oder jede Version herunterladen."
+  },
+  "current": "Diese Version sehen spätere Runden.",
+  "sha256Full": "Vollständige SHA-256-Prüfsumme dieser Version: {{sha}}",
+  "openRun": "Den Lauf öffnen, der diese Version geschrieben hat.",
+  "preview": "Diese Version schreibgeschützt unter der Liste anzeigen. Hier lässt sich nichts bearbeiten.",
+  "downloadVersion": "Diese Version der Datei auf Ihren Computer herunterladen.",
+  "chooseFiles": "Eine oder mehrere Dateien von Ihrem Computer wählen. Sie werden im Browser gelesen und nacheinander hochgeladen.",
+  "uploadColumns": {
+   "path": "Wohin jede Datei im gemeinsamen Ordner kommt. Bei Bedarf vor dem Hochladen anpassen.",
+   "replaces": "Die aufgeführte Version, die dieser Upload ersetzt, oder Neue Datei. Eine inzwischen geänderte Datei wird unter einem Konfliktnamen abgelegt.",
+   "size": "Größe der Datei, wie sie von Ihrem Computer gelesen wurde.",
+   "actions": "Eine Datei vor dem Senden aus diesem Upload nehmen."
+  },
+  "path": "Pfad im gemeinsamen Ordner, relativ mit Schrägstrichen, zum Beispiel notes/sources.md.",
+  "removeFile": "Diese Datei aus dem Upload nehmen. Gesendet wird erst beim Hochladen.",
+  "upload": "Jede gewählte Datei nacheinander in den gemeinsamen Ordner senden, zusammen mit der Version, die sie ersetzt."
  }
 });

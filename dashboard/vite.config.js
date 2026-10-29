@@ -34,6 +34,8 @@ export default defineConfig({
         manualChunks(id) {
           if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor';
           if (/node_modules\/(i18next|react-i18next|i18next-browser-languagedetector)\//.test(id)) return 'i18n';
+          // The Markdown renderer and sanitizer (no app imports) keep the views chunk under the size warning.
+          if (/node_modules\/(marked|dompurify)\//.test(id)) return 'markdown';
           // One chunk per locale (catalog plus tooltips) keeps every chunk under the size warning.
           const locale = id.match(/\/src\/i18n\/locales\/([A-Za-z-]+?)(?:\.tips)?\.js$/);
           if (locale) return `locale-${locale[1]}`;
@@ -41,6 +43,12 @@ export default defineConfig({
           if (/\/src\/components\/Pipeline/.test(id)) return 'pipelines';
           // Trigger and notification components (P12.5, P12.14) likewise.
           if (/\/src\/components\/(Trigger|Notification|SigningSecret)/.test(id)) return 'triggers';
+          // Agent revisions and promotions (AD1.9), with the confirmation dialog they share with the views (no chunk cycle).
+          if (/\/src\/components\/(AgentRevision|Revision|Promot|ConfirmModal)/.test(id)) return 'revisions';
+          // Agent assets (AD2.8): the version, upload, and pin dialogs used by both the views and the revisions panel.
+          if (/\/src\/components\/(AgentAsset|AssetUpload)/.test(id) || id.endsWith('/src/utils/assets.js')) return 'assets';
+          // Conversation file spaces (AD3.8): the Files tab, its version dialog, and its upload panel.
+          if (/\/src\/components\/ConversationFile/.test(id) || id.endsWith('/src/utils/fileSpaces.js')) return 'files';
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

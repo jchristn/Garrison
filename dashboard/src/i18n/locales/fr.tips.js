@@ -110,6 +110,7 @@ const tips = {
       mcpServers: 'Serveurs d\'outils utilisables par les agents. Enregistrez-les ici, puis liez-les aux déploiements.',
       secrets: 'Clés API et jetons chiffrés. Les déploiements les lient par alias ; les valeurs ne sont plus jamais affichées.',
       workspaces: 'Modèles du répertoire dans lequel une exécution travaille : vide, cloné depuis Git ou prérempli avec des fichiers.',
+      agentAssets: 'Prompts système, skills, fichiers de référence et modèles de document versionnés qu\'épinglent les révisions d\'agent, avec envoi et historique.',
       artifactStores: 'Destinations des fichiers produits par les exécutions que vous souhaitez conserver après la fin de l\'exécution.',
       modelPrices: "Tarifs en USD configurés par un opérateur pour estimer le coût lorsque le harness ne le fournit pas. Le coût déclaré, même nul, est prioritaire.",
       usageQuotas: "Limites quotidiennes UTC des exécutions, jetons, coûts connus et concurrence actuelle d’un locataire, agent ou déploiement.",
@@ -1013,7 +1014,7 @@ const tips = {
     },
     manifestApplies: {
       createdUtc: 'Moment où le manifeste a été appliqué ou simulé.',
-      principalName: 'Qui l\'a appliqué.',
+      principalName: 'L\'utilisateur ou la clé d\'accès qui a appliqué le manifeste.',
       dryRun: '« Oui » signifie qu\'il a seulement été validé et que rien n\'a été écrit.',
       counts: 'Nombre d\'enregistrements créés, mis à jour, inchangés ou en échec par les documents.'
     },
@@ -2180,5 +2181,281 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "includeBuiltIn": "Ajoutez les modèles de prompt et profils de harness intégrés que le paquet référence. L'application ne les modifie pas ; elle vérifie seulement qu'ils existent."
    }
   }
+ }
+});
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "Une révision non publiée. Un seul brouillon est ouvert par agent ; aucun déploiement ne l'exécute avant sa publication.",
+   "Published": "Une révision figée. Les déploiements qui suivent la dernière révision, ou qui épinglent celle-ci, l'exécutent."
+  },
+  "promotionKind": {
+   "Promote": "A épinglé les déploiements d'un environnement sur une révision prise dans l'environnement précédent.",
+   "Rollback": "A rétabli les épinglages de révision remplacés par une promotion, exactement comme avant."
+  },
+  "promotionOutcome": {
+   "Applied": "Les épinglages posés par cet enregistrement sont toujours en place.",
+   "RolledBack": "Une annulation ultérieure a rétabli les épinglages remplacés par cette promotion."
+  },
+  "revisionChangeType": {
+   "Changed": "Le champ a une valeur différente dans la révision la plus récente.",
+   "Added": "Le champ ou l'élément de liste n'existe que dans la révision la plus récente.",
+   "Removed": "Le champ ou l'élément de liste n'existe que dans la révision la plus ancienne."
+  }
+ },
+ "filters": {
+  "environment": "Afficher seulement les déploiements d'un environnement, comme dev, staging ou prod. S'applique à la page chargée."
+ },
+ "resources": {
+  "deployments": {
+   "environment": "L'environnement auquel appartient ce déploiement. Les promotions font passer une révision d'un environnement au suivant dans l'ordre du locataire.",
+   "agentRevisionId": "La révision de l'agent que ce déploiement exécute. Dernière suit chaque nouvelle révision publiée ; une révision épinglée reste jusqu'à modification ou promotion.",
+   "environmentBadge": "Ce déploiement s'exécute dans l'environnement {{environment}}.",
+   "followsLatest": "Non épinglé : ce déploiement exécute la dernière révision publiée de l'agent.",
+   "pinnedRevision": "Épinglé : ce déploiement exécute {{revision}} jusqu'à ce que l'épinglage change.",
+   "actions": {
+    "promote": "Promouvoir la révision de l'agent d'un environnement au suivant, en mettant à jour l'épinglage de chaque déploiement concerné.",
+    "promotions": "Voir les promotions et annulations passées, et annuler une promotion pour rétablir les épinglages précédents."
+   }
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "reviewDraft": "Ouvrir l'onglet Révisions pour comparer le brouillon à la dernière révision publiée, puis le publier ou le supprimer.",
+   "tabs": {
+    "revisions": "Chaque révision enregistrée de cet agent : comparez-en deux, publiez le brouillon ou supprimez-le."
+   },
+   "columns": {
+    "environment": "L'environnement auquel appartient le déploiement, utilisé par les promotions.",
+    "revision": "La révision que le déploiement exécute : Dernière suit chaque publication, un numéro est un épinglage."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "number": "Numéro de révision. Les numéros augmentent à chaque révision enregistrée de cet agent.",
+   "state": "Les brouillons peuvent encore changer ; les révisions publiées sont figées.",
+   "author": "Qui a enregistré cette révision : l'utilisateur ou la clé d'accès qui l'a créée ou remplacée en dernier.",
+   "changeNote": "Ce qui a changé et pourquoi, tel que noté à la publication.",
+   "publishedUtc": "Date de publication de la révision. Vide pour le brouillon.",
+   "actions": "Comparer, publier ou supprimer une révision."
+  },
+  "latest": "La dernière révision publiée. Les déploiements sans épinglage exécutent celle-ci.",
+  "compare": "Afficher ce qui a changé entre cette révision et la révision publiée précédente.",
+  "publish": "Publier ce brouillon pour qu'il devienne la dernière révision publiée.",
+  "discard": "Supprimer ce brouillon. Les révisions publiées ne sont pas concernées.",
+  "discardConfirm": "Supprimer définitivement le brouillon. Cette action est irréversible.",
+  "from": "Le côté le plus ancien de la comparaison : valeurs affichées comme Avant.",
+  "to": "Le côté le plus récent de la comparaison : valeurs affichées comme Après.",
+  "publishSubmit": "Publier le brouillon maintenant. Les déploiements qui suivent la dernière révision l'exécutent dès leur prochaine exécution.",
+  "changeNote": "Note facultative enregistrée avec la révision publiée et affichée dans la liste des révisions. Jusqu'à 2000 caractères.",
+  "diffColumns": {
+   "field": "Le champ de révision qui diffère, comme description ou promptPins.",
+   "change": "Si le champ a été modifié, ajouté ou supprimé.",
+   "before": "La valeur dans la révision la plus ancienne.",
+   "after": "La valeur dans la révision la plus récente."
+  }
+ },
+ "promote": {
+  "agent": "L'agent dont la révision est promue. Ses déploiements dans l'environnement cible sont mis à jour.",
+  "revision": "Laissez la révision source pour promouvoir ce que l'environnement source exécute, ou choisissez une révision publiée.",
+  "source": "L'environnement d'où provient la révision.",
+  "target": "L'environnement à mettre à jour. Par défaut, celui qui suit la source dans l'ordre du locataire.",
+  "allowSkip": "Requis quand la cible n'est pas l'environnement suivant. Les environnements sautés sont enregistrés avec la promotion.",
+  "note": "Note facultative enregistrée avec la promotion. Jusqu'à 2000 caractères.",
+  "submit": "Appliquer la promotion maintenant. Chaque déploiement de l'agent dans l'environnement cible reçoit le nouvel épinglage."
+ },
+ "promotions": {
+  "agentFilter": "Afficher seulement les promotions et annulations d'un agent.",
+  "refresh": "Recharger l'historique des promotions depuis le serveur.",
+  "columns": {
+   "createdUtc": "Quand la promotion ou l'annulation a été appliquée.",
+   "kind": "Promotion, ou annulation d'une promotion antérieure.",
+   "outcome": "Si les épinglages sont toujours en place ou ont été annulés depuis.",
+   "agent": "L'agent dont les déploiements ont été mis à jour.",
+   "revision": "La révision qui a été promue.",
+   "environments": "Environnement source et cible de la promotion.",
+   "deployments": "Chaque déploiement mis à jour, avec son épinglage avant et après.",
+   "actor": "Qui a appliqué la promotion ou l'annulation.",
+   "note": "La note saisie à la création de l'enregistrement.",
+   "actions": "Annuler une promotion appliquée."
+  },
+  "skipped": "Cette promotion a sauté au moins un environnement, ce qui a nécessité Autoriser le saut d'environnements.",
+  "rollback": "Rétablir les épinglages de révision que ces déploiements avaient avant cette promotion.",
+  "rollbackConfirm": "Appliquer l'annulation maintenant. Elle est enregistrée dans l'historique des promotions.",
+  "rollbackNote": "Note facultative enregistrée avec l'annulation. Jusqu'à 2000 caractères."
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "Le prompt système de l'agent, fourni par un modèle de prompt. Il n'a pas de fichiers envoyés.",
+   "Skill": "Un dossier de skill chargé par le harnais, placé là où le profil de harnais range les skills.",
+   "ReferenceFile": "Un fichier que l'agent peut lire pendant une exécution, placé dans l'espace de travail de l'exécution.",
+   "DocumentTemplate": "Un modèle de document, par exemple un fichier .docx ou .dotx, que l'agent remplit pendant une exécution."
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "Un fichier de ressource a échoué à la vérification SHA-256 ou n'a pas pu être téléchargé avant le lancement : le harnais n'a jamais démarré."
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "add": "Créer une ressource. Envoyez ensuite ses fichiers comme une version, puis épinglez-la sur une révision d'agent.",
+   "name": "Nom unique de la ressource dans ce locataire. Les révisions et les manifestes peuvent désigner la ressource par ce nom.",
+   "kind": "Prompt système, skill, fichier de référence ou modèle de document. Fixé après la création de la ressource.",
+   "currentVersion": "La version la plus récente. Les épinglages qui suivent la version actuelle l'utilisent dès la prochaine exécution.",
+   "description": "Ce que contient la ressource et quels agents l'utilisent, en termes simples.",
+   "tags": "Étiquettes pour retrouver et regrouper les ressources. Elles n'ont aucun effet sur les exécutions.",
+   "artifactStoreId": "Emplacement de stockage des fichiers de la ressource. Base de données Garrison signifie qu'ils sont conservés dans la base de données du plan de contrôle.",
+   "promptTemplateId": "Le modèle de prompt qui fournit le texte d'une ressource de prompt système. Obligatoire uniquement pour les prompts système.",
+   "databaseStore": "Les fichiers sont stockés dans la base de données Garrison, pas dans un stockage d'artefacts externe.",
+   "kindFilter": "Afficher uniquement les ressources d'un type : prompts système, skills, fichiers de référence ou modèles de document.",
+   "actions": {
+    "versions": "Ouvrir l'historique des versions : parcourir les fichiers, prévisualiser les fichiers texte, les télécharger et envoyer une nouvelle version."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "assetPins": "Ressources épinglées par cette révision, chacune à une version fixe ou suivant la version actuelle de la ressource."
+  }
+ },
+ "assets": {
+  "files": "Choisissez un ou plusieurs fichiers sur votre ordinateur. Ils sont lus dans le navigateur et envoyés ensemble comme une seule version.",
+  "path": "Emplacement du fichier dans la ressource, sous forme de chemin relatif avec des barres obliques, par exemple docs/guide.md.",
+  "uploadColumns": {
+   "path": "Le chemin de chaque fichier dans la ressource. Modifiez-le avant l'envoi si nécessaire.",
+   "mediaType": "Le type de média indiqué par le navigateur. S'il est vide, le serveur le déduit de l'extension.",
+   "size": "Taille du fichier lu depuis votre ordinateur.",
+   "actions": "Retirer un fichier de cet envoi avant de l'envoyer."
+  },
+  "removeFile": "Retirer ce fichier de l'envoi. Rien n'est envoyé tant que vous n'avez pas lancé l'envoi.",
+  "changeNote": "Note facultative enregistrée avec la nouvelle version et affichée dans l'historique des versions. 2000 caractères au maximum.",
+  "upload": "Envoyer les fichiers choisis comme une nouvelle version. Si les fichiers sont identiques, la version actuelle est renvoyée.",
+  "current": "Il s'agit de la version actuelle de la ressource, utilisée par les épinglages qui suivent la version actuelle.",
+  "showFiles": "Afficher les fichiers de cette version avec leurs tailles, empreintes, aperçus et téléchargements.",
+  "versionColumns": {
+   "number": "Numéro de version. Chaque envoi avec des fichiers différents ajoute le numéro suivant.",
+   "author": "Personne ayant envoyé cette version.",
+   "changeNote": "La note saisie lors de l'envoi de cette version.",
+   "totalBytes": "Taille cumulée de tous les fichiers de cette version.",
+   "createdUtc": "Date d'envoi de cette version.",
+   "actions": "Afficher les fichiers d'une version."
+  },
+  "fileColumns": {
+   "path": "Chemin du fichier dans la ressource, c'est-à-dire l'emplacement où il est placé pour une exécution.",
+   "mediaType": "Type de média enregistré avec le fichier.",
+   "sizeBytes": "Taille du fichier dans cette version.",
+   "sha256": "Début de l'empreinte SHA-256 du fichier. Les workers la vérifient avant le démarrage d'une exécution.",
+   "actions": "Prévisualiser les fichiers texte sur place ou télécharger n'importe quel fichier."
+  },
+  "sha256Full": "Empreinte SHA-256 complète de ce fichier : {{sha}}",
+  "preview": "Afficher ce fichier texte en lecture seule sous la liste des fichiers. Rien ne peut être modifié ici.",
+  "download": "Télécharger ce fichier de cette version sur votre ordinateur.",
+  "pinsSave": "Enregistrer ces épinglages de ressources sur le brouillon. Publiez ensuite le brouillon pour que les déploiements les utilisent.",
+  "pinAsset": "La ressource à épingler sur cette révision. Chaque ressource ne peut être épinglée qu'une fois.",
+  "pinVersion": "Épingler une version fixe, ou choisir Version actuelle pour utiliser la version la plus récente de la ressource au moment de l'exécution.",
+  "removePin": "Retirer cette ressource des épinglages de la révision.",
+  "addPin": "Ajouter une autre ressource aux épinglages de la révision.",
+  "editPins": "Ajouter, retirer ou modifier les épinglages de ressources de cette révision brouillon.",
+  "pinsNewDraft": "Créer un nouveau brouillon à partir de la dernière révision publiée et choisir ses épinglages de ressources.",
+  "pinnedVersion": "Cette ressource est épinglée à une version fixe : les exécutions continuent de l'utiliser après de nouveaux envois.",
+  "pinnedCurrent": "Cette ressource suit sa version actuelle : les exécutions utilisent le dernier envoi."
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "conversationDetail": {
+   "tabs": {
+    "turns": "Les tours de cette conversation, du plus ancien au plus récent, et la zone pour envoyer le suivant.",
+    "files": "Le dossier partagé que lisent et écrivent chaque tour et chaque agent délégué de cette conversation, avec l'historique des versions et les téléchargements."
+   }
+  },
+  "runDetail": {
+   "fileSpace": "L'espace de fichiers partagé que cette exécution copie dans son espace de travail au démarrage et réécrit à la fin. Les exécutions d'une conversation, d'une exécution de pipeline ou d'un arbre de délégation le partagent.",
+   "openFiles": "Ouvrir l'onglet Fichiers de la conversation de cette exécution pour parcourir, télécharger ou envoyer les fichiers partagés."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fileSpaceMountPath": "Dossier de l'espace de travail de l'exécution où l'espace de fichiers partagé est synchronisé, par exemple files. Relatif, avec des barres obliques, 128 caractères au maximum."
+  }
+ },
+ "files": {
+  "summary": "Nombre de fichiers actuels du dossier partagé et leur taille totale. Les fichiers supprimés ne comptent pas.",
+  "live": "La liste se met à jour dès qu'un tour, un agent délégué ou une personne modifie un fichier.",
+  "polling": "La connexion en direct n'est pas disponible, la liste est donc rechargée toutes les {{seconds}} secondes tant que cet onglet est ouvert.",
+  "includeDeleted": "Lister aussi les fichiers supprimés. Leurs versions sont conservées et restent téléchargeables.",
+  "refresh": "Recharger maintenant la liste des fichiers depuis le serveur.",
+  "columns": {
+   "path": "Chemin du fichier dans le dossier partagé. Les exécutions le trouvent dans le dossier de l'espace de fichiers du déploiement.",
+   "currentVersion": "La version la plus récente. Chaque écriture par un tour, un agent ou un envoi en ajoute une.",
+   "sizeBytes": "Taille de la version actuelle du fichier.",
+   "mediaType": "Type de média enregistré avec la version actuelle.",
+   "lastUpdateUtc": "Date de la dernière modification du fichier.",
+   "actions": "Afficher l'historique des versions, télécharger la version actuelle ou supprimer le fichier."
+  },
+  "deleted": "Ce fichier a été supprimé. Les tours suivants ne le voient plus, mais ses versions sont conservées.",
+  "versions": "Ouvrir l'historique des versions de ce fichier, avec un téléchargement et un aperçu texte pour chaque version.",
+  "download": "Télécharger la version actuelle de ce fichier par un lien de courte durée.",
+  "delete": "Supprimer ce fichier du dossier partagé. Ses versions sont conservées.",
+  "confirmDelete": "Supprimer le fichier maintenant. Les tours suivants ne le verront plus.",
+  "versionColumns": {
+   "number": "Numéro de version. Chaque écriture ajoute le numéro suivant.",
+   "sizeBytes": "Taille du fichier dans cette version.",
+   "mediaType": "Type de média enregistré avec cette version.",
+   "sha256": "Début de l'empreinte SHA-256 de cette version. Les workers la vérifient lors de la synchronisation du fichier.",
+   "writtenBy": "L'agent dont l'exécution a écrit cette version, ou la personne qui l'a envoyée.",
+   "createdUtc": "Date d'écriture de cette version.",
+   "actions": "Prévisualiser les versions texte sur place ou télécharger n'importe quelle version."
+  },
+  "current": "C'est la version que voient les tours suivants.",
+  "sha256Full": "Empreinte SHA-256 complète de cette version : {{sha}}",
+  "openRun": "Ouvrir l'exécution qui a écrit cette version.",
+  "preview": "Afficher cette version en lecture seule sous la liste. Rien n'y est modifiable.",
+  "downloadVersion": "Télécharger cette version du fichier sur votre ordinateur.",
+  "chooseFiles": "Choisissez un ou plusieurs fichiers sur votre ordinateur. Ils sont lus dans le navigateur et envoyés un par un.",
+  "uploadColumns": {
+   "path": "Emplacement de chaque fichier dans le dossier partagé. Modifiez-le avant l'envoi si besoin.",
+   "replaces": "La version de la liste que cet envoi remplace, ou Nouveau fichier. Un fichier modifié entre-temps est conservé sous un nom de conflit.",
+   "size": "Taille du fichier lu depuis votre ordinateur.",
+   "actions": "Retirer un fichier de cet envoi avant de l'expédier."
+  },
+  "path": "Chemin dans le dossier partagé, relatif avec des barres obliques, par exemple notes/sources.md.",
+  "removeFile": "Retirer ce fichier de l'envoi. Rien n'est expédié avant l'envoi.",
+  "upload": "Envoyer chaque fichier choisi dans le dossier partagé, un par un, avec la version qu'il remplace."
  }
 });

@@ -75,7 +75,7 @@ export const ENUMS = {
   controlNodeStatus: ['Starting', 'Ready', 'Draining', 'Offline'],
   backplane: ['Local', 'Polling', 'PostgresNotify'],
   runStatus: ['Pending', 'Queued', 'Leased', 'Running', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected', 'Suspended'],
-  runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker', 'RepetitionDetected', 'NoProgress', 'PodFailed', 'ConversationStateLost'],
+  runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker', 'RepetitionDetected', 'NoProgress', 'PodFailed', 'ConversationStateLost', 'AssetIntegrityFailed'],
   runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool', 'NoIsolatingWorker'],
   // Deployment and run trust level (P11.14): Untrusted runs need at least Container isolation.
   trustLevel: ['Trusted', 'Untrusted'],
@@ -86,7 +86,14 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset'],
+  // Agent revisions and promotions (AD1).
+  agentRevisionState: ['Draft', 'Published'],
+  promotionKind: ['Promote', 'Rollback'],
+  promotionOutcome: ['Applied', 'RolledBack'],
+  revisionChangeType: ['Changed', 'Added', 'Removed'],
+  // Agent assets (AD2).
+  agentAssetKind: ['SystemPrompt', 'Skill', 'ReferenceFile', 'DocumentTemplate'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
   auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull'],
   // Permission approvals (P12.3).

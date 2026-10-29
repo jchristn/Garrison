@@ -2569,3 +2569,466 @@ ja.tips.enums.runStatus.Suspended = "実行は永続チェックポイントに�
 ja.tips.enums.runExecutor.RemoteA2A = "認証済みの登録 A2A エージェントを期限とキャンセル処理付きで実行します。";
 ja.tips.enums.runExecutor.RemoteMcp = "検証済み JSON 入力で、選択した登録リモート MCP ツールを呼び出します。";
 ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、またはエージェントのキュー上限に達したため、実行の受付が拒否されました。";
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "下書き",
+   "Published": "公開済み"
+  },
+  "promotionKind": {
+   "Promote": "昇格",
+   "Rollback": "ロールバック"
+  },
+  "promotionOutcome": {
+   "Applied": "適用済み",
+   "RolledBack": "ロールバック済み"
+  },
+  "revisionChangeType": {
+   "Changed": "変更",
+   "Added": "追加",
+   "Removed": "削除"
+  },
+  "resourceType": {
+   "AgentRevision": "エージェントのリビジョン",
+   "Promotion": "昇格"
+  }
+ },
+ "errorCodes": {
+  "PromotionOrderViolation": "昇格先が昇格元の次の環境ではありません。順序を飛ばして昇格するには「環境のスキップを許可」をオンにしてください。",
+  "NoNextEnvironment": "昇格元が最後の環境のため、昇格先がありません。",
+  "NoTargetDeployments": "このエージェントには昇格先の環境にデプロイメントがありません。先にそこで作成してください。",
+  "NoSourceRevision": "昇格するリビジョンがありません。エージェントに昇格元の環境のデプロイメントがないか、公開済みリビジョンがありません。リビジョンを明示的に選択してください。",
+  "AmbiguousSourceRevision": "昇格元の環境のデプロイメントが異なるリビジョンを実行しています。昇格するリビジョンを選択してください。",
+  "RevisionNotPublished": "そのリビジョンは下書きです。昇格する前に公開してください。",
+  "PromotionConflict": "昇格の適用中にデプロイメントが変更されました。何も変更されていません。再読み込みしてもう一度お試しください。",
+  "NotAPromotion": "ロールバックできるのは昇格だけで、ロールバック自体はできません。",
+  "AlreadyRolledBack": "この昇格はすでにロールバックされています。",
+  "RevisionUnchanged": "下書きは最新の公開済みリビジョンと同じです。公開する前に変更するか、破棄してください。",
+  "RevisionPublished": "このリビジョンはすでに公開済みのため、変更できません。",
+  "EnvironmentInUse": "削除した環境にまだデプロイメントがあります。先にそれらを移動または削除してください。"
+ },
+ "views": {
+  "agentDetail": {
+   "revisions": "リビジョン",
+   "draftNotice": "このエージェントには公開されていない下書きの変更があります。下書きが公開されるまで、デプロイメントは公開済みリビジョンを実行し続けます。",
+   "reviewDraft": "下書きを確認"
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "number": "リビジョン",
+    "state": "状態",
+    "author": "作成者",
+    "changeNote": "変更メモ",
+    "publishedUtc": "公開日時",
+    "actions": "操作"
+   },
+   "number": "リビジョン {{number}}",
+   "option": "リビジョン {{number}}（{{state}}）",
+   "latest": "最新",
+   "empty": "このエージェントにはまだリビジョンがありません。",
+   "compareTitle": "リビジョンを比較",
+   "from": "比較元",
+   "to": "比較先",
+   "pickTwo": "比較する 2 つの異なるリビジョンを選択してください。",
+   "identical": "リビジョン {{from}} と {{to}} の内容は同じです。",
+   "diffSummary": "リビジョン {{from}} とリビジョン {{to}} の間で変更されたフィールド: {{changed}}。",
+   "diffColumns": {
+    "field": "フィールド",
+    "change": "変更",
+    "before": "変更前",
+    "after": "変更後"
+   },
+   "emptyValue": "（空）",
+   "compare": "比較",
+   "publish": "公開",
+   "discard": "下書きを破棄",
+   "publishTitle": "リビジョン {{number}} を公開",
+   "publishBody": "公開すると、リビジョン {{number}} が最新の公開済みリビジョンになります。最新リビジョンに追従するデプロイメントは次回の実行からこれを実行し、固定されたデプロイメントは現在のリビジョンを維持します。",
+   "changeNote": "変更メモ",
+   "changeNotePlaceholder": "変更内容と理由（任意）",
+   "publishing": "公開中...",
+   "published": "リビジョン {{number}} を公開しました。",
+   "discardTitle": "下書きリビジョン {{number}} を破棄",
+   "discardMessage": "下書きを破棄しますか？変更内容は失われます。公開済みリビジョンとデプロイメントには影響しません。",
+   "discarded": "下書きを破棄しました。"
+  },
+  "promote": {
+   "title": "リビジョンを昇格",
+   "intro": "昇格先の環境にあるエージェントのすべてのデプロイメントを、昇格元の環境で実行中のリビジョンに固定します。各昇格は記録され、ロールバックできます。",
+   "agent": "エージェント",
+   "revision": "昇格するリビジョン",
+   "revisionFromSource": "昇格元の環境で実行中のリビジョン",
+   "source": "昇格元の環境",
+   "target": "昇格先の環境",
+   "targetNext": "次の環境（{{name}}）",
+   "allowSkip": "環境のスキップを許可",
+   "skipWarning": "{{target}} は {{source}} の直後の環境ではありません。",
+   "note": "メモ",
+   "notePlaceholder": "この昇格の理由（任意）",
+   "submit": "昇格",
+   "promoting": "昇格中...",
+   "promoted": "{{target}} に昇格しました。更新されたデプロイメント: {{deployments}}。",
+   "errors": {
+    "noNext": "昇格元の環境の後に環境がありません。",
+    "sameEnvironment": "昇格元とは異なる昇格先の環境を選択してください。",
+    "needsSkip": "この昇格先は環境をスキップします。順序を飛ばして昇格するには「環境のスキップを許可」をオンにしてください。"
+   }
+  },
+  "promotions": {
+   "title": "昇格履歴",
+   "agentFilter": "エージェント",
+   "allAgents": "すべてのエージェント",
+   "empty": "昇格やロールバックはまだありません。",
+   "columns": {
+    "createdUtc": "日時",
+    "kind": "種類",
+    "outcome": "結果",
+    "agent": "エージェント",
+    "revision": "リビジョン",
+    "environments": "環境",
+    "deployments": "デプロイメント",
+    "actor": "実行者",
+    "note": "メモ",
+    "actions": "操作"
+   },
+   "path": "{{source}} から {{target}}",
+   "pinChange": "（{{from}} から {{to}}）",
+   "skipped": "環境をスキップ",
+   "rollback": "ロールバック",
+   "rollbackTitle": "昇格をロールバック",
+   "rollbackMessage": "{{source}} から {{target}} へのこの昇格で変更されたデプロイメントのリビジョン固定を、昇格前の状態に戻しますか？対象のデプロイメント: {{deployments}}。",
+   "rollbackNote": "ロールバックのメモ",
+   "rolledBack": "ロールバックしました。以前のリビジョン固定が復元されました。"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "columns": {
+    "environment": "環境",
+    "agentRevisionId": "固定リビジョン"
+   },
+   "fields": {
+    "environment": "環境",
+    "agentRevisionId": "リビジョン固定"
+   },
+   "hints": {
+    "environment": "昇格は、テナントの順序に従ってリビジョンを環境間で移動します。",
+    "agentRevisionId": "空の場合はエージェントの最新の公開済みリビジョンに追従します。固定すると、あなたか昇格が変更するまで、このデプロイメントは 1 つのリビジョンにとどまります。"
+   },
+   "followLatest": "最新の公開済みに追従",
+   "latest": "最新",
+   "selectAgentFirst": "先にエージェントを選択してください。",
+   "noPublished": "このエージェントにはまだ公開済みリビジョンがありません。",
+   "actions": {
+    "promote": "昇格",
+    "promotions": "昇格履歴"
+   }
+  }
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "agentAssets": {
+    "label": "アセット",
+    "tip": "エージェントのリビジョンが固定する、バージョン管理されたシステムプロンプト、スキル、参照ファイル、ドキュメントテンプレート。"
+   }
+  }
+ },
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "システムプロンプト",
+   "Skill": "スキル",
+   "ReferenceFile": "参照ファイル",
+   "DocumentTemplate": "ドキュメントテンプレート"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "アセットの整合性チェックに失敗"
+  },
+  "resourceType": {
+   "AgentAsset": "エージェントのアセット"
+  }
+ },
+ "errorCodes": {
+  "AssetInUse": "このアセットはまだエージェントのリビジョンに固定されています。削除する前に、それらのリビジョンから外してください。",
+  "AssetKindImmutable": "アセットの種類は作成後に変更できません。新しいアセットを作成してください。",
+  "AssetStoreImmutable": "アセットの成果物ストアは作成後に変更できません。新しいアセットを作成してください。",
+  "AssetTemplateRequired": "システムプロンプトのアセットにはプロンプトテンプレートが必要で、他の種類には設定できません。",
+  "AssetFileTooLarge": "ファイルが Assets.MaxFileBytes 設定の上限を超えています。",
+  "AssetVersionTooLarge": "ファイルの合計サイズが Assets.MaxVersionBytes 設定の上限を超えています。",
+  "AssetTooManyFiles": "このアップロードのファイル数が Assets.MaxFilesPerVersion 設定の上限を超えています。",
+  "AssetHasNoFiles": "システムプロンプトのアセットにはファイルがありません。代わりにプロンプトテンプレートを編集してください。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidAssetPath": "スラッシュ区切りの相対パスを使用してください。「.」や「..」のセグメントは使用できず、最大 512 文字です。",
+   "MacroFormatRefused": "マクロ有効な Office ファイルは拒否されます (Assets.AllowMacroFormats)。ファイルを .docx または .dotx として保存してください。",
+   "AssetHasNoFiles": "システムプロンプトのアセットにはファイルがありません。代わりにプロンプトテンプレートを編集してください。",
+   "AssetTemplateRequired": "システムプロンプトのアセットにはプロンプトテンプレートを選択してください。"
+  },
+  "serverText": {
+   "assetInUse": "アセット {{asset}} は次のエージェントのリビジョンに固定されています: {{agents}}。先にそれらのリビジョンから外してください。",
+   "assetFileTooLarge": "ファイル {{path}} は {{size}} バイトです。上限は {{limit}} バイトです (Assets.MaxFileBytes)。",
+   "assetVersionTooLarge": "このバージョンは {{limit}} バイトを超えています (Assets.MaxVersionBytes)。",
+   "assetTooManyFiles": "1 つのバージョンに含められるファイルは最大 {{limit}} 個です (Assets.MaxFilesPerVersion)。このアップロードには {{count}} 個あります。",
+   "assetHasNoFiles": "システムプロンプトのアセットにはファイルがありません。代わりにプロンプトテンプレートを編集してください。"
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "title": "アセット",
+   "subtitle": "エージェントのリビジョンが固定する、バージョン管理されたシステムプロンプト、スキル、参照ファイル、ドキュメントテンプレート。",
+   "add": "アセットを追加",
+   "create": "アセットを作成",
+   "edit": "アセットを編集",
+   "view": "アセットの詳細",
+   "deleteTitle": "アセットを削除",
+   "emptyTitle": "アセットはまだありません",
+   "emptyBody": "アセットを作成し、ファイルをバージョンとしてアップロードして、エージェントのリビジョンに固定してください。",
+   "columns": {
+    "name": "名前",
+    "kind": "種類",
+    "currentVersion": "現在のバージョン",
+    "description": "説明",
+    "tags": "タグ",
+    "artifactStoreId": "ストア",
+    "id": "アセット ID",
+    "createdUtc": "作成日時"
+   },
+   "fields": {
+    "name": "名前",
+    "kind": "種類",
+    "promptTemplateId": "プロンプトテンプレート",
+    "artifactStoreId": "成果物ストア",
+    "description": "説明",
+    "tags": "タグ"
+   },
+   "hints": {
+    "kind": "作成後は変更できません。システムプロンプトのアセットはプロンプトテンプレートからテキストを取得し、他の種類はアップロードしたファイルを保持します。",
+    "promptTemplateId": "このアセットがエージェントのシステムプロンプトとして提供するテキストのプロンプトテンプレート。",
+    "artifactStoreId": "アップロードしたファイルの保存先。作成後は変更できません。空のままにすると Garrison データベースに保存されます。"
+   },
+   "errors": {
+    "templateRequired": "このシステムプロンプトのアセットが使用するプロンプトテンプレートを選択してください。"
+   },
+   "version": "バージョン {{number}}",
+   "noVersion": "バージョンなし",
+   "databaseStore": "Garrison データベース",
+   "actions": {
+    "versions": "バージョン"
+   }
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "assetPins": "アセット"
+   }
+  },
+  "assets": {
+   "versionsTitle": "{{name}} のバージョン",
+   "current": "現在",
+   "noVersions": "このアセットにはまだバージョンがありません。下でファイルをアップロードしてください。",
+   "systemPromptNotice": "システムプロンプトのアセットにはファイルがありません。テキストはプロンプトテンプレートから取得されるため、変更するにはテンプレートを編集してください。",
+   "showFiles": "ファイル",
+   "filesTitle": "バージョン {{number}} のファイル",
+   "noFiles": "このバージョンにはファイルがありません。",
+   "preview": "プレビュー",
+   "download": "ダウンロード",
+   "previewTitle": "{{path}} (バージョン {{number}})",
+   "emptyFile": "このファイルは空です。",
+   "versionColumns": {
+    "number": "バージョン",
+    "author": "作成者",
+    "changeNote": "変更メモ",
+    "totalBytes": "合計サイズ",
+    "createdUtc": "作成日時",
+    "actions": "操作"
+   },
+   "fileColumns": {
+    "path": "パス",
+    "mediaType": "メディアタイプ",
+    "sizeBytes": "サイズ",
+    "sha256": "SHA-256 ダイジェスト",
+    "actions": "操作"
+   },
+   "uploadTitle": "新しいバージョンをアップロード",
+   "uploadHint": "1 つ以上のファイルを選択してください。各アップロードは完全なバージョンです。含めなかったファイルは現在のバージョンから引き継がれません。",
+   "files": "ファイル",
+   "uploadColumns": {
+    "path": "アセット内のパス",
+    "mediaType": "メディアタイプ",
+    "size": "サイズ",
+    "actions": "削除"
+   },
+   "mediaTypeGuessed": "ファイル拡張子から推定",
+   "removeFile": "このファイルをアップロードから外す",
+   "changeNote": "変更メモ",
+   "changeNotePlaceholder": "このバージョンでの変更内容",
+   "upload": "バージョンをアップロード",
+   "uploading": "アップロード中...",
+   "uploadCreated": "バージョン {{number}} を作成しました。",
+   "uploadUnchanged": "ファイルが現在のバージョン {{number}} と同じため、新しいバージョンは作成されませんでした。",
+   "limitSetting": "上限はサーバー設定 {{setting}} で設定されます。",
+   "duplicatePath": "このアップロード内の別のファイルが同じパスを使用しています。",
+   "pinVersion": "{{name}} バージョン {{version}}",
+   "pinCurrent": "{{name}} (現在)",
+   "pinsTitle": "アセットの固定",
+   "pinsSave": "下書きを保存",
+   "pinsSaved": "下書きリビジョン {{number}} にアセットの固定を保存しました。",
+   "pinsDraft": "下書きリビジョン {{number}} のアセットの固定を変更します。下書きのその他の内容はそのままです。",
+   "pinsNewDraft": "開いている下書きがありません。保存すると、公開済みリビジョン {{number}} からこのアセットの固定で新しい下書きを開始します。",
+   "pinsEmpty": "固定されたアセットはありません。",
+   "pinAsset": "アセット",
+   "pinVersionLabel": "バージョン",
+   "chooseAsset": "アセットを選択",
+   "assetOption": "{{name}}（{{kind}}）",
+   "followCurrent": "現在のバージョン",
+   "removePin": "このアセットの固定を削除",
+   "addPin": "アセットを追加",
+   "editPins": "アセット",
+   "pinsNewDraftButton": "新しい下書きでアセットを固定"
+  }
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "views": {
+  "conversationDetail": {
+   "tabsLabel": "会話のセクション",
+   "tabs": {
+    "turns": "ターン",
+    "files": "ファイル"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "ファイルスペース",
+   "openFiles": "ファイルを開く"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "fileSpaceMountPath": "ファイルスペースのフォルダー"
+   },
+   "hints": {
+    "fileSpaceMountPath": "実行のワークスペース内で、開始時に会話の共有ファイルを受け取るフォルダーです。ここでの変更は終了時に書き戻されます。既定値は files です。"
+   }
+  }
+ },
+ "errorCodes": {
+  "InvalidFilePath": "スラッシュ区切りの相対パスを使用してください。「.」や「..」のセグメントは使用できません。",
+  "FileTooLarge": "ファイルが FileSpaces.MaxFileBytes 設定の上限を超えています。",
+  "FileSpaceFull": "ファイルスペースが FileSpaces.MaxTotalBytes 設定の上限を超えてしまいます。",
+  "TooManyFiles": "ファイルスペースには FileSpaces.MaxFiles 設定の上限までファイルがすでにあります。",
+  "StaleFileUpload": "実行がリースを保持していないため、ファイルの変更は書き込まれませんでした。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidFilePath": "スラッシュ区切りの相対パスを使用してください。「.」や「..」のセグメントは使用できません。"
+  },
+  "serverText": {
+   "fileSpaceFileTooLarge": "ファイル {{path}} は {{size}} バイトです。上限は {{limit}} バイトです (FileSpaces.MaxFileBytes)。",
+   "fileSpaceFull": "ファイルスペースが {{limit}} バイトを超えてしまいます (FileSpaces.MaxTotalBytes)。",
+   "fileSpaceTooManyFiles": "ファイルスペースにはすでに {{count}} 個のファイルがあります (FileSpaces.MaxFiles)。",
+   "fileNotFound": "ファイル {{path}} が見つかりません。"
+  }
+ },
+ "components": {
+  "files": {
+   "title": "ファイル",
+   "summary": "共有ファイル: {{count}} 個 ({{size}})",
+   "live": "ライブ",
+   "polling": "定期取得",
+   "includeDeleted": "削除済みファイルを表示",
+   "refresh": "更新",
+   "spaceId": "ファイルスペース {{id}}",
+   "emptyTitle": "ファイルはまだありません",
+   "emptyBody": "ターンが共有フォルダーに書き込んだファイルや、下でアップロードしたファイルがここに表示されます。",
+   "emptyBodyDeleted": "この会話の共有フォルダーには、後で削除されたファイルも含めて、まだ何も書き込まれていません。",
+   "columns": {
+    "path": "パス",
+    "currentVersion": "バージョン",
+    "sizeBytes": "サイズ",
+    "mediaType": "メディアタイプ",
+    "lastUpdateUtc": "更新日時",
+    "actions": "操作"
+   },
+   "deleted": "削除済み",
+   "version": "バージョン {{number}}",
+   "versions": "バージョン履歴",
+   "download": "ダウンロード",
+   "deleteLabel": "{{path}} を削除",
+   "deletedToast": "{{path}} を削除しました。バージョンは保持されます。",
+   "deleteTitle": "ファイルを削除",
+   "confirmDelete": "{{path}} を共有ファイルから削除しますか? 以降のターンからは見えなくなります。バージョンは保持され、引き続きダウンロードできます。",
+   "versionsTitle": "{{path}} のバージョン",
+   "noVersions": "このファイルにはバージョンがありません。",
+   "current": "現在",
+   "versionColumns": {
+    "number": "バージョン",
+    "sizeBytes": "サイズ",
+    "mediaType": "メディアタイプ",
+    "sha256": "SHA-256 ダイジェスト",
+    "writtenBy": "書き込み元",
+    "createdUtc": "書き込み日時",
+    "actions": "操作"
+   },
+   "preview": "プレビュー",
+   "previewTitle": "{{path}} (バージョン {{number}})",
+   "emptyFile": "このバージョンは空です。",
+   "uploadTitle": "ファイルをアップロード",
+   "uploadHint": "ファイルを 1 つ以上選び、パスを確認してください。一覧のファイルと同じパスなら、そのファイルの新しいバージョンになります。一覧の読み込み後にターンがそのファイルを変更していた場合、アップロードは置き換えずに競合名で隣に保存されます。",
+   "uploadCreated": "{{path}} をバージョン {{version}} として追加しました。",
+   "uploadReplaced": "{{path}} をバージョン {{version}} として保存しました。",
+   "uploadConflict": "一覧の読み込み後に {{requested}} が変更されたため、アップロードは {{path}} として保存されました。2 つのファイルを比べて、不要な方を削除してください。",
+   "chooseFiles": "アップロードするファイル",
+   "uploadColumns": {
+    "path": "共有フォルダー内のパス",
+    "replaces": "置き換え対象",
+    "size": "サイズ",
+    "actions": "削除"
+   },
+   "replacesVersion": "バージョン {{version}}",
+   "newFile": "新しいファイル",
+   "removeFile": "このファイルをアップロードから外す",
+   "upload": "アップロード",
+   "uploading": "アップロード中...",
+   "limitSetting": "上限はサーバー設定 {{setting}} で設定されます。"
+  }
+ }
+});

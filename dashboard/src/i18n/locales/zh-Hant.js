@@ -2570,3 +2570,466 @@ zhHant.tips.enums.runStatus.Suspended = "執行已有持久工作階段檢查點
 zhHant.tips.enums.runExecutor.RemoteA2A = "透過期限與取消處理執行已驗證的註冊 A2A 代理。";
 zhHant.tips.enums.runExecutor.RemoteMcp = "使用經過驗證的 JSON 輸入呼叫所選的遠端 MCP 工具。";
 zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列達到上限，執行接納被拒絕。";
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "草稿",
+   "Published": "已發佈"
+  },
+  "promotionKind": {
+   "Promote": "升級推進",
+   "Rollback": "復原"
+  },
+  "promotionOutcome": {
+   "Applied": "已套用",
+   "RolledBack": "已復原"
+  },
+  "revisionChangeType": {
+   "Changed": "已變更",
+   "Added": "已新增",
+   "Removed": "已移除"
+  },
+  "resourceType": {
+   "AgentRevision": "代理程式修訂",
+   "Promotion": "升級推進"
+  }
+ },
+ "errorCodes": {
+  "PromotionOrderViolation": "目標不是來源環境的下一個環境。若要不依順序推進，請開啟「允許略過環境」。",
+  "NoNextEnvironment": "來源是最後一個環境，沒有可推進的目標。",
+  "NoTargetDeployments": "此代理程式在目標環境中沒有部署。請先在該環境建立一個。",
+  "NoSourceRevision": "沒有可推進的修訂：代理程式在來源環境中沒有部署，或沒有已發佈的修訂。請明確選擇一個修訂。",
+  "AmbiguousSourceRevision": "來源環境中的部署執行不同的修訂。請選擇要推進的修訂。",
+  "RevisionNotPublished": "該修訂是草稿。請先發佈再推進。",
+  "PromotionConflict": "套用推進時有部署發生變更。未進行任何變更；請重新載入後再試一次。",
+  "NotAPromotion": "只能復原推進記錄，不能復原復原記錄。",
+  "AlreadyRolledBack": "此推進已經復原。",
+  "RevisionUnchanged": "草稿與最新發佈的修訂相同。請先修改再發佈，或將其捨棄。",
+  "RevisionPublished": "此修訂已發佈，無法再變更。",
+  "EnvironmentInUse": "您移除的某個環境仍有部署。請先移動或刪除這些部署。"
+ },
+ "views": {
+  "agentDetail": {
+   "revisions": "修訂",
+   "draftNotice": "此代理程式有尚未發佈的草稿變更。在草稿發佈之前，部署會繼續執行已發佈的修訂。",
+   "reviewDraft": "檢視草稿"
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "number": "修訂編號",
+    "state": "狀態",
+    "author": "作者",
+    "changeNote": "變更說明",
+    "publishedUtc": "發佈時間",
+    "actions": "動作"
+   },
+   "number": "修訂 {{number}}",
+   "option": "修訂 {{number}}（{{state}}）",
+   "latest": "最新",
+   "empty": "此代理程式尚無修訂。",
+   "compareTitle": "比較修訂",
+   "from": "從",
+   "to": "到",
+   "pickTwo": "請選擇兩個不同的修訂進行比較。",
+   "identical": "修訂 {{from}} 與 {{to}} 的內容相同。",
+   "diffSummary": "修訂 {{from}} 與修訂 {{to}} 之間變更的欄位：{{changed}}。",
+   "diffColumns": {
+    "field": "欄位",
+    "change": "變更",
+    "before": "之前",
+    "after": "之後"
+   },
+   "emptyValue": "（空白）",
+   "compare": "比較",
+   "publish": "發佈",
+   "discard": "捨棄草稿",
+   "publishTitle": "發佈修訂 {{number}}",
+   "publishBody": "發佈後，修訂 {{number}} 會成為最新發佈的修訂。跟隨最新修訂的部署會從下一次執行起使用它；已釘選的部署則保留其修訂。",
+   "changeNote": "變更說明",
+   "changeNotePlaceholder": "變更了什麼以及原因（選填）",
+   "publishing": "正在發佈...",
+   "published": "已發佈修訂 {{number}}。",
+   "discardTitle": "捨棄草稿修訂 {{number}}",
+   "discardMessage": "要捨棄草稿嗎？其變更將會遺失。已發佈的修訂與部署不受影響。",
+   "discarded": "已捨棄草稿。"
+  },
+  "promote": {
+   "title": "推進修訂",
+   "intro": "將目標環境中此代理程式的每個部署釘選到來源環境中正在執行的修訂。每次推進都會記錄下來，並且可以復原。",
+   "agent": "代理程式",
+   "revision": "要推進的修訂",
+   "revisionFromSource": "來源環境中正在執行的修訂",
+   "source": "來源環境",
+   "target": "目標環境",
+   "targetNext": "下一個環境（{{name}}）",
+   "allowSkip": "允許略過環境",
+   "skipWarning": "{{target}} 不是緊接在 {{source}} 之後的環境。",
+   "note": "備註",
+   "notePlaceholder": "此次推進的原因（選填）",
+   "submit": "推進",
+   "promoting": "正在推進...",
+   "promoted": "已推進到 {{target}}。已更新的部署：{{deployments}}。",
+   "errors": {
+    "noNext": "來源環境之後沒有其他環境。",
+    "sameEnvironment": "請選擇與來源不同的目標環境。",
+    "needsSkip": "此目標會略過一個環境。若要不依順序推進，請開啟「允許略過環境」。"
+   }
+  },
+  "promotions": {
+   "title": "推進記錄",
+   "agentFilter": "代理程式",
+   "allAgents": "所有代理程式",
+   "empty": "尚無推進或復原記錄。",
+   "columns": {
+    "createdUtc": "時間",
+    "kind": "類型",
+    "outcome": "結果",
+    "agent": "代理程式",
+    "revision": "修訂",
+    "environments": "環境",
+    "deployments": "部署",
+    "actor": "執行者",
+    "note": "備註",
+    "actions": "動作"
+   },
+   "path": "{{source}} 到 {{target}}",
+   "pinChange": "（{{from}} 到 {{to}}）",
+   "skipped": "已略過環境",
+   "rollback": "復原",
+   "rollbackTitle": "復原推進",
+   "rollbackMessage": "要將此次從 {{source}} 到 {{target}} 的推進所變更的部署還原為先前的修訂釘選嗎？受影響的部署：{{deployments}}。",
+   "rollbackNote": "復原備註",
+   "rolledBack": "已復原。先前的修訂釘選已還原。"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "columns": {
+    "environment": "環境",
+    "agentRevisionId": "釘選的修訂"
+   },
+   "fields": {
+    "environment": "環境",
+    "agentRevisionId": "修訂釘選"
+   },
+   "hints": {
+    "environment": "推進會依租用戶的順序在環境之間移動修訂。",
+    "agentRevisionId": "留空則跟隨代理程式最新發佈的修訂。釘選後，此部署會停留在某個修訂上，直到您或某次推進變更它。"
+   },
+   "followLatest": "跟隨最新發佈",
+   "latest": "最新",
+   "selectAgentFirst": "請先選擇代理程式。",
+   "noPublished": "此代理程式尚無已發佈的修訂。",
+   "actions": {
+    "promote": "推進",
+    "promotions": "推進記錄"
+   }
+  }
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "agentAssets": {
+    "label": "資產",
+    "tip": "由代理程式修訂釘選、具版本控管的系統提示、技能、參考檔案與文件範本。"
+   }
+  }
+ },
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "系統提示",
+   "Skill": "技能",
+   "ReferenceFile": "參考檔案",
+   "DocumentTemplate": "文件範本"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "資產完整性檢查失敗"
+  },
+  "resourceType": {
+   "AgentAsset": "代理程式資產"
+  }
+ },
+ "errorCodes": {
+  "AssetInUse": "仍有代理程式修訂釘選此資產。請先從這些修訂中移除它，再刪除。",
+  "AssetKindImmutable": "資產建立後無法變更其類型。請改為建立新的資產。",
+  "AssetStoreImmutable": "資產建立後無法變更其成品存放區。請改為建立新的資產。",
+  "AssetTemplateRequired": "系統提示資產需要提示範本，其他類型則不能有提示範本。",
+  "AssetFileTooLarge": "有檔案超過 Assets.MaxFileBytes 設定允許的大小。",
+  "AssetVersionTooLarge": "檔案總大小超過 Assets.MaxVersionBytes 設定允許的上限。",
+  "AssetTooManyFiles": "此次上傳的檔案數超過 Assets.MaxFilesPerVersion 設定允許的數量。",
+  "AssetHasNoFiles": "系統提示資產沒有檔案。請改為編輯其提示範本。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidAssetPath": "請使用以正斜線分隔的相對路徑，不得包含 \".\" 或 \"..\" 區段，最多 512 個字元。",
+   "MacroFormatRefused": "不接受啟用巨集的 Office 檔案（Assets.AllowMacroFormats）。請將檔案另存為 .docx 或 .dotx。",
+   "AssetHasNoFiles": "系統提示資產沒有檔案。請改為編輯其提示範本。",
+   "AssetTemplateRequired": "請為系統提示資產選擇提示範本。"
+  },
+  "serverText": {
+   "assetInUse": "資產 {{asset}} 被下列代理程式的修訂釘選：{{agents}}。請先從這些修訂中移除它。",
+   "assetFileTooLarge": "檔案 {{path}} 為 {{size}} 位元組，上限為 {{limit}} 位元組（Assets.MaxFileBytes）。",
+   "assetVersionTooLarge": "此版本超過 {{limit}} 位元組（Assets.MaxVersionBytes）。",
+   "assetTooManyFiles": "每個版本最多 {{limit}} 個檔案（Assets.MaxFilesPerVersion），此次上傳有 {{count}} 個。",
+   "assetHasNoFiles": "系統提示資產沒有檔案。請改為編輯其提示範本。"
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "title": "資產",
+   "subtitle": "由代理程式修訂釘選、具版本控管的系統提示、技能、參考檔案與文件範本。",
+   "add": "新增資產",
+   "create": "建立資產",
+   "edit": "編輯資產",
+   "view": "資產詳細資料",
+   "deleteTitle": "刪除資產",
+   "emptyTitle": "尚無資產",
+   "emptyBody": "建立資產，將其檔案上傳為一個版本，再釘選到代理程式修訂上。",
+   "columns": {
+    "name": "名稱",
+    "kind": "類型",
+    "currentVersion": "目前版本",
+    "description": "說明",
+    "tags": "標籤",
+    "artifactStoreId": "存放區",
+    "id": "ID 識別碼",
+    "createdUtc": "建立時間"
+   },
+   "fields": {
+    "name": "名稱",
+    "kind": "類型",
+    "promptTemplateId": "提示範本",
+    "artifactStoreId": "成品存放區",
+    "description": "說明",
+    "tags": "標籤"
+   },
+   "hints": {
+    "kind": "建立後即固定。系統提示資產的文字來自提示範本，其他類型則保存上傳的檔案。",
+    "promptTemplateId": "此資產作為代理程式系統提示所提供文字的提示範本。",
+    "artifactStoreId": "上傳檔案的存放位置。建立後即固定。留空則保存在 Garrison 資料庫中。"
+   },
+   "errors": {
+    "templateRequired": "請選擇此系統提示資產使用的提示範本。"
+   },
+   "version": "版本 {{number}}",
+   "noVersion": "無版本",
+   "databaseStore": "Garrison 資料庫",
+   "actions": {
+    "versions": "版本"
+   }
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "assetPins": "資產"
+   }
+  },
+  "assets": {
+   "versionsTitle": "{{name}} 的版本",
+   "current": "目前",
+   "noVersions": "此資產尚無版本。請在下方上傳其檔案。",
+   "systemPromptNotice": "系統提示資產沒有檔案。其文字來自提示範本，若要變更請編輯該範本。",
+   "showFiles": "檔案",
+   "filesTitle": "版本 {{number}} 的檔案",
+   "noFiles": "此版本沒有檔案。",
+   "preview": "預覽",
+   "download": "下載",
+   "previewTitle": "{{path}}（版本 {{number}}）",
+   "emptyFile": "此檔案為空。",
+   "versionColumns": {
+    "number": "版本",
+    "author": "作者",
+    "changeNote": "變更說明",
+    "totalBytes": "總大小",
+    "createdUtc": "建立時間",
+    "actions": "動作"
+   },
+   "fileColumns": {
+    "path": "路徑",
+    "mediaType": "媒體類型",
+    "sizeBytes": "大小",
+    "sha256": "SHA-256 摘要",
+    "actions": "動作"
+   },
+   "uploadTitle": "上傳新版本",
+   "uploadHint": "選擇一或多個檔案。每次上傳都是完整的版本：未包含的檔案不會從目前版本沿用。",
+   "files": "檔案",
+   "uploadColumns": {
+    "path": "資產內路徑",
+    "mediaType": "媒體類型",
+    "size": "大小",
+    "actions": "移除"
+   },
+   "mediaTypeGuessed": "依副檔名判斷",
+   "removeFile": "從此次上傳中移除此檔案",
+   "changeNote": "變更說明",
+   "changeNotePlaceholder": "此版本變更了什麼",
+   "upload": "上傳版本",
+   "uploading": "上傳中...",
+   "uploadCreated": "已建立版本 {{number}}。",
+   "uploadUnchanged": "檔案與目前版本 {{number}} 相同，因此未建立新版本。",
+   "limitSetting": "此上限由伺服器設定 {{setting}} 決定。",
+   "duplicatePath": "此次上傳中有另一個檔案使用相同路徑。",
+   "pinVersion": "{{name}} 版本 {{version}}",
+   "pinCurrent": "{{name}}（目前）",
+   "pinsTitle": "資產釘選",
+   "pinsSave": "儲存草稿",
+   "pinsSaved": "已儲存草稿修訂 {{number}} 的資產釘選。",
+   "pinsDraft": "變更草稿修訂 {{number}} 的資產釘選。草稿中的其他內容維持不變。",
+   "pinsNewDraft": "目前沒有開啟的草稿。儲存時會以已發佈的修訂 {{number}} 為基礎，建立含這些資產釘選的新草稿。",
+   "pinsEmpty": "尚未釘選任何資產。",
+   "pinAsset": "資產",
+   "pinVersionLabel": "版本",
+   "chooseAsset": "選擇資產",
+   "assetOption": "{{name}}（{{kind}}）",
+   "followCurrent": "目前版本",
+   "removePin": "移除此資產釘選",
+   "addPin": "新增資產",
+   "editPins": "資產",
+   "pinsNewDraftButton": "在新草稿中釘選資產"
+  }
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "views": {
+  "conversationDetail": {
+   "tabsLabel": "對話區段",
+   "tabs": {
+    "turns": "各輪",
+    "files": "檔案"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "檔案空間",
+   "openFiles": "開啟檔案"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "fileSpaceMountPath": "檔案空間資料夾"
+   },
+   "hints": {
+    "fileSpaceMountPath": "執行工作區中的資料夾，執行開始時接收對話的共用檔案，結束時將其中的變更寫回。預設值為 files。"
+   }
+  }
+ },
+ "errorCodes": {
+  "InvalidFilePath": "請使用以正斜線分隔的相對路徑，不得包含 \".\" 或 \"..\" 區段。",
+  "FileTooLarge": "檔案超出 FileSpaces.MaxFileBytes 設定允許的大小。",
+  "FileSpaceFull": "檔案空間將超出 FileSpaces.MaxTotalBytes 設定。",
+  "TooManyFiles": "檔案空間的檔案數已達 FileSpaces.MaxFiles 設定的上限。",
+  "StaleFileUpload": "此執行已不再持有租約，因此其檔案變更並未寫入。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidFilePath": "請使用以正斜線分隔的相對路徑，不得包含 \".\" 或 \"..\" 區段。"
+  },
+  "serverText": {
+   "fileSpaceFileTooLarge": "檔案 {{path}} 有 {{size}} 位元組；上限為 {{limit}} 位元組 (FileSpaces.MaxFileBytes)。",
+   "fileSpaceFull": "檔案空間將超過 {{limit}} 位元組 (FileSpaces.MaxTotalBytes)。",
+   "fileSpaceTooManyFiles": "檔案空間中已有 {{count}} 個檔案 (FileSpaces.MaxFiles)。",
+   "fileNotFound": "找不到檔案 {{path}}。"
+  }
+ },
+ "components": {
+  "files": {
+   "title": "檔案",
+   "summary": "共用檔案：{{count}} 個 ({{size}})",
+   "live": "即時",
+   "polling": "定時重新整理",
+   "includeDeleted": "顯示已刪除的檔案",
+   "refresh": "重新整理",
+   "spaceId": "檔案空間 {{id}}",
+   "emptyTitle": "尚無檔案",
+   "emptyBody": "各輪寫入共用資料夾的檔案，以及您在下方上傳的檔案，都會顯示在這裡。",
+   "emptyBodyDeleted": "此對話的共用資料夾尚未寫入任何內容，包括之後被刪除的檔案。",
+   "columns": {
+    "path": "路徑",
+    "currentVersion": "版本",
+    "sizeBytes": "大小",
+    "mediaType": "媒體類型",
+    "lastUpdateUtc": "更新時間",
+    "actions": "動作"
+   },
+   "deleted": "已刪除",
+   "version": "版本 {{number}}",
+   "versions": "版本歷程",
+   "download": "下載",
+   "deleteLabel": "刪除 {{path}}",
+   "deletedToast": "已刪除 {{path}}。其版本會保留。",
+   "deleteTitle": "刪除檔案",
+   "confirmDelete": "要從共用檔案中刪除 {{path}} 嗎？之後的各輪將看不到它。其版本會保留，仍可下載。",
+   "versionsTitle": "{{path}} 的版本",
+   "noVersions": "此檔案沒有版本。",
+   "current": "目前",
+   "versionColumns": {
+    "number": "版本",
+    "sizeBytes": "大小",
+    "mediaType": "媒體類型",
+    "sha256": "SHA-256 摘要",
+    "writtenBy": "寫入者",
+    "createdUtc": "寫入時間",
+    "actions": "動作"
+   },
+   "preview": "預覽",
+   "previewTitle": "{{path}} (版本 {{number}})",
+   "emptyFile": "此版本是空的。",
+   "uploadTitle": "上傳檔案",
+   "uploadHint": "選擇一個或多個檔案並檢查其路徑。路徑與清單中的檔案相同時，會為該檔案新增版本。如果清單載入後有某一輪變更了該檔案，您的上傳會以衝突名稱存放在旁邊，而不會取代它。",
+   "uploadCreated": "已將 {{path}} 新增為版本 {{version}}。",
+   "uploadReplaced": "已將 {{path}} 儲存為版本 {{version}}。",
+   "uploadConflict": "{{requested}} 在清單載入後已變更，因此您的上傳已存為 {{path}}。請比較這兩個檔案，並刪除不需要的那一個。",
+   "chooseFiles": "要上傳的檔案",
+   "uploadColumns": {
+    "path": "在共用資料夾中的路徑",
+    "replaces": "取代",
+    "size": "大小",
+    "actions": "移除"
+   },
+   "replacesVersion": "版本 {{version}}",
+   "newFile": "新檔案",
+   "removeFile": "從上傳中移除此檔案",
+   "upload": "上傳",
+   "uploading": "上傳中...",
+   "limitSetting": "此上限由伺服器設定 {{setting}} 決定。"
+  }
+ }
+});

@@ -59,11 +59,25 @@ function TextFilter({ filter, value, onChange, tipText, t }) {
   );
 }
 
+/** Filter values the server receives: every filter except those marked clientSide. */
+function serverFilters(config, filters) {
+  const local = new Set((config.filters || []).filter((f) => f.clientSide).map((f) => f.name));
+  return Object.fromEntries(Object.entries(filters || {}).filter(([k]) => !local.has(k)));
+}
+
+/** Rows kept by clientSide filters (for lists the server cannot filter): `matches(row, value)`, or equality on the field. */
+function applyClientFilters(config, filters, rows) {
+  const local = (config.filters || []).filter((f) => f.clientSide && filters?.[f.name]);
+  if (!local.length) return rows;
+  return rows.filter((row) => local.every((f) => (f.matches ? f.matches(row, filters[f.name]) : row?.[f.name] === filters[f.name])));
+}
+
 /**
  * Generic record page: header with + Add, search and filter row, server-paginated table with Select Columns,
  * sortable headers, row actions (View, Edit, Duplicate, Delete, View JSON, extras), bulk delete, purpose-built
  * create/edit/view modal from field descriptors, custom confirmations, and loading/empty/error states.
- * Filters are selects (options may be a function of the lookups), date pickers, or free text (type 'text');
+ * Filters are selects (options may be a function of the lookups), date pickers, or free text (type 'text'); a filter with
+ * `clientSide: true` is applied to the loaded page instead of being sent to the server;
  * `toDuplicate(row)` replaces the generic Duplicate stripping for records whose children keep references (pipelines);
  * `search: false` hides the name search for lists the server cannot search.
  */
@@ -133,7 +147,7 @@ export default function ResourceView({ config }) {
         sortKey: SERVER_SORT_KEYS.includes(sort.key) ? sort.key : undefined,
         sortDir: sort.dir,
         search: debouncedSearch,
-        filters
+        filters: serverFilters(config, filters)
       });
       config.api
         .list(apiClient, tenantId, params)
@@ -157,7 +171,7 @@ export default function ResourceView({ config }) {
 
   useAutoRefresh(() => !editing && !jsonValue && load(page.pageNumber, page.pageSize), autoRefreshSeconds);
 
-  const displayItems = SERVER_SORT_KEYS.includes(sort.key) ? items : sortLocal(items, sort.key, sort.dir);
+  const displayItems = applyClientFilters(config, filters, SERVER_SORT_KEYS.includes(sort.key) ? items : sortLocal(items, sort.key, sort.dir));
   const canManage = !config.canManage || config.canManage(ctx);
   const isEditable = (row) => canManage && (config.isEditable ? config.isEditable(row) : !row?.isBuiltIn);
   const canDelete = (row) => canManage && (config.canDelete ? config.canDelete(row) : !row?.isProtected && !row?.isBuiltIn);

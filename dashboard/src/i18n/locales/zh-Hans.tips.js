@@ -108,6 +108,7 @@ const tips = {
       mcpServers: '智能体可以使用的工具服务器。先在这里注册，再绑定到部署。',
       secrets: '加密存储的 API 密钥和令牌。部署按别名绑定它们；值保存后不会再次显示。',
       workspaces: '运行工作目录的模板：空目录、从 Git 克隆，或预置文件。',
+      agentAssets: '由代理修订固定的、带版本的系统提示词、技能、参考文件和文档模板，可在此上传并查看历史。',
       artifactStores: '保存运行所产生文件的目的地，用于在运行结束后保留这些文件。',
       modelPrices: "在执行器未报告费用时，使用操作员配置的美元费率进行估算。已报告费用（包括零）优先。",
       usageQuotas: "租户、代理或部署的UTC每日运行数、令牌数、已知费用上限及当前并发上限。",
@@ -1010,7 +1011,7 @@ const tips = {
     },
     manifestApplies: {
       createdUtc: '应用或试运行清单的时间。',
-      principalName: '应用者。',
+      principalName: '应用此清单的用户或访问密钥。',
       dryRun: '“是”表示仅做了验证，没有写入任何内容。',
       counts: '各文档创建、更新、保持不变或失败的记录数量。'
     },
@@ -2177,5 +2178,281 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "includeBuiltIn": "添加包所引用的内置提示模板和 harness 配置文件。应用时不会更改它们，只检查它们是否存在。"
    }
   }
+ }
+});
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "未发布的修订。每个代理只有一个打开的草稿；发布之前没有任何部署运行它。",
+   "Published": "已冻结的修订。跟随最新修订或固定此修订的部署会运行它。"
+  },
+  "promotionKind": {
+   "Promote": "将某个环境的部署固定到取自前一个环境的修订。",
+   "Rollback": "将晋升替换掉的修订固定恢复为原来的状态。"
+  },
+  "promotionOutcome": {
+   "Applied": "此记录设置的固定仍然有效。",
+   "RolledBack": "后来的回滚已恢复此次晋升所替换的固定。"
+  },
+  "revisionChangeType": {
+   "Changed": "该字段在较新的修订中有不同的值。",
+   "Added": "该字段或列表项只存在于较新的修订中。",
+   "Removed": "该字段或列表项只存在于较旧的修订中。"
+  }
+ },
+ "filters": {
+  "environment": "只显示某个环境（如 dev、staging 或 prod）中的部署。作用于已加载的页面。"
+ },
+ "resources": {
+  "deployments": {
+   "environment": "此部署所属的环境。晋升会按租户的顺序将修订从一个环境移到下一个环境。",
+   "agentRevisionId": "此部署运行的代理修订。“最新”跟随每个新发布的修订；固定的修订会一直保留，直到被更改或晋升。",
+   "environmentBadge": "此部署在 {{environment}} 环境中运行。",
+   "followsLatest": "未固定：此部署运行代理最新发布的修订。",
+   "pinnedRevision": "已固定：在固定更改之前，此部署运行 {{revision}}。",
+   "actions": {
+    "promote": "将代理的修订从一个环境晋升到下一个环境，并更新那里每个部署的固定。",
+    "promotions": "查看过去的晋升和回滚，并回滚某次晋升以恢复之前的固定。"
+   }
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "reviewDraft": "打开“修订”标签页，将草稿与最新发布的修订进行比较，然后发布或丢弃它。",
+   "tabs": {
+    "revisions": "此代理已保存的每个修订：任意比较两个修订，发布草稿或丢弃它。"
+   },
+   "columns": {
+    "environment": "部署所属的环境，供晋升使用。",
+    "revision": "部署运行的修订：“最新”跟随每次发布，数字表示固定。"
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "number": "修订号。此代理每保存一个修订，编号就会增加。",
+   "state": "草稿仍可更改；已发布的修订已冻结。",
+   "author": "保存此修订的人：创建或最后替换它的用户或访问密钥。",
+   "changeNote": "发布修订时记录的更改内容和原因。",
+   "publishedUtc": "修订的发布时间。草稿为空。",
+   "actions": "比较、发布或丢弃修订。"
+  },
+  "latest": "最新发布的修订。没有固定的部署会运行此修订。",
+  "compare": "显示此修订与其之前已发布修订之间的更改。",
+  "publish": "发布此草稿，使其成为最新发布的修订。",
+  "discard": "删除此草稿。已发布的修订不受影响。",
+  "discardConfirm": "永久删除草稿。此操作无法撤销。",
+  "from": "比较中较旧的一方：其值显示为“之前”。",
+  "to": "比较中较新的一方：其值显示为“之后”。",
+  "publishSubmit": "立即发布草稿。跟随最新修订的部署从下一次运行开始使用它。",
+  "changeNote": "与已发布修订一起保存并显示在修订列表中的可选说明。最多 2000 个字符。",
+  "diffColumns": {
+   "field": "存在差异的修订字段，例如 description 或 promptPins。",
+   "change": "该字段是被更改、添加还是删除。",
+   "before": "较旧修订中的值。",
+   "after": "较新修订中的值。"
+  }
+ },
+ "promote": {
+  "agent": "要晋升其修订的代理。它在目标环境中的部署会被更新。",
+  "revision": "保持为源修订以晋升源环境正在运行的修订，或选择一个已发布的修订。",
+  "source": "修订所来自的环境。",
+  "target": "要更新的环境。默认为租户顺序中源环境之后的环境。",
+  "allowSkip": "当目标不是下一个环境时必须开启。跳过的环境会与晋升一起记录。",
+  "note": "与晋升记录一起保存的可选备注。最多 2000 个字符。",
+  "submit": "立即应用晋升。目标环境中该代理的每个部署都会获得新的固定。"
+ },
+ "promotions": {
+  "agentFilter": "只显示某个代理的晋升和回滚。",
+  "refresh": "从服务器重新加载晋升历史。",
+  "columns": {
+   "createdUtc": "应用晋升或回滚的时间。",
+   "kind": "晋升，或对之前某次晋升的回滚。",
+   "outcome": "固定是否仍然有效，或之后已被回滚。",
+   "agent": "其部署被更新的代理。",
+   "revision": "被晋升的修订。",
+   "environments": "晋升的源环境和目标环境。",
+   "deployments": "每个被更新的部署，以及其之前和之后的固定。",
+   "actor": "应用晋升或回滚的人。",
+   "note": "创建记录时填写的备注。",
+   "actions": "回滚已应用的晋升。"
+  },
+  "skipped": "此次晋升至少跳过了一个环境，因此需要开启“允许跳过环境”。",
+  "rollback": "恢复这些部署在此次晋升之前的修订固定。",
+  "rollbackConfirm": "立即应用回滚。它会记录在晋升历史中。",
+  "rollbackNote": "与回滚记录一起保存的可选备注。最多 2000 个字符。"
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "代理的系统提示词，由提示词模板提供。没有上传的文件。",
+   "Skill": "Harness 加载的技能文件夹，放在 Harness 配置文件指定的技能位置。",
+   "ReferenceFile": "代理在运行期间可读取的文件，放在运行的工作区中。",
+   "DocumentTemplate": "代理在运行期间填写的文档模板，例如 .docx 或 .dotx 文件。"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "某个资产文件未通过 SHA-256 校验，或在启动前无法下载，因此 Harness 从未启动。"
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "add": "创建新资产。之后将其文件上传为一个版本，再在代理修订上固定它。",
+   "name": "资产在此租户中的唯一名称。修订和清单可以通过此名称引用该资产。",
+   "kind": "系统提示词、技能、参考文件或文档模板。资产创建后不可更改。",
+   "currentVersion": "最新版本。跟随当前版本的固定从下一次运行开始使用它。",
+   "description": "用简单的话说明资产包含什么以及哪些代理使用它。",
+   "tags": "用于查找和分组资产的标签。对运行没有影响。",
+   "artifactStoreId": "资产文件的存储位置。Garrison 数据库表示文件保存在控制平面数据库中。",
+   "promptTemplateId": "为系统提示词资产提供文本的提示词模板。仅系统提示词需要。",
+   "databaseStore": "文件保存在 Garrison 数据库中，而不是外部制品存储。",
+   "kindFilter": "仅显示一种类型的资产：系统提示词、技能、参考文件或文档模板。",
+   "actions": {
+    "versions": "打开版本历史：浏览文件、预览文本文件、下载文件，以及上传新版本。"
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "assetPins": "此修订固定的资产，每个资产固定在某个版本，或跟随资产的当前版本。"
+  }
+ },
+ "assets": {
+  "files": "从您的计算机选择一个或多个文件。它们在浏览器中读取，并作为一个版本一起上传。",
+  "path": "文件在资产内的位置，使用以正斜杠分隔的相对路径，例如 docs/guide.md。",
+  "uploadColumns": {
+   "path": "每个文件在资产内的路径。如有需要，可在上传前编辑。",
+   "mediaType": "浏览器报告的媒体类型。为空时由服务器根据扩展名推断。",
+   "size": "从您的计算机读取的文件大小。",
+   "actions": "在发送前将文件从此次上传中移除。"
+  },
+  "removeFile": "将此文件从上传中移除。在您上传之前不会发送任何内容。",
+  "changeNote": "可选说明，随新版本保存并显示在版本历史中。最多 2000 个字符。",
+  "upload": "将所选文件作为一个新版本上传。如果文件完全相同，则返回当前版本。",
+  "current": "这是资产的当前版本，供跟随当前版本的固定使用。",
+  "showFiles": "显示此版本的文件，包括大小、摘要、预览和下载。",
+  "versionColumns": {
+   "number": "版本号。每次上传不同的文件都会增加下一个编号。",
+   "author": "上传此版本的人。",
+   "changeNote": "上传此版本时填写的说明。",
+   "totalBytes": "此版本中所有文件的总大小。",
+   "createdUtc": "此版本的上传时间。",
+   "actions": "显示某个版本的文件。"
+  },
+  "fileColumns": {
+   "path": "文件在资产内的路径，也是运行时放置文件的位置。",
+   "mediaType": "随文件保存的媒体类型。",
+   "sizeBytes": "此版本中该文件的大小。",
+   "sha256": "文件 SHA-256 摘要的开头部分。工作节点会在运行开始前进行校验。",
+   "actions": "就地预览文本文件，或下载任意文件。"
+  },
+  "sha256Full": "此文件的完整 SHA-256 摘要：{{sha}}",
+  "preview": "在文件列表下方以只读方式显示此文本文件。此处无法编辑。",
+  "download": "将此版本的该文件下载到您的计算机。",
+  "pinsSave": "将这些资产固定保存到草稿。之后发布草稿，部署才会使用它们。",
+  "pinAsset": "要在此修订上固定的资产。每个资产只能固定一次。",
+  "pinVersion": "固定某个版本，或选择“当前版本”以在运行时使用资产的最新版本。",
+  "removePin": "从修订的固定中移除此资产。",
+  "addPin": "向修订的固定中添加另一个资产。",
+  "editPins": "添加、移除或更改此草稿修订的资产固定。",
+  "pinsNewDraft": "基于最新发布的修订创建新草稿，并选择其资产固定。",
+  "pinnedVersion": "此资产固定在某个版本，因此新上传后运行仍使用该版本。",
+  "pinnedCurrent": "此资产跟随其当前版本，因此运行使用最新上传的版本。"
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "conversationDetail": {
+   "tabs": {
+    "turns": "此对话的各轮 (从最早开始)，以及发送下一轮的输入框。",
+    "files": "此对话的每一轮和每个被委派的智能体都会读写的共享文件夹，附带版本历史和下载。"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "此运行在开始时复制到工作区、在结束时写回的共享文件空间。同一对话、流水线运行或委派树中的运行共用它。",
+   "openFiles": "打开此运行所属对话的“文件”标签页，浏览、下载或上传共享文件。"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fileSpaceMountPath": "运行工作区中同步共享文件空间的文件夹，例如 files。使用以正斜杠分隔的相对路径，最多 128 个字符。"
+  }
+ },
+ "files": {
+  "summary": "共享文件夹中当前文件的数量及其总大小。已删除的文件不计入。",
+  "live": "只要某一轮、被委派的智能体或某个人更改了文件，列表就会立即更新。",
+  "polling": "实时连接不可用，因此在此标签页打开期间，列表每 {{seconds}} 秒重新加载一次。",
+  "includeDeleted": "同时列出已删除的文件。它们的版本会保留，仍可下载。",
+  "refresh": "立即从服务器重新加载文件列表。",
+  "columns": {
+   "path": "文件在共享文件夹中的路径。运行时可在部署的文件空间文件夹下找到它。",
+   "currentVersion": "最新版本。每一轮、智能体或上传每写入一次就增加一个版本。",
+   "sizeBytes": "文件当前版本的大小。",
+   "mediaType": "与当前版本一起保存的媒体类型。",
+   "lastUpdateUtc": "文件最后一次更改的时间。",
+   "actions": "查看版本历史、下载当前版本或删除文件。"
+  },
+  "deleted": "此文件已删除。之后的各轮看不到它，但其版本会保留。",
+  "versions": "打开此文件的版本历史，每个版本都可下载并预览文本。",
+  "download": "通过一个短时有效的链接下载此文件的当前版本。",
+  "delete": "从共享文件夹中删除此文件。其版本会保留。",
+  "confirmDelete": "立即删除文件。之后的各轮将看不到它。",
+  "versionColumns": {
+   "number": "版本号。每次写入都会使用下一个编号。",
+   "sizeBytes": "此版本中文件的大小。",
+   "mediaType": "与此版本一起保存的媒体类型。",
+   "sha256": "此版本 SHA-256 摘要的开头部分。工作节点同步文件时会校验它。",
+   "writtenBy": "写入此版本的运行所属的智能体，或上传它的人。",
+   "createdUtc": "此版本的写入时间。",
+   "actions": "就地预览文本版本，或下载任意版本。"
+  },
+  "current": "这是之后各轮看到的版本。",
+  "sha256Full": "此版本完整的 SHA-256 摘要：{{sha}}",
+  "openRun": "打开写入此版本的运行。",
+  "preview": "在列表下方以只读方式显示此版本。此处无法编辑。",
+  "downloadVersion": "将此版本的文件下载到您的计算机。",
+  "chooseFiles": "从您的计算机选择一个或多个文件。它们会在浏览器中读取，并逐个上传。",
+  "uploadColumns": {
+   "path": "每个文件在共享文件夹中的位置。如有需要，请在上传前修改。",
+   "replaces": "此上传替换的列表中版本，或“新文件”。此后被更改过的文件会以冲突名称保存。",
+   "size": "从您的计算机读取的文件大小。",
+   "actions": "在发送前把文件从此次上传中移除。"
+  },
+  "path": "在共享文件夹中的路径，使用以正斜杠分隔的相对路径，例如 notes/sources.md。",
+  "removeFile": "把此文件从上传中移除。在您上传之前不会发送任何内容。",
+  "upload": "将选择的每个文件逐个发送到共享文件夹，并附上它要替换的版本。"
  }
 });

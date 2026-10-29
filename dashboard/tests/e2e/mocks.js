@@ -9,6 +9,9 @@ const iso = (offsetMinutes) => new Date(NOW - offsetMinutes * 60000).toISOString
 const TENANT = 'default';
 const pad = (i) => String(i).padStart(4, '0');
 
+/** The file space of cnv_0001 (AD3.8). Other conversations have no space yet, so their listing is empty. */
+export const CONVERSATION_FILE_SPACE = 'cfs_0001';
+
 export const PRINCIPAL = {
   principalType: 'User',
   principalId: 'usr_admin',
@@ -228,12 +231,14 @@ function run(i) {
 export const CONVERSATION_TURN_RUNS = [36, 40, 42];
 
 function conversationFields(run) {
-  const none = { conversationId: null, conversationTurn: 0, resumeSessionId: null, affinityNodeId: null, affinityUntilUtc: null, conversationFallbackReason: null };
+  // AD3: every run carries the file space it syncs; the turns of cnv_0001 share the conversation's space.
+  const none = { conversationId: null, conversationTurn: 0, resumeSessionId: null, affinityNodeId: null, affinityUntilUtc: null, conversationFallbackReason: null, fileSpaceId: null };
   const i = CONVERSATION_TURN_RUNS.indexOf(run) + 1;
   if (i === 0) return none;
   return {
     ...none,
     conversationId: 'cnv_0001',
+    fileSpaceId: CONVERSATION_FILE_SPACE,
     conversationTurn: i,
     resumeSessionId: i === 2 ? 'ses-1' : null,
     affinityNodeId: i > 1 ? 'node_0001' : null,
@@ -375,6 +380,8 @@ const FACTORIES = {
       retention: 'Delete',
       files: [{ id: `chr_wst_${pad(i)}_0000fil`, workspaceTemplateId: `wst_${pad(i)}`, path: 'README.md', content: 'hello' }]
     }),
+  // AD2.8: agent assets (see agentAsset below).
+  'agent-assets': (i) => agentAsset(i),
   'artifact-stores': (i) => base('as', i, { description: 'Database store', kind: 'Database', region: null, forcePathStyle: false }),
   'model-prices': (i) => base('mpr', i, { model: `fixture-model-${i}`, harnessType: 'Generic', inputUsdPerMillion: 2, outputUsdPerMillion: 10, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true, description: 'Fixture rates' }),
   'usage-quotas': (i) => base('uqt', i, { enforcementEnabled: false, scope: i === 1 ? 'Tenant' : i % 2 ? 'Agent' : 'Deployment', resourceId: i === 1 ? 'default' : i % 2 ? `agt_${pad(i)}` : `dep_${pad(i)}`, dailyRunLimit: 100, dailyTokenLimit: 1000000, dailyCostUsdLimit: 25, maxConcurrentRuns: 4, description: 'Daily quota' }),
@@ -396,7 +403,10 @@ const FACTORIES = {
       registrationTtlSeconds: 0,
       skills: [{ skillId: 'echo', name: 'Echo', description: 'Echoes input' }],
       tags: ['sample'],
-      delegationAllowList: i === 2 ? ['echo-agent'] : []
+      delegationAllowList: i === 2 ? ['echo-agent'] : [],
+      // AD1.9: every agent has published revisions 1 and 2; echo-agent also has an open draft (revision 3).
+      latestPublishedRevisionId: revisionId(`agt_${pad(i)}`, 2),
+      ...(i === 1 ? { draftRevisionId: revisionId('agt_0001', 3) } : {})
     }),
   deployments: (i) => {
     const id = `dep_${pad(i)}`;
@@ -420,11 +430,16 @@ const FACTORIES = {
       effectPolicy: i === 2 ? 'AtLeastOnce' : i === 5 ? 'Journaled' : 'AtMostOnce',
       retryOnNodeLoss: i === 2,
       weight: i === 1 ? 300 : 100,
+      // AD1.9: deployment-1 runs in dev and follows the latest published revision; deployment-2 runs in staging
+      // pinned to revision 1; deployment-3 runs in prod.
+      environment: i === 2 ? 'staging' : i === 3 ? 'prod' : 'dev',
+      ...(i === 2 ? { agentRevisionId: revisionId('agt_0001', 1) } : {}),
       nodePoolId: 'np_0001',
       workspaceTemplateId: 'wst_0001',
       artifactStoreId: 'as_0001',
       // P12.8: explicit collection globs; none means collection is off (D-046).
       artifactGlobs: [],
+      fileSpaceMountPath: 'files',
       // P11.15: deployment-4 has an egress allowlist; the others use the default run egress.
       egressRules: i === 4 ? [{ cidr: '203.0.113.0/24', port: 443, protocol: 'TCP' }, { cidr: '2001:db8::/32', port: null, protocol: 'UDP' }] : [],
       configVersion: 3,
@@ -570,7 +585,7 @@ const FACTORIES = {
   })
 };
 
-const TOTALS = { runs: 137, 'request-history': 64, audit: 42 };
+const TOTALS = { runs: 137, 'request-history': 64, audit: 42, 'agent-assets': 4 };
 
 /**
  * Permission approvals (P12.3), shaped like the server's Approval: apr_0001 and apr_0002 wait for a person on
@@ -1071,6 +1086,248 @@ function triggerRoutes(method, url, parts) {
   return undefined;
 }
 
+// ---------------------------------------------------------------- agent revisions and promotions (AD1.9)
+
+/** Revision ID of an agent's revision number n (mock convention: arv_<agent number>_<n>). */
+export function revisionId(agentId, n) {
+  const m = /^agt_(\d+)$/.exec(agentId || '');
+  return `arv_${m ? m[1] : '0001'}_${n}`;
+}
+
+/** Revision number from an ID or a number, as the diff route accepts either. */
+function revisionNumber(value) {
+  const m = /_(\d+)$/.exec(String(value || ''));
+  return m ? Number(m[1]) : Number(value) || 0;
+}
+
+const REVISION_DESCRIPTIONS = { 1: 'Sample agent', 2: 'Sample agent with a stricter reply format', 3: 'Sample agent that also summarizes' };
+
+/** Revision n of an agent, shaped like GET /agents/{id}/revisions/{revId}. Revision 3 of echo-agent is the draft. */
+export function agentRevision(agentId, n) {
+  const draft = agentId === 'agt_0001' && n === 3;
+  const out = {
+    id: revisionId(agentId, n),
+    tenantId: TENANT,
+    agentId,
+    number: n,
+    state: draft ? 'Draft' : 'Published',
+    contentHash: `sha256:${String(n).repeat(8)}`,
+    displayName: 'Agent 1',
+    description: REVISION_DESCRIPTIONS[n] || 'Sample agent',
+    inputMode: 'Text',
+    delegationMode: 'None',
+    delegationMaxDepth: 2,
+    delegationAllowRecursion: false,
+    delegationAllowList: [],
+    promptPins: n >= 3 ? [{ role: 'System', templateId: 'tpl_builtin_default_system', pinnedVersion: 1 }] : [],
+    capabilities: [],
+    tags: n >= 2 ? ['sample', 'strict'] : ['sample'],
+    // AD2.8: revision 2 follows review-skill's current version; the draft (3) also pins style-guide at version 2.
+    assetPins: n >= 3 ? [{ assetId: 'aas_0002' }, { assetId: 'aas_0001', version: 2 }] : n === 2 ? [{ assetId: 'aas_0002' }] : [],
+    authorUserId: 'usr_admin',
+    authorName: 'admin@garrison',
+    createdUtc: iso(600 - n * 100),
+    lastUpdateUtc: iso(600 - n * 100)
+  };
+  if (n >= 2) out.outputSchemaJson = n >= 3 ? '{\n  "type": "object",\n  "required": ["summary"]\n}' : '{\n  "type": "object"\n}';
+  if (!draft) {
+    out.changeNote = n === 1 ? 'Initial revision' : 'Stricter reply format';
+    out.publishedByUserId = 'usr_admin';
+    out.publishedByName = 'admin@garrison';
+    out.publishedUtc = iso(590 - n * 100);
+  }
+  return out;
+}
+
+/** Revisions of an agent, newest first: echo-agent has 3 (the newest a draft), the others 2. */
+export function agentRevisions(agentId) {
+  const count = agentId === 'agt_0001' ? 3 : 2;
+  return Array.from({ length: count }, (_, k) => agentRevision(agentId, count - k));
+}
+
+/** GET /agents/{id}/revisions/diff: field changes from one revision to another (IDs or numbers). */
+export function revisionDiff(agentId, from, to) {
+  const a = revisionNumber(from);
+  const b = revisionNumber(to);
+  const before = agentRevision(agentId, a);
+  const after = agentRevision(agentId, b);
+  const changes = [];
+  if (before.description !== after.description) changes.push({ field: 'description', changeType: 'Changed', from: before.description, to: after.description });
+  if (!before.outputSchemaJson && after.outputSchemaJson) changes.push({ field: 'outputSchemaJson', changeType: 'Added', to: after.outputSchemaJson });
+  else if (before.outputSchemaJson !== after.outputSchemaJson) changes.push({ field: 'outputSchemaJson', changeType: after.outputSchemaJson ? 'Changed' : 'Removed', from: before.outputSchemaJson, to: after.outputSchemaJson });
+  if (!before.promptPins.length && after.promptPins.length) changes.push({ field: 'promptPins[System]', changeType: 'Added', to: 'tpl_builtin_default_system@1' });
+  const pinText = (p) => `${p.assetId}@${p.version ?? 'current'}`;
+  const beforePins = before.assetPins.map(pinText);
+  const afterPins = after.assetPins.map(pinText);
+  for (const pin of afterPins.filter((x) => !beforePins.includes(x))) changes.push({ field: 'assetPins', changeType: 'Added', to: pin });
+  for (const pin of beforePins.filter((x) => !afterPins.includes(x))) changes.push({ field: 'assetPins', changeType: 'Removed', from: pin });
+  if (before.tags.length !== after.tags.length) changes.push({ field: 'tags', changeType: 'Changed', from: before.tags.join(', '), to: after.tags.join(', ') });
+  return { agentId, fromRevisionId: before.id, fromNumber: a, toRevisionId: after.id, toNumber: b, identical: changes.length === 0, changes };
+}
+
+/** GET /environments: the shipped order, never stored (isDefault). */
+export const ENVIRONMENTS = {
+  environments: [
+    { name: 'dev', description: 'Development', position: 0 },
+    { name: 'staging', description: 'Pre-production', position: 1 },
+    { name: 'prod', description: 'Production', position: 2 }
+  ],
+  isDefault: true
+};
+
+/**
+ * Promotion records, newest first: pro_0001 promoted revision 2 from dev to staging (applied); pro_0002 rolled back
+ * pro_0003, which had promoted revision 1 from staging to prod.
+ */
+export function promotionRecord(i) {
+  const rows = {
+    1: { kind: 'Promote', outcome: 'Applied', agentRevisionId: revisionId('agt_0001', 2), sourceEnvironment: 'dev', targetEnvironment: 'staging', note: 'Ready for staging', items: [{ deploymentId: 'dep_0002', deploymentName: 'deployment-2', previousRevisionId: revisionId('agt_0001', 1), newRevisionId: revisionId('agt_0001', 2) }] },
+    2: { kind: 'Rollback', outcome: 'Applied', agentRevisionId: revisionId('agt_0001', 1), sourceEnvironment: 'staging', targetEnvironment: 'prod', rollbackOfId: 'pro_0003', items: [{ deploymentId: 'dep_0003', deploymentName: 'deployment-3' }] },
+    3: { kind: 'Promote', outcome: 'RolledBack', agentRevisionId: revisionId('agt_0001', 1), sourceEnvironment: 'staging', targetEnvironment: 'prod', skippedEnvironments: false, rolledBackById: 'pro_0002', items: [{ deploymentId: 'dep_0003', deploymentName: 'deployment-3', newRevisionId: revisionId('agt_0001', 1) }] }
+  };
+  const row = rows[i] || rows[1];
+  const id = `pro_${pad(i)}`;
+  return {
+    id,
+    tenantId: TENANT,
+    agentId: 'agt_0001',
+    skippedEnvironments: false,
+    actorType: 'User',
+    actorId: 'usr_admin',
+    actorName: 'admin@garrison',
+    ...row,
+    items: row.items.map((item, k) => ({ id: `pri_${pad(i)}_${k}`, promotionRecordId: id, agentId: 'agt_0001', ...item })),
+    createdUtc: iso(i * 60)
+  };
+}
+
+// ---------------------------------------------------------------- agent assets (AD2.8)
+
+const ASSET_ROWS = {
+  1: { name: 'style-guide', kind: 'ReferenceFile', description: 'House writing style', currentVersion: 2, tags: ['docs'] },
+  2: { name: 'review-skill', kind: 'Skill', description: 'Code review checklist skill', currentVersion: 1, artifactStoreId: 'as_0001', tags: ['review', 'skills'] },
+  3: { name: 'system-voice', kind: 'SystemPrompt', description: 'Shared system prompt', promptTemplateId: 'pt_0001', currentVersion: 0, tags: [] },
+  4: { name: 'contract-template', kind: 'DocumentTemplate', description: 'Contract template', currentVersion: 1, tags: [] }
+};
+
+/** Asset i, shaped like GET /agent-assets/{id} (nulls omitted the way the server omits them). */
+export function agentAsset(i) {
+  const row = ASSET_ROWS[i] || { name: `asset-${i}`, kind: 'ReferenceFile', currentVersion: 0, tags: [] };
+  return { id: `aas_${pad(i)}`, tenantId: TENANT, ...row, createdUtc: iso(i * 30), lastUpdateUtc: iso(i * 10) };
+}
+
+/** The text of style-guide's guide.md (version 2), returned by the file route. */
+export const ASSET_FILE_TEXT = '# Style guide\n\nWrite short sentences.\n';
+
+const sha = (c) => c.repeat(64);
+
+/** Version n of an asset, shaped like GET /agent-assets/{id}/versions/{n}. style-guide v2 adds a logo. */
+export function agentAssetVersion(assetId, n) {
+  const m = /^aas_(\d+)$/.exec(assetId || '');
+  const num = m ? m[1] : '0001';
+  const files = [{ path: 'guide.md', mediaType: 'text/markdown', sizeBytes: n >= 2 ? 40 : 28, sha256: sha(n >= 2 ? 'b' : 'a'), storageKey: `.garrison-assets/${assetId}/${n}/guide.md` }];
+  if (n >= 2) files.push({ path: 'images/logo.png', mediaType: 'image/png', sizeBytes: 2048, sha256: sha('c'), storageKey: `.garrison-assets/${assetId}/${n}/images/logo.png` });
+  const out = { id: `aav_${num}_${n}`, tenantId: TENANT, assetId, number: n, totalBytes: files.reduce((sum, f) => sum + f.sizeBytes, 0), authorName: 'admin@garrison', files, createdUtc: iso(300 - n * 60) };
+  out.changeNote = n === 1 ? 'First draft of the guide' : 'Adds the logo';
+  return out;
+}
+
+/** An asset's versions, newest first (a plain array): style-guide has 2, the others their current version count. */
+export function agentAssetVersions(assetId) {
+  const m = /^aas_(\d+)$/.exec(assetId || '');
+  const count = agentAsset(m ? Number(m[1]) : 1).currentVersion;
+  return Array.from({ length: count }, (_, k) => agentAssetVersion(assetId, count - k));
+}
+
+function assetRoutes(method, url, parts) {
+  if (parts[0] !== 'agent-assets' || parts.length < 2) return undefined;
+  const assetId = /^aas_\d+$/.test(parts[1]) ? parts[1] : 'aas_0001';
+  if (parts.length === 2) return method === 'GET' ? agentAsset(Number(assetId.slice(4))) : { ...agentAsset(Number(assetId.slice(4))), lastUpdateUtc: iso(0) };
+  if (parts[2] !== 'versions') return undefined;
+  if (parts.length === 3) return method === 'GET' ? agentAssetVersions(assetId) : { ...agentAssetVersion(assetId, 3), changeNote: 'Uploaded', createdUtc: iso(0) };
+  if (parts.length === 4) return agentAssetVersion(assetId, Number(parts[3]) || 1);
+  if (parts[4] === 'files') return ASSET_FILE_TEXT;
+  return undefined;
+}
+
+// ---------------------------------------------------------------- conversation file spaces (AD3.8)
+
+/** Text of each version of the cnv_0001 files, keyed by path and version. */
+export const CONVERSATION_FILE_TEXT = {
+  'notes/sources.md': { 1: '# Sources\n\n- https://example.com\n', 2: '# Sources\n\n- https://example.com\n- https://example.org\n' },
+  'report.json': { 1: '{ "status": "draft" }\n' },
+  'old/draft.md': { 1: 'first', 2: 'second', 3: 'third' }
+};
+
+const FILE_ROWS = [
+  { path: 'notes/sources.md', currentVersion: 2, sizeBytes: 64, mediaType: 'text/markdown', deleted: false, updated: 3 },
+  { path: 'report.json', currentVersion: 1, sizeBytes: 22, mediaType: 'application/json', deleted: false, updated: 6 },
+  { path: 'images/chart.png', currentVersion: 1, sizeBytes: 4096, mediaType: 'image/png', deleted: false, updated: 9 },
+  { path: 'old/draft.md', currentVersion: 3, sizeBytes: 5, mediaType: 'text/markdown', deleted: true, updated: 12 }
+];
+
+/** One file of cnv_0001, shaped like a ConversationFile. */
+export function conversationFile(path) {
+  const k = FILE_ROWS.findIndex((r) => r.path === path);
+  const row = FILE_ROWS[k] || FILE_ROWS[0];
+  return { id: `cfl_${pad(k + 1)}`, tenantId: TENANT, fileSpaceId: CONVERSATION_FILE_SPACE, path: row.path, currentVersion: row.currentVersion, sizeBytes: row.sizeBytes, sha256: sha(String.fromCharCode(97 + k)), mediaType: row.mediaType, deleted: row.deleted, createdUtc: iso(60), lastUpdateUtc: iso(row.updated) };
+}
+
+/** GET /conversations/{id}/files. cnv_0001 holds three live files and one deleted file. */
+export function conversationFiles(conversationId, includeDeleted = false) {
+  if (conversationId !== 'cnv_0001') return { fileSpaceId: null, fileCount: 0, totalBytes: 0, files: [] };
+  const live = FILE_ROWS.filter((r) => !r.deleted);
+  const files = FILE_ROWS.filter((r) => includeDeleted || !r.deleted).map((r) => conversationFile(r.path));
+  return { fileSpaceId: CONVERSATION_FILE_SPACE, fileCount: live.length, totalBytes: live.reduce((sum, r) => sum + r.sizeBytes, 0), files };
+}
+
+/** GET /conversations/{id}/files/versions: newest first. notes/sources.md v2 came from a turn, v1 from an upload. */
+export function conversationFileVersions(path) {
+  const file = conversationFile(path);
+  return Array.from({ length: file.currentVersion }, (_, k) => {
+    const n = file.currentVersion - k;
+    const byRun = n % 2 === 0;
+    return { id: `cfv_${file.id.slice(4)}_${n}`, tenantId: TENANT, fileId: file.id, number: n, sizeBytes: n === file.currentVersion ? file.sizeBytes : file.sizeBytes - 10 * k, sha256: sha(String(n)), mediaType: file.mediaType, runId: byRun ? 'run_0042' : null, leaseEpoch: byRun ? 1 : null, writtenBy: byRun ? 'echo-agent' : 'admin@garrison', createdUtc: iso(file.currentVersion * 3 - n * 3) };
+  });
+}
+
+function fileSpaceRoutes(method, url, parts) {
+  if (parts[0] !== 'conversations' || parts[2] !== 'files') return undefined;
+  const path = url.searchParams.get('path') || '';
+  if (parts.length === 3) {
+    if (method === 'GET') return conversationFiles(parts[1], url.searchParams.get('includeDeleted') === 'true');
+    return { requestedPath: 'upload.txt', path: 'upload.txt', version: 1, conflict: false, sha256: sha('u') };
+  }
+  if (parts[3] === 'versions') return conversationFileVersions(path);
+  if (parts[3] === 'content') {
+    const versions = CONVERSATION_FILE_TEXT[path] || {};
+    const n = Number(url.searchParams.get('version')) || conversationFile(path).currentVersion;
+    return versions[n] ?? '';
+  }
+  if (parts[3] === 'download-url') {
+    const query = new URLSearchParams({ ticket: `t-${path}-${url.searchParams.get('version') || 'current'}` });
+    return { url: `${url.origin}/v1.0/file-download/${CONVERSATION_FILE_SPACE}?${query}`, expiresUtc: iso(-5) };
+  }
+  return undefined;
+}
+
+function revisionRoutes(method, url, parts) {
+  if (parts[0] === 'environments' && parts.length === 1) return ENVIRONMENTS;
+  if (parts[0] === 'promotions') {
+    if (parts.length === 1) return method === 'GET' ? pageOf([1, 2, 3].map(promotionRecord), url) : { ...promotionRecord(1), id: 'pro_0099', createdUtc: iso(0) };
+    if (parts[2] === 'rollback') return { ...promotionRecord(2), id: 'pro_0098', rollbackOfId: parts[1], createdUtc: iso(0) };
+    if (parts.length === 2) return { ...promotionRecord(/^pro_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1), id: parts[1] };
+  }
+  if (parts[0] === 'agents' && parts[2] === 'revisions') {
+    const agentId = parts[1];
+    if (parts.length === 3) return method === 'GET' ? pageOf(agentRevisions(agentId), url) : { ...agentRevision(agentId, 3), agentId, state: 'Draft' };
+    if (parts[3] === 'diff') return revisionDiff(agentId, url.searchParams.get('from'), url.searchParams.get('to'));
+    if (parts[4] === 'publish') return { ...agentRevision(agentId, revisionNumber(parts[3])), state: 'Published', publishedUtc: iso(0), publishedByName: 'admin@garrison', publishedByUserId: 'usr_admin' };
+    if (parts.length === 4) return agentRevision(agentId, revisionNumber(parts[3]) || 1);
+  }
+  return undefined;
+}
+
 /** EnumerationResult: the maxResults and skip envelope most list routes return. */
 function enumerate(collection, url) {
   const factory = FACTORIES[collection];
@@ -1464,6 +1721,8 @@ export function respond(method, url) {
   if (p === '/v1.0/api/request-history/summary') return summary();
   if (p === '/v1.0/api/request-history') return method === 'GET' ? page('request-history', url) : undefined;
   if (p === '/v1.0/api/harness-profiles/builtin') return enumerate('harness-profiles', url).objects;
+  // AD3.8: a download link from POST .../files/download-url (no credentials needed).
+  if (p.startsWith('/v1.0/file-download/')) return 'downloaded file content';
 
   let m = p.match(/^\/v1\.0\/api\/(request-history|nodes|node-pools|tenants)(?:\/([^/]+))?(?:\/(cordon|uncordon|drain))?$/);
   if (m) {
@@ -1532,6 +1791,12 @@ export function respond(method, url) {
     if (collection === 'pipeline-reviews' && parts.length === 2) return { ...pipelineReview(/^prv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 2), id: parts[1] };
     const triggered = triggerRoutes(method, url, parts);
     if (triggered !== undefined) return triggered;
+    const asset = assetRoutes(method, url, parts);
+    if (asset !== undefined) return asset;
+    const filed = fileSpaceRoutes(method, url, parts);
+    if (filed !== undefined) return filed;
+    const revised = revisionRoutes(method, url, parts);
+    if (revised !== undefined) return revised;
     if (parts.length === 1) return method === 'GET' ? enumerate(collection, url) : FACTORIES[collection]?.(99) || {};
     if (parts.length === 2 && FACTORIES[collection]) return FACTORIES[collection](1);
     return {};

@@ -2604,3 +2604,466 @@ de.tips.enums.runStatus.Suspended = "Der Lauf hat einen dauerhaften Sitzungssich
 de.tips.enums.runExecutor.RemoteA2A = "Führt einen authentifizierten registrierten A2A-Agenten mit Frist und Abbruch aus.";
 de.tips.enums.runExecutor.RemoteMcp = "Ruft das ausgewählte registrierte MCP-Werkzeug mit geprüftem JSON-Eingang auf.";
 de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil eine Warteschlangengrenze für Cluster, Mandant oder Agent erreicht ist.";
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "Entwurf",
+   "Published": "Veröffentlicht"
+  },
+  "promotionKind": {
+   "Promote": "Hochstufung",
+   "Rollback": "Zurücksetzung"
+  },
+  "promotionOutcome": {
+   "Applied": "Angewendet",
+   "RolledBack": "Zurückgesetzt"
+  },
+  "revisionChangeType": {
+   "Changed": "Geändert",
+   "Added": "Hinzugefügt",
+   "Removed": "Entfernt"
+  },
+  "resourceType": {
+   "AgentRevision": "Agentenrevision",
+   "Promotion": "Hochstufung"
+  }
+ },
+ "errorCodes": {
+  "PromotionOrderViolation": "Das Ziel ist nicht die nächste Umgebung nach der Quelle. Aktivieren Sie Umgebungen überspringen, um außer der Reihe hochzustufen.",
+  "NoNextEnvironment": "Die Quelle ist die letzte Umgebung, daher gibt es kein Ziel für die Hochstufung.",
+  "NoTargetDeployments": "Dieser Agent hat keine Bereitstellung in der Zielumgebung. Legen Sie dort zuerst eine an.",
+  "NoSourceRevision": "Es gibt keine Revision zum Hochstufen: Der Agent hat keine Bereitstellung in der Quellumgebung oder keine veröffentlichte Revision. Wählen Sie eine Revision ausdrücklich.",
+  "AmbiguousSourceRevision": "Bereitstellungen in der Quellumgebung führen unterschiedliche Revisionen aus. Wählen Sie die Revision, die hochgestuft werden soll.",
+  "RevisionNotPublished": "Diese Revision ist ein Entwurf. Veröffentlichen Sie sie vor der Hochstufung.",
+  "PromotionConflict": "Eine Bereitstellung hat sich während der Hochstufung geändert. Nichts wurde geändert; laden Sie neu und versuchen Sie es erneut.",
+  "NotAPromotion": "Nur Hochstufungen können zurückgesetzt werden, keine Zurücksetzungen.",
+  "AlreadyRolledBack": "Diese Hochstufung wurde bereits zurückgesetzt.",
+  "RevisionUnchanged": "Der Entwurf entspricht der neuesten veröffentlichten Revision. Ändern Sie ihn vor dem Veröffentlichen oder verwerfen Sie ihn.",
+  "RevisionPublished": "Diese Revision ist bereits veröffentlicht und kann sich nicht mehr ändern.",
+  "EnvironmentInUse": "Eine entfernte Umgebung hat noch Bereitstellungen. Verschieben oder löschen Sie diese Bereitstellungen zuerst."
+ },
+ "views": {
+  "agentDetail": {
+   "revisions": "Revisionen",
+   "draftNotice": "Dieser Agent hat Entwurfsänderungen, die nicht veröffentlicht sind. Bereitstellungen führen weiter veröffentlichte Revisionen aus, bis der Entwurf veröffentlicht wird.",
+   "reviewDraft": "Entwurf prüfen"
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "number": "Revisionsnr.",
+    "state": "Zustand",
+    "author": "Autor",
+    "changeNote": "Änderungsnotiz",
+    "publishedUtc": "Veröffentlicht",
+    "actions": "Aktionen"
+   },
+   "number": "Revision Nr. {{number}}",
+   "option": "Revision Nr. {{number}} ({{state}})",
+   "latest": "Neueste",
+   "empty": "Dieser Agent hat noch keine Revisionen.",
+   "compareTitle": "Revisionen vergleichen",
+   "from": "Von",
+   "to": "Nach",
+   "pickTwo": "Wählen Sie zwei verschiedene Revisionen zum Vergleichen.",
+   "identical": "Die Revisionen {{from}} und {{to}} haben denselben Inhalt.",
+   "diffSummary": "Geänderte Felder zwischen Revision {{from}} und Revision {{to}}: {{changed}}.",
+   "diffColumns": {
+    "field": "Feld",
+    "change": "Änderung",
+    "before": "Vorher",
+    "after": "Nachher"
+   },
+   "emptyValue": "(leer)",
+   "compare": "Vergleichen",
+   "publish": "Veröffentlichen",
+   "discard": "Entwurf verwerfen",
+   "publishTitle": "Revision {{number}} veröffentlichen",
+   "publishBody": "Durch das Veröffentlichen wird Revision {{number}} zur neuesten veröffentlichten Revision. Bereitstellungen, die der neuesten Revision folgen, führen sie ab dem nächsten Lauf aus; fixierte Bereitstellungen behalten ihre Revision.",
+   "changeNote": "Änderungsnotiz",
+   "changeNotePlaceholder": "Was sich geändert hat und warum (optional)",
+   "publishing": "Wird veröffentlicht...",
+   "published": "Revision {{number}} veröffentlicht.",
+   "discardTitle": "Entwurfsrevision {{number}} verwerfen",
+   "discardMessage": "Den Entwurf verwerfen? Seine Änderungen gehen verloren. Veröffentlichte Revisionen und Bereitstellungen sind nicht betroffen.",
+   "discarded": "Der Entwurf wurde verworfen."
+  },
+  "promote": {
+   "title": "Revision hochstufen",
+   "intro": "Fixiert jede Bereitstellung des Agenten in der Zielumgebung auf die Revision, die in der Quellumgebung läuft. Jede Hochstufung wird protokolliert und kann zurückgesetzt werden.",
+   "agent": "Agent",
+   "revision": "Hochzustufende Revision",
+   "revisionFromSource": "Die Revision, die in der Quellumgebung läuft",
+   "source": "Von Umgebung",
+   "target": "Nach Umgebung",
+   "targetNext": "Nächste Umgebung ({{name}})",
+   "allowSkip": "Umgebungen überspringen erlauben",
+   "skipWarning": "{{target}} ist nicht die Umgebung direkt nach {{source}}.",
+   "note": "Notiz",
+   "notePlaceholder": "Grund für diese Hochstufung (optional)",
+   "submit": "Hochstufen",
+   "promoting": "Wird hochgestuft...",
+   "promoted": "Nach {{target}} hochgestuft. Aktualisierte Bereitstellungen: {{deployments}}.",
+   "errors": {
+    "noNext": "Nach der Quellumgebung gibt es keine weitere Umgebung.",
+    "sameEnvironment": "Wählen Sie eine andere Zielumgebung als die Quelle.",
+    "needsSkip": "Dieses Ziel überspringt eine Umgebung. Aktivieren Sie Umgebungen überspringen erlauben, um außer der Reihe hochzustufen."
+   }
+  },
+  "promotions": {
+   "title": "Hochstufungsverlauf",
+   "agentFilter": "Agent",
+   "allAgents": "Alle Agenten",
+   "empty": "Noch keine Hochstufungen oder Zurücksetzungen.",
+   "columns": {
+    "createdUtc": "Zeitpunkt",
+    "kind": "Art",
+    "outcome": "Ergebnis",
+    "agent": "Agent",
+    "revision": "Revisionsnr.",
+    "environments": "Umgebungen",
+    "deployments": "Bereitstellungen",
+    "actor": "Durch",
+    "note": "Notiz",
+    "actions": "Aktionen"
+   },
+   "path": "{{source}} nach {{target}}",
+   "pinChange": "({{from}} zu {{to}})",
+   "skipped": "Umgebungen übersprungen",
+   "rollback": "Zurücksetzen",
+   "rollbackTitle": "Hochstufung zurücksetzen",
+   "rollbackMessage": "Die Revisionsfixierungen wiederherstellen, die die von dieser Hochstufung von {{source}} nach {{target}} geänderten Bereitstellungen vorher hatten? Betroffene Bereitstellungen: {{deployments}}.",
+   "rollbackNote": "Notiz zur Zurücksetzung",
+   "rolledBack": "Zurückgesetzt. Die vorherigen Revisionsfixierungen sind wiederhergestellt."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "columns": {
+    "environment": "Umgebung",
+    "agentRevisionId": "Fixierte Revision"
+   },
+   "fields": {
+    "environment": "Umgebung",
+    "agentRevisionId": "Revisionsfixierung"
+   },
+   "hints": {
+    "environment": "Hochstufungen bewegen Revisionen in der Reihenfolge des Mandanten durch die Umgebungen.",
+    "agentRevisionId": "Leer folgt der neuesten veröffentlichten Revision des Agenten. Eine Fixierung hält diese Bereitstellung auf einer Revision, bis Sie oder eine Hochstufung sie ändern."
+   },
+   "followLatest": "Neuester Veröffentlichung folgen",
+   "latest": "Neueste",
+   "selectAgentFirst": "Wählen Sie zuerst einen Agenten.",
+   "noPublished": "Dieser Agent hat noch keine veröffentlichte Revision.",
+   "actions": {
+    "promote": "Hochstufen",
+    "promotions": "Hochstufungsverlauf"
+   }
+  }
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "agentAssets": {
+    "label": "Ressourcen",
+    "tip": "Versionierte Systemprompts, Fähigkeiten, Referenzdateien und Dokumentvorlagen, die Agent-Revisionen fixieren."
+   }
+  }
+ },
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "Systemprompt",
+   "Skill": "Fähigkeit",
+   "ReferenceFile": "Referenzdatei",
+   "DocumentTemplate": "Dokumentvorlage"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "Integritätsprüfung der Ressource fehlgeschlagen"
+  },
+  "resourceType": {
+   "AgentAsset": "Agent-Ressource"
+  }
+ },
+ "errorCodes": {
+  "AssetInUse": "Agent-Revisionen fixieren diese Ressource noch. Entfernen Sie sie aus diesen Revisionen, bevor Sie sie löschen.",
+  "AssetKindImmutable": "Die Art einer Ressource kann nach dem Erstellen nicht geändert werden. Erstellen Sie stattdessen eine neue Ressource.",
+  "AssetStoreImmutable": "Der Artefaktspeicher einer Ressource kann nach dem Erstellen nicht geändert werden. Erstellen Sie stattdessen eine neue Ressource.",
+  "AssetTemplateRequired": "Systemprompt-Ressourcen benötigen eine Prompt-Vorlage, andere Arten dürfen keine haben.",
+  "AssetFileTooLarge": "Eine Datei ist größer, als die Einstellung Assets.MaxFileBytes erlaubt.",
+  "AssetVersionTooLarge": "Die Dateien sind zusammen größer, als die Einstellung Assets.MaxVersionBytes erlaubt.",
+  "AssetTooManyFiles": "Dieser Upload enthält mehr Dateien, als die Einstellung Assets.MaxFilesPerVersion erlaubt.",
+  "AssetHasNoFiles": "Systemprompt-Ressourcen haben keine Dateien. Bearbeiten Sie stattdessen ihre Prompt-Vorlage."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidAssetPath": "Verwenden Sie einen relativen Pfad mit Schrägstrichen, ohne Segmente \".\" oder \"..\", höchstens 512 Zeichen.",
+   "MacroFormatRefused": "Office-Dateien mit Makros werden abgelehnt (Assets.AllowMacroFormats). Speichern Sie die Datei als .docx oder .dotx.",
+   "AssetHasNoFiles": "Systemprompt-Ressourcen haben keine Dateien. Bearbeiten Sie stattdessen ihre Prompt-Vorlage.",
+   "AssetTemplateRequired": "Wählen Sie eine Prompt-Vorlage für eine Systemprompt-Ressource."
+  },
+  "serverText": {
+   "assetInUse": "Ressource {{asset}} ist in Revisionen dieser Agents fixiert: {{agents}}. Entfernen Sie sie zuerst aus diesen Revisionen.",
+   "assetFileTooLarge": "Datei {{path}} hat {{size}} Bytes; das Limit liegt bei {{limit}} Bytes (Assets.MaxFileBytes).",
+   "assetVersionTooLarge": "Diese Version ist größer als {{limit}} Bytes (Assets.MaxVersionBytes).",
+   "assetTooManyFiles": "Eine Version enthält höchstens {{limit}} Dateien (Assets.MaxFilesPerVersion); dieser Upload hat {{count}}.",
+   "assetHasNoFiles": "Systemprompt-Ressourcen haben keine Dateien. Bearbeiten Sie stattdessen ihre Prompt-Vorlage."
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "title": "Ressourcen",
+   "subtitle": "Versionierte Systemprompts, Fähigkeiten, Referenzdateien und Dokumentvorlagen, die Agent-Revisionen fixieren.",
+   "add": "Ressource hinzufügen",
+   "create": "Ressource erstellen",
+   "edit": "Ressource bearbeiten",
+   "view": "Ressourcendetails",
+   "deleteTitle": "Ressource löschen",
+   "emptyTitle": "Noch keine Ressourcen",
+   "emptyBody": "Erstellen Sie eine Ressource, laden Sie ihre Dateien als Version hoch und fixieren Sie sie in einer Agent-Revision.",
+   "columns": {
+    "name": "Name",
+    "kind": "Art",
+    "currentVersion": "Aktuelle Version",
+    "description": "Beschreibung",
+    "tags": "Schlagwörter",
+    "artifactStoreId": "Speicher",
+    "id": "ID-Kennung",
+    "createdUtc": "Erstellt"
+   },
+   "fields": {
+    "name": "Name",
+    "kind": "Art",
+    "promptTemplateId": "Prompt-Vorlage",
+    "artifactStoreId": "Artefaktspeicher",
+    "description": "Beschreibung",
+    "tags": "Schlagwörter"
+   },
+   "hints": {
+    "kind": "Nach dem Erstellen unveränderlich. Eine Systemprompt-Ressource bezieht ihren Text aus einer Prompt-Vorlage; die anderen Arten enthalten hochgeladene Dateien.",
+    "promptTemplateId": "Die Prompt-Vorlage, deren Text diese Ressource als Systemprompt des Agents liefert.",
+    "artifactStoreId": "Wo die hochgeladenen Dateien gespeichert werden. Nach dem Erstellen unveränderlich. Leer lassen, um sie in der Garrison-Datenbank zu speichern."
+   },
+   "errors": {
+    "templateRequired": "Wählen Sie die Prompt-Vorlage, die diese Systemprompt-Ressource verwendet."
+   },
+   "version": "Vers. {{number}}",
+   "noVersion": "Keine Versionen",
+   "databaseStore": "Garrison-Datenbank",
+   "actions": {
+    "versions": "Versionen"
+   }
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "assetPins": "Ressourcen"
+   }
+  },
+  "assets": {
+   "versionsTitle": "Versionen von {{name}}",
+   "current": "Aktuell",
+   "noVersions": "Diese Ressource hat noch keine Versionen. Laden Sie unten ihre Dateien hoch.",
+   "systemPromptNotice": "Systemprompt-Ressourcen haben keine Dateien. Ihr Text stammt aus ihrer Prompt-Vorlage; bearbeiten Sie die Vorlage, um ihn zu ändern.",
+   "showFiles": "Dateien",
+   "filesTitle": "Dateien der Version {{number}}",
+   "noFiles": "Diese Version hat keine Dateien.",
+   "preview": "Vorschau",
+   "download": "Herunterladen",
+   "previewTitle": "{{path}} (Version {{number}})",
+   "emptyFile": "Diese Datei ist leer.",
+   "versionColumns": {
+    "number": "Version",
+    "author": "Autor",
+    "changeNote": "Änderungsnotiz",
+    "totalBytes": "Gesamtgröße",
+    "createdUtc": "Erstellt",
+    "actions": "Aktionen"
+   },
+   "fileColumns": {
+    "path": "Pfad",
+    "mediaType": "Medientyp",
+    "sizeBytes": "Größe",
+    "sha256": "SHA-256-Prüfsumme",
+    "actions": "Aktionen"
+   },
+   "uploadTitle": "Neue Version hochladen",
+   "uploadHint": "Wählen Sie eine oder mehrere Dateien. Jeder Upload ist eine vollständige Version: Weggelassene Dateien werden nicht aus der aktuellen Version übernommen.",
+   "files": "Dateien",
+   "uploadColumns": {
+    "path": "Pfad in der Ressource",
+    "mediaType": "Medientyp",
+    "size": "Größe",
+    "actions": "Entfernen"
+   },
+   "mediaTypeGuessed": "Aus der Dateiendung",
+   "removeFile": "Diese Datei aus dem Upload entfernen",
+   "changeNote": "Änderungsnotiz",
+   "changeNotePlaceholder": "Was sich in dieser Version geändert hat",
+   "upload": "Version hochladen",
+   "uploading": "Wird hochgeladen...",
+   "uploadCreated": "Version {{number}} erstellt.",
+   "uploadUnchanged": "Die Dateien entsprechen der aktuellen Version {{number}}, daher wurde keine neue Version erstellt.",
+   "limitSetting": "Das Limit wird durch die Servereinstellung {{setting}} festgelegt.",
+   "duplicatePath": "Eine andere Datei in diesem Upload hat denselben Pfad.",
+   "pinVersion": "{{name}} Vers. {{version}}",
+   "pinCurrent": "{{name}} (aktuell)",
+   "pinsTitle": "Ressourcen-Fixierungen",
+   "pinsSave": "Entwurf speichern",
+   "pinsSaved": "Ressourcen-Fixierungen im Revisionsentwurf {{number}} gespeichert.",
+   "pinsDraft": "Ändert die Ressourcen-Fixierungen des Revisionsentwurfs {{number}}. Alles andere im Entwurf bleibt unverändert.",
+   "pinsNewDraft": "Es gibt keinen offenen Entwurf. Beim Speichern wird ein neuer Entwurf aus der veröffentlichten Revision {{number}} mit diesen Ressourcen-Fixierungen angelegt.",
+   "pinsEmpty": "Keine Ressourcen fixiert.",
+   "pinAsset": "Ressource",
+   "pinVersionLabel": "Version",
+   "chooseAsset": "Ressource auswählen",
+   "assetOption": "{{name}} (Art: {{kind}})",
+   "followCurrent": "Aktuelle Version",
+   "removePin": "Diese Ressourcen-Fixierung entfernen",
+   "addPin": "Ressource hinzufügen",
+   "editPins": "Ressourcen",
+   "pinsNewDraftButton": "Ressourcen in neuem Entwurf fixieren"
+  }
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "views": {
+  "conversationDetail": {
+   "tabsLabel": "Bereiche der Konversation",
+   "tabs": {
+    "turns": "Runden",
+    "files": "Dateien"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "Dateibereich",
+   "openFiles": "Dateien öffnen"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "fileSpaceMountPath": "Ordner für den Dateibereich"
+   },
+   "hints": {
+    "fileSpaceMountPath": "Ordner im Arbeitsverzeichnis des Laufs, der beim Start die gemeinsamen Dateien der Konversation erhält; Änderungen darin werden am Ende zurückgeschrieben. Standard files."
+   }
+  }
+ },
+ "errorCodes": {
+  "InvalidFilePath": "Verwenden Sie einen relativen Pfad mit Schrägstrichen, ohne Segmente \".\" oder \"..\".",
+  "FileTooLarge": "Die Datei ist größer, als die Einstellung FileSpaces.MaxFileBytes erlaubt.",
+  "FileSpaceFull": "Der Dateibereich würde die Einstellung FileSpaces.MaxTotalBytes überschreiten.",
+  "TooManyFiles": "Der Dateibereich enthält bereits so viele Dateien, wie die Einstellung FileSpaces.MaxFiles erlaubt.",
+  "StaleFileUpload": "Der Lauf hält seine Zuteilung nicht mehr, daher wurden seine Dateiänderungen nicht geschrieben."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidFilePath": "Verwenden Sie einen relativen Pfad mit Schrägstrichen, ohne Segmente \".\" oder \"..\"."
+  },
+  "serverText": {
+   "fileSpaceFileTooLarge": "Die Datei {{path}} hat {{size}} Byte; das Limit liegt bei {{limit}} Byte (FileSpaces.MaxFileBytes).",
+   "fileSpaceFull": "Der Dateibereich würde mehr als {{limit}} Byte enthalten (FileSpaces.MaxTotalBytes).",
+   "fileSpaceTooManyFiles": "Der Dateibereich enthält bereits {{count}} Dateien (FileSpaces.MaxFiles).",
+   "fileNotFound": "Die Datei {{path}} wurde nicht gefunden."
+  }
+ },
+ "components": {
+  "files": {
+   "title": "Dateien",
+   "summary": "Gemeinsame Dateien: {{count}} ({{size}})",
+   "live": "Live",
+   "polling": "Abfrage",
+   "includeDeleted": "Gelöschte Dateien anzeigen",
+   "refresh": "Aktualisieren",
+   "spaceId": "Dateibereich {{id}}",
+   "emptyTitle": "Noch keine Dateien",
+   "emptyBody": "Dateien, die Runden in den gemeinsamen Ordner schreiben oder die Sie unten hochladen, erscheinen hier.",
+   "emptyBodyDeleted": "In den gemeinsamen Ordner dieser Konversation wurde noch nichts geschrieben, auch keine später gelöschte Datei.",
+   "columns": {
+    "path": "Pfad",
+    "currentVersion": "Version",
+    "sizeBytes": "Größe",
+    "mediaType": "Medientyp",
+    "lastUpdateUtc": "Geändert",
+    "actions": "Aktionen"
+   },
+   "deleted": "Gelöscht",
+   "version": "Vers. {{number}}",
+   "versions": "Versionen",
+   "download": "Herunterladen",
+   "deleteLabel": "{{path}} löschen",
+   "deletedToast": "{{path}} wurde gelöscht. Die Versionen bleiben erhalten.",
+   "deleteTitle": "Datei löschen",
+   "confirmDelete": "{{path}} aus den gemeinsamen Dateien löschen? Spätere Runden sehen die Datei nicht mehr. Ihre Versionen bleiben erhalten und können weiter heruntergeladen werden.",
+   "versionsTitle": "Versionen von {{path}}",
+   "noVersions": "Diese Datei hat keine Versionen.",
+   "current": "Aktuell",
+   "versionColumns": {
+    "number": "Version",
+    "sizeBytes": "Größe",
+    "mediaType": "Medientyp",
+    "sha256": "SHA-256-Prüfsumme",
+    "writtenBy": "Geschrieben von",
+    "createdUtc": "Geschrieben",
+    "actions": "Aktionen"
+   },
+   "preview": "Vorschau",
+   "previewTitle": "{{path}} (Version {{number}})",
+   "emptyFile": "Diese Version ist leer.",
+   "uploadTitle": "Dateien hochladen",
+   "uploadHint": "Wählen Sie eine oder mehrere Dateien und prüfen Sie ihre Pfade. Ein Pfad, der zu einer aufgeführten Datei passt, legt eine neue Version davon an. Hat eine Runde diese Datei nach dem Laden der Liste geändert, wird Ihr Upload unter einem Konfliktnamen daneben abgelegt, statt sie zu ersetzen.",
+   "uploadCreated": "{{path}} als Version {{version}} hinzugefügt.",
+   "uploadReplaced": "{{path}} als Version {{version}} gespeichert.",
+   "uploadConflict": "{{requested}} wurde nach dem Laden der Liste geändert, daher wurde Ihr Upload als {{path}} abgelegt. Vergleichen Sie die beiden Dateien und löschen Sie die, die Sie nicht brauchen.",
+   "chooseFiles": "Hochzuladende Dateien",
+   "uploadColumns": {
+    "path": "Pfad im gemeinsamen Ordner",
+    "replaces": "Ersetzt",
+    "size": "Größe",
+    "actions": "Entfernen"
+   },
+   "replacesVersion": "Version {{version}}",
+   "newFile": "Neue Datei",
+   "removeFile": "Diese Datei aus dem Upload entfernen",
+   "upload": "Hochladen",
+   "uploading": "Wird hochgeladen...",
+   "limitSetting": "Das Limit wird durch die Servereinstellung {{setting}} festgelegt."
+  }
+ }
+});

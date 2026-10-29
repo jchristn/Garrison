@@ -109,6 +109,7 @@ const tips = {
       mcpServers: '代理程式可以用嘅工具伺服器。喺度登記，然後綁定到部署。',
       secrets: '加密咗嘅 API 金鑰同權杖。部署用別名綁定佢哋；數值之後唔會再顯示。',
       workspaces: '執行工作目錄嘅範本：空白、由 Git 複製，或者預先放好檔案。',
+      agentAssets: '代理修訂釘選嘅、有版本嘅系統提示、技能、參考檔案同文件範本，喺度可以上載同睇歷史。',
       artifactStores: '執行產生、你想喺執行完之後保留嘅檔案嘅存放目的地。',
       modelPrices: "執行器冇報告費用時，用操作員設定嘅美元費率估算。已報告費用（包括零）優先。",
       usageQuotas: "租戶、代理或者部署嘅UTC每日執行數、權杖數、已知費用上限同目前並行上限。",
@@ -1011,7 +1012,7 @@ const tips = {
     },
     manifestApplies: {
       createdUtc: '清單套用或者試行嘅時間。',
-      principalName: '邊個套用嘅。',
+      principalName: '套用呢個資訊清單嘅用戶或者存取金鑰。',
       dryRun: '「係」即係只做咗驗證，乜都冇寫入。',
       counts: '有幾多份文件建立咗、更新咗、冇變，或者失敗咗嘅記錄。'
     },
@@ -2178,5 +2179,281 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "includeBuiltIn": "加入套件參照嘅內建提示範本同 harness 設定檔。套用嗰陣唔會改佢哋，只會檢查佢哋存唔存在。"
    }
   }
+ }
+});
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "未發佈嘅修訂。每個代理程式只會有一個開住嘅草稿；發佈之前冇部署會行佢。",
+   "Published": "凍結咗嘅修訂。跟最新修訂或者釘選咗呢個修訂嘅部署會行佢。"
+  },
+  "promotionKind": {
+   "Promote": "將某個環境嘅部署釘選到前一個環境攞嚟嘅修訂。",
+   "Rollback": "將推進取代咗嘅修訂釘選，完全還原返之前咁。"
+  },
+  "promotionOutcome": {
+   "Applied": "呢個紀錄設定嘅釘選仲生效緊。",
+   "RolledBack": "之後嘅還原已經恢復咗呢次推進取代嘅釘選。"
+  },
+  "revisionChangeType": {
+   "Changed": "呢個欄位喺較新嘅修訂有唔同嘅值。",
+   "Added": "呢個欄位或者清單項目只喺較新嘅修訂度有。",
+   "Removed": "呢個欄位或者清單項目只喺較舊嘅修訂度有。"
+  }
+ },
+ "filters": {
+  "environment": "只顯示某個環境（例如 dev、staging 或者 prod）嘅部署。套用喺已載入嘅頁面。"
+ },
+ "resources": {
+  "deployments": {
+   "environment": "呢個部署屬於嘅環境。推進會跟租用戶嘅次序，將修訂由一個環境移去下一個。",
+   "agentRevisionId": "呢個部署行嘅代理程式修訂。「最新」會跟住每個新發佈嘅修訂；釘選咗嘅修訂會一直保留，直到改咗或者被推進。",
+   "environmentBadge": "呢個部署喺 {{environment}} 環境行。",
+   "followsLatest": "未釘選：呢個部署行代理程式最新發佈嘅修訂。",
+   "pinnedRevision": "已釘選：釘選改變之前，呢個部署會行 {{revision}}。",
+   "actions": {
+    "promote": "將代理程式嘅修訂由一個環境推進去下一個，並更新嗰度每個部署嘅釘選。",
+    "promotions": "睇返以前嘅推進同還原，亦可以還原某次推進，恢復之前嘅釘選。"
+   }
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "reviewDraft": "打開「修訂」分頁，將草稿同最新發佈嘅修訂比較，然後發佈或者捨棄佢。",
+   "tabs": {
+    "revisions": "呢個代理程式儲存咗嘅每個修訂：任揀兩個比較、發佈草稿或者捨棄佢。"
+   },
+   "columns": {
+    "environment": "部署屬於嘅環境，推進會用到。",
+    "revision": "部署行嘅修訂：「最新」跟住每次發佈，數字代表釘選。"
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "number": "修訂編號。呢個代理程式每儲存一個修訂，編號就會加一。",
+   "state": "草稿仲可以改；已發佈嘅修訂已經凍結。",
+   "author": "邊個儲存咗呢個修訂：建立或者最後取代佢嘅用戶或者存取金鑰。",
+   "changeNote": "發佈修訂嗰陣記低嘅改動內容同原因。",
+   "publishedUtc": "修訂幾時發佈。草稿係空白。",
+   "actions": "比較、發佈或者捨棄修訂。"
+  },
+  "latest": "最新發佈嘅修訂。冇釘選嘅部署會行呢個。",
+  "compare": "顯示呢個修訂同佢之前嗰個已發佈修訂之間嘅改動。",
+  "publish": "發佈呢個草稿，令佢成為最新發佈嘅修訂。",
+  "discard": "刪除呢個草稿。已發佈嘅修訂唔受影響。",
+  "discardConfirm": "永久刪除草稿。呢個動作冇得返轉頭。",
+  "from": "比較入面較舊嗰邊：啲值會顯示做「之前」。",
+  "to": "比較入面較新嗰邊：啲值會顯示做「之後」。",
+  "publishSubmit": "即刻發佈草稿。跟最新修訂嘅部署由下一次執行開始用佢。",
+  "changeNote": "同已發佈修訂一齊儲存、喺修訂清單顯示嘅可選說明。最多 2000 個字元。",
+  "diffColumns": {
+   "field": "有分別嘅修訂欄位，例如 description 或者 promptPins。",
+   "change": "呢個欄位係改咗、加咗定係移除咗。",
+   "before": "較舊修訂入面嘅值。",
+   "after": "較新修訂入面嘅值。"
+  }
+ },
+ "promote": {
+  "agent": "要推進修訂嘅代理程式。佢喺目標環境嘅部署會被更新。",
+  "revision": "保留來源修訂就會推進來源環境行緊嘅嘢，或者揀一個已發佈嘅修訂。",
+  "source": "修訂嚟自嘅環境。",
+  "target": "要更新嘅環境。預設係租用戶次序入面來源之後嗰個環境。",
+  "allowSkip": "目標唔係下一個環境嗰陣一定要開。跳過咗嘅環境會同推進一齊記錄。",
+  "note": "同推進紀錄一齊儲存嘅可選備註。最多 2000 個字元。",
+  "submit": "即刻套用推進。目標環境入面呢個代理程式嘅每個部署都會攞到新嘅釘選。"
+ },
+ "promotions": {
+  "agentFilter": "只顯示某個代理程式嘅推進同還原。",
+  "refresh": "由伺服器重新載入推進紀錄。",
+  "columns": {
+   "createdUtc": "推進或者還原幾時套用。",
+   "kind": "推進，或者之前某次推進嘅還原。",
+   "outcome": "釘選仲生效緊，定係之後已經還原咗。",
+   "agent": "部署被更新咗嘅代理程式。",
+   "revision": "被推進嘅修訂。",
+   "environments": "推進嘅來源同目標環境。",
+   "deployments": "每個更新咗嘅部署，同埋佢之前同之後嘅釘選。",
+   "actor": "邊個套用咗推進或者還原。",
+   "note": "建立紀錄嗰陣填寫嘅備註。",
+   "actions": "還原一個已套用嘅推進。"
+  },
+  "skipped": "呢次推進最少跳過咗一個環境，所以要開「容許跳過環境」。",
+  "rollback": "恢復呢啲部署喺呢次推進之前嘅修訂釘選。",
+  "rollbackConfirm": "即刻套用還原。佢會記錄喺推進紀錄度。",
+  "rollbackNote": "同還原紀錄一齊儲存嘅可選備註。最多 2000 個字元。"
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "代理程式嘅系統提示，由提示範本提供。佢冇上載檔案。",
+   "Skill": "執行器載入嘅技能資料夾，放喺執行器設定檔指定嘅技能位置。",
+   "ReferenceFile": "代理程式喺執行期間可以讀嘅檔案，放喺執行嘅工作區。",
+   "DocumentTemplate": "文件範本，例如 .docx 或者 .dotx 檔案，由代理程式喺執行期間填寫。"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "有資產檔案喺啟動前 SHA-256 檢查唔通過或者下載唔到，所以執行器冇啟動過。"
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "add": "建立新資產。之後將佢嘅檔案上載做一個版本，再喺代理程式修訂釘選佢。",
+   "name": "資產喺呢個租戶入面嘅唯一名稱。修訂同清單可以用呢個名稱引用資產。",
+   "kind": "系統提示、技能、參考檔案或者文件範本。資產建立之後固定。",
+   "currentVersion": "最新嘅版本。跟目前版本嘅釘選會由下一次執行開始用佢。",
+   "description": "用淺白嘅字講清楚資產裝咗乜，同邊啲代理程式用佢。",
+   "tags": "用嚟搵同分組資產嘅標籤。對執行冇影響。",
+   "artifactStoreId": "資產檔案存放嘅位置。Garrison 資料庫即係存喺控制平面資料庫。",
+   "promptTemplateId": "提供系統提示資產文字嘅提示範本。只有系統提示需要。",
+   "databaseStore": "啲檔案存喺 Garrison 資料庫，唔係外部成品存放區。",
+   "kindFilter": "只顯示一種類型嘅資產：系統提示、技能、參考檔案或者文件範本。",
+   "actions": {
+    "versions": "打開版本歷史：瀏覽檔案、預覽文字檔、下載，同上載新版本。"
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "assetPins": "呢個修訂釘選嘅資產，每個都係固定版本，或者跟資產嘅目前版本。"
+  }
+ },
+ "assets": {
+  "files": "喺你部電腦揀一個或者多個檔案。佢哋會喺瀏覽器讀取，再一齊上載做一個版本。",
+  "path": "檔案喺資產入面嘅位置，用正斜線嘅相對路徑，例如 docs/guide.md。",
+  "uploadColumns": {
+   "path": "每個檔案喺資產入面嘅路徑。有需要可以喺上載前修改。",
+   "mediaType": "瀏覽器報告嘅媒體類型。如果留空，伺服器會按副檔名推斷。",
+   "size": "喺你部電腦讀到嘅檔案大小。",
+   "actions": "傳送之前將檔案移出今次上載。"
+  },
+  "removeFile": "將呢個檔案移出今次上載。你上載之前乜都唔會傳送。",
+  "changeNote": "可選嘅說明，會同新版本一齊儲存，並喺版本歷史顯示。最多 2000 個字元。",
+  "upload": "將揀咗嘅檔案上載做一個新版本。如果檔案一樣，就會返回目前版本。",
+  "current": "呢個係資產嘅目前版本，跟目前版本嘅釘選會用佢。",
+  "showFiles": "顯示呢個版本嘅檔案，連埋大小、摘要、預覽同下載。",
+  "versionColumns": {
+   "number": "版本編號。每次上載唔同嘅檔案都會加下一個編號。",
+   "author": "邊個上載呢個版本。",
+   "changeNote": "上載呢個版本時寫嘅說明。",
+   "totalBytes": "呢個版本所有檔案加埋嘅大小。",
+   "createdUtc": "呢個版本幾時上載。",
+   "actions": "顯示某個版本嘅檔案。"
+  },
+  "fileColumns": {
+   "path": "檔案喺資產入面嘅路徑，亦即執行時放置嘅位置。",
+   "mediaType": "同檔案一齊儲存嘅媒體類型。",
+   "sizeBytes": "呢個版本入面檔案嘅大小。",
+   "sha256": "檔案 SHA-256 摘要嘅開頭。工作節點會喺執行開始前檢查。",
+   "actions": "就地預覽文字檔，或者下載任何檔案。"
+  },
+  "sha256Full": "呢個檔案嘅完整 SHA-256 摘要：{{sha}}",
+  "preview": "喺檔案列表下面以唯讀方式顯示呢個文字檔。呢度乜都改唔到。",
+  "download": "將呢個版本嘅呢個檔案下載到你部電腦。",
+  "pinsSave": "將呢啲資產釘選儲存喺草稿。之後發佈草稿，部署先會用到。",
+  "pinAsset": "要喺呢個修訂釘選嘅資產。每個資產只可以釘選一次。",
+  "pinVersion": "釘選固定版本，或者揀「目前版本」，喺執行時用資產最新嘅版本。",
+  "removePin": "喺修訂嘅釘選移除呢個資產。",
+  "addPin": "喺修訂嘅釘選再加一個資產。",
+  "editPins": "新增、移除或者更改呢個草稿修訂嘅資產釘選。",
+  "pinsNewDraft": "由最新發佈嘅修訂開一個新草稿，再揀佢嘅資產釘選。",
+  "pinnedVersion": "呢個資產釘選咗固定版本，所以有新上載之後執行都會繼續用佢。",
+  "pinnedCurrent": "呢個資產跟佢嘅目前版本，所以執行會用最新上載嘅版本。"
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "conversationDetail": {
+   "tabs": {
+    "turns": "呢個對話嘅各輪 (由最早開始)，同埋傳送下一輪嘅輸入框。",
+    "files": "呢個對話每一輪同每個受委派嘅代理程式都會讀寫嘅共用資料夾，有版本紀錄同下載。"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "呢個執行開始嗰陣複製去工作區、完咗之後寫返去嘅共用檔案空間。同一個對話、管線執行或者委派樹入面嘅執行會共用佢。",
+   "openFiles": "打開呢個執行所屬對話嘅「檔案」分頁，瀏覽、下載或者上載共用檔案。"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fileSpaceMountPath": "執行工作區入面同步共用檔案空間嘅資料夾，例如 files。用正斜線分隔嘅相對路徑，最多 128 個字元。"
+  }
+ },
+ "files": {
+  "summary": "共用資料夾而家有幾多個檔案同埋總共幾大。已刪除嘅檔案唔計。",
+  "live": "只要有一輪、受委派嘅代理程式或者有人改咗檔案，清單就會即刻更新。",
+  "polling": "即時連線用唔到，所以呢個分頁開住嗰陣，清單每 {{seconds}} 秒重新載入一次。",
+  "includeDeleted": "連已刪除嘅檔案都列出嚟。佢哋嘅版本會保留，仲可以下載。",
+  "refresh": "即刻由伺服器重新載入檔案清單。",
+  "columns": {
+   "path": "檔案喺共用資料夾嘅路徑。執行嗰陣喺部署嘅檔案空間資料夾下面搵到佢。",
+   "currentVersion": "最新版本。每一輪、代理程式或者上載每寫一次就加一個版本。",
+   "sizeBytes": "檔案目前版本嘅大小。",
+   "mediaType": "同目前版本一齊儲存嘅媒體類型。",
+   "lastUpdateUtc": "檔案最後一次改動嘅時間。",
+   "actions": "睇版本紀錄、下載目前版本或者刪除檔案。"
+  },
+  "deleted": "呢個檔案已經刪除。之後嘅各輪睇唔到佢，不過佢嘅版本會保留。",
+  "versions": "打開呢個檔案嘅版本紀錄，每個版本都可以下載同預覽文字。",
+  "download": "用一條短時間有效嘅連結下載呢個檔案嘅目前版本。",
+  "delete": "喺共用資料夾刪除呢個檔案。佢嘅版本會保留。",
+  "confirmDelete": "即刻刪除檔案。之後嘅各輪會睇唔到佢。",
+  "versionColumns": {
+   "number": "版本號碼。每寫一次就用下一個號碼。",
+   "sizeBytes": "呢個版本入面檔案嘅大小。",
+   "mediaType": "同呢個版本一齊儲存嘅媒體類型。",
+   "sha256": "呢個版本 SHA-256 摘要嘅開頭部分。工作節點同步檔案嗰陣會驗證佢。",
+   "writtenBy": "寫呢個版本嘅執行所屬嘅代理程式，或者上載佢嘅人。",
+   "createdUtc": "呢個版本寫入嘅時間。",
+   "actions": "就地預覽文字版本，或者下載任何版本。"
+  },
+  "current": "呢個係之後各輪會睇到嘅版本。",
+  "sha256Full": "呢個版本完整嘅 SHA-256 摘要：{{sha}}",
+  "openRun": "打開寫呢個版本嘅執行。",
+  "preview": "喺清單下面用唯讀方式顯示呢個版本。呢度改唔到任何嘢。",
+  "downloadVersion": "將呢個版本嘅檔案下載去你部電腦。",
+  "chooseFiles": "由你部電腦揀一個或者多個檔案。佢哋會喺瀏覽器讀取，再逐個上載。",
+  "uploadColumns": {
+   "path": "每個檔案喺共用資料夾嘅位置。有需要嘅話，上載之前改咗佢。",
+   "replaces": "呢次上載取代嘅清單版本，或者「新檔案」。之後改過嘅檔案會用衝突名稱存放。",
+   "size": "由你部電腦讀取嘅檔案大小。",
+   "actions": "傳送之前將檔案由呢次上載移除。"
+  },
+  "path": "喺共用資料夾嘅路徑，用正斜線分隔嘅相對路徑，例如 notes/sources.md。",
+  "removeFile": "將呢個檔案由上載移除。你未上載之前唔會傳送任何嘢。",
+  "upload": "將揀咗嘅每個檔案逐個傳送去共用資料夾，連埋佢要取代嘅版本。"
  }
 });

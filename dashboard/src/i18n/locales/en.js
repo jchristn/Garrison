@@ -2597,3 +2597,466 @@ en.tips.enums.runStatus.Suspended = "The run has a durable session checkpoint an
 en.tips.enums.runExecutor.RemoteA2A = "Executes an authenticated registered A2A agent with deadline and cancellation handling.";
 en.tips.enums.runExecutor.RemoteMcp = "Invokes the selected registered remote MCP tool with validated JSON input.";
 en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a configured cluster, tenant, or agent queue bound was reached.";
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "Draft",
+   "Published": "Published"
+  },
+  "promotionKind": {
+   "Promote": "Promotion",
+   "Rollback": "Rollback"
+  },
+  "promotionOutcome": {
+   "Applied": "Applied",
+   "RolledBack": "Rolled back"
+  },
+  "revisionChangeType": {
+   "Changed": "Changed",
+   "Added": "Added",
+   "Removed": "Removed"
+  },
+  "resourceType": {
+   "AgentRevision": "Agent revision",
+   "Promotion": "Promotion"
+  }
+ },
+ "errorCodes": {
+  "PromotionOrderViolation": "The target is not the next environment after the source. Turn on Allow skipping environments to promote out of order.",
+  "NoNextEnvironment": "The source is the last environment, so there is nothing to promote to.",
+  "NoTargetDeployments": "This agent has no deployment in the target environment. Create one there first.",
+  "NoSourceRevision": "There is no revision to promote: the agent has no deployment in the source environment or no published revision. Choose a revision explicitly.",
+  "AmbiguousSourceRevision": "Deployments in the source environment run different revisions. Choose the revision to promote.",
+  "RevisionNotPublished": "That revision is a draft. Publish it before promoting it.",
+  "PromotionConflict": "A deployment changed while the promotion was applied. Nothing was changed; reload and try again.",
+  "NotAPromotion": "Only promotions can be rolled back, not rollbacks.",
+  "AlreadyRolledBack": "This promotion was already rolled back.",
+  "RevisionUnchanged": "The draft is the same as the latest published revision. Change it before publishing, or discard it.",
+  "RevisionPublished": "This revision is already published and cannot change.",
+  "EnvironmentInUse": "An environment you removed still has deployments. Move or delete those deployments first."
+ },
+ "views": {
+  "agentDetail": {
+   "revisions": "Revisions",
+   "draftNotice": "This agent has draft changes that are not published. Deployments keep running published revisions until the draft is published.",
+   "reviewDraft": "Review draft"
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "number": "Revision",
+    "state": "State",
+    "author": "Author",
+    "changeNote": "Change note",
+    "publishedUtc": "Published",
+    "actions": "Actions"
+   },
+   "number": "Revision {{number}}",
+   "option": "Revision {{number}} ({{state}})",
+   "latest": "Latest",
+   "empty": "This agent has no revisions yet.",
+   "compareTitle": "Compare revisions",
+   "from": "From",
+   "to": "To",
+   "pickTwo": "Select two different revisions to compare.",
+   "identical": "Revisions {{from}} and {{to}} have the same content.",
+   "diffSummary": "Fields changed between revision {{from}} and revision {{to}}: {{changed}}.",
+   "diffColumns": {
+    "field": "Field",
+    "change": "Change",
+    "before": "Before",
+    "after": "After"
+   },
+   "emptyValue": "(empty)",
+   "compare": "Compare",
+   "publish": "Publish",
+   "discard": "Discard draft",
+   "publishTitle": "Publish revision {{number}}",
+   "publishBody": "Publishing makes revision {{number}} the latest published revision. Deployments that follow the latest revision run it from their next run; pinned deployments keep their revision.",
+   "changeNote": "Change note",
+   "changeNotePlaceholder": "What changed and why (optional)",
+   "publishing": "Publishing...",
+   "published": "Published revision {{number}}.",
+   "discardTitle": "Discard draft revision {{number}}",
+   "discardMessage": "Discard the draft? Its changes are lost. Published revisions and deployments are not affected.",
+   "discarded": "The draft was discarded."
+  },
+  "promote": {
+   "title": "Promote a revision",
+   "intro": "Pins every deployment of the agent in the target environment to the revision running in the source environment. Each promotion is recorded and can be rolled back.",
+   "agent": "Agent",
+   "revision": "Revision to promote",
+   "revisionFromSource": "The revision running in the source environment",
+   "source": "From environment",
+   "target": "To environment",
+   "targetNext": "Next environment ({{name}})",
+   "allowSkip": "Allow skipping environments",
+   "skipWarning": "{{target}} is not the environment right after {{source}}.",
+   "note": "Note",
+   "notePlaceholder": "Why this promotion (optional)",
+   "submit": "Promote",
+   "promoting": "Promoting...",
+   "promoted": "Promoted to {{target}}. Deployments updated: {{deployments}}.",
+   "errors": {
+    "noNext": "There is no environment after the source environment.",
+    "sameEnvironment": "Choose a target environment other than the source.",
+    "needsSkip": "This target skips an environment. Turn on Allow skipping environments to promote out of order."
+   }
+  },
+  "promotions": {
+   "title": "Promotion history",
+   "agentFilter": "Agent",
+   "allAgents": "All agents",
+   "empty": "No promotions or rollbacks yet.",
+   "columns": {
+    "createdUtc": "When",
+    "kind": "Kind",
+    "outcome": "Outcome",
+    "agent": "Agent",
+    "revision": "Revision",
+    "environments": "Environments",
+    "deployments": "Deployments",
+    "actor": "By",
+    "note": "Note",
+    "actions": "Actions"
+   },
+   "path": "{{source}} to {{target}}",
+   "pinChange": "({{from}} to {{to}})",
+   "skipped": "Skipped environments",
+   "rollback": "Roll back",
+   "rollbackTitle": "Roll back promotion",
+   "rollbackMessage": "Restore the revision pins that the deployments changed by this promotion from {{source}} to {{target}} had before it? Deployments affected: {{deployments}}.",
+   "rollbackNote": "Rollback note",
+   "rolledBack": "Rolled back. The previous revision pins are restored."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "columns": {
+    "environment": "Environment",
+    "agentRevisionId": "Pinned revision"
+   },
+   "fields": {
+    "environment": "Environment",
+    "agentRevisionId": "Revision pin"
+   },
+   "hints": {
+    "environment": "Promotion moves revisions through environments in the tenant's order.",
+    "agentRevisionId": "Empty follows the agent's latest published revision. A pin keeps this deployment on one revision until you change it or a promotion does."
+   },
+   "followLatest": "Follow latest published",
+   "latest": "Latest",
+   "selectAgentFirst": "Select an agent first.",
+   "noPublished": "This agent has no published revision yet.",
+   "actions": {
+    "promote": "Promote",
+    "promotions": "Promotion history"
+   }
+  }
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "agentAssets": {
+    "label": "Assets",
+    "tip": "Versioned system prompts, skills, reference files, and document templates that agent revisions pin."
+   }
+  }
+ },
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "System prompt",
+   "Skill": "Skill",
+   "ReferenceFile": "Reference file",
+   "DocumentTemplate": "Document template"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "Asset integrity failed"
+  },
+  "resourceType": {
+   "AgentAsset": "Agent asset"
+  }
+ },
+ "errorCodes": {
+  "AssetInUse": "Agent revisions still pin this asset. Remove it from those revisions before deleting it.",
+  "AssetKindImmutable": "The kind of an asset cannot change after it is created. Create a new asset instead.",
+  "AssetStoreImmutable": "The artifact store of an asset cannot change after it is created. Create a new asset instead.",
+  "AssetTemplateRequired": "System prompt assets need a prompt template, and other kinds cannot have one.",
+  "AssetFileTooLarge": "A file is larger than the Assets.MaxFileBytes setting allows.",
+  "AssetVersionTooLarge": "The files together are larger than the Assets.MaxVersionBytes setting allows.",
+  "AssetTooManyFiles": "This upload has more files than the Assets.MaxFilesPerVersion setting allows.",
+  "AssetHasNoFiles": "System prompt assets have no files. Edit their prompt template instead."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidAssetPath": "Use a relative path with forward slashes and no \".\" or \"..\" segments, at most 512 characters.",
+   "MacroFormatRefused": "Macro-enabled Office files are refused (Assets.AllowMacroFormats). Save the file as .docx or .dotx.",
+   "AssetHasNoFiles": "System prompt assets have no files. Edit their prompt template instead.",
+   "AssetTemplateRequired": "Choose a prompt template for a system prompt asset."
+  },
+  "serverText": {
+   "assetInUse": "Asset {{asset}} is pinned by revisions of these agents: {{agents}}. Remove it from those revisions first.",
+   "assetFileTooLarge": "File {{path}} is {{size}} bytes; the limit is {{limit}} bytes (Assets.MaxFileBytes).",
+   "assetVersionTooLarge": "This version is larger than {{limit}} bytes (Assets.MaxVersionBytes).",
+   "assetTooManyFiles": "A version holds at most {{limit}} files (Assets.MaxFilesPerVersion); this upload has {{count}}.",
+   "assetHasNoFiles": "System prompt assets have no files. Edit their prompt template instead."
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "title": "Assets",
+   "subtitle": "Versioned system prompts, skills, reference files, and document templates that agent revisions pin.",
+   "add": "Add asset",
+   "create": "Create asset",
+   "edit": "Edit asset",
+   "view": "Asset details",
+   "deleteTitle": "Delete asset",
+   "emptyTitle": "No assets yet",
+   "emptyBody": "Create an asset, upload its files as a version, and pin it on an agent revision.",
+   "columns": {
+    "name": "Name",
+    "kind": "Kind",
+    "currentVersion": "Current version",
+    "description": "Description",
+    "tags": "Tags",
+    "artifactStoreId": "Store",
+    "id": "ID",
+    "createdUtc": "Created"
+   },
+   "fields": {
+    "name": "Name",
+    "kind": "Kind",
+    "promptTemplateId": "Prompt template",
+    "artifactStoreId": "Artifact store",
+    "description": "Description",
+    "tags": "Tags"
+   },
+   "hints": {
+    "kind": "Fixed after creation. A system prompt asset takes its text from a prompt template; the other kinds hold uploaded files.",
+    "promptTemplateId": "The prompt template whose text this asset supplies as the agent's system prompt.",
+    "artifactStoreId": "Where the uploaded files are kept. Fixed after creation. Leave empty to keep them in the Garrison database."
+   },
+   "errors": {
+    "templateRequired": "Choose the prompt template this system prompt asset uses."
+   },
+   "version": "v{{number}}",
+   "noVersion": "No versions",
+   "databaseStore": "Garrison database",
+   "actions": {
+    "versions": "Versions"
+   }
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "assetPins": "Assets"
+   }
+  },
+  "assets": {
+   "versionsTitle": "Versions of {{name}}",
+   "current": "Current",
+   "noVersions": "This asset has no versions yet. Upload its files below.",
+   "systemPromptNotice": "System prompt assets have no files. Their text comes from their prompt template, so edit the template to change it.",
+   "showFiles": "Files",
+   "filesTitle": "Files of version {{number}}",
+   "noFiles": "This version has no files.",
+   "preview": "Preview",
+   "download": "Download",
+   "previewTitle": "{{path}} (version {{number}})",
+   "emptyFile": "This file is empty.",
+   "versionColumns": {
+    "number": "Version",
+    "author": "Author",
+    "changeNote": "Change note",
+    "totalBytes": "Total size",
+    "createdUtc": "Created",
+    "actions": "Actions"
+   },
+   "fileColumns": {
+    "path": "Path",
+    "mediaType": "Media type",
+    "sizeBytes": "Size",
+    "sha256": "SHA-256 digest",
+    "actions": "Actions"
+   },
+   "uploadTitle": "Upload a new version",
+   "uploadHint": "Choose one or more files. Every upload is a complete version: files left out are not carried over from the current version.",
+   "files": "Files",
+   "uploadColumns": {
+    "path": "Path in the asset",
+    "mediaType": "Media type",
+    "size": "Size",
+    "actions": "Remove"
+   },
+   "mediaTypeGuessed": "From the file extension",
+   "removeFile": "Remove this file from the upload",
+   "changeNote": "Change note",
+   "changeNotePlaceholder": "What changed in this version",
+   "upload": "Upload version",
+   "uploading": "Uploading...",
+   "uploadCreated": "Created version {{number}}.",
+   "uploadUnchanged": "The files are the same as the current version {{number}}, so no new version was created.",
+   "limitSetting": "The limit is set by the {{setting}} server setting.",
+   "duplicatePath": "Another file in this upload has the same path.",
+   "pinVersion": "{{name}} v{{version}}",
+   "pinCurrent": "{{name}} (current)",
+   "pinsTitle": "Asset pins",
+   "pinsSave": "Save draft",
+   "pinsSaved": "Saved the asset pins on draft revision {{number}}.",
+   "pinsDraft": "Changes the asset pins of draft revision {{number}}. Everything else in the draft stays as it is.",
+   "pinsNewDraft": "There is no open draft. Saving starts a new draft from published revision {{number}} with these asset pins.",
+   "pinsEmpty": "No assets are pinned.",
+   "pinAsset": "Asset",
+   "pinVersionLabel": "Version",
+   "chooseAsset": "Choose an asset",
+   "assetOption": "{{name}} ({{kind}})",
+   "followCurrent": "Current version",
+   "removePin": "Remove this asset pin",
+   "addPin": "Add asset",
+   "editPins": "Assets",
+   "pinsNewDraftButton": "Pin assets in a new draft"
+  }
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "views": {
+  "conversationDetail": {
+   "tabsLabel": "Conversation sections",
+   "tabs": {
+    "turns": "Turns",
+    "files": "Files"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "File space",
+   "openFiles": "Open files"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "fileSpaceMountPath": "File space folder"
+   },
+   "hints": {
+    "fileSpaceMountPath": "Folder in the run's workspace that receives the conversation's shared files at run start; changes in it are written back at run end. Default files."
+   }
+  }
+ },
+ "errorCodes": {
+  "InvalidFilePath": "Use a relative path with forward slashes and no \".\" or \"..\" segments.",
+  "FileTooLarge": "The file is larger than the FileSpaces.MaxFileBytes setting allows.",
+  "FileSpaceFull": "The file space would grow past the FileSpaces.MaxTotalBytes setting.",
+  "TooManyFiles": "The file space already holds as many files as the FileSpaces.MaxFiles setting allows.",
+  "StaleFileUpload": "The run no longer holds its lease, so its file changes were not written."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidFilePath": "Use a relative path with forward slashes and no \".\" or \"..\" segments."
+  },
+  "serverText": {
+   "fileSpaceFileTooLarge": "File {{path}} is {{size}} bytes; the limit is {{limit}} bytes (FileSpaces.MaxFileBytes).",
+   "fileSpaceFull": "The file space would hold more than {{limit}} bytes (FileSpaces.MaxTotalBytes).",
+   "fileSpaceTooManyFiles": "The file space already holds {{count}} files (FileSpaces.MaxFiles).",
+   "fileNotFound": "File {{path}} was not found."
+  }
+ },
+ "components": {
+  "files": {
+   "title": "Files",
+   "summary": "Shared files: {{count}} ({{size}})",
+   "live": "Live",
+   "polling": "Polling",
+   "includeDeleted": "Show deleted files",
+   "refresh": "Refresh",
+   "spaceId": "File space {{id}}",
+   "emptyTitle": "No files yet",
+   "emptyBody": "Files that turns write into the shared folder, or that you upload below, show up here.",
+   "emptyBodyDeleted": "Nothing has been written to this conversation's shared folder, not even a file that was later deleted.",
+   "columns": {
+    "path": "Path",
+    "currentVersion": "Version",
+    "sizeBytes": "Size",
+    "mediaType": "Media type",
+    "lastUpdateUtc": "Updated",
+    "actions": "Actions"
+   },
+   "deleted": "Deleted",
+   "version": "v{{number}}",
+   "versions": "Versions",
+   "download": "Download",
+   "deleteLabel": "Delete {{path}}",
+   "deletedToast": "Deleted {{path}}. Its versions are kept.",
+   "deleteTitle": "Delete file",
+   "confirmDelete": "Delete {{path}} from the shared files? Later turns will not see it. Its versions are kept, and you can still download them.",
+   "versionsTitle": "Versions of {{path}}",
+   "noVersions": "This file has no versions.",
+   "current": "Current",
+   "versionColumns": {
+    "number": "Version",
+    "sizeBytes": "Size",
+    "mediaType": "Media type",
+    "sha256": "SHA-256 digest",
+    "writtenBy": "Written by",
+    "createdUtc": "Written",
+    "actions": "Actions"
+   },
+   "preview": "Preview",
+   "previewTitle": "{{path}} (version {{number}})",
+   "emptyFile": "This version is empty.",
+   "uploadTitle": "Upload files",
+   "uploadHint": "Choose one or more files and check their paths. A path that matches a listed file adds a new version of it. If a turn changed that file after the list loaded, your upload is kept next to it under a conflict name instead of replacing it.",
+   "uploadCreated": "Added {{path}} as version {{version}}.",
+   "uploadReplaced": "Saved {{path}} as version {{version}}.",
+   "uploadConflict": "{{requested}} changed after the list loaded, so your upload was kept as {{path}}. Compare the two files and delete the one you do not need.",
+   "chooseFiles": "Files to upload",
+   "uploadColumns": {
+    "path": "Path in the shared folder",
+    "replaces": "Replaces",
+    "size": "Size",
+    "actions": "Remove"
+   },
+   "replacesVersion": "Version {{version}}",
+   "newFile": "New file",
+   "removeFile": "Remove this file from the upload",
+   "upload": "Upload",
+   "uploading": "Uploading...",
+   "limitSetting": "The limit is set by the {{setting}} server setting."
+  }
+ }
+});

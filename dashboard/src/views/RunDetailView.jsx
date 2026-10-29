@@ -392,6 +392,26 @@ export default function RunDetailView({ recordId }) {
             </span>
           </Detail>
         )}
+        {run.fileSpaceId && (
+          <Detail label={t('views.runDetail.fileSpace')} tip={t('tips.views.runDetail.fileSpace')}>
+            <span className="inline-meta" data-testid="run-file-space">
+              <CopyableId value={run.fileSpaceId} max={40} />
+              {run.conversationId && (
+                <a
+                  href={pathFor('conversations', run.conversationId, { tab: 'files' })}
+                  data-testid="run-file-space-link"
+                  {...tip(t('tips.views.runDetail.openFiles'))}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(pathFor('conversations', run.conversationId, { tab: 'files' }));
+                  }}
+                >
+                  {t('views.runDetail.openFiles')}
+                </a>
+              )}
+            </span>
+          </Detail>
+        )}
         {run.triggerId && (
           <Detail label={t('views.runDetail.trigger')} tip={t('tips.views.runDetail.trigger')}>
             <span className="inline-meta">

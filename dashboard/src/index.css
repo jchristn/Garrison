@@ -1185,3 +1185,27 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Agent revisions and promotions (AD1.9). */
+.revision-compare { margin-block-start: var(--spacing-lg); }
+.revision-compare .filter-select span { margin-inline-end: var(--spacing-xs); font-size: var(--font-size-sm); }
+.diff-inline { white-space: pre-wrap; word-break: break-word; }
+.promotion-history-items { margin: 0; padding-inline-start: var(--spacing-md); }
+
+/* ================= Agent assets (AD2.8) ================= */
+.asset-upload { margin-block-start: var(--spacing-lg); display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.asset-upload .data-table input[type="text"] { width: 100%; min-width: 12rem; }
+.asset-upload .data-table input.has-error { border-color: var(--color-danger); }
+.asset-versions { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.asset-versions tr.is-selected td { background: var(--color-primary-soft); }
+.asset-preview { margin-block-start: var(--spacing-sm); }
+.asset-preview pre { max-height: 24rem; overflow: auto; }
+.asset-pins { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
+.asset-pin-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; margin-block-end: var(--spacing-sm); }
+.asset-pin-row select { min-width: 12rem; }
+
+/* ================= Conversation file spaces (AD3.8) ================= */
+.conversation-files-toolbar { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; justify-content: space-between; }
+.conversation-files-toolbar .field-checkbox { display: inline-flex; align-items: center; gap: var(--spacing-xs); margin: 0; }
+.conversation-files tr.is-deleted td { color: var(--color-text-muted); }
+.file-upload-results { flex-direction: column; align-items: flex-start; }

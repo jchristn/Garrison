@@ -30,6 +30,17 @@ export const SERVER_TEXT_PATTERNS = [
   [/^Waiting for a person to approve (.+); approval (\S+) expires at (.+)\.$/s, 'approvalWaitingExpires', ['subject', 'id', 'expires']],
   [/^Waiting for a person to approve (.+); approval (\S+)\.$/s, 'approvalWaiting', ['subject', 'id']],
   [/^Agent (\S+) has no active deployment with a weight above zero\.$/, 'noActiveDeployment', ['agent']],
+  // Agent assets (AD2): a delete refused while revisions pin the asset, and uploads past a size or count limit.
+  [/^Asset (\S+) is pinned by revisions of (.+)\. Remove it from those revisions first\.$/, 'assetInUse', ['asset', 'agents']],
+  [/^File (.+) is (\d+) bytes; the limit is (\d+) bytes \(Assets\.MaxFileBytes\)\.$/, 'assetFileTooLarge', ['path', 'size', 'limit']],
+  [/^This version is more than (\d+) bytes \(Assets\.MaxVersionBytes\)\.$/, 'assetVersionTooLarge', ['limit']],
+  [/^A version holds at most (\d+) files \(Assets\.MaxFilesPerVersion\); this upload has (\d+)\.$/, 'assetTooManyFiles', ['limit', 'count']],
+  [/^SystemPrompt assets have no files; edit their prompt template instead\.$/, 'assetHasNoFiles', []],
+  // Conversation file spaces (AD3): writes past a size or count limit, and a path that is not in the space.
+  [/^File (.+) is (\d+) bytes; the limit is (\d+) bytes \(FileSpaces\.MaxFileBytes\)\.$/, 'fileSpaceFileTooLarge', ['path', 'size', 'limit']],
+  [/^The file space would hold more than (\d+) bytes \(FileSpaces\.MaxTotalBytes\)\.$/, 'fileSpaceFull', ['limit']],
+  [/^The file space already holds (\d+) files \(FileSpaces\.MaxFiles\)\.$/, 'fileSpaceTooManyFiles', ['count']],
+  [/^File (.+) not found\.$/, 'fileNotFound', ['path']],
   [/^(.+) is used by deployment\(s\) (.+)\.$/, 'inUse', ['what', 'deployments']],
   [/^Would be created\.$/i, 'wouldBeCreated', []],
   [/^Would be updated\.$/i, 'wouldBeUpdated', []],

@@ -109,6 +109,7 @@ const tips = {
       mcpServers: 'Tool servers agents can use. Register them here, then bind them to deployments.',
       secrets: 'Encrypted API keys and tokens. Deployments bind them by alias; values are never shown again.',
       workspaces: 'Templates for the directory a run works in: empty, cloned from Git, or seeded with files.',
+      agentAssets: 'Versioned system prompts, skills, reference files, and document templates that agent revisions pin, with upload and history.',
       artifactStores: 'Destinations for files that runs produce and you want to keep after the run ends.',
       modelPrices: "Operator-configured USD rates for estimating cost when a harness omits it. Reported cost, including zero, takes precedence.",
       usageQuotas: "Daily UTC limits on runs, tokens, known cost, and current concurrency for a tenant, agent, or deployment.",
@@ -1011,7 +1012,7 @@ const tips = {
     },
     manifestApplies: {
       createdUtc: 'When the manifest was applied or dry-run.',
-      principalName: 'Who applied it.',
+      principalName: 'The user or access key that applied the manifest.',
       dryRun: 'Yes means it was only validated and nothing was written.',
       counts: 'How many documents created, updated, left unchanged, or failed records.'
     },
@@ -2178,5 +2179,281 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "includeBuiltIn": "Add the built-in prompt templates and harness profiles the bundle references. Applying leaves built-ins unchanged and only checks that they exist."
    }
   }
+ }
+});
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "An unpublished revision. Only one draft is open per agent; no deployment runs it until it is published.",
+   "Published": "A frozen revision. Deployments that follow the latest revision, or pin this one, run it."
+  },
+  "promotionKind": {
+   "Promote": "Pinned the deployments of an environment to a revision taken from the environment before it.",
+   "Rollback": "Restored the revision pins a promotion replaced, exactly as they were before it."
+  },
+  "promotionOutcome": {
+   "Applied": "The pins this record set are still in place.",
+   "RolledBack": "A later rollback restored the pins this promotion replaced."
+  },
+  "revisionChangeType": {
+   "Changed": "The field has a different value in the newer revision.",
+   "Added": "The field or list entry exists only in the newer revision.",
+   "Removed": "The field or list entry exists only in the older revision."
+  }
+ },
+ "filters": {
+  "environment": "Show only deployments in one environment, such as dev, staging, or prod. Applies to the loaded page."
+ },
+ "resources": {
+  "deployments": {
+   "environment": "The environment this deployment belongs to. Promotions move a revision from one environment to the next in the tenant's order.",
+   "agentRevisionId": "The agent revision this deployment runs. Latest follows each newly published revision; a pinned revision stays until changed or promoted.",
+   "environmentBadge": "This deployment runs in the {{environment}} environment.",
+   "followsLatest": "Not pinned: this deployment runs the agent's latest published revision.",
+   "pinnedRevision": "Pinned: this deployment runs {{revision}} until the pin changes.",
+   "actions": {
+    "promote": "Promote the agent's revision from one environment to the next, updating the pins of every deployment there.",
+    "promotions": "See past promotions and rollbacks, and roll a promotion back to restore the previous pins."
+   }
+  }
+ },
+ "views": {
+  "agentDetail": {
+   "reviewDraft": "Open the Revisions tab to compare the draft with the latest published revision and publish or discard it.",
+   "tabs": {
+    "revisions": "Every saved revision of this agent: compare any two, publish the draft, or discard it."
+   },
+   "columns": {
+    "environment": "The environment the deployment belongs to, used by promotions.",
+    "revision": "The revision the deployment runs: Latest follows each publish, a number is a pin."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "number": "Revision number. Numbers increase with each saved revision of this agent.",
+   "state": "Draft revisions can still change; published revisions are frozen.",
+   "author": "Who saved this revision: the user or access key that created or last replaced it.",
+   "changeNote": "What changed and why, as written when the revision was published.",
+   "publishedUtc": "When the revision was published. Empty for the draft.",
+   "actions": "Compare, publish, or discard a revision."
+  },
+  "latest": "The latest published revision. Deployments without a pin run this one.",
+  "compare": "Show what changed between this revision and the published revision before it.",
+  "publish": "Publish this draft so it becomes the latest published revision.",
+  "discard": "Delete this draft. Published revisions are not affected.",
+  "discardConfirm": "Delete the draft permanently. This cannot be undone.",
+  "from": "The older side of the comparison: values shown as Before.",
+  "to": "The newer side of the comparison: values shown as After.",
+  "publishSubmit": "Publish the draft now. Deployments that follow the latest revision run it from their next run.",
+  "changeNote": "Optional note saved with the published revision and shown in the revision list. Up to 2000 characters.",
+  "diffColumns": {
+   "field": "The revision field that differs, such as description or promptPins.",
+   "change": "Whether the field was changed, added, or removed.",
+   "before": "The value in the older revision.",
+   "after": "The value in the newer revision."
+  }
+ },
+ "promote": {
+  "agent": "The agent whose revision is promoted. Its deployments in the target environment are updated.",
+  "revision": "Leave on the source revision to promote what the source environment runs, or pick a published revision.",
+  "source": "The environment the revision comes from.",
+  "target": "The environment to update. Defaults to the one after the source in the tenant's order.",
+  "allowSkip": "Required when the target is not the next environment. Skipped environments are recorded with the promotion.",
+  "note": "Optional note saved with the promotion record. Up to 2000 characters.",
+  "submit": "Apply the promotion now. Every deployment of the agent in the target environment gets the new pin."
+ },
+ "promotions": {
+  "agentFilter": "Show only promotions and rollbacks of one agent.",
+  "refresh": "Reload the promotion history from the server.",
+  "columns": {
+   "createdUtc": "When the promotion or rollback was applied.",
+   "kind": "Promotion, or a rollback of an earlier promotion.",
+   "outcome": "Whether the pins are still in place or were rolled back later.",
+   "agent": "The agent whose deployments were updated.",
+   "revision": "The revision that was promoted.",
+   "environments": "Source and target environment of the promotion.",
+   "deployments": "Each deployment that was updated, with its pin before and after.",
+   "actor": "Who applied the promotion or rollback.",
+   "note": "The note given when the record was created.",
+   "actions": "Roll back an applied promotion."
+  },
+  "skipped": "This promotion skipped at least one environment, which needed Allow skipping.",
+  "rollback": "Restore the revision pins these deployments had before this promotion.",
+  "rollbackConfirm": "Apply the rollback now. It is recorded in the promotion history.",
+  "rollbackNote": "Optional note saved with the rollback record. Up to 2000 characters."
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "The agent's system prompt, supplied by a prompt template. It has no uploaded files.",
+   "Skill": "A skill folder the harness loads, placed where the harness profile puts skills.",
+   "ReferenceFile": "A file the agent can read during a run, placed in the run's workspace.",
+   "DocumentTemplate": "A document template, such as a .docx or .dotx file, the agent fills in during a run."
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "An asset file failed its SHA-256 check or could not be downloaded before launch, so the harness never started."
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "add": "Create a new asset. Upload its files as a version afterwards, then pin it on an agent revision.",
+   "name": "Unique name of the asset in this tenant. Revisions and manifests can refer to the asset by this name.",
+   "kind": "System prompt, skill, reference file, or document template. Fixed after the asset is created.",
+   "currentVersion": "The newest version. Pins that follow the current version use it from the next run.",
+   "description": "What the asset holds and which agents use it, in plain words.",
+   "tags": "Labels for finding and grouping assets. They have no effect on runs.",
+   "artifactStoreId": "Where the asset's files are stored. Garrison database means they are kept in the control plane database.",
+   "promptTemplateId": "The prompt template that supplies a system prompt asset's text. Required for system prompts only.",
+   "databaseStore": "The files are stored in the Garrison database, not in an external artifact store.",
+   "kindFilter": "Show only assets of one kind: system prompts, skills, reference files, or document templates.",
+   "actions": {
+    "versions": "Open the version history: browse files, preview text files, download them, and upload a new version."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "assetPins": "Assets this revision pins, each at a fixed version or following the asset's current version."
+  }
+ },
+ "assets": {
+  "files": "Choose one or more files from your computer. They are read in the browser and uploaded together as one version.",
+  "path": "Where the file goes inside the asset, as a relative path with forward slashes, for example docs/guide.md.",
+  "uploadColumns": {
+   "path": "The path of each file inside the asset. Edit it before uploading if needed.",
+   "mediaType": "The media type the browser reported. The server guesses it from the extension when empty.",
+   "size": "Size of the file as read from your computer.",
+   "actions": "Take a file out of this upload before sending it."
+  },
+  "removeFile": "Take this file out of the upload. Nothing is sent until you upload.",
+  "changeNote": "Optional note saved with the new version and shown in the version history. Up to 2000 characters.",
+  "upload": "Upload the chosen files as one new version. Identical files return the current version instead.",
+  "current": "This is the asset's current version, used by pins that follow the current version.",
+  "showFiles": "Show the files of this version with their sizes, digests, previews, and downloads.",
+  "versionColumns": {
+   "number": "Version number. Each upload with different files adds the next number.",
+   "author": "Who uploaded this version.",
+   "changeNote": "The note given when this version was uploaded.",
+   "totalBytes": "Combined size of every file in this version.",
+   "createdUtc": "When this version was uploaded.",
+   "actions": "Show the files of a version."
+  },
+  "fileColumns": {
+   "path": "Path of the file inside the asset, which is where it is placed for a run.",
+   "mediaType": "Media type stored with the file.",
+   "sizeBytes": "Size of the file in this version.",
+   "sha256": "Start of the file's SHA-256 digest. Workers check it before a run starts.",
+   "actions": "Preview text files in place or download any file."
+  },
+  "sha256Full": "Full SHA-256 digest of this file: {{sha}}",
+  "preview": "Show this text file read-only below the file list. Nothing can be edited here.",
+  "download": "Download this file of this version to your computer.",
+  "pinsSave": "Save these asset pins on the draft. Publish the draft afterwards for deployments to use them.",
+  "pinAsset": "The asset to pin on this revision. Each asset can be pinned once.",
+  "pinVersion": "Pin a fixed version, or choose Current version to use the asset's newest version at run time.",
+  "removePin": "Remove this asset from the revision's pins.",
+  "addPin": "Add another asset to the revision's pins.",
+  "editPins": "Add, remove, or change the asset pins of this draft revision.",
+  "pinsNewDraft": "Start a new draft from the latest published revision and choose its asset pins.",
+  "pinnedVersion": "This asset is pinned at a fixed version, so runs keep using it after new uploads.",
+  "pinnedCurrent": "This asset follows its current version, so runs use the newest upload."
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "conversationDetail": {
+   "tabs": {
+    "turns": "The turns of this conversation, oldest first, and the box for sending the next one.",
+    "files": "The shared folder that every turn and every delegated agent of this conversation reads and writes, with version history and downloads."
+   }
+  },
+  "runDetail": {
+   "fileSpace": "The shared file space this run copies into its workspace at start and writes back at the end. Runs of one conversation, pipeline run, or delegation tree share it.",
+   "openFiles": "Open the Files tab of this run's conversation to browse, download, or upload the shared files."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fileSpaceMountPath": "Folder inside the run's workspace where the shared file space is synced, for example files. Relative, with forward slashes, at most 128 characters."
+  }
+ },
+ "files": {
+  "summary": "How many current files the shared folder holds and their combined size. Deleted files are not counted.",
+  "live": "The list updates as soon as a turn, a delegated agent, or a person changes a file.",
+  "polling": "The live connection is not available, so the list refreshes every {{seconds}} seconds while this tab is open.",
+  "includeDeleted": "Also list files that were deleted. Their versions are kept and can still be downloaded.",
+  "refresh": "Load the file list from the server again right now.",
+  "columns": {
+   "path": "Path of the file inside the shared folder. Runs find it under the deployment's file space folder.",
+   "currentVersion": "The newest version. Every write by a turn, an agent, or an upload adds one.",
+   "sizeBytes": "Size of the current version of the file.",
+   "mediaType": "Media type stored with the current version.",
+   "lastUpdateUtc": "When the file last changed.",
+   "actions": "Show the version history, download the current version, or delete the file."
+  },
+  "deleted": "This file was deleted. Later turns no longer see it, but its versions are kept.",
+  "versions": "Open the version history of this file, with a download and a text preview for each version.",
+  "download": "Download the current version of this file through a short-lived link.",
+  "delete": "Delete this file from the shared folder. Its versions are kept.",
+  "confirmDelete": "Delete the file now. Later turns will not see it.",
+  "versionColumns": {
+   "number": "Version number. Each write adds the next number.",
+   "sizeBytes": "Size of the file in this version.",
+   "mediaType": "Media type stored with this version.",
+   "sha256": "Start of this version's SHA-256 digest. Workers check it when they sync the file.",
+   "writtenBy": "The agent whose run wrote this version, or the person who uploaded it.",
+   "createdUtc": "When this version was written.",
+   "actions": "Preview text versions in place, or download any version."
+  },
+  "current": "This is the version that later turns see.",
+  "sha256Full": "Full SHA-256 digest of this version: {{sha}}",
+  "openRun": "Open the run that wrote this version.",
+  "preview": "Show this version read-only below the list. Nothing can be edited here.",
+  "downloadVersion": "Download this version of the file to your computer.",
+  "chooseFiles": "Choose one or more files from your computer. They are read in the browser and uploaded one at a time.",
+  "uploadColumns": {
+   "path": "Where each file goes in the shared folder. Edit it before uploading if needed.",
+   "replaces": "The listed version this upload replaces, or New file. A file changed since then is kept under a conflict name.",
+   "size": "Size of the file as read from your computer.",
+   "actions": "Take a file out of this upload before sending it."
+  },
+  "path": "Path inside the shared folder, relative with forward slashes, for example notes/sources.md.",
+  "removeFile": "Take this file out of the upload. Nothing is sent until you upload.",
+  "upload": "Send each chosen file to the shared folder, one at a time, with the version it replaces."
  }
 });

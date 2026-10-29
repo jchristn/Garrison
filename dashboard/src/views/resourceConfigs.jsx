@@ -23,6 +23,13 @@ import { formatList, formatNumber } from '../i18n/formatters';
 import { loadRuntimeLimits } from '../utils/settings';
 import UsageQuotaUsageModal from '../components/UsageQuotaUsageModal';
 import ApprovalCheckPanel from '../components/ApprovalCheckPanel';
+import RevisionPinField from '../components/RevisionPinField';
+import PromoteModal from '../components/PromoteModal';
+import PromotionHistoryModal from '../components/PromotionHistoryModal';
+import AgentAssetVersionsModal from '../components/AgentAssetVersionsModal';
+import { ASSET_KINDS } from '../utils/assets';
+import { EnvironmentBadge, RevisionPinBadge } from '../components/RevisionBadges';
+import { DEFAULT_ENVIRONMENT, environmentNames, environmentOf, revisionNumbers } from '../utils/revisions';
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
 import { EGRESS_PROTOCOLS, egressErrors, egressRulesToBody, egressRulesToForm, hasEgressRules } from '../utils/egressRules';
 import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
@@ -69,6 +76,24 @@ const notBuiltIn = (r) => !r?.isBuiltIn;
 
 function safeList(promise) {
   return promise.then((r) => r.items || []).catch(() => []);
+}
+
+/** The tenant's ordered environments (AD1.9), or [] when they cannot be read (callers fall back to dev, staging, prod). */
+function loadEnvironments(apiClient, tenantId) {
+  if (!apiClient.getEnvironments) return Promise.resolve([]);
+  return apiClient
+    .getEnvironments(tenantId)
+    .then((r) => r?.environments || [])
+    .catch(() => []);
+}
+
+/** Revisions of every agent that has a pinned deployment, so the Revision column shows numbers (AD1.9). */
+async function loadPinnedRevisions(apiClient, tenantId) {
+  if (!apiClient.listAgentRevisions) return [];
+  const deployments = await safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }));
+  const agentIds = [...new Set(deployments.filter((d) => d.agentRevisionId).map((d) => d.agentId))];
+  const lists = await Promise.all(agentIds.map((id) => safeList(apiClient.listAgentRevisions(tenantId, id))));
+  return lists.flat();
 }
 
 /** Wrap API methods that take (tenantId, ...) into the ResourceView api signature. */
@@ -735,6 +760,85 @@ export const artifactStoresConfig = {
   validate: (d, t) => (!d.name ? { name: t('common.errors.required') } : null)
 };
 
+/**
+ * Agent assets (AD2.8): versioned system prompts, skills, reference files, and document templates that agent revisions
+ * pin. The kind and the artifact store are fixed after creation (the server refuses changes with AssetKindImmutable
+ * and AssetStoreImmutable). Versions, uploads, downloads, and previews live in the Versions dialog.
+ */
+export const agentAssetsConfig = {
+  id: 'agentAssets',
+  api: tenantApi('listAgentAssets', 'createAgentAsset', 'updateAgentAsset', 'deleteAgentAsset'),
+  filters: [{ name: 'kind', label: (t) => t('resources.agentAssets.fields.kind'), options: ASSET_KINDS, enumGroup: 'agentAssetKind', tip: (t) => t('tips.resources.agentAssets.kindFilter') }],
+  duplicateStrip: ['currentVersion'],
+  loadLookups: async ({ apiClient, tenantId }) => {
+    const stores = await safeList(apiClient.listArtifactStores(tenantId, { pageNumber: 1, pageSize: 1000 }));
+    return { stores: Object.fromEntries(stores.map((s) => [s.id, s.name])) };
+  },
+  loadOptions: async ({ apiClient, tenantId }) => ({
+    templates: await safeList(apiClient.listPromptTemplates(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
+    stores: await safeList(apiClient.listArtifactStores(tenantId, { pageNumber: 1, pageSize: 1000 }))
+  }),
+  blank: () => ({ name: '', kind: 'ReferenceFile', description: '', promptTemplateId: null, artifactStoreId: null, tags: [] }),
+  toForm: (r) => ({ ...r, tags: r.tags || [] }),
+  columns: ({ t, i18n, lookups = {} }) => [
+    nameCol('agentAssets', t),
+    col('agentAssets', t, 'kind', (r) => enumBadge(t, 'agentAssetKind', r.kind, 'info')),
+    col('agentAssets', t, 'currentVersion', (r) =>
+      r.currentVersion ? <span data-cell="currentVersion">{t('resources.agentAssets.version', { number: r.currentVersion })}</span> : <span className="text-muted" data-cell="currentVersion">{t('resources.agentAssets.noVersion')}</span>
+    ),
+    col('agentAssets', t, 'description', (r) => r.description || '-'),
+    col('agentAssets', t, 'tags', (r) => (r.tags || []).join(', ') || '-'),
+    col('agentAssets', t, 'artifactStoreId', (r) =>
+      r.artifactStoreId ? <NamedId id={r.artifactStoreId} name={lookups.stores?.[r.artifactStoreId]} /> : <span {...tip(t('tips.resources.agentAssets.databaseStore'))}>{t('resources.agentAssets.databaseStore')}</span>
+    ),
+    idCol('agentAssets', t),
+    createdCol('agentAssets', t, i18n)
+  ],
+  fields: (_d, { t, mode, options = {} }) => [
+    field('agentAssets', t, 'name', 'text', { required: true }),
+    field('agentAssets', t, 'kind', 'select', { required: true, options: enumOptions(t, 'agentAssetKind'), readOnly: mode === 'edit' }),
+    field('agentAssets', t, 'promptTemplateId', 'select', {
+      required: true,
+      span: 'full',
+      options: (options.templates || []).map((p) => ({ value: p.id, label: p.name })),
+      showIf: (d) => d.kind === 'SystemPrompt'
+    }),
+    field('agentAssets', t, 'artifactStoreId', 'select', {
+      options: (options.stores || []).map((s) => ({ value: s.id, label: s.name })),
+      noneLabel: t('resources.agentAssets.databaseStore'),
+      readOnly: mode === 'edit',
+      showIf: (d) => d.kind !== 'SystemPrompt'
+    }),
+    field('agentAssets', t, 'description', 'textarea'),
+    field('agentAssets', t, 'tags', 'stringList')
+  ],
+  validate: (d, t) => {
+    const errors = {};
+    if (!d.name?.trim()) errors.name = t('common.errors.required');
+    if (d.kind === 'SystemPrompt' && !d.promptTemplateId) errors.promptTemplateId = t('resources.agentAssets.errors.templateRequired');
+    return errors;
+  },
+  toBody: (d) => ({
+    name: d.name.trim(),
+    kind: d.kind,
+    description: d.description?.trim() || null,
+    promptTemplateId: d.kind === 'SystemPrompt' ? d.promptTemplateId || null : null,
+    artifactStoreId: d.kind === 'SystemPrompt' ? null : d.artifactStoreId || null,
+    tags: (d.tags || []).map((v) => String(v).trim()).filter(Boolean)
+  }),
+  // A new asset with files opens straight into its version dialog so the first version can be uploaded.
+  afterCreate: (created, ctx) => {
+    if (created?.id && created.kind !== 'SystemPrompt') ctx.setExtraModal(<AgentAssetVersionsModal asset={created} onClose={() => ctx.setExtraModal(null)} />);
+  },
+  rowActions: (r, ctx) => [
+    {
+      label: ctx.t('resources.agentAssets.actions.versions'),
+      tip: actionTip(ctx.t, 'agentAssets', 'versions'),
+      onClick: () => ctx.setExtraModal(<AgentAssetVersionsModal asset={r} onClose={() => ctx.setExtraModal(null)} onChanged={() => ctx.reload()} />)
+    }
+  ]
+};
+
 export const modelPricesConfig = {
   id: 'modelPrices',
   explainer: 'modelPrices',
@@ -1027,7 +1131,7 @@ export const deploymentsConfig = {
   steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement', 'approvals'],
   formNotice: deploymentNotice,
   loadOptions: async ({ apiClient, tenantId }) => {
-    const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant] = await Promise.all([
+    const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
       safeList(apiClient.listPromptTemplates(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
@@ -1039,19 +1143,34 @@ export const deploymentsConfig = {
       // Cluster defaults for the run limits (P3.15); null when the caller may not read settings.
       loadRuntimeLimits(apiClient),
       // The tenant's requireUntrustedDeployments policy (P11.14); null when it cannot be read.
-      loadTenant(apiClient, tenantId)
+      loadTenant(apiClient, tenantId),
+      // The tenant's ordered environments (AD1.9); empty falls back to dev, staging, prod.
+      loadEnvironments(apiClient, tenantId)
     ]);
-    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant };
+    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments };
   },
-  // Names for the Agent and Harness profile columns (M1-20).
+  // Names for the Agent and Harness profile columns (M1-20), the environment filter, and pinned revision numbers (AD1.9).
   loadLookups: async ({ apiClient, tenantId }) => {
-    const [agents, profiles, tenant] = await Promise.all([
+    const [agents, profiles, tenant, environments, revisions] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
-      loadTenant(apiClient, tenantId)
+      loadTenant(apiClient, tenantId),
+      loadEnvironments(apiClient, tenantId),
+      loadPinnedRevisions(apiClient, tenantId)
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant, environments, revisionNumbers: revisionNumbers(revisions) };
   },
+  // The environment filter (AD1.9) runs on the loaded page: the deployments list has no environment query.
+  filters: [
+    {
+      name: 'environment',
+      label: (t) => t('resources.deployments.fields.environment'),
+      options: (lookups) => environmentNames(lookups?.environments),
+      optionLabel: (o) => o,
+      clientSide: true,
+      matches: (row, value) => environmentOf(row) === value
+    }
+  ],
   // Once the pick lists load, start each prompt role on the built-in template of its kind (M1-03).
   withOptions: (d, options) => ({
     ...d,
@@ -1079,10 +1198,13 @@ export const deploymentsConfig = {
     ...podResourcesToForm(null),
     ...requirementsToForm(null),
     weight: 100,
+    environment: DEFAULT_ENVIRONMENT,
+    agentRevisionId: null,
     nodePoolId: null,
     workspaceTemplateId: null,
     artifactStoreId: null,
     artifactGlobs: [],
+    fileSpaceMountPath: 'files',
     egressRules: [],
     promptBindings: [
       { role: 'System', templateId: '', pinnedVersion: null },
@@ -1101,6 +1223,8 @@ export const deploymentsConfig = {
   columns: ({ t, i18n, lookups }) => [
     nameCol('deployments', t),
     col('deployments', t, 'agentId', (r) => <NamedId id={r.agentId} name={r.agentName || lookups?.agents?.[r.agentId]} />, { csv: (r) => r.agentName || lookups?.agents?.[r.agentId] || r.agentId }),
+    col('deployments', t, 'environment', (r) => <EnvironmentBadge deployment={r} t={t} />, { csv: (r) => environmentOf(r) }),
+    col('deployments', t, 'agentRevisionId', (r) => <RevisionPinBadge deployment={r} numbers={lookups?.revisionNumbers} t={t} />, { csv: (r) => (r.agentRevisionId ? String(lookups?.revisionNumbers?.[r.agentRevisionId] ?? r.agentRevisionId) : 'latest') }),
     col('deployments', t, 'harnessProfileId', (r) => <NamedId id={r.harnessProfileId} name={lookups?.profiles?.[r.harnessProfileId]} />, { csv: (r) => lookups?.profiles?.[r.harnessProfileId] || r.harnessProfileId }),
     col('deployments', t, 'model', (r) => r.model || '-'),
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
@@ -1126,6 +1250,15 @@ export const deploymentsConfig = {
     return [
       field(id, t, 'name', 'text', { required: true, step: 0 }),
       field(id, t, 'agentId', 'select', { required: true, options: sel(options.agents), step: 0 }),
+      // AD1.9: where the deployment runs, and which agent revision it runs (empty follows the latest published).
+      field(id, t, 'environment', 'select', { required: true, options: environmentNames(options.environments, [d.environment]).map((n) => ({ value: n, label: n })), step: 0 }),
+      field(id, t, 'agentRevisionId', 'custom', {
+        step: 0,
+        render: (data, { disabled, onChange, errors }) => {
+          const f = field(id, t, 'agentRevisionId', 'select');
+          return <RevisionPinField data={data} onChange={onChange} disabled={disabled} label={f.label} tipText={f.tip} hint={f.hint} error={errors?.agentRevisionId} />;
+        }
+      }),
       field(id, t, 'description', 'textarea', { step: 0 }),
       field(id, t, 'weight', 'number', { min: 0, max: 1000, step: 0 }),
       field(id, t, 'active', 'checkbox', { step: 0 }),
@@ -1206,6 +1339,8 @@ export const deploymentsConfig = {
       field(id, t, 'workspaceTemplateId', 'select', { options: sel(options.workspaces), step: 3 }),
       field(id, t, 'artifactStoreId', 'select', { options: sel(options.stores), step: 3 }),
       field(id, t, 'artifactGlobs', 'stringList', { step: 3, placeholder: 'reports/**/*.json' }),
+      // AD3.3: where the conversation's shared file space is synced into the run's workspace.
+      field(id, t, 'fileSpaceMountPath', 'text', { step: 3, required: true, maxLength: 128, placeholder: 'files' }),
       field(id, t, 'argumentOverrides', 'objectList', {
         step: 4,
         ordered: true,
@@ -1304,6 +1439,7 @@ export const deploymentsConfig = {
     const form = { ...deploymentToForm(r), ...approvalFormDefaults(r), egressRules: egressRulesToForm(r?.egressRules) };
     form.suspensionEnabled = !!r?.suspensionEnabled;
     form.effectPolicy = effectPolicyOf(r);
+    form.fileSpaceMountPath = r?.fileSpaceMountPath || 'files';
     delete form.retryOnNodeLoss;
     return form;
   },
@@ -1320,6 +1456,9 @@ export const deploymentsConfig = {
     body.approvalTimeoutDecision = d.approvalTimeoutDecision || 'Deny';
     body.approvalRules = approvalRulesToBody(d.approvalRules);
     body.egressRules = egressRulesToBody(d.egressRules);
+    body.environment = d.environment || DEFAULT_ENVIRONMENT;
+    body.agentRevisionId = d.agentRevisionId || null;
+    body.fileSpaceMountPath = String(d.fileSpaceMountPath || '').trim() || 'files';
     return body;
   },
   validate: (d, t) => {
@@ -1337,9 +1476,40 @@ export const deploymentsConfig = {
   },
   rowActions: (r, ctx) => [
     { label: ctx.t('resources.deployments.actions.compilePreview'), tip: actionTip(ctx.t, 'deployments', 'compilePreview'), onClick: () => ctx.setExtraModal(<CompilePreviewModal tenantId={ctx.tenantId} deployment={r} onClose={() => ctx.setExtraModal(null)} />) },
-    { label: ctx.t('resources.deployments.actions.test'), tip: actionTip(ctx.t, 'deployments', 'test'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, deploymentId: r.id })) }
-  ]
+    { label: ctx.t('resources.deployments.actions.test'), tip: actionTip(ctx.t, 'deployments', 'test'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, deploymentId: r.id })) },
+    // AD1.9: promote this deployment's agent out of its environment, and the agent's promotion history.
+    { label: ctx.t('resources.deployments.actions.promote'), tip: actionTip(ctx.t, 'deployments', 'promote'), onClick: () => ctx.setExtraModal(promoteModal(ctx, { agentId: r.agentId, sourceEnvironment: environmentOf(r) })) },
+    { label: ctx.t('resources.deployments.actions.promotions'), tip: actionTip(ctx.t, 'deployments', 'promotions'), onClick: () => ctx.setExtraModal(historyModal(ctx, r.agentId)) }
+  ],
+  headerActions: (ctx) => (
+    <>
+      <button type="button" className="button-secondary" onClick={() => ctx.setExtraModal(historyModal(ctx, ''))} data-testid="promotion-history" {...tip(actionTip(ctx.t, 'deployments', 'promotions'))}>
+        {ctx.t('resources.deployments.actions.promotions')}
+      </button>
+      <button type="button" className="button-secondary" onClick={() => ctx.setExtraModal(promoteModal(ctx, {}))} data-testid="promote-button" {...tip(actionTip(ctx.t, 'deployments', 'promote'))}>
+        {ctx.t('resources.deployments.actions.promote')}
+      </button>
+    </>
+  )
 };
+
+function promoteModal(ctx, initial) {
+  const close = () => ctx.setExtraModal(null);
+  return (
+    <PromoteModal
+      initial={initial}
+      onClose={close}
+      onPromoted={() => {
+        close();
+        ctx.reload();
+      }}
+    />
+  );
+}
+
+function historyModal(ctx, agentId) {
+  return <PromotionHistoryModal agentId={agentId} onClose={() => ctx.setExtraModal(null)} onChanged={() => ctx.reload()} />;
+}
 
 export const nodePoolsConfig = {
   id: 'nodePools',

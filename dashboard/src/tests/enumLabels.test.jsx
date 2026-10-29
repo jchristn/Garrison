@@ -35,6 +35,7 @@ const COLLECTIONS = {
   secrets: 'secrets',
   workspaces: 'workspace-templates',
   artifactStores: 'artifact-stores',
+  agentAssets: 'agent-assets',
   modelPrices: 'model-prices',
   usageQuotas: 'usage-quotas',
   agents: 'agents',

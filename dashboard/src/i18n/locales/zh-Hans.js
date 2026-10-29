@@ -2570,3 +2570,466 @@ zhHans.tips.enums.runStatus.Suspended = "运行已有持久会话检查点，等
 zhHans.tips.enums.runExecutor.RemoteA2A = "通过期限和取消处理执行已认证的注册 A2A 代理。";
 zhHans.tips.enums.runExecutor.RemoteMcp = "使用经过验证的 JSON 输入调用所选的远程 MCP 工具。";
 zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列达到上限，运行接纳被拒绝。";
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "草稿",
+   "Published": "已发布"
+  },
+  "promotionKind": {
+   "Promote": "晋升",
+   "Rollback": "回滚"
+  },
+  "promotionOutcome": {
+   "Applied": "已应用",
+   "RolledBack": "已回滚"
+  },
+  "revisionChangeType": {
+   "Changed": "已更改",
+   "Added": "已添加",
+   "Removed": "已删除"
+  },
+  "resourceType": {
+   "AgentRevision": "代理修订",
+   "Promotion": "晋升"
+  }
+ },
+ "errorCodes": {
+  "PromotionOrderViolation": "目标不是源环境的下一个环境。要不按顺序晋升，请开启“允许跳过环境”。",
+  "NoNextEnvironment": "源环境是最后一个环境，没有可晋升的目标。",
+  "NoTargetDeployments": "此代理在目标环境中没有部署。请先在那里创建一个。",
+  "NoSourceRevision": "没有可晋升的修订：代理在源环境中没有部署，或没有已发布的修订。请明确选择一个修订。",
+  "AmbiguousSourceRevision": "源环境中的部署运行着不同的修订。请选择要晋升的修订。",
+  "RevisionNotPublished": "该修订是草稿。请先发布再晋升。",
+  "PromotionConflict": "应用晋升时某个部署发生了变化。未做任何更改；请重新加载后再试。",
+  "NotAPromotion": "只能回滚晋升，不能回滚回滚记录。",
+  "AlreadyRolledBack": "此晋升已被回滚。",
+  "RevisionUnchanged": "草稿与最新发布的修订相同。请先修改再发布，或将其丢弃。",
+  "RevisionPublished": "此修订已发布，无法再更改。",
+  "EnvironmentInUse": "您移除的某个环境仍有部署。请先移动或删除这些部署。"
+ },
+ "views": {
+  "agentDetail": {
+   "revisions": "修订",
+   "draftNotice": "此代理有尚未发布的草稿更改。在草稿发布之前，部署将继续运行已发布的修订。",
+   "reviewDraft": "查看草稿"
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "number": "修订号",
+    "state": "状态",
+    "author": "作者",
+    "changeNote": "变更说明",
+    "publishedUtc": "发布时间",
+    "actions": "操作"
+   },
+   "number": "修订 {{number}}",
+   "option": "修订 {{number}}（{{state}}）",
+   "latest": "最新",
+   "empty": "此代理还没有修订。",
+   "compareTitle": "比较修订",
+   "from": "从",
+   "to": "到",
+   "pickTwo": "请选择两个不同的修订进行比较。",
+   "identical": "修订 {{from}} 和 {{to}} 的内容相同。",
+   "diffSummary": "修订 {{from}} 与修订 {{to}} 之间更改的字段：{{changed}}。",
+   "diffColumns": {
+    "field": "字段",
+    "change": "变更",
+    "before": "之前",
+    "after": "之后"
+   },
+   "emptyValue": "（空）",
+   "compare": "比较",
+   "publish": "发布",
+   "discard": "丢弃草稿",
+   "publishTitle": "发布修订 {{number}}",
+   "publishBody": "发布后，修订 {{number}} 将成为最新发布的修订。跟随最新修订的部署从下一次运行开始使用它；已固定的部署保留其修订。",
+   "changeNote": "变更说明",
+   "changeNotePlaceholder": "更改了什么以及原因（可选）",
+   "publishing": "正在发布...",
+   "published": "已发布修订 {{number}}。",
+   "discardTitle": "丢弃草稿修订 {{number}}",
+   "discardMessage": "要丢弃草稿吗？其更改将丢失。已发布的修订和部署不受影响。",
+   "discarded": "草稿已丢弃。"
+  },
+  "promote": {
+   "title": "晋升修订",
+   "intro": "将目标环境中该代理的每个部署固定到源环境中正在运行的修订。每次晋升都会被记录，并且可以回滚。",
+   "agent": "代理",
+   "revision": "要晋升的修订",
+   "revisionFromSource": "源环境中正在运行的修订",
+   "source": "源环境",
+   "target": "目标环境",
+   "targetNext": "下一个环境（{{name}}）",
+   "allowSkip": "允许跳过环境",
+   "skipWarning": "{{target}} 不是紧接在 {{source}} 之后的环境。",
+   "note": "备注",
+   "notePlaceholder": "此次晋升的原因（可选）",
+   "submit": "晋升",
+   "promoting": "正在晋升...",
+   "promoted": "已晋升到 {{target}}。已更新的部署：{{deployments}}。",
+   "errors": {
+    "noNext": "源环境之后没有其他环境。",
+    "sameEnvironment": "请选择与源环境不同的目标环境。",
+    "needsSkip": "此目标会跳过一个环境。要不按顺序晋升，请开启“允许跳过环境”。"
+   }
+  },
+  "promotions": {
+   "title": "晋升历史",
+   "agentFilter": "代理",
+   "allAgents": "所有代理",
+   "empty": "还没有晋升或回滚记录。",
+   "columns": {
+    "createdUtc": "时间",
+    "kind": "类型",
+    "outcome": "结果",
+    "agent": "代理",
+    "revision": "修订",
+    "environments": "环境",
+    "deployments": "部署",
+    "actor": "操作人",
+    "note": "备注",
+    "actions": "操作"
+   },
+   "path": "{{source}} 到 {{target}}",
+   "pinChange": "（{{from}} 到 {{to}}）",
+   "skipped": "跳过了环境",
+   "rollback": "回滚",
+   "rollbackTitle": "回滚晋升",
+   "rollbackMessage": "要将此次从 {{source}} 到 {{target}} 的晋升所更改的部署恢复为之前的修订固定吗？受影响的部署：{{deployments}}。",
+   "rollbackNote": "回滚备注",
+   "rolledBack": "已回滚。之前的修订固定已恢复。"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "columns": {
+    "environment": "环境",
+    "agentRevisionId": "固定的修订"
+   },
+   "fields": {
+    "environment": "环境",
+    "agentRevisionId": "修订固定"
+   },
+   "hints": {
+    "environment": "晋升按租户的顺序在环境之间移动修订。",
+    "agentRevisionId": "留空则跟随代理最新发布的修订。固定后，此部署将保持在某个修订上，直到您或某次晋升更改它。"
+   },
+   "followLatest": "跟随最新发布",
+   "latest": "最新",
+   "selectAgentFirst": "请先选择一个代理。",
+   "noPublished": "此代理还没有已发布的修订。",
+   "actions": {
+    "promote": "晋升",
+    "promotions": "晋升历史"
+   }
+  }
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "agentAssets": {
+    "label": "资产",
+    "tip": "代理修订所固定的带版本的系统提示词、技能、参考文件和文档模板。"
+   }
+  }
+ },
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "系统提示词",
+   "Skill": "技能",
+   "ReferenceFile": "参考文件",
+   "DocumentTemplate": "文档模板"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "资产完整性校验失败"
+  },
+  "resourceType": {
+   "AgentAsset": "代理资产"
+  }
+ },
+ "errorCodes": {
+  "AssetInUse": "仍有代理修订固定了此资产。请先从这些修订中移除它，再删除。",
+  "AssetKindImmutable": "资产创建后无法更改其类型。请改为创建新资产。",
+  "AssetStoreImmutable": "资产创建后无法更改其制品存储。请改为创建新资产。",
+  "AssetTemplateRequired": "系统提示词资产需要一个提示词模板，其他类型不能设置提示词模板。",
+  "AssetFileTooLarge": "某个文件超过了 Assets.MaxFileBytes 设置允许的大小。",
+  "AssetVersionTooLarge": "文件总大小超过了 Assets.MaxVersionBytes 设置允许的大小。",
+  "AssetTooManyFiles": "此次上传的文件数超过了 Assets.MaxFilesPerVersion 设置允许的数量。",
+  "AssetHasNoFiles": "系统提示词资产没有文件。请改为编辑其提示词模板。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidAssetPath": "请使用以正斜杠分隔的相对路径，不能包含“.”或“..”段，最多 512 个字符。",
+   "MacroFormatRefused": "不接受启用宏的 Office 文件（Assets.AllowMacroFormats）。请将文件另存为 .docx 或 .dotx。",
+   "AssetHasNoFiles": "系统提示词资产没有文件。请改为编辑其提示词模板。",
+   "AssetTemplateRequired": "请为系统提示词资产选择一个提示词模板。"
+  },
+  "serverText": {
+   "assetInUse": "资产 {{asset}} 被以下代理的修订固定：{{agents}}。请先从这些修订中移除它。",
+   "assetFileTooLarge": "文件 {{path}} 为 {{size}} 字节，上限为 {{limit}} 字节（Assets.MaxFileBytes）。",
+   "assetVersionTooLarge": "此版本超过 {{limit}} 字节（Assets.MaxVersionBytes）。",
+   "assetTooManyFiles": "每个版本最多包含 {{limit}} 个文件（Assets.MaxFilesPerVersion），此次上传有 {{count}} 个。",
+   "assetHasNoFiles": "系统提示词资产没有文件。请改为编辑其提示词模板。"
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "title": "资产",
+   "subtitle": "代理修订所固定的带版本的系统提示词、技能、参考文件和文档模板。",
+   "add": "添加资产",
+   "create": "创建资产",
+   "edit": "编辑资产",
+   "view": "资产详情",
+   "deleteTitle": "删除资产",
+   "emptyTitle": "还没有资产",
+   "emptyBody": "创建一个资产，将其文件上传为一个版本，然后在代理修订上固定它。",
+   "columns": {
+    "name": "名称",
+    "kind": "类型",
+    "currentVersion": "当前版本",
+    "description": "描述",
+    "tags": "标签",
+    "artifactStoreId": "存储",
+    "id": "资产 ID",
+    "createdUtc": "创建时间"
+   },
+   "fields": {
+    "name": "名称",
+    "kind": "类型",
+    "promptTemplateId": "提示词模板",
+    "artifactStoreId": "制品存储",
+    "description": "描述",
+    "tags": "标签"
+   },
+   "hints": {
+    "kind": "创建后不可更改。系统提示词资产的文本来自提示词模板，其他类型保存上传的文件。",
+    "promptTemplateId": "其文本将作为代理系统提示词的提示词模板。",
+    "artifactStoreId": "上传文件的存放位置。创建后不可更改。留空则保存在 Garrison 数据库中。"
+   },
+   "errors": {
+    "templateRequired": "请选择此系统提示词资产使用的提示词模板。"
+   },
+   "version": "版本 {{number}}",
+   "noVersion": "无版本",
+   "databaseStore": "Garrison 数据库",
+   "actions": {
+    "versions": "版本"
+   }
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "assetPins": "资产"
+   }
+  },
+  "assets": {
+   "versionsTitle": "{{name}} 的版本",
+   "current": "当前",
+   "noVersions": "此资产还没有版本。请在下方上传其文件。",
+   "systemPromptNotice": "系统提示词资产没有文件。其文本来自提示词模板，如需更改请编辑该模板。",
+   "showFiles": "文件",
+   "filesTitle": "版本 {{number}} 的文件",
+   "noFiles": "此版本没有文件。",
+   "preview": "预览",
+   "download": "下载",
+   "previewTitle": "{{path}}（版本 {{number}}）",
+   "emptyFile": "此文件为空。",
+   "versionColumns": {
+    "number": "版本",
+    "author": "作者",
+    "changeNote": "变更说明",
+    "totalBytes": "总大小",
+    "createdUtc": "创建时间",
+    "actions": "操作"
+   },
+   "fileColumns": {
+    "path": "路径",
+    "mediaType": "媒体类型",
+    "sizeBytes": "大小",
+    "sha256": "SHA-256 摘要",
+    "actions": "操作"
+   },
+   "uploadTitle": "上传新版本",
+   "uploadHint": "选择一个或多个文件。每次上传都是一个完整版本：未包含的文件不会从当前版本沿用。",
+   "files": "文件",
+   "uploadColumns": {
+    "path": "资产内路径",
+    "mediaType": "媒体类型",
+    "size": "大小",
+    "actions": "移除"
+   },
+   "mediaTypeGuessed": "根据文件扩展名推断",
+   "removeFile": "从此次上传中移除此文件",
+   "changeNote": "变更说明",
+   "changeNotePlaceholder": "此版本中更改了什么",
+   "upload": "上传版本",
+   "uploading": "正在上传...",
+   "uploadCreated": "已创建版本 {{number}}。",
+   "uploadUnchanged": "文件与当前版本 {{number}} 相同，因此未创建新版本。",
+   "limitSetting": "此上限由服务器设置 {{setting}} 决定。",
+   "duplicatePath": "此次上传中另一个文件的路径与此相同。",
+   "pinVersion": "{{name}} 版本 {{version}}",
+   "pinCurrent": "{{name}}（当前）",
+   "pinsTitle": "资产固定",
+   "pinsSave": "保存草稿",
+   "pinsSaved": "已在草稿修订 {{number}} 上保存资产固定。",
+   "pinsDraft": "更改草稿修订 {{number}} 的资产固定。草稿中的其他内容保持不变。",
+   "pinsNewDraft": "当前没有打开的草稿。保存时将基于已发布的修订 {{number}} 创建一个带有这些资产固定的新草稿。",
+   "pinsEmpty": "未固定任何资产。",
+   "pinAsset": "资产",
+   "pinVersionLabel": "版本",
+   "chooseAsset": "选择资产",
+   "assetOption": "{{name}}（{{kind}}）",
+   "followCurrent": "当前版本",
+   "removePin": "移除此资产固定",
+   "addPin": "添加资产",
+   "editPins": "资产",
+   "pinsNewDraftButton": "在新草稿中固定资产"
+  }
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "views": {
+  "conversationDetail": {
+   "tabsLabel": "对话分区",
+   "tabs": {
+    "turns": "各轮",
+    "files": "文件"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "文件空间",
+   "openFiles": "打开文件"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "fileSpaceMountPath": "文件空间文件夹"
+   },
+   "hints": {
+    "fileSpaceMountPath": "运行工作区中的文件夹，运行开始时接收对话的共享文件，结束时把其中的更改写回。默认值为 files。"
+   }
+  }
+ },
+ "errorCodes": {
+  "InvalidFilePath": "请使用以正斜杠分隔的相对路径，不能包含“.”或“..”段。",
+  "FileTooLarge": "文件超出了 FileSpaces.MaxFileBytes 设置允许的大小。",
+  "FileSpaceFull": "文件空间将超出 FileSpaces.MaxTotalBytes 设置。",
+  "TooManyFiles": "文件空间中的文件数已达到 FileSpaces.MaxFiles 设置的上限。",
+  "StaleFileUpload": "此运行已不再持有租约，因此其文件更改没有写入。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidFilePath": "请使用以正斜杠分隔的相对路径，不能包含“.”或“..”段。"
+  },
+  "serverText": {
+   "fileSpaceFileTooLarge": "文件 {{path}} 有 {{size}} 字节；上限为 {{limit}} 字节 (FileSpaces.MaxFileBytes)。",
+   "fileSpaceFull": "文件空间将超过 {{limit}} 字节 (FileSpaces.MaxTotalBytes)。",
+   "fileSpaceTooManyFiles": "文件空间中已有 {{count}} 个文件 (FileSpaces.MaxFiles)。",
+   "fileNotFound": "未找到文件 {{path}}。"
+  }
+ },
+ "components": {
+  "files": {
+   "title": "文件",
+   "summary": "共享文件：{{count}} 个 ({{size}})",
+   "live": "实时",
+   "polling": "定时刷新",
+   "includeDeleted": "显示已删除的文件",
+   "refresh": "刷新",
+   "spaceId": "文件空间 {{id}}",
+   "emptyTitle": "还没有文件",
+   "emptyBody": "各轮写入共享文件夹的文件，以及您在下方上传的文件，都会显示在这里。",
+   "emptyBodyDeleted": "此对话的共享文件夹中还没有写入任何内容，包括后来被删除的文件。",
+   "columns": {
+    "path": "路径",
+    "currentVersion": "版本",
+    "sizeBytes": "大小",
+    "mediaType": "媒体类型",
+    "lastUpdateUtc": "更新时间",
+    "actions": "操作"
+   },
+   "deleted": "已删除",
+   "version": "版本 {{number}}",
+   "versions": "版本历史",
+   "download": "下载",
+   "deleteLabel": "删除 {{path}}",
+   "deletedToast": "已删除 {{path}}。其版本会保留。",
+   "deleteTitle": "删除文件",
+   "confirmDelete": "要从共享文件中删除 {{path}} 吗？之后的各轮将看不到它。其版本会保留，仍可下载。",
+   "versionsTitle": "{{path}} 的版本",
+   "noVersions": "此文件没有版本。",
+   "current": "当前",
+   "versionColumns": {
+    "number": "版本",
+    "sizeBytes": "大小",
+    "mediaType": "媒体类型",
+    "sha256": "SHA-256 摘要",
+    "writtenBy": "写入者",
+    "createdUtc": "写入时间",
+    "actions": "操作"
+   },
+   "preview": "预览",
+   "previewTitle": "{{path}} (版本 {{number}})",
+   "emptyFile": "此版本为空。",
+   "uploadTitle": "上传文件",
+   "uploadHint": "选择一个或多个文件并检查其路径。路径与列表中的文件相同时，会为该文件添加新版本。如果在列表加载后有某一轮更改了该文件，您的上传会以冲突名称保存在旁边，而不会替换它。",
+   "uploadCreated": "已将 {{path}} 添加为版本 {{version}}。",
+   "uploadReplaced": "已将 {{path}} 保存为版本 {{version}}。",
+   "uploadConflict": "{{requested}} 在列表加载后被更改，因此您的上传已保存为 {{path}}。请比较这两个文件，并删除不需要的那个。",
+   "chooseFiles": "要上传的文件",
+   "uploadColumns": {
+    "path": "在共享文件夹中的路径",
+    "replaces": "替换",
+    "size": "大小",
+    "actions": "移除"
+   },
+   "replacesVersion": "版本 {{version}}",
+   "newFile": "新文件",
+   "removeFile": "从上传中移除此文件",
+   "upload": "上传",
+   "uploading": "正在上传...",
+   "limitSetting": "此上限由服务器设置 {{setting}} 决定。"
+  }
+ }
+});

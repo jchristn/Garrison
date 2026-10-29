@@ -23,8 +23,14 @@ import { trafficShares } from '../utils/deployments';
 import GrafanaLink from '../components/GrafanaLink';
 import { useGrafana } from '../hooks/useServerInfo';
 import { agentDashboardUrl } from '../utils/grafana';
+import AgentRevisionsPanel from '../components/AgentRevisionsPanel';
+import { EnvironmentBadge, RevisionPinBadge } from '../components/RevisionBadges';
+import { revisionNumbers } from '../utils/revisions';
 
-/** One agent end to end: identity, exposure, delegation, deployments with weights, A2A card, and recent runs. */
+/**
+ * One agent end to end: identity, exposure, delegation, deployments with weights, environments, and revision pins,
+ * revisions (list, diff, publish), A2A card, and recent runs.
+ */
 export default function AgentDetailView({ recordId }) {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
@@ -40,6 +46,7 @@ export default function AgentDetailView({ recordId }) {
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('deployments');
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [numbers, setNumbers] = useState({});
 
   const load = useCallback(() => {
     if (!apiClient) return;
@@ -57,6 +64,20 @@ export default function AgentDetailView({ recordId }) {
       .then((r) => setRuns(r.items || []))
       .catch(() => setRuns([]));
     apiClient.getAgentCard(tenantId, recordId).then(setCard).catch(setCardError);
+    apiClient
+      .listAgentRevisions(tenantId, recordId)
+      .then((r) => setNumbers(revisionNumbers(r.items || [])))
+      .catch(() => setNumbers({}));
+  }, [apiClient, tenantId, recordId]);
+
+  // After a publish or discard only the agent (latest and draft revision IDs) and the revision numbers change.
+  const reloadAgent = useCallback(() => {
+    if (!apiClient) return;
+    apiClient.getAgent(tenantId, recordId).then(setAgent).catch(() => {});
+    apiClient
+      .listAgentRevisions(tenantId, recordId)
+      .then((r) => setNumbers(revisionNumbers(r.items || [])))
+      .catch(() => {});
   }, [apiClient, tenantId, recordId]);
 
   useEffect(load, [load]);
@@ -123,6 +144,14 @@ export default function AgentDetailView({ recordId }) {
         </div>
       </div>
       {deployments.filter((d) => d.active).length === 0 && <div className="warning-banner">{t('views.agentDetail.noActiveDeployment')}</div>}
+      {agent.draftRevisionId && (
+        <div className="info-banner" data-testid="agent-draft-notice">
+          <span>{t('views.agentDetail.draftNotice')}</span>
+          <button type="button" className="button-secondary button-sm" onClick={() => setTab('revisions')} data-testid="agent-review-draft" {...tip(t('tips.views.agentDetail.reviewDraft'))}>
+            {t('views.agentDetail.reviewDraft')}
+          </button>
+        </div>
+      )}
       <Explainer topic="agentDetail" />
       <Tabs
         label={agent.name}
@@ -130,6 +159,7 @@ export default function AgentDetailView({ recordId }) {
         onChange={setTab}
         tabs={[
           { id: 'deployments', label: t('views.agentDetail.deployments', { count: deployments.length }), tip: t('tips.views.agentDetail.tabs.deployments') },
+          { id: 'revisions', label: t('views.agentDetail.revisions'), tip: t('tips.views.agentDetail.tabs.revisions') },
           { id: 'runs', label: t('views.agentDetail.recentRuns'), tip: t('tips.views.agentDetail.tabs.runs') },
           { id: 'card', label: t('views.agentDetail.card'), tip: t('tips.views.agentDetail.tabs.card') }
         ]}
@@ -154,6 +184,8 @@ export default function AgentDetailView({ recordId }) {
                   <thead>
                     <tr>
                       <th scope="col" {...tip(t('tips.views.agentDetail.columns.name'))}>{t('resources.deployments.columns.name')}</th>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.environment'))}>{t('resources.deployments.columns.environment')}</th>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.revision'))}>{t('resources.deployments.columns.agentRevisionId')}</th>
                       <th scope="col" {...tip(t('tips.views.agentDetail.columns.harness'))}>{t('resources.deployments.columns.harnessProfileId')}</th>
                       <th scope="col" {...tip(t('tips.views.agentDetail.columns.model'))}>{t('resources.deployments.columns.model')}</th>
                       <th scope="col" className="right" {...tip(t('tips.views.agentDetail.columns.weight'))}>
@@ -172,6 +204,12 @@ export default function AgentDetailView({ recordId }) {
                           <td>
                             <strong>{d.name}</strong>
                             {d.description && <div className="text-muted">{d.description}</div>}
+                          </td>
+                          <td>
+                            <EnvironmentBadge deployment={d} t={t} />
+                          </td>
+                          <td data-cell="revision">
+                            <RevisionPinBadge deployment={d} numbers={numbers} t={t} />
                           </td>
                           <td>{profile ? <span {...tip(d.harnessProfileId)}>{profile.name}</span> : <CopyableId value={d.harnessProfileId} />}</td>
                           <td>{d.model || na}</td>
@@ -198,6 +236,7 @@ export default function AgentDetailView({ recordId }) {
               </div>
             </>
           ))}
+        {tab === 'revisions' && <AgentRevisionsPanel agent={agent} onChanged={reloadAgent} />}
         {tab === 'runs' &&
           (runs.length === 0 ? (
             <div className="text-muted">{t('views.agentDetail.noRuns')}</div>

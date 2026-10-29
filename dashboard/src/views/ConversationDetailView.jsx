@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import TranscriptExportMenu from '../components/TranscriptExportMenu';
 import CopyableId from '../components/CopyableId';
@@ -8,6 +8,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import NamedId from '../components/NamedId';
 import Explainer from '../components/Explainer';
+import Tabs from '../components/Tabs';
+import ConversationFilesPanel from '../components/ConversationFilesPanel';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
 import { SendIcon, TrashIcon, CodeIcon } from '../components/Icons';
 import { RunStatus, ConversationState, FallbackReason, TurnSession, conversationTitle } from './runConfigs';
@@ -15,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES } from '../utils/constants';
-import { pathFor } from '../config/navConfig';
+import { pathFor, TAB_PARAM } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { enumTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
@@ -25,6 +27,9 @@ import { tip } from '../components/Tooltip';
 
 /** How often (ms) the page refreshes while a turn is unfinished. */
 const POLL_MS = 2000;
+
+/** Tabs of the page; `?tab=files` opens the Files tab (AD3.8). */
+const TAB_KEYS = ['turns', 'files'];
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -54,14 +59,21 @@ function PageLink({ to, tipText, navigate, children, testId }) {
   );
 }
 
-/** One conversation: summary, the turns (runs) oldest first, a box to send the next turn, and delete (P12.1). */
+/**
+ * One conversation: summary, then a Turns tab (the turns oldest first and a box to send the next turn, P12.1) and a
+ * Files tab (the conversation's shared file space, AD3.8), and delete.
+ */
 export default function ConversationDetailView({ recordId }) {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const lng = i18n.language;
+  const requestedTab = searchParams.get(TAB_PARAM);
+  const activeTab = TAB_KEYS.includes(requestedTab) ? requestedTab : 'turns';
+  const selectTab = (key) => setSearchParams(key === 'turns' ? {} : { [TAB_PARAM]: key }, { replace: true });
   const [conversation, setConversation] = useState(null);
   const [turns, setTurns] = useState([]);
   const [error, setError] = useState(null);
@@ -239,91 +251,107 @@ export default function ConversationDetailView({ recordId }) {
         <Detail label={t('resources.conversations.columns.createdUtc')} tip={t('tips.resources.conversations.createdUtc')}>{formatDateTime(c.createdUtc, lng)}</Detail>
       </div>
 
-      <section className="panel" aria-label={t('views.conversationDetail.turns')}>
-        <h3 className="section-title" {...tip(t('tips.views.conversationDetail.turns'))}>
-          {t('views.conversationDetail.turnsCount', { count: turns.length })}
-        </h3>
-        {turns.length === 0 ? (
-          <div className="text-muted">{t('views.conversationDetail.noTurns')}</div>
-        ) : (
-          <div className="table-scroll">
-            <table className="data-table" data-testid="conversation-turns">
-              <thead>
-                <tr>
-                  <th scope="col" className="right" {...tip(t('tips.views.conversationDetail.columns.turn'))}>{t('views.conversationDetail.columns.turn')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.run'))}>{t('views.conversationDetail.columns.run')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.status'))}>{t('views.conversationDetail.columns.status')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.outcome'))}>{t('views.conversationDetail.columns.outcome')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.session'))}>{t('views.conversationDetail.columns.session')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.input'))}>{t('views.conversationDetail.columns.input')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.result'))}>{t('views.conversationDetail.columns.result')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.node'))}>{t('views.conversationDetail.columns.node')}</th>
-                  <th scope="col" {...tip(t('tips.views.conversationDetail.columns.created'))}>{t('views.conversationDetail.columns.created')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {turns.map((r) => {
-                  const input = textPreview(r.inputText, 120);
-                  const result = textPreview(r.resultText || r.errorMessage, 160);
-                  return (
-                    <tr key={r.id} data-turn={r.conversationTurn}>
-                      <td className="right">{formatNumber(r.conversationTurn ?? 0, {}, lng)}</td>
-                      <td className="cell-id">{runLink(r.id)}</td>
-                      <td>
-                        <RunStatus status={r.status} t={t} />
-                      </td>
-                      <td>{r.outcome && r.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', r.outcome))}>{enumLabel(t, 'runOutcome', r.outcome)}</span> : '-'}</td>
-                      <td>
-                        <TurnSession run={r} t={t} />
-                      </td>
-                      <td className="conversation-preview">{input ? <span {...tip(textPreview(r.inputText, 600))}>{input}</span> : '-'}</td>
-                      <td className="conversation-preview">{result ? <span {...tip(textPreview(r.resultText || r.errorMessage, 600))}>{result}</span> : <span className="text-muted">{TERMINAL_RUN_STATUSES.includes(r.status) ? '-' : t('views.conversationDetail.pending')}</span>}</td>
-                      <td>{r.leaseNodeName || '-'}</td>
-                      <td className="nowrap">{when(r.createdUtc)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <Tabs
+        label={t('views.conversationDetail.tabsLabel')}
+        active={activeTab}
+        onChange={selectTab}
+        tabs={[
+          { id: 'turns', label: t('views.conversationDetail.tabs.turns'), tip: t('tips.views.conversationDetail.tabs.turns') },
+          { id: 'files', label: t('views.conversationDetail.tabs.files'), tip: t('tips.views.conversationDetail.tabs.files') }
+        ]}
+      />
 
-      <section className="panel conversation-continue" aria-label={t('views.conversationDetail.continueTitle')}>
-        <h3 className="section-title" {...tip(t('tips.views.conversationDetail.continueTitle'))}>
-          {t('views.conversationDetail.continueTitle')}
-        </h3>
-        <div className="field">
-          <label htmlFor="conversation-message" {...tip(t('tips.views.conversationDetail.message'))}>{t('views.conversationDetail.message')}</label>
-          <textarea
-            id="conversation-message"
-            rows={4}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={t('views.conversationDetail.messagePlaceholder')}
-            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()}
-            data-testid="conversation-message"
-            {...tip(t('tips.views.conversationDetail.message'))}
-          />
-          <div className="field-hint">{t('views.invoke.shortcut')}</div>
-        </div>
-        {c.busy && (
-          <div className="info-banner" role="status" data-testid="conversation-busy">
-            {t('views.conversationDetail.busyNotice')}
-          </div>
-        )}
-        {sendError && <ErrorBanner message={errorMessage(t, sendError)} />}
-        <div className="flex gap-sm items-center">
-          <button type="button" className="button-primary" onClick={send} disabled={sending || !message.trim() || !!c.busy} data-testid="conversation-send" {...tip(t(c.busy ? 'tips.views.conversationDetail.sendBusy' : 'tips.views.conversationDetail.send'))}>
-            <SendIcon size={14} /> {sending ? t('views.invoke.sending') : t('views.conversationDetail.send')}
-          </button>
-          {pending && (
-            <span className="inline-meta" data-testid="conversation-pending">
-              <RunStatus status={pending.status} t={t} /> {runLink(pending.id)}
-            </span>
-          )}
-        </div>
-      </section>
+      {activeTab === 'files' ? (
+        <ConversationFilesPanel conversationId={c.id} />
+      ) : (
+        <>
+          <section className="panel" aria-label={t('views.conversationDetail.turns')}>
+            <h3 className="section-title" {...tip(t('tips.views.conversationDetail.turns'))}>
+              {t('views.conversationDetail.turnsCount', { count: turns.length })}
+            </h3>
+            {turns.length === 0 ? (
+              <div className="text-muted">{t('views.conversationDetail.noTurns')}</div>
+            ) : (
+              <div className="table-scroll">
+                <table className="data-table" data-testid="conversation-turns">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="right" {...tip(t('tips.views.conversationDetail.columns.turn'))}>{t('views.conversationDetail.columns.turn')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.run'))}>{t('views.conversationDetail.columns.run')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.status'))}>{t('views.conversationDetail.columns.status')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.outcome'))}>{t('views.conversationDetail.columns.outcome')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.session'))}>{t('views.conversationDetail.columns.session')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.input'))}>{t('views.conversationDetail.columns.input')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.result'))}>{t('views.conversationDetail.columns.result')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.node'))}>{t('views.conversationDetail.columns.node')}</th>
+                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.created'))}>{t('views.conversationDetail.columns.created')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {turns.map((r) => {
+                      const input = textPreview(r.inputText, 120);
+                      const result = textPreview(r.resultText || r.errorMessage, 160);
+                      return (
+                        <tr key={r.id} data-turn={r.conversationTurn}>
+                          <td className="right">{formatNumber(r.conversationTurn ?? 0, {}, lng)}</td>
+                          <td className="cell-id">{runLink(r.id)}</td>
+                          <td>
+                            <RunStatus status={r.status} t={t} />
+                          </td>
+                          <td>{r.outcome && r.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', r.outcome))}>{enumLabel(t, 'runOutcome', r.outcome)}</span> : '-'}</td>
+                          <td>
+                            <TurnSession run={r} t={t} />
+                          </td>
+                          <td className="conversation-preview">{input ? <span {...tip(textPreview(r.inputText, 600))}>{input}</span> : '-'}</td>
+                          <td className="conversation-preview">{result ? <span {...tip(textPreview(r.resultText || r.errorMessage, 600))}>{result}</span> : <span className="text-muted">{TERMINAL_RUN_STATUSES.includes(r.status) ? '-' : t('views.conversationDetail.pending')}</span>}</td>
+                          <td>{r.leaseNodeName || '-'}</td>
+                          <td className="nowrap">{when(r.createdUtc)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="panel conversation-continue" aria-label={t('views.conversationDetail.continueTitle')}>
+            <h3 className="section-title" {...tip(t('tips.views.conversationDetail.continueTitle'))}>
+              {t('views.conversationDetail.continueTitle')}
+            </h3>
+            <div className="field">
+              <label htmlFor="conversation-message" {...tip(t('tips.views.conversationDetail.message'))}>{t('views.conversationDetail.message')}</label>
+              <textarea
+                id="conversation-message"
+                rows={4}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={t('views.conversationDetail.messagePlaceholder')}
+                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()}
+                data-testid="conversation-message"
+                {...tip(t('tips.views.conversationDetail.message'))}
+              />
+              <div className="field-hint">{t('views.invoke.shortcut')}</div>
+            </div>
+            {c.busy && (
+              <div className="info-banner" role="status" data-testid="conversation-busy">
+                {t('views.conversationDetail.busyNotice')}
+              </div>
+            )}
+            {sendError && <ErrorBanner message={errorMessage(t, sendError)} />}
+            <div className="flex gap-sm items-center">
+              <button type="button" className="button-primary" onClick={send} disabled={sending || !message.trim() || !!c.busy} data-testid="conversation-send" {...tip(t(c.busy ? 'tips.views.conversationDetail.sendBusy' : 'tips.views.conversationDetail.send'))}>
+                <SendIcon size={14} /> {sending ? t('views.invoke.sending') : t('views.conversationDetail.send')}
+              </button>
+              {pending && (
+                <span className="inline-meta" data-testid="conversation-pending">
+                  <RunStatus status={pending.status} t={t} /> {runLink(pending.id)}
+                </span>
+              )}
+            </div>
+          </section>
+        </>
+      )}
 
       <ConfirmModal
         open={confirmDelete}

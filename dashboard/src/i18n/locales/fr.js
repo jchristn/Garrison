@@ -2618,3 +2618,466 @@ fr.tips.enums.runStatus.Suspended = "L’exécution dispose d’un point de repr
 fr.tips.enums.runExecutor.RemoteA2A = "Exécute un agent A2A enregistré et authentifié avec échéance et annulation.";
 fr.tips.enums.runExecutor.RemoteMcp = "Appelle l’outil MCP distant sélectionné avec une entrée JSON validée.";
 fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une limite de file du cluster, du locataire ou de l’agent est atteinte.";
+
+// Agent revisions, environments, and promotions (AD1.9).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "enums": {
+  "agentRevisionState": {
+   "Draft": "Brouillon",
+   "Published": "Publiée"
+  },
+  "promotionKind": {
+   "Promote": "Promotion de révision",
+   "Rollback": "Annulation"
+  },
+  "promotionOutcome": {
+   "Applied": "Appliquée",
+   "RolledBack": "Annulée"
+  },
+  "revisionChangeType": {
+   "Changed": "Modifié",
+   "Added": "Ajouté",
+   "Removed": "Supprimé"
+  },
+  "resourceType": {
+   "AgentRevision": "Révision d'agent",
+   "Promotion": "Promotion d'environnement"
+  }
+ },
+ "errorCodes": {
+  "PromotionOrderViolation": "La cible n'est pas l'environnement qui suit la source. Activez Autoriser le saut d'environnements pour promouvoir hors de l'ordre.",
+  "NoNextEnvironment": "La source est le dernier environnement : il n'y a rien vers quoi promouvoir.",
+  "NoTargetDeployments": "Cet agent n'a aucun déploiement dans l'environnement cible. Créez-en un d'abord.",
+  "NoSourceRevision": "Aucune révision à promouvoir : l'agent n'a pas de déploiement dans l'environnement source ou aucune révision publiée. Choisissez une révision explicitement.",
+  "AmbiguousSourceRevision": "Les déploiements de l'environnement source exécutent des révisions différentes. Choisissez la révision à promouvoir.",
+  "RevisionNotPublished": "Cette révision est un brouillon. Publiez-la avant de la promouvoir.",
+  "PromotionConflict": "Un déploiement a changé pendant l'application de la promotion. Rien n'a été modifié ; rechargez et réessayez.",
+  "NotAPromotion": "Seules les promotions peuvent être annulées, pas les annulations.",
+  "AlreadyRolledBack": "Cette promotion a déjà été annulée.",
+  "RevisionUnchanged": "Le brouillon est identique à la dernière révision publiée. Modifiez-le avant de le publier, ou supprimez-le.",
+  "RevisionPublished": "Cette révision est déjà publiée et ne peut plus changer.",
+  "EnvironmentInUse": "Un environnement que vous avez retiré a encore des déploiements. Déplacez ou supprimez d'abord ces déploiements."
+ },
+ "views": {
+  "agentDetail": {
+   "revisions": "Révisions",
+   "draftNotice": "Cet agent a des modifications en brouillon non publiées. Les déploiements continuent d'exécuter les révisions publiées jusqu'à la publication du brouillon.",
+   "reviewDraft": "Examiner le brouillon"
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "number": "Révision",
+    "state": "État",
+    "author": "Auteur",
+    "changeNote": "Note de modification",
+    "publishedUtc": "Publiée",
+    "actions": "Actions"
+   },
+   "number": "Révision {{number}}",
+   "option": "Révision {{number}} ({{state}})",
+   "latest": "Dernière",
+   "empty": "Cet agent n'a encore aucune révision.",
+   "compareTitle": "Comparer des révisions",
+   "from": "De",
+   "to": "Vers",
+   "pickTwo": "Sélectionnez deux révisions différentes à comparer.",
+   "identical": "Les révisions {{from}} et {{to}} ont le même contenu.",
+   "diffSummary": "Champs modifiés entre la révision {{from}} et la révision {{to}} : {{changed}}.",
+   "diffColumns": {
+    "field": "Champ",
+    "change": "Changement",
+    "before": "Avant",
+    "after": "Après"
+   },
+   "emptyValue": "(vide)",
+   "compare": "Comparer",
+   "publish": "Publier",
+   "discard": "Supprimer le brouillon",
+   "publishTitle": "Publier la révision {{number}}",
+   "publishBody": "La publication fait de la révision {{number}} la dernière révision publiée. Les déploiements qui suivent la dernière révision l'exécutent dès leur prochaine exécution ; les déploiements épinglés gardent leur révision.",
+   "changeNote": "Note de modification",
+   "changeNotePlaceholder": "Ce qui a changé et pourquoi (facultatif)",
+   "publishing": "Publication...",
+   "published": "Révision {{number}} publiée.",
+   "discardTitle": "Supprimer la révision brouillon {{number}}",
+   "discardMessage": "Supprimer le brouillon ? Ses modifications sont perdues. Les révisions publiées et les déploiements ne sont pas concernés.",
+   "discarded": "Le brouillon a été supprimé."
+  },
+  "promote": {
+   "title": "Promouvoir une révision",
+   "intro": "Épingle chaque déploiement de l'agent dans l'environnement cible sur la révision exécutée dans l'environnement source. Chaque promotion est enregistrée et peut être annulée.",
+   "agent": "Agent",
+   "revision": "Révision à promouvoir",
+   "revisionFromSource": "La révision exécutée dans l'environnement source",
+   "source": "Environnement source",
+   "target": "Environnement cible",
+   "targetNext": "Environnement suivant ({{name}})",
+   "allowSkip": "Autoriser le saut d'environnements",
+   "skipWarning": "{{target}} n'est pas l'environnement qui suit directement {{source}}.",
+   "note": "Note",
+   "notePlaceholder": "Raison de cette promotion (facultatif)",
+   "submit": "Promouvoir",
+   "promoting": "Promotion en cours...",
+   "promoted": "Promue vers {{target}}. Déploiements mis à jour : {{deployments}}.",
+   "errors": {
+    "noNext": "Il n'y a aucun environnement après l'environnement source.",
+    "sameEnvironment": "Choisissez un environnement cible différent de la source.",
+    "needsSkip": "Cette cible saute un environnement. Activez Autoriser le saut d'environnements pour promouvoir hors de l'ordre."
+   }
+  },
+  "promotions": {
+   "title": "Historique des promotions",
+   "agentFilter": "Agent",
+   "allAgents": "Tous les agents",
+   "empty": "Aucune promotion ni annulation pour l'instant.",
+   "columns": {
+    "createdUtc": "Quand",
+    "kind": "Type",
+    "outcome": "Résultat",
+    "agent": "Agent",
+    "revision": "Révision",
+    "environments": "Environnements",
+    "deployments": "Déploiements",
+    "actor": "Par",
+    "note": "Note",
+    "actions": "Actions"
+   },
+   "path": "{{source}} vers {{target}}",
+   "pinChange": "({{from}} vers {{to}})",
+   "skipped": "Environnements sautés",
+   "rollback": "Annuler",
+   "rollbackTitle": "Annuler la promotion",
+   "rollbackMessage": "Rétablir les épinglages de révision qu'avaient les déploiements modifiés par cette promotion de {{source}} vers {{target}} ? Déploiements concernés : {{deployments}}.",
+   "rollbackNote": "Note d'annulation",
+   "rolledBack": "Annulée. Les épinglages de révision précédents sont rétablis."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "columns": {
+    "environment": "Environnement",
+    "agentRevisionId": "Révision épinglée"
+   },
+   "fields": {
+    "environment": "Environnement",
+    "agentRevisionId": "Épinglage de révision"
+   },
+   "hints": {
+    "environment": "La promotion fait passer les révisions d'un environnement à l'autre dans l'ordre du locataire.",
+    "agentRevisionId": "Vide suit la dernière révision publiée de l'agent. Un épinglage garde ce déploiement sur une révision jusqu'à ce que vous ou une promotion le changiez."
+   },
+   "followLatest": "Suivre la dernière publiée",
+   "latest": "Dernière",
+   "selectAgentFirst": "Sélectionnez d'abord un agent.",
+   "noPublished": "Cet agent n'a encore aucune révision publiée.",
+   "actions": {
+    "promote": "Promouvoir",
+    "promotions": "Historique des promotions"
+   }
+  }
+ }
+});
+
+// Agent assets: the Assets page, versions and uploads, and asset pins on revisions (AD2.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "agentAssets": {
+    "label": "Ressources",
+    "tip": "Prompts système, skills, fichiers de référence et modèles de document versionnés, épinglés par les révisions d'agent."
+   }
+  }
+ },
+ "enums": {
+  "agentAssetKind": {
+   "SystemPrompt": "Prompt système",
+   "Skill": "Skill (compétence)",
+   "ReferenceFile": "Fichier de référence",
+   "DocumentTemplate": "Modèle de document"
+  },
+  "runOutcome": {
+   "AssetIntegrityFailed": "Échec de l'intégrité d'une ressource"
+  },
+  "resourceType": {
+   "AgentAsset": "Ressource d'agent"
+  }
+ },
+ "errorCodes": {
+  "AssetInUse": "Des révisions d'agent épinglent encore cette ressource. Retirez-la de ces révisions avant de la supprimer.",
+  "AssetKindImmutable": "Le type d'une ressource ne peut pas changer après sa création. Créez plutôt une nouvelle ressource.",
+  "AssetStoreImmutable": "Le stockage d'artefacts d'une ressource ne peut pas changer après sa création. Créez plutôt une nouvelle ressource.",
+  "AssetTemplateRequired": "Les ressources de prompt système nécessitent un modèle de prompt, et les autres types ne peuvent pas en avoir.",
+  "AssetFileTooLarge": "Un fichier dépasse la taille autorisée par le paramètre Assets.MaxFileBytes.",
+  "AssetVersionTooLarge": "L'ensemble des fichiers dépasse la taille autorisée par le paramètre Assets.MaxVersionBytes.",
+  "AssetTooManyFiles": "Cet envoi contient plus de fichiers que le paramètre Assets.MaxFilesPerVersion ne l'autorise.",
+  "AssetHasNoFiles": "Les ressources de prompt système n'ont pas de fichiers. Modifiez plutôt leur modèle de prompt."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidAssetPath": "Utilisez un chemin relatif avec des barres obliques, sans segment \".\" ni \"..\", de 512 caractères au maximum.",
+   "MacroFormatRefused": "Les fichiers Office avec macros sont refusés (Assets.AllowMacroFormats). Enregistrez le fichier au format .docx ou .dotx.",
+   "AssetHasNoFiles": "Les ressources de prompt système n'ont pas de fichiers. Modifiez plutôt leur modèle de prompt.",
+   "AssetTemplateRequired": "Choisissez un modèle de prompt pour une ressource de prompt système."
+  },
+  "serverText": {
+   "assetInUse": "La ressource {{asset}} est épinglée par des révisions de ces agents : {{agents}}. Retirez-la d'abord de ces révisions.",
+   "assetFileTooLarge": "Le fichier {{path}} fait {{size}} octets ; la limite est de {{limit}} octets (Assets.MaxFileBytes).",
+   "assetVersionTooLarge": "Cette version dépasse {{limit}} octets (Assets.MaxVersionBytes).",
+   "assetTooManyFiles": "Une version contient au plus {{limit}} fichiers (Assets.MaxFilesPerVersion) ; cet envoi en contient {{count}}.",
+   "assetHasNoFiles": "Les ressources de prompt système n'ont pas de fichiers. Modifiez plutôt leur modèle de prompt."
+  }
+ },
+ "resources": {
+  "agentAssets": {
+   "title": "Ressources",
+   "subtitle": "Prompts système, skills, fichiers de référence et modèles de document versionnés, épinglés par les révisions d'agent.",
+   "add": "Ajouter une ressource",
+   "create": "Créer une ressource",
+   "edit": "Modifier la ressource",
+   "view": "Détails de la ressource",
+   "deleteTitle": "Supprimer la ressource",
+   "emptyTitle": "Aucune ressource pour l'instant",
+   "emptyBody": "Créez une ressource, envoyez ses fichiers comme une version, puis épinglez-la sur une révision d'agent.",
+   "columns": {
+    "name": "Nom",
+    "kind": "Type",
+    "currentVersion": "Version actuelle",
+    "description": "Description",
+    "tags": "Tags",
+    "artifactStoreId": "Stockage",
+    "id": "ID de ressource",
+    "createdUtc": "Créée"
+   },
+   "fields": {
+    "name": "Nom",
+    "kind": "Type",
+    "promptTemplateId": "Modèle de prompt",
+    "artifactStoreId": "Stockage d'artefacts",
+    "description": "Description",
+    "tags": "Tags"
+   },
+   "hints": {
+    "kind": "Fixé après la création. Une ressource de prompt système tire son texte d'un modèle de prompt ; les autres types contiennent des fichiers envoyés.",
+    "promptTemplateId": "Le modèle de prompt dont le texte sert de prompt système à l'agent.",
+    "artifactStoreId": "Emplacement des fichiers envoyés. Fixé après la création. Laissez vide pour les conserver dans la base de données Garrison."
+   },
+   "errors": {
+    "templateRequired": "Choisissez le modèle de prompt utilisé par cette ressource de prompt système."
+   },
+   "version": "version {{number}}",
+   "noVersion": "Aucune version",
+   "databaseStore": "Base de données Garrison",
+   "actions": {
+    "versions": "Versions de la ressource"
+   }
+  }
+ },
+ "components": {
+  "revisions": {
+   "columns": {
+    "assetPins": "Ressources"
+   }
+  },
+  "assets": {
+   "versionsTitle": "Versions de {{name}}",
+   "current": "Actuelle",
+   "noVersions": "Cette ressource n'a encore aucune version. Envoyez ses fichiers ci-dessous.",
+   "systemPromptNotice": "Les ressources de prompt système n'ont pas de fichiers. Leur texte provient de leur modèle de prompt : modifiez ce modèle pour le changer.",
+   "showFiles": "Fichiers",
+   "filesTitle": "Fichiers de la version {{number}}",
+   "noFiles": "Cette version n'a aucun fichier.",
+   "preview": "Aperçu",
+   "download": "Télécharger",
+   "previewTitle": "{{path}} (version n° {{number}})",
+   "emptyFile": "Ce fichier est vide.",
+   "versionColumns": {
+    "number": "Version",
+    "author": "Auteur",
+    "changeNote": "Note de modification",
+    "totalBytes": "Taille totale",
+    "createdUtc": "Créée",
+    "actions": "Actions"
+   },
+   "fileColumns": {
+    "path": "Chemin",
+    "mediaType": "Type de média",
+    "sizeBytes": "Taille",
+    "sha256": "Empreinte SHA-256",
+    "actions": "Actions"
+   },
+   "uploadTitle": "Envoyer une nouvelle version",
+   "uploadHint": "Choisissez un ou plusieurs fichiers. Chaque envoi est une version complète : les fichiers omis ne sont pas repris de la version actuelle.",
+   "files": "Fichiers",
+   "uploadColumns": {
+    "path": "Chemin dans la ressource",
+    "mediaType": "Type de média",
+    "size": "Taille",
+    "actions": "Retirer"
+   },
+   "mediaTypeGuessed": "D'après l'extension du fichier",
+   "removeFile": "Retirer ce fichier de l'envoi",
+   "changeNote": "Note de modification",
+   "changeNotePlaceholder": "Ce qui a changé dans cette version",
+   "upload": "Envoyer la version",
+   "uploading": "Envoi en cours...",
+   "uploadCreated": "Version {{number}} créée.",
+   "uploadUnchanged": "Les fichiers sont identiques à la version actuelle {{number}} : aucune nouvelle version n'a été créée.",
+   "limitSetting": "La limite est définie par le paramètre serveur {{setting}}.",
+   "duplicatePath": "Un autre fichier de cet envoi a le même chemin.",
+   "pinVersion": "{{name}} version {{version}}",
+   "pinCurrent": "{{name}} (actuelle)",
+   "pinsTitle": "Épinglages de ressources",
+   "pinsSave": "Enregistrer le brouillon",
+   "pinsSaved": "Épinglages de ressources enregistrés sur la révision brouillon {{number}}.",
+   "pinsDraft": "Modifie les épinglages de ressources de la révision brouillon {{number}}. Le reste du brouillon ne change pas.",
+   "pinsNewDraft": "Aucun brouillon ouvert. L'enregistrement crée un nouveau brouillon à partir de la révision publiée {{number}} avec ces épinglages de ressources.",
+   "pinsEmpty": "Aucune ressource épinglée.",
+   "pinAsset": "Ressource",
+   "pinVersionLabel": "Version",
+   "chooseAsset": "Choisir une ressource",
+   "assetOption": "{{name}} (type : {{kind}})",
+   "followCurrent": "Version actuelle",
+   "removePin": "Retirer cet épinglage de ressource",
+   "addPin": "Ajouter une ressource",
+   "editPins": "Ressources",
+   "pinsNewDraftButton": "Épingler des ressources dans un nouveau brouillon"
+  }
+ }
+});
+
+// Conversation file spaces: the Files tab on Conversation detail, file versions and uploads, and the deployment's file space folder (AD3.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "views": {
+  "conversationDetail": {
+   "tabsLabel": "Sections de la conversation",
+   "tabs": {
+    "turns": "Tours",
+    "files": "Fichiers"
+   }
+  },
+  "runDetail": {
+   "fileSpace": "Espace de fichiers",
+   "openFiles": "Ouvrir les fichiers"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "fileSpaceMountPath": "Dossier de l'espace de fichiers"
+   },
+   "hints": {
+    "fileSpaceMountPath": "Dossier de l'espace de travail de l'exécution qui reçoit les fichiers partagés de la conversation au démarrage ; ses modifications sont réécrites à la fin. Valeur par défaut : files."
+   }
+  }
+ },
+ "errorCodes": {
+  "InvalidFilePath": "Utilisez un chemin relatif avec des barres obliques, sans segment \".\" ni \"..\".",
+  "FileTooLarge": "Le fichier dépasse la taille autorisée par le paramètre FileSpaces.MaxFileBytes.",
+  "FileSpaceFull": "L'espace de fichiers dépasserait le paramètre FileSpaces.MaxTotalBytes.",
+  "TooManyFiles": "L'espace de fichiers contient déjà autant de fichiers que le paramètre FileSpaces.MaxFiles le permet.",
+  "StaleFileUpload": "L'exécution ne détient plus son bail, ses modifications de fichiers n'ont donc pas été écrites."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidFilePath": "Utilisez un chemin relatif avec des barres obliques, sans segment \".\" ni \"..\"."
+  },
+  "serverText": {
+   "fileSpaceFileTooLarge": "Le fichier {{path}} fait {{size}} octets ; la limite est de {{limit}} octets (FileSpaces.MaxFileBytes).",
+   "fileSpaceFull": "L'espace de fichiers contiendrait plus de {{limit}} octets (FileSpaces.MaxTotalBytes).",
+   "fileSpaceTooManyFiles": "L'espace de fichiers contient déjà {{count}} fichiers (FileSpaces.MaxFiles).",
+   "fileNotFound": "Le fichier {{path}} est introuvable."
+  }
+ },
+ "components": {
+  "files": {
+   "title": "Fichiers",
+   "summary": "Fichiers partagés : {{count}} ({{size}})",
+   "live": "En direct",
+   "polling": "Interrogation",
+   "includeDeleted": "Afficher les fichiers supprimés",
+   "refresh": "Actualiser",
+   "spaceId": "Espace de fichiers {{id}}",
+   "emptyTitle": "Aucun fichier pour l'instant",
+   "emptyBody": "Les fichiers que les tours écrivent dans le dossier partagé, ou que vous envoyez ci-dessous, apparaissent ici.",
+   "emptyBodyDeleted": "Rien n'a encore été écrit dans le dossier partagé de cette conversation, pas même un fichier supprimé ensuite.",
+   "columns": {
+    "path": "Chemin",
+    "currentVersion": "Version",
+    "sizeBytes": "Taille",
+    "mediaType": "Type de média",
+    "lastUpdateUtc": "Modifié",
+    "actions": "Actions"
+   },
+   "deleted": "Supprimé",
+   "version": "version {{number}}",
+   "versions": "Historique des versions",
+   "download": "Télécharger",
+   "deleteLabel": "Supprimer {{path}}",
+   "deletedToast": "{{path}} a été supprimé. Ses versions sont conservées.",
+   "deleteTitle": "Supprimer le fichier",
+   "confirmDelete": "Supprimer {{path}} des fichiers partagés ? Les tours suivants ne le verront plus. Ses versions sont conservées et restent téléchargeables.",
+   "versionsTitle": "Versions de {{path}}",
+   "noVersions": "Ce fichier n'a aucune version.",
+   "current": "Actuelle",
+   "versionColumns": {
+    "number": "Version",
+    "sizeBytes": "Taille",
+    "mediaType": "Type de média",
+    "sha256": "Empreinte SHA-256",
+    "writtenBy": "Écrit par",
+    "createdUtc": "Écrit",
+    "actions": "Actions"
+   },
+   "preview": "Aperçu",
+   "previewTitle": "{{path}} (version n° {{number}})",
+   "emptyFile": "Cette version est vide.",
+   "uploadTitle": "Envoyer des fichiers",
+   "uploadHint": "Choisissez un ou plusieurs fichiers et vérifiez leurs chemins. Un chemin qui correspond à un fichier de la liste en ajoute une nouvelle version. Si un tour a modifié ce fichier après le chargement de la liste, votre envoi est conservé à côté sous un nom de conflit au lieu de le remplacer.",
+   "uploadCreated": "{{path}} ajouté en version {{version}}.",
+   "uploadReplaced": "{{path}} enregistré en version {{version}}.",
+   "uploadConflict": "{{requested}} a changé après le chargement de la liste, votre envoi a donc été conservé sous {{path}}. Comparez les deux fichiers et supprimez celui dont vous n'avez pas besoin.",
+   "chooseFiles": "Fichiers à envoyer",
+   "uploadColumns": {
+    "path": "Chemin dans le dossier partagé",
+    "replaces": "Remplace",
+    "size": "Taille",
+    "actions": "Retirer"
+   },
+   "replacesVersion": "Version {{version}}",
+   "newFile": "Nouveau fichier",
+   "removeFile": "Retirer ce fichier de l'envoi",
+   "upload": "Envoyer",
+   "uploading": "Envoi en cours...",
+   "limitSetting": "La limite est définie par le paramètre serveur {{setting}}."
+  }
+ }
+});

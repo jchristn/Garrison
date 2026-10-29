@@ -216,6 +216,9 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   // Record modals opened from row actions.
   const modals = [
     ['agents?tab=deployments', 'Compile preview', 'compile preview'],
+    // AD1.9: promote a revision and the promotion history with its Rollback action.
+    ['agents?tab=deployments', 'Promote', 'promote'],
+    ['agents?tab=deployments', 'Promotion history', 'promotion history'],
     ['configuration?tab=mcp-servers', 'Test connection', 'MCP test'],
     ['access?tab=users', 'Effective permissions', 'effective permissions'],
     ['configuration?tab=secrets', 'Set value', 'secret value'],
@@ -228,7 +231,9 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     ['agents?tab=triggers', 'Fire now', 'trigger fire'],
     ['agents?tab=triggers', 'Fire history', 'trigger fire history'],
     ['configuration?tab=notifications', 'Send test', 'notification test'],
-    ['configuration?tab=notifications', 'Delivery log', 'notification delivery log']
+    ['configuration?tab=notifications', 'Delivery log', 'notification delivery log'],
+    // AD2.8: an asset's version history with its files and the upload panel.
+    ['configuration?tab=agent-assets', 'Versions', 'asset versions']
   ];
   for (const [path, item, context] of modals) {
     await page.goto(`/dashboard/${path}`);
@@ -240,6 +245,67 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     await audit(page, context);
     await closeModal(page);
   }
+  // AD1.9: the promote dialog with a target that skips an environment, and the rollback confirmation.
+  await page.goto('/dashboard/agents?tab=deployments');
+  await settle(page);
+  await page.getByTestId('promote-button').click();
+  await page.locator('#promote-agent').selectOption('agt_0001');
+  await page.locator('#promote-source').selectOption('dev');
+  await page.locator('#promote-target').selectOption('prod');
+  await audit(page, 'promote skipping an environment');
+  await closeModal(page);
+  await page.getByTestId('promotion-history').click();
+  await settle(page);
+  await page.getByTestId('promotion-rollback').first().click();
+  await audit(page, 'promotion rollback confirmation');
+  await page.locator('.modal').last().getByRole('button', { name: 'Cancel' }).click();
+  await closeModal(page);
+  // The revision publish dialog on the agent page.
+  await page.goto('/dashboard/agents/agt_0001');
+  await settle(page);
+  await page.getByRole('tab', { name: 'Revisions' }).click();
+  await page.getByTestId('revision-publish').first().click();
+  await audit(page, 'revision publish');
+  await closeModal(page);
+  // AD2.8: the asset pins editor on the draft, with a pin added.
+  await page.getByTestId('revision-assets').first().click();
+  await page.getByTestId('asset-pin-add').click();
+  await audit(page, 'asset pins');
+  await closeModal(page);
+
+  // AD2.8: the asset form for a system prompt, and the version dialog with a preview and files chosen for upload.
+  await page.goto('/dashboard/configuration?tab=agent-assets');
+  await settle(page);
+  await page.getByTestId('add-button').click();
+  await page.locator('#agentAssets-kind').selectOption('SystemPrompt');
+  await audit(page, 'system prompt asset form');
+  await closeModal(page);
+  await page.locator('.data-table .action-menu-trigger').first().click();
+  await page.locator('.action-menu-dropdown [role="menuitem"]', { hasText: 'Versions' }).click();
+  await settle(page);
+  await page.getByTestId('asset-file-preview-button').first().click();
+  await expect(page.getByTestId('asset-file-preview')).toContainText('Write short sentences.');
+  await page.getByTestId('asset-upload-input').setInputFiles([{ name: 'notes.md', mimeType: 'text/markdown', buffer: Buffer.from('# Notes') }]);
+  await audit(page, 'asset versions with preview and upload');
+  await closeModal(page);
+
+  // AD3.8: the conversation Files tab with deleted files shown and files chosen for upload, a file's version dialog
+  // with a preview, and the delete confirmation.
+  await page.goto('/dashboard/conversations/cnv_0001?tab=files');
+  await settle(page);
+  await page.getByTestId('files-include-deleted').check();
+  await page.getByTestId('file-upload-input').setInputFiles([{ name: 'sources.md', mimeType: 'text/markdown', buffer: Buffer.from('# Mine') }]);
+  await audit(page, 'conversation files with deleted files and upload');
+  await page.locator('[data-file="notes/sources.md"]').getByTestId('file-versions-button').click();
+  await settle(page);
+  await page.getByTestId('file-version-preview-button').first().click();
+  await expect(page.getByTestId('file-preview-text')).toBeVisible();
+  await audit(page, 'conversation file versions with preview');
+  await closeModal(page);
+  await page.locator('[data-file="report.json"]').getByTestId('file-delete').click();
+  await audit(page, 'conversation file delete confirmation');
+  await page.keyboard.press('Escape');
+
   // The pipeline preview with rendered stage prompts and a render failure.
   await page.goto('/dashboard/agents?tab=pipelines');
   await settle(page);
