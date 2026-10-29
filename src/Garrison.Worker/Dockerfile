@@ -27,7 +27,7 @@ RUN git clone https://github.com/jchristn/Mux.git . \
 FROM mcr.microsoft.com/dotnet/runtime:10.0
 ARG MUX_REF
 ARG MUX_VERSION
-ARG GARRISON_VERSION=0.1.0-alpha
+ARG GARRISON_VERSION=0.2.0
 ARG NODE_MAJOR=22
 ARG CLAUDE_CODE_VERSION=2.1.296
 ARG CODEX_VERSION=0.159.3

@@ -8,7 +8,7 @@ COPY src/ ./src/
 RUN dotnet publish src/Garrison.Server/Garrison.Server.csproj -c Release -f net10.0 -o /out /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0
-ARG GARRISON_VERSION=0.1.0-alpha
+ARG GARRISON_VERSION=0.2.0
 LABEL org.opencontainers.image.title="garrison-server" \
       org.opencontainers.image.version="${GARRISON_VERSION}" \
       org.opencontainers.image.source="https://github.com/jchristn/Garrison" \

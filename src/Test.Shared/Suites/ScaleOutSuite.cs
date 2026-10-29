@@ -509,7 +509,7 @@ namespace Test.Shared.Suites
             node.Name = id;
             node.Hostname = "host-" + id;
             node.Address = "127.0.0.1:8700";
-            node.Version = "0.1.0-alpha";
+            node.Version = "0.2.0";
             node.SchemaVersion = SchemaBuilder.LatestVersion;
             node.Backplane = "Local";
             node.Status = status;

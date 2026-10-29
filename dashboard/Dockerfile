@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-ARG GARRISON_VERSION=0.1.0-alpha
+ARG GARRISON_VERSION=0.2.0
 LABEL org.opencontainers.image.title="garrison-dashboard" \
       org.opencontainers.image.version="${GARRISON_VERSION}" \
       org.opencontainers.image.source="https://github.com/jchristn/Garrison" \
