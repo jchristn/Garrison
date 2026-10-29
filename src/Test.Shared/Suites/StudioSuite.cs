@@ -54,6 +54,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "preview", "Compile preview of a draft revision shows its new asset's placed path, previews another environment's deployment, and keeps secrets redacted (" + provider + ")", ct => PreviewAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "playground", "Playground runs execute an agent's draft revision on an ephemeral draft-environment deployment, from an agent or from a studio draft, without publishing; apps cannot select the draft environment (" + provider + ")", ct => PlaygroundAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "deploy-dev", "From an empty draft to a running dev app: agent, dev deployment, and app drafted, approved, applied, and answering at its app URL through the gateway; a pinned dev deployment moves to the new revision (" + provider + ")", ct => DeployDevAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "tenancy-rbac", "Another tenant's drafts and architect prompts are 404 or absent; a user without design permissions gets 403 on drafts, architect prompts, and the 0.2.0 routes for capabilities, file spaces, fan-out groups, assets, and apps (" + provider + ")", ct => TenancyAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Studio drafts (" + provider + ")", cases));
             }
             return suites;
@@ -793,6 +794,40 @@ spec:
                 Deployment devAfter = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + dev.Id, null, 200, token).ConfigureAwait(false);
                 Deployment stagingAfter = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + staging.Id, null, 200, token).ConfigureAwait(false);
                 Assert.True(updated.LatestPublishedRevisionId != entry.LatestPublishedRevisionId && devAfter.AgentRevisionId == updated.LatestPublishedRevisionId && stagingAfter.AgentRevisionId == entry.LatestPublishedRevisionId, "Dev moves to the new revision; staging waits for promotion: before " + entry.LatestPublishedRevisionId + ", after " + updated.LatestPublishedRevisionId + ", dev " + devAfter.AgentRevisionId + ", staging " + stagingAfter.AgentRevisionId);
+            }
+        }
+
+        private static async Task TenancyAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                StudioDraft draft = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Ours" }, 201, token).ConfigureAwait(false);
+                PromptTemplate ourClone = await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, T(host) + "/prompt-templates/tpl_builtin_agent_architect/clone", new CloneRequest { Name = "our-architect" }, 201, token).ConfigureAwait(false);
+
+                Tenant other = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Studio Other" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + other.Id + "/users", new UserRequest { Email = "studio-outsider@example.com", Password = "password123", IsTenantAdmin = true }, 201, token).ConfigureAwait(false);
+                using (HttpClient outsider = await host.UserClientAsync("studio-outsider@example.com", "password123", other.Id, token).ConfigureAwait(false))
+                {
+                    string theirs = "/v1.0/api/tenants/" + other.Id;
+                    Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Get, theirs + "/studio/drafts/" + draft.Id, null, token).ConfigureAwait(false)).StatusCode, "Another tenant's draft through their tenant");
+                    Assert.Equal(404, (await HttpTestHelpers.SendAsync(outsider, HttpMethod.Get, D(host) + "/" + draft.Id, null, token).ConfigureAwait(false)).StatusCode, "Another tenant's draft through ours");
+                    EnumerationResult<StudioDraft> list = await HttpTestHelpers.SendAsync<EnumerationResult<StudioDraft>>(outsider, HttpMethod.Get, theirs + "/studio/drafts", null, 200, token).ConfigureAwait(false);
+                    Assert.True(list.Objects.All(d => d.Id != draft.Id), "Not listed to another tenant");
+                    List<ArchitectPromptEntry> prompts = await HttpTestHelpers.SendAsync<List<ArchitectPromptEntry>>(outsider, HttpMethod.Get, theirs + "/studio/architect-prompts", null, 200, token).ConfigureAwait(false);
+                    Assert.True(prompts.All(p => p.Id != ourClone.Id) && prompts.Any(p => p.Name == "builtin/agent-architect"), "Another tenant sees the built-ins but not our clone");
+                }
+
+                await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, T(host) + "/users", new UserRequest { Email = "studio-nobody@example.com", Password = "password123" }, 201, token).ConfigureAwait(false);
+                using (HttpClient nobody = await host.UserClientAsync("studio-nobody@example.com", "password123", host.TenantId, token).ConfigureAwait(false))
+                {
+                    string[] reads = { D(host), D(host) + "/" + draft.Id, T(host) + "/studio/architect-prompts", T(host) + "/capabilities", T(host) + "/agent-assets", T(host) + "/apps", T(host) + "/fan-out-groups/fog_missing", T(host) + "/conversations/cnv_missing/files" };
+                    foreach (string path in reads)
+                    {
+                        Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Get, path, null, token).ConfigureAwait(false)).StatusCode, "No permission: GET " + path);
+                    }
+                    Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Nope" }, token).ConfigureAwait(false)).StatusCode, "No permission: create a draft");
+                    Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/nope", new StudioDraftItemRequest { Version = draft.Version, Document = AgentYaml("nope", "No.") }, token).ConfigureAwait(false)).StatusCode, "No permission: edit a draft");
+                }
             }
         }
 
