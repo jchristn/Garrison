@@ -3030,3 +3030,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "Modifica l'app della bozza in un'area di disegno: agenti, chiamate, agente di ingresso, proprietà ed esecuzione per ambiente."
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "L'app della bozza come area di disegno modificabile, con i suoi agenti, le chiamate e la profondità di delega."
+  },
+  "canvas": {
+   "title": "L'app della bozza come grafo modificabile. Ogni modifica viene salvata subito nella bozza; nulla diventa attivo finché la bozza non viene applicata.",
+   "appPicker": "L'app mostrata nell'area di disegno, quando la bozza ne contiene più di una.",
+   "node": "Un agente dell'app. Trascinalo per spostarlo, trascina dal suo bordo destro per collegarlo, oppure dagli il focus e usa le scorciatoie da tastiera.",
+   "nodeReadOnly": "Un agente dell'app. La bozza non può cambiare in questo momento, quindi l'area di disegno è di sola lettura.",
+   "addAgent": "Digita il nome di un agente o scegline uno tra gli agenti del tenant e quelli della bozza, poi premi Invio.",
+   "role": "Una nota facoltativa su cosa fa questo agente nell'app, conservata con la sua appartenenza.",
+   "add": "Rendi l'agente membro di {{app}}. Il primo membro diventa l'agente di ingresso.",
+   "connect": "Avvia una chiamata da {{name}}, poi scegli l'agente che chiama.",
+   "needAgent": "Seleziona prima un agente nell'area di disegno.",
+   "needCall": "Seleziona prima una chiamata: fai clic su di essa nell'area di disegno o sceglila nell'elenco delle chiamate.",
+   "alreadyEntry": "{{name}} è già l'agente di ingresso.",
+   "setEntry": "Rendi l'agente selezionato quello che parla con le persone che usano l'app.",
+   "remove": "Togli dall'app l'agente selezionato con le sue chiamate, dopo una conferma.",
+   "disconnect": "Elimina la chiamata selezionata. I due agenti restano nell'app.",
+   "fit": "Zoom e spostamento della vista in modo che ogni agente dell'app sia visibile.",
+   "connectTo": "L'agente che il chiamante può chiamare.",
+   "fanOut": "Attivo: il chiamante può avviare più chiamate a questo agente contemporaneamente (fan-out). Disattivo: una chiamata alla volta.",
+   "connectConfirm": "Consenti a {{from}} di chiamare {{to}} e salva la chiamata nella bozza.",
+   "connectNoTarget": "Nell'app non c'è ancora un altro agente da chiamare.",
+   "connectCancel": "Interrompi il collegamento senza aggiungere una chiamata.",
+   "keys": "Mostra i tasti che funzionano nell'area di disegno.",
+   "calls": "Ogni chiamata dell'app descritta a parole. Questi pulsanti servono a selezionare e modificare le chiamate da tastiera.",
+   "call": "Seleziona questa chiamata. Canc la scollega, F attiva o disattiva le chiamate in parallelo.",
+   "callReadOnly": "Seleziona questa chiamata per vederne le proprietà. La bozza non può cambiare in questo momento.",
+   "addLoose": "Rendi {{name}} membro di {{app}}, così che possa essere collegato.",
+   "retry": "Invia di nuovo la modifica rifiutata, sulla versione della bozza appena letta.",
+   "dismissError": "Nascondi questo messaggio sulla modifica rifiutata.",
+   "panel": {
+    "properties": "Il documento dell'agente: descrizione, schemi, asset e capacità.",
+    "runtime": "Le distribuzioni dell'agente in ogni ambiente: modello, limiti, prompt e approvazioni.",
+    "save": "Scrivi questi campi nell'elemento della bozza alla versione che hai letto. Nulla diventa attivo.",
+    "reset": "Torna ai valori che la bozza contiene ora.",
+    "nothingToSave": "Non è ancora cambiato nulla, quindi non c'è niente da salvare.",
+    "nothingToReset": "Non è ancora cambiato nulla, quindi non c'è niente da annullare."
+   },
+   "agent": {
+    "title": "Campi del documento dell'agente in questa bozza. Il salvataggio riscrive il suo elemento Agent.",
+    "bring": "Copia il documento attivo dell'agente (o uno nuovo) nella bozza per poterlo modificare.",
+    "description": "Cosa fa l'agente, mostrato alle persone e agli agenti che lo chiamano.",
+    "inputSchema": "Un JSON Schema a cui l'input dell'agente deve corrispondere. Vuoto significa input in testo semplice.",
+    "outputSchema": "Un JSON Schema che l'output strutturato dell'agente segue. Vuoto significa nessun output strutturato.",
+    "assets": "Asset dell'agente (skill, riferimenti, modelli) che la prossima revisione fissa, per nome e versione facoltativa.",
+    "assetName": "Il nome dell'asset dell'agente in questo tenant.",
+    "assetVersion": "Una versione da fissare. Vuoto segue la versione più recente dell'asset.",
+    "removeAsset": "Togli questo asset fissato dalla prossima revisione dell'agente al salvataggio.",
+    "addAsset": "Fissa un altro asset alla prossima revisione dell'agente.",
+    "capabilities": "Capacità usate dall'agente, come gli strumenti host che un worker deve avere (pandoc, git).",
+    "systemPrompt": "Il prompt di sistema si imposta per distribuzione, così ogni ambiente può usare il proprio.",
+    "showRuntime": "Apri le distribuzioni dell'agente, dove si modificano il prompt di sistema e la sua versione."
+   },
+   "edge": {
+    "title": "La chiamata selezionata: chi chiama chi, il fan-out e la profondità di delega che richiede.",
+    "from": "L'agente che effettua questa chiamata.",
+    "to": "L'agente raggiunto da questa chiamata.",
+    "depth": "Quanti livelli di delega servono al chiamante per questa chiamata, ricavati dal grafo."
+   },
+   "app": {
+    "title": "Campi del documento dell'app in questa bozza. Il salvataggio riscrive il suo elemento AgenticApp.",
+    "entry": "Il membro che parla con le persone che usano l'app. La modifica viene salvata subito.",
+    "bring": "Copia il documento attivo dell'app nella bozza per modificarne l'accesso e l'aspetto.",
+    "description": "A cosa serve l'app, mostrato nell'elenco delle app della console.",
+    "authMode": "Chi può accedere all'app: utenti del tenant, utenti dell'app o chiunque (anonimo).",
+    "anonymous": "Consenti di usare l'app senza accedere, quando la modalità di accesso lo permette.",
+    "branding": "L'aspetto della pagina di chat dell'app per le persone che la usano.",
+    "brandingFields": {
+     "displayName": "Il nome nell'intestazione dell'app. Se vuoto si usa il nome dell'app.",
+     "logo": "Un asset dell'agente la cui prima immagine diventa il logo dell'app.",
+     "primaryColor": "Il colore principale della pagina dell'app, come valore esadecimale.",
+     "accentColor": "Il secondo colore della pagina dell'app, come valore esadecimale.",
+     "welcomeText": "La prima cosa che le persone leggono quando aprono l'app."
+    }
+   },
+   "runtime": {
+    "title": "Le distribuzioni dell'agente in questa bozza, un ambiente alla volta.",
+    "deployment": "Scegli la distribuzione dell'ambiente da modificare. Il salvataggio cambia solo l'elemento di quella distribuzione.",
+    "live": "Distribuzioni di questo agente che ora sono in uso ma non sono nella bozza. Portane una nella bozza per modificarla.",
+    "bring": "Copia il documento attivo di {{name}} nella bozza come nuovo elemento.",
+    "approvals": "Se le chiamate a strumenti delle esecuzioni di questa distribuzione attendono una persona, e le regole che decidono prima.",
+    "fields": {
+     "model": "Il modello usato dall'harness, ad esempio sonnet. Se vuoto si usa il modello predefinito del profilo harness.",
+     "effort": "Il livello di impegno di ragionamento che l'harness trasmette, ad esempio high. Se vuoto decide l'harness.",
+     "timeoutSeconds": "Quanto può durare un'esecuzione prima di essere fermata, in secondi.",
+     "maxTurns": "Quanti turni del modello può fare un'esecuzione prima di fermarsi.",
+     "maxBudgetUsd": "Quanto può costare un'esecuzione in dollari USA prima che l'harness la fermi.",
+     "systemTemplate": "Il modello di prompt usato come prompt di sistema, per nome. Se vuoto si usa il prompt predefinito integrato.",
+     "systemVersion": "Una versione di quel modello da fissare. Se vuoto segue la versione più recente.",
+     "approvalsEnabled": "Attivo: le chiamate a strumenti che nessuna regola consente attendono una persona in Approvazioni.",
+     "approvalDefaultAction": "Cosa succede a una chiamata a strumento che nessuna regola copre: consentirla, negarla o chiedere a una persona."
+    },
+    "rule": {
+     "action": "Cosa fa questa regola con una chiamata a strumento corrispondente.",
+     "pattern": "Le chiamate a strumenti a cui corrisponde la regola, ad esempio Bash(git *).",
+     "inputPattern": "Un pattern facoltativo a cui deve corrispondere anche l'input della chiamata a strumento.",
+     "remove": "Elimina questa regola al salvataggio.",
+     "add": "Aggiungi una regola; le regole vengono controllate in ordine e decide la prima che corrisponde."
+    }
+   }
+  }
+ }
+});

@@ -3027,3 +3027,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "在画布上编辑草稿的应用：智能体、调用、入口智能体、属性以及各环境的运行时。"
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "以可编辑画布呈现草稿的应用，包括其智能体、调用和委派深度。"
+  },
+  "canvas": {
+   "title": "以可编辑关系图呈现草稿的应用。每次更改都会立即保存到草稿中；在应用草稿之前不会生效。",
+   "appPicker": "当草稿包含多个应用时，画布显示的应用。",
+   "node": "应用中的一个智能体。拖动可移动它，从其右边缘拖动可连接它，也可以聚焦它并使用键盘快捷键。",
+   "nodeReadOnly": "应用中的一个智能体。草稿当前无法更改，因此画布为只读。",
+   "addAgent": "输入智能体名称，或从租户和草稿中的智能体里选择一个，然后按 Enter。",
+   "role": "关于此智能体在应用中职责的可选说明，与其成员身份一起保存。",
+   "add": "使该智能体成为 {{app}} 的成员。第一个成员会成为入口智能体。",
+   "connect": "从 {{name}} 发起一个调用，然后选择它调用的智能体。",
+   "needAgent": "请先在画布上选择一个智能体。",
+   "needCall": "请先选择一个调用：在画布上点击它，或在调用列表中选择它。",
+   "alreadyEntry": "{{name}} 已经是入口智能体。",
+   "setEntry": "让选中的智能体负责与使用应用的人对话。",
+   "remove": "确认后，将选中的智能体连同其调用一起从应用中移除。",
+   "disconnect": "删除选中的调用。两个智能体仍保留在应用中。",
+   "fit": "缩放和平移，使应用的所有智能体都可见。",
+   "connectTo": "调用方可以调用的智能体。",
+   "fanOut": "开启：调用方可以同时对此智能体发起多个调用（扇出）。关闭：一次一个调用。",
+   "connectConfirm": "允许 {{from}} 调用 {{to}}，并将该调用保存到草稿中。",
+   "connectNoTarget": "应用中还没有其他可调用的智能体。",
+   "connectCancel": "停止连接，不添加调用。",
+   "keys": "显示画布上可用的按键。",
+   "calls": "用文字列出应用的所有调用。这些按钮是用键盘选择和更改调用的方式。",
+   "call": "选择此调用。Delete 断开它，F 开启或关闭并行调用。",
+   "callReadOnly": "选择此调用以查看其属性。草稿当前无法更改。",
+   "addLoose": "使 {{name}} 成为 {{app}} 的成员，以便可以连接它。",
+   "retry": "基于刚读取的草稿版本，重新发送被拒绝的更改。",
+   "dismissError": "隐藏关于被拒绝更改的这条消息。",
+   "panel": {
+    "properties": "智能体自身的文档：描述、架构、资产和能力。",
+    "runtime": "智能体在各环境中的部署：模型、限制、提示词和审批。",
+    "save": "将这些字段写入你所读取版本的草稿项目中。不会生效到实时配置。",
+    "reset": "恢复为草稿当前保存的值。",
+    "nothingToSave": "尚未做任何更改，因此没有可保存的内容。",
+    "nothingToReset": "尚未做任何更改，因此没有可撤销的内容。"
+   },
+   "agent": {
+    "title": "此草稿中智能体文档的字段。保存会重写其 Agent 项目。",
+    "bring": "将智能体的实时文档（或一个新文档）复制到草稿中，以便编辑。",
+    "description": "智能体的用途，向人和调用它的智能体显示。",
+    "inputSchema": "智能体输入必须符合的 JSON Schema。留空表示纯文本输入。",
+    "outputSchema": "智能体结构化输出遵循的 JSON Schema。留空表示没有结构化输出。",
+    "assets": "下一个修订版本固定的智能体资产（技能、参考资料、模板），按名称和可选版本指定。",
+    "assetName": "该智能体资产在此租户中的名称。",
+    "assetVersion": "要固定的版本。留空则跟随资产的最新版本。",
+    "removeAsset": "保存时从智能体的下一个修订版本中去掉此固定。",
+    "addAsset": "为智能体的下一个修订版本再固定一个智能体资产。",
+    "capabilities": "智能体使用的能力，例如工作节点必须具备的主机工具（pandoc、git）。",
+    "systemPrompt": "系统提示词按部署设置，因此每个环境都可以使用自己的系统提示词。",
+    "showRuntime": "打开智能体的部署，在那里编辑系统提示词及其版本。"
+   },
+   "edge": {
+    "title": "选中的调用：谁调用谁、扇出以及它所需的委派深度。",
+    "from": "发起此调用的智能体。",
+    "to": "此调用到达的智能体。",
+    "depth": "调用方进行此调用所需的委派层数，由关系图计算得出。"
+   },
+   "app": {
+    "title": "此草稿中应用文档的字段。保存会重写其 AgenticApp 项目。",
+    "entry": "与使用应用的人对话的成员。更改会立即保存。",
+    "bring": "将应用的实时文档复制到草稿中，以便编辑其登录和品牌设置。",
+    "description": "应用的用途，显示在控制台的应用列表中。",
+    "authMode": "谁可以登录应用：租户用户、应用用户或任何人（匿名）。",
+    "anonymous": "在登录模式允许时，让人无需登录即可使用应用。",
+    "branding": "应用的聊天页面在使用者眼中的外观。",
+    "brandingFields": {
+     "displayName": "应用标题栏中的名称。留空则使用应用名称。",
+     "logo": "一个智能体资产，其第一张图片会成为应用的徽标。",
+     "primaryColor": "应用页面的主色，使用十六进制值。",
+     "accentColor": "应用页面的第二种颜色，使用十六进制值。",
+     "welcomeText": "人们打开应用时首先看到的内容。"
+    }
+   },
+   "runtime": {
+    "title": "此草稿中智能体的部署，每次显示一个环境。",
+    "deployment": "选择要编辑的环境部署。保存只会更改该部署的项目。",
+    "live": "此智能体当前正在运行但不在草稿中的部署。引入一个即可更改它。",
+    "bring": "将 {{name}} 的实时文档作为新项目复制到草稿中。",
+    "approvals": "此部署的运行中的工具调用是否等待人工处理，以及优先作出判断的规则。",
+    "fields": {
+     "model": "Harness 使用的模型，例如 sonnet。留空则使用 Harness 配置文件的默认值。",
+     "effort": "Harness 传递的推理强度，例如 high。留空则由 Harness 决定。",
+     "timeoutSeconds": "运行在被停止前可持续的时间，以秒为单位。",
+     "maxTurns": "运行在停止前可使用的模型轮次数。",
+     "maxBudgetUsd": "运行在被 Harness 停止前可花费的金额，以美元计。",
+     "systemTemplate": "用作系统提示词的提示词模板名称。留空则使用内置默认值。",
+     "systemVersion": "要固定的模板版本。留空则跟随其最新版本。",
+     "approvalsEnabled": "开启：没有规则允许的工具调用会在“审批”中等待人工处理。",
+     "approvalDefaultAction": "对没有规则匹配的工具调用如何处理：允许、拒绝或询问人员。"
+    },
+    "rule": {
+     "action": "此规则对匹配的工具调用执行的操作。",
+     "pattern": "规则匹配哪些工具调用，例如 Bash(git *)。",
+     "inputPattern": "工具调用的输入也必须匹配的可选模式。",
+     "remove": "保存时删除此规则。",
+     "add": "添加一条规则；规则按顺序检查，第一个匹配的规则生效。"
+    }
+   }
+  }
+ }
+});

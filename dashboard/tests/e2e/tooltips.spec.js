@@ -405,6 +405,29 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await expect(page.getByTestId('studio-preview-assets')).toBeVisible();
   await audit(page, 'studio compile preview');
 
+  // AD8.2 to AD8.6: the canvas with an agent's properties and an asset row, a connection in progress with the keyboard
+  // shortcuts open, the runtime tab with an approval rule, and a selected call.
+  await page.goto('/dashboard/studio/drf_0001?tab=graph');
+  await settle(page);
+  await expect(page.getByTestId('studio-app-panel')).toBeVisible();
+  await audit(page, 'studio canvas app panel');
+  await page.locator('.react-flow__node[data-id="writer"]').click();
+  await expect(page.getByTestId('studio-agent-panel')).toBeVisible();
+  await page.getByTestId('studio-agent-add-asset').click();
+  await audit(page, 'studio canvas agent panel');
+  await page.getByTestId('studio-canvas-connect').click();
+  await expect(page.getByTestId('studio-canvas-connect-bar')).toBeVisible();
+  await page.locator('.studio-canvas-keys summary').click();
+  await audit(page, 'studio canvas connecting');
+  await page.getByTestId('studio-canvas-connect-cancel').click();
+  await page.getByRole('tab', { name: 'Runtime' }).click();
+  await expect(page.getByTestId('studio-runtime-form')).toBeVisible();
+  await page.getByTestId('studio-runtime-add-rule').click();
+  await audit(page, 'studio canvas runtime');
+  await page.locator('[data-call="planner>writer"]').click();
+  await expect(page.getByTestId('studio-edge-panel')).toBeVisible();
+  await audit(page, 'studio canvas call');
+
   // AD2.8: the asset form for a system prompt, and the version dialog with a preview and files chosen for upload.
   await page.goto('/dashboard/configuration?tab=agent-assets');
   await settle(page);

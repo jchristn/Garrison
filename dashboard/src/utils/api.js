@@ -939,6 +939,15 @@ class ApiClient {
   }
 
   /**
+   * Change the draft's graph with one operation at the version read (AD8.2): body { version, operation, app?, agent?,
+   * role?, from?, to?, fanOut?, nodeKey?, x?, y? }. Answers the new graph (StudioGraph). 409 DraftVersionConflict when
+   * the draft moved on, DraftNotOpen when it is not Open; 400 with field codes (NotAMember, SelfEdge, NoSuchEdge, ...).
+   */
+  studioGraphOperation(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `studio/drafts/${enc(id)}/graph-operations`), { body });
+  }
+
+  /**
    * Run a draft's agent in the playground: body { input, agent?, conversationId?, wait, waitSeconds }. Answers the run.
    * 400 AgentNotLive for an agent the draft creates.
    */

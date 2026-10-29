@@ -3952,3 +3952,250 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "畫布",
+    "appPicker": "應用程式",
+    "flowLabel": "應用程式 {{app}} 的畫布",
+    "noApp": "草稿中還沒有應用程式。請架構師建立一個，或從現有應用程式開始一份草稿。",
+    "calls": "呼叫（{{total}}）",
+    "noCalls": "還沒有呼叫。從代理程式的右側邊緣拖曳到另一個代理程式，或在一個代理程式上按 C，再在另一個代理程式上按 Enter。",
+    "addLoose": "加入應用程式",
+    "remove": "從應用程式移除",
+    "removeTitle": "從應用程式移除代理程式",
+    "removeMessage": "要從 {{app}} 移除 {{name}} 嗎？它的呼叫也會一併移除。代理程式本身會保留，套用草稿之前即時設定都不會變更。",
+    "operationFailed": "{{operation}}遭到拒絕。",
+    "operations": {
+     "AddMember": "新增代理程式",
+     "RemoveMember": "移除代理程式",
+     "Connect": "連接",
+     "Disconnect": "中斷連接",
+     "SetEntry": "設定入口代理程式",
+     "MoveNode": "移動代理程式"
+    },
+    "toolbar": {
+     "label": "畫布動作",
+     "addAgent": "新增代理程式",
+     "addPlaceholder": "代理程式名稱",
+     "role": "角色",
+     "rolePlaceholder": "角色（選填）",
+     "add": "新增",
+     "connect": "從此處連接",
+     "setEntry": "設為入口代理程式",
+     "remove": "移除",
+     "disconnect": "中斷連接",
+     "fit": "符合畫面"
+    },
+    "connectBar": {
+     "message": "正在從 {{name}} 連接。請選擇它要呼叫的代理程式：按一下該代理程式、在其上按 Enter，或在這裡選擇。",
+     "to": "呼叫",
+     "fanOut": "平行呼叫",
+     "confirm": "連接"
+    },
+    "keys": {
+     "title": "鍵盤快速鍵",
+     "tab": "Tab 會依閱讀順序在代理程式之間移動，從入口代理程式開始。",
+     "select": "Enter 或 Space 會選取目前焦點所在的代理程式，並開啟其屬性。",
+     "connect": "在代理程式上按 C 會從它開始一個呼叫；在另一個代理程式上按 C 或 Enter 即可完成。",
+     "entry": "E 會將目前焦點所在的代理程式設為入口代理程式。",
+     "remove": "Delete 會在確認後將目前焦點所在的代理程式從應用程式移除。",
+     "move": "方向鍵可移動選取的代理程式；按住 Shift 可移動較大距離。短暫停頓後會儲存位置。",
+     "add": "N 會跳到「新增代理程式」欄位。",
+     "calls": "在呼叫清單中，Enter 選取呼叫，Delete 中斷連接，F 開啟或關閉平行呼叫。",
+     "escape": "Escape 會取消你開始的呼叫。"
+    },
+    "node": {
+     "entry": "入口",
+     "unreachable": "無法抵達",
+     "connecting": "從此處呼叫"
+    },
+    "a11y": {
+     "node": "按 Enter 或 Space 選取此代理程式，再用方向鍵移動它。按 C 連接它，按 E 設為入口代理程式，或按 Delete 移除它。",
+     "edge": "兩個代理程式之間的呼叫。請在畫布下方的呼叫清單中選取它。",
+     "handle": "連接點",
+     "moved": "已將代理程式向{{direction}}移動。新位置：{{x}}, {{y}}。",
+     "directions": {
+      "up": "上",
+      "down": "下",
+      "left": "左",
+      "right": "右"
+     }
+    },
+    "announce": {
+     "added": "已將 {{name}} 加入 {{app}}。",
+     "connectStart": "正在從 {{name}} 連接。請移到它要呼叫的代理程式並按 Enter，或按 Escape 取消。",
+     "connectCancelled": "已取消連接。",
+     "connected": "{{from}} 現在會呼叫 {{to}}。",
+     "disconnected": "{{from}} 不再呼叫 {{to}}。",
+     "fanOutOn": "{{from}} 現在可以平行呼叫 {{to}}。",
+     "fanOutOff": "{{from}} 現在呼叫 {{to}} 時一次只發起一個呼叫。",
+     "entry": "{{name}} 現在是 {{app}} 的入口代理程式。",
+     "removed": "已從 {{app}} 移除 {{name}}。",
+     "selfEdge": "代理程式不能呼叫自己。請選擇另一個代理程式。"
+    },
+    "summary": {
+     "noApp": "沒有可描述的應用程式。",
+     "agents_one": "應用程式 {{app}} 有 {{count}} 個代理程式。",
+     "agents_other": "應用程式 {{app}} 有 {{count}} 個代理程式。",
+     "callCount_one": "它們之間有 {{count}} 個呼叫。",
+     "callCount_other": "它們之間有 {{count}} 個呼叫。",
+     "entry": "入口代理程式是 {{name}}。",
+     "noEntry": "尚未設定入口代理程式。",
+     "callParallel": "{{from}} 呼叫 {{to}}，允許平行呼叫，委派深度 {{depth}}。",
+     "callSingle": "{{from}} 呼叫 {{to}}，一次一個呼叫，委派深度 {{depth}}。"
+    },
+    "conflict": {
+     "mine": "{{item}} 也已變更。你的編輯仍在面板中；再次儲存前，請將它與新版本比較。",
+     "kept": "你對 {{item}} 的編輯仍在面板中。再次儲存即可套用到新版本。",
+     "operation": "{{operation}}未套用。請在新版本上再試一次，或略過。",
+     "retry": "再試一次"
+    },
+    "panel": {
+     "label": "屬性",
+     "tabsLabel": "{{name}} 的屬性",
+     "properties": "代理程式",
+     "runtime": "執行階段",
+     "save": "儲存到草稿",
+     "reset": "復原變更",
+     "saved": "已儲存 {{item}}。「差異與套用」會顯示此變更。",
+     "check": "伺服器對此項目的檢查結果：{{message}}",
+     "unparsable": "此項目的 YAML 無法剖析，因此面板無法變更它。請先在「項目」分頁修正。（{{message}}）"
+    },
+    "agent": {
+     "title": "代理程式 {{name}}",
+     "isEntry": "這是應用程式的入口代理程式：它負責與使用應用程式的人對話。",
+     "notHeld": "草稿中還沒有 {{name}} 的文件。將它帶入草稿即可在這裡編輯；即時設定不會變更。",
+     "deleted": "草稿會刪除 {{name}}。請先在「項目」分頁將它還原，才能編輯。",
+     "bring": "帶入草稿",
+     "description": "描述",
+     "inputSchema": "輸入結構描述",
+     "outputSchema": "輸出結構描述",
+     "schemaHint": "以 JSON 撰寫的 JSON Schema。純文字請留空。",
+     "assets": "資產",
+     "noAssets": "下一個修訂不會釘選任何資產。",
+     "assetsKept": "文件未列出任何資產，因此代理程式會保留現有的資產。",
+     "assetName": "資產名稱",
+     "assetVersion": "版本",
+     "latest": "最新",
+     "removeAsset": "移除資產 {{name}}",
+     "addAsset": "新增資產",
+     "capabilities": "能力",
+     "capabilitiesHint": "以逗號分隔名稱。清單留空會清除所有能力。",
+     "capabilitiesKept": "以逗號分隔名稱。留空時，代理程式會保留現有的能力。",
+     "systemPrompt": "系統提示",
+     "noDeployments": "草稿中沒有此代理程式的部署，因此這裡未設定系統提示。",
+     "promptLine": "{{environment}}：{{deployment}} 使用 {{prompt}}",
+     "builtInPrompt": "內建預設值",
+     "showRuntime": "在「執行階段」分頁編輯",
+     "errors": {
+      "json": "這不是有效的 JSON。",
+      "object": "結構描述必須是 JSON 物件，例如 {\"type\": \"object\"}。",
+      "version": "請輸入整數，或留空以使用最新版本。"
+     }
+    },
+    "edge": {
+     "title": "從 {{from}} 到 {{to}} 的呼叫",
+     "from": "呼叫端",
+     "to": "被呼叫端",
+     "depth": "委派深度",
+     "depthHint": "由關係圖推導：一加上 {{to}} 之下最長的呼叫鏈。其下的呼叫變更時，此值也會變更。",
+     "fanOut": "平行呼叫（扇出）",
+     "fanOutOn": "{{from}} 可以同時對 {{to}} 發起多個呼叫。",
+     "fanOutOff": "{{from}} 呼叫 {{to}} 時一次只發起一個呼叫。"
+    },
+    "app": {
+     "title": "應用程式 {{name}}",
+     "hint": "在畫布上選取代理程式或呼叫即可編輯。未選取任何項目時，此面板會編輯應用程式。",
+     "entry": "入口代理程式",
+     "noEntry": "沒有入口代理程式",
+     "noMembers": "請先新增代理程式；第一個會成為入口代理程式。",
+     "notHeld": "草稿中還沒有 {{name}} 的文件。將它帶入草稿即可在這裡編輯登入方式和品牌。",
+     "deleted": "草稿會刪除 {{name}}。請先在「項目」分頁將它還原，才能編輯。",
+     "bring": "帶入草稿",
+     "description": "描述",
+     "authMode": "登入",
+     "authDefault": "伺服器預設值",
+     "anonymous": "允許匿名使用",
+     "branding": "品牌",
+     "brandingFields": {
+      "displayName": "顯示名稱",
+      "logo": "標誌資產",
+      "primaryColor": "主要色彩",
+      "accentColor": "強調色彩",
+      "welcomeText": "歡迎文字"
+     },
+     "errors": {
+      "color": "請使用十六進位色碼，例如 #1F6FEB。"
+     }
+    },
+    "runtime": {
+     "title": "{{name}} 的執行階段",
+     "none": "草稿中沒有 {{name}} 的部署。請從下方帶入一個即時部署，或請架構師建立一個。",
+     "deployment": "環境與部署",
+     "option": "{{environment}}：{{name}}",
+     "scope": "編輯只會變更 {{environment}} 中的 {{name}}（Harness 設定檔 {{profile}}）。其他環境保留各自的值。",
+     "fields": {
+      "model": "模型",
+      "effort": "投入程度",
+      "timeoutSeconds": "時間限制（秒）",
+      "maxTurns": "最大回合數",
+      "maxBudgetUsd": "預算（USD）",
+      "systemTemplate": "系統提示範本",
+      "systemVersion": "釘選的版本",
+      "approvalsEnabled": "工具呼叫需要核准",
+      "approvalDefaultAction": "沒有規則符合時"
+     },
+     "hints": {
+      "timeoutSeconds": "整數秒數，1 或以上。留空則使用 Harness 設定檔的限制。",
+      "maxTurns": "整數，1 或以上。留空則由 Harness 決定。",
+      "maxBudgetUsd": "0 或以上，例如 2.50。留空表示沒有預算限制。"
+     },
+     "builtIn": "內建預設值",
+     "approvals": "核准",
+     "noRules": "沒有規則。每個工具呼叫都會套用預設動作。",
+     "rule": {
+      "action": "動作",
+      "pattern": "工具模式",
+      "inputPattern": "輸入模式",
+      "inputPlaceholder": "輸入模式（選填）",
+      "remove": "移除規則 {{number}}",
+      "add": "新增規則"
+     },
+     "live": "不在草稿中的即時部署",
+     "noLive": "此代理程式的每個即時部署都已在草稿中，或它沒有任何即時部署。",
+     "bring": "帶入草稿",
+     "exportMissing": "{{name}} 的匯出結果沒有包含其文件。",
+     "errors": {
+      "integer": "請輸入 1 或以上的整數。",
+      "number": "請輸入 0 或以上的數字。",
+      "pattern": "規則需要工具模式。",
+      "version": "請輸入整數，並指定要釘選的範本。"
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "該代理程式不是此應用程式的成員。",
+   "SelfEdge": "代理程式不能呼叫自己。",
+   "NoSuchEdge": "應用程式中沒有這個呼叫。",
+   "AppDeleted": "草稿會刪除此應用程式。請先將它還原。",
+   "InvalidDocument": "此文件無法剖析為單一清單文件。",
+   "DocumentMismatch": "文件的種類或名稱與項目不符。"
+  }
+ }
+});

@@ -3027,3 +3027,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "在畫布上編輯草稿的應用程式：代理程式、呼叫、入口代理程式、屬性，以及每個環境的執行階段設定。"
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "以可編輯畫布呈現的草稿應用程式，包含其代理程式、呼叫和委派深度。"
+  },
+  "canvas": {
+   "title": "以可編輯關係圖呈現的草稿應用程式。每項變更都會立即存入草稿；套用草稿之前，任何內容都不會上線。",
+   "appPicker": "草稿包含多個應用程式時，畫布要顯示的應用程式。",
+   "node": "應用程式的代理程式。拖曳可移動它，從右側邊緣拖曳可連接它，或將焦點移到它上面並使用鍵盤快速鍵。",
+   "nodeReadOnly": "應用程式的代理程式。草稿目前無法變更，因此畫布為唯讀。",
+   "addAgent": "輸入代理程式名稱，或從租用戶和草稿的代理程式中選擇一個，然後按 Enter。",
+   "role": "選填的說明，描述此代理程式在應用程式中負責的工作，會與其成員資格一起保存。",
+   "add": "讓代理程式成為 {{app}} 的成員。第一個成員會成為入口代理程式。",
+   "connect": "從 {{name}} 開始一個呼叫，然後選擇它要呼叫的代理程式。",
+   "needAgent": "請先在畫布上選取一個代理程式。",
+   "needCall": "請先選取一個呼叫：在畫布上按一下它，或在呼叫清單中選擇。",
+   "alreadyEntry": "{{name}} 已經是入口代理程式。",
+   "setEntry": "讓選取的代理程式負責與使用應用程式的人對話。",
+   "remove": "確認後，將選取的代理程式連同其呼叫從應用程式移除。",
+   "disconnect": "刪除選取的呼叫。兩個代理程式仍會留在應用程式中。",
+   "fit": "縮放和平移畫面，讓應用程式的每個代理程式都可見。",
+   "connectTo": "呼叫端可以呼叫的代理程式。",
+   "fanOut": "開啟：呼叫端可以同時對此代理程式發起多個呼叫（扇出）。關閉：一次一個呼叫。",
+   "connectConfirm": "讓 {{from}} 呼叫 {{to}}，並將此呼叫存入草稿。",
+   "connectNoTarget": "應用程式中還沒有其他可呼叫的代理程式。",
+   "connectCancel": "停止連接，不新增呼叫。",
+   "keys": "顯示在畫布上可用的按鍵。",
+   "calls": "以文字列出應用程式的每個呼叫。這些按鈕是用鍵盤選取和變更呼叫的方式。",
+   "call": "選取此呼叫。Delete 會中斷連接，F 會開啟或關閉平行呼叫。",
+   "callReadOnly": "選取此呼叫以檢視其屬性。草稿目前無法變更。",
+   "addLoose": "讓 {{name}} 成為 {{app}} 的成員，以便連接它。",
+   "retry": "以剛讀取的草稿版本，再次送出遭拒絕的變更。",
+   "dismissError": "隱藏這則關於遭拒絕變更的訊息。",
+   "panel": {
+    "properties": "代理程式本身的文件：描述、結構描述、資產和能力。",
+    "runtime": "代理程式在每個環境中的部署：模型、限制、提示和核准。",
+    "save": "以你讀取的版本，將這些欄位寫入草稿項目。不會有任何內容上線。",
+    "reset": "回到草稿目前保存的值。",
+    "nothingToSave": "尚未有任何變更，因此沒有內容可儲存。",
+    "nothingToReset": "尚未有任何變更，因此沒有內容可復原。"
+   },
+   "agent": {
+    "title": "此草稿中代理程式文件的欄位。儲存時會重寫其 Agent 項目。",
+    "bring": "將代理程式的即時文件（或新文件）複製到草稿中，以便編輯。",
+    "description": "代理程式的用途，會顯示給使用者以及呼叫它的代理程式。",
+    "inputSchema": "代理程式輸入必須符合的 JSON Schema。留空表示輸入為純文字。",
+    "outputSchema": "代理程式結構化輸出所遵循的 JSON Schema。留空表示沒有結構化輸出。",
+    "assets": "下一個修訂要釘選的代理程式資產（技能、參考資料、範本），依名稱及選填的版本指定。",
+    "assetName": "此租用戶中代理程式資產的名稱。",
+    "assetVersion": "要釘選的版本。留空則跟隨資產的最新版本。",
+    "removeAsset": "儲存時，從代理程式的下一個修訂中移除此釘選。",
+    "addAsset": "在代理程式的下一個修訂中再釘選一個代理程式資產。",
+    "capabilities": "代理程式使用的能力，例如工作節點必須具備的主機工具（pandoc、git）。",
+    "systemPrompt": "系統提示是依部署設定的，因此每個環境都可以使用自己的系統提示。",
+    "showRuntime": "開啟代理程式的部署，在那裡編輯系統提示及其版本。"
+   },
+   "edge": {
+    "title": "選取的呼叫：誰呼叫誰、扇出，以及它需要的委派深度。",
+    "from": "發起此呼叫的代理程式。",
+    "to": "此呼叫抵達的代理程式。",
+    "depth": "呼叫端進行此呼叫需要多少層委派，由關係圖計算得出。"
+   },
+   "app": {
+    "title": "此草稿中應用程式文件的欄位。儲存時會重寫其 AgenticApp 項目。",
+    "entry": "負責與使用應用程式的人對話的成員。變更會立即儲存。",
+    "bring": "將應用程式的即時文件複製到草稿中，以便編輯其登入方式和品牌。",
+    "description": "應用程式的用途，會顯示在主控台的應用程式清單中。",
+    "authMode": "誰可以登入應用程式：租用戶使用者、應用程式使用者，或任何人（匿名）。",
+    "anonymous": "在登入模式允許時，讓使用者無須登入即可使用應用程式。",
+    "branding": "應用程式的聊天頁面在使用者眼中的外觀。",
+    "brandingFields": {
+     "displayName": "應用程式標頭中的名稱。留空則使用應用程式的名稱。",
+     "logo": "一個代理程式資產，其第一張圖片會成為應用程式的標誌。",
+     "primaryColor": "應用程式頁面的主要色彩，以十六進位值表示。",
+     "accentColor": "應用程式頁面的第二種色彩，以十六進位值表示。",
+     "welcomeText": "使用者開啟應用程式時最先看到的內容。"
+    }
+   },
+   "runtime": {
+    "title": "此草稿中代理程式的部署，一次一個環境。",
+    "deployment": "選擇要編輯的環境部署。儲存時只會變更該部署的項目。",
+    "live": "此代理程式目前正在執行但不在草稿中的部署。將其中一個帶入草稿即可變更。",
+    "bring": "將 {{name}} 的即時文件複製到草稿中，作為新項目。",
+    "approvals": "此部署的執行在進行工具呼叫時是否要等候人員核准，以及優先決定結果的規則。",
+    "fields": {
+     "model": "Harness 使用的模型，例如 sonnet。留空則使用 Harness 設定檔的預設值。",
+     "effort": "Harness 傳遞的推理投入程度，例如 high。留空則由 Harness 決定。",
+     "timeoutSeconds": "執行在被停止前可持續的時間，以秒為單位。",
+     "maxTurns": "執行在停止前可使用的模型回合數。",
+     "maxBudgetUsd": "執行在被 Harness 停止前可花費的金額，以美元計。",
+     "systemTemplate": "用作系統提示的提示範本，以名稱指定。留空則使用內建預設值。",
+     "systemVersion": "要釘選的範本版本。留空則跟隨其最新版本。",
+     "approvalsEnabled": "開啟：沒有規則允許的工具呼叫會在「核准」中等候人員處理。",
+     "approvalDefaultAction": "沒有規則符合的工具呼叫會如何處理：允許、拒絕，或詢問人員。"
+    },
+    "rule": {
+     "action": "此規則對符合的工具呼叫採取的動作。",
+     "pattern": "此規則符合哪些工具呼叫，例如 Bash(git *)。",
+     "inputPattern": "工具呼叫的輸入也必須符合的選填模式。",
+     "remove": "儲存時刪除此規則。",
+     "add": "新增規則；規則會依序檢查，第一個符合的規則決定結果。"
+    }
+   }
+  }
+ }
+});

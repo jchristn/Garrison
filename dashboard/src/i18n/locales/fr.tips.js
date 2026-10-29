@@ -3030,3 +3030,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "Modifiez l'application du brouillon sur un canevas : agents, appels, agent d'entrée, propriétés et exécution par environnement."
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "L'application du brouillon sous forme de canevas modifiable, avec ses agents, ses appels et sa profondeur de délégation."
+  },
+  "canvas": {
+   "title": "L'application du brouillon sous forme de graphe modifiable. Chaque modification est enregistrée aussitôt dans le brouillon ; rien ne devient actif tant que le brouillon n'est pas appliqué.",
+   "appPicker": "L'application affichée par le canevas, quand le brouillon en contient plusieurs.",
+   "node": "Un agent de l'application. Faites-le glisser pour le déplacer, faites glisser depuis son bord droit pour le connecter, ou donnez-lui le focus et utilisez les raccourcis clavier.",
+   "nodeReadOnly": "Un agent de l'application. Le brouillon ne peut pas changer pour le moment, le canevas est donc en lecture seule.",
+   "addAgent": "Saisissez le nom d'un agent ou choisissez-en un parmi les agents du locataire et ceux du brouillon, puis appuyez sur Entrée.",
+   "role": "Une note facultative sur ce que fait cet agent dans l'application, conservée avec son appartenance.",
+   "add": "Faire de l'agent un membre de {{app}}. Le premier membre devient l'agent d'entrée.",
+   "connect": "Commencer un appel depuis {{name}}, puis choisir l'agent qu'il appelle.",
+   "needAgent": "Sélectionnez d'abord un agent sur le canevas.",
+   "needCall": "Sélectionnez d'abord un appel : cliquez dessus sur le canevas ou choisissez-le dans la liste des appels.",
+   "alreadyEntry": "{{name}} est déjà l'agent d'entrée.",
+   "setEntry": "Faire de l'agent sélectionné celui qui parle aux personnes qui utilisent l'application.",
+   "remove": "Retirer de l'application l'agent sélectionné et ses appels, après confirmation.",
+   "disconnect": "Supprimer l'appel sélectionné. Les deux agents restent dans l'application.",
+   "fit": "Zoomer et déplacer la vue pour que chaque agent de l'application soit visible.",
+   "connectTo": "L'agent que l'appelant peut appeler.",
+   "fanOut": "Activé : l'appelant peut lancer plusieurs appels à cet agent en même temps (fan-out). Désactivé : un appel à la fois.",
+   "connectConfirm": "Permettre à {{from}} d'appeler {{to}} et enregistrer l'appel dans le brouillon.",
+   "connectNoTarget": "Il n'y a pas encore d'autre agent à appeler dans l'application.",
+   "connectCancel": "Arrêter la connexion sans ajouter d'appel.",
+   "keys": "Afficher les touches qui fonctionnent sur le canevas.",
+   "calls": "Chaque appel de l'application, décrit en toutes lettres. Ces boutons permettent de sélectionner et de modifier les appels au clavier.",
+   "call": "Sélectionner cet appel. Suppr le déconnecte, F active ou désactive les appels en parallèle.",
+   "callReadOnly": "Sélectionner cet appel pour voir ses propriétés. Le brouillon ne peut pas changer pour le moment.",
+   "addLoose": "Faire de {{name}} un membre de {{app}}, pour pouvoir le connecter.",
+   "retry": "Renvoyer la modification refusée, sur la version du brouillon qui vient d'être lue.",
+   "dismissError": "Masquer ce message sur la modification refusée.",
+   "panel": {
+    "properties": "Le document propre de l'agent : description, schémas, assets et capacités.",
+    "runtime": "Les déploiements de l'agent dans chaque environnement : modèle, limites, prompt et approbations.",
+    "save": "Écrire ces champs dans l'élément du brouillon, à la version que vous avez lue. Rien ne devient actif.",
+    "reset": "Revenir aux valeurs que le brouillon contient maintenant.",
+    "nothingToSave": "Rien n'a encore changé, il n'y a donc rien à enregistrer.",
+    "nothingToReset": "Rien n'a encore changé, il n'y a donc rien à annuler."
+   },
+   "agent": {
+    "title": "Champs du document de l'agent dans ce brouillon. L'enregistrement réécrit son élément Agent.",
+    "bring": "Copier le document actif de l'agent (ou un nouveau) dans le brouillon pour pouvoir le modifier.",
+    "description": "Ce que fait l'agent, montré aux personnes et aux agents qui l'appellent.",
+    "inputSchema": "Un JSON Schema auquel l'entrée de l'agent doit correspondre. Vide : entrée en texte brut.",
+    "outputSchema": "Un JSON Schema que suit la sortie structurée de l'agent. Vide : pas de sortie structurée.",
+    "assets": "Les assets d'agent (skills, références, modèles) que la prochaine révision épingle, par nom et version facultative.",
+    "assetName": "Le nom de l'asset d'agent dans ce locataire.",
+    "assetVersion": "Une version à épingler. Vide : suit la dernière version de l'asset.",
+    "removeAsset": "Retirer cet épinglage de la prochaine révision de l'agent lors de l'enregistrement.",
+    "addAsset": "Épingler un autre asset d'agent à la prochaine révision de l'agent.",
+    "capabilities": "Les capacités que l'agent utilise, comme les outils d'hôte qu'un worker doit avoir (pandoc, git).",
+    "systemPrompt": "Le prompt système se définit par déploiement, chaque environnement peut donc utiliser le sien.",
+    "showRuntime": "Ouvrir les déploiements de l'agent, où se modifient le prompt système et sa version."
+   },
+   "edge": {
+    "title": "L'appel sélectionné : qui appelle qui, le fan-out et la profondeur de délégation nécessaire.",
+    "from": "L'agent qui fait cet appel.",
+    "to": "L'agent que cet appel atteint.",
+    "depth": "Le nombre de niveaux de délégation dont l'appelant a besoin pour cet appel, calculé à partir du graphe."
+   },
+   "app": {
+    "title": "Champs du document de l'application dans ce brouillon. L'enregistrement réécrit son élément AgenticApp.",
+    "entry": "Le membre qui parle aux personnes qui utilisent l'application. Un changement est enregistré aussitôt.",
+    "bring": "Copier le document actif de l'application dans le brouillon pour pouvoir modifier sa connexion et son apparence.",
+    "description": "À quoi sert l'application, affiché dans la liste des applications de la console.",
+    "authMode": "Qui peut se connecter à l'application : les utilisateurs du locataire, les utilisateurs de l'application, ou tout le monde (anonyme).",
+    "anonymous": "Permettre d'utiliser l'application sans se connecter, quand le mode de connexion le permet.",
+    "branding": "L'apparence de la page de discussion de l'application pour les personnes qui l'utilisent.",
+    "brandingFields": {
+     "displayName": "Le nom dans l'en-tête de l'application. Vide : le nom de l'application est utilisé.",
+     "logo": "Un asset d'agent dont la première image devient le logo de l'application.",
+     "primaryColor": "La couleur principale de la page de l'application, en valeur hexadécimale.",
+     "accentColor": "La deuxième couleur de la page de l'application, en valeur hexadécimale.",
+     "welcomeText": "La première chose que lisent les personnes en ouvrant l'application."
+    }
+   },
+   "runtime": {
+    "title": "Les déploiements de l'agent dans ce brouillon, un environnement à la fois.",
+    "deployment": "Choisissez le déploiement de l'environnement à modifier. L'enregistrement ne change que l'élément de ce déploiement.",
+    "live": "Les déploiements de cet agent qui tournent maintenant mais ne sont pas dans le brouillon. Importez-en un pour le modifier.",
+    "bring": "Copier le document actif de {{name}} dans le brouillon comme nouvel élément.",
+    "approvals": "Si les appels d'outil des exécutions de ce déploiement attendent une personne, et les règles qui décident d'abord.",
+    "fields": {
+     "model": "Le modèle utilisé par le harness, par exemple sonnet. Vide : le modèle par défaut du profil de harness.",
+     "effort": "L'effort de raisonnement que le harness transmet, par exemple high. Vide : le harness décide.",
+     "timeoutSeconds": "Combien de temps une exécution peut durer avant d'être arrêtée, en secondes.",
+     "maxTurns": "Combien de tours de modèle une exécution peut faire avant de s'arrêter.",
+     "maxBudgetUsd": "Combien une exécution peut coûter en dollars américains avant que le harness l'arrête.",
+     "systemTemplate": "Le modèle de prompt utilisé comme prompt système, par son nom. Vide : le prompt par défaut intégré.",
+     "systemVersion": "Une version de ce modèle à épingler. Vide : suit sa dernière version.",
+     "approvalsEnabled": "Activé : les appels d'outil qu'aucune règle n'autorise attendent une personne dans Approbations.",
+     "approvalDefaultAction": "Ce qui arrive à un appel d'outil qu'aucune règle ne couvre : l'autoriser, le refuser ou demander à une personne."
+    },
+    "rule": {
+     "action": "Ce que fait cette règle d'un appel d'outil correspondant.",
+     "pattern": "Les appels d'outil auxquels la règle correspond, par exemple Bash(git *).",
+     "inputPattern": "Un motif facultatif auquel l'entrée de l'appel d'outil doit aussi correspondre.",
+     "remove": "Supprimer cette règle lors de l'enregistrement.",
+     "add": "Ajouter une règle ; les règles sont vérifiées dans l'ordre et la première qui correspond décide."
+    }
+   }
+  }
+ }
+});

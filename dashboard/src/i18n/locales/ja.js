@@ -3951,3 +3951,250 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "キャンバス",
+    "appPicker": "アプリ",
+    "flowLabel": "アプリ {{app}} のキャンバス",
+    "noApp": "下書きにはまだアプリがありません。アーキテクトに作成を依頼するか、既存のアプリから下書きを始めてください。",
+    "calls": "呼び出し（{{total}}）",
+    "noCalls": "まだ呼び出しはありません。エージェントの右端から別のエージェントへドラッグするか、一方のエージェントで C を、もう一方で Enter を押してください。",
+    "addLoose": "アプリに追加",
+    "remove": "アプリから外す",
+    "removeTitle": "エージェントをアプリから外す",
+    "removeMessage": "{{name}} を {{app}} から外しますか？その呼び出しも削除されます。エージェント自体は残り、下書きを適用するまでライブ構成は変わりません。",
+    "operationFailed": "{{operation}}は拒否されました。",
+    "operations": {
+     "AddMember": "エージェントの追加",
+     "RemoveMember": "エージェントの削除",
+     "Connect": "接続",
+     "Disconnect": "接続の解除",
+     "SetEntry": "入口エージェントの設定",
+     "MoveNode": "エージェントの移動"
+    },
+    "toolbar": {
+     "label": "キャンバスの操作",
+     "addAgent": "エージェントを追加",
+     "addPlaceholder": "エージェント名",
+     "role": "役割",
+     "rolePlaceholder": "役割（任意）",
+     "add": "追加",
+     "connect": "ここから接続",
+     "setEntry": "入口エージェントにする",
+     "remove": "外す",
+     "disconnect": "接続を解除",
+     "fit": "全体を表示"
+    },
+    "connectBar": {
+     "message": "{{name}} から接続しています。呼び出し先のエージェントを選んでください：クリックする、そこで Enter を押す、またはここで選択します。",
+     "to": "呼び出し先",
+     "fanOut": "並列呼び出し",
+     "confirm": "接続"
+    },
+    "keys": {
+     "title": "キーボードショートカット",
+     "tab": "Tab で入口エージェントから順にエージェント間を移動します。",
+     "select": "Enter または Space でフォーカス中のエージェントを選択し、プロパティを開きます。",
+     "connect": "エージェントで C を押すとそこから呼び出しを始め、別のエージェントで C または Enter を押すと完了します。",
+     "entry": "E でフォーカス中のエージェントを入口エージェントにします。",
+     "remove": "Delete で確認の後、フォーカス中のエージェントをアプリから外します。",
+     "move": "矢印キーで選択中のエージェントを移動します。Shift を押しながらだと大きく移動します。位置は少し間をおいて保存されます。",
+     "add": "N で「エージェントを追加」の入力欄に移動します。",
+     "calls": "呼び出しの一覧では、Enter で呼び出しを選択、Delete で接続を解除、F で並列呼び出しのオンとオフを切り替えます。",
+     "escape": "Escape で始めた呼び出しを取り消します。"
+    },
+    "node": {
+     "entry": "入口",
+     "unreachable": "到達不能",
+     "connecting": "ここから呼び出し中"
+    },
+    "a11y": {
+     "node": "Enter または Space でこのエージェントを選択し、矢印キーで移動します。C で接続、E で入口エージェントに設定、Delete で外します。",
+     "edge": "2 つのエージェント間の呼び出しです。キャンバスの下にある呼び出しの一覧で選択してください。",
+     "handle": "接続点",
+     "moved": "エージェントを{{direction}}に移動しました。新しい位置：{{x}}, {{y}}。",
+     "directions": {
+      "up": "上",
+      "down": "下",
+      "left": "左",
+      "right": "右"
+     }
+    },
+    "announce": {
+     "added": "{{name}} を {{app}} に追加しました。",
+     "connectStart": "{{name}} から接続しています。呼び出し先のエージェントに移動して Enter を押すか、Escape で取り消してください。",
+     "connectCancelled": "接続を取り消しました。",
+     "connected": "{{from}} は {{to}} を呼び出すようになりました。",
+     "disconnected": "{{from}} は {{to}} を呼び出さなくなりました。",
+     "fanOutOn": "{{from}} は {{to}} を並列に呼び出せるようになりました。",
+     "fanOutOff": "{{from}} は {{to}} を一度に 1 回ずつ呼び出すようになりました。",
+     "entry": "{{name}} が {{app}} の入口エージェントになりました。",
+     "removed": "{{name}} を {{app}} から外しました。",
+     "selfEdge": "エージェントは自分自身を呼び出せません。別のエージェントを選んでください。"
+    },
+    "summary": {
+     "noApp": "説明するアプリがありません。",
+     "agents_one": "アプリ {{app}} には {{count}} 個のエージェントがあります。",
+     "agents_other": "アプリ {{app}} には {{count}} 個のエージェントがあります。",
+     "callCount_one": "その間の呼び出しは {{count}} 件です。",
+     "callCount_other": "その間の呼び出しは {{count}} 件です。",
+     "entry": "入口エージェントは {{name}} です。",
+     "noEntry": "入口エージェントは設定されていません。",
+     "callParallel": "{{from}} は {{to}} を呼び出します。並列呼び出し可、委任の深さ {{depth}}。",
+     "callSingle": "{{from}} は {{to}} を呼び出します。一度に 1 回ずつ、委任の深さ {{depth}}。"
+    },
+    "conflict": {
+     "mine": "{{item}} も変更されています。編集内容はパネルに残っています。もう一度保存する前に新しいバージョンと比べてください。",
+     "kept": "{{item}} の編集内容はパネルに残っています。新しいバージョンに反映するには、もう一度保存してください。",
+     "operation": "{{operation}}は適用されませんでした。新しいバージョンでやり直すか、そのままにしてください。",
+     "retry": "やり直す"
+    },
+    "panel": {
+     "label": "プロパティ",
+     "tabsLabel": "{{name}} のプロパティ",
+     "properties": "エージェント",
+     "runtime": "ランタイム",
+     "save": "下書きに保存",
+     "reset": "変更を元に戻す",
+     "saved": "{{item}} を保存しました。変更は「差分と適用」で確認できます。",
+     "check": "この項目に対するサーバーのチェック：{{message}}",
+     "unparsable": "この項目の YAML を解析できないため、パネルでは変更できません。先に「項目」タブで修正してください。（{{message}}）"
+    },
+    "agent": {
+     "title": "エージェント {{name}}",
+     "isEntry": "これはアプリの入口エージェントです。アプリを使う人と対話します。",
+     "notHeld": "下書きにはまだ {{name}} のドキュメントがありません。ここで編集するには下書きに取り込んでください。ライブ構成は変わりません。",
+     "deleted": "下書きは {{name}} を削除します。編集するには「項目」タブで元に戻してください。",
+     "bring": "下書きに取り込む",
+     "description": "説明",
+     "inputSchema": "入力スキーマ",
+     "outputSchema": "出力スキーマ",
+     "schemaHint": "JSON で記述した JSON Schema。プレーンテキストにする場合は空のままにします。",
+     "assets": "アセット",
+     "noAssets": "次のリビジョンはアセットを固定しません。",
+     "assetsKept": "ドキュメントにアセットの指定がないため、エージェントは現在のアセットを保持します。",
+     "assetName": "アセット名",
+     "assetVersion": "バージョン",
+     "latest": "最新",
+     "removeAsset": "アセット {{name}} を削除",
+     "addAsset": "アセットを追加",
+     "capabilities": "ケイパビリティ",
+     "capabilitiesHint": "名前はカンマで区切ります。空の一覧にするとすべて消去されます。",
+     "capabilitiesKept": "名前はカンマで区切ります。空のままにすると、エージェントは現在のケイパビリティを保持します。",
+     "systemPrompt": "システムプロンプト",
+     "noDeployments": "下書きにはこのエージェントのデプロイメントがないため、ここではシステムプロンプトは設定されていません。",
+     "promptLine": "{{environment}}：{{deployment}} は {{prompt}} を使用",
+     "builtInPrompt": "組み込みの既定",
+     "showRuntime": "「ランタイム」タブで編集",
+     "errors": {
+      "json": "有効な JSON ではありません。",
+      "object": "スキーマは {\"type\": \"object\"} のような JSON オブジェクトです。",
+      "version": "整数を入力するか、最新バージョンにする場合は空のままにしてください。"
+     }
+    },
+    "edge": {
+     "title": "{{from}} から {{to}} への呼び出し",
+     "from": "呼び出し元",
+     "to": "呼び出し先",
+     "depth": "委任の深さ",
+     "depthHint": "グラフから算出：1 に {{to}} より下の最長の呼び出しの連鎖を加えた値です。その下の呼び出しが変わると変わります。",
+     "fanOut": "並列呼び出し（ファンアウト）",
+     "fanOutOn": "{{from}} は {{to}} への呼び出しを同時に複数開始できます。",
+     "fanOutOff": "{{from}} は {{to}} を一度に 1 回ずつ呼び出します。"
+    },
+    "app": {
+     "title": "アプリ {{name}}",
+     "hint": "編集するには、キャンバス上のエージェントか呼び出しを選択してください。何も選択していないときは、このパネルでアプリを編集します。",
+     "entry": "入口エージェント",
+     "noEntry": "入口エージェントなし",
+     "noMembers": "まずエージェントを追加してください。最初のエージェントが入口エージェントになります。",
+     "notHeld": "下書きにはまだ {{name}} のドキュメントがありません。ここでサインインとブランディングを編集するには下書きに取り込んでください。",
+     "deleted": "下書きは {{name}} を削除します。編集するには「項目」タブで元に戻してください。",
+     "bring": "下書きに取り込む",
+     "description": "説明",
+     "authMode": "サインイン",
+     "authDefault": "サーバーの既定",
+     "anonymous": "匿名での利用を許可",
+     "branding": "ブランディング",
+     "brandingFields": {
+      "displayName": "表示名",
+      "logo": "ロゴのアセット",
+      "primaryColor": "メインカラー",
+      "accentColor": "アクセントカラー",
+      "welcomeText": "ウェルカムテキスト"
+     },
+     "errors": {
+      "color": "#1F6FEB のような 16 進数の色を使ってください。"
+     }
+    },
+    "runtime": {
+     "title": "{{name}} のランタイム",
+     "none": "下書きには {{name}} のデプロイメントがありません。下からライブのものを取り込むか、アーキテクトに作成を依頼してください。",
+     "deployment": "環境とデプロイメント",
+     "option": "{{environment}}：{{name}}",
+     "scope": "編集で変わるのは {{environment}} の {{name}}（ハーネスプロファイル {{profile}}）だけです。他の環境はそれぞれの値を保持します。",
+     "fields": {
+      "model": "モデル",
+      "effort": "推論の度合い",
+      "timeoutSeconds": "制限時間（秒）",
+      "maxTurns": "最大ターン数",
+      "maxBudgetUsd": "予算（USD）",
+      "systemTemplate": "システムプロンプトのテンプレート",
+      "systemVersion": "固定するバージョン",
+      "approvalsEnabled": "ツール呼び出しの承認を求める",
+      "approvalDefaultAction": "どのルールにも一致しない場合"
+     },
+     "hints": {
+      "timeoutSeconds": "1 以上の整数（秒）。空の場合はハーネスプロファイルの制限を使います。",
+      "maxTurns": "1 以上の整数。空の場合はハーネスが決めます。",
+      "maxBudgetUsd": "0 以上、例えば 2.50。空の場合は予算なしです。"
+     },
+     "builtIn": "組み込みの既定",
+     "approvals": "承認",
+     "noRules": "ルールはありません。すべてのツール呼び出しに既定の動作が適用されます。",
+     "rule": {
+      "action": "動作",
+      "pattern": "ツールのパターン",
+      "inputPattern": "入力のパターン",
+      "inputPlaceholder": "入力のパターン（任意）",
+      "remove": "ルール {{number}} を削除",
+      "add": "ルールを追加"
+     },
+     "live": "下書きにないライブのデプロイメント",
+     "noLive": "このエージェントのライブのデプロイメントはすべて下書きにあるか、1 つもありません。",
+     "bring": "下書きに取り込む",
+     "exportMissing": "{{name}} のエクスポートにドキュメントが含まれていませんでした。",
+     "errors": {
+      "integer": "1 以上の整数を使ってください。",
+      "number": "0 以上の数値を使ってください。",
+      "pattern": "ルールにはツールのパターンが必要です。",
+      "version": "整数を使い、固定するテンプレートを指定してください。"
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "そのエージェントはアプリのメンバーではありません。",
+   "SelfEdge": "エージェントは自分自身を呼び出せません。",
+   "NoSuchEdge": "アプリにそのような呼び出しはありません。",
+   "AppDeleted": "下書きはこのアプリを削除します。先に元に戻してください。",
+   "InvalidDocument": "ドキュメントを 1 つのマニフェストドキュメントとして解析できません。",
+   "DocumentMismatch": "ドキュメントの種類または名前が項目と一致しません。"
+  }
+ }
+});

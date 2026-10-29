@@ -3028,3 +3028,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "Edit the draft's app on a canvas: agents, calls, the entry agent, properties, and runtime per environment."
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "The draft's app as an editable canvas, with its agents, calls, and delegation depth."
+  },
+  "canvas": {
+   "title": "The draft's app as an editable graph. Each change is saved into the draft at once; nothing goes live until the draft is applied.",
+   "appPicker": "The app the canvas shows, when the draft holds more than one.",
+   "node": "An agent of the app. Drag it to move it, drag from its right edge to connect it, or focus it and use the keyboard shortcuts.",
+   "nodeReadOnly": "An agent of the app. The draft cannot change right now, so the canvas is read-only.",
+   "addAgent": "Type an agent's name or pick one from the tenant's agents and the draft's, then press Enter.",
+   "role": "An optional note on what this agent does in the app, kept with its membership.",
+   "add": "Make the agent a member of {{app}}. The first member becomes the entry agent.",
+   "connect": "Start a call from {{name}}, then pick the agent it calls.",
+   "needAgent": "Select an agent on the canvas first.",
+   "needCall": "Select a call first: click it on the canvas or pick it in the list of calls.",
+   "alreadyEntry": "{{name}} is already the entry agent.",
+   "setEntry": "Make the selected agent the one that talks to the people using the app.",
+   "remove": "Take the selected agent out of the app with its calls, after a confirmation.",
+   "disconnect": "Delete the selected call. The two agents stay in the app.",
+   "fit": "Zoom and pan so every agent of the app is visible.",
+   "connectTo": "The agent that the caller may call.",
+   "fanOut": "On: the caller may start several calls to this agent at once (fan-out). Off: one call at a time.",
+   "connectConfirm": "Let {{from}} call {{to}} and save the call into the draft.",
+   "connectNoTarget": "There is no other agent in the app to call yet.",
+   "connectCancel": "Stop connecting without adding a call.",
+   "keys": "Show the keys that work on the canvas.",
+   "calls": "Every call of the app in words. These buttons are the keyboard way to select and change calls.",
+   "call": "Select this call. Delete disconnects it, F switches parallel calls on or off.",
+   "callReadOnly": "Select this call to see its properties. The draft cannot change right now.",
+   "addLoose": "Make {{name}} a member of {{app}}, so it can be connected.",
+   "retry": "Send the refused change again, on the version of the draft just read.",
+   "dismissError": "Hide this message about the refused change.",
+   "panel": {
+    "properties": "The agent's own document: description, schemas, assets, and capabilities.",
+    "runtime": "The agent's deployments in each environment: model, limits, prompt, and approvals.",
+    "save": "Write these fields into the draft item at the version you read. Nothing goes live.",
+    "reset": "Go back to the values the draft holds now.",
+    "nothingToSave": "Nothing changed yet, so there is nothing to save.",
+    "nothingToReset": "Nothing changed yet, so there is nothing to undo."
+   },
+   "agent": {
+    "title": "Fields of the agent's document in this draft. Saving rewrites its Agent item.",
+    "bring": "Copy the agent's live document (or a new one) into the draft so you can edit it.",
+    "description": "What the agent does, shown to people and to agents that call it.",
+    "inputSchema": "A JSON Schema the agent's input must match. Empty means plain text input.",
+    "outputSchema": "A JSON Schema the agent's structured output follows. Empty means no structured output.",
+    "assets": "Agent assets (skills, references, templates) the next revision pins, by name and optional version.",
+    "assetName": "The agent asset's name in this tenant.",
+    "assetVersion": "A version to pin. Empty follows the asset's latest version.",
+    "removeAsset": "Drop this pin from the agent's next revision when you save.",
+    "addAsset": "Pin another agent asset to the agent's next revision.",
+    "capabilities": "Capabilities the agent uses, such as host tools a worker must have (pandoc, git).",
+    "systemPrompt": "The System prompt is set per deployment, so each environment can use its own.",
+    "showRuntime": "Open the agent's deployments, where the System prompt and its version are edited."
+   },
+   "edge": {
+    "title": "The selected call: who calls whom, fan-out, and the delegation depth it needs.",
+    "from": "The agent that makes this call.",
+    "to": "The agent this call reaches.",
+    "depth": "How many levels of delegation the caller needs for this call, worked out from the graph."
+   },
+   "app": {
+    "title": "Fields of the app's document in this draft. Saving rewrites its AgenticApp item.",
+    "entry": "The member that talks to the people using the app. Changing it is saved at once.",
+    "bring": "Copy the app's live document into the draft so you can edit its sign-in and branding.",
+    "description": "What the app is for, shown in the console's app list.",
+    "authMode": "Who may sign in to the app: tenant users, app users, or anyone (anonymous).",
+    "anonymous": "Let people use the app without signing in, when the sign-in mode allows it.",
+    "branding": "How the app's chat page looks to the people using it.",
+    "brandingFields": {
+     "displayName": "The name in the app's header. Empty uses the app's name.",
+     "logo": "An agent asset whose first image becomes the app's logo.",
+     "primaryColor": "The main color of the app's page, as a hex value.",
+     "accentColor": "The second color of the app's page, as a hex value.",
+     "welcomeText": "The first thing people read when they open the app."
+    }
+   },
+   "runtime": {
+    "title": "The agent's deployments in this draft, one environment at a time.",
+    "deployment": "Pick the environment's deployment to edit. Saving changes only that deployment's item.",
+    "live": "Deployments of this agent that run now but are not in the draft. Bring one in to change it.",
+    "bring": "Copy {{name}}'s live document into the draft as a new item.",
+    "approvals": "Whether tool calls of this deployment's runs wait for a person, and the rules that decide first.",
+    "fields": {
+     "model": "The model the harness uses, for example sonnet. Empty uses the harness profile's default.",
+     "effort": "Reasoning effort the harness passes on, for example high. Empty leaves it to the harness.",
+     "timeoutSeconds": "How long a run may take before it is stopped, in seconds.",
+     "maxTurns": "How many model turns a run may take before it stops.",
+     "maxBudgetUsd": "How much a run may cost in US dollars before the harness stops it.",
+     "systemTemplate": "The prompt template used as the System prompt, by name. Empty uses the built-in default.",
+     "systemVersion": "A version of that template to pin. Empty follows its latest version.",
+     "approvalsEnabled": "On: tool calls that no rule allows wait for a person in Approvals.",
+     "approvalDefaultAction": "What happens to a tool call that no rule matches: allow it, deny it, or ask a person."
+    },
+    "rule": {
+     "action": "What this rule does with a matching tool call.",
+     "pattern": "Which tool calls the rule matches, for example Bash(git *).",
+     "inputPattern": "An optional pattern the tool call's input must also match.",
+     "remove": "Delete this rule when you save.",
+     "add": "Add a rule; rules are checked in order and the first match decides."
+    }
+   }
+  }
+ }
+});

@@ -3030,3 +3030,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "Edita la aplicación del borrador en un lienzo: agentes, llamadas, el agente de entrada, propiedades y la ejecución por entorno."
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "La aplicación del borrador como un lienzo editable, con sus agentes, sus llamadas y la profundidad de delegación."
+  },
+  "canvas": {
+   "title": "La aplicación del borrador como un grafo editable. Cada cambio se guarda en el borrador al momento; nada pasa a producción hasta que se aplica el borrador.",
+   "appPicker": "La aplicación que muestra el lienzo, cuando el borrador contiene más de una.",
+   "node": "Un agente de la aplicación. Arrástralo para moverlo, arrastra desde su borde derecho para conectarlo, o enfócalo y usa los atajos de teclado.",
+   "nodeReadOnly": "Un agente de la aplicación. El borrador no puede cambiar en este momento, así que el lienzo es de solo lectura.",
+   "addAgent": "Escribe el nombre de un agente o elige uno entre los agentes del inquilino y los del borrador, y pulsa Intro.",
+   "role": "Una nota opcional sobre lo que hace este agente en la aplicación, guardada con su pertenencia.",
+   "add": "Haz que el agente sea miembro de {{app}}. El primer miembro se convierte en el agente de entrada.",
+   "connect": "Empieza una llamada desde {{name}} y luego elige el agente al que llama.",
+   "needAgent": "Selecciona primero un agente en el lienzo.",
+   "needCall": "Selecciona primero una llamada: haz clic en ella en el lienzo o elígela en la lista de llamadas.",
+   "alreadyEntry": "{{name}} ya es el agente de entrada.",
+   "setEntry": "Haz que el agente seleccionado sea el que habla con las personas que usan la aplicación.",
+   "remove": "Saca de la aplicación el agente seleccionado con sus llamadas, tras una confirmación.",
+   "disconnect": "Elimina la llamada seleccionada. Los dos agentes siguen en la aplicación.",
+   "fit": "Ajusta el zoom y el encuadre para que se vean todos los agentes de la aplicación.",
+   "connectTo": "El agente al que puede llamar quien llama.",
+   "fanOut": "Activado: quien llama puede iniciar varias llamadas a este agente a la vez (fan-out). Desactivado: una llamada cada vez.",
+   "connectConfirm": "Permite que {{from}} llame a {{to}} y guarda la llamada en el borrador.",
+   "connectNoTarget": "Todavía no hay otro agente en la aplicación al que llamar.",
+   "connectCancel": "Deja de conectar sin añadir ninguna llamada.",
+   "keys": "Muestra las teclas que funcionan en el lienzo.",
+   "calls": "Todas las llamadas de la aplicación, en palabras. Estos botones permiten seleccionar y cambiar llamadas con el teclado.",
+   "call": "Selecciona esta llamada. Supr la desconecta y F activa o desactiva las llamadas en paralelo.",
+   "callReadOnly": "Selecciona esta llamada para ver sus propiedades. El borrador no puede cambiar en este momento.",
+   "addLoose": "Haz que {{name}} sea miembro de {{app}}, para poder conectarlo.",
+   "retry": "Vuelve a enviar el cambio rechazado, sobre la versión del borrador que se acaba de leer.",
+   "dismissError": "Oculta este mensaje sobre el cambio rechazado.",
+   "panel": {
+    "properties": "El documento propio del agente: descripción, esquemas, assets y capacidades.",
+    "runtime": "Los despliegues del agente en cada entorno: modelo, límites, prompt y aprobaciones.",
+    "save": "Escribe estos campos en el elemento del borrador, con la versión que leíste. Nada pasa a producción.",
+    "reset": "Vuelve a los valores que contiene ahora el borrador.",
+    "nothingToSave": "Todavía no ha cambiado nada, así que no hay nada que guardar.",
+    "nothingToReset": "Todavía no ha cambiado nada, así que no hay nada que deshacer."
+   },
+   "agent": {
+    "title": "Campos del documento del agente en este borrador. Al guardar se reescribe su elemento Agent.",
+    "bring": "Copia el documento activo del agente (o uno nuevo) en el borrador para que puedas editarlo.",
+    "description": "Lo que hace el agente, que se muestra a las personas y a los agentes que lo llaman.",
+    "inputSchema": "Un JSON Schema con el que debe coincidir la entrada del agente. Vacío significa entrada de texto sin formato.",
+    "outputSchema": "Un JSON Schema que sigue la salida estructurada del agente. Vacío significa sin salida estructurada.",
+    "assets": "Assets de agente (skills, referencias, plantillas) que fija la próxima revisión, por nombre y versión opcional.",
+    "assetName": "El nombre del asset de agente en este inquilino.",
+    "assetVersion": "Una versión que fijar. Vacío sigue la versión más reciente del asset.",
+    "removeAsset": "Quita esta fijación de la próxima revisión del agente al guardar.",
+    "addAsset": "Fija otro asset de agente en la próxima revisión del agente.",
+    "capabilities": "Capacidades que usa el agente, como herramientas del host que debe tener un worker (pandoc, git).",
+    "systemPrompt": "El prompt de sistema se fija por despliegue, para que cada entorno pueda usar el suyo.",
+    "showRuntime": "Abre los despliegues del agente, donde se editan el prompt de sistema y su versión."
+   },
+   "edge": {
+    "title": "La llamada seleccionada: quién llama a quién, el fan-out y la profundidad de delegación que necesita.",
+    "from": "El agente que hace esta llamada.",
+    "to": "El agente al que llega esta llamada.",
+    "depth": "Cuántos niveles de delegación necesita quien llama para esta llamada, calculados a partir del grafo."
+   },
+   "app": {
+    "title": "Campos del documento de la aplicación en este borrador. Al guardar se reescribe su elemento AgenticApp.",
+    "entry": "El miembro que habla con las personas que usan la aplicación. Cambiarlo se guarda al momento.",
+    "bring": "Copia el documento activo de la aplicación en el borrador para que puedas editar su inicio de sesión y su imagen de marca.",
+    "description": "Para qué sirve la aplicación, que se muestra en la lista de aplicaciones de la consola.",
+    "authMode": "Quién puede iniciar sesión en la aplicación: usuarios del inquilino, usuarios de la aplicación o cualquiera (anónimo).",
+    "anonymous": "Deja que las personas usen la aplicación sin iniciar sesión, cuando el modo de inicio de sesión lo permite.",
+    "branding": "Cómo se ve la página de chat de la aplicación para las personas que la usan.",
+    "brandingFields": {
+     "displayName": "El nombre en la cabecera de la aplicación. Vacío usa el nombre de la aplicación.",
+     "logo": "Un asset de agente cuya primera imagen se convierte en el logotipo de la aplicación.",
+     "primaryColor": "El color principal de la página de la aplicación, como valor hexadecimal.",
+     "accentColor": "El segundo color de la página de la aplicación, como valor hexadecimal.",
+     "welcomeText": "Lo primero que leen las personas al abrir la aplicación."
+    }
+   },
+   "runtime": {
+    "title": "Los despliegues del agente en este borrador, un entorno cada vez.",
+    "deployment": "Elige el despliegue del entorno que quieres editar. Al guardar solo cambia el elemento de ese despliegue.",
+    "live": "Despliegues de este agente que se ejecutan ahora pero no están en el borrador. Trae uno para cambiarlo.",
+    "bring": "Copia el documento activo de {{name}} en el borrador como un elemento nuevo.",
+    "approvals": "Si las llamadas a herramientas de las ejecuciones de este despliegue esperan a una persona, y las reglas que deciden primero.",
+    "fields": {
+     "model": "El modelo que usa el harness, por ejemplo sonnet. Vacío usa el predeterminado del perfil de harness.",
+     "effort": "El esfuerzo de razonamiento que transmite el harness, por ejemplo high. Vacío lo deja en manos del harness.",
+     "timeoutSeconds": "Cuánto puede durar una ejecución antes de detenerse, en segundos.",
+     "maxTurns": "Cuántos turnos del modelo puede hacer una ejecución antes de detenerse.",
+     "maxBudgetUsd": "Cuánto puede costar una ejecución en dólares estadounidenses antes de que el harness la detenga.",
+     "systemTemplate": "La plantilla de prompt que se usa como prompt de sistema, por nombre. Vacío usa el predeterminado integrado.",
+     "systemVersion": "Una versión de esa plantilla que fijar. Vacío sigue su versión más reciente.",
+     "approvalsEnabled": "Activado: las llamadas a herramientas que ninguna regla permite esperan a una persona en Aprobaciones.",
+     "approvalDefaultAction": "Qué pasa con una llamada a herramienta que no coincide con ninguna regla: permitirla, denegarla o preguntar a una persona."
+    },
+    "rule": {
+     "action": "Qué hace esta regla con una llamada a herramienta que coincide.",
+     "pattern": "Con qué llamadas a herramientas coincide la regla, por ejemplo Bash(git *).",
+     "inputPattern": "Un patrón opcional con el que también debe coincidir la entrada de la llamada a herramienta.",
+     "remove": "Elimina esta regla al guardar.",
+     "add": "Añade una regla; las reglas se comprueban en orden y decide la primera que coincide."
+    }
+   }
+  }
+ }
+});

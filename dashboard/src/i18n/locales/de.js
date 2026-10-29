@@ -3986,3 +3986,250 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "Zeichenfläche",
+    "appPicker": "App",
+    "flowLabel": "Zeichenfläche der App {{app}}",
+    "noApp": "Der Entwurf enthält noch keine App. Bitten Sie den Architekten um eine, oder beginnen Sie einen Entwurf von einer bestehenden App aus.",
+    "calls": "Aufrufe ({{total}})",
+    "noCalls": "Noch keine Aufrufe. Ziehen Sie vom rechten Rand eines Agenten zu einem anderen Agenten, oder drücken Sie C auf einem Agenten und die Eingabetaste auf dem anderen.",
+    "addLoose": "Zur App hinzufügen",
+    "remove": "Aus der App entfernen",
+    "removeTitle": "Agent aus der App entfernen",
+    "removeMessage": "{{name}} aus {{app}} entfernen? Seine Aufrufe werden mit entfernt. Der Agent selbst bleibt bestehen, und die Live-Konfiguration ändert sich erst, wenn der Entwurf angewendet wird.",
+    "operationFailed": "{{operation}} wurde abgelehnt.",
+    "operations": {
+     "AddMember": "Hinzufügen eines Agenten",
+     "RemoveMember": "Entfernen eines Agenten",
+     "Connect": "Verbinden",
+     "Disconnect": "Trennen",
+     "SetEntry": "Festlegen des Einstiegsagenten",
+     "MoveNode": "Verschieben eines Agenten"
+    },
+    "toolbar": {
+     "label": "Aktionen der Zeichenfläche",
+     "addAgent": "Agent hinzufügen",
+     "addPlaceholder": "Name des Agenten",
+     "role": "Rolle",
+     "rolePlaceholder": "Rolle (optional)",
+     "add": "Hinzufügen",
+     "connect": "Verbinden von",
+     "setEntry": "Zum Einstiegsagenten machen",
+     "remove": "Entfernen",
+     "disconnect": "Trennen",
+     "fit": "Ansicht einpassen"
+    },
+    "connectBar": {
+     "message": "Verbindung von {{name}} aus. Wählen Sie den Agenten, den er aufruft: Klicken Sie ihn an, drücken Sie die Eingabetaste auf ihm, oder wählen Sie ihn hier.",
+     "to": "Ruft auf",
+     "fanOut": "Parallele Aufrufe",
+     "confirm": "Verbinden"
+    },
+    "keys": {
+     "title": "Tastenkürzel",
+     "tab": "Tab wechselt in Lesereihenfolge durch die Agenten, beginnend beim Einstiegsagenten.",
+     "select": "Eingabetaste oder Leertaste wählt den fokussierten Agenten aus und öffnet seine Eigenschaften.",
+     "connect": "C auf einem Agenten beginnt einen Aufruf von ihm aus; C oder die Eingabetaste auf einem anderen Agenten schließt ihn ab.",
+     "entry": "E macht den fokussierten Agenten zum Einstiegsagenten.",
+     "remove": "Entf entfernt den fokussierten Agenten nach einer Bestätigung aus der App.",
+     "move": "Die Pfeiltasten verschieben einen ausgewählten Agenten; halten Sie Umschalt für größere Schritte. Die Position wird nach einer kurzen Pause gespeichert.",
+     "add": "N springt zum Feld Agent hinzufügen.",
+     "calls": "In der Liste der Aufrufe wählt die Eingabetaste einen Aufruf aus, Entf trennt ihn, und F schaltet parallele Aufrufe ein oder aus.",
+     "escape": "Escape bricht einen begonnenen Aufruf ab."
+    },
+    "node": {
+     "entry": "Einstieg",
+     "unreachable": "Nicht erreichbar",
+     "connecting": "Aufruf von hier"
+    },
+    "a11y": {
+     "node": "Drücken Sie die Eingabetaste oder die Leertaste, um diesen Agenten auszuwählen, und dann die Pfeiltasten, um ihn zu verschieben. Drücken Sie C, um ihn zu verbinden, E, um ihn zum Einstiegsagenten zu machen, oder Entf, um ihn zu entfernen.",
+     "edge": "Ein Aufruf zwischen zwei Agenten. Wählen Sie ihn in der Liste der Aufrufe unter der Zeichenfläche aus.",
+     "handle": "Verbindungspunkt",
+     "moved": "Agent nach {{direction}} verschoben. Neue Position: {{x}}, {{y}}.",
+     "directions": {
+      "up": "oben",
+      "down": "unten",
+      "left": "links",
+      "right": "rechts"
+     }
+    },
+    "announce": {
+     "added": "{{name}} zu {{app}} hinzugefügt.",
+     "connectStart": "Verbindung von {{name}} aus. Gehen Sie zu dem Agenten, den er aufruft, und drücken Sie die Eingabetaste, oder drücken Sie Escape zum Abbrechen.",
+     "connectCancelled": "Verbindung abgebrochen.",
+     "connected": "{{from}} ruft jetzt {{to}} auf.",
+     "disconnected": "{{from}} ruft {{to}} nicht mehr auf.",
+     "fanOutOn": "{{from}} darf {{to}} jetzt parallel aufrufen.",
+     "fanOutOff": "{{from}} ruft {{to}} jetzt einzeln nacheinander auf.",
+     "entry": "{{name}} ist jetzt der Einstiegsagent von {{app}}.",
+     "removed": "{{name}} aus {{app}} entfernt.",
+     "selfEdge": "Ein Agent kann sich nicht selbst aufrufen. Wählen Sie einen anderen Agenten."
+    },
+    "summary": {
+     "noApp": "Es gibt keine App zu beschreiben.",
+     "agents_one": "Die App {{app}} hat {{count}} Agent.",
+     "agents_other": "Die App {{app}} hat {{count}} Agenten.",
+     "callCount_one": "Zwischen ihnen gibt es {{count}} Aufruf.",
+     "callCount_other": "Zwischen ihnen gibt es {{count}} Aufrufe.",
+     "entry": "Der Einstiegsagent ist {{name}}.",
+     "noEntry": "Es ist kein Einstiegsagent festgelegt.",
+     "callParallel": "{{from}} ruft {{to}} auf, parallele Aufrufe erlaubt, Delegationstiefe {{depth}}.",
+     "callSingle": "{{from}} ruft {{to}} auf, ein Aufruf zur Zeit, Delegationstiefe {{depth}}."
+    },
+    "conflict": {
+     "mine": "{{item}} hat sich ebenfalls geändert. Ihre Bearbeitung ist noch im Bereich; vergleichen Sie sie mit der neuen Version, bevor Sie erneut speichern.",
+     "kept": "Ihre Bearbeitung von {{item}} ist noch im Bereich. Speichern Sie erneut, um sie auf die neue Version anzuwenden.",
+     "operation": "{{operation}} wurde nicht angewendet. Versuchen Sie es auf der neuen Version erneut, oder lassen Sie es.",
+     "retry": "Erneut versuchen"
+    },
+    "panel": {
+     "label": "Eigenschaften",
+     "tabsLabel": "Eigenschaften von {{name}}",
+     "properties": "Agent",
+     "runtime": "Laufzeit",
+     "save": "Im Entwurf speichern",
+     "reset": "Änderungen verwerfen",
+     "saved": "{{item}} gespeichert. Vergleichen und anwenden zeigt die Änderung.",
+     "check": "Prüfung dieses Elements durch den Server: {{message}}",
+     "unparsable": "Das YAML des Elements lässt sich nicht einlesen, daher kann der Bereich es nicht ändern. Korrigieren Sie es zuerst auf dem Tab Elemente. ({{message}})"
+    },
+    "agent": {
+     "title": "Agent: {{name}}",
+     "isEntry": "Dies ist der Einstiegsagent der App: Er spricht mit den Personen, die die App nutzen.",
+     "notHeld": "Der Entwurf enthält das Dokument von {{name}} noch nicht. Holen Sie es in den Entwurf, um es hier zu bearbeiten; die Live-Konfiguration ändert sich nicht.",
+     "deleted": "Der Entwurf löscht {{name}}. Stellen Sie es auf dem Tab Elemente wieder her, um es zu bearbeiten.",
+     "bring": "In den Entwurf holen",
+     "description": "Beschreibung",
+     "inputSchema": "Eingabeschema",
+     "outputSchema": "Ausgabeschema",
+     "schemaHint": "JSON Schema als JSON. Leer lassen für reinen Text.",
+     "assets": "Agenten-Assets",
+     "noAssets": "Die nächste Revision legt keine Assets fest.",
+     "assetsKept": "Das Dokument nennt keine Assets, daher behält der Agent seine bisherigen.",
+     "assetName": "Name des Assets",
+     "assetVersion": "Version",
+     "latest": "Neueste",
+     "removeAsset": "Asset {{name}} entfernen",
+     "addAsset": "Asset hinzufügen",
+     "capabilities": "Fähigkeiten",
+     "capabilitiesHint": "Trennen Sie Namen durch Kommas. Eine leere Liste entfernt alle.",
+     "capabilitiesKept": "Trennen Sie Namen durch Kommas. Bleibt das Feld leer, behält der Agent seine bisherigen Fähigkeiten.",
+     "systemPrompt": "System-Prompt",
+     "noDeployments": "Der Entwurf enthält keine Bereitstellung dieses Agenten, daher wird hier kein System-Prompt festgelegt.",
+     "promptLine": "{{environment}}: {{deployment}} verwendet {{prompt}}",
+     "builtInPrompt": "den integrierten Standard",
+     "showRuntime": "Auf dem Tab Laufzeit bearbeiten",
+     "errors": {
+      "json": "Das ist kein gültiges JSON.",
+      "object": "Ein Schema ist ein JSON-Objekt, zum Beispiel {\"type\": \"object\"}.",
+      "version": "Verwenden Sie eine ganze Zahl, oder lassen Sie das Feld für die neueste Version leer."
+     }
+    },
+    "edge": {
+     "title": "Aufruf von {{from}} an {{to}}",
+     "from": "Aufrufer",
+     "to": "Aufgerufener",
+     "depth": "Delegationstiefe",
+     "depthHint": "Aus dem Graphen abgeleitet: eins plus die längste Kette von Aufrufen unterhalb von {{to}}. Sie ändert sich, wenn sich Aufrufe darunter ändern.",
+     "fanOut": "Parallele Aufrufe (Fan-out)",
+     "fanOutOn": "{{from}} darf mehrere Aufrufe an {{to}} gleichzeitig starten.",
+     "fanOutOff": "{{from}} ruft {{to}} einzeln nacheinander auf."
+    },
+    "app": {
+     "title": "App: {{name}}",
+     "hint": "Wählen Sie einen Agenten oder einen Aufruf auf der Zeichenfläche aus, um ihn zu bearbeiten. Ist nichts ausgewählt, bearbeitet dieser Bereich die App.",
+     "entry": "Einstiegsagent",
+     "noEntry": "Kein Einstiegsagent",
+     "noMembers": "Fügen Sie zuerst einen Agenten hinzu; der erste wird zum Einstiegsagenten.",
+     "notHeld": "Der Entwurf enthält das Dokument von {{name}} noch nicht. Holen Sie es in den Entwurf, um Anmeldung und Erscheinungsbild hier zu bearbeiten.",
+     "deleted": "Der Entwurf löscht {{name}}. Stellen Sie es auf dem Tab Elemente wieder her, um es zu bearbeiten.",
+     "bring": "In den Entwurf holen",
+     "description": "Beschreibung",
+     "authMode": "Anmeldung",
+     "authDefault": "Standard des Servers",
+     "anonymous": "Anonyme Nutzung erlauben",
+     "branding": "Erscheinungsbild",
+     "brandingFields": {
+      "displayName": "Anzeigename",
+      "logo": "Logo-Asset",
+      "primaryColor": "Hauptfarbe",
+      "accentColor": "Akzentfarbe",
+      "welcomeText": "Begrüßungstext"
+     },
+     "errors": {
+      "color": "Verwenden Sie eine Hex-Farbe wie #1F6FEB."
+     }
+    },
+    "runtime": {
+     "title": "Laufzeit von {{name}}",
+     "none": "Der Entwurf enthält keine Bereitstellung von {{name}}. Holen Sie unten eine Live-Bereitstellung herein, oder bitten Sie den Architekten um eine.",
+     "deployment": "Umgebung und Bereitstellung",
+     "option": "{{environment}}: {{name}}",
+     "scope": "Änderungen betreffen nur {{name}} in {{environment}} (Harness-Profil {{profile}}). Andere Umgebungen behalten ihre eigenen Werte.",
+     "fields": {
+      "model": "Modell",
+      "effort": "Aufwand",
+      "timeoutSeconds": "Zeitlimit (Sekunden)",
+      "maxTurns": "Höchstzahl an Runden",
+      "maxBudgetUsd": "Kostenrahmen (USD)",
+      "systemTemplate": "Prompt-Vorlage für den System-Prompt",
+      "systemVersion": "Festgelegte Version",
+      "approvalsEnabled": "Freigabe für Werkzeugaufrufe einholen",
+      "approvalDefaultAction": "Wenn keine Regel passt"
+     },
+     "hints": {
+      "timeoutSeconds": "Ganze Sekunden, mindestens 1. Leer verwendet das Limit des Harness-Profils.",
+      "maxTurns": "Ganze Zahl, mindestens 1. Leer bedeutet, der Harness entscheidet.",
+      "maxBudgetUsd": "0 oder mehr, zum Beispiel 2.50. Leer bedeutet kein Budget."
+     },
+     "builtIn": "Integrierter Standard",
+     "approvals": "Freigaben",
+     "noRules": "Keine Regeln. Jeder Werkzeugaufruf erhält die Standardaktion.",
+     "rule": {
+      "action": "Aktion",
+      "pattern": "Werkzeugmuster",
+      "inputPattern": "Eingabemuster",
+      "inputPlaceholder": "Eingabemuster (optional)",
+      "remove": "Regel {{number}} entfernen",
+      "add": "Regel hinzufügen"
+     },
+     "live": "Live-Bereitstellungen, die nicht im Entwurf sind",
+     "noLive": "Jede Live-Bereitstellung dieses Agenten ist bereits im Entwurf, oder er hat keine.",
+     "bring": "In den Entwurf holen",
+     "exportMissing": "Der Export von {{name}} kam ohne sein Dokument zurück.",
+     "errors": {
+      "integer": "Verwenden Sie eine ganze Zahl ab 1.",
+      "number": "Verwenden Sie eine Zahl ab 0.",
+      "pattern": "Eine Regel braucht ein Werkzeugmuster.",
+      "version": "Verwenden Sie eine ganze Zahl, und nennen Sie eine Vorlage, die festgelegt werden soll."
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "Dieser Agent ist kein Mitglied der App.",
+   "SelfEdge": "Ein Agent kann sich nicht selbst aufrufen.",
+   "NoSuchEdge": "Die App hat keinen solchen Aufruf.",
+   "AppDeleted": "Der Entwurf löscht diese App. Stellen Sie sie zuerst wieder her.",
+   "InvalidDocument": "Das Dokument lässt sich nicht als ein einzelnes Manifest-Dokument einlesen.",
+   "DocumentMismatch": "Art oder Name des Dokuments passen nicht zum Element."
+  }
+ }
+});

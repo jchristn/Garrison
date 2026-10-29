@@ -3028,3 +3028,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "喺畫布度編輯草稿嘅應用程式：代理程式、呼叫、入口代理程式、屬性，同埋每個環境嘅執行階段設定。"
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "以可以編輯嘅畫布顯示草稿嘅應用程式，包括佢嘅代理程式、呼叫同委派深度。"
+  },
+  "canvas": {
+   "title": "以可以編輯嘅關係圖顯示草稿嘅應用程式。每個改動都會即刻存入草稿；套用草稿之前，乜都唔會上線。",
+   "appPicker": "草稿有多過一個應用程式嘅時候，畫布顯示邊一個。",
+   "node": "應用程式嘅一個代理程式。拖佢就可以移動，由佢右邊邊緣拖出去就可以連接，或者將焦點移去佢度再用鍵盤快捷鍵。",
+   "nodeReadOnly": "應用程式嘅一個代理程式。草稿而家改唔到，所以畫布係唯讀嘅。",
+   "addAgent": "打代理程式嘅名，或者喺租用戶同草稿嘅代理程式度揀一個，再撳 Enter。",
+   "role": "可以唔填嘅說明，講吓呢個代理程式喺應用程式度做乜，會同佢嘅成員資格一齊保存。",
+   "add": "將代理程式加做 {{app}} 嘅成員。第一個成員會成為入口代理程式。",
+   "connect": "由 {{name}} 開始一個呼叫，再揀佢要呼叫嘅代理程式。",
+   "needAgent": "請先喺畫布度揀一個代理程式。",
+   "needCall": "請先揀一個呼叫：喺畫布度撳佢，或者喺呼叫清單度揀。",
+   "alreadyEntry": "{{name}} 已經係入口代理程式。",
+   "setEntry": "將揀中嘅代理程式設做同用緊應用程式嘅人傾偈嗰個。",
+   "remove": "確認之後，將揀中嘅代理程式連同佢嘅呼叫由應用程式移除。",
+   "disconnect": "刪除揀中嘅呼叫。兩個代理程式都會留喺應用程式度。",
+   "fit": "縮放同平移畫面，令應用程式每個代理程式都睇得到。",
+   "connectTo": "呼叫方可以呼叫嘅代理程式。",
+   "fanOut": "開：呼叫方可以同一時間向呢個代理程式發幾個呼叫（扇出）。關：每次一個呼叫。",
+   "connectConfirm": "畀 {{from}} 呼叫 {{to}}，並將呢個呼叫存入草稿。",
+   "connectNoTarget": "應用程式入面仲未有其他代理程式可以呼叫。",
+   "connectCancel": "唔加呼叫，停止連接。",
+   "keys": "顯示喺畫布度用得嘅按鍵。",
+   "calls": "用文字列出應用程式嘅每個呼叫。呢啲按鈕係用鍵盤揀同改呼叫嘅方法。",
+   "call": "揀呢個呼叫。Delete 會斷開佢，F 會開或者關平行呼叫。",
+   "callReadOnly": "揀呢個呼叫就睇到佢嘅屬性。草稿而家改唔到。",
+   "addLoose": "將 {{name}} 加做 {{app}} 嘅成員，咁就可以連接佢。",
+   "retry": "用啱啱讀到嘅草稿版本，再送一次俾人拒絕咗嘅改動。",
+   "dismissError": "收埋呢個關於俾人拒絕咗嘅改動嘅訊息。",
+   "panel": {
+    "properties": "代理程式自己嘅文件：描述、結構、資產同能力。",
+    "runtime": "代理程式喺每個環境嘅部署：模型、限制、提示同批核。",
+    "save": "按你讀到嘅版本，將呢啲欄位寫入草稿項目。乜都唔會上線。",
+    "reset": "返去草稿而家保存嘅值。",
+    "nothingToSave": "仲未改過任何嘢，所以冇嘢要儲存。",
+    "nothingToReset": "仲未改過任何嘢，所以冇嘢要復原。"
+   },
+   "agent": {
+    "title": "呢份草稿入面代理程式文件嘅欄位。儲存會重寫佢嘅 Agent 項目。",
+    "bring": "將代理程式嘅即時文件（或者一份新文件）複製入草稿，等你可以編輯。",
+    "description": "代理程式做乜，會顯示畀人同呼叫佢嘅代理程式睇。",
+    "inputSchema": "代理程式嘅輸入一定要符合嘅 JSON Schema。留空即係輸入係純文字。",
+    "outputSchema": "代理程式結構化輸出跟住嘅 JSON Schema。留空即係冇結構化輸出。",
+    "assets": "下一個修訂要釘選嘅代理程式資產（技能、參考資料、範本），按名稱同可以唔填嘅版本指定。",
+    "assetName": "呢個租用戶入面代理程式資產嘅名稱。",
+    "assetVersion": "要釘選嘅版本。留空就跟資產嘅最新版本。",
+    "removeAsset": "儲存嗰陣，由代理程式下一個修訂度拎走呢個釘選。",
+    "addAsset": "喺代理程式下一個修訂度多釘選一個代理程式資產。",
+    "capabilities": "代理程式用嘅能力，例如工作節點一定要有嘅主機工具（pandoc、git）。",
+    "systemPrompt": "系統提示係按部署設定嘅，所以每個環境都可以用自己嘅系統提示。",
+    "showRuntime": "打開代理程式嘅部署，喺嗰度編輯系統提示同佢嘅版本。"
+   },
+   "edge": {
+    "title": "揀中嘅呼叫：邊個呼叫邊個、扇出，同埋佢需要嘅委派深度。",
+    "from": "發出呢個呼叫嘅代理程式。",
+    "to": "呢個呼叫去到嘅代理程式。",
+    "depth": "呼叫方做呢個呼叫需要幾多層委派，由關係圖計出嚟。"
+   },
+   "app": {
+    "title": "呢份草稿入面應用程式文件嘅欄位。儲存會重寫佢嘅 AgenticApp 項目。",
+    "entry": "同用緊應用程式嘅人傾偈嘅成員。改咗會即刻儲存。",
+    "bring": "將應用程式嘅即時文件複製入草稿，等你可以編輯佢嘅登入同品牌。",
+    "description": "應用程式係做乜嘅，會喺主控台嘅應用程式清單度顯示。",
+    "authMode": "邊個可以登入應用程式：租用戶用戶、應用程式用戶，或者任何人（匿名）。",
+    "anonymous": "登入模式容許嘅話，畀人唔使登入都可以用應用程式。",
+    "branding": "應用程式嘅聊天頁面喺用緊佢嘅人眼中係點樣。",
+    "brandingFields": {
+     "displayName": "應用程式頂部顯示嘅名稱。留空就用應用程式嘅名。",
+     "logo": "一個代理程式資產，佢第一張圖片會成為應用程式嘅標誌。",
+     "primaryColor": "應用程式頁面嘅主色，用十六進制值表示。",
+     "accentColor": "應用程式頁面嘅第二隻顏色，用十六進制值表示。",
+     "welcomeText": "人哋打開應用程式嗰陣第一樣睇到嘅嘢。"
+    }
+   },
+   "runtime": {
+    "title": "呢份草稿入面代理程式嘅部署，每次一個環境。",
+    "deployment": "揀要編輯嘅環境部署。儲存只會改嗰個部署嘅項目。",
+    "live": "呢個代理程式而家行緊但唔喺草稿入面嘅部署。帶一個入嚟就可以改佢。",
+    "bring": "將 {{name}} 嘅即時文件複製入草稿，做一個新項目。",
+    "approvals": "呢個部署嘅執行做工具呼叫嗰陣要唔要等人批核，同埋會先決定結果嘅規則。",
+    "fields": {
+     "model": "Harness 用嘅模型，例如 sonnet。留空就用 Harness 設定檔嘅預設值。",
+     "effort": "Harness 傳落去嘅推理投入程度，例如 high。留空就由 Harness 決定。",
+     "timeoutSeconds": "執行可以行幾耐先會被停止，以秒計。",
+     "maxTurns": "執行停止之前最多可以用幾多個模型回合。",
+     "maxBudgetUsd": "執行俾 Harness 停止之前最多可以用幾多錢，以美元計。",
+     "systemTemplate": "用做系統提示嘅提示範本，按名稱指定。留空就用內置預設。",
+     "systemVersion": "要釘選嘅範本版本。留空就跟佢嘅最新版本。",
+     "approvalsEnabled": "開：冇規則容許嘅工具呼叫會喺「批核」度等人處理。",
+     "approvalDefaultAction": "冇規則符合嘅工具呼叫會點處理：容許、拒絕，定係問人。"
+    },
+    "rule": {
+     "action": "呢條規則對符合嘅工具呼叫做乜。",
+     "pattern": "呢條規則符合邊啲工具呼叫，例如 Bash(git *)。",
+     "inputPattern": "工具呼叫嘅輸入都要符合嘅模式，可以唔填。",
+     "remove": "儲存嗰陣刪除呢條規則。",
+     "add": "加一條規則；規則會按次序檢查，第一條符合嘅就決定結果。"
+    }
+   }
+  }
+ }
+});

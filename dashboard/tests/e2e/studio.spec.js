@@ -189,11 +189,11 @@ test('a change pushed on the studio-draft channel refreshes the items, graph, an
   await login(page);
   await page.goto(`${DRAFT}?tab=graph`);
   await expect(page.getByTestId('studio-live')).toHaveText('Live');
-  const graph = page.getByTestId('studio-graph-research');
-  await expect(graph.locator('[data-node]')).toHaveCount(3);
-  await expect(graph.locator('[data-node="planner"]')).toHaveClass(/is-entry/);
-  await expect(graph.locator('[data-edge-label="planner>writer"]')).toHaveText('depth 1');
-  await expect(graph.locator('[data-edge="planner>writer"]')).toHaveClass(/is-single/);
+  const graph = page.getByTestId('studio-canvas-research');
+  await expect(graph.locator('.react-flow__node')).toHaveCount(3);
+  await expect(graph.locator('.react-flow__node[data-id="planner"] .studio-canvas-node')).toHaveClass(/is-entry/);
+  await expect(page.locator('[data-call="planner>writer"]')).toHaveText('planner calls writer, one call at a time, delegation depth 1.');
+  await expect(graph.locator('.react-flow__edge[data-edge="planner>writer"]')).toHaveClass(/is-single/);
   await expect(graph.locator('[data-node-note="writer"]')).toHaveText('pandoc');
 
   version = 4;
@@ -216,8 +216,8 @@ test('a change pushed on the studio-draft channel refreshes the items, graph, an
   await expect(page.getByTestId('studio-live-notice')).toContainText('version 4');
   await expect(page.getByTestId('studio-live-notice')).toContainText('Agent/editor');
   await expect(page.getByTestId('studio-draft-version')).toHaveText('Version 4');
-  await expect(graph.locator('[data-node="editor"]')).toBeVisible();
-  await expect(graph.locator('[data-edge-label="planner>writer"]')).toHaveText('depth 2');
+  await expect(graph.locator('.react-flow__node[data-id="editor"]')).toBeVisible();
+  await expect(page.locator('[data-call="planner>writer"]')).toContainText('delegation depth 2');
   await page.getByRole('tab', { name: 'Items' }).click();
   await expect(page.locator('tr[data-item="Agent/editor"]')).toBeVisible();
 });

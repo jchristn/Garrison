@@ -4000,3 +4000,250 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "Canevas",
+    "appPicker": "Application",
+    "flowLabel": "Canevas de l'application {{app}}",
+    "noApp": "Le brouillon ne contient encore aucune application. Demandez-en une à l'architecte, ou commencez un brouillon à partir d'une application existante.",
+    "calls": "Appels ({{total}})",
+    "noCalls": "Aucun appel pour l'instant. Faites glisser depuis le bord droit d'un agent vers un autre agent, ou appuyez sur C sur un agent puis sur Entrée sur l'autre.",
+    "addLoose": "Ajouter à l'application",
+    "remove": "Retirer de l'application",
+    "removeTitle": "Retirer l'agent de l'application",
+    "removeMessage": "Retirer {{name}} de {{app}} ? Ses appels partent aussi. L'agent lui-même reste, et la configuration active ne change pas tant que le brouillon n'est pas appliqué.",
+    "operationFailed": "{{operation}} a été refusé.",
+    "operations": {
+     "AddMember": "Ajout d'un agent",
+     "RemoveMember": "Retrait d'un agent",
+     "Connect": "Connexion",
+     "Disconnect": "Déconnexion",
+     "SetEntry": "Choix de l'agent d'entrée",
+     "MoveNode": "Déplacement d'un agent"
+    },
+    "toolbar": {
+     "label": "Actions du canevas",
+     "addAgent": "Ajouter un agent",
+     "addPlaceholder": "Nom de l'agent",
+     "role": "Rôle",
+     "rolePlaceholder": "Rôle (facultatif)",
+     "add": "Ajouter",
+     "connect": "Connecter depuis",
+     "setEntry": "Définir comme agent d'entrée",
+     "remove": "Retirer",
+     "disconnect": "Déconnecter",
+     "fit": "Ajuster la vue"
+    },
+    "connectBar": {
+     "message": "Connexion depuis {{name}}. Choisissez l'agent qu'il appelle : cliquez dessus, appuyez sur Entrée dessus, ou choisissez-le ici.",
+     "to": "Appelle",
+     "fanOut": "Appels en parallèle",
+     "confirm": "Connecter"
+    },
+    "keys": {
+     "title": "Raccourcis clavier",
+     "tab": "Tab parcourt les agents dans l'ordre de lecture, en commençant par l'agent d'entrée.",
+     "select": "Entrée ou Espace sélectionne l'agent qui a le focus et ouvre ses propriétés.",
+     "connect": "C sur un agent commence un appel depuis celui-ci ; C ou Entrée sur un autre agent le termine.",
+     "entry": "E fait de l'agent qui a le focus l'agent d'entrée.",
+     "remove": "Suppr retire de l'application l'agent qui a le focus, après confirmation.",
+     "move": "Les touches fléchées déplacent l'agent sélectionné ; maintenez Maj pour des pas plus grands. La position est enregistrée après une courte pause.",
+     "add": "N mène au champ Ajouter un agent.",
+     "calls": "Dans la liste des appels, Entrée sélectionne un appel, Suppr le déconnecte et F active ou désactive les appels en parallèle.",
+     "escape": "Échap annule un appel que vous avez commencé."
+    },
+    "node": {
+     "entry": "Entrée",
+     "unreachable": "Injoignable",
+     "connecting": "Appel depuis cet agent"
+    },
+    "a11y": {
+     "node": "Appuyez sur Entrée ou Espace pour sélectionner cet agent, puis sur les touches fléchées pour le déplacer. Appuyez sur C pour le connecter, sur E pour en faire l'agent d'entrée, ou sur Suppr pour le retirer.",
+     "edge": "Un appel entre deux agents. Sélectionnez-le dans la liste des appels sous le canevas.",
+     "handle": "Point de connexion",
+     "moved": "Agent déplacé vers {{direction}}. Nouvelle position : {{x}}, {{y}}.",
+     "directions": {
+      "up": "le haut",
+      "down": "le bas",
+      "left": "la gauche",
+      "right": "la droite"
+     }
+    },
+    "announce": {
+     "added": "{{name}} ajouté à {{app}}.",
+     "connectStart": "Connexion depuis {{name}}. Allez sur l'agent qu'il appelle et appuyez sur Entrée, ou appuyez sur Échap pour annuler.",
+     "connectCancelled": "Connexion annulée.",
+     "connected": "{{from}} appelle maintenant {{to}}.",
+     "disconnected": "{{from}} n'appelle plus {{to}}.",
+     "fanOutOn": "{{from}} peut maintenant appeler {{to}} en parallèle.",
+     "fanOutOff": "{{from}} appelle maintenant {{to}} un appel à la fois.",
+     "entry": "{{name}} est maintenant l'agent d'entrée de {{app}}.",
+     "removed": "{{name}} retiré de {{app}}.",
+     "selfEdge": "Un agent ne peut pas s'appeler lui-même. Choisissez un autre agent."
+    },
+    "summary": {
+     "noApp": "Il n'y a aucune application à décrire.",
+     "agents_one": "L'application {{app}} a {{count}} agent.",
+     "agents_other": "L'application {{app}} a {{count}} agents.",
+     "callCount_one": "Il y a {{count}} appel entre eux.",
+     "callCount_other": "Il y a {{count}} appels entre eux.",
+     "entry": "L'agent d'entrée est {{name}}.",
+     "noEntry": "Aucun agent d'entrée n'est défini.",
+     "callParallel": "{{from}} appelle {{to}}, appels en parallèle autorisés, profondeur de délégation {{depth}}.",
+     "callSingle": "{{from}} appelle {{to}}, un appel à la fois, profondeur de délégation {{depth}}."
+    },
+    "conflict": {
+     "mine": "{{item}} a changé aussi. Votre modification est toujours dans le panneau ; comparez-la avec la nouvelle version avant d'enregistrer à nouveau.",
+     "kept": "Votre modification de {{item}} est toujours dans le panneau. Enregistrez à nouveau pour l'appliquer à la nouvelle version.",
+     "operation": "{{operation}} n'a pas été appliqué. Réessayez sur la nouvelle version, ou laissez tomber.",
+     "retry": "Réessayer"
+    },
+    "panel": {
+     "label": "Propriétés",
+     "tabsLabel": "Propriétés de {{name}}",
+     "properties": "Agent",
+     "runtime": "Exécution",
+     "save": "Enregistrer dans le brouillon",
+     "reset": "Annuler les modifications",
+     "saved": "{{item}} enregistré. Comparer et appliquer montre la modification.",
+     "check": "Vérification de cet élément par le serveur : {{message}}",
+     "unparsable": "Le YAML de l'élément ne s'analyse pas, le panneau ne peut donc pas le modifier. Corrigez-le d'abord dans l'onglet Éléments. ({{message}})"
+    },
+    "agent": {
+     "title": "L'agent {{name}}",
+     "isEntry": "C'est l'agent d'entrée de l'application : il parle aux personnes qui utilisent l'application.",
+     "notHeld": "Le brouillon ne contient pas encore le document de {{name}}. Importez-le pour le modifier ici ; la configuration active ne change pas.",
+     "deleted": "Le brouillon supprime {{name}}. Rétablissez-le dans l'onglet Éléments pour le modifier.",
+     "bring": "Importer dans le brouillon",
+     "description": "Description",
+     "inputSchema": "Schéma d'entrée",
+     "outputSchema": "Schéma de sortie",
+     "schemaHint": "Un JSON Schema écrit en JSON. Laissez vide pour du texte brut.",
+     "assets": "Assets d'agent",
+     "noAssets": "La prochaine révision n'épingle aucun asset.",
+     "assetsKept": "Le document ne nomme aucun asset, l'agent garde donc ceux qu'il a.",
+     "assetName": "Nom de l'asset",
+     "assetVersion": "Version",
+     "latest": "Dernière",
+     "removeAsset": "Retirer l'asset {{name}}",
+     "addAsset": "Ajouter un asset",
+     "capabilities": "Capacités",
+     "capabilitiesHint": "Séparez les noms par des virgules. Une liste vide les efface.",
+     "capabilitiesKept": "Séparez les noms par des virgules. Si vous laissez vide, l'agent garde les capacités qu'il a.",
+     "systemPrompt": "Prompt système",
+     "noDeployments": "Le brouillon ne contient aucun déploiement de cet agent, aucun prompt système n'est donc défini ici.",
+     "promptLine": "{{environment}} : {{deployment}} utilise {{prompt}}",
+     "builtInPrompt": "le prompt par défaut intégré",
+     "showRuntime": "Modifier dans l'onglet Exécution",
+     "errors": {
+      "json": "Ce n'est pas du JSON valide.",
+      "object": "Un schéma est un objet JSON, par exemple {\"type\": \"object\"}.",
+      "version": "Utilisez un nombre entier, ou laissez vide pour la dernière version."
+     }
+    },
+    "edge": {
+     "title": "Appel de {{from}} vers {{to}}",
+     "from": "Appelant",
+     "to": "Appelé",
+     "depth": "Profondeur de délégation",
+     "depthHint": "Calculée à partir du graphe : un, plus la plus longue chaîne d'appels sous {{to}}. Elle change quand les appels en dessous changent.",
+     "fanOut": "Appels en parallèle (fan-out)",
+     "fanOutOn": "{{from}} peut lancer plusieurs appels à {{to}} en même temps.",
+     "fanOutOff": "{{from}} appelle {{to}} un appel à la fois."
+    },
+    "app": {
+     "title": "Application {{name}}",
+     "hint": "Sélectionnez un agent ou un appel sur le canevas pour le modifier. Quand rien n'est sélectionné, ce panneau modifie l'application.",
+     "entry": "Agent d'entrée",
+     "noEntry": "Aucun agent d'entrée",
+     "noMembers": "Ajoutez d'abord un agent ; le premier devient l'agent d'entrée.",
+     "notHeld": "Le brouillon ne contient pas encore le document de {{name}}. Importez-le pour modifier ici sa connexion et son apparence.",
+     "deleted": "Le brouillon supprime {{name}}. Rétablissez-le dans l'onglet Éléments pour le modifier.",
+     "bring": "Importer dans le brouillon",
+     "description": "Description",
+     "authMode": "Connexion",
+     "authDefault": "Valeur par défaut du serveur",
+     "anonymous": "Autoriser l'utilisation anonyme",
+     "branding": "Apparence",
+     "brandingFields": {
+      "displayName": "Nom affiché",
+      "logo": "Asset du logo",
+      "primaryColor": "Couleur principale",
+      "accentColor": "Couleur d'accent",
+      "welcomeText": "Texte d'accueil"
+     },
+     "errors": {
+      "color": "Utilisez une couleur hexadécimale, par exemple #1F6FEB."
+     }
+    },
+    "runtime": {
+     "title": "Exécution de {{name}}",
+     "none": "Le brouillon ne contient aucun déploiement de {{name}}. Importez-en un actif ci-dessous, ou demandez-en un à l'architecte.",
+     "deployment": "Environnement et déploiement",
+     "option": "{{environment}} : {{name}}",
+     "scope": "Les modifications ne changent que {{name}} dans {{environment}} (profil de harness {{profile}}). Les autres environnements gardent leurs propres valeurs.",
+     "fields": {
+      "model": "Modèle",
+      "effort": "Effort",
+      "timeoutSeconds": "Délai maximal (secondes)",
+      "maxTurns": "Nombre maximal de tours",
+      "maxBudgetUsd": "Budget maximal (USD)",
+      "systemTemplate": "Modèle de prompt système",
+      "systemVersion": "Version épinglée",
+      "approvalsEnabled": "Demander une approbation pour les appels d'outil",
+      "approvalDefaultAction": "Si aucune règle ne correspond"
+     },
+     "hints": {
+      "timeoutSeconds": "Secondes entières, 1 ou plus. Vide : le délai du profil de harness s'applique.",
+      "maxTurns": "Nombre entier, 1 ou plus. Vide : le harness décide.",
+      "maxBudgetUsd": "0 ou plus, par exemple 2.50. Vide : aucun budget."
+     },
+     "builtIn": "Valeur par défaut intégrée",
+     "approvals": "Approbations",
+     "noRules": "Aucune règle. Chaque appel d'outil reçoit l'action par défaut.",
+     "rule": {
+      "action": "Action de la règle",
+      "pattern": "Motif d'outil",
+      "inputPattern": "Motif d'entrée",
+      "inputPlaceholder": "Motif d'entrée (facultatif)",
+      "remove": "Retirer la règle {{number}}",
+      "add": "Ajouter une règle"
+     },
+     "live": "Déploiements actifs absents du brouillon",
+     "noLive": "Chaque déploiement actif de cet agent est déjà dans le brouillon, ou il n'en a aucun.",
+     "bring": "Importer dans le brouillon",
+     "exportMissing": "L'export de {{name}} est revenu sans son document.",
+     "errors": {
+      "integer": "Utilisez un nombre entier égal ou supérieur à 1.",
+      "number": "Utilisez un nombre égal ou supérieur à 0.",
+      "pattern": "Une règle a besoin d'un motif d'outil.",
+      "version": "Utilisez un nombre entier, et nommez un modèle à épingler."
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "Cet agent n'est pas membre de l'application.",
+   "SelfEdge": "Un agent ne peut pas s'appeler lui-même.",
+   "NoSuchEdge": "L'application n'a pas cet appel.",
+   "AppDeleted": "Le brouillon supprime cette application. Rétablissez-la d'abord.",
+   "InvalidDocument": "Le document ne s'analyse pas comme un seul document de manifeste.",
+   "DocumentMismatch": "Le type ou le nom du document ne correspond pas à l'élément."
+  }
+ }
+});

@@ -33,6 +33,66 @@
   },
   {
     "ecosystem": "npm",
+    "name": "@types/d3-color",
+    "version": "3.1.3",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-color",
+    "texts": [
+      "npm/@types/d3-color/3.1.3/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@types/d3-drag",
+    "version": "3.0.7",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-drag",
+    "texts": [
+      "npm/@types/d3-drag/3.0.7/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@types/d3-interpolate",
+    "version": "3.0.4",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-interpolate",
+    "texts": [
+      "npm/@types/d3-interpolate/3.0.4/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@types/d3-selection",
+    "version": "3.0.12",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-selection",
+    "texts": [
+      "npm/@types/d3-selection/3.0.12/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@types/d3-transition",
+    "version": "3.0.9",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-transition",
+    "texts": [
+      "npm/@types/d3-transition/3.0.9/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@types/d3-zoom",
+    "version": "3.0.9",
+    "license": "MIT",
+    "source": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-zoom",
+    "texts": [
+      "npm/@types/d3-zoom/3.0.9/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
     "name": "@types/trusted-types",
     "version": "2.0.7",
     "license": "MIT",
@@ -43,12 +103,132 @@
   },
   {
     "ecosystem": "npm",
+    "name": "@xyflow/react",
+    "version": "12.12.0",
+    "license": "MIT",
+    "source": "https://reactflow.dev",
+    "texts": [
+      "npm/@xyflow/react/12.12.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@xyflow/system",
+    "version": "0.0.83",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/@xyflow/system/-/system-0.0.83.tgz",
+    "texts": [
+      "npm/@xyflow/system/0.0.83/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "classcat",
+    "version": "5.0.5",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/classcat/-/classcat-5.0.5.tgz",
+    "texts": [
+      "npm/classcat/5.0.5/LICENSE.md"
+    ]
+  },
+  {
+    "ecosystem": "npm",
     "name": "cookie",
     "version": "1.1.1",
     "license": "MIT",
     "source": "https://registry.npmjs.org/cookie/-/cookie-1.1.1.tgz",
     "texts": [
       "npm/cookie/1.1.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-color",
+    "version": "3.1.0",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-color/",
+    "texts": [
+      "npm/d3-color/3.1.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-dispatch",
+    "version": "3.0.1",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-dispatch/",
+    "texts": [
+      "npm/d3-dispatch/3.0.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-drag",
+    "version": "3.0.0",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-drag/",
+    "texts": [
+      "npm/d3-drag/3.0.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-ease",
+    "version": "3.0.1",
+    "license": "BSD-3-Clause",
+    "source": "https://d3js.org/d3-ease/",
+    "texts": [
+      "npm/d3-ease/3.0.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-interpolate",
+    "version": "3.0.1",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-interpolate/",
+    "texts": [
+      "npm/d3-interpolate/3.0.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-selection",
+    "version": "3.0.0",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-selection/",
+    "texts": [
+      "npm/d3-selection/3.0.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-timer",
+    "version": "3.0.1",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-timer/",
+    "texts": [
+      "npm/d3-timer/3.0.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-transition",
+    "version": "3.0.1",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-transition/",
+    "texts": [
+      "npm/d3-transition/3.0.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "d3-zoom",
+    "version": "3.0.0",
+    "license": "ISC",
+    "source": "https://d3js.org/d3-zoom/",
+    "texts": [
+      "npm/d3-zoom/3.0.0/LICENSE"
     ]
   },
   {
@@ -174,12 +354,42 @@
   },
   {
     "ecosystem": "npm",
+    "name": "use-sync-external-store",
+    "version": "1.7.0",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.7.0.tgz",
+    "texts": [
+      "npm/use-sync-external-store/1.7.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
     "name": "void-elements",
     "version": "3.1.0",
     "license": "MIT",
     "source": "https://github.com/jadejs/void-elements",
     "texts": [
       "npm/void-elements/3.1.0/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "yaml",
+    "version": "2.9.1",
+    "license": "ISC",
+    "source": "https://eemeli.org/yaml/",
+    "texts": [
+      "npm/yaml/2.9.1/LICENSE"
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "zustand",
+    "version": "4.5.7",
+    "license": "MIT",
+    "source": "https://github.com/pmndrs/zustand",
+    "texts": [
+      "npm/zustand/4.5.7/LICENSE"
     ]
   },
   {
@@ -847,11 +1057,11 @@
   {
     "ecosystem": "python",
     "name": "certifi",
-    "version": "2026.7.22",
+    "version": "2026.10.23",
     "license": "MPL-2.0",
     "source": "https://github.com/certifi/python-certifi",
     "texts": [
-      "python/certifi/2026.7.22/LICENSE"
+      "python/certifi/2026.10.23/LICENSE"
     ]
   },
   {

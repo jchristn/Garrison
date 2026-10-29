@@ -85,6 +85,59 @@ A run can never decide a draft approval: 403, whatever its permissions.
 
 `app` names the app and defaults to the draft's target app. An operation on an app the draft does not hold yet starts from the live app, or from a new app when none exists. Member and edge operations rewrite the draft's `AgenticApp` item, so the graph and the item text never disagree.
 
+## Canvas
+
+The Graph tab of a draft in the dashboard is a canvas you edit directly. It shows one app at a time (a picker appears when the draft holds more than one): agents as boxes, calls as arrows labelled with their delegation depth, a solid arrow for a call that may fan out and a dashed one for a call made one at a time. The entry agent carries an Entry tag, agents whose document the draft holds say In draft, and the capabilities a drafted agent names sit in italics under its name. Every marker is a word, so nothing depends on color.
+
+![The research app from the fake-harness example on the canvas, with the writer selected and its properties open](images/studio-canvas.png)
+
+Nothing on the canvas is a local sketch. Each change goes to the server as soon as you make it, either as one of the graph operations above or as a save of a draft item, with the version you read. Drag from the small handle on an agent's right edge to another agent and you get a `Connect`. The toolbar adds an agent (type a name, or pick one of the tenant's agents or the draft's), starts a connection from the selected agent, makes it the entry agent, removes it from the app after a confirmation, and disconnects the selected call. Dragging an agent moves it, and the position is saved with `MoveNode` once you stop for a moment, so a long drag is one request rather than fifty. Positions live in the draft's layout, which is why they are still there after a reload or on someone else's screen.
+
+Changes go out one at a time, in the order you made them, and each one carries the newest version the canvas knows about. That keeps a quick sequence (add two agents, connect them, nudge one into place) from tripping over its own version numbers.
+
+### Keyboard
+
+Everything the mouse does on the canvas also works from the keyboard. Agents are focusable in reading order: the entry agent first, then by how far down the call chain each one sits. The shortcuts are listed under the toolbar as well.
+
+| Key | Where | What it does |
+|---|---|---|
+| Enter or Space | an agent | Selects it and opens its properties |
+| C | an agent | Starts a call from it; C or Enter on a second agent finishes the call |
+| E | an agent | Makes it the entry agent |
+| Delete | an agent | Removes it from the app, after a confirmation |
+| Arrow keys | a selected agent | Moves it 5 pixels, or 20 with Shift; saved after a short pause |
+| N | anywhere on the canvas | Jumps to the Add agent field, where Enter adds the agent |
+| Delete, F | a call in the list | Disconnects the call, or switches parallel calls on and off |
+| Escape | while connecting | Cancels the call you started |
+
+Calls are reached through the outline under the drawing rather than on the drawing itself. React Flow puts arrows ahead of boxes in the page, so tabbing through arrows on the canvas would visit every call before the first agent. The outline instead gives each call a button with the call in words ("planner calls writer, one call at a time, delegation depth 2."), after the agents in tab order. Starting a connection also opens a bar that names the caller and offers the callee as a list with a Parallel calls box, which is a second way to finish a connection without a pointer.
+
+![A call started from the keyboard: the connect bar names the caller, and the shortcuts list is open](images/studio-canvas-keyboard.png)
+
+The outline doubles as the canvas's description for screen readers. It starts with the counts and the entry agent ("App research has 4 agents. There are 3 calls between them. The entry agent is planner.") and the drawing points at it with `aria-describedby`. Each change you make is announced in a polite live region, for example "planner now calls editor."
+
+### Property panels
+
+The panel beside the drawing edits whatever is selected. With nothing selected it shows the app: the entry agent (a `SetEntry`, applied at once), and the description, sign-in mode, anonymous use, and branding, which rewrite the draft's `AgenticApp` item when you choose Save to draft. A selected call shows its caller and callee, the Parallel calls switch (a `Connect` with the new `fanOut`), and its delegation depth. Depth is read-only on purpose, because the server derives it from the graph: one plus the longest chain of calls below the callee.
+
+A selected agent has two tabs. Agent edits its own document: description, input and output schema as JSON, asset pins, and capabilities. Saving rewrites only the keys the panel owns in the `Agent` item and leaves the rest of the YAML alone, so a field the architect added by hand survives. If the draft does not hold the agent yet, the panel offers to bring it in from its live document first.
+
+Runtime edits the agent's `Deployment` items, one environment at a time: model, effort, time limit, maximum turns, budget, the System prompt template with an optional pinned version (written as `prompts.System: name@version`), and the approval switch, default action, and rules. A save there touches exactly one deployment item, so setting a ten minute timeout in staging leaves dev and prod as they were. Live deployments of the agent that the draft does not hold are listed underneath with a button that exports one into the draft.
+
+![The writer's staging deployment on the Runtime tab, with the time limit changed](images/studio-canvas-runtime.png)
+
+The System prompt is edited on Runtime rather than Agent because that is where Garrison keeps it. An `Agent` manifest has no key for prompt pins; each deployment names its own prompts, which is also what lets staging try a new prompt while prod keeps the old one. The Agent tab lists the System prompt each environment uses and links to Runtime.
+
+Saved edits appear in Diff and apply like any other item change. Mistakes show where they happen: a schema that is not JSON is caught in the browser before anything is sent, a field error from the server shows under its field with its field code translated, and when validation fails for the item (an `InvalidJsonSchema` from the dry run, say) the panel shows the server's message next to the field it concerns.
+
+### Live updates and conflicts
+
+The canvas follows the draft's `studio-draft:{id}` channel, or polls every five seconds when the channel is not available. When the architect connects two agents through its graph tools, or a colleague moves a box, the canvas redraws without a reload, and the banner above the tabs says what moved.
+
+If your change reaches the server after someone else's, the server refuses it with `DraftVersionConflict`. The canvas then reads the draft again and shows a notice naming what changed in between: items added, edited, or removed, and the new version. Your edit is not thrown away. A property panel keeps every field you typed, and the notice says when the very item you were editing changed too, so you can compare before saving again. A refused graph operation gets a Try again button that sends it on the new version. A refused move is retried once on its own, without a notice, because it only touches the layout.
+
+The screenshots on this page come from the dashboard's mocked browser tests with the fake-harness example draft. Regenerate them with `GARRISON_DOCS_SCREENSHOTS=1 npx playwright test tests/e2e/docsScreenshots.spec.js` in `dashboard/`.
+
 ## Playground
 
 The playground runs an agent's draft revision before anything is published. Each run goes to a temporary copy of one of the agent's deployments (its `dev` deployment, or the first one), named `playground-{agent}` and kept in the reserved `draft` environment, pinned to the revision being tried. Playground runs have kind `Playground`. They keep conversations and file spaces like any run, but they are left out of capability hints, and no app can select the `draft` environment, so end users never reach them.

@@ -33,8 +33,8 @@ import { ARCHITECT_STORAGE_KEY, STUDIO_POLL_MS, architectDeployments, draftStatu
 const TAB_KEYS = ['architect', 'items', 'graph', 'apply', 'playground', 'preview', 'prompts'];
 
 /**
- * One studio draft (AD7.10, AD7.16, AD9.2, AD9.3): the chat with the agent architect, the items with their YAML
- * editor, the read-only graph, diff, validation, apply with the approval decided inline, the playground, the compile
+ * One studio draft (AD7.10, AD7.16, AD9.2, AD9.3, AD8.2 to AD8.6): the chat with the agent architect, the items with
+ * their YAML editor, the canvas (graph operations, property panels, and runtime per environment), diff, validation, apply with the approval decided inline, the playground, the compile
  * preview, and the architect prompt. The draft follows the WebSocket channel studio-draft:{id} and polls every few
  * seconds when that is not available; a change from someone else (or the architect) refreshes the items, the graph, the
  * diff, and the version, and says what moved.
@@ -141,6 +141,25 @@ export default function StudioDraftView({ recordId }) {
     [load]
   );
   const live = useStudioDraftChannel(apiClient, draft?.id || null, onChanged);
+
+  // A graph operation on the canvas answered the new graph (AD8.2): take it and its version at once, so the push for
+  // the same change is not reported as someone else's, then read the draft and diff behind it.
+  const onGraphResult = useCallback(
+    (next) => {
+      if (!next || !apiClient) return;
+      setGraph(next);
+      if (Number.isFinite(next.version)) versionRef.current = next.version;
+      apiClient
+        .getStudioDraft(tenantId, next.draftId || recordId)
+        .then((d) => {
+          versionRef.current = d.version;
+          setDraft(d);
+          loadSide(d.id, true);
+        })
+        .catch(() => {});
+    },
+    [apiClient, tenantId, recordId, loadSide]
+  );
 
   // Poll while the live channel is not subscribed.
   useEffect(() => {
@@ -289,7 +308,7 @@ export default function StudioDraftView({ recordId }) {
         />
       )}
       {activeTab === 'items' && <StudioItemsPanel draft={draft} diff={diff} blocked={editBlocked} onDraft={acceptDraft} />}
-      {activeTab === 'graph' && <StudioGraphPanel graph={graph} />}
+      {activeTab === 'graph' && <StudioGraphPanel draft={draft} graph={graph} diff={diff} blocked={editBlocked} deployments={deployments} onGraph={onGraphResult} onDraft={acceptDraft} />}
       {activeTab === 'apply' && <StudioDiffPanel draft={draft} diff={diff} onDiff={setDiff} onReload={load} blocked={editBlocked} deniedDecide={denied.decide} />}
       {activeTab === 'playground' && <StudioPlaygroundPanel draft={draft} graph={graph} blocked={denied.playground} />}
       {activeTab === 'preview' && <StudioPreviewPanel deployments={deployments} blocked={denied.preview} />}

@@ -3952,3 +3952,250 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "画布",
+    "appPicker": "应用",
+    "flowLabel": "应用 {{app}} 的画布",
+    "noApp": "草稿中还没有应用。请让架构师创建一个，或从现有应用开始一个草稿。",
+    "calls": "调用（{{total}}）",
+    "noCalls": "还没有调用。从一个智能体的右边缘拖到另一个智能体，或在一个智能体上按 C，再在另一个上按 Enter。",
+    "addLoose": "添加到应用",
+    "remove": "从应用中移除",
+    "removeTitle": "从应用中移除智能体",
+    "removeMessage": "要从 {{app}} 中移除 {{name}} 吗？它的调用也会一并移除。智能体本身会保留，在应用草稿之前实时配置不会改变。",
+    "operationFailed": "{{operation}}被拒绝。",
+    "operations": {
+     "AddMember": "添加智能体",
+     "RemoveMember": "移除智能体",
+     "Connect": "连接",
+     "Disconnect": "断开连接",
+     "SetEntry": "设置入口智能体",
+     "MoveNode": "移动智能体"
+    },
+    "toolbar": {
+     "label": "画布操作",
+     "addAgent": "添加智能体",
+     "addPlaceholder": "智能体名称",
+     "role": "角色",
+     "rolePlaceholder": "角色（可选）",
+     "add": "添加",
+     "connect": "从此处连接",
+     "setEntry": "设为入口智能体",
+     "remove": "移除",
+     "disconnect": "断开连接",
+     "fit": "适合视图"
+    },
+    "connectBar": {
+     "message": "正在从 {{name}} 连接。请选择它调用的智能体：点击它、在它上面按 Enter，或在这里选择。",
+     "to": "调用",
+     "fanOut": "并行调用",
+     "confirm": "连接"
+    },
+    "keys": {
+     "title": "键盘快捷键",
+     "tab": "Tab 按阅读顺序在智能体之间移动，从入口智能体开始。",
+     "select": "Enter 或 Space 选中当前聚焦的智能体并打开其属性。",
+     "connect": "在一个智能体上按 C 开始从它发起调用；在另一个智能体上按 C 或 Enter 完成。",
+     "entry": "E 将当前聚焦的智能体设为入口智能体。",
+     "remove": "Delete 在确认后将当前聚焦的智能体从应用中移除。",
+     "move": "方向键移动选中的智能体；按住 Shift 可移动更大步长。位置会在短暂停顿后保存。",
+     "add": "N 跳转到“添加智能体”输入框。",
+     "calls": "在调用列表中，Enter 选中调用，Delete 断开它，F 开启或关闭并行调用。",
+     "escape": "Escape 取消你开始的调用。"
+    },
+    "node": {
+     "entry": "入口",
+     "unreachable": "不可达",
+     "connecting": "从此处调用"
+    },
+    "a11y": {
+     "node": "按 Enter 或 Space 选中此智能体，然后用方向键移动它。按 C 连接它，按 E 设为入口智能体，按 Delete 移除它。",
+     "edge": "两个智能体之间的调用。请在画布下方的调用列表中选中它。",
+     "handle": "连接点",
+     "moved": "已将智能体向{{direction}}移动。新位置：{{x}}, {{y}}。",
+     "directions": {
+      "up": "上",
+      "down": "下",
+      "left": "左",
+      "right": "右"
+     }
+    },
+    "announce": {
+     "added": "已将 {{name}} 添加到 {{app}}。",
+     "connectStart": "正在从 {{name}} 连接。移到它调用的智能体上按 Enter，或按 Escape 取消。",
+     "connectCancelled": "已取消连接。",
+     "connected": "{{from}} 现在调用 {{to}}。",
+     "disconnected": "{{from}} 不再调用 {{to}}。",
+     "fanOutOn": "{{from}} 现在可以并行调用 {{to}}。",
+     "fanOutOff": "{{from}} 现在一次调用 {{to}} 一次。",
+     "entry": "{{name}} 现在是 {{app}} 的入口智能体。",
+     "removed": "已从 {{app}} 中移除 {{name}}。",
+     "selfEdge": "智能体不能调用自身。请选择另一个智能体。"
+    },
+    "summary": {
+     "noApp": "没有可描述的应用。",
+     "agents_one": "应用 {{app}} 有 {{count}} 个智能体。",
+     "agents_other": "应用 {{app}} 有 {{count}} 个智能体。",
+     "callCount_one": "它们之间有 {{count}} 个调用。",
+     "callCount_other": "它们之间有 {{count}} 个调用。",
+     "entry": "入口智能体是 {{name}}。",
+     "noEntry": "未设置入口智能体。",
+     "callParallel": "{{from}} 调用 {{to}}，允许并行调用，委派深度 {{depth}}。",
+     "callSingle": "{{from}} 调用 {{to}}，一次一个调用，委派深度 {{depth}}。"
+    },
+    "conflict": {
+     "mine": "{{item}} 也已更改。你的编辑仍在面板中；再次保存前请与新版本进行比较。",
+     "kept": "你对 {{item}} 的编辑仍在面板中。再次保存即可将其应用到新版本。",
+     "operation": "{{operation}}未被应用。请在新版本上重试，或保持不变。",
+     "retry": "重试"
+    },
+    "panel": {
+     "label": "属性",
+     "tabsLabel": "{{name}} 的属性",
+     "properties": "智能体",
+     "runtime": "运行时",
+     "save": "保存到草稿",
+     "reset": "撤销更改",
+     "saved": "已保存 {{item}}。可在“差异与应用”中查看更改。",
+     "check": "服务器对此项目的检查：{{message}}",
+     "unparsable": "此项目的 YAML 无法解析，因此面板无法更改它。请先在“项目”选项卡中修复。（{{message}}）"
+    },
+    "agent": {
+     "title": "智能体 {{name}}",
+     "isEntry": "这是应用的入口智能体：它与使用应用的人对话。",
+     "notHeld": "草稿中还没有 {{name}} 的文档。将其引入草稿即可在此编辑；实时配置不会改变。",
+     "deleted": "草稿会删除 {{name}}。请在“项目”选项卡中恢复它后再编辑。",
+     "bring": "引入草稿",
+     "description": "描述",
+     "inputSchema": "输入架构",
+     "outputSchema": "输出架构",
+     "schemaHint": "以 JSON 编写的 JSON Schema。留空表示纯文本。",
+     "assets": "资产",
+     "noAssets": "下一个修订版本不固定任何资产。",
+     "assetsKept": "文档未指定资产，因此智能体保留现有资产。",
+     "assetName": "资产名称",
+     "assetVersion": "版本",
+     "latest": "最新",
+     "removeAsset": "移除资产 {{name}}",
+     "addAsset": "添加资产",
+     "capabilities": "能力",
+     "capabilitiesHint": "名称之间用逗号分隔。空列表会清除它们。",
+     "capabilitiesKept": "名称之间用逗号分隔。留空时，智能体保留现有能力。",
+     "systemPrompt": "系统提示词",
+     "noDeployments": "草稿中没有此智能体的部署，因此这里没有设置系统提示词。",
+     "promptLine": "{{environment}}：{{deployment}} 使用 {{prompt}}",
+     "builtInPrompt": "内置默认值",
+     "showRuntime": "在“运行时”选项卡中编辑",
+     "errors": {
+      "json": "这不是有效的 JSON。",
+      "object": "架构是一个 JSON 对象，例如 {\"type\": \"object\"}。",
+      "version": "请使用整数，或留空以使用最新版本。"
+     }
+    },
+    "edge": {
+     "title": "从 {{from}} 到 {{to}} 的调用",
+     "from": "调用方",
+     "to": "被调用方",
+     "depth": "委派深度",
+     "depthHint": "由关系图推导：1 加上 {{to}} 之下最长的调用链。其下的调用变化时它也会变化。",
+     "fanOut": "并行调用（扇出）",
+     "fanOutOn": "{{from}} 可以同时对 {{to}} 发起多个调用。",
+     "fanOutOff": "{{from}} 一次调用 {{to}} 一次。"
+    },
+    "app": {
+     "title": "应用 {{name}}",
+     "hint": "在画布上选择一个智能体或调用来编辑它。未选择任何内容时，此面板编辑应用。",
+     "entry": "入口智能体",
+     "noEntry": "无入口智能体",
+     "noMembers": "请先添加一个智能体；第一个智能体会成为入口智能体。",
+     "notHeld": "草稿中还没有 {{name}} 的文档。将其引入草稿即可在此编辑登录和品牌设置。",
+     "deleted": "草稿会删除 {{name}}。请在“项目”选项卡中恢复它后再编辑。",
+     "bring": "引入草稿",
+     "description": "描述",
+     "authMode": "登录",
+     "authDefault": "服务器默认值",
+     "anonymous": "允许匿名使用",
+     "branding": "品牌",
+     "brandingFields": {
+      "displayName": "显示名称",
+      "logo": "徽标资产",
+      "primaryColor": "主色",
+      "accentColor": "强调色",
+      "welcomeText": "欢迎文字"
+     },
+     "errors": {
+      "color": "请使用十六进制颜色，例如 #1F6FEB。"
+     }
+    },
+    "runtime": {
+     "title": "{{name}} 的运行时",
+     "none": "草稿中没有 {{name}} 的部署。请从下方引入一个实时部署，或让架构师创建一个。",
+     "deployment": "环境和部署",
+     "option": "{{environment}}：{{name}}",
+     "scope": "编辑只会更改 {{environment}} 中的 {{name}}（Harness 配置文件 {{profile}}）。其他环境保留各自的值。",
+     "fields": {
+      "model": "模型",
+      "effort": "推理强度",
+      "timeoutSeconds": "时间限制（秒）",
+      "maxTurns": "最大轮次",
+      "maxBudgetUsd": "预算（USD）",
+      "systemTemplate": "系统提示词模板",
+      "systemVersion": "固定版本",
+      "approvalsEnabled": "工具调用需要审批",
+      "approvalDefaultAction": "没有规则匹配时"
+     },
+     "hints": {
+      "timeoutSeconds": "整数秒，1 或以上。留空则使用 Harness 配置文件的限制。",
+      "maxTurns": "整数，1 或以上。留空表示由 Harness 决定。",
+      "maxBudgetUsd": "0 或以上，例如 2.50。留空表示没有预算限制。"
+     },
+     "builtIn": "内置默认值",
+     "approvals": "审批",
+     "noRules": "没有规则。所有工具调用都采用默认操作。",
+     "rule": {
+      "action": "操作",
+      "pattern": "工具模式",
+      "inputPattern": "输入模式",
+      "inputPlaceholder": "输入模式（可选）",
+      "remove": "移除规则 {{number}}",
+      "add": "添加规则"
+     },
+     "live": "不在草稿中的实时部署",
+     "noLive": "此智能体的所有实时部署都已在草稿中，或者它没有实时部署。",
+     "bring": "引入草稿",
+     "exportMissing": "{{name}} 的导出结果中没有文档。",
+     "errors": {
+      "integer": "请使用 1 或以上的整数。",
+      "number": "请使用 0 或以上的数字。",
+      "pattern": "规则需要一个工具模式。",
+      "version": "请使用整数，并指定要固定的模板。"
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "该智能体不是此应用的成员。",
+   "SelfEdge": "智能体不能调用自身。",
+   "NoSuchEdge": "应用中没有这样的调用。",
+   "AppDeleted": "草稿会删除此应用。请先恢复它。",
+   "InvalidDocument": "该文档无法解析为单个清单文档。",
+   "DocumentMismatch": "文档的类型或名称与项目不匹配。"
+  }
+ }
+});

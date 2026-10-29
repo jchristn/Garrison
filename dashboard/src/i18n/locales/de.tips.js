@@ -3028,3 +3028,127 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "studioDraft": {
+   "tabs": {
+    "graph": "Die App des Entwurfs auf einer Zeichenfläche bearbeiten: Agenten, Aufrufe, den Einstiegsagenten, Eigenschaften und die Laufzeit je Umgebung."
+   }
+  }
+ },
+ "studio": {
+  "graph": {
+   "title": "Die App des Entwurfs als bearbeitbare Zeichenfläche, mit ihren Agenten, Aufrufen und der Delegationstiefe."
+  },
+  "canvas": {
+   "title": "Die App des Entwurfs als bearbeitbarer Graph. Jede Änderung wird sofort im Entwurf gespeichert; live geht erst etwas, wenn der Entwurf angewendet wird.",
+   "appPicker": "Die App, die die Zeichenfläche zeigt, wenn der Entwurf mehr als eine enthält.",
+   "node": "Ein Agent der App. Ziehen Sie ihn, um ihn zu verschieben, ziehen Sie von seinem rechten Rand, um ihn zu verbinden, oder fokussieren Sie ihn und verwenden Sie die Tastenkürzel.",
+   "nodeReadOnly": "Ein Agent der App. Der Entwurf kann gerade nicht geändert werden, daher ist die Zeichenfläche schreibgeschützt.",
+   "addAgent": "Geben Sie den Namen eines Agenten ein oder wählen Sie einen aus den Agenten des Mandanten und des Entwurfs, und drücken Sie dann die Eingabetaste.",
+   "role": "Eine optionale Notiz dazu, was dieser Agent in der App tut, gespeichert mit seiner Mitgliedschaft.",
+   "add": "Den Agenten zum Mitglied von {{app}} machen. Das erste Mitglied wird zum Einstiegsagenten.",
+   "connect": "Einen Aufruf von {{name}} aus beginnen und dann den Agenten wählen, den er aufruft.",
+   "needAgent": "Wählen Sie zuerst einen Agenten auf der Zeichenfläche aus.",
+   "needCall": "Wählen Sie zuerst einen Aufruf aus: Klicken Sie ihn auf der Zeichenfläche an oder wählen Sie ihn in der Liste der Aufrufe.",
+   "alreadyEntry": "{{name}} ist bereits der Einstiegsagent.",
+   "setEntry": "Den ausgewählten Agenten zu dem machen, der mit den Personen spricht, die die App nutzen.",
+   "remove": "Den ausgewählten Agenten nach einer Bestätigung samt seinen Aufrufen aus der App nehmen.",
+   "disconnect": "Den ausgewählten Aufruf löschen. Die beiden Agenten bleiben in der App.",
+   "fit": "Zoomen und verschieben, sodass jeder Agent der App sichtbar ist.",
+   "connectTo": "Der Agent, den der Aufrufer aufrufen darf.",
+   "fanOut": "Ein: Der Aufrufer darf mehrere Aufrufe an diesen Agenten gleichzeitig starten (Fan-out). Aus: ein Aufruf zur Zeit.",
+   "connectConfirm": "{{from}} erlauben, {{to}} aufzurufen, und den Aufruf im Entwurf speichern.",
+   "connectNoTarget": "Es gibt in der App noch keinen anderen Agenten, der aufgerufen werden kann.",
+   "connectCancel": "Das Verbinden beenden, ohne einen Aufruf hinzuzufügen.",
+   "keys": "Die Tasten anzeigen, die auf der Zeichenfläche funktionieren.",
+   "calls": "Jeder Aufruf der App in Worten. Mit diesen Schaltflächen wählen und ändern Sie Aufrufe per Tastatur.",
+   "call": "Diesen Aufruf auswählen. Entf trennt ihn, F schaltet parallele Aufrufe ein oder aus.",
+   "callReadOnly": "Diesen Aufruf auswählen, um seine Eigenschaften zu sehen. Der Entwurf kann gerade nicht geändert werden.",
+   "addLoose": "{{name}} zum Mitglied von {{app}} machen, damit er verbunden werden kann.",
+   "retry": "Die abgelehnte Änderung erneut senden, auf der gerade gelesenen Version des Entwurfs.",
+   "dismissError": "Diese Meldung über die abgelehnte Änderung ausblenden.",
+   "panel": {
+    "properties": "Das eigene Dokument des Agenten: Beschreibung, Schemas, Assets und Fähigkeiten.",
+    "runtime": "Die Bereitstellungen des Agenten in jeder Umgebung: Modell, Limits, Prompt und Freigaben.",
+    "save": "Diese Felder in das Element des Entwurfs schreiben, auf der Version, die Sie gelesen haben. Nichts geht live.",
+    "reset": "Zu den Werten zurückkehren, die der Entwurf jetzt enthält.",
+    "nothingToSave": "Noch nichts geändert, daher gibt es nichts zu speichern.",
+    "nothingToReset": "Noch nichts geändert, daher gibt es nichts zu verwerfen."
+   },
+   "agent": {
+    "title": "Felder des Agenten-Dokuments in diesem Entwurf. Beim Speichern wird sein Agent-Element neu geschrieben.",
+    "bring": "Das Live-Dokument des Agenten (oder ein neues) in den Entwurf kopieren, damit Sie es bearbeiten können.",
+    "description": "Was der Agent tut, angezeigt für Personen und für Agenten, die ihn aufrufen.",
+    "inputSchema": "Ein JSON Schema, dem die Eingabe des Agenten entsprechen muss. Leer bedeutet reine Texteingabe.",
+    "outputSchema": "Ein JSON Schema, dem die strukturierte Ausgabe des Agenten folgt. Leer bedeutet keine strukturierte Ausgabe.",
+    "assets": "Agenten-Assets (Skills, Referenzen, Vorlagen), die die nächste Revision festlegt, nach Name und optionaler Version.",
+    "assetName": "Der Name des Agenten-Assets in diesem Mandanten.",
+    "assetVersion": "Eine festzulegende Version. Leer folgt der neuesten Version des Assets.",
+    "removeAsset": "Diese Festlegung beim Speichern aus der nächsten Revision des Agenten entfernen.",
+    "addAsset": "Ein weiteres Agenten-Asset für die nächste Revision des Agenten festlegen.",
+    "capabilities": "Fähigkeiten, die der Agent nutzt, etwa Host-Werkzeuge, die ein Worker haben muss (pandoc, git).",
+    "systemPrompt": "Der System-Prompt wird je Bereitstellung festgelegt, damit jede Umgebung ihren eigenen verwenden kann.",
+    "showRuntime": "Die Bereitstellungen des Agenten öffnen, wo der System-Prompt und seine Version bearbeitet werden."
+   },
+   "edge": {
+    "title": "Der ausgewählte Aufruf: wer wen aufruft, Fan-out und die Delegationstiefe, die er braucht.",
+    "from": "Der Agent, der diesen Aufruf macht.",
+    "to": "Der Agent, den dieser Aufruf erreicht.",
+    "depth": "Wie viele Delegationsebenen der Aufrufer für diesen Aufruf braucht, aus dem Graphen ermittelt."
+   },
+   "app": {
+    "title": "Felder des App-Dokuments in diesem Entwurf. Beim Speichern wird sein AgenticApp-Element neu geschrieben.",
+    "entry": "Das Mitglied, das mit den Personen spricht, die die App nutzen. Eine Änderung wird sofort gespeichert.",
+    "bring": "Das Live-Dokument der App in den Entwurf kopieren, damit Sie Anmeldung und Erscheinungsbild bearbeiten können.",
+    "description": "Wofür die App da ist, angezeigt in der App-Liste der Konsole.",
+    "authMode": "Wer sich bei der App anmelden darf: Mandantenbenutzer, App-Benutzer oder alle (anonym).",
+    "anonymous": "Personen die App ohne Anmeldung nutzen lassen, wenn der Anmeldemodus das zulässt.",
+    "branding": "Wie die Chat-Seite der App für die Personen aussieht, die sie nutzen.",
+    "brandingFields": {
+     "displayName": "Der Name in der Kopfzeile der App. Leer verwendet den Namen der App.",
+     "logo": "Ein Agenten-Asset, dessen erstes Bild zum Logo der App wird.",
+     "primaryColor": "Die Hauptfarbe der App-Seite, als Hex-Wert.",
+     "accentColor": "Die zweite Farbe der App-Seite, als Hex-Wert.",
+     "welcomeText": "Das Erste, was Personen lesen, wenn sie die App öffnen."
+    }
+   },
+   "runtime": {
+    "title": "Die Bereitstellungen des Agenten in diesem Entwurf, eine Umgebung nach der anderen.",
+    "deployment": "Die Bereitstellung der Umgebung wählen, die Sie bearbeiten möchten. Beim Speichern ändert sich nur das Element dieser Bereitstellung.",
+    "live": "Bereitstellungen dieses Agenten, die jetzt laufen, aber nicht im Entwurf sind. Holen Sie eine herein, um sie zu ändern.",
+    "bring": "Das Live-Dokument von {{name}} als neues Element in den Entwurf kopieren.",
+    "approvals": "Ob Werkzeugaufrufe der Läufe dieser Bereitstellung auf eine Person warten, und die Regeln, die zuerst entscheiden.",
+    "fields": {
+     "model": "Das Modell, das der Harness verwendet, zum Beispiel sonnet. Leer verwendet den Standard des Harness-Profils.",
+     "effort": "Der Denkaufwand, den der Harness weitergibt, zum Beispiel high. Leer überlässt es dem Harness.",
+     "timeoutSeconds": "Wie lange ein Lauf dauern darf, bevor er gestoppt wird, in Sekunden.",
+     "maxTurns": "Wie viele Modellrunden ein Lauf haben darf, bevor er stoppt.",
+     "maxBudgetUsd": "Wie viel ein Lauf in US-Dollar kosten darf, bevor der Harness ihn stoppt.",
+     "systemTemplate": "Die Prompt-Vorlage, die als System-Prompt dient, nach Name. Leer verwendet den integrierten Standard.",
+     "systemVersion": "Eine festzulegende Version dieser Vorlage. Leer folgt ihrer neuesten Version.",
+     "approvalsEnabled": "Ein: Werkzeugaufrufe, die keine Regel erlaubt, warten in Freigaben auf eine Person.",
+     "approvalDefaultAction": "Was mit einem Werkzeugaufruf passiert, auf den keine Regel passt: zulassen, ablehnen oder eine Person fragen."
+    },
+    "rule": {
+     "action": "Was diese Regel mit einem passenden Werkzeugaufruf macht.",
+     "pattern": "Auf welche Werkzeugaufrufe die Regel passt, zum Beispiel Bash(git *).",
+     "inputPattern": "Ein optionales Muster, dem die Eingabe des Werkzeugaufrufs zusätzlich entsprechen muss.",
+     "remove": "Diese Regel beim Speichern löschen.",
+     "add": "Eine Regel hinzufügen; Regeln werden der Reihe nach geprüft, und die erste passende entscheidet."
+    }
+   }
+  }
+ }
+});

@@ -3979,3 +3979,250 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "Canvas",
+    "appPicker": "App",
+    "flowLabel": "Canvas of app {{app}}",
+    "noApp": "The draft holds no app yet. Ask the architect for one, or start a draft from an existing app.",
+    "calls": "Calls ({{total}})",
+    "noCalls": "No calls yet. Drag from an agent's right edge to another agent, or press C on one agent and Enter on the other.",
+    "addLoose": "Add to app",
+    "remove": "Remove from app",
+    "removeTitle": "Remove agent from app",
+    "removeMessage": "Remove {{name}} from {{app}}? Its calls go too. The agent itself stays, and live configuration does not change until the draft is applied.",
+    "operationFailed": "{{operation}} was refused.",
+    "operations": {
+     "AddMember": "Adding an agent",
+     "RemoveMember": "Removing an agent",
+     "Connect": "Connecting",
+     "Disconnect": "Disconnecting",
+     "SetEntry": "Setting the entry agent",
+     "MoveNode": "Moving an agent"
+    },
+    "toolbar": {
+     "label": "Canvas actions",
+     "addAgent": "Add agent",
+     "addPlaceholder": "Agent name",
+     "role": "Role",
+     "rolePlaceholder": "Role (optional)",
+     "add": "Add",
+     "connect": "Connect from",
+     "setEntry": "Make entry agent",
+     "remove": "Remove",
+     "disconnect": "Disconnect",
+     "fit": "Fit view"
+    },
+    "connectBar": {
+     "message": "Connecting from {{name}}. Pick the agent it calls: click it, press Enter on it, or choose it here.",
+     "to": "Calls",
+     "fanOut": "Parallel calls",
+     "confirm": "Connect"
+    },
+    "keys": {
+     "title": "Keyboard shortcuts",
+     "tab": "Tab moves through the agents in reading order, starting at the entry agent.",
+     "select": "Enter or Space selects the focused agent and opens its properties.",
+     "connect": "C on an agent starts a call from it; C or Enter on another agent finishes it.",
+     "entry": "E makes the focused agent the entry agent.",
+     "remove": "Delete removes the focused agent from the app, after a confirmation.",
+     "move": "Arrow keys move a selected agent; hold Shift for bigger steps. The position is saved after a short pause.",
+     "add": "N jumps to the Add agent field.",
+     "calls": "In the list of calls, Enter selects a call, Delete disconnects it, and F switches parallel calls on or off.",
+     "escape": "Escape cancels a call you started."
+    },
+    "node": {
+     "entry": "Entry",
+     "unreachable": "Unreachable",
+     "connecting": "Calling from here"
+    },
+    "a11y": {
+     "node": "Press Enter or Space to select this agent, then the arrow keys to move it. Press C to connect it, E to make it the entry agent, or Delete to remove it.",
+     "edge": "A call between two agents. Select it in the list of calls below the canvas.",
+     "handle": "Connection point",
+     "moved": "Moved the agent {{direction}}. New position: {{x}}, {{y}}.",
+     "directions": {
+      "up": "up",
+      "down": "down",
+      "left": "left",
+      "right": "right"
+     }
+    },
+    "announce": {
+     "added": "Added {{name}} to {{app}}.",
+     "connectStart": "Connecting from {{name}}. Move to the agent it calls and press Enter, or press Escape to cancel.",
+     "connectCancelled": "Connection cancelled.",
+     "connected": "{{from}} now calls {{to}}.",
+     "disconnected": "{{from}} no longer calls {{to}}.",
+     "fanOutOn": "{{from}} may now call {{to}} in parallel.",
+     "fanOutOff": "{{from}} now calls {{to}} one at a time.",
+     "entry": "{{name}} is now the entry agent of {{app}}.",
+     "removed": "Removed {{name}} from {{app}}.",
+     "selfEdge": "An agent cannot call itself. Pick another agent."
+    },
+    "summary": {
+     "noApp": "There is no app to describe.",
+     "agents_one": "App {{app}} has {{count}} agent.",
+     "agents_other": "App {{app}} has {{count}} agents.",
+     "callCount_one": "There is {{count}} call between them.",
+     "callCount_other": "There are {{count}} calls between them.",
+     "entry": "The entry agent is {{name}}.",
+     "noEntry": "No entry agent is set.",
+     "callParallel": "{{from}} calls {{to}}, parallel calls allowed, delegation depth {{depth}}.",
+     "callSingle": "{{from}} calls {{to}}, one call at a time, delegation depth {{depth}}."
+    },
+    "conflict": {
+     "mine": "{{item}} changed too. Your edit is still in the panel; compare it with the new version before you save again.",
+     "kept": "Your edit of {{item}} is still in the panel. Save again to apply it to the new version.",
+     "operation": "{{operation}} was not applied. Try again on the new version, or leave it.",
+     "retry": "Try again"
+    },
+    "panel": {
+     "label": "Properties",
+     "tabsLabel": "Properties of {{name}}",
+     "properties": "Agent",
+     "runtime": "Runtime",
+     "save": "Save to draft",
+     "reset": "Undo changes",
+     "saved": "Saved {{item}}. Diff and apply shows the change.",
+     "check": "The server's check of this item: {{message}}",
+     "unparsable": "The item's YAML does not parse, so the panel cannot change it. Fix it on the Items tab first. ({{message}})"
+    },
+    "agent": {
+     "title": "Agent {{name}}",
+     "isEntry": "This is the app's entry agent: it talks to the people using the app.",
+     "notHeld": "The draft does not hold {{name}}'s document yet. Bring it in to edit it here; live configuration does not change.",
+     "deleted": "The draft deletes {{name}}. Put it back on the Items tab to edit it.",
+     "bring": "Bring into draft",
+     "description": "Description",
+     "inputSchema": "Input schema",
+     "outputSchema": "Output schema",
+     "schemaHint": "JSON Schema as JSON. Leave it empty for plain text.",
+     "assets": "Assets",
+     "noAssets": "The next revision pins no assets.",
+     "assetsKept": "The document names no assets, so the agent keeps the ones it has.",
+     "assetName": "Asset name",
+     "assetVersion": "Version",
+     "latest": "Latest",
+     "removeAsset": "Remove asset {{name}}",
+     "addAsset": "Add asset",
+     "capabilities": "Capabilities",
+     "capabilitiesHint": "Separate names with commas. An empty list clears them.",
+     "capabilitiesKept": "Separate names with commas. Left empty, the agent keeps the capabilities it has.",
+     "systemPrompt": "System prompt",
+     "noDeployments": "The draft holds no deployment of this agent, so no System prompt is set here.",
+     "promptLine": "{{environment}}: {{deployment}} uses {{prompt}}",
+     "builtInPrompt": "the built-in default",
+     "showRuntime": "Edit on the Runtime tab",
+     "errors": {
+      "json": "This is not valid JSON.",
+      "object": "A schema is a JSON object, such as {\"type\": \"object\"}.",
+      "version": "Use a whole number, or leave it empty for the latest version."
+     }
+    },
+    "edge": {
+     "title": "Call from {{from}} to {{to}}",
+     "from": "Caller",
+     "to": "Callee",
+     "depth": "Delegation depth",
+     "depthHint": "Derived from the graph: one plus the longest chain of calls below {{to}}. It changes when calls below it change.",
+     "fanOut": "Parallel calls (fan-out)",
+     "fanOutOn": "{{from}} may start several calls to {{to}} at once.",
+     "fanOutOff": "{{from}} calls {{to}} one at a time."
+    },
+    "app": {
+     "title": "App {{name}}",
+     "hint": "Select an agent or a call on the canvas to edit it. With nothing selected, this panel edits the app.",
+     "entry": "Entry agent",
+     "noEntry": "No entry agent",
+     "noMembers": "Add an agent first; the first one becomes the entry agent.",
+     "notHeld": "The draft does not hold {{name}}'s document yet. Bring it in to edit its sign-in and branding here.",
+     "deleted": "The draft deletes {{name}}. Put it back on the Items tab to edit it.",
+     "bring": "Bring into draft",
+     "description": "Description",
+     "authMode": "Sign-in",
+     "authDefault": "Server default",
+     "anonymous": "Allow anonymous use",
+     "branding": "Branding",
+     "brandingFields": {
+      "displayName": "Display name",
+      "logo": "Logo asset",
+      "primaryColor": "Primary color",
+      "accentColor": "Accent color",
+      "welcomeText": "Welcome text"
+     },
+     "errors": {
+      "color": "Use a hex color such as #1F6FEB."
+     }
+    },
+    "runtime": {
+     "title": "Runtime of {{name}}",
+     "none": "The draft holds no deployment of {{name}}. Bring a live one in below, or ask the architect for one.",
+     "deployment": "Environment and deployment",
+     "option": "{{environment}}: {{name}}",
+     "scope": "Edits change only {{name}} in {{environment}} (harness profile {{profile}}). Other environments keep their own values.",
+     "fields": {
+      "model": "Model",
+      "effort": "Effort",
+      "timeoutSeconds": "Time limit (seconds)",
+      "maxTurns": "Maximum turns",
+      "maxBudgetUsd": "Budget (USD)",
+      "systemTemplate": "System prompt template",
+      "systemVersion": "Pinned version",
+      "approvalsEnabled": "Ask for approval of tool calls",
+      "approvalDefaultAction": "When no rule matches"
+     },
+     "hints": {
+      "timeoutSeconds": "Whole seconds, 1 or more. Empty uses the harness profile's limit.",
+      "maxTurns": "Whole number, 1 or more. Empty means the harness decides.",
+      "maxBudgetUsd": "0 or more, for example 2.50. Empty means no budget."
+     },
+     "builtIn": "Built-in default",
+     "approvals": "Approvals",
+     "noRules": "No rules. Every tool call gets the default action.",
+     "rule": {
+      "action": "Action",
+      "pattern": "Tool pattern",
+      "inputPattern": "Input pattern",
+      "inputPlaceholder": "Input pattern (optional)",
+      "remove": "Remove rule {{number}}",
+      "add": "Add rule"
+     },
+     "live": "Live deployments not in the draft",
+     "noLive": "Every live deployment of this agent is already in the draft, or it has none.",
+     "bring": "Bring into draft",
+     "exportMissing": "The export of {{name}} came back without its document.",
+     "errors": {
+      "integer": "Use a whole number of 1 or more.",
+      "number": "Use a number of 0 or more.",
+      "pattern": "A rule needs a tool pattern.",
+      "version": "Use a whole number, and name a template to pin."
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "That agent is not a member of the app.",
+   "SelfEdge": "An agent cannot call itself.",
+   "NoSuchEdge": "The app has no such call.",
+   "AppDeleted": "The draft deletes this app. Put it back first.",
+   "InvalidDocument": "The document does not parse as one manifest document.",
+   "DocumentMismatch": "The document's kind or name does not match the item."
+  }
+ }
+});

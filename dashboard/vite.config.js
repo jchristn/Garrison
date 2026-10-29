@@ -61,6 +61,10 @@ export default defineConfig({
           if (/\/src\/components\/AgenticApp/.test(id) || id.endsWith('/src/utils/apps.js')) return 'apps';
           // Agent studio (AD7.10): the workspace panels, the architect dialogs and prompt panel, and their helpers. The two
           // studio pages stay with the views; the panels import nothing from the views chunk (no chunk cycle).
+          // The studio canvas (AD8.2): React Flow, the YAML library, the canvas panels, and their helpers load only when a
+          // draft's Graph tab opens. The canvas imports from the studio chunk; the studio reaches it by dynamic import.
+          if (/node_modules\/(@xyflow|d3-[a-z-]+|zustand|use-sync-external-store|classcat|yaml)\//.test(id)) return 'canvas';
+          if (id.includes('/src/components/studio/canvas/') || id.endsWith('/src/utils/studioCanvas.js') || id.endsWith('/src/utils/manifestYaml.js')) return 'canvas';
           if (id.includes('/src/components/studio/') || id.endsWith('/src/utils/studio.js') || id.endsWith('/src/hooks/useStudioDraftChannel.js')) return 'studio';
           if (id.includes('/src/views/')) return 'views';
           return undefined;

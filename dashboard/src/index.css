@@ -1300,6 +1300,79 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .studio-architect-preview { display: flex; flex-direction: column; gap: var(--spacing-xs); margin-block-start: var(--spacing-md); }
 .studio-prompt-editor { display: flex; flex-direction: column; gap: var(--spacing-sm); border-block-start: 1px solid var(--color-border); padding-block-start: var(--spacing-sm); }
 .studio-prompts .actions-cell { white-space: nowrap; }
+/* Studio canvas (AD8.2 to AD8.6): React Flow themed with the console's tokens, so light and dark both follow them. */
+.studio-canvas-toolbar { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.studio-canvas-tools { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; justify-content: space-between; }
+.studio-canvas-add, .studio-canvas-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; }
+.studio-canvas-add input { inline-size: 12rem; }
+.studio-canvas-connect { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; }
+.studio-canvas-connect select { inline-size: auto; min-inline-size: 10rem; }
+.studio-canvas-keys .studio-list { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.studio-canvas-keys summary { cursor: pointer; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.studio-canvas-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); gap: var(--spacing-md); align-items: start; }
+.studio-canvas-main { display: flex; flex-direction: column; gap: var(--spacing-sm); min-inline-size: 0; }
+.studio-canvas-flow { block-size: 30rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; }
+.studio-canvas-flow .react-flow {
+  --xy-background-color: var(--color-surface);
+  --xy-background-pattern-dots-color-default: var(--color-border);
+  --xy-edge-stroke: var(--color-text-secondary);
+  --xy-edge-stroke-width: 1.5;
+  --xy-edge-stroke-selected: var(--color-primary);
+  --xy-handle-background-color: var(--color-primary);
+  --xy-handle-border-color: var(--color-surface);
+  --xy-connectionline-stroke: var(--color-primary);
+  --xy-edge-label-background-color: var(--color-surface);
+  --xy-edge-label-color: var(--color-text);
+  color: var(--color-text);
+}
+.studio-canvas-flow .react-flow__edge.is-single .react-flow__edge-path { stroke-dasharray: 6 4; }
+.studio-canvas-flow .react-flow__edge.selected .react-flow__edge-path { stroke-width: 2.5; }
+.studio-canvas-flow .react-flow__edge-text { fill: var(--color-text); font-size: 11px; }
+.studio-canvas-flow .react-flow__edge-textbg { fill: var(--color-surface); }
+.studio-canvas-flow .react-flow__arrowhead polyline { stroke: var(--color-text-secondary); fill: var(--color-text-secondary); }
+.studio-canvas-flow .react-flow__handle { inline-size: 10px; block-size: 10px; border: 2px solid var(--color-surface); }
+.studio-canvas-flow .react-flow__node:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-md); }
+.studio-canvas-node { min-inline-size: 10rem; max-inline-size: 14rem; padding: var(--spacing-xs) var(--spacing-sm); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-sm); }
+.studio-canvas-node.is-entry { border-color: var(--color-primary); border-width: 2px; background: var(--color-surface-alt); }
+.studio-canvas-node.is-drafted { border-style: solid; }
+.studio-canvas-node.is-deleted { border-color: var(--color-danger); border-style: dashed; opacity: 0.85; }
+.studio-canvas-node.is-unreachable { border-color: var(--color-danger); border-style: dashed; }
+.studio-canvas-node.is-selected { box-shadow: 0 0 0 3px var(--color-primary-soft); border-color: var(--color-primary); }
+.studio-canvas-node.is-connecting { box-shadow: 0 0 0 3px var(--color-primary); }
+.studio-canvas-node.is-target { cursor: crosshair; }
+.studio-canvas-node-name { font-weight: 600; overflow-wrap: anywhere; }
+.studio-canvas-node-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-block-start: 2px; }
+.studio-canvas-tag { font-size: var(--font-size-xs); padding: 0 6px; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface); }
+.studio-canvas-tag.is-entry { border-color: var(--color-primary); color: var(--color-text); }
+.studio-canvas-tag.is-deleted, .studio-canvas-tag.is-unreachable { border-color: var(--color-danger); color: var(--color-text); }
+.studio-canvas-node-note { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-style: italic; margin-block-start: 2px; }
+.studio-canvas-outline { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.studio-canvas-summary { margin: 0; }
+.studio-canvas-call { text-align: start; white-space: normal; }
+.studio-canvas-call.is-selected { background: var(--color-primary-soft); }
+.studio-canvas-side { display: flex; flex-direction: column; gap: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm); min-inline-size: 0; }
+.studio-canvas-props { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.studio-canvas-props .section-title { margin: 0; }
+.studio-canvas-form { grid-template-columns: 1fr 1fr; }
+.studio-canvas-form .span-full { grid-column: 1 / -1; }
+.studio-canvas-form textarea { inline-size: 100%; }
+.studio-canvas-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; margin-block-end: var(--spacing-xs); }
+.studio-canvas-row input { flex: 1 1 8rem; min-inline-size: 0; }
+.studio-canvas-row .field-error { flex-basis: 100%; }
+.studio-canvas-narrow { flex: 0 0 5rem !important; inline-size: 5rem; }
+.studio-canvas .checkbox-label { display: inline-flex; align-items: center; gap: var(--spacing-xs); }
+.studio-canvas .checkbox-label input { inline-size: auto; }
+.studio-canvas-panel-actions { flex-wrap: wrap; }
+.studio-canvas-form .field > button, .studio-canvas-props > div > button { align-self: flex-start; }
+.studio-canvas-bring { display: flex; flex-direction: column; gap: var(--spacing-xs); align-items: flex-start; }
+@media (max-width: 1100px) {
+  .studio-canvas-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .studio-canvas-flow { block-size: 22rem; }
+  .studio-canvas-form { grid-template-columns: minmax(0, 1fr); }
+  .studio-canvas-add input { inline-size: 100%; }
+}
 @media (max-width: 760px) {
   .studio-filters { flex-direction: column; align-items: stretch; }
   .studio-filters .filter-search { min-width: 0; }

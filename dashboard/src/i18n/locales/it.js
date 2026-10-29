@@ -4000,3 +4000,250 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "Area di disegno",
+    "appPicker": "Applicazione",
+    "flowLabel": "Area di disegno dell'app {{app}}",
+    "noApp": "La bozza non contiene ancora un'app. Chiedine una all'architetto, oppure inizia una bozza da un'app esistente.",
+    "calls": "Chiamate ({{total}})",
+    "noCalls": "Ancora nessuna chiamata. Trascina dal bordo destro di un agente a un altro agente, oppure premi C su un agente e Invio sull'altro.",
+    "addLoose": "Aggiungi all'app",
+    "remove": "Rimuovi dall'app",
+    "removeTitle": "Rimuovi agente dall'app",
+    "removeMessage": "Rimuovere {{name}} da {{app}}? Vengono rimosse anche le sue chiamate. L'agente resta, e la configurazione attiva non cambia finché la bozza non viene applicata.",
+    "operationFailed": "{{operation}}: operazione rifiutata.",
+    "operations": {
+     "AddMember": "Aggiunta di un agente",
+     "RemoveMember": "Rimozione di un agente",
+     "Connect": "Collegamento",
+     "Disconnect": "Scollegamento",
+     "SetEntry": "Impostazione dell'agente di ingresso",
+     "MoveNode": "Spostamento di un agente"
+    },
+    "toolbar": {
+     "label": "Azioni dell'area di disegno",
+     "addAgent": "Aggiungi agente",
+     "addPlaceholder": "Nome dell'agente",
+     "role": "Ruolo",
+     "rolePlaceholder": "Ruolo (facoltativo)",
+     "add": "Aggiungi",
+     "connect": "Collega da",
+     "setEntry": "Rendi agente di ingresso",
+     "remove": "Rimuovi",
+     "disconnect": "Scollega",
+     "fit": "Adatta la vista"
+    },
+    "connectBar": {
+     "message": "Collegamento da {{name}}. Scegli l'agente che chiama: fai clic su di esso, premi Invio su di esso o sceglilo qui.",
+     "to": "Chiama",
+     "fanOut": "Chiamate in parallelo",
+     "confirm": "Collega"
+    },
+    "keys": {
+     "title": "Scorciatoie da tastiera",
+     "tab": "Tab scorre gli agenti in ordine di lettura, a partire dall'agente di ingresso.",
+     "select": "Invio o Spazio seleziona l'agente con il focus e ne apre le proprietà.",
+     "connect": "C su un agente avvia una chiamata da esso; C o Invio su un altro agente la completa.",
+     "entry": "E rende l'agente con il focus l'agente di ingresso.",
+     "remove": "Canc rimuove dall'app l'agente con il focus, dopo una conferma.",
+     "move": "I tasti freccia spostano l'agente selezionato; tieni premuto Maiusc per passi più ampi. La posizione viene salvata dopo una breve pausa.",
+     "add": "N porta al campo Aggiungi agente.",
+     "calls": "Nell'elenco delle chiamate, Invio seleziona una chiamata, Canc la scollega e F attiva o disattiva le chiamate in parallelo.",
+     "escape": "Esc annulla una chiamata che hai iniziato."
+    },
+    "node": {
+     "entry": "Ingresso",
+     "unreachable": "Non raggiungibile",
+     "connecting": "Chiamata da qui"
+    },
+    "a11y": {
+     "node": "Premi Invio o Spazio per selezionare questo agente, poi i tasti freccia per spostarlo. Premi C per collegarlo, E per renderlo l'agente di ingresso o Canc per rimuoverlo.",
+     "edge": "Una chiamata tra due agenti. Selezionala nell'elenco delle chiamate sotto l'area di disegno.",
+     "handle": "Punto di collegamento",
+     "moved": "Agente spostato {{direction}}. Nuova posizione: {{x}}, {{y}}.",
+     "directions": {
+      "up": "in alto",
+      "down": "in basso",
+      "left": "a sinistra",
+      "right": "a destra"
+     }
+    },
+    "announce": {
+     "added": "{{name}} aggiunto a {{app}}.",
+     "connectStart": "Collegamento da {{name}}. Spostati sull'agente che chiama e premi Invio, oppure premi Esc per annullare.",
+     "connectCancelled": "Collegamento annullato.",
+     "connected": "Ora {{from}} chiama {{to}}.",
+     "disconnected": "{{from}} non chiama più {{to}}.",
+     "fanOutOn": "Ora {{from}} può chiamare {{to}} in parallelo.",
+     "fanOutOff": "Ora {{from}} chiama {{to}} una chiamata alla volta.",
+     "entry": "Ora {{name}} è l'agente di ingresso di {{app}}.",
+     "removed": "{{name}} rimosso da {{app}}.",
+     "selfEdge": "Un agente non può chiamare se stesso. Scegli un altro agente."
+    },
+    "summary": {
+     "noApp": "Non c'è nessuna app da descrivere.",
+     "agents_one": "L'app {{app}} ha {{count}} agente.",
+     "agents_other": "L'app {{app}} ha {{count}} agenti.",
+     "callCount_one": "Tra loro c'è {{count}} chiamata.",
+     "callCount_other": "Tra loro ci sono {{count}} chiamate.",
+     "entry": "L'agente di ingresso è {{name}}.",
+     "noEntry": "Nessun agente di ingresso impostato.",
+     "callParallel": "{{from}} chiama {{to}}, chiamate in parallelo consentite, profondità di delega {{depth}}.",
+     "callSingle": "{{from}} chiama {{to}}, una chiamata alla volta, profondità di delega {{depth}}."
+    },
+    "conflict": {
+     "mine": "Anche {{item}} è cambiato. La tua modifica è ancora nel pannello; confrontala con la nuova versione prima di salvare di nuovo.",
+     "kept": "La tua modifica di {{item}} è ancora nel pannello. Salva di nuovo per applicarla alla nuova versione.",
+     "operation": "{{operation}}: operazione non applicata. Riprova sulla nuova versione, oppure lascia perdere.",
+     "retry": "Riprova"
+    },
+    "panel": {
+     "label": "Proprietà",
+     "tabsLabel": "Proprietà di {{name}}",
+     "properties": "Agente",
+     "runtime": "Esecuzione",
+     "save": "Salva nella bozza",
+     "reset": "Annulla modifiche",
+     "saved": "{{item}} salvato. Confronta e applica mostra la modifica.",
+     "check": "Controllo del server su questo elemento: {{message}}",
+     "unparsable": "Lo YAML dell'elemento non si analizza, quindi il pannello non può modificarlo. Correggilo prima nella scheda Elementi. ({{message}})"
+    },
+    "agent": {
+     "title": "Agente {{name}}",
+     "isEntry": "Questo è l'agente di ingresso dell'app: parla con le persone che usano l'app.",
+     "notHeld": "La bozza non contiene ancora il documento di {{name}}. Portalo nella bozza per modificarlo qui; la configurazione attiva non cambia.",
+     "deleted": "La bozza elimina {{name}}. Ripristinalo nella scheda Elementi per modificarlo.",
+     "bring": "Porta nella bozza",
+     "description": "Descrizione",
+     "inputSchema": "Schema di input",
+     "outputSchema": "Schema di output",
+     "schemaHint": "Un JSON Schema scritto in JSON. Lascia vuoto per testo semplice.",
+     "assets": "Asset",
+     "noAssets": "La prossima revisione non fissa alcun asset.",
+     "assetsKept": "Il documento non nomina asset, quindi l'agente mantiene quelli che ha.",
+     "assetName": "Nome dell'asset",
+     "assetVersion": "Versione",
+     "latest": "Più recente",
+     "removeAsset": "Rimuovi l'asset {{name}}",
+     "addAsset": "Aggiungi asset",
+     "capabilities": "Capacità",
+     "capabilitiesHint": "Separa i nomi con virgole. Un elenco vuoto li cancella.",
+     "capabilitiesKept": "Separa i nomi con virgole. Se lasci vuoto, l'agente mantiene le capacità che ha.",
+     "systemPrompt": "Prompt di sistema",
+     "noDeployments": "La bozza non contiene distribuzioni di questo agente, quindi qui non è impostato alcun prompt di sistema.",
+     "promptLine": "{{environment}}: {{deployment}} usa {{prompt}}",
+     "builtInPrompt": "il prompt predefinito integrato",
+     "showRuntime": "Modifica nella scheda Esecuzione",
+     "errors": {
+      "json": "Questo non è JSON valido.",
+      "object": "Uno schema è un oggetto JSON, ad esempio {\"type\": \"object\"}.",
+      "version": "Usa un numero intero, oppure lascia vuoto per la versione più recente."
+     }
+    },
+    "edge": {
+     "title": "Chiamata da {{from}} a {{to}}",
+     "from": "Chiamante",
+     "to": "Chiamato",
+     "depth": "Profondità di delega",
+     "depthHint": "Ricavata dal grafo: uno più la catena di chiamate più lunga sotto {{to}}. Cambia quando cambiano le chiamate sottostanti.",
+     "fanOut": "Chiamate in parallelo (fan-out)",
+     "fanOutOn": "{{from}} può avviare più chiamate a {{to}} contemporaneamente.",
+     "fanOutOff": "{{from}} chiama {{to}} una chiamata alla volta."
+    },
+    "app": {
+     "title": "Applicazione {{name}}",
+     "hint": "Seleziona un agente o una chiamata nell'area di disegno per modificarli. Se non è selezionato nulla, questo pannello modifica l'app.",
+     "entry": "Agente di ingresso",
+     "noEntry": "Nessun agente di ingresso",
+     "noMembers": "Aggiungi prima un agente; il primo diventa l'agente di ingresso.",
+     "notHeld": "La bozza non contiene ancora il documento di {{name}}. Portalo nella bozza per modificarne qui l'accesso e l'aspetto.",
+     "deleted": "La bozza elimina {{name}}. Ripristinala nella scheda Elementi per modificarla.",
+     "bring": "Porta nella bozza",
+     "description": "Descrizione",
+     "authMode": "Accesso",
+     "authDefault": "Predefinito del server",
+     "anonymous": "Consenti l'uso anonimo",
+     "branding": "Aspetto",
+     "brandingFields": {
+      "displayName": "Nome visualizzato",
+      "logo": "Asset del logo",
+      "primaryColor": "Colore principale",
+      "accentColor": "Colore di accento",
+      "welcomeText": "Testo di benvenuto"
+     },
+     "errors": {
+      "color": "Usa un colore esadecimale, ad esempio #1F6FEB."
+     }
+    },
+    "runtime": {
+     "title": "Esecuzione di {{name}}",
+     "none": "La bozza non contiene distribuzioni di {{name}}. Portane una attiva qui sotto, oppure chiedila all'architetto.",
+     "deployment": "Ambiente e distribuzione",
+     "option": "{{environment}}: {{name}}",
+     "scope": "Le modifiche cambiano solo {{name}} in {{environment}} (profilo harness {{profile}}). Gli altri ambienti mantengono i propri valori.",
+     "fields": {
+      "model": "Modello",
+      "effort": "Livello di impegno",
+      "timeoutSeconds": "Tempo massimo (secondi)",
+      "maxTurns": "Numero massimo di turni",
+      "maxBudgetUsd": "Budget massimo (USD)",
+      "systemTemplate": "Modello del prompt di sistema",
+      "systemVersion": "Versione fissata",
+      "approvalsEnabled": "Chiedi l'approvazione delle chiamate a strumenti",
+      "approvalDefaultAction": "Quando nessuna regola corrisponde"
+     },
+     "hints": {
+      "timeoutSeconds": "Secondi interi, 1 o più. Se vuoto si usa il limite del profilo harness.",
+      "maxTurns": "Numero intero, 1 o più. Se vuoto decide l'harness.",
+      "maxBudgetUsd": "0 o più, ad esempio 2.50. Se vuoto non c'è budget."
+     },
+     "builtIn": "Predefinito integrato",
+     "approvals": "Approvazioni",
+     "noRules": "Nessuna regola. Ogni chiamata a strumento riceve l'azione predefinita.",
+     "rule": {
+      "action": "Azione",
+      "pattern": "Pattern dello strumento",
+      "inputPattern": "Pattern sull'input",
+      "inputPlaceholder": "Pattern sull'input (facoltativo)",
+      "remove": "Rimuovi la regola {{number}}",
+      "add": "Aggiungi regola"
+     },
+     "live": "Distribuzioni attive non presenti nella bozza",
+     "noLive": "Ogni distribuzione attiva di questo agente è già nella bozza, oppure non ne ha.",
+     "bring": "Porta nella bozza",
+     "exportMissing": "L'esportazione di {{name}} è tornata senza il suo documento.",
+     "errors": {
+      "integer": "Usa un numero intero pari o superiore a 1.",
+      "number": "Usa un numero pari o superiore a 0.",
+      "pattern": "Una regola richiede un pattern dello strumento.",
+      "version": "Usa un numero intero e indica un modello da fissare."
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "Quell'agente non è membro dell'app.",
+   "SelfEdge": "Un agente non può chiamare se stesso.",
+   "NoSuchEdge": "L'app non ha questa chiamata.",
+   "AppDeleted": "La bozza elimina questa app. Ripristinala prima.",
+   "InvalidDocument": "Il documento non si analizza come un unico documento manifest.",
+   "DocumentMismatch": "Il tipo o il nome del documento non corrisponde all'elemento."
+  }
+ }
+});

@@ -1,7 +1,7 @@
 // Agent studio (AD7.10, AD7.16, AD9.2, AD9.3): the helpers (status filters, conflict changes, the architect's first
 // message, architect deployments and prompts, PromptTemplateInUse names, diff counts, new-item checks, playground agents
 // and transcript, graph shapes, compile preview summary, live channel, permissions), the API client routes, the
-// navigation entry, and the graph drawn with delegation depth and capabilities.
+// navigation entry, and the lazily loaded canvas.
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
@@ -216,6 +216,7 @@ describe('API client', () => {
       await c.validateStudioDraft('default', 'drf_1');
       await c.requestStudioDraftApply('default', 'drf_1', 5);
       await c.getStudioDraftGraph('default', 'drf_1');
+      await c.studioGraphOperation('default', 'drf_1', { version: 6, operation: 'Connect', from: 'a', to: 'b', fanOut: false });
       await c.invokeStudioPlayground('default', 'drf_1', { input: 'hi', wait: false });
       expect(await c.listArchitectPrompts('default')).toHaveLength(3);
       await c.getArchitectPrompt('default', 'dep_arch');
@@ -235,6 +236,7 @@ describe('API client', () => {
       'POST /v1.0/api/tenants/default/studio/drafts/drf_1/validate',
       'POST /v1.0/api/tenants/default/studio/drafts/drf_1/request-apply {"version":5}',
       'GET /v1.0/api/tenants/default/studio/drafts/drf_1/graph',
+      'POST /v1.0/api/tenants/default/studio/drafts/drf_1/graph-operations {"version":6,"operation":"Connect","from":"a","to":"b","fanOut":false}',
       'POST /v1.0/api/tenants/default/studio/drafts/drf_1/playground/invoke {"input":"hi","wait":false}',
       'GET /v1.0/api/tenants/default/studio/architect-prompts',
       'GET /v1.0/api/tenants/default/studio/architects/dep_arch/prompt',
@@ -252,20 +254,13 @@ describe('studio page', () => {
     expect(DETAIL_VIEWS.studio).toBeTruthy();
   });
 
-  it('draws each app with the delegation depth on its calls and capabilities under the agents', () => {
+  it('loads the canvas lazily on the Graph tab, showing a loading state first', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
-        <StudioGraphPanel graph={studioGraph()} />
+        <StudioGraphPanel graph={studioGraph()} draft={studioDraft(1)} />
       </MemoryRouter>
     );
-    expect(html).toContain('data-testid="studio-graph-research"');
-    expect(html).toContain('data-edge-label="planner&gt;writer"');
-    expect(html).toContain('depth 1');
-    expect(html).toContain('data-node-note="writer"');
-    expect(html).toContain('pandoc');
-    expect(html).toMatch(/class="app-graph-node is-entry[^"]*" data-node="planner"/);
-    expect(html).toMatch(/class="app-graph-node is-drafted" data-node="writer"/);
-    const empty = renderToStaticMarkup(<StudioGraphPanel graph={{ nodes: [], edges: [] }} />);
-    expect(empty).toContain('The draft holds no apps or agents to draw yet.');
+    expect(html).toContain('data-testid="studio-graph-loading"');
+    expect(html).toContain('Loading');
   });
 });

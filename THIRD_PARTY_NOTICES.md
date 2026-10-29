@@ -13,8 +13,26 @@ Regenerate with `python3 scripts/generate-third-party-notices.py --artifacts <do
 | go | [golang.org/x/sys](https://golang.org/x/sys) | v0.29.0 | See bundled license | 2 |
 | go | [golang.org/x/term](https://golang.org/x/term) | v0.28.0 | See bundled license | 2 |
 | npm | [@babel/runtime](https://babel.dev/docs/en/next/babel-runtime) | 7.29.7 | MIT | 1 |
+| npm | [@types/d3-color](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-color) | 3.1.3 | MIT | 1 |
+| npm | [@types/d3-drag](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-drag) | 3.0.7 | MIT | 1 |
+| npm | [@types/d3-interpolate](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-interpolate) | 3.0.4 | MIT | 1 |
+| npm | [@types/d3-selection](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-selection) | 3.0.12 | MIT | 1 |
+| npm | [@types/d3-transition](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-transition) | 3.0.9 | MIT | 1 |
+| npm | [@types/d3-zoom](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-zoom) | 3.0.9 | MIT | 1 |
 | npm | [@types/trusted-types](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types) | 2.0.7 | MIT | 1 |
+| npm | [@xyflow/react](https://reactflow.dev) | 12.12.0 | MIT | 1 |
+| npm | [@xyflow/system](https://registry.npmjs.org/@xyflow/system/-/system-0.0.83.tgz) | 0.0.83 | MIT | 1 |
+| npm | [classcat](https://registry.npmjs.org/classcat/-/classcat-5.0.5.tgz) | 5.0.5 | MIT | 1 |
 | npm | [cookie](https://registry.npmjs.org/cookie/-/cookie-1.1.1.tgz) | 1.1.1 | MIT | 1 |
+| npm | [d3-color](https://d3js.org/d3-color/) | 3.1.0 | ISC | 1 |
+| npm | [d3-dispatch](https://d3js.org/d3-dispatch/) | 3.0.1 | ISC | 1 |
+| npm | [d3-drag](https://d3js.org/d3-drag/) | 3.0.0 | ISC | 1 |
+| npm | [d3-ease](https://d3js.org/d3-ease/) | 3.0.1 | BSD-3-Clause | 1 |
+| npm | [d3-interpolate](https://d3js.org/d3-interpolate/) | 3.0.1 | ISC | 1 |
+| npm | [d3-selection](https://d3js.org/d3-selection/) | 3.0.0 | ISC | 1 |
+| npm | [d3-timer](https://d3js.org/d3-timer/) | 3.0.1 | ISC | 1 |
+| npm | [d3-transition](https://d3js.org/d3-transition/) | 3.0.1 | ISC | 1 |
+| npm | [d3-zoom](https://d3js.org/d3-zoom/) | 3.0.0 | ISC | 1 |
 | npm | [dompurify](https://github.com/cure53/DOMPurify) | 3.4.16 | (MPL-2.0 OR Apache-2.0) | 2 |
 | npm | [html-parse-stringify](https://github.com/henrikjoreteg/html-parse-stringify) | 3.1.0 | MIT | 1 |
 | npm | [i18next](https://www.i18next.com) | 24.2.3 | MIT | 1 |
@@ -27,7 +45,10 @@ Regenerate with `python3 scripts/generate-third-party-notices.py --artifacts <do
 | npm | [react-router-dom](https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.18.2.tgz) | 7.18.2 | MIT | 1 |
 | npm | [scheduler](https://react.dev/) | 0.27.0 | MIT | 1 |
 | npm | [set-cookie-parser](https://github.com/nfriedly/set-cookie-parser) | 2.7.2 | MIT | 1 |
+| npm | [use-sync-external-store](https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.7.0.tgz) | 1.7.0 | MIT | 1 |
 | npm | [void-elements](https://github.com/jadejs/void-elements) | 3.1.0 | MIT | 1 |
+| npm | [yaml](https://eemeli.org/yaml/) | 2.9.1 | ISC | 1 |
+| npm | [zustand](https://github.com/pmndrs/zustand) | 4.5.7 | MIT | 1 |
 | nuget | [AWSSDK.Core](https://github.com/aws/aws-sdk-net/) | 4.0.102.10 | Apache-2.0 | 1 |
 | nuget | [AWSSDK.S3](https://github.com/aws/aws-sdk-net/) | 4.0.104.3 | Apache-2.0 | 1 |
 | nuget | [Caching](https://github.com/jchristn/caching) | 5.1.2 | LICENSE.md | 1 |
@@ -93,7 +114,7 @@ Regenerate with `python3 scripts/generate-third-party-notices.py --artifacts <do
 | nuget | [Watson](https://github.com/dotnet/WatsonWebserver) | 7.3.0 | LICENSE.md | 1 |
 | nuget | [Watson](https://github.com/dotnet/WatsonWebserver) | 7.3.1 | LICENSE.md | 1 |
 | nuget | [YamlDotNet](https://github.com/aaubry/YamlDotNet/wiki) | 18.1.0 | MIT | 1 |
-| python | [certifi](https://github.com/certifi/python-certifi) | 2026.7.22 | MPL-2.0 | 1 |
+| python | [certifi](https://github.com/certifi/python-certifi) | 2026.10.23 | MPL-2.0 | 1 |
 | python | [charset-normalizer](https://pypi.org/project/charset-normalizer) | 3.5.2 | MIT | 1 |
 | python | [idna](https://pypi.org/project/idna) | 3.20 | BSD-3-Clause | 1 |
 | python | [requests](https://pypi.org/project/requests) | 2.34.2 | Apache-2.0 | 2 |

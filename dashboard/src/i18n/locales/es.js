@@ -4004,3 +4004,250 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Studio canvas: the interactive graph, its toolbar, property panels, runtime per environment, and outline (AD8.2 to AD8.6).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "title": "Lienzo",
+    "appPicker": "Aplicación",
+    "flowLabel": "Lienzo de la aplicación {{app}}",
+    "noApp": "El borrador todavía no contiene ninguna aplicación. Pídele una al arquitecto, o empieza un borrador a partir de una aplicación existente.",
+    "calls": "Llamadas ({{total}})",
+    "noCalls": "Todavía no hay llamadas. Arrastra desde el borde derecho de un agente hasta otro agente, o pulsa C en un agente e Intro en el otro.",
+    "addLoose": "Añadir a la aplicación",
+    "remove": "Quitar de la aplicación",
+    "removeTitle": "Quitar agente de la aplicación",
+    "removeMessage": "¿Quitar {{name}} de {{app}}? Sus llamadas también se quitan. El agente en sí se conserva, y la configuración activa no cambia hasta que se aplique el borrador.",
+    "operationFailed": "Se rechazó la acción: {{operation}}.",
+    "operations": {
+     "AddMember": "Añadir un agente",
+     "RemoveMember": "Quitar un agente",
+     "Connect": "Conectar",
+     "Disconnect": "Desconectar",
+     "SetEntry": "Fijar el agente de entrada",
+     "MoveNode": "Mover un agente"
+    },
+    "toolbar": {
+     "label": "Acciones del lienzo",
+     "addAgent": "Añadir agente",
+     "addPlaceholder": "Nombre del agente",
+     "role": "Rol",
+     "rolePlaceholder": "Rol (opcional)",
+     "add": "Añadir",
+     "connect": "Conectar desde",
+     "setEntry": "Convertir en agente de entrada",
+     "remove": "Quitar",
+     "disconnect": "Desconectar",
+     "fit": "Ajustar vista"
+    },
+    "connectBar": {
+     "message": "Conectando desde {{name}}. Elige el agente al que llama: haz clic en él, pulsa Intro sobre él o elígelo aquí.",
+     "to": "Llama a",
+     "fanOut": "Llamadas en paralelo",
+     "confirm": "Conectar"
+    },
+    "keys": {
+     "title": "Atajos de teclado",
+     "tab": "Tab recorre los agentes en orden de lectura, empezando por el agente de entrada.",
+     "select": "Intro o Espacio selecciona el agente enfocado y abre sus propiedades.",
+     "connect": "C en un agente empieza una llamada desde él; C o Intro en otro agente la termina.",
+     "entry": "E convierte el agente enfocado en el agente de entrada.",
+     "remove": "Supr quita el agente enfocado de la aplicación, tras una confirmación.",
+     "move": "Las teclas de flecha mueven un agente seleccionado; mantén Mayús para pasos más grandes. La posición se guarda tras una breve pausa.",
+     "add": "N salta al campo Añadir agente.",
+     "calls": "En la lista de llamadas, Intro selecciona una llamada, Supr la desconecta y F activa o desactiva las llamadas en paralelo.",
+     "escape": "Escape cancela una llamada que hayas empezado."
+    },
+    "node": {
+     "entry": "Entrada",
+     "unreachable": "Inalcanzable",
+     "connecting": "Llamando desde aquí"
+    },
+    "a11y": {
+     "node": "Pulsa Intro o Espacio para seleccionar este agente y luego las teclas de flecha para moverlo. Pulsa C para conectarlo, E para convertirlo en el agente de entrada o Supr para quitarlo.",
+     "edge": "Una llamada entre dos agentes. Selecciónala en la lista de llamadas debajo del lienzo.",
+     "handle": "Punto de conexión",
+     "moved": "Agente movido hacia {{direction}}. Nueva posición: {{x}}, {{y}}.",
+     "directions": {
+      "up": "arriba",
+      "down": "abajo",
+      "left": "la izquierda",
+      "right": "la derecha"
+     }
+    },
+    "announce": {
+     "added": "{{name}} añadido a {{app}}.",
+     "connectStart": "Conectando desde {{name}}. Ve al agente al que llama y pulsa Intro, o pulsa Escape para cancelar.",
+     "connectCancelled": "Conexión cancelada.",
+     "connected": "{{from}} ahora llama a {{to}}.",
+     "disconnected": "{{from}} ya no llama a {{to}}.",
+     "fanOutOn": "{{from}} ahora puede llamar a {{to}} en paralelo.",
+     "fanOutOff": "{{from}} ahora llama a {{to}} de una en una.",
+     "entry": "{{name}} es ahora el agente de entrada de {{app}}.",
+     "removed": "{{name}} quitado de {{app}}.",
+     "selfEdge": "Un agente no puede llamarse a sí mismo. Elige otro agente."
+    },
+    "summary": {
+     "noApp": "No hay ninguna aplicación que describir.",
+     "agents_one": "La aplicación {{app}} tiene {{count}} agente.",
+     "agents_other": "La aplicación {{app}} tiene {{count}} agentes.",
+     "callCount_one": "Hay {{count}} llamada entre ellos.",
+     "callCount_other": "Hay {{count}} llamadas entre ellos.",
+     "entry": "El agente de entrada es {{name}}.",
+     "noEntry": "No hay ningún agente de entrada fijado.",
+     "callParallel": "{{from}} llama a {{to}}, con llamadas en paralelo permitidas, profundidad de delegación {{depth}}.",
+     "callSingle": "{{from}} llama a {{to}}, una llamada cada vez, profundidad de delegación {{depth}}."
+    },
+    "conflict": {
+     "mine": "{{item}} también cambió. Tu edición sigue en el panel; compárala con la nueva versión antes de volver a guardar.",
+     "kept": "Tu edición de {{item}} sigue en el panel. Guarda de nuevo para aplicarla a la nueva versión.",
+     "operation": "No se aplicó la acción: {{operation}}. Vuelve a intentarlo sobre la nueva versión, o déjalo.",
+     "retry": "Reintentar"
+    },
+    "panel": {
+     "label": "Propiedades",
+     "tabsLabel": "Propiedades de {{name}}",
+     "properties": "Agente",
+     "runtime": "Ejecución",
+     "save": "Guardar en el borrador",
+     "reset": "Deshacer cambios",
+     "saved": "{{item}} guardado. Comparar y aplicar muestra el cambio.",
+     "check": "La comprobación del servidor para este elemento: {{message}}",
+     "unparsable": "El YAML del elemento no se puede analizar, así que el panel no puede cambiarlo. Corrígelo primero en la pestaña Elementos. ({{message}})"
+    },
+    "agent": {
+     "title": "Agente {{name}}",
+     "isEntry": "Este es el agente de entrada de la aplicación: habla con las personas que usan la aplicación.",
+     "notHeld": "El borrador todavía no contiene el documento de {{name}}. Tráelo al borrador para editarlo aquí; la configuración activa no cambia.",
+     "deleted": "El borrador elimina {{name}}. Recupéralo en la pestaña Elementos para editarlo.",
+     "bring": "Traer al borrador",
+     "description": "Descripción",
+     "inputSchema": "Esquema de entrada",
+     "outputSchema": "Esquema de salida",
+     "schemaHint": "JSON Schema en formato JSON. Déjalo vacío para texto sin formato.",
+     "assets": "Assets del agente",
+     "noAssets": "La próxima revisión no fija ningún asset.",
+     "assetsKept": "El documento no nombra ningún asset, así que el agente conserva los que tiene.",
+     "assetName": "Nombre del asset",
+     "assetVersion": "Versión",
+     "latest": "Más reciente",
+     "removeAsset": "Quitar el asset {{name}}",
+     "addAsset": "Añadir asset",
+     "capabilities": "Capacidades",
+     "capabilitiesHint": "Separa los nombres con comas. Una lista vacía las borra.",
+     "capabilitiesKept": "Separa los nombres con comas. Si lo dejas vacío, el agente conserva las capacidades que tiene.",
+     "systemPrompt": "Prompt de sistema",
+     "noDeployments": "El borrador no contiene ningún despliegue de este agente, así que aquí no se fija ningún prompt de sistema.",
+     "promptLine": "{{environment}}: {{deployment}} usa {{prompt}}",
+     "builtInPrompt": "el predeterminado integrado",
+     "showRuntime": "Editar en la pestaña Ejecución",
+     "errors": {
+      "json": "Esto no es JSON válido.",
+      "object": "Un esquema es un objeto JSON, como {\"type\": \"object\"}.",
+      "version": "Usa un número entero, o déjalo vacío para la versión más reciente."
+     }
+    },
+    "edge": {
+     "title": "Llamada de {{from}} a {{to}}",
+     "from": "Quien llama",
+     "to": "Agente llamado",
+     "depth": "Profundidad de delegación",
+     "depthHint": "Se deriva del grafo: uno más la cadena de llamadas más larga por debajo de {{to}}. Cambia cuando cambian las llamadas que hay por debajo.",
+     "fanOut": "Llamadas en paralelo (fan-out)",
+     "fanOutOn": "{{from}} puede iniciar varias llamadas a {{to}} a la vez.",
+     "fanOutOff": "{{from}} llama a {{to}} de una en una."
+    },
+    "app": {
+     "title": "Aplicación {{name}}",
+     "hint": "Selecciona un agente o una llamada en el lienzo para editarlo. Sin nada seleccionado, este panel edita la aplicación.",
+     "entry": "Agente de entrada",
+     "noEntry": "Sin agente de entrada",
+     "noMembers": "Añade primero un agente; el primero se convierte en el agente de entrada.",
+     "notHeld": "El borrador todavía no contiene el documento de {{name}}. Tráelo al borrador para editar aquí su inicio de sesión y su imagen de marca.",
+     "deleted": "El borrador elimina {{name}}. Recupéralo en la pestaña Elementos para editarlo.",
+     "bring": "Traer al borrador",
+     "description": "Descripción",
+     "authMode": "Inicio de sesión",
+     "authDefault": "Predeterminado del servidor",
+     "anonymous": "Permitir el uso anónimo",
+     "branding": "Imagen de marca",
+     "brandingFields": {
+      "displayName": "Nombre visible",
+      "logo": "Asset del logotipo",
+      "primaryColor": "Color principal",
+      "accentColor": "Color de acento",
+      "welcomeText": "Texto de bienvenida"
+     },
+     "errors": {
+      "color": "Usa un color hexadecimal como #1F6FEB."
+     }
+    },
+    "runtime": {
+     "title": "Ejecución de {{name}}",
+     "none": "El borrador no contiene ningún despliegue de {{name}}. Trae uno activo desde abajo, o pídele uno al arquitecto.",
+     "deployment": "Entorno y despliegue",
+     "option": "{{environment}}: {{name}}",
+     "scope": "Los cambios solo afectan a {{name}} en {{environment}} (perfil de harness {{profile}}). Los demás entornos conservan sus propios valores.",
+     "fields": {
+      "model": "Modelo",
+      "effort": "Esfuerzo",
+      "timeoutSeconds": "Límite de tiempo (segundos)",
+      "maxTurns": "Turnos máximos",
+      "maxBudgetUsd": "Presupuesto (USD)",
+      "systemTemplate": "Plantilla del prompt de sistema",
+      "systemVersion": "Versión fijada",
+      "approvalsEnabled": "Pedir aprobación de las llamadas a herramientas",
+      "approvalDefaultAction": "Cuando ninguna regla coincide"
+     },
+     "hints": {
+      "timeoutSeconds": "Segundos enteros, 1 o más. Vacío usa el límite del perfil de harness.",
+      "maxTurns": "Número entero, 1 o más. Vacío significa que decide el harness.",
+      "maxBudgetUsd": "0 o más, por ejemplo 2.50. Vacío significa sin presupuesto."
+     },
+     "builtIn": "Predeterminado integrado",
+     "approvals": "Aprobaciones",
+     "noRules": "No hay reglas. Cada llamada a herramienta recibe la acción predeterminada.",
+     "rule": {
+      "action": "Acción",
+      "pattern": "Patrón de herramienta",
+      "inputPattern": "Patrón de entrada",
+      "inputPlaceholder": "Patrón de entrada (opcional)",
+      "remove": "Quitar la regla {{number}}",
+      "add": "Añadir regla"
+     },
+     "live": "Despliegues activos que no están en el borrador",
+     "noLive": "Todos los despliegues activos de este agente ya están en el borrador, o no tiene ninguno.",
+     "bring": "Traer al borrador",
+     "exportMissing": "La exportación de {{name}} volvió sin su documento.",
+     "errors": {
+      "integer": "Usa un número entero de 1 o más.",
+      "number": "Usa un número de 0 o más.",
+      "pattern": "Una regla necesita un patrón de herramienta.",
+      "version": "Usa un número entero e indica una plantilla que fijar."
+     }
+    }
+   }
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "NotAMember": "Ese agente no es miembro de la aplicación.",
+   "SelfEdge": "Un agente no puede llamarse a sí mismo.",
+   "NoSuchEdge": "La aplicación no tiene esa llamada.",
+   "AppDeleted": "El borrador elimina esta aplicación. Recupérala primero.",
+   "InvalidDocument": "El documento no se puede analizar como un único documento de manifiesto.",
+   "DocumentMismatch": "El tipo o el nombre del documento no coincide con el elemento."
+  }
+ }
+});
