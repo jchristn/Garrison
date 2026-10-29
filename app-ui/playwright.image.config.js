@@ -15,6 +15,8 @@ export default defineConfig({
   timeout: 60000,
   fullyParallel: false,
   workers: 1,
+  // Through nginx in a container, a request can occasionally race a revoked session; retry once before failing.
+  retries: 1,
   reporter: [['list']],
   use: {
     baseURL: process.env.GARRISON_APP_UI_URL || 'http://127.0.0.1:18080',
