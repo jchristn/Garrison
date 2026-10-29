@@ -7409,6 +7409,666 @@ Worker capability records additionally expose `warmStart` (boolean, default fals
 
 The existing agent/deployment APIs support `hrn_builtin_provider_api` (`harnessType: ProviderApi`, `outputParser: ProviderApiJsonl`). Set an explicit deployment model and `baseUrl` parameter, bind an `OpenAiApiKey` secret, and use the usual prompt bindings. Existing invoke, conversation, approval, artifact, and cost-estimation endpoints apply. See [configuration and limits](docs/PROVIDER_API.md). Daily quotas remain opt-in.
 
+
+### Agent Studio models (0.2.0)
+
+Models added for revisions, assets, file spaces, capabilities, fan-out, agentic apps, and the studio (AD1 to AD9).
+
+#### `AgentRevision`
+
+An immutable snapshot of an agent's definition (AD1, AD-003). An agent has at most one open draft at a time; a published revision never changes again. Deployments pin a revision, or follow the agent's latest published revision when unpinned (AD-012). Runs record the revision they compiled from.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix arv_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `agentId` | `string` | Agent identifier. |
+| `number` | `integer` | Revision number, per agent, starting at 1. A published number is never reused; the number of a discarded draft goes to the next revision. |
+| `contentHash` | `string` | SHA-256 (lowercase hex) of the revision's content fields, computed by `AgentRevisionContent`. Two revisions with the same hash define the agent the same way. |
+| `displayName` | `string?` | Display name. |
+| `description` | `string?` | Description. |
+| `inputMode` | `AgentInputModeEnum` | Input mode. |
+| `inputSchemaJson` | `string?` | Input JSON Schema copied from the agent (unmanaged JSON column, section 7.3 of the plan). |
+| `outputSchemaJson` | `string?` | Output JSON Schema copied from the agent (unmanaged JSON column, section 7.3 of the plan). |
+| `delegationMode` | `DelegationModeEnum` | Delegation mode. |
+| `delegationMaxDepth` | `integer` | Maximum delegation depth below this agent. Minimum 0, maximum 10, default 2. Values outside the range are clamped. |
+| `delegationAllowRecursion` | `boolean` | Whether the agent may appear twice in a delegation chain. |
+| `delegationAllowList` | `string[]` | Agent names this revision may delegate to when the mode is AllowList. |
+| `promptPins` | `AgentRevisionPromptPin[]` | Prompt templates the revision uses, with optional version pins. |
+| `assetPins` | `AgentRevisionAssetPin[]` | Assets the revision uses (AD2), with optional version pins. |
+| `capabilities` | `string[]` | Names of capabilities the revision is bound to (AD4). Empty until capabilities are bound. |
+| `tags` | `string[]` | Tags. |
+| `authorUserId` | `string?` | User identifier of the author, when a user created the revision. |
+| `authorName` | `string?` | Display name of the author (user email, credential name, or "system"). |
+| `changeNote` | `string?` | Optional change note, at most 2000 characters. |
+| `publishedByUserId` | `string?` | User identifier of the person who published the revision. |
+| `publishedByName` | `string?` | Display name of the publisher. |
+| `publishedUtc` | `DateTime?` | When the revision was published, or null for a draft. |
+| `createdUtc` | `DateTime` | Creation timestamp, UTC. |
+| `lastUpdateUtc` | `DateTime` | Last update timestamp, UTC. A published revision is never updated after publication. |
+
+#### `AgentRevisionAssetPin`
+
+An asset an agent revision uses (AD2), optionally pinned to one version.
+
+| Field | Type | Description |
+|---|---|---|
+| `assetId` | `string` | Asset identifier. |
+| `version` | `integer?` | Pinned version, or null to use the asset's current version at compile time. For a SystemPrompt asset this is a version of its prompt template. |
+
+#### `AgentRevisionPromptPin`
+
+A prompt template an agent revision uses, optionally pinned to one version (AD1). Roles are ToolDescription and SkillDescription today (the templates that describe the agent as an MCP tool and as A2A skills).
+
+| Field | Type | Description |
+|---|---|---|
+| `role` | `string` | Role the template plays, for example ToolDescription. 1 to 64 characters. |
+| `templateId` | `string` | Prompt template identifier. |
+| `pinnedVersion` | `integer?` | Pinned template version, or null to follow the template's current version. |
+
+#### `AgentRevisionStateEnum`
+
+`Draft`, `Published`
+
+#### `PromotionRecord`
+
+A promotion or rollback (AD1.4): which revision moved from which environment to which, the deployments it repinned, and the pins they had before, so the change can be rolled back. Written in the same transaction as the repinning, and audited.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix pro_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `kind` | `PromotionKindEnum` | Kind: Promote or Rollback. |
+| `outcome` | `PromotionOutcomeEnum` | Outcome. A promotion that was later rolled back reads RolledBack. |
+| `agentId` | `string?` | Agent promoted, for an agent promotion. |
+| `appId` | `string?` | Agentic app promoted, for an app promotion (AD6.4). |
+| `appRevisionId` | `string?` | App revision promoted, for an app promotion (AD6.4). |
+| `agentRevisionId` | `string?` | Agent revision promoted, for an agent promotion. |
+| `sourceEnvironment` | `string` | Environment the revision came from. |
+| `targetEnvironment` | `string` | Environment whose deployments were repinned. |
+| `skippedEnvironments` | `boolean` | Whether the promotion skipped environments in the ordered list (allowSkip). |
+| `rollbackOfId` | `string?` | For a rollback, the promotion it reverted. |
+| `rolledBackById` | `string?` | For a promotion that was rolled back, the rollback record. |
+| `actorType` | `PrincipalTypeEnum` | Principal type of the actor. |
+| `actorId` | `string?` | Actor identifier (user or credential). |
+| `actorName` | `string?` | Actor display name. |
+| `note` | `string?` | Optional note, at most 2000 characters. |
+| `items` | `PromotionRecordItem[]` | Deployments repinned, with their previous pins. |
+| `createdUtc` | `DateTime` | Creation timestamp, UTC. |
+
+#### `AgentAsset`
+
+A versioned file set an agent needs at run time (AD2, AD-004): a skill, a reference file, a document template, or a system prompt. A SystemPrompt asset names a prompt template and has no files (AD-010); the other kinds have versions with one or more files, stored under the reserved .garrison-assets/ prefix of an artifact store (AD-011). Asset files are not artifacts: they never appear in artifact listings and are not removed by artifact retention.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix aas_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | Name, unique per tenant: 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit. Placement paths use it, for example .claude/skills/{name}/. |
+| `description` | `string?` | Optional description, at most 4000 characters. The asset listing in the system prompt shows it. |
+| `promptTemplateId` | `string?` | Prompt template identifier. Required for SystemPrompt assets (AssetTemplateRequired otherwise) and refused for the other kinds. |
+| `artifactStoreId` | `string?` | Artifact store holding the files, or null to keep them in the Garrison database (AD-011). Cannot change once the asset has versions. |
+| `currentVersion` | `integer` | Latest version number, or 0 when the asset has no versions yet. Set by the server. |
+| `tags` | `string[]` | Tags. |
+| `createdUtc` | `DateTime` | Creation timestamp, UTC. |
+| `lastUpdateUtc` | `DateTime` | Last update timestamp, UTC. |
+
+#### `AgentAssetKindEnum`
+
+`SystemPrompt`, `Skill`, `ReferenceFile`, `DocumentTemplate`
+
+#### `AgentAssetFile`
+
+One file of an agent asset version (AD2).
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` | Path inside the asset, relative, with forward slashes, for example SKILL.md or templates/report.docx. No leading slash, no backslash, no "." or ".." segments; at most 512 characters. |
+| `mediaType` | `string` | Media type, for example text/markdown. On upload, an empty value is guessed from the file extension, falling back to application/octet-stream. |
+| `sizeBytes` | `integereger` | Size in bytes. |
+| `sha256` | `string` | SHA-256 of the content, lowercase hex. |
+| `storageKey` | `string` | Storage key inside the asset's store, under the reserved .garrison-assets/ prefix. Set by the server; never accepted from clients. |
+| `contentBase64` | `string?` | Content as base64, only on upload requests and never returned in responses. |
+
+#### `ConversationFileSpace`
+
+A file area shared by every turn of one conversation and every run in its delegation trees (AD3, AD-014). A pipeline run's stages share their pipeline run's space, and a root run without a conversation or pipeline owns its own space. Content lives under the reserved .garrison-files/ prefix of the owner's deployment artifact store, or in the Garrison database. File spaces are not artifacts.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix cfs_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `ownerKey` | `string` | Owner key, unique per tenant: cnv:{conversationId}, plr:{pipelineRunId}, or run:{rootRunId}. |
+| `conversationId` | `string?` | Conversation that owns the space, or null. |
+| `pipelineRunId` | `string?` | Pipeline run that owns the space, or null. |
+| `rootRunId` | `string?` | Root run that owns the space when there is no conversation or pipeline run, or null. |
+| `artifactStoreId` | `string?` | Artifact store holding the content, or null for the Garrison database. Taken from the owner's deployment when the space is created. |
+| `fileCount` | `integer` | Number of files that are not deleted. |
+| `totalBytes` | `integereger` | Bytes of the current versions of files that are not deleted. |
+| `createdUtc` | `DateTime` | Creation timestamp, UTC. |
+| `lastUpdateUtc` | `DateTime` | Last change, UTC. |
+
+#### `ConversationFile`
+
+A file in a conversation file space (AD3) with its current version. Deleting a file marks it deleted; its versions stay until the space is removed.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix cff_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `fileSpaceId` | `string` | File space identifier. |
+| `path` | `string` | Path inside the space, relative with forward slashes, for example notes/source-1.md. |
+| `currentVersion` | `integer` | Current version number, starting at 1. |
+| `sizeBytes` | `integereger` | Size of the current version. |
+| `sha256` | `string` | SHA-256 of the current version, lowercase hex. |
+| `mediaType` | `string` | Media type of the current version. |
+| `deleted` | `boolean` | Whether the file is deleted. |
+| `createdUtc` | `DateTime` | Creation timestamp, UTC. |
+| `lastUpdateUtc` | `DateTime` | Last change, UTC. |
+
+#### `FileSpaceListing`
+
+The files of a conversation file space (AD3.6).
+
+| Field | Type | Description |
+|---|---|---|
+| `fileSpaceId` | `string?` | Space identifier, or null when nothing has been written yet. |
+| `fileCount` | `integer` | Number of files that are not deleted. |
+| `totalBytes` | `integereger` | Bytes of the current versions. |
+| `files` | `ConversationFile[]` | Files, ordered by path. Deleted files appear only when asked for. |
+
+#### `CapabilityDescriptor`
+
+One entry in the capability catalog (AD4, AD-006, AD-022): an agent, an MCP tool, or a harness built-in, described the same way so an orchestrator (or the studio) can choose between them. Derived descriptors follow their source (a published agent revision, an MCP server's tool list, a harness tool probe); manual descriptors are written by a person. A descriptor with a null tenant is shared by every tenant (harness built-ins of built-in profiles).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix cap_). |
+| `tenantId` | `string?` | Tenant identifier, or null for a descriptor every tenant shares (derived from a built-in harness profile). |
+| `kind` | `CapabilityKindEnum` | Kind. |
+| `origin` | `CapabilityOriginEnum` | Derived or manual. |
+| `sourceKey` | `string` | Stable key of the source, unique per tenant: agent:{agentId}, mcp:{serverId}:{tool}, tool:{name}, or manual:{id}. Set by Garrison. |
+| `sourceAgentId` | `string?` | Source agent identifier for Agent descriptors; optional on manual ones. Null otherwise. |
+| `sourceRevisionId` | `string?` | Published revision the Agent descriptor was derived from, or null. |
+| `sourceMcpServerId` | `string?` | Source MCP server identifier for McpTool descriptors, or null. |
+| `sourceToolName` | `string?` | Tool name on the source MCP server for McpTool descriptors, or null. |
+| `sourceHarnessProfileId` | `string?` | Harness profile that declares the tool probe of a HarnessBuiltIn descriptor, or null. |
+| `sourceHarnessType` | `HarnessTypeEnum?` | Harness type of that profile, for HarnessBuiltIn descriptors, or null. |
+| `inputSchemaJson` | `string?` | JSON Schema of the input, as JSON text, or null. Validated as a JSON Schema on save (InvalidJsonSchema). |
+| `outputSchemaJson` | `string?` | JSON Schema of the output, as JSON text, or null. Validated as a JSON Schema on save (InvalidJsonSchema). |
+| `tags` | `string[]` | Tags for filtering. At most 32, each 1 to 64 characters. |
+| `requirements` | `CapabilityRequirement[]` | Node labels a run needs when its agent uses this capability. HarnessBuiltIn descriptors require their tool label; other kinds usually require nothing. At most 16. |
+| `hints` | `CapabilityHintegers` | Cost and latency hints. Never null. |
+| `refreshWarning` | `string?` | Why the last refresh of the source failed, while the descriptor keeps its last good content, or null. |
+| `lastRefreshedUtc` | `DateTime?` | When the descriptor was last refreshed from its source (UTC), or null for manual descriptors. |
+| `createdUtc` | `DateTime` | Creation time (UTC). |
+| `lastUpdateUtc` | `DateTime` | Last update time (UTC). |
+
+#### `CapabilityKindEnum`
+
+`Agent`, `McpTool`, `HarnessBuiltIn`
+
+#### `CapabilityOriginEnum`
+
+`Derived`, `Manual`
+
+#### `FanOutGroupView`
+
+A fan-out group with its members' current state and results (AD5): what garrison_fan_out, garrison_gather, garrison_cancel_fan_out, the REST routes, and the fan-out channel return.
+
+| Field | Type | Description |
+|---|---|---|
+| `fanOutGroupId` | `string` | Group identifier (fog_). |
+| `parentRunId` | `string` | The run that started the group. |
+| `status` | `FanOutGroupStatusEnum` | Group state. |
+| `statusReason` | `string?` | Why the group ended, or null while it runs. |
+| `joinPolicy` | `FanOutJoinPolicyEnum` | Join policy. |
+| `quorum` | `integer` | Successes needed for Quorum. |
+| `total` | `integer` | Members. |
+| `finished` | `integer` | Members that finished, whatever their outcome. |
+| `succeeded` | `integer` | Members that succeeded. |
+| `pending` | `string[]` | Labels of members still running or queued. |
+| `failed` | `string[]` | Labels of members that failed, timed out, or were cancelled. |
+| `members` | `FanOutMemberView[]` | Every member, in the order given. |
+| `costUsd` | `number` | Cost the members recorded together, in US dollars. |
+| `tokens` | `integereger` | Input plus output tokens the members recorded together. |
+| `maxCostUsd` | `number?` | Cost budget, or null. |
+| `maxTokens` | `integereger?` | Token budget, or null. |
+| `deadlineUtc` | `DateTime?` | When the group times out (UTC), or null. |
+| `createdUtc` | `DateTime` | Creation time (UTC). |
+| `completedUtc` | `DateTime?` | When the group ended (UTC), or null. |
+| `summary` | `string?` | The results rendered for a harness by the fan-out-gather-result template; set by gather. |
+| `continuationMarker` | `string?` | GARRISON_CONTINUATION_WAIT when the parent should finish its turn and resume when the group ends, or null. |
+| `continuationInstruction` | `string?` | The instruction that goes with the continuation marker, or null. |
+
+#### `FanOutMemberView`
+
+One member of a fan-out group as gather and the REST routes show it (AD5.3).
+
+| Field | Type | Description |
+|---|---|---|
+| `label` | `string` | Label. |
+| `agent` | `string` | Agent name. |
+| `runId` | `string` | Child run identifier. |
+| `status` | `RunStatusEnum` | Child run status. |
+| `outcome` | `RunOutcomeEnum?` | Child run outcome once finished, or null. |
+| `resultText` | `string?` | Result text, cut at Delegation.GatherResultCharLimit, or null. |
+| `resultTruncated` | `boolean` | Whether the result text was cut. |
+| `structuredOutputJson` | `string?` | Structured output as JSON text, or null. |
+| `errorMessage` | `string?` | Error message of a failed member, or null. |
+| `filesWritten` | `string[]` | Paths the member wrote in the shared file space. |
+| `costUsd` | `number?` | Cost the member recorded in US dollars, or null. |
+| `tokens` | `integereger` | Input plus output tokens the member recorded. |
+
+#### `FanOutJoinPolicyEnum`
+
+`All`, `Any`, `Quorum`
+
+#### `FanOutGroupStatusEnum`
+
+`Running`, `Joined`, `TimedOut`, `BudgetExceeded`, `Cancelled`
+
+#### `AgenticApp`
+
+An agentic app (AD6, AD-002): a group of agents with one entry agent that talks to people, the calls its members may make to each other, the entry deployment per environment, and how end users reach it through its own chat UI at /apps/{slug}/. Validation lives in the app service; this model holds values as given.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix app_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | Name, unique per tenant: 1 to 64 lowercase letters, digits, and hyphens. |
+| `slug` | `string` | URL slug, unique across the cluster because it names the app's URL: 2 to 63 lowercase letters, digits, and hyphens, starting with a letter or digit. Default: the name. |
+| `description` | `string?` | Description, up to 4000 characters, or null. |
+| `entryAgentId` | `string` | The member that talks to end users. Must be a member. |
+| `liveEnvironment` | `string` | Environment whose entry deployment the app UI uses. Default dev. |
+| `authMode` | `AppAuthModeEnum` | Who may use the app UI. Default AppUsers. |
+| `anonymousEnabled` | `boolean` | Must be true, in addition to AuthMode Anonymous, for anonymous sessions. Default false. |
+| `showOperatorDetail` | `boolean` | Whether the app UI shows operator detail (tool calls, thinking). Default false. |
+| `displayName` | `string?` | Name shown in the app UI, up to 128 characters, or null for the app name. |
+| `logoAssetId` | `string?` | Agent asset (ReferenceFile) whose first image file is the app's logo, or null. |
+| `primaryColor` | `string?` | Primary color as #RRGGBB, or null for the default. |
+| `accentColor` | `string?` | Accent color as #RRGGBB, or null for the default. |
+| `welcomeText` | `string?` | Text shown before the first message, up to 4000 characters, or null. |
+| `members` | `AgenticAppMember[]` | Members, including the entry agent. |
+| `edges` | `AgenticAppEdge[]` | Calls members may make to each other. |
+| `environments` | `AgenticAppEnvironment[]` | Entry deployment per environment. |
+| `latestPublishedRevisionId` | `string?` | Latest published app revision, or null. Set by the app service. |
+| `active` | `boolean` | Whether the app accepts sessions. Default true. |
+| `createdUtc` | `DateTime` | Creation time (UTC). |
+| `lastUpdateUtc` | `DateTime` | Last update time (UTC). |
+
+#### `AgenticAppMember`
+
+An agent that belongs to an agentic app (AD6.1).
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | Agent identifier. |
+| `agentName` | `string?` | Agent name, filled in on read. |
+| `role` | `string?` | What the member does in the app, for people, up to 256 characters, or null. |
+
+#### `AgenticAppEdge`
+
+One allowed call between members of an agentic app (AD6.1): the caller may delegate to the callee. The app's edges are the graph each member's delegation policy is derived from (AD6.3).
+
+| Field | Type | Description |
+|---|---|---|
+| `callerAgentId` | `string` | Calling member's agent identifier. |
+| `calleeAgentId` | `string` | Called member's agent identifier. |
+| `fanOutAllowed` | `boolean` | Whether the caller may start the callee in a fan-out group. Default true. |
+
+#### `AgenticAppEnvironment`
+
+Which deployment of the entry agent an app uses in one environment (AD6.1). The app UI starts conversations on the deployment of the app's live environment.
+
+| Field | Type | Description |
+|---|---|---|
+| `environment` | `string` | Environment label, one of the tenant's environments. |
+| `deploymentId` | `string?` | Entry agent deployment for this environment, or null for the entry agent's weighted selection among its deployments in the environment. |
+
+#### `AppAuthModeEnum`
+
+`TenantUsers`, `AppUsers`, `Anonymous`
+
+#### `AppRevision`
+
+A snapshot of an agentic app (AD6.4): the published agent revision of every member and the app's edges. Draft until published; published revisions never change. Promoting an app promotes every member's pinned revision together.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix apv_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `appId` | `string` | App identifier. |
+| `number` | `integer` | Number, per app, from 1. |
+| `state` | `AgentRevisionStateEnum` | Draft or Published. |
+| `members` | `AppRevisionMember[]` | Pinned member revisions. |
+| `edges` | `AgenticAppEdge[]` | The app's edges when the revision was taken. |
+| `authorName` | `string?` | Who created the revision, or null. |
+| `changeNote` | `string?` | Change note, up to 2000 characters, or null. |
+| `publishedByName` | `string?` | Who published it, or null. |
+| `publishedUtc` | `DateTime?` | When it was published (UTC), or null. |
+| `createdUtc` | `DateTime` | Creation time (UTC). |
+
+#### `AppRevisionMember`
+
+The agent revision an app revision pins for one member (AD6.4).
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | Member agent identifier. |
+| `agentName` | `string?` | Member agent name, filled in on read. |
+| `agentRevisionId` | `string` | Pinned published agent revision. |
+| `agentRevisionNumber` | `integer?` | Number of the pinned revision, filled in on read. |
+
+#### `AppDelegationPlan`
+
+Every member's delegation policy derived from an app's graph (AD6.3, AD-005d), with drift against what is published.
+
+| Field | Type | Description |
+|---|---|---|
+| `appId` | `string` | App identifier. |
+| `applied` | `boolean` | Whether drafts were written (apply) or only reported. |
+| `members` | `AppDelegationMember[]` | Members, in app order. |
+
+#### `AppDelegationMember`
+
+One member's delegation policy as the app graph requires it and as its latest published revision has it (AD6.3).
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | Member agent identifier. |
+| `agentName` | `string` | Member agent name. |
+| `desiredMode` | `DelegationModeEnum` | Mode the graph requires: AllowList when the member calls others, None otherwise. |
+| `desiredAllowList` | `string[]` | Agents the member may call, from its edges, by name. |
+| `desiredMaxDepth` | `integer` | The longest path of calls below the member. |
+| `publishedMode` | `DelegationModeEnum?` | Mode of the member's latest published revision, or null when it has none. |
+| `publishedAllowList` | `string[]` | Allow list of the latest published revision. |
+| `publishedMaxDepth` | `integer?` | Maximum depth of the latest published revision, or null. |
+| `drift` | `boolean` | Whether the published policy differs from the graph. |
+| `draftRevisionNumber` | `integer?` | Draft revision written with the graph's policy, or null when none was written. |
+| `skippedReason` | `string?` | Why no draft was written although the policy drifts, for example DraftConflict when the member's open draft already changes its delegation another way. Null otherwise. |
+
+#### `AppInfo`
+
+What an app's chat UI needs before anyone signs in (AD6.6, AD6.10): branding and how to sign in.
+
+| Field | Type | Description |
+|---|---|---|
+| `slug` | `string` | URL slug. |
+| `displayName` | `string` | Name shown: the display name, or the app name. |
+| `description` | `string?` | Description, or null. |
+| `welcomeText` | `string?` | Text shown before the first message, or null. |
+| `primaryColor` | `string?` | Primary color (#RRGGBB), or null. |
+| `accentColor` | `string?` | Accent color (#RRGGBB), or null. |
+| `logoUrl` | `string?` | Logo URL relative to the server, or null without a logo. |
+| `authMode` | `AppAuthModeEnum` | Who may sign in. |
+| `anonymousAllowed` | `boolean` | Whether an anonymous session can be started. |
+| `showOperatorDetail` | `boolean` | Whether the UI shows operator detail such as tool calls. |
+
+#### `AppSessionResponse`
+
+A new app session (AD6.5). Send the token as "Authorization: Bearer {token}" to the app's gateway routes only.
+
+| Field | Type | Description |
+|---|---|---|
+| `token` | `string` | Session token (prefix gas_). Shown once. |
+| `expiresUtc` | `DateTime` | When the session ends (UTC). |
+| `principalName` | `string` | Who the session is for: the user's email, or "anonymous". |
+| `anonymous` | `boolean` | Whether the session is anonymous. |
+
+#### `AppConversationView`
+
+An app conversation as its end user sees it (AD6.6).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Conversation identifier. |
+| `title` | `string?` | Title, or null. |
+| `turnCount` | `integer` | Turns so far. |
+| `busy` | `boolean` | Whether a turn is still running. |
+| `lastRunId` | `string?` | Run of the latest turn, or null. |
+| `createdUtc` | `DateTime` | Creation time (UTC). |
+| `lastActivityUtc` | `DateTime?` | Last activity (UTC), or null. |
+| `turns` | `AppTurnView[]` | Turns, oldest first. Empty in listings. |
+
+#### `AppTurnView`
+
+One turn of an app conversation as its end user sees it (AD6.6).
+
+| Field | Type | Description |
+|---|---|---|
+| `runId` | `string` | Run of the turn. |
+| `turn` | `integer` | Turn number, from 1. |
+| `message` | `string` | The user's message. |
+| `status` | `RunStatusEnum` | Run status. |
+| `answer` | `string?` | The agent's answer, or null while it works. |
+| `error` | `string?` | A short error for a failed turn, or null. |
+| `awaitingApproval` | `boolean` | Whether the agent waits for an operator to approve a tool call. |
+| `createdUtc` | `DateTime` | When the turn started (UTC). |
+| `completedUtc` | `DateTime?` | When the turn finished (UTC), or null. |
+
+#### `StudioDraft`
+
+A studio draft (AD7, AD-002): a manifest bundle being designed, by a person or by the agent architect on their behalf, that changes nothing live until a person approves applying it. Every change increments the version; a change sent with a stale version is refused (DraftVersionConflict).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (prefix sdr_). |
+| `tenantId` | `string` | Tenant identifier. |
+| `title` | `string` | Title, up to 256 characters. |
+| `ownerUserId` | `string?` | The person the draft belongs to: their user identifier. |
+| `ownerName` | `string?` | The owner's name. |
+| `conversationId` | `string?` | The architect conversation working on the draft, or null. |
+| `targetApp` | `string?` | The app the draft builds or changes, by name, or null. |
+| `version` | `integer` | Version, from 1; every change adds one. |
+| `approvalId` | `string?` | The DraftApply approval while PendingApproval, or the one that applied it, or null. |
+| `publishOnApply` | `boolean` | Whether applying also publishes the revisions the draft writes. Default true. |
+| `manifestApplyId` | `string?` | The manifest apply record of the applied draft, or null. |
+| `items` | `StudioDraftItem[]` | Items (manifest documents), in kind and name order. |
+| `layout` | `StudioDraftNode[]` | Graph layout of the visual editor. |
+| `createdUtc` | `DateTime` | Creation time (UTC). |
+| `lastUpdateUtc` | `DateTime` | Last update time (UTC). |
+
+#### `StudioDraftItem`
+
+One manifest document of a studio draft (AD7.1, AD-018), keyed by kind and name. The document text is user-authored YAML, kept as text like prompt template content.
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `string` | Manifest kind, for example Agent, Deployment, AgenticApp. |
+| `name` | `string` | Record name. |
+| `operation` | `StudioDraftOperationEnum` | Upsert or Delete. |
+| `document` | `string` | The manifest document (YAML) for Upsert; empty for Delete. |
+| `baseHash` | `string?` | SHA-256 of the live record's exported document when the item was based on it, or null for a new record. Apply refuses with DraftStale when live configuration moved since. |
+| `lastUpdateUtc` | `DateTime` | Last change (UTC). |
+
+#### `StudioDraftNode`
+
+Where the visual editor placed one node of a draft's graph (AD7.1, AD8).
+
+| Field | Type | Description |
+|---|---|---|
+| `nodeKey` | `string` | Node key, for example Agent/researcher. |
+| `x` | `number` | Horizontal position. |
+| `y` | `number` | Vertical position. |
+
+#### `StudioDraftStatusEnum`
+
+`Open`, `PendingApproval`, `Applied`, `Discarded`
+
+#### `StudioDraftOperationEnum`
+
+`Upsert`, `Delete`
+
+#### `StudioDraftCreateRequest`
+
+Body of POST .../studio/drafts (AD7.2).
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | `string?` | Title, up to 256 characters. Default: the app name, or "Untitled draft". |
+| `fromApp` | `string?` | An existing app to start from: the draft gets its export with every record it needs. Null starts empty. |
+| `conversationId` | `string?` | The architect conversation working on the draft, or null. |
+
+#### `StudioDraftItemRequest`
+
+Body of PUT .../studio/drafts/{id}/items/{kind}/{name} (AD7.2).
+
+| Field | Type | Description |
+|---|---|---|
+| `version` | `integer` | The draft version the caller read. Required; a stale version answers 409 DraftVersionConflict. |
+| `operation` | `string?` | Upsert (default) or Delete. |
+| `document` | `string` | One manifest document (YAML or JSON) whose kind and name match the path. Required for Upsert. |
+
+#### `StudioDraftVersionRequest`
+
+The draft version a caller read, for actions on a whole draft (AD7.3).
+
+| Field | Type | Description |
+|---|---|---|
+| `version` | `integer` | Draft version the caller read. A different version answers 409 DraftVersionConflict. |
+
+#### `StudioDraftDiff`
+
+A draft compared with live configuration and validated by a manifest dry run (AD7.2).
+
+| Field | Type | Description |
+|---|---|---|
+| `draftId` | `string` | Draft identifier. |
+| `version` | `integer` | Draft version compared. |
+| `valid` | `boolean` | Whether every item validated and nothing is stale. |
+| `items` | `StudioDraftDiffItem[]` | Items, in apply order. |
+
+#### `StudioDraftDiffItem`
+
+What applying one draft item would do to live configuration (AD7.2).
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `string` | Kind. |
+| `name` | `string` | Name. |
+| `change` | `string` | Create, Update, Delete, Unchanged, or Failed. |
+| `changes` | `ManifestFieldChange[]` | Field changes of an Update, as the manifest dry run reports them. |
+| `message` | `string?` | Why the item failed validation, or a note, or null. |
+| `errorCode` | `string?` | Error code of a failed item, or null. |
+| `stale` | `boolean` | Whether the live record changed since the item was based on it. |
+
+#### `StudioGraph`
+
+A draft's apps drawn as a graph (AD7.5, AD8): agent and app nodes with their positions, and the call edges of every app in the draft.
+
+| Field | Type | Description |
+|---|---|---|
+| `draftId` | `string` | Draft identifier. |
+| `version` | `integer` | Draft version the graph was read at. |
+| `nodes` | `StudioGraphNode[]` | Nodes. |
+| `edges` | `StudioGraphEdge[]` | Call edges. |
+
+#### `StudioGraphNode`
+
+One node of a draft graph: an agent or an app.
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `string` | Key: "Agent/{name}" or "AgenticApp/{name}". |
+| `kind` | `string` | Kind: Agent or AgenticApp. |
+| `name` | `string` | Name. |
+| `inDraft` | `boolean` | Whether the draft holds a document for this node (false means the node is live configuration the draft refers to). |
+| `deleted` | `boolean` | Whether the draft deletes this node. |
+| `entryOf` | `string[]` | Apps that have this agent as their entry agent. |
+| `memberOf` | `string[]` | Apps this agent is a member of. |
+| `capabilities` | `string[]` | For an agent the draft holds: the capabilities its document names (host tools such as pandoc, AD7.8). |
+| `x` | `number?` | Canvas X, or null when the node has not been placed. |
+| `y` | `number?` | Canvas Y, or null when the node has not been placed. |
+
+#### `StudioGraphEdge`
+
+One call edge of a draft app: the From member may call the To member.
+
+| Field | Type | Description |
+|---|---|---|
+| `app` | `string` | App name. |
+| `from` | `string` | Calling agent name. |
+| `to` | `string` | Called agent name. |
+| `fanOut` | `boolean` | Whether the edge allows fan-out. |
+| `depth` | `integer` | Delegation depth the edge needs: one plus the longest chain of calls below the called member. Minimum 1. |
+
+#### `StudioGraphOperationRequest`
+
+One graph operation on a studio draft (AD7.5), applied at the draft version the caller read.
+
+| Field | Type | Description |
+|---|---|---|
+| `version` | `integer` | Draft version the caller read. A different version answers 409 DraftVersionConflict. |
+| `operation` | `StudioGraphOperationEnum` | The operation. |
+| `app` | `string?` | App name. Null means the draft's target app. Not used by MoveNode. |
+| `agent` | `string?` | Agent name, for AddMember, RemoveMember, and SetEntry. |
+| `role` | `string?` | Member role text, for AddMember. Null for none. |
+| `from` | `string?` | Calling member, for Connect and Disconnect. |
+| `to` | `string?` | Called member, for Connect and Disconnect. |
+| `fanOut` | `boolean?` | Whether the edge allows fan-out, for Connect. Null means the default (true). |
+| `nodeKey` | `string?` | Node key for MoveNode: "Agent/{name}" or "AgenticApp/{name}". |
+| `x` | `number` | Canvas X for MoveNode. |
+| `y` | `number` | Canvas Y for MoveNode. |
+
+#### `StudioGraphOperationEnum`
+
+`AddMember`, `RemoveMember`, `Connect`, `Disconnect`, `SetEntry`, `MoveNode`
+
+#### `ManagementAccessEnum`
+
+`None`, `Drafts`
+
+#### `ArchitectPromptEntry`
+
+One architect prompt in the catalog (AD7.12): a built-in architect System template, a tenant clone of one, or another tenant System template.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Template identifier. |
+| `name` | `string` | Template name. |
+| `description` | `string?` | Description, or null. |
+| `isBuiltIn` | `boolean` | Whether the template is a protected built-in (edit by cloning). |
+| `builtInKey` | `string?` | Built-in key the template is or was cloned from, or null for a custom template. |
+| `currentVersion` | `integer` | Current version. |
+| `isDefault` | `boolean` | Whether this is the default architect prompt. |
+| `deployments` | `string[]` | Identifiers of the architect deployments that bind this template as their System prompt. |
+
+#### `ArchitectPromptSelection`
+
+The architect prompt an architect deployment uses (AD7.14): its System prompt binding.
+
+| Field | Type | Description |
+|---|---|---|
+| `deploymentId` | `string` | Deployment identifier. |
+| `architectPromptTemplateId` | `string` | Selected System template identifier. |
+| `architectPromptName` | `string` | Selected template name. |
+| `architectPromptVersion` | `integer?` | Pinned version, or null to follow the template's current version (edits apply on the next turn). |
+| `currentVersion` | `integer` | The template's current version. |
+
+#### `ArchitectPromptRequest`
+
+Choose an architect deployment's prompt (AD7.14, AD-026).
+
+| Field | Type | Description |
+|---|---|---|
+| `architectPromptTemplateId` | `string` | System template identifier or name (a built-in architect prompt, a clone, or another tenant System template). |
+| `architectPromptVersion` | `integer?` | Version to pin, or null to follow the template's current version. Minimum 1. |
+
+#### `PlaygroundInvokeRequest`
+
+Run an agent's draft revision in the studio playground (AD9.1).
+
+| Field | Type | Description |
+|---|---|---|
+| `input` | `string` | The message. |
+| `agent` | `string?` | Agent, by name or identifier. For a studio draft, null means the target app's entry agent; for an agent route, ignored. |
+| `agentRevisionId` | `string?` | Agent revision to run. Null runs the agent's open draft revision, or its latest published one when it has no draft. |
+| `sourceDeploymentId` | `string?` | Deployment whose settings the playground copies. Null uses the agent's dev deployment, or its first one. |
+| `conversationId` | `string?` | Conversation to continue, or null to start one. |
+| `wait` | `boolean` | Whether to wait for the run to finish. Default true. |
+| `waitSeconds` | `integer` | Most seconds to wait. Default 120; minimum 1; maximum 3600. |
+
 ## Execution safety and credential lifecycle
 
 `GET /v1.0/api/tenants/{tenantId}/runs/{id}/operations` returns tenant-scoped effect metadata for a run. See [effect safety](docs/effect-safety.md) for states and recovery limits.
