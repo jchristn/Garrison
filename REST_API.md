@@ -1,6 +1,6 @@
 # Garrison REST API
 
-This is the reference for Garrison's HTTP surface on the control plane: authentication, tenancy, the shared request and response conventions, every endpoint grouped by resource, the worker node protocol, the server-sent event stream, and the models those endpoints exchange. The live OpenAPI document at `GET /openapi.json` is generated from the same route registrations and is what the dashboard's API Explorer reads; this file adds the permission each route needs, examples, and the parts OpenAPI does not describe well, such as streaming.
+This is the reference for Garrison's HTTP surface on the control plane: authentication, tenancy, the shared request and response conventions, every endpoint grouped by resource, the worker node protocol, the server-sent event stream, and the models those endpoints exchange. The live OpenAPI document at `GET /openapi.json` is generated from the same route registrations and is what the dashboard's API Explorer reads, and `GET /swagger` serves a browsable Swagger UI for it; this file adds the permission each route needs, examples, and the parts OpenAPI does not describe well, such as streaming.
 
 The server listens on port 8700 by default. MCP is on its own port (8701, see `MCP_API.md`), A2A shares the REST port (see `A2A_API.md`), and the WebSocket live-update channel is at `/v1.0/ws` (see `WEBSOCKETS_API.md`). Examples use `http://127.0.0.1:8700`, the default tenant `default`, and `$TOKEN` for a session token.
 
