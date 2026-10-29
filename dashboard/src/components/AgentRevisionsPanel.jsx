@@ -7,6 +7,7 @@ import { Badge } from './StatusBadge';
 import { ErrorBanner, LoadingState } from './States';
 import { RevisionStateBadge } from './RevisionBadges';
 import AgentAssetPinsModal from './AgentAssetPinsModal';
+import AgentCapabilitiesModal from './AgentCapabilitiesModal';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -17,6 +18,7 @@ import { enumTip } from '../utils/tips';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { defaultDiffPair, diffValue, draftRevision, isBlockValue, latestPublished, publishedRevisions, sortRevisions } from '../utils/revisions';
 import { assetNames, pinLabel, revisionPins } from '../utils/assets';
+import { revisionCapabilities } from '../utils/capabilities';
 
 /**
  * Revisions of one agent (AD1.9): the list (number, state, author, change note, published time, latest and draft
@@ -26,6 +28,9 @@ import { assetNames, pinLabel, revisionPins } from '../utils/assets';
  *
  * AD2.8: each revision lists its asset pins (asset name and pinned version, or current). The draft's pins are edited in
  * place; without a draft, editing pins starts a new draft from the latest published revision.
+ *
+ * AD4.8: each revision lists the capabilities it uses (names from the capability catalog). The draft's capabilities are
+ * edited the same way as its pins.
  */
 export default function AgentRevisionsPanel({ agent, onChanged }) {
   const { t, i18n } = useTranslation();
@@ -41,6 +46,7 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
   const [publishing, setPublishing] = useState(null);
   const [discarding, setDiscarding] = useState(null);
   const [pinning, setPinning] = useState(null);
+  const [choosing, setChoosing] = useState(null);
   const [names, setNames] = useState({});
 
   useEffect(() => {
@@ -124,6 +130,9 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
           <button type="button" className="button-secondary button-sm" onClick={() => setPinning(latest)} data-testid="revision-assets-new" {...tip(t('tips.assets.pinsNewDraft'))}>
             {t('components.assets.pinsNewDraftButton')}
           </button>
+          <button type="button" className="button-secondary button-sm" onClick={() => setChoosing(latest)} data-testid="revision-capabilities-new" {...tip(t('tips.capabilities.newDraft'))}>
+            {t('components.capabilities.newDraftButton')}
+          </button>
         </div>
       )}
       {revisions.length === 0 ? (
@@ -139,6 +148,7 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
                 {th('changeNote')}
                 {th('publishedUtc')}
                 {th('assetPins')}
+                {th('capabilities')}
                 <th scope="col" className="right" {...tip(t('tips.revisions.columns.actions'))}>{t('components.revisions.columns.actions')}</th>
               </tr>
             </thead>
@@ -168,6 +178,19 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
                       '-'
                     )}
                   </td>
+                  <td data-cell="capabilities">
+                    {revisionCapabilities(r).length ? (
+                      <span className="capability-names">
+                        {revisionCapabilities(r).map((name) => (
+                          <Badge key={name} tip={t('tips.capabilities.revisionName', { name })}>
+                            {name}
+                          </Badge>
+                        ))}
+                      </span>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td className="right">
                     <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
                       <button type="button" className="button-ghost button-sm" onClick={() => compareWith(r)} data-testid="revision-compare" {...tip(t('tips.revisions.compare'))}>
@@ -180,6 +203,9 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
                           </button>
                           <button type="button" className="button-ghost button-sm" onClick={() => setPinning(r)} data-testid="revision-assets" {...tip(t('tips.assets.editPins'))}>
                             {t('components.assets.editPins')}
+                          </button>
+                          <button type="button" className="button-ghost button-sm" onClick={() => setChoosing(r)} data-testid="revision-capabilities" {...tip(t('tips.capabilities.editDraft'))}>
+                            {t('components.capabilities.editDraft')}
                           </button>
                           <button type="button" className="button-ghost button-sm" onClick={() => setDiscarding(r)} data-testid="revision-discard" {...tip(t('tips.revisions.discard'))}>
                             {t('components.revisions.discard')}
@@ -245,6 +271,18 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
           onClose={() => setPinning(null)}
           onSaved={() => {
             setPinning(null);
+            load();
+            onChanged?.();
+          }}
+        />
+      )}
+      {choosing && (
+        <AgentCapabilitiesModal
+          agent={agent}
+          revision={choosing}
+          onClose={() => setChoosing(null)}
+          onSaved={() => {
+            setChoosing(null);
             load();
             onChanged?.();
           }}

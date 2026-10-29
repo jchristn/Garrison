@@ -33,7 +33,7 @@ export const UNTRANSLATED_ALLOWLIST = {
   ],
   ja: [],
   es: [
-    'Endpoint', 'Endpoints', 'Error', 'General', 'No', 'Roles', 'Tokens', 'Tokens/s', 'Total'
+    'Endpoint', 'Endpoints', 'Error', 'General', 'Manual', 'No', 'Roles', 'Tokens', 'Tokens/s', 'Total'
   ],
   fr: [
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',

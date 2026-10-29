@@ -771,6 +771,49 @@ class ApiClient {
     return this._blob(this._t(tenantId, `agent-assets/${enc(id)}/versions/${enc(number)}/files`), { path });
   }
 
+  // ------------------------------------------------------------------ capability catalog (AD4)
+
+  /**
+   * The capability catalog: agents, MCP tools, and harness built-ins. params: { kind, tag, search }. The server
+   * answers the whole filtered catalog in one EnumerationResult (no paging); the result is { items, totalCount }.
+   */
+  async listCapabilities(tenantId, params = {}) {
+    const query = {};
+    for (const key of ['kind', 'tag', 'search']) if (params[key]) query[key] = params[key];
+    const res = await this._request('GET', this._t(tenantId, 'capabilities'), { query });
+    const items = Array.isArray(res?.objects) ? res.objects : Array.isArray(res) ? res : [];
+    return { items, totalCount: res?.totalRecords ?? items.length };
+  }
+
+  /** One descriptor by identifier or name. */
+  getCapability(tenantId, idOrName) {
+    return this._request('GET', this._t(tenantId, `capabilities/${enc(idOrName)}`));
+  }
+
+  /** Create a manual descriptor (201). 400 InvalidJsonSchema on a schema field, 409 NameConflict for a taken name. */
+  createCapability(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'capabilities'), { body });
+  }
+
+  /** Replace a manual descriptor. 409 CapabilityDerived for a derived one, NameConflict for a taken name. */
+  updateCapability(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `capabilities/${enc(id)}`), { body });
+  }
+
+  /** Delete a manual descriptor (204). 409 CapabilityDerived for a derived one. */
+  deleteCapability(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `capabilities/${enc(id)}`));
+  }
+
+  /**
+   * Refresh derived descriptors now: agents, harness built-ins, MCP server tools (stdio servers through a worker), and
+   * hints. With mcpServerId, only that server is listed. Returns { agents, harnessBuiltIns, hints, mcpServers: [{
+   * mcpServerId, mcpServerName, tools, removed, warned, error }] }.
+   */
+  refreshCapabilities(tenantId, mcpServerId) {
+    return this._request('POST', this._t(tenantId, 'capabilities/refresh'), { query: mcpServerId ? { mcpServerId } : null });
+  }
+
   // ------------------------------------------------------------------ conversation file spaces (AD3)
 
   /**

@@ -7,7 +7,9 @@ import { popupLeft } from '../utils/direction';
 
 /**
  * Three-dot row action menu. Portaled to document.body so it is never clipped by
- * table overflow. `items`: [{ label, tip, onClick, danger?, hidden? }]. `label` names the record for the trigger tooltip.
+ * table overflow. `items`: [{ label, tip, onClick, danger?, hidden?, disabled? }]. `label` names the record for the trigger
+ * tooltip. A disabled item stays in the menu with aria-disabled (not the disabled attribute, so its tooltip still shows
+ * on hover and focus) and does nothing when chosen; its tip says why it is unavailable.
  */
 export default function ActionMenu({ items = [], label = '' }) {
   const { t } = useTranslation();
@@ -94,10 +96,12 @@ export default function ActionMenu({ items = [], label = '' }) {
                 key={i}
                 type="button"
                 role="menuitem"
-                className={`action-menu-item ${it.danger ? 'danger' : ''}`}
+                className={`action-menu-item ${it.danger ? 'danger' : ''} ${it.disabled ? 'disabled' : ''}`}
+                aria-disabled={it.disabled ? 'true' : undefined}
                 {...tip(it.tip)}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (it.disabled) return;
                   setOpen(false);
                   it.onClick?.();
                 }}

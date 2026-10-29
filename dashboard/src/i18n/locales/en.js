@@ -3060,3 +3060,240 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "capabilities": {
+    "label": "Capabilities",
+    "tip": "The capability catalog: agents, MCP tools, and harness built-ins that orchestrating agents can find and use, with cost and latency hints."
+   }
+  }
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Agent",
+   "McpTool": "MCP tool",
+   "HarnessBuiltIn": "Harness built-in"
+  },
+  "capabilityOrigin": {
+   "Derived": "Derived",
+   "Manual": "Manual"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Unknown",
+   "Known": "Known"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "No worker with the tool"
+  },
+  "resourceType": {
+   "ConversationFileSpace": "Conversation file space",
+   "Capability": "Capability"
+  }
+ },
+ "errorCodes": {
+  "InvalidJsonSchema": "A schema is not a valid JSON Schema. Fix the input or output schema and save again.",
+  "NameConflict": "Another manual capability already uses this name. Choose a different name.",
+  "CapabilityDerived": "This capability is derived from its source and follows it, so it cannot be edited or deleted here. Change the source instead.",
+  "InvalidTags": "Use at most 32 tags, each 1 to 64 characters.",
+  "TooManyRequirements": "Use at most 16 node label requirements."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidJsonSchema": "This is not a valid JSON Schema.",
+   "InvalidTags": "Use at most 32 tags, each 1 to 64 characters.",
+   "TooManyRequirements": "Use at most 16 node label requirements."
+  },
+  "serverText": {
+   "capabilityDerivedEdit": "Capability {{name}} is derived from its source and follows it. Change the source instead.",
+   "capabilityDerivedDelete": "Capability {{name}} is derived from its source and goes away with it, so it cannot be deleted directly.",
+   "capabilityShared": "Capability {{name}} is shared by every tenant and comes from a built-in harness profile, so it cannot be changed.",
+   "capabilityNameConflict": "A manual capability named {{name}} already exists.",
+   "capabilitySecretsDenied": "You may not use the secrets that MCP server {{server}} sends, so its tools were not listed.",
+   "capabilityNoStdioWorker": "No Ready worker has stdio MCP diagnostics turned on (GARRISON_WORKER_MCP_TESTS_ENABLED), so the stdio server's tools could not be listed.",
+   "capabilityRefreshFailed": "Refresh failed at {{when}}: {{error}}",
+   "capabilityMissingTools": "Required tools are missing: {{tools}}.",
+   "capabilityProbeShadowed": "Workers probe {{name}} as {{probe}}, which another harness profile defined first. This profile's definition is not probed."
+  }
+ },
+ "components": {
+  "blocked": {
+   "reasons": {
+    "NoToolWorker": "This run's agent uses {{tools}}, and no Ready worker that can run {{harness}} reports it. Install the tool on a worker host so its probe reports the node label garrison.io/tool-{name}=true, or add that label to a worker by hand."
+   }
+  },
+  "revisions": {
+   "columns": {
+    "capabilities": "Capabilities"
+   }
+  },
+  "capabilities": {
+   "noSource": "Manual entry",
+   "shared": "Shared",
+   "hintsLine": "Median {{median}}, p90 {{p90}}, {{cost}} per run",
+   "hintsLineNoCost": "Median {{median}}, p90 {{p90}}, no cost recorded",
+   "hintsTitle": "Cost and latency hints",
+   "noCost": "No cost recorded",
+   "windowDays_one": "{{count}} day",
+   "windowDays_other": "{{count}} days",
+   "refreshWarning": "The last refresh of this entry's source failed.",
+   "requirementsTitle": "Node labels a run needs",
+   "noRequirements": "None. Runs that use this capability can go to any worker.",
+   "noSchema": "No schema",
+   "fields": {
+    "kind": "Kind",
+    "origin": "Origin",
+    "source": "Source",
+    "lastRefreshedUtc": "Last refreshed",
+    "tags": "Tags",
+    "id": "ID",
+    "summary": "Summary",
+    "hintStatus": "Status",
+    "sampleSize": "Runs summarized",
+    "medianDurationMs": "Median duration",
+    "p90DurationMs": "p90 duration",
+    "meanCostUsd": "Mean cost",
+    "windowDays": "Window",
+    "computedUtc": "Computed",
+    "inputSchemaJson": "Input schema",
+    "outputSchemaJson": "Output schema"
+   },
+   "refreshTitle": "Refresh the capability catalog",
+   "refreshHint": "Garrison derives agent and harness built-in entries again, lists the tools of each MCP server (stdio servers through a worker with stdio diagnostics turned on), and recomputes agent hints. Listing a server sends it the secrets its templates name, so you need permission to use them.",
+   "refreshServer": "MCP servers to list",
+   "refreshAll": "Every active MCP server",
+   "refreshRun": "Refresh now",
+   "refreshing": "Refreshing...",
+   "refreshDone": "The capability catalog is up to date.",
+   "refreshPartial_one": "The catalog was refreshed, but {{count}} MCP server could not be listed.",
+   "refreshPartial_other": "The catalog was refreshed, but {{count}} MCP servers could not be listed.",
+   "refresh": {
+    "agents": "Agent entries changed",
+    "harnessBuiltIns": "Built-in entries changed",
+    "hints": "Hints recomputed",
+    "servers": "MCP servers listed",
+    "tools": "Tool entries written",
+    "removed": "Tool entries removed",
+    "failed": "Servers that failed",
+    "noServers": "No MCP server was listed.",
+    "failedBadge": "Failed",
+    "listedBadge": "Listed",
+    "columns": {
+     "server": "MCP server",
+     "status": "Result",
+     "tools": "Tools",
+     "removed": "Removed",
+     "warned": "Kept with a warning",
+     "error": "Error"
+    }
+   },
+   "errors": {
+    "nameLength": "Use 1 to {{max}} characters.",
+    "summaryLength": "Use at most {{max}} characters.",
+    "tags": "Use at most {{max}} tags, each 1 to {{length}} characters.",
+    "requirementCount": "Use at most {{max}} node label requirements.",
+    "requirement": "Every requirement needs a node label key of 1 to {{max}} characters.",
+    "toolNeedsServer": "Choose the MCP server the tool belongs to.",
+    "probeCount": "A harness profile has at most {{max}} tool probes.",
+    "probeName": "The tool name is 1 to 63 lowercase letters, digits, dots, and hyphens, starting with a letter or digit.",
+    "probeDuplicate": "Another probe in this profile is named {{name}}.",
+    "probeExecutable": "The executable is a bare file name found on the PATH (letters, digits, dots, underscores, plus signs, and hyphens), with no folder.",
+    "probeArgument": "Choose no argument or one of {{allowed}}.",
+    "probeDescription": "Use at most {{max}} characters."
+   },
+   "draftTitle": "Capabilities",
+   "draftSave": "Save draft",
+   "draftSaved": "Saved the capabilities on draft revision {{number}}.",
+   "draftEdit": "Changes the capabilities of draft revision {{number}}. Everything else in the draft stays as it is.",
+   "draftNew": "There is no open draft. Saving starts a new draft from published revision {{number}} with these capabilities.",
+   "draftPlacementHint": "A harness built-in named here adds its node label to this agent's runs, so they only go to workers that reported the tool.",
+   "draftEmpty": "This revision uses no capabilities.",
+   "notInCatalog": "Not in the catalog",
+   "removeName": "Remove {{name}}",
+   "chooseName": "Choose a capability",
+   "nameOption": "{{name}} ({{kinds}})",
+   "addName": "Add capability",
+   "newDraftButton": "Choose capabilities in a new draft",
+   "editDraft": "Capabilities"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "title": "Capabilities",
+   "subtitle": "Agents, MCP tools, and harness built-ins that orchestrating agents can find and use, with cost and latency hints.",
+   "add": "Add capability",
+   "create": "Create capability",
+   "edit": "Edit capability",
+   "view": "Capability details",
+   "deleteTitle": "Delete capability",
+   "emptyTitle": "No capabilities yet",
+   "emptyBody": "Publish an agent revision, register an MCP server, or add a tool probe to a harness profile, then refresh. You can also add a manual entry.",
+   "columns": {
+    "name": "Name",
+    "kind": "Kind",
+    "origin": "Origin",
+    "summary": "Summary",
+    "source": "Source",
+    "hints": "Hints",
+    "tags": "Tags",
+    "lastRefreshedUtc": "Last refreshed",
+    "id": "ID",
+    "createdUtc": "Created"
+   },
+   "fields": {
+    "name": "Name",
+    "kind": "Kind",
+    "summary": "Summary",
+    "sourceAgentId": "Agent it stands for",
+    "sourceMcpServerId": "MCP server it belongs to",
+    "sourceToolName": "Tool name on that server",
+    "tags": "Tags",
+    "requirements": "Node labels a run needs",
+    "inputSchemaJson": "Input schema",
+    "outputSchemaJson": "Output schema"
+   },
+   "hints": {
+    "kind": "Manual entries can be of any kind, for example a conversion service that agents reach through a skill.",
+    "requirements": "A run of an agent that uses this capability goes only to workers with every one of these node labels.",
+    "sourceMcpServerId": "Optional. A run token sees an entry that names a server only when its deployment binds that server.",
+    "inputSchemaJson": "A JSON Schema, for example {\"type\": \"object\"}. Leave empty when the capability takes free text."
+   },
+   "tagFilter": "Tag",
+   "refresh": "Refresh",
+   "warningBadge": "Refresh failed",
+   "warnings_one": "{{count}} entry kept its last good content because the last refresh of its source failed. Open it to see why.",
+   "warnings_other": "{{count}} entries kept their last good content because the last refresh of their source failed. Open one to see why.",
+   "noSourceOption": "None",
+   "requirementKey": "Node label",
+   "requirementValue": "Value"
+  },
+  "harnessProfiles": {
+   "fields": {
+    "toolProbes": "Tool probes",
+    "probeName": "Tool name",
+    "probeExecutable": "Executable",
+    "probeArgument": "Argument",
+    "probeDescription": "Description"
+   },
+   "columns": {
+    "toolProbes": "Tool probes"
+   },
+   "hints": {
+    "toolProbes": "Tools this harness can use when the worker host has them. Workers run each probe before they register and report the tools that answer as node labels garrison.io/tool-{name}=true."
+   },
+   "addToolProbe": "Add tool probe",
+   "probeNoArgument": "No argument"
+  }
+ }
+});

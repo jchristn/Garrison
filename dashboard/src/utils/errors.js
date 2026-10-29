@@ -6,7 +6,7 @@ import { translateServerText, stripCodePrefix } from './serverText';
  * Codes whose translation is generic ("The record was not found."). For these the server's own message is more
  * useful (it names the record and the reason), so it wins when the server sent one (M1-22, M1-24).
  */
-const GENERIC_CODES = new Set(['NotFound', 'Conflict', 'InUse', 'ValidationFailed', 'InvalidBody', 'Http400', 'Http404', 'Http409']);
+const GENERIC_CODES = new Set(['NotFound', 'Conflict', 'NameConflict', 'InUse', 'ValidationFailed', 'InvalidBody', 'Http400', 'Http404', 'Http409']);
 
 /**
  * Localized message for an error. Order: a translation of a known server message pattern; the server's own message
@@ -54,7 +54,7 @@ export function isMissingEndpoint(err) {
 }
 
 /** Field codes the server attaches to 400 ValidationFailed (P9.17); `Invalid` has no translation of its own. */
-export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAllowedValue', 'TooLong', 'UnknownSetting', 'PathRequired', 'OverriddenByEnvironment', 'SettingsFileReadOnly', 'ParameterNotAllowed', 'ParameterInvalid', 'ExpiryInPast', 'InvalidUrl', 'DestinationBlocked', 'EventsRequired', 'InvalidEvent', 'InvalidCron', 'InvalidTimeZone', 'TypeImmutable', 'TargetMismatch', 'PayloadTooLarge', 'SecretUseDenied', 'GrantCeiling', 'ReservedRoleName', 'InvalidAssetPath', 'MacroFormatRefused', 'AssetHasNoFiles', 'AssetTemplateRequired', 'InvalidFilePath'];
+export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAllowedValue', 'TooLong', 'UnknownSetting', 'PathRequired', 'OverriddenByEnvironment', 'SettingsFileReadOnly', 'ParameterNotAllowed', 'ParameterInvalid', 'ExpiryInPast', 'InvalidUrl', 'DestinationBlocked', 'EventsRequired', 'InvalidEvent', 'InvalidCron', 'InvalidTimeZone', 'TypeImmutable', 'TargetMismatch', 'PayloadTooLarge', 'SecretUseDenied', 'GrantCeiling', 'ReservedRoleName', 'InvalidAssetPath', 'MacroFormatRefused', 'AssetHasNoFiles', 'AssetTemplateRequired', 'InvalidFilePath', 'InvalidJsonSchema', 'InvalidTags', 'TooManyRequirements'];
 
 /**
  * Per-field messages from a validation error: each field's machine code (fieldCodes) translated, falling back to

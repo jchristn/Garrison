@@ -28,6 +28,28 @@ import PromoteModal from '../components/PromoteModal';
 import PromotionHistoryModal from '../components/PromotionHistoryModal';
 import AgentAssetVersionsModal from '../components/AgentAssetVersionsModal';
 import { ASSET_KINDS } from '../utils/assets';
+import CapabilityDetail, { CapabilityHints, CapabilitySource } from '../components/CapabilityDetail';
+import CapabilityRefreshModal from '../components/CapabilityRefreshModal';
+import { RefreshIcon } from '../components/Icons';
+import { translateServerText } from '../utils/serverText';
+import {
+  CAPABILITY_KINDS,
+  CAPABILITY_ORIGINS,
+  PROBE_ARGUMENTS,
+  capabilityErrors,
+  capabilityToBody,
+  capabilityToForm,
+  hintsKnown,
+  isEditableCapability,
+  isShared,
+  lockedReasonKey,
+  pageCapabilities,
+  probeError,
+  probesToBody,
+  probesToForm,
+  requirementText,
+  sourceOf
+} from '../utils/capabilities';
 import { EnvironmentBadge, RevisionPinBadge } from '../components/RevisionBadges';
 import { DEFAULT_ENVIRONMENT, environmentNames, environmentOf, revisionNumbers } from '../utils/revisions';
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
@@ -425,14 +447,18 @@ export const harnessProfilesConfig = {
     files: [],
     successExitCodes: [0],
     probeArguments: ['--version'],
+    toolProbes: [],
     credentialEnvironmentAllowlist: [],
     active: true
   }),
+  // AD4.8: tool probes edit one optional argument per probe; the body sends it back as a list of at most one.
+  toForm: (r) => ({ ...r, toolProbes: probesToForm(r.toolProbes) }),
   columns: ({ t, i18n }) => [
     nameCol('harnessProfiles', t),
     col('harnessProfiles', t, 'harnessType', (r) => enumBadge(t, 'harnessType', r.harnessType, 'info')),
     col('harnessProfiles', t, 'executable', (r) => <code>{r.executable}</code>),
     col('harnessProfiles', t, 'outputParser', (r) => enumLabel(t, 'outputParser', r.outputParser), { csv: (r) => r.outputParser }),
+    col('harnessProfiles', t, 'toolProbes', (r) => (r.toolProbes || []).map((p) => p.name).join(', ') || '-', { defaultHidden: true }),
     builtInCol('harnessProfiles', t),
     idCol('harnessProfiles', t),
     createdCol('harnessProfiles', t, i18n)
@@ -446,6 +472,24 @@ export const harnessProfilesConfig = {
       field(id, t, 'executable', 'text', { required: true, step: 0 }),
       field(id, t, 'probeArguments', 'stringList', { step: 0 }),
       field(id, t, 'active', 'checkbox', { step: 0 }),
+      // AD4.4: tools the harness can use when the worker host has them; workers report each as garrison.io/tool-{name}=true.
+      field(id, t, 'toolProbes', 'objectList', {
+        step: 0,
+        addLabel: t('resources.harnessProfiles.addToolProbe'),
+        fields: [
+          { name: 'name', type: 'text', label: t('resources.harnessProfiles.fields.probeName'), required: true, placeholder: 'pandoc' },
+          { name: 'executable', type: 'text', label: t('resources.harnessProfiles.fields.probeExecutable'), required: true, placeholder: 'pandoc' },
+          {
+            name: 'argument',
+            type: 'select',
+            label: t('resources.harnessProfiles.fields.probeArgument'),
+            default: '--version',
+            noneLabel: t('resources.harnessProfiles.probeNoArgument'),
+            options: PROBE_ARGUMENTS.map((a) => ({ value: a, label: a }))
+          },
+          { name: 'description', type: 'text', label: t('resources.harnessProfiles.fields.probeDescription') }
+        ]
+      }),
       field(id, t, 'arguments', 'objectList', {
         step: 1,
         ordered: true,
@@ -505,9 +549,11 @@ export const harnessProfilesConfig = {
     if (!d.name) e.name = t('common.errors.required');
     if (!d.executable) e.executable = t('common.errors.required');
     if (d.name && d.name.startsWith('builtin/')) e.name = t('resources.harnessProfiles.errors.reservedPrefix');
+    const probes = probeError(d.toolProbes, t);
+    if (probes) e.toolProbes = probes;
     return e;
   },
-  toBody: (d) => ({ ...d, successExitCodes: (d.successExitCodes || []).map((x) => Number(x)).filter((x) => !Number.isNaN(x)) }),
+  toBody: (d) => ({ ...d, toolProbes: probesToBody(d.toolProbes), successExitCodes: (d.successExitCodes || []).map((x) => Number(x)).filter((x) => !Number.isNaN(x)) }),
   rowActions: (r, ctx) => [
     {
       label: ctx.t('common.actions.clone'),
@@ -837,6 +883,164 @@ export const agentAssetsConfig = {
       onClick: () => ctx.setExtraModal(<AgentAssetVersionsModal asset={r} onClose={() => ctx.setExtraModal(null)} onChanged={() => ctx.reload()} />)
     }
   ]
+};
+
+/** Names by ID for the capability source links: agents, MCP servers, and harness profiles (built-in ones too). */
+async function capabilityLookups({ apiClient, tenantId }) {
+  const page = { pageNumber: 1, pageSize: 1000 };
+  const [agents, servers, profiles] = await Promise.all([
+    safeList(apiClient.listAgents(tenantId, page)),
+    safeList(apiClient.listMcpServers(tenantId, page)),
+    safeList(apiClient.listHarnessProfiles(tenantId, { ...page, includeBuiltIn: true }))
+  ]);
+  const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x.name]));
+  return { agents: byId(agents), mcpServers: byId(servers), harnessProfiles: byId(profiles) };
+}
+
+/** Text of a capability's source for CSV export: the agent, server/tool, or profile and node labels. */
+function capabilitySourceText(r, lookups = {}) {
+  const source = sourceOf(r);
+  if (source.type === 'agent') return lookups.agents?.[source.id] || source.id;
+  if (source.type === 'mcpServer') return [lookups.mcpServers?.[source.id] || source.id, source.tool].filter(Boolean).join('/');
+  if (source.type === 'harnessProfile') return [lookups.harnessProfiles?.[source.id] || source.id, ...(r.requirements || []).map(requirementText)].join(' ');
+  return '';
+}
+
+/** The first line of a summary, cut to a table cell. */
+function summaryCell(text, max = 140) {
+  const line = String(text || '').split('\n')[0];
+  return line.length > max ? `${line.slice(0, max - 3)}...` : line;
+}
+
+/**
+ * Capability catalog (AD4.8): agents, MCP tools, and harness built-ins an orchestrating agent can use, filterable by kind,
+ * origin, tag, and text. Derived entries follow their source and cannot be edited or deleted (409 CapabilityDerived), so
+ * their Edit and Delete stay disabled with the reason in the tooltip; manual entries are edited here. The server returns
+ * the whole filtered catalog at once, so sorting and paging happen in the browser. Refresh re-derives entries now.
+ */
+export const capabilitiesConfig = {
+  id: 'capabilities',
+  api: {
+    list: async (c, tenant, params = {}) => {
+      const { pageNumber, pageSize, ordering, ...filters } = params;
+      const r = await c.listCapabilities(tenant, filters);
+      return pageCapabilities(r.items, { pageNumber, pageSize, ordering });
+    },
+    create: (c, tenant, body) => c.createCapability(tenant, body),
+    update: (c, tenant, id, body) => c.updateCapability(tenant, id, body),
+    remove: (c, tenant, id) => c.deleteCapability(tenant, id)
+  },
+  filters: [
+    { name: 'kind', label: (t) => t('resources.capabilities.fields.kind'), options: CAPABILITY_KINDS, enumGroup: 'capabilityKind', tip: (t) => t('tips.resources.capabilities.kindFilter') },
+    { name: 'origin', label: (t) => t('resources.capabilities.columns.origin'), options: CAPABILITY_ORIGINS, enumGroup: 'capabilityOrigin', clientSide: true, tip: (t) => t('tips.resources.capabilities.originFilter') },
+    { name: 'tag', type: 'text', label: (t) => t('resources.capabilities.tagFilter'), tip: (t) => t('tips.resources.capabilities.tagFilter') }
+  ],
+  urlFilters: ['kind', 'tag'],
+  defaultSort: 'name',
+  defaultSortDir: 'asc',
+  bulkDelete: false,
+  canDuplicate: false,
+  isEditable: isEditableCapability,
+  canDelete: isEditableCapability,
+  lockedReason: (r, { t }) => {
+    const key = lockedReasonKey(r);
+    return key ? t(key) : '';
+  },
+  loadLookups: capabilityLookups,
+  loadOptions: async ({ apiClient, tenantId }) => ({
+    agents: await safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
+    servers: await safeList(apiClient.listMcpServers(tenantId, { pageNumber: 1, pageSize: 1000 }))
+  }),
+  blank: () => capabilityToForm({ kind: 'Agent' }),
+  toForm: capabilityToForm,
+  intro: ({ t, listInfo }) => {
+    const warned = (listInfo?.items || []).filter((r) => r.refreshWarning).length;
+    return warned ? (
+      <div className="warning-banner" role="status" data-testid="capability-warnings" {...tip(t('tips.resources.capabilities.warnings'))}>
+        {'⚠'} {t('resources.capabilities.warnings', { count: warned })}
+      </div>
+    ) : null;
+  },
+  headerActions: ({ t, reload, setExtraModal }) => (
+    <button
+      type="button"
+      className="button-secondary"
+      data-testid="capability-refresh"
+      onClick={() => setExtraModal(<CapabilityRefreshModal onClose={() => setExtraModal(null)} onDone={() => reload()} />)}
+      {...tip(t('tips.resources.capabilities.refresh'))}
+    >
+      <RefreshIcon size={14} /> {t('resources.capabilities.refresh')}
+    </button>
+  ),
+  columns: ({ t, i18n, lookups = {} }) => [
+    col(
+      'capabilities',
+      t,
+      'name',
+      (r) => (
+        <span className="capability-row-name">
+          <strong>{r.name}</strong>
+          {r.refreshWarning && (
+            <span data-cell="refreshWarning">
+              <Badge tone="warning" tip={t('tips.resources.capabilities.warningBadge', { warning: translateServerText(t, r.refreshWarning) })}>
+                {'⚠'} {t('resources.capabilities.warningBadge')}
+              </Badge>
+            </span>
+          )}
+        </span>
+      ),
+      { sortable: true, pinned: true, csv: (r) => r.name }
+    ),
+    col('capabilities', t, 'kind', (r) => enumBadge(t, 'capabilityKind', r.kind, 'info'), { csv: (r) => r.kind }),
+    col(
+      'capabilities',
+      t,
+      'origin',
+      (r) => (
+        <span className="capability-names">
+          {enumBadge(t, 'capabilityOrigin', r.origin, r.origin === 'Manual' ? 'success' : 'neutral')}
+          {isShared(r) && <Badge tip={t('tips.capabilities.shared')}>{t('components.capabilities.shared')}</Badge>}
+        </span>
+      ),
+      { csv: (r) => r.origin }
+    ),
+    col('capabilities', t, 'summary', (r) => (r.summary ? <span>{summaryCell(r.summary)}</span> : '-'), { csv: (r) => r.summary || '' }),
+    col('capabilities', t, 'source', (r) => <CapabilitySource descriptor={r} lookups={lookups} t={t} />, { csv: (r) => capabilitySourceText(r, lookups) }),
+    col('capabilities', t, 'hints', (r) => <CapabilityHints hints={r.hints} t={t} lng={i18n.language} />, {
+      csv: (r) => (hintsKnown(r.hints) ? [r.hints.medianDurationMs, r.hints.p90DurationMs, r.hints.meanCostUsd ?? ''].join(' ') : 'Unknown')
+    }),
+    col('capabilities', t, 'tags', (r) => (r.tags || []).join(', ') || '-'),
+    col('capabilities', t, 'lastRefreshedUtc', (r) => (r.lastRefreshedUtc ? <span {...tip(formatDateTime(r.lastRefreshedUtc, i18n.language))}>{formatRelativeTime(r.lastRefreshedUtc, i18n.language)}</span> : '-'), { defaultHidden: true }),
+    idCol('capabilities', t),
+    createdCol('capabilities', t, i18n)
+  ],
+  // The view dialog shows CapabilityDetail instead of disabled form fields.
+  fields: (_d, { t, mode, options = {} }) =>
+    mode === 'view'
+      ? []
+      : [
+          field('capabilities', t, 'name', 'text', { required: true }),
+          field('capabilities', t, 'kind', 'select', { required: true, options: enumOptions(t, 'capabilityKind') }),
+          field('capabilities', t, 'summary', 'textarea'),
+          field('capabilities', t, 'sourceAgentId', 'select', {
+            options: (options.agents || []).map((a) => ({ value: a.id, label: a.name })),
+            noneLabel: t('resources.capabilities.noSourceOption'),
+            showIf: (d) => d.kind === 'Agent'
+          }),
+          field('capabilities', t, 'sourceMcpServerId', 'select', {
+            options: (options.servers || []).map((s) => ({ value: s.id, label: s.name })),
+            noneLabel: t('resources.capabilities.noSourceOption'),
+            showIf: (d) => d.kind === 'McpTool'
+          }),
+          field('capabilities', t, 'sourceToolName', 'text', { showIf: (d) => d.kind === 'McpTool' && !!d.sourceMcpServerId }),
+          field('capabilities', t, 'tags', 'stringList'),
+          field('capabilities', t, 'requirements', 'keyValue', { keyLabel: t('resources.capabilities.requirementKey'), valueLabel: t('resources.capabilities.requirementValue') }),
+          field('capabilities', t, 'inputSchemaJson', 'json'),
+          field('capabilities', t, 'outputSchemaJson', 'json')
+        ],
+  validate: (d, t) => capabilityErrors(d, t),
+  toBody: (d) => capabilityToBody(d),
+  viewExtra: (d, { lookups }) => <CapabilityDetail descriptor={d} lookups={lookups} />
 };
 
 export const modelPricesConfig = {

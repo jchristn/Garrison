@@ -61,7 +61,9 @@ export const NAV_SECTIONS = [
           // P12.9: ordered agent stages with optional review gates.
           { id: 'pipelines', slug: 'pipelines' },
           // P12.5: cron schedules and signed webhooks that start agent runs or pipeline runs.
-          { id: 'triggers', slug: 'triggers' }
+          { id: 'triggers', slug: 'triggers' },
+          // AD4.8: the capability catalog (agents, MCP tools, harness built-ins) with cost and latency hints.
+          { id: 'capabilities', slug: 'capabilities' }
         ]
       }
     ]

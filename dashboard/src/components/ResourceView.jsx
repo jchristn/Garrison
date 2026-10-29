@@ -79,7 +79,8 @@ function applyClientFilters(config, filters, rows) {
  * Filters are selects (options may be a function of the lookups), date pickers, or free text (type 'text'); a filter with
  * `clientSide: true` is applied to the loaded page instead of being sent to the server;
  * `toDuplicate(row)` replaces the generic Duplicate stripping for records whose children keep references (pipelines);
- * `search: false` hides the name search for lists the server cannot search.
+ * `search: false` hides the name search for lists the server cannot search; `lockedReason(row, ctx)` shows Edit and
+ * Delete disabled with that explanation for records that cannot change; `bulkDelete: false` turns off row selection.
  */
 export default function ResourceView({ config }) {
   const { t, i18n } = useTranslation();
@@ -175,6 +176,9 @@ export default function ResourceView({ config }) {
   const canManage = !config.canManage || config.canManage(ctx);
   const isEditable = (row) => canManage && (config.isEditable ? config.isEditable(row) : !row?.isBuiltIn);
   const canDelete = (row) => canManage && (config.canDelete ? config.canDelete(row) : !row?.isProtected && !row?.isBuiltIn);
+  // Records that can never be edited or deleted here (for example derived capabilities) keep Edit and Delete in the menu,
+  // disabled, with a tooltip that says why; lockedReason(row, ctx) returns that text, or '' for records that are not locked.
+  const lockedTip = (row) => (canManage && config.lockedReason ? config.lockedReason(row, ctx) || '' : '');
 
   const open = (mode, data) => {
     setFieldErrors({});
@@ -278,7 +282,13 @@ export default function ResourceView({ config }) {
           label={r.name || r.email || r.id}
           items={[
             { label: t('common.actions.view'), tip: t(config.detailPath ? 'tips.actions.openDetail' : 'tips.actions.view'), onClick: () => (config.detailPath ? navigate(config.detailPath(r)) : open('view', config.toForm ? config.toForm(r) : { ...r })) },
-            { label: t('common.actions.edit'), tip: t('tips.actions.edit'), hidden: !config.api.update || !isEditable(r), onClick: () => open('edit', config.toForm ? config.toForm(r) : { ...r }) },
+            {
+              label: t('common.actions.edit'),
+              tip: lockedTip(r) || t('tips.actions.edit'),
+              hidden: !config.api.update || (!isEditable(r) && !lockedTip(r)),
+              disabled: !!lockedTip(r),
+              onClick: () => open('edit', config.toForm ? config.toForm(r) : { ...r })
+            },
             {
               label: t('common.actions.duplicate'),
               tip: t('tips.actions.duplicate'),
@@ -287,7 +297,14 @@ export default function ResourceView({ config }) {
             },
             ...((config.rowActions && config.rowActions(r, { ...ctx, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
             { label: t('common.actions.viewJson'), tip: t('tips.actions.viewJson'), onClick: () => setJsonValue(r) },
-            { label: t('common.actions.delete'), tip: t('tips.actions.delete'), danger: true, hidden: !config.api.remove || !canDelete(r), onClick: () => askDelete(r) }
+            {
+              label: t('common.actions.delete'),
+              tip: lockedTip(r) || t('tips.actions.delete'),
+              danger: !lockedTip(r),
+              hidden: !config.api.remove || (!canDelete(r) && !lockedTip(r)),
+              disabled: !!lockedTip(r),
+              onClick: () => askDelete(r)
+            }
           ]}
         />
       )
@@ -427,7 +444,7 @@ export default function ResourceView({ config }) {
           autoRefreshSeconds={autoRefreshSeconds}
           onAutoRefreshChange={setAutoRefreshSeconds}
           filterSlot={filterSlot}
-          selectable={!!config.api.remove}
+          selectable={!!config.api.remove && config.bulkDelete !== false}
           selected={selected}
           onSelectChange={setSelected}
           bulkActions={
@@ -484,7 +501,7 @@ export default function ResourceView({ config }) {
         {editing && (
           <>
             {Object.keys(fieldErrors).length > 0 && <div className="error-banner">{t('common.errors.fixFields')}</div>}
-            {editing.mode === 'view' && config.viewExtra && config.viewExtra(editing.data, ctx)}
+            {editing.mode === 'view' && config.viewExtra && config.viewExtra(editing.data, { ...ctx, lookups })}
             {editing.mode !== 'create' && config.formNotice && config.formNotice(editing.data, { ...ctx, options })}
             {steps && (
               <div className="stepper" role="tablist" aria-label={t('components.form.steps')}>

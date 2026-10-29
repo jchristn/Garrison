@@ -2456,3 +2456,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "將選擇的每個檔案逐一傳送到共用資料夾，並附上它要取代的版本。"
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "能力目錄：代理程式、MCP 工具與 Harness 內建工具，包含來源、成本與延遲提示，並可重新整理。"
+  }
+ },
+ "filters": {
+  "tag": "只顯示帶有此標籤（完全相符）的能力。停止輸入後清單會自動更新。",
+  "origin": "只顯示隨來源更新的衍生項目，或只顯示由人員撰寫的手動項目。"
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "另一個 Garrison 代理程式，依其最新發佈的修訂描述。負責協調的代理程式可以將工作委派給它。",
+   "McpTool": "此租用戶中已註冊之 MCP 伺服器的工具，依該伺服器的工具清單描述。",
+   "HarnessBuiltIn": "Harness 可在其工作節點主機上執行的程式，例如 pandoc 或 LibreOffice，由 Harness 設定檔上的工具探測找到。"
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison 會讓此項目與其來源保持一致。無法在這裡編輯或刪除，請改為變更來源。",
+   "Manual": "由人員撰寫的項目，可以在這裡編輯與刪除。"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "提示統計期間內完成的執行太少，無法得出結論，因此不顯示任何數值。MCP 工具與內建工具的提示一律為「未知」。",
+   "Known": "提示統計期間內完成的執行數足夠，因此耗時與成本數值都有實際執行作為依據。"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "受阻：此執行的代理程式使用 Harness 內建工具（例如 pandoc），但沒有任何能執行它的就緒工作節點回報此工具。執行會在佇列中等候，直到有這樣的工作節點註冊為止。"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "為 Garrison 無法衍生的東西撰寫手動項目，例如代理程式透過技能使用的轉換服務。",
+   "name": "代理程式用來尋找此能力的名稱。代理程式項目以代理程式命名，MCP 工具為 server/tool，內建工具則以工具命名。",
+   "kind": "代理程式、MCP 工具或 Harness 內建工具。手動項目可以使用任何類型。",
+   "origin": "衍生項目隨來源更新，無法在這裡變更；手動項目由人員撰寫。",
+   "summary": "說明此能力的用途與使用時機，代理程式會讀取這段文字。最多 4000 個字元。",
+   "source": "項目的來源：代理程式、MCP 伺服器與工具，或 Harness 設定檔以及執行所需的節點標籤。",
+   "hints": "根據近期完成的執行計算出的執行耗時中位數、第 90 百分位數與平均成本；完成的執行太少時顯示「未知」。",
+   "tags": "用來篩選目錄的標籤。代理程式也可以依標籤篩選。",
+   "lastRefreshedUtc": "Garrison 上次從來源重新整理衍生項目的時間。手動項目此欄為空。",
+   "sourceAgentId": "選填。此手動項目所代表的 Garrison 代理程式。",
+   "sourceMcpServerId": "選填。此手動項目所代表之工具所屬的 MCP 伺服器。",
+   "sourceToolName": "該工具在所選 MCP 伺服器上的名稱。",
+   "requirements": "工作節點在接下使用此能力的執行前，必須回報的節點標籤，例如 garrison.io/tool-pandoc=true。",
+   "inputSchemaJson": "描述此能力接受內容的 JSON Schema。儲存時 Garrison 會檢查它是否為有效的 JSON Schema。",
+   "outputSchemaJson": "描述此能力傳回內容的 JSON Schema。儲存時 Garrison 會檢查它是否為有效的 JSON Schema。",
+   "kindFilter": "只顯示代理程式、只顯示 MCP 工具，或只顯示 Harness 內建工具。選擇「全部」可查看整個目錄。",
+   "originFilter": "只顯示隨來源更新的衍生項目，或只顯示由人員撰寫的手動項目。",
+   "tagFilter": "只顯示帶有此標籤（完全相符）的能力。停止輸入後清單會自動更新。",
+   "refresh": "立即重新整理衍生項目：代理程式、Harness 內建工具、MCP 伺服器工具與代理程式提示。完成後顯示變更內容與失敗的伺服器。",
+   "warnings": "來源無法重新整理的項目會保留最後一次正常的內容，並在詳細資料中顯示原因。",
+   "warningBadge": "上次重新整理此項目的來源時失敗，因此顯示的是最後一次正常的內容。原因：{{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "工作節點主機上有安裝時，此 Harness 可以使用的工具，例如 pandoc。每個工具都會成為能力目錄中的一個 Harness 內建工具。",
+   "toolProbesItems": {
+    "name": "工具在目錄與節點標籤 garrison.io/tool-{name} 中的名稱：小寫字母、數字、句點與連字號。",
+    "executable": "工作節點在其 PATH 上尋找的單純檔案名稱，例如 soffice。不得包含資料夾。",
+    "argument": "探測傳入的唯一引數，例如 --version。只允許版本與說明旗標，或不帶引數。",
+    "description": "工具的用途，顯示在能力目錄中。最多 1024 個字元。"
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "此修訂依名稱使用的能力。其中的 Harness 內建工具會將其執行限制在回報該工具的工作節點上。"
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "開啟代理程式 {{name}}。此項目依它最新發佈的修訂描述。",
+  "sourceMcpServer": "在「MCP 伺服器」分頁中開啟 MCP 伺服器 {{name}}。它的工具清單是此項目的來源。",
+  "sourceTool": "該工具在 MCP 伺服器上的名稱：{{tool}}。",
+  "sourceProfile": "開啟 Harness 設定檔 {{name}}。它的工具探測是此項目的來源。",
+  "nodeLabel": "使用此能力的執行只會分派到回報節點標籤 {{label}} 的工作節點。",
+  "noSource": "未指名任何代理程式或 MCP 伺服器的手動項目。所有可讀取目錄的執行都看得到它。",
+  "hintsUnknown": "提示統計期間內完成的執行太少，無法得出結論，因此不顯示任何數值。這絕不代表零。",
+  "hintsKnown_one": "根據過去 {{days}} 天內完成的 {{count}} 次執行彙整。",
+  "hintsKnown_other": "根據過去 {{days}} 天內完成的 {{count}} 次執行彙整。",
+  "refreshWarning": "Garrison 無法從來源重新整理此項目，因此在下次重新整理成功前，項目會保留最後一次正常的內容。",
+  "lockedBanner": "說明為何無法在這裡編輯或刪除此項目，以及應改到哪裡變更。",
+  "lockedShared": "由所有租用戶共用：此項目來自內建 Harness 設定檔上的工具探測，因此無法編輯或刪除。若要變更探測，請複製該設定檔。",
+  "locked": {
+   "Agent": "衍生自代理程式最新發佈的修訂，因此無法在這裡編輯或刪除。請發佈新修訂來變更它；停用代理程式會將它移除。",
+   "McpTool": "衍生自 MCP 伺服器的工具清單，因此無法在這裡編輯或刪除。請變更伺服器或其工具，然後重新整理。",
+   "HarnessBuiltIn": "衍生自 Harness 設定檔上的工具探測，因此無法在這裡編輯或刪除。請改為變更設定檔的工具探測。"
+  },
+  "shared": "所有租用戶都看得到此項目。它來自內建 Harness 設定檔上的工具探測。",
+  "hintsTitle": "此代理程式近期已完成執行的耗時與成本。MCP 工具與內建工具沒有提示。",
+  "requirementsTitle": "工作節點在接下其代理程式使用此能力的執行前，必須回報的節點標籤。",
+  "fields": {
+   "kind": "代理程式、MCP 工具或 Harness 內建工具。",
+   "origin": "衍生項目隨來源更新；手動項目由人員撰寫。",
+   "source": "此項目來自的代理程式、MCP 伺服器與工具，或 Harness 設定檔。",
+   "lastRefreshedUtc": "Garrison 上次從來源重新整理此項目的時間。手動項目此欄為空。",
+   "tags": "用來篩選目錄的標籤。",
+   "id": "目錄項目的識別碼，以 cap_ 開頭。",
+   "summary": "說明此能力的用途與使用時機，代理程式會讀取這段文字。",
+   "hintStatus": "統計期間內完成的執行數足夠時為「已知」，否則為「未知」，此時不顯示任何數值。",
+   "sampleSize": "提示彙整了多少次已完成的執行，從最近的開始算。",
+   "medianDurationMs": "所彙整執行從開始到完成的時間中位數。",
+   "p90DurationMs": "所彙整的執行中，每十次有九次在這段時間內完成。",
+   "meanCostUsd": "所彙整且有記錄成本之執行的平均成本（美元）。",
+   "windowDays": "提示往回統計的天數（Capabilities.HintWindowDays 設定）。",
+   "computedUtc": "維護迴圈或重新整理上次計算提示的時間。",
+   "inputSchemaJson": "描述此能力接受內容的 JSON Schema；接受自由文字時則無。",
+   "outputSchemaJson": "描述此能力傳回內容的 JSON Schema，或無。"
+  },
+  "refreshServer": "列出所有啟用中 MCP 伺服器的工具，或只列出單一伺服器的工具。stdio 伺服器會透過工作節點列出。",
+  "refreshRun": "立即開始重新整理。MCP 伺服器回應較慢時可能需要一段時間。",
+  "refresh": {
+   "agents": "此次重新整理建立、更新或移除的代理程式項目。",
+   "harnessBuiltIns": "在所有範圍中建立、更新或移除的 Harness 內建工具項目。",
+   "hints": "重新計算了成本與延遲提示的代理程式項目。",
+   "servers": "此次重新整理嘗試列出的 MCP 伺服器數量。",
+   "tools": "從有回應的伺服器寫入的工具項目。",
+   "removed": "因伺服器不再列出該工具而移除的工具項目。",
+   "failed": "無法列出工具的伺服器。它們的項目會保留最後一次正常的內容。",
+   "failedBadge": "無法列出此伺服器的工具。其項目會保留最後一次正常的內容，並附上警告。",
+   "listedBadge": "伺服器已回應，其工具項目都是最新的。",
+   "columns": {
+    "server": "列出工具的 MCP 伺服器。",
+    "status": "是否能列出此伺服器的工具。",
+    "tools": "為此伺服器寫入的工具項目。",
+    "removed": "因伺服器不再列出而移除的工具項目。",
+    "warned": "保留最後一次正常內容、現在附有重新整理警告的項目。",
+    "error": "列出失敗時的原因。"
+   }
+  },
+  "draftSave": "將這些能力儲存到草稿。之後發佈草稿，部署才會使用它們。",
+  "notInCatalog": "目前沒有任何目錄項目使用此名稱。執行仍會開始，但代理程式找不到此能力。",
+  "removeName": "從修訂中移除此能力。",
+  "chooseName": "依名稱從目錄中挑選能力。多種類型共用的名稱只會列出一次。",
+  "addName": "將所選的能力加入修訂。",
+  "newDraft": "以最新發佈的修訂為基礎建立新草稿，並選擇它使用的能力。",
+  "editDraft": "新增或移除此草稿修訂使用的能力。",
+  "revisionName": "此修訂使用能力 {{name}}。代理程式會在目錄中以此名稱找到它。"
+ }
+});

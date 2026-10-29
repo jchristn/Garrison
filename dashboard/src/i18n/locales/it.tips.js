@@ -2459,3 +2459,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "Invia ogni file scelto alla cartella condivisa, uno alla volta, con la versione che sostituisce."
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "Il catalogo delle capacità: agenti, strumenti MCP e strumenti integrati degli harness con le loro origini, le indicazioni su costi e latenza e un comando per aggiornarlo."
+  }
+ },
+ "filters": {
+  "tag": "Mostra solo le capacità con esattamente questo tag. L'elenco si aggiorna quando smetti di digitare.",
+  "origin": "Mostra solo le voci derivate, che seguono la loro origine, oppure solo quelle manuali, scritte da persone."
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Un altro agente Garrison, descritto in base alla sua ultima revisione pubblicata. Un agente orchestratore può delegargli del lavoro.",
+   "McpTool": "Uno strumento di un server MCP registrato in questo tenant, descritto in base all'elenco degli strumenti del server.",
+   "HarnessBuiltIn": "Un programma che l'harness può eseguire sull'host del suo worker, come pandoc o LibreOffice, rilevato da una sonda di strumento su un profilo harness."
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison mantiene questa voce allineata alla sua origine. Non si può modificare né eliminare qui; modifica invece l'origine.",
+   "Manual": "Questa voce l'ha scritta una persona. Si può modificare ed eliminare qui."
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Nella finestra delle indicazioni sono terminate troppo poche esecuzioni per dire qualcosa, quindi non viene mostrato alcun valore. Gli strumenti MCP e gli strumenti integrati hanno sempre indicazioni Sconosciuto.",
+   "Known": "Nella finestra delle indicazioni sono terminate abbastanza esecuzioni, quindi i valori di durata e costo si basano su esecuzioni reali."
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Bloccata: l'agente di questa esecuzione usa uno strumento integrato dell'harness, come pandoc, e nessun worker pronto in grado di eseguirla segnala lo strumento. Resta in coda finché non si registra un worker del genere."
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "Scrivi una voce manuale per qualcosa che Garrison non può ricavare, per esempio un servizio di conversione che gli agenti raggiungono tramite una skill.",
+   "name": "Nome con cui gli agenti trovano la capacità. Gli agenti prendono il nome dell'agente, gli strumenti MCP la forma server/tool, gli strumenti integrati il nome dello strumento.",
+   "kind": "Agente, strumento MCP o strumento integrato dell'harness. Le voci manuali possono usare qualsiasi tipo.",
+   "origin": "Le voci derivate seguono la loro origine e non si possono modificare qui; quelle manuali sono scritte da persone.",
+   "summary": "Che cosa fa la capacità e quando usarla, così come la leggono gli agenti. Fino a 4000 caratteri.",
+   "source": "Da dove proviene la voce: l'agente, il server MCP e lo strumento, oppure il profilo harness e l'etichetta del nodo richiesta da un'esecuzione.",
+   "hints": "Durata mediana e al 90° percentile e costo medio delle esecuzioni terminate di recente, oppure Sconosciuto quando ne sono terminate troppo poche.",
+   "tags": "Etichette per filtrare il catalogo. Anche gli agenti possono filtrare per tag.",
+   "lastRefreshedUtc": "Quando Garrison ha aggiornato l'ultima volta una voce derivata dalla sua origine. Vuoto per le voci manuali.",
+   "sourceAgentId": "Facoltativo. L'agente Garrison che questa voce manuale rappresenta.",
+   "sourceMcpServerId": "Facoltativo. Il server MCP il cui strumento è rappresentato da questa voce manuale.",
+   "sourceToolName": "Il nome dello strumento sul server MCP scelto.",
+   "requirements": "Etichette del nodo, come garrison.io/tool-pandoc=true, che un worker deve segnalare prima di prendere un'esecuzione che usa questa capacità.",
+   "inputSchemaJson": "JSON Schema di ciò che la capacità accetta. Al salvataggio Garrison verifica che sia un JSON Schema valido.",
+   "outputSchemaJson": "JSON Schema di ciò che la capacità restituisce. Al salvataggio Garrison verifica che sia un JSON Schema valido.",
+   "kindFilter": "Mostra solo agenti, solo strumenti MCP o solo strumenti integrati degli harness. Scegli Tutti per vedere l'intero catalogo.",
+   "originFilter": "Mostra solo le voci derivate, che seguono la loro origine, oppure solo quelle manuali, scritte da persone.",
+   "tagFilter": "Mostra solo le capacità con esattamente questo tag. L'elenco si aggiorna quando smetti di digitare.",
+   "refresh": "Aggiorna subito le voci derivate: agenti, strumenti integrati degli harness, strumenti dei server MCP e indicazioni degli agenti. Mostra che cosa è cambiato e quali server non hanno risposto.",
+   "warnings": "Le voci la cui origine non è stata aggiornata mantengono il loro ultimo contenuto valido e mostrano il motivo nei dettagli.",
+   "warningBadge": "L'ultimo aggiornamento dell'origine di questa voce non è riuscito, quindi mostra il suo ultimo contenuto valido. Motivo: {{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "Strumenti che questo harness può usare quando l'host del worker li ha, come pandoc. Ognuno diventa uno strumento integrato dell'harness nel catalogo delle capacità.",
+   "toolProbesItems": {
+    "name": "Nome dello strumento nel catalogo e nell'etichetta del nodo garrison.io/tool-{name}: lettere minuscole, cifre, punti e trattini.",
+    "executable": "Semplice nome di file che il worker cerca nel suo PATH, per esempio soffice. Non è ammessa alcuna cartella.",
+    "argument": "L'unico argomento che la sonda passa, come --version. Sono ammessi solo i flag di versione e di aiuto, oppure nessuno.",
+    "description": "Che cosa fa lo strumento, mostrato nel catalogo delle capacità. Fino a 1024 caratteri."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "Le capacità usate da questa revisione, per nome. Gli strumenti integrati degli harness tra queste limitano le sue esecuzioni ai worker che segnalano lo strumento."
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "Apri l'agente {{name}}, che questa voce descrive in base alla sua ultima revisione pubblicata.",
+  "sourceMcpServer": "Apri il server MCP {{name}} nella scheda Server MCP. Il suo elenco di strumenti è l'origine di questa voce.",
+  "sourceTool": "Il nome dello strumento sul server MCP: {{tool}}.",
+  "sourceProfile": "Apri il profilo harness {{name}}, la cui sonda di strumento è l'origine di questa voce.",
+  "nodeLabel": "Un'esecuzione che usa questa capacità va solo a un worker che segnala l'etichetta del nodo {{label}}.",
+  "noSource": "Una voce manuale che non nomina alcun agente né server MCP. La vede ogni esecuzione che può leggere il catalogo.",
+  "hintsUnknown": "Nella finestra delle indicazioni sono terminate troppo poche esecuzioni per dire qualcosa, quindi non viene mostrato alcun valore. Non significa mai zero.",
+  "hintsKnown_one": "Riepilogo di {{count}} esecuzione terminata negli ultimi {{days}} giorni.",
+  "hintsKnown_other": "Riepilogo di {{count}} esecuzioni terminate negli ultimi {{days}} giorni.",
+  "refreshWarning": "Garrison non è riuscito ad aggiornare questa voce dalla sua origine, quindi la voce mantiene il suo ultimo contenuto valido finché il prossimo aggiornamento non riesce.",
+  "lockedBanner": "Perché questa voce non si può modificare né eliminare qui, e dove modificarla invece.",
+  "lockedShared": "Condivisa da tutti i tenant: questa voce proviene da una sonda di strumento su un profilo harness predefinito, quindi non si può modificare né eliminare. Clona il profilo per cambiarne le sonde.",
+  "locked": {
+   "Agent": "Derivata dall'ultima revisione pubblicata dell'agente, quindi non si può modificare né eliminare qui. Pubblica una nuova revisione per cambiarla; disattivando l'agente la voce viene rimossa.",
+   "McpTool": "Derivata dall'elenco degli strumenti del server MCP, quindi non si può modificare né eliminare qui. Modifica il server o i suoi strumenti, poi aggiorna.",
+   "HarnessBuiltIn": "Derivata da una sonda di strumento su un profilo harness, quindi non si può modificare né eliminare qui. Modifica invece le sonde di strumento del profilo."
+  },
+  "shared": "Tutti i tenant vedono questa voce. Proviene da una sonda di strumento su un profilo harness predefinito.",
+  "hintsTitle": "Durata e costo delle esecuzioni terminate di recente di questo agente. Gli strumenti MCP e gli strumenti integrati non hanno indicazioni.",
+  "requirementsTitle": "Etichette del nodo che un worker deve segnalare prima di prendere un'esecuzione il cui agente usa questa capacità.",
+  "fields": {
+   "kind": "Agente, strumento MCP o strumento integrato dell'harness.",
+   "origin": "Le voci derivate seguono la loro origine; quelle manuali sono scritte da persone.",
+   "source": "L'agente, il server MCP e lo strumento, oppure il profilo harness da cui proviene questa voce.",
+   "lastRefreshedUtc": "Quando Garrison ha aggiornato l'ultima volta questa voce dalla sua origine. Vuoto per le voci manuali.",
+   "tags": "Etichette per filtrare il catalogo.",
+   "id": "Identificativo della voce del catalogo, che inizia con cap_.",
+   "summary": "Che cosa fa la capacità e quando usarla, così come la leggono gli agenti.",
+   "hintStatus": "Noto quando nella finestra sono terminate abbastanza esecuzioni; altrimenti Sconosciuto, e in quel caso non viene mostrato alcun valore.",
+   "sampleSize": "Quante esecuzioni terminate riassumono le indicazioni, a partire dalle più recenti.",
+   "medianDurationMs": "Tempo mediano dall'avvio al completamento delle esecuzioni riepilogate.",
+   "p90DurationMs": "Nove esecuzioni riepilogate su dieci sono terminate entro questo tempo.",
+   "meanCostUsd": "Costo medio in dollari statunitensi delle esecuzioni riepilogate che hanno registrato un costo.",
+   "windowDays": "Quanti giorni indietro considerano le indicazioni (l'impostazione Capabilities.HintWindowDays).",
+   "computedUtc": "Quando le indicazioni sono state calcolate l'ultima volta dal ciclo di manutenzione o da un aggiornamento.",
+   "inputSchemaJson": "JSON Schema di ciò che la capacità accetta, oppure nessuno per il testo libero.",
+   "outputSchemaJson": "JSON Schema di ciò che la capacità restituisce, oppure nessuno."
+  },
+  "refreshServer": "Elenca gli strumenti di tutti i server MCP attivi o di un solo server. I server stdio vengono elencati tramite un worker.",
+  "refreshRun": "Avvia subito l'aggiornamento. Può richiedere un po' di tempo se i server MCP rispondono lentamente.",
+  "refresh": {
+   "agents": "Voci di agenti create, aggiornate o rimosse da questo aggiornamento.",
+   "harnessBuiltIns": "Voci di strumenti integrati degli harness create, aggiornate o rimosse, in tutti gli ambiti.",
+   "hints": "Voci di agenti le cui indicazioni su costi e latenza sono state ricalcolate.",
+   "servers": "Quanti server MCP questo aggiornamento ha provato a elencare.",
+   "tools": "Voci di strumenti scritte dai server che hanno risposto.",
+   "removed": "Voci di strumenti rimosse perché il loro server non elenca più lo strumento.",
+   "failed": "Server i cui strumenti non è stato possibile elencare. Le loro voci mantengono l'ultimo contenuto valido.",
+   "failedBadge": "Non è stato possibile elencare gli strumenti di questo server. Le sue voci mantengono l'ultimo contenuto valido con un avviso.",
+   "listedBadge": "Il server ha risposto e le sue voci di strumenti sono aggiornate.",
+   "columns": {
+    "server": "Il server MCP di cui sono stati elencati gli strumenti.",
+    "status": "Se è stato possibile elencare gli strumenti del server.",
+    "tools": "Voci di strumenti scritte per questo server.",
+    "removed": "Voci di strumenti rimosse perché il server non le elenca più.",
+    "warned": "Voci che hanno mantenuto l'ultimo contenuto valido e ora hanno un avviso di aggiornamento.",
+    "error": "Perché l'elenco non è riuscito, se non è riuscito."
+   }
+  },
+  "draftSave": "Salva queste capacità nella bozza. Poi pubblica la bozza perché le distribuzioni le usino.",
+  "notInCatalog": "Al momento nessuna voce del catalogo ha questo nome. L'esecuzione parte comunque, ma l'agente non può trovare questa capacità.",
+  "removeName": "Rimuovi questa capacità dalla revisione.",
+  "chooseName": "Scegli una capacità dal catalogo in base al nome. I nomi usati da più tipi compaiono una sola volta.",
+  "addName": "Aggiungi la capacità scelta alla revisione.",
+  "newDraft": "Avvia una nuova bozza dall'ultima revisione pubblicata e scegli le capacità che usa.",
+  "editDraft": "Aggiungi o rimuovi le capacità usate da questa revisione in bozza.",
+  "revisionName": "Questa revisione usa la capacità {{name}}. Gli agenti la trovano nel catalogo con questo nome."
+ }
+});

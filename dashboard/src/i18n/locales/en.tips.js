@@ -2457,3 +2457,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "Send each chosen file to the shared folder, one at a time, with the version it replaces."
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "The capability catalog: agents, MCP tools, and harness built-ins with sources, cost and latency hints, and a refresh."
+  }
+ },
+ "filters": {
+  "tag": "Show only capabilities with this exact tag. The list updates when you stop typing.",
+  "origin": "Show only derived entries, which follow their source, or only manual entries written by people."
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Another Garrison agent, described from its latest published revision. An orchestrating agent can delegate to it.",
+   "McpTool": "A tool of an MCP server registered in this tenant, described from the server's tool list.",
+   "HarnessBuiltIn": "A program the harness can run on its worker host, such as pandoc or LibreOffice, found by a tool probe on a harness profile."
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison keeps this entry in step with its source. It cannot be edited or deleted here; change the source instead.",
+   "Manual": "A person wrote this entry. It can be edited and deleted here."
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Too few runs finished in the hint window to say anything, so no values are shown. MCP tools and built-ins always have Unknown hints.",
+   "Known": "Enough runs finished in the hint window, so the duration and cost values are backed by real runs."
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Blocked: this run's agent uses a harness built-in tool, such as pandoc, and no Ready worker that can run it reports the tool. It waits in the queue until such a worker registers."
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "Write a manual entry for something Garrison cannot derive, for example a conversion service that agents reach through a skill.",
+   "name": "Name agents use to find the capability. Agents are named after the agent, MCP tools as server/tool, built-ins after the tool.",
+   "kind": "Agent, MCP tool, or harness built-in. Manual entries may use any kind.",
+   "origin": "Derived entries follow their source and cannot be changed here; manual entries were written by people.",
+   "summary": "What the capability does and when to use it, as agents read it. Up to 4000 characters.",
+   "source": "Where the entry comes from: the agent, the MCP server and tool, or the harness profile and the node label a run needs.",
+   "hints": "Median and 90th percentile run duration and mean cost from recent finished runs, or Unknown when too few runs finished.",
+   "tags": "Labels for filtering the catalog. Agents can filter by tag too.",
+   "lastRefreshedUtc": "When Garrison last refreshed a derived entry from its source. Empty for manual entries.",
+   "sourceAgentId": "Optional. The Garrison agent this manual entry stands for.",
+   "sourceMcpServerId": "Optional. The MCP server whose tool this manual entry stands for.",
+   "sourceToolName": "The tool's name on the chosen MCP server.",
+   "requirements": "Node labels, such as garrison.io/tool-pandoc=true, a worker must report before it takes a run that uses this capability.",
+   "inputSchemaJson": "JSON Schema of what the capability takes. Garrison checks that it is a valid JSON Schema when you save.",
+   "outputSchemaJson": "JSON Schema of what the capability returns. Garrison checks that it is a valid JSON Schema when you save.",
+   "kindFilter": "Show only agents, only MCP tools, or only harness built-ins. Choose All to see the whole catalog.",
+   "originFilter": "Show only derived entries, which follow their source, or only manual entries written by people.",
+   "tagFilter": "Show only capabilities with this exact tag. The list updates when you stop typing.",
+   "refresh": "Refresh derived entries now: agents, harness built-ins, MCP server tools, and agent hints. Shows what changed and which servers failed.",
+   "warnings": "Entries whose source could not be refreshed keep their last good content and show the reason in their details.",
+   "warningBadge": "The last refresh of this entry's source failed, so it shows its last good content. Reason: {{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "Tools this harness can use when the worker host has them, such as pandoc. Each becomes a harness built-in in the capability catalog.",
+   "toolProbesItems": {
+    "name": "Tool name in the catalog and in the node label garrison.io/tool-{name}: lowercase letters, digits, dots, and hyphens.",
+    "executable": "Bare file name the worker looks up on its PATH, for example soffice. No folder is allowed.",
+    "argument": "The one argument the probe passes, such as --version. Only version and help flags are allowed, or none.",
+    "description": "What the tool does, shown in the capability catalog. Up to 1024 characters."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "Capabilities this revision uses, by name. Harness built-ins among them limit its runs to workers that report the tool."
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "Open agent {{name}}, which this entry describes from its latest published revision.",
+  "sourceMcpServer": "Open MCP server {{name}} in the MCP Servers tab. Its tool list is the source of this entry.",
+  "sourceTool": "The name of the tool on the MCP server: {{tool}}.",
+  "sourceProfile": "Open harness profile {{name}}, whose tool probe is the source of this entry.",
+  "nodeLabel": "A run that uses this capability goes only to a worker that reports the node label {{label}}.",
+  "noSource": "A manual entry that names no agent or MCP server. Every run that can read the catalog sees it.",
+  "hintsUnknown": "Too few runs finished in the hint window to say anything, so no values are shown. This never means zero.",
+  "hintsKnown_one": "Summarized from {{count}} finished run over the last {{days}} days.",
+  "hintsKnown_other": "Summarized from {{count}} finished runs over the last {{days}} days.",
+  "refreshWarning": "Garrison could not refresh this entry from its source, so the entry keeps its last good content until the next refresh succeeds.",
+  "lockedBanner": "Why this entry cannot be edited or deleted here, and where to change it instead.",
+  "lockedShared": "Shared by every tenant: this entry comes from a tool probe on a built-in harness profile, so it cannot be edited or deleted. Clone the profile to change its probes.",
+  "locked": {
+   "Agent": "Derived from the agent's latest published revision, so it cannot be edited or deleted here. Publish a new revision to change it; deactivating the agent removes it.",
+   "McpTool": "Derived from the MCP server's tool list, so it cannot be edited or deleted here. Change the server or its tools, then refresh.",
+   "HarnessBuiltIn": "Derived from a tool probe on a harness profile, so it cannot be edited or deleted here. Change the profile's tool probes instead."
+  },
+  "shared": "Every tenant sees this entry. It comes from a tool probe on a built-in harness profile.",
+  "hintsTitle": "Duration and cost of recent finished runs of this agent. MCP tools and built-ins have no hints.",
+  "requirementsTitle": "Node labels a worker must report before it takes a run whose agent uses this capability.",
+  "fields": {
+   "kind": "Agent, MCP tool, or harness built-in.",
+   "origin": "Derived entries follow their source; manual entries were written by people.",
+   "source": "The agent, MCP server and tool, or harness profile this entry comes from.",
+   "lastRefreshedUtc": "When Garrison last refreshed this entry from its source. Empty for manual entries.",
+   "tags": "Labels for filtering the catalog.",
+   "id": "Identifier of the catalog entry, starting with cap_.",
+   "summary": "What the capability does and when to use it, as agents read it.",
+   "hintStatus": "Known when enough runs finished in the window; Unknown otherwise, and then no value is shown.",
+   "sampleSize": "How many finished runs the hints summarize, the most recent first.",
+   "medianDurationMs": "Median time from start to completion of the summarized runs.",
+   "p90DurationMs": "Nine in ten of the summarized runs finished within this time.",
+   "meanCostUsd": "Mean cost in US dollars of the summarized runs that recorded a cost.",
+   "windowDays": "How many days back the hints look (the Capabilities.HintWindowDays setting).",
+   "computedUtc": "When the hints were last computed by the maintenance loop or a refresh.",
+   "inputSchemaJson": "JSON Schema of what the capability takes, or none for free text.",
+   "outputSchemaJson": "JSON Schema of what the capability returns, or none."
+  },
+  "refreshServer": "List the tools of every active MCP server, or of one server only. Stdio servers are listed through a worker.",
+  "refreshRun": "Start the refresh now. It can take a while when MCP servers are slow to answer.",
+  "refresh": {
+   "agents": "Agent entries created, refreshed, or removed by this refresh.",
+   "harnessBuiltIns": "Harness built-in entries created, refreshed, or removed, across every scope.",
+   "hints": "Agent entries whose cost and latency hints were computed again.",
+   "servers": "How many MCP servers this refresh tried to list.",
+   "tools": "Tool entries written from the servers that answered.",
+   "removed": "Tool entries removed because their server no longer lists the tool.",
+   "failed": "Servers whose tools could not be listed. Their entries keep their last good content.",
+   "failedBadge": "The tools of this server could not be listed. Its entries keep their last good content with a warning.",
+   "listedBadge": "The server answered and its tool entries are up to date.",
+   "columns": {
+    "server": "The MCP server whose tools were listed.",
+    "status": "Whether the server's tools could be listed.",
+    "tools": "Tool entries written for this server.",
+    "removed": "Tool entries removed because the server no longer lists them.",
+    "warned": "Entries that kept their last good content and now carry a refresh warning.",
+    "error": "Why the listing failed, when it did."
+   }
+  },
+  "draftSave": "Save these capabilities on the draft. Publish the draft afterwards for deployments to use them.",
+  "notInCatalog": "No catalog entry has this name right now. The run starts anyway, but the agent cannot find this capability.",
+  "removeName": "Remove this capability from the revision.",
+  "chooseName": "Pick a capability from the catalog by name. Names used by more than one kind are listed once.",
+  "addName": "Add the chosen capability to the revision.",
+  "newDraft": "Start a new draft from the latest published revision and choose the capabilities it uses.",
+  "editDraft": "Add or remove the capabilities this draft revision uses.",
+  "revisionName": "This revision uses capability {{name}}. Agents find it in the catalog by this name."
+ }
+});

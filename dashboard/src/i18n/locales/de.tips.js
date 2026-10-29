@@ -2457,3 +2457,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "Jede gewählte Datei nacheinander in den gemeinsamen Ordner senden, zusammen mit der Version, die sie ersetzt."
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "Der Fähigkeitenkatalog: Agents, MCP-Tools und integrierte Harness-Tools mit Quellen, Hinweisen zu Kosten und Latenz sowie einer Aktualisierung."
+  }
+ },
+ "filters": {
+  "tag": "Nur Fähigkeiten mit genau diesem Schlagwort anzeigen. Die Liste aktualisiert sich, sobald Sie aufhören zu tippen.",
+  "origin": "Nur abgeleitete Einträge anzeigen, die ihrer Quelle folgen, oder nur manuelle Einträge, die Personen geschrieben haben."
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Ein anderer Garrison-Agent, beschrieben anhand seiner neuesten veröffentlichten Revision. Ein orchestrierender Agent kann an ihn delegieren.",
+   "McpTool": "Ein Tool eines in diesem Mandanten registrierten MCP-Servers, beschrieben anhand der Tool-Liste des Servers.",
+   "HarnessBuiltIn": "Ein Programm, das die Harness auf ihrem Worker-Host ausführen kann, etwa pandoc oder LibreOffice. Gefunden wird es über eine Tool-Prüfung in einem Harness-Profil."
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison hält diesen Eintrag mit seiner Quelle synchron. Er kann hier weder bearbeitet noch gelöscht werden; ändern Sie stattdessen die Quelle.",
+   "Manual": "Eine Person hat diesen Eintrag geschrieben. Er kann hier bearbeitet und gelöscht werden."
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Im Hinweiszeitfenster sind zu wenige Läufe abgeschlossen, um etwas auszusagen, daher werden keine Werte angezeigt. MCP-Tools und integrierte Tools haben immer unbekannte Hinweise.",
+   "Known": "Im Hinweiszeitfenster sind genug Läufe abgeschlossen, daher beruhen die Werte für Dauer und Kosten auf echten Läufen."
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Blockiert: Der Agent dieses Laufs nutzt ein integriertes Harness-Tool wie pandoc, und kein bereiter Worker, der ihn ausführen kann, meldet das Tool. Der Lauf wartet in der Warteschlange, bis sich ein solcher Worker registriert."
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "Einen manuellen Eintrag für etwas schreiben, das Garrison nicht ableiten kann, zum Beispiel einen Konvertierungsdienst, den Agents über eine Skill-Ressource erreichen.",
+   "name": "Name, unter dem Agents die Fähigkeit finden. Agent-Einträge heißen wie der Agent, MCP-Tools server/tool, integrierte Tools wie das Tool.",
+   "kind": "Agent, MCP-Tool oder integriertes Harness-Tool. Manuelle Einträge dürfen jede Art verwenden.",
+   "origin": "Abgeleitete Einträge folgen ihrer Quelle und können hier nicht geändert werden; manuelle Einträge stammen von Personen.",
+   "summary": "Was die Fähigkeit tut und wann man sie nutzt, so wie Agents es lesen. Bis zu 4000 Zeichen.",
+   "source": "Woher der Eintrag stammt: vom Agent, vom MCP-Server und Tool oder vom Harness-Profil samt dem Knotenlabel, das ein Lauf benötigt.",
+   "hints": "Median und 90. Perzentil der Laufdauer sowie mittlere Kosten aus kürzlich abgeschlossenen Läufen, oder Unbekannt, wenn zu wenige Läufe abgeschlossen sind.",
+   "tags": "Schlagwörter zum Filtern des Katalogs. Auch Agents können nach Schlagwort filtern.",
+   "lastRefreshedUtc": "Wann Garrison einen abgeleiteten Eintrag zuletzt aus seiner Quelle aktualisiert hat. Bei manuellen Einträgen leer.",
+   "sourceAgentId": "Optional. Der Garrison-Agent, für den dieser manuelle Eintrag steht.",
+   "sourceMcpServerId": "Optional. Der MCP-Server, für dessen Tool dieser manuelle Eintrag steht.",
+   "sourceToolName": "Der Name des Tools auf dem gewählten MCP-Server.",
+   "requirements": "Knotenlabels wie garrison.io/tool-pandoc=true, die ein Worker melden muss, bevor er einen Lauf mit dieser Fähigkeit übernimmt.",
+   "inputSchemaJson": "JSON Schema dessen, was die Fähigkeit annimmt. Garrison prüft beim Speichern, ob es ein gültiges JSON Schema ist.",
+   "outputSchemaJson": "JSON Schema dessen, was die Fähigkeit zurückgibt. Garrison prüft beim Speichern, ob es ein gültiges JSON Schema ist.",
+   "kindFilter": "Nur Agents, nur MCP-Tools oder nur integrierte Harness-Tools anzeigen. Wählen Sie Alle, um den ganzen Katalog zu sehen.",
+   "originFilter": "Nur abgeleitete Einträge anzeigen, die ihrer Quelle folgen, oder nur manuelle Einträge, die Personen geschrieben haben.",
+   "tagFilter": "Nur Fähigkeiten mit genau diesem Schlagwort anzeigen. Die Liste aktualisiert sich, sobald Sie aufhören zu tippen.",
+   "refresh": "Abgeleitete Einträge jetzt aktualisieren: Agents, integrierte Harness-Tools, Tools der MCP-Server und Agent-Hinweise. Zeigt, was sich geändert hat und welche Server fehlgeschlagen sind.",
+   "warnings": "Einträge, deren Quelle nicht aktualisiert werden konnte, behalten ihren letzten gültigen Inhalt und nennen den Grund in ihren Details.",
+   "warningBadge": "Die letzte Aktualisierung der Quelle dieses Eintrags ist fehlgeschlagen, daher zeigt er seinen letzten gültigen Inhalt. Grund: {{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "Tools, die diese Harness nutzen kann, wenn der Worker-Host sie hat, etwa pandoc. Jedes wird im Fähigkeitenkatalog zu einem integrierten Harness-Tool.",
+   "toolProbesItems": {
+    "name": "Tool-Name im Katalog und im Knotenlabel garrison.io/tool-{name}: Kleinbuchstaben, Ziffern, Punkte und Bindestriche.",
+    "executable": "Reiner Dateiname, den der Worker im PATH sucht, zum Beispiel soffice. Ein Ordner ist nicht erlaubt.",
+    "argument": "Das eine Argument, das die Prüfung übergibt, etwa --version. Erlaubt sind nur Versions- und Hilfe-Flags oder gar keins.",
+    "description": "Was das Tool tut, angezeigt im Fähigkeitenkatalog. Bis zu 1024 Zeichen."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "Die Fähigkeiten, die diese Revision nutzt, nach Name. Integrierte Harness-Tools darunter beschränken ihre Läufe auf Worker, die das Tool melden."
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "Agent {{name}} öffnen, den dieser Eintrag anhand seiner neuesten veröffentlichten Revision beschreibt.",
+  "sourceMcpServer": "MCP-Server {{name}} im Tab MCP-Server öffnen. Seine Tool-Liste ist die Quelle dieses Eintrags.",
+  "sourceTool": "Der Name des Tools auf dem MCP-Server: {{tool}}.",
+  "sourceProfile": "Harness-Profil {{name}} öffnen, dessen Tool-Prüfung die Quelle dieses Eintrags ist.",
+  "nodeLabel": "Ein Lauf mit dieser Fähigkeit geht nur an einen Worker, der das Knotenlabel {{label}} meldet.",
+  "noSource": "Ein manueller Eintrag, der keinen Agent und keinen MCP-Server nennt. Jeder Lauf, der den Katalog lesen darf, sieht ihn.",
+  "hintsUnknown": "Im Hinweiszeitfenster sind zu wenige Läufe abgeschlossen, um etwas auszusagen, daher werden keine Werte angezeigt. Das bedeutet nie null.",
+  "hintsKnown_one": "Ausgewertet aus {{count}} abgeschlossenen Lauf der letzten {{days}} Tage.",
+  "hintsKnown_other": "Ausgewertet aus {{count}} abgeschlossenen Läufen der letzten {{days}} Tage.",
+  "refreshWarning": "Garrison konnte diesen Eintrag nicht aus seiner Quelle aktualisieren, daher behält er seinen letzten gültigen Inhalt, bis die nächste Aktualisierung gelingt.",
+  "lockedBanner": "Warum dieser Eintrag hier nicht bearbeitet oder gelöscht werden kann und wo Sie ihn stattdessen ändern.",
+  "lockedShared": "Gilt für alle Mandanten: Dieser Eintrag stammt aus einer Tool-Prüfung in einem integrierten Harness-Profil und kann daher weder bearbeitet noch gelöscht werden. Klonen Sie das Profil, um seine Prüfungen zu ändern.",
+  "locked": {
+   "Agent": "Abgeleitet von der neuesten veröffentlichten Revision des Agents, daher hier weder bearbeitbar noch löschbar. Veröffentlichen Sie eine neue Revision, um ihn zu ändern; wird der Agent deaktiviert, verschwindet der Eintrag.",
+   "McpTool": "Abgeleitet von der Tool-Liste des MCP-Servers, daher hier weder bearbeitbar noch löschbar. Ändern Sie den Server oder seine Tools und aktualisieren Sie dann.",
+   "HarnessBuiltIn": "Abgeleitet von einer Tool-Prüfung in einem Harness-Profil, daher hier weder bearbeitbar noch löschbar. Ändern Sie stattdessen die Tool-Prüfungen des Profils."
+  },
+  "shared": "Alle Mandanten sehen diesen Eintrag. Er stammt aus einer Tool-Prüfung in einem integrierten Harness-Profil.",
+  "hintsTitle": "Dauer und Kosten der kürzlich abgeschlossenen Läufe dieses Agents. MCP-Tools und integrierte Tools haben keine Hinweise.",
+  "requirementsTitle": "Knotenlabels, die ein Worker melden muss, bevor er einen Lauf übernimmt, dessen Agent diese Fähigkeit nutzt.",
+  "fields": {
+   "kind": "Agent, MCP-Tool oder integriertes Harness-Tool.",
+   "origin": "Abgeleitete Einträge folgen ihrer Quelle; manuelle Einträge stammen von Personen.",
+   "source": "Der Agent, der MCP-Server samt Tool oder das Harness-Profil, aus dem dieser Eintrag stammt.",
+   "lastRefreshedUtc": "Wann Garrison diesen Eintrag zuletzt aus seiner Quelle aktualisiert hat. Bei manuellen Einträgen leer.",
+   "tags": "Schlagwörter zum Filtern des Katalogs.",
+   "id": "Kennung des Katalogeintrags, beginnend mit cap_.",
+   "summary": "Was die Fähigkeit tut und wann man sie nutzt, so wie Agents es lesen.",
+   "hintStatus": "Bekannt, wenn im Zeitfenster genug Läufe abgeschlossen sind; sonst Unbekannt, und dann wird kein Wert angezeigt.",
+   "sampleSize": "Wie viele abgeschlossene Läufe die Hinweise auswerten, die neuesten zuerst.",
+   "medianDurationMs": "Mediane Zeit vom Start bis zum Abschluss der ausgewerteten Läufe.",
+   "p90DurationMs": "Neun von zehn der ausgewerteten Läufe waren innerhalb dieser Zeit fertig.",
+   "meanCostUsd": "Mittlere Kosten in US-Dollar der ausgewerteten Läufe, die Kosten erfasst haben.",
+   "windowDays": "Wie viele Tage die Hinweise zurückblicken (Einstellung Capabilities.HintWindowDays).",
+   "computedUtc": "Wann die Hinweise zuletzt von der Wartungsschleife oder einer Aktualisierung berechnet wurden.",
+   "inputSchemaJson": "JSON Schema dessen, was die Fähigkeit annimmt, oder keins bei freiem Text.",
+   "outputSchemaJson": "JSON Schema dessen, was die Fähigkeit zurückgibt, oder keins."
+  },
+  "refreshServer": "Die Tools aller aktiven MCP-Server auflisten oder nur die eines Servers. stdio-Server werden über einen Worker aufgelistet.",
+  "refreshRun": "Die Aktualisierung jetzt starten. Das kann dauern, wenn MCP-Server langsam antworten.",
+  "refresh": {
+   "agents": "Agent-Einträge, die diese Aktualisierung erstellt, aktualisiert oder entfernt hat.",
+   "harnessBuiltIns": "Einträge für integrierte Harness-Tools, die erstellt, aktualisiert oder entfernt wurden, über alle Bereiche hinweg.",
+   "hints": "Agent-Einträge, deren Hinweise zu Kosten und Latenz neu berechnet wurden.",
+   "servers": "Wie viele MCP-Server diese Aktualisierung aufzulisten versucht hat.",
+   "tools": "Tool-Einträge, die aus den antwortenden Servern geschrieben wurden.",
+   "removed": "Tool-Einträge, die entfernt wurden, weil ihr Server das Tool nicht mehr auflistet.",
+   "failed": "Server, deren Tools nicht aufgelistet werden konnten. Ihre Einträge behalten ihren letzten gültigen Inhalt.",
+   "failedBadge": "Die Tools dieses Servers konnten nicht aufgelistet werden. Seine Einträge behalten ihren letzten gültigen Inhalt mit einer Warnung.",
+   "listedBadge": "Der Server hat geantwortet, und seine Tool-Einträge sind aktuell.",
+   "columns": {
+    "server": "Der MCP-Server, dessen Tools aufgelistet wurden.",
+    "status": "Ob die Tools des Servers aufgelistet werden konnten.",
+    "tools": "Für diesen Server geschriebene Tool-Einträge.",
+    "removed": "Tool-Einträge, die entfernt wurden, weil der Server sie nicht mehr auflistet.",
+    "warned": "Einträge, die ihren letzten gültigen Inhalt behalten haben und jetzt eine Aktualisierungswarnung tragen.",
+    "error": "Warum das Auflisten fehlgeschlagen ist, falls es fehlschlug."
+   }
+  },
+  "draftSave": "Diese Fähigkeiten im Entwurf speichern. Veröffentlichen Sie den Entwurf danach, damit Bereitstellungen sie nutzen.",
+  "notInCatalog": "Derzeit hat kein Katalogeintrag diesen Namen. Der Lauf startet trotzdem, aber der Agent kann diese Fähigkeit nicht finden.",
+  "removeName": "Diese Fähigkeit aus der Revision entfernen.",
+  "chooseName": "Eine Fähigkeit aus dem Katalog nach Name auswählen. Namen, die mehrere Arten verwenden, erscheinen nur einmal.",
+  "addName": "Die gewählte Fähigkeit zur Revision hinzufügen.",
+  "newDraft": "Einen neuen Entwurf aus der neuesten veröffentlichten Revision starten und die Fähigkeiten wählen, die er nutzt.",
+  "editDraft": "Fähigkeiten hinzufügen oder entfernen, die diese Entwurfsrevision nutzt.",
+  "revisionName": "Diese Revision nutzt die Fähigkeit {{name}}. Agents finden sie im Katalog unter diesem Namen."
+ }
+});

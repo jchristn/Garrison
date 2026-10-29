@@ -3032,3 +3032,240 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "capabilities": {
+    "label": "ケイパビリティ",
+    "tip": "ケイパビリティカタログ: オーケストレーションを行うエージェントが見つけて使えるエージェント、MCP ツール、ハーネスの組み込みツールを、コストとレイテンシーの目安とともに一覧にします。"
+   }
+  }
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "エージェント",
+   "McpTool": "MCP ツール",
+   "HarnessBuiltIn": "ハーネスの組み込みツール"
+  },
+  "capabilityOrigin": {
+   "Derived": "派生",
+   "Manual": "手動"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "不明",
+   "Known": "算出済み"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "ツールを持つワーカーなし"
+  },
+  "resourceType": {
+   "ConversationFileSpace": "会話のファイルスペース",
+   "Capability": "ケイパビリティ"
+  }
+ },
+ "errorCodes": {
+  "InvalidJsonSchema": "スキーマが有効な JSON Schema ではありません。入力または出力のスキーマを修正して、もう一度保存してください。",
+  "NameConflict": "この名前は別の手動ケイパビリティですでに使われています。別の名前を選んでください。",
+  "CapabilityDerived": "このケイパビリティはソースから派生し、ソースに追従するため、ここでは編集も削除もできません。ソースの方を変更してください。",
+  "InvalidTags": "タグは 32 個までで、それぞれ 1 から 64 文字にしてください。",
+  "TooManyRequirements": "ノードラベルの要件は 16 個までです。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidJsonSchema": "有効な JSON Schema ではありません。",
+   "InvalidTags": "タグは 32 個までで、それぞれ 1 から 64 文字にしてください。",
+   "TooManyRequirements": "ノードラベルの要件は 16 個までです。"
+  },
+  "serverText": {
+   "capabilityDerivedEdit": "ケイパビリティ {{name}} はソースから派生し、ソースに追従します。ソースの方を変更してください。",
+   "capabilityDerivedDelete": "ケイパビリティ {{name}} はソースから派生し、ソースとともに消えるため、直接は削除できません。",
+   "capabilityShared": "ケイパビリティ {{name}} はすべてのテナントで共有され、組み込みのハーネスプロファイルから来ているため、変更できません。",
+   "capabilityNameConflict": "{{name}} という名前の手動ケイパビリティはすでに存在します。",
+   "capabilitySecretsDenied": "MCP サーバー {{server}} が送信するシークレットを使用する権限がないため、そのツールは一覧にされませんでした。",
+   "capabilityNoStdioWorker": "stdio MCP 診断 (GARRISON_WORKER_MCP_TESTS_ENABLED) を有効にした準備完了のワーカーがないため、stdio サーバーのツールを一覧にできませんでした。",
+   "capabilityRefreshFailed": "{{when}} に更新に失敗しました: {{error}}",
+   "capabilityMissingTools": "必要なツールがありません: {{tools}}。",
+   "capabilityProbeShadowed": "ワーカーは {{name}} を {{probe}} としてプローブします。これは別のハーネスプロファイルが先に定義したものです。このプロファイルの定義はプローブされません。"
+  }
+ },
+ "components": {
+  "blocked": {
+   "reasons": {
+    "NoToolWorker": "この実行のエージェントは {{tools}} を使いますが、{{harness}} を実行できる準備完了のワーカーでそれを報告しているものはありません。ワーカーのホストにツールをインストールしてプローブがノードラベル garrison.io/tool-{name}=true を報告するようにするか、ワーカーにそのラベルを手動で追加してください。"
+   }
+  },
+  "revisions": {
+   "columns": {
+    "capabilities": "ケイパビリティ"
+   }
+  },
+  "capabilities": {
+   "noSource": "手動のエントリー",
+   "shared": "共有",
+   "hintsLine": "中央値 {{median}}、p90 {{p90}}、1 回の実行あたり {{cost}}",
+   "hintsLineNoCost": "中央値 {{median}}、p90 {{p90}}、コストの記録なし",
+   "hintsTitle": "コストとレイテンシーの目安",
+   "noCost": "コストの記録なし",
+   "windowDays_one": "{{count}} 日",
+   "windowDays_other": "{{count}} 日",
+   "refreshWarning": "このエントリーのソースの前回の更新に失敗しました。",
+   "requirementsTitle": "実行に必要なノードラベル",
+   "noRequirements": "なし。このケイパビリティを使う実行は、どのワーカーにも割り当てられます。",
+   "noSchema": "スキーマなし",
+   "fields": {
+    "kind": "種類",
+    "origin": "由来",
+    "source": "ソース",
+    "lastRefreshedUtc": "最終更新",
+    "tags": "タグ",
+    "id": "ID",
+    "summary": "概要",
+    "hintStatus": "状態",
+    "sampleSize": "集計した実行数",
+    "medianDurationMs": "所要時間の中央値",
+    "p90DurationMs": "所要時間の p90",
+    "meanCostUsd": "平均コスト",
+    "windowDays": "集計期間",
+    "computedUtc": "算出日時",
+    "inputSchemaJson": "入力スキーマ",
+    "outputSchemaJson": "出力スキーマ"
+   },
+   "refreshTitle": "ケイパビリティカタログを更新",
+   "refreshHint": "Garrison はエージェントとハーネスの組み込みツールのエントリーを派生し直し、各 MCP サーバーのツールを一覧にし (stdio サーバーは stdio 診断を有効にしたワーカー経由)、エージェントの目安を再計算します。サーバーを一覧にすると、そのテンプレートが参照するシークレットがサーバーに送信されるため、それらを使用する権限が必要です。",
+   "refreshServer": "一覧にする MCP サーバー",
+   "refreshAll": "有効なすべての MCP サーバー",
+   "refreshRun": "今すぐ更新",
+   "refreshing": "更新中...",
+   "refreshDone": "ケイパビリティカタログは最新です。",
+   "refreshPartial_one": "カタログを更新しましたが、{{count}} 個の MCP サーバーを一覧にできませんでした。",
+   "refreshPartial_other": "カタログを更新しましたが、{{count}} 個の MCP サーバーを一覧にできませんでした。",
+   "refresh": {
+    "agents": "変更されたエージェントのエントリー",
+    "harnessBuiltIns": "変更された組み込みツールのエントリー",
+    "hints": "再計算した目安",
+    "servers": "一覧にした MCP サーバー",
+    "tools": "書き込んだツールのエントリー",
+    "removed": "削除したツールのエントリー",
+    "failed": "失敗したサーバー",
+    "noServers": "一覧にした MCP サーバーはありません。",
+    "failedBadge": "失敗",
+    "listedBadge": "一覧取得済み",
+    "columns": {
+     "server": "MCP サーバー",
+     "status": "結果",
+     "tools": "ツール",
+     "removed": "削除",
+     "warned": "警告付きで保持",
+     "error": "エラー"
+    }
+   },
+   "errors": {
+    "nameLength": "1 から {{max}} 文字にしてください。",
+    "summaryLength": "{{max}} 文字以内にしてください。",
+    "tags": "タグは {{max}} 個までで、それぞれ 1 から {{length}} 文字にしてください。",
+    "requirementCount": "ノードラベルの要件は {{max}} 個までです。",
+    "requirement": "各要件には 1 から {{max}} 文字のノードラベルのキーが必要です。",
+    "toolNeedsServer": "ツールが属する MCP サーバーを選んでください。",
+    "probeCount": "ハーネスプロファイルのツールプローブは {{max}} 個までです。",
+    "probeName": "ツール名は 1 から 63 文字の英小文字、数字、ドット、ハイフンで、英小文字か数字で始めてください。",
+    "probeDuplicate": "このプロファイルには {{name}} という名前のプローブがすでにあります。",
+    "probeExecutable": "実行ファイルは PATH 上で見つかるファイル名だけ (英字、数字、ドット、アンダースコア、プラス記号、ハイフン) を指定し、フォルダーは含めないでください。",
+    "probeArgument": "引数なしか、{{allowed}} のいずれかを選んでください。",
+    "probeDescription": "{{max}} 文字以内にしてください。"
+   },
+   "draftTitle": "ケイパビリティ",
+   "draftSave": "下書きを保存",
+   "draftSaved": "下書きリビジョン {{number}} にケイパビリティを保存しました。",
+   "draftEdit": "下書きリビジョン {{number}} のケイパビリティを変更します。下書きのその他の内容はそのままです。",
+   "draftNew": "開いている下書きがありません。保存すると、公開済みリビジョン {{number}} からこれらのケイパビリティで新しい下書きを開始します。",
+   "draftPlacementHint": "ここで指定したハーネスの組み込みツールは、このエージェントの実行にそのノードラベルを追加します。そのため実行は、そのツールを報告したワーカーにだけ割り当てられます。",
+   "draftEmpty": "このリビジョンはケイパビリティを使用しません。",
+   "notInCatalog": "カタログにありません",
+   "removeName": "{{name}} を削除",
+   "chooseName": "ケイパビリティを選択",
+   "nameOption": "{{name}}（{{kinds}}）",
+   "addName": "ケイパビリティを追加",
+   "newDraftButton": "新しい下書きでケイパビリティを選ぶ",
+   "editDraft": "ケイパビリティ"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "title": "ケイパビリティ",
+   "subtitle": "オーケストレーションを行うエージェントが見つけて使えるエージェント、MCP ツール、ハーネスの組み込みツールを、コストとレイテンシーの目安とともに表示します。",
+   "add": "ケイパビリティを追加",
+   "create": "ケイパビリティを作成",
+   "edit": "ケイパビリティを編集",
+   "view": "ケイパビリティの詳細",
+   "deleteTitle": "ケイパビリティを削除",
+   "emptyTitle": "ケイパビリティはまだありません",
+   "emptyBody": "エージェントのリビジョンを公開するか、MCP サーバーを登録するか、ハーネスプロファイルにツールプローブを追加してから、更新してください。手動のエントリーを追加することもできます。",
+   "columns": {
+    "name": "名前",
+    "kind": "種類",
+    "origin": "由来",
+    "summary": "概要",
+    "source": "ソース",
+    "hints": "目安",
+    "tags": "タグ",
+    "lastRefreshedUtc": "最終更新",
+    "id": "ID",
+    "createdUtc": "作成日時"
+   },
+   "fields": {
+    "name": "名前",
+    "kind": "種類",
+    "summary": "概要",
+    "sourceAgentId": "対応するエージェント",
+    "sourceMcpServerId": "所属する MCP サーバー",
+    "sourceToolName": "そのサーバー上のツール名",
+    "tags": "タグ",
+    "requirements": "実行に必要なノードラベル",
+    "inputSchemaJson": "入力スキーマ",
+    "outputSchemaJson": "出力スキーマ"
+   },
+   "hints": {
+    "kind": "手動のエントリーはどの種類にもできます。たとえば、エージェントがスキル経由で利用する変換サービスなどです。",
+    "requirements": "このケイパビリティを使うエージェントの実行は、これらのノードラベルをすべて持つワーカーにだけ割り当てられます。",
+    "sourceMcpServerId": "省略可能。サーバーを指定したエントリーは、デプロイメントがそのサーバーを結び付けている場合にだけ実行トークンから見えます。",
+    "inputSchemaJson": "JSON Schema。例: {\"type\": \"object\"}。ケイパビリティが自由形式のテキストを受け取る場合は空のままにしてください。"
+   },
+   "tagFilter": "タグ",
+   "refresh": "更新",
+   "warningBadge": "更新に失敗",
+   "warnings_one": "{{count}} 件のエントリーは、ソースの前回の更新に失敗したため、最後に正常だった内容を保持しています。開くと理由を確認できます。",
+   "warnings_other": "{{count}} 件のエントリーは、ソースの前回の更新に失敗したため、最後に正常だった内容を保持しています。いずれかを開くと理由を確認できます。",
+   "noSourceOption": "なし",
+   "requirementKey": "ノードラベル",
+   "requirementValue": "値"
+  },
+  "harnessProfiles": {
+   "fields": {
+    "toolProbes": "ツールプローブ",
+    "probeName": "ツール名",
+    "probeExecutable": "実行ファイル",
+    "probeArgument": "引数",
+    "probeDescription": "説明"
+   },
+   "columns": {
+    "toolProbes": "ツールプローブ"
+   },
+   "hints": {
+    "toolProbes": "ワーカーのホストにあればこのハーネスが使えるツールです。ワーカーは登録前に各プローブを実行し、応答したツールをノードラベル garrison.io/tool-{name}=true として報告します。"
+   },
+   "addToolProbe": "ツールプローブを追加",
+   "probeNoArgument": "引数なし"
+  }
+ }
+});

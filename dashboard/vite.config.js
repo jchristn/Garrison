@@ -49,6 +49,9 @@ export default defineConfig({
           if (/\/src\/components\/(AgentAsset|AssetUpload)/.test(id) || id.endsWith('/src/utils/assets.js')) return 'assets';
           // Conversation file spaces (AD3.8): the Files tab, its version dialog, and its upload panel.
           if (/\/src\/components\/ConversationFile/.test(id) || id.endsWith('/src/utils/fileSpaces.js')) return 'files';
+          // Capability catalog (AD4.8): the detail panel, refresh dialog, and revision capability editor, plus their helpers,
+          // shared by the views and the revisions panel.
+          if (/\/src\/components\/(Capability|AgentCapabilities)/.test(id) || id.endsWith('/src/utils/capabilities.js')) return 'capabilities';
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

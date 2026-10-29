@@ -3033,3 +3033,240 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "capabilities": {
+    "label": "能力",
+    "tip": "能力目录：编排型智能体可以查找和使用的智能体、MCP 工具和 Harness 内置工具，并附有成本和延迟参考。"
+   }
+  }
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "智能体",
+   "McpTool": "MCP 工具",
+   "HarnessBuiltIn": "Harness 内置工具"
+  },
+  "capabilityOrigin": {
+   "Derived": "派生",
+   "Manual": "手动"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "未知",
+   "Known": "已知"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "没有具备该工具的工作节点"
+  },
+  "resourceType": {
+   "ConversationFileSpace": "会话文件空间",
+   "Capability": "能力"
+  }
+ },
+ "errorCodes": {
+  "InvalidJsonSchema": "架构不是有效的 JSON Schema。请修正输入或输出架构后重新保存。",
+  "NameConflict": "另一个手动能力已在使用此名称。请换一个名称。",
+  "CapabilityDerived": "此能力派生自其来源并随来源变化，因此不能在此编辑或删除。请改为修改来源。",
+  "InvalidTags": "最多使用 32 个标签，每个 1 到 64 个字符。",
+  "TooManyRequirements": "最多使用 16 个节点标签要求。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidJsonSchema": "这不是有效的 JSON Schema。",
+   "InvalidTags": "最多使用 32 个标签，每个 1 到 64 个字符。",
+   "TooManyRequirements": "最多使用 16 个节点标签要求。"
+  },
+  "serverText": {
+   "capabilityDerivedEdit": "能力 {{name}} 派生自其来源并随来源变化。请改为修改来源。",
+   "capabilityDerivedDelete": "能力 {{name}} 派生自其来源，会随来源一起消失，因此不能直接删除。",
+   "capabilityShared": "能力 {{name}} 由所有租户共享，来自内置的 Harness 配置文件，因此无法更改。",
+   "capabilityNameConflict": "已存在名为 {{name}} 的手动能力。",
+   "capabilitySecretsDenied": "你无权使用 MCP 服务器 {{server}} 发送的机密，因此未列出其工具。",
+   "capabilityNoStdioWorker": "没有已开启 stdio MCP 诊断（GARRISON_WORKER_MCP_TESTS_ENABLED）的就绪工作节点，因此无法列出该 stdio 服务器的工具。",
+   "capabilityRefreshFailed": "{{when}} 刷新失败：{{error}}",
+   "capabilityMissingTools": "缺少必需的工具：{{tools}}。",
+   "capabilityProbeShadowed": "工作节点会将 {{name}} 按 {{probe}} 进行探测，该探测由另一个 Harness 配置文件先行定义。此配置文件中的定义不会被探测。"
+  }
+ },
+ "components": {
+  "blocked": {
+   "reasons": {
+    "NoToolWorker": "此运行的智能体使用 {{tools}}，但能运行 {{harness}} 的就绪工作节点都没有报告该工具。请在工作节点主机上安装该工具，让探测报告节点标签 garrison.io/tool-{name}=true，或手动为某个工作节点添加该标签。"
+   }
+  },
+  "revisions": {
+   "columns": {
+    "capabilities": "能力"
+   }
+  },
+  "capabilities": {
+   "noSource": "手动条目",
+   "shared": "共享",
+   "hintsLine": "中位数 {{median}}，p90 {{p90}}，每次运行 {{cost}}",
+   "hintsLineNoCost": "中位数 {{median}}，p90 {{p90}}，未记录成本",
+   "hintsTitle": "成本和延迟参考",
+   "noCost": "未记录成本",
+   "windowDays_one": "{{count}} 天",
+   "windowDays_other": "{{count}} 天",
+   "refreshWarning": "上次刷新此条目的来源时失败。",
+   "requirementsTitle": "运行所需的节点标签",
+   "noRequirements": "无。使用此能力的运行可以分配到任意工作节点。",
+   "noSchema": "无架构",
+   "fields": {
+    "kind": "类型",
+    "origin": "来源方式",
+    "source": "来源",
+    "lastRefreshedUtc": "上次刷新",
+    "tags": "标签",
+    "id": "ID",
+    "summary": "摘要",
+    "hintStatus": "状态",
+    "sampleSize": "统计的运行数",
+    "medianDurationMs": "时长中位数",
+    "p90DurationMs": "p90 时长",
+    "meanCostUsd": "平均成本",
+    "windowDays": "统计窗口",
+    "computedUtc": "计算时间",
+    "inputSchemaJson": "输入架构",
+    "outputSchemaJson": "输出架构"
+   },
+   "refreshTitle": "刷新能力目录",
+   "refreshHint": "Garrison 会重新派生智能体和 Harness 内置工具条目，列出每个 MCP 服务器的工具（stdio 服务器通过已开启 stdio 诊断的工作节点列出），并重新计算智能体的参考值。列出服务器时会向其发送模板中引用的机密，因此你需要有使用这些机密的权限。",
+   "refreshServer": "要列出的 MCP 服务器",
+   "refreshAll": "所有活动的 MCP 服务器",
+   "refreshRun": "立即刷新",
+   "refreshing": "正在刷新...",
+   "refreshDone": "能力目录已是最新。",
+   "refreshPartial_one": "目录已刷新，但有 {{count}} 个 MCP 服务器无法列出。",
+   "refreshPartial_other": "目录已刷新，但有 {{count}} 个 MCP 服务器无法列出。",
+   "refresh": {
+    "agents": "已变更的智能体条目",
+    "harnessBuiltIns": "已变更的内置工具条目",
+    "hints": "已重新计算的参考值",
+    "servers": "已列出的 MCP 服务器",
+    "tools": "已写入的工具条目",
+    "removed": "已移除的工具条目",
+    "failed": "失败的服务器",
+    "noServers": "未列出任何 MCP 服务器。",
+    "failedBadge": "失败",
+    "listedBadge": "已列出",
+    "columns": {
+     "server": "MCP 服务器",
+     "status": "结果",
+     "tools": "工具",
+     "removed": "已移除",
+     "warned": "保留并附警告",
+     "error": "错误"
+    }
+   },
+   "errors": {
+    "nameLength": "请使用 1 到 {{max}} 个字符。",
+    "summaryLength": "最多使用 {{max}} 个字符。",
+    "tags": "最多使用 {{max}} 个标签，每个 1 到 {{length}} 个字符。",
+    "requirementCount": "最多使用 {{max}} 个节点标签要求。",
+    "requirement": "每个要求都需要一个 1 到 {{max}} 个字符的节点标签键。",
+    "toolNeedsServer": "请选择该工具所属的 MCP 服务器。",
+    "probeCount": "一个 Harness 配置文件最多有 {{max}} 个工具探测。",
+    "probeName": "工具名称为 1 到 63 个小写字母、数字、点和连字符，并以字母或数字开头。",
+    "probeDuplicate": "此配置文件中已有另一个名为 {{name}} 的探测。",
+    "probeExecutable": "可执行文件只能是在 PATH 中能找到的纯文件名（字母、数字、点、下划线、加号和连字符），不能包含文件夹。",
+    "probeArgument": "请选择不带参数，或选择 {{allowed}} 之一。",
+    "probeDescription": "最多使用 {{max}} 个字符。"
+   },
+   "draftTitle": "能力",
+   "draftSave": "保存草稿",
+   "draftSaved": "已将能力保存到草稿修订 {{number}}。",
+   "draftEdit": "更改草稿修订 {{number}} 的能力。草稿中的其他内容保持不变。",
+   "draftNew": "当前没有打开的草稿。保存后将基于已发布修订 {{number}} 并使用这些能力创建新草稿。",
+   "draftPlacementHint": "此处列出的 Harness 内置工具会把其节点标签加到此智能体的运行上，因此这些运行只会分配给报告了该工具的工作节点。",
+   "draftEmpty": "此修订不使用任何能力。",
+   "notInCatalog": "不在目录中",
+   "removeName": "移除 {{name}}",
+   "chooseName": "选择能力",
+   "nameOption": "{{name}}（{{kinds}}）",
+   "addName": "添加能力",
+   "newDraftButton": "在新草稿中选择能力",
+   "editDraft": "能力"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "title": "能力",
+   "subtitle": "编排型智能体可以查找和使用的智能体、MCP 工具和 Harness 内置工具，并附有成本和延迟参考。",
+   "add": "添加能力",
+   "create": "创建能力",
+   "edit": "编辑能力",
+   "view": "能力详情",
+   "deleteTitle": "删除能力",
+   "emptyTitle": "还没有能力",
+   "emptyBody": "发布一个智能体修订、注册一个 MCP 服务器，或为 Harness 配置文件添加工具探测，然后刷新。你也可以添加手动条目。",
+   "columns": {
+    "name": "名称",
+    "kind": "类型",
+    "origin": "来源方式",
+    "summary": "摘要",
+    "source": "来源",
+    "hints": "参考",
+    "tags": "标签",
+    "lastRefreshedUtc": "上次刷新",
+    "id": "ID",
+    "createdUtc": "创建时间"
+   },
+   "fields": {
+    "name": "名称",
+    "kind": "类型",
+    "summary": "摘要",
+    "sourceAgentId": "对应的智能体",
+    "sourceMcpServerId": "所属的 MCP 服务器",
+    "sourceToolName": "该服务器上的工具名称",
+    "tags": "标签",
+    "requirements": "运行所需的节点标签",
+    "inputSchemaJson": "输入架构",
+    "outputSchemaJson": "输出架构"
+   },
+   "hints": {
+    "kind": "手动条目可以是任意类型，例如智能体通过技能访问的转换服务。",
+    "requirements": "使用此能力的智能体运行只会分配给同时具有所有这些节点标签的工作节点。",
+    "sourceMcpServerId": "可选。指定了服务器的条目，只有在部署绑定了该服务器时，运行令牌才能看到。",
+    "inputSchemaJson": "一个 JSON Schema，例如 {\"type\": \"object\"}。如果能力接受自由文本，请留空。"
+   },
+   "tagFilter": "标签",
+   "refresh": "刷新",
+   "warningBadge": "刷新失败",
+   "warnings_one": "有 {{count}} 个条目因上次刷新其来源失败而保留了最后一次正常的内容。打开它可查看原因。",
+   "warnings_other": "有 {{count}} 个条目因上次刷新其来源失败而保留了最后一次正常的内容。打开其中一个可查看原因。",
+   "noSourceOption": "无",
+   "requirementKey": "节点标签",
+   "requirementValue": "值"
+  },
+  "harnessProfiles": {
+   "fields": {
+    "toolProbes": "工具探测",
+    "probeName": "工具名称",
+    "probeExecutable": "可执行文件",
+    "probeArgument": "参数",
+    "probeDescription": "描述"
+   },
+   "columns": {
+    "toolProbes": "工具探测"
+   },
+   "hints": {
+    "toolProbes": "当工作节点主机上有这些工具时，此 Harness 可以使用它们。工作节点在注册前运行每个探测，并将有响应的工具报告为节点标签 garrison.io/tool-{name}=true。"
+   },
+   "addToolProbe": "添加工具探测",
+   "probeNoArgument": "不带参数"
+  }
+ }
+});

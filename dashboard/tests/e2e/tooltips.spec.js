@@ -272,6 +272,33 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await page.getByTestId('asset-pin-add').click();
   await audit(page, 'asset pins');
   await closeModal(page);
+  // AD4.8: the capability editor on the draft, with a capability added (and one not in the catalog).
+  await page.getByTestId('revision-capabilities').first().click();
+  await settle(page);
+  await page.getByTestId('revision-capability-choice').selectOption('pandoc');
+  await page.getByTestId('revision-capability-add').click();
+  await audit(page, 'revision capabilities');
+  await closeModal(page);
+
+  // AD4.8: the capability catalog: a derived entry's details with its warning, a row menu with disabled Edit and Delete,
+  // a manual entry's form, a built-in's source and node label, and the refresh dialog with a failed server.
+  await page.goto('/dashboard/agents?tab=capabilities');
+  await settle(page);
+  await audit(page, 'capability catalog with warnings');
+  await page.locator('.data-table tbody tr', { hasText: 'mcp-1/search' }).locator('.action-menu-trigger').click();
+  await audit(page, 'derived capability row actions');
+  await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+  await expect(page.getByTestId('capability-warning')).toBeVisible();
+  await audit(page, 'derived capability details');
+  await closeModal(page);
+  await page.locator('.data-table tbody tr', { hasText: 'doc-convert' }).locator('td').nth(1).click();
+  await audit(page, 'manual capability form');
+  await closeModal(page);
+  await page.getByTestId('capability-refresh').click();
+  await page.getByTestId('capability-refresh-run').click();
+  await expect(page.getByTestId('capability-refresh-result')).toBeVisible();
+  await audit(page, 'capability refresh result');
+  await closeModal(page);
 
   // AD2.8: the asset form for a system prompt, and the version dialog with a preview and files chosen for upload.
   await page.goto('/dashboard/configuration?tab=agent-assets');

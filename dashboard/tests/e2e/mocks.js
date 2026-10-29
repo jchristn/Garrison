@@ -35,7 +35,10 @@ const RUN_STATUSES = ['Succeeded', 'Failed', 'Running', 'Queued', 'Succeeded', '
  * run_0021 is Untrusted with no worker that can isolate it (P11.14), and run_0027's deployment has an egress allowlist
  * no Ready worker can enforce (P11.15).
  */
-const BLOCKED = { 3: 'NoCapableWorker', 9: 'NoReadyWorker', 15: 'NoMatchingPool', 21: 'NoIsolatingWorker', 27: 'NoIsolatingWorker' };
+const BLOCKED = { 3: 'NoCapableWorker', 9: 'NoReadyWorker', 15: 'NoMatchingPool', 21: 'NoIsolatingWorker', 27: 'NoIsolatingWorker', 33: 'NoToolWorker' };
+
+/** run_0033 waits for a worker that reports pandoc (AD4.4): its agent uses the pandoc harness built-in. */
+const TOOL_RUN = 33;
 
 /** run_0027 needs egress control: its deployment has an egress allowlist (P11.15). */
 const EGRESS_RUN = 27;
@@ -168,7 +171,7 @@ function run(i) {
     toolCallCount: i % 4,
     lastEventSequence: queued ? 0 : 4,
     parameters: [{ id: `rpa_${pad(i)}`, runId: `run_${pad(i)}`, name: 'format', value: 'claude' }],
-    requirements: [],
+    requirements: i === TOOL_RUN ? [{ id: `rrq_${pad(i)}`, runId: `run_${pad(i)}`, key: 'garrison.io/tool-pandoc', value: 'true' }] : [],
     templateVersions: [{ id: `rtv_${pad(i)}`, runId: `run_${pad(i)}`, templateId: 'tpl_builtin_default_task', templateName: 'builtin/default-task', version: 1 }],
     // The server always serializes blockedReason, null when the run is not Queued or a worker can take it.
     blockedReason: queued ? BLOCKED[i] || null : null,
@@ -1250,6 +1253,95 @@ function assetRoutes(method, url, parts) {
   return undefined;
 }
 
+// ---------------------------------------------------------------- capability catalog (AD4.8)
+
+const KNOWN_HINTS = { status: 'Known', sampleSize: 12, medianDurationMs: 4200, p90DurationMs: 9100, meanCostUsd: 0.0123, windowDays: 14 };
+const UNKNOWN_HINTS = { status: 'Unknown', sampleSize: 0, windowDays: 14 };
+
+/**
+ * Catalog rows: echo-agent has Known hints; agent-2 too few runs; mcp-1/search failed its last refresh; pandoc is shared
+ * by every tenant (built-in profile); libreoffice is probed under another definition; doc-convert is a manual entry.
+ */
+const CAPABILITY_ROWS = {
+  1: { name: 'echo-agent', kind: 'Agent', origin: 'Derived', sourceKey: 'agent:agt_0001', sourceAgentId: 'agt_0001', sourceRevisionId: 'arv_0001_2', summary: 'Sample agent\nSkills: Echo: Echoes input', inputSchemaJson: '{"type":"object","properties":{"message":{"type":"string"}}}', tags: ['sample'], hints: KNOWN_HINTS, refreshed: true },
+  2: { name: 'agent-2', kind: 'Agent', origin: 'Derived', sourceKey: 'agent:agt_0002', sourceAgentId: 'agt_0002', sourceRevisionId: 'arv_0002_2', summary: 'Sample agent', tags: ['sample'], hints: { ...UNKNOWN_HINTS, sampleSize: 2 }, refreshed: true },
+  3: {
+    name: 'mcp-1/search',
+    kind: 'McpTool',
+    origin: 'Derived',
+    sourceKey: 'mcp:mcp_0001:search',
+    sourceMcpServerId: 'mcp_0001',
+    sourceToolName: 'search',
+    summary: 'MCP server',
+    inputSchemaJson: '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
+    tags: [],
+    hints: UNKNOWN_HINTS,
+    refreshWarning: 'Refresh failed 2026-10-28 09:15:00Z: Connection refused (127.0.0.1:9000)',
+    refreshed: true
+  },
+  4: { name: 'pandoc', kind: 'HarnessBuiltIn', origin: 'Derived', shared: true, sourceKey: 'tool:pandoc', sourceHarnessProfileId: 'hp_0001', sourceHarnessType: 'ClaudeCode', summary: 'Converts documents between formats.', tags: ['tool'], requirements: [{ key: 'garrison.io/tool-pandoc', value: 'true' }], hints: UNKNOWN_HINTS, refreshed: true },
+  5: {
+    name: 'libreoffice',
+    kind: 'HarnessBuiltIn',
+    origin: 'Derived',
+    sourceKey: 'tool:libreoffice',
+    sourceHarnessProfileId: 'hp_0002',
+    sourceHarnessType: 'Codex',
+    summary: 'The libreoffice tool (libreoffice) on the worker host.',
+    tags: ['tool'],
+    requirements: [{ key: 'garrison.io/tool-libreoffice', value: 'true' }],
+    hints: UNKNOWN_HINTS,
+    refreshWarning: "Workers probe libreoffice as soffice --version, defined by another harness profile first; this profile's definition is not probed.",
+    refreshed: true
+  },
+  6: { name: 'doc-convert', kind: 'McpTool', origin: 'Manual', sourceKey: 'manual:cap_0006', summary: 'Converts Markdown to DOCX through the conversion service skill.', tags: ['docs'], requirements: [], hints: UNKNOWN_HINTS, outputSchemaJson: '{"type":"object"}' }
+};
+
+/** Capability descriptor i, shaped like GET /capabilities/{id} (nulls omitted the way the server omits them). */
+export function capability(i) {
+  const { shared, refreshed, ...row } = CAPABILITY_ROWS[i] || CAPABILITY_ROWS[6];
+  const out = { id: `cap_${pad(i)}`, ...row, requirements: row.requirements || [], hints: { ...row.hints }, createdUtc: iso(i * 40), lastUpdateUtc: iso(i * 5) };
+  if (!shared) out.tenantId = TENANT;
+  if (refreshed) out.lastRefreshedUtc = iso(i * 5);
+  if (out.hints.status === 'Known') out.hints.computedUtc = iso(30);
+  return out;
+}
+
+/** Every catalog row. */
+export function capabilities() {
+  return Object.keys(CAPABILITY_ROWS).map((k) => capability(Number(k)));
+}
+
+/** POST /capabilities/refresh: one server listed, one that failed. */
+export const CAPABILITY_REFRESH = {
+  agents: 2,
+  harnessBuiltIns: 1,
+  hints: 2,
+  mcpServers: [
+    { mcpServerId: 'mcp_0001', mcpServerName: 'mcp-1', tools: 0, removed: 0, warned: 1, error: 'Connection refused (127.0.0.1:9000)' },
+    { mcpServerId: 'mcp_0002', mcpServerName: 'mcp-2', tools: 3, removed: 1, warned: 0 }
+  ]
+};
+
+function capabilityRoutes(method, url, parts) {
+  if (parts[0] !== 'capabilities') return undefined;
+  if (parts[1] === 'refresh') return CAPABILITY_REFRESH;
+  if (parts.length === 1) {
+    if (method !== 'GET') return { ...capability(6), id: 'cap_0099', origin: 'Manual', createdUtc: iso(0) };
+    let rows = capabilities();
+    const kind = url.searchParams.get('kind');
+    const tag = url.searchParams.get('tag');
+    const search = (url.searchParams.get('search') || '').toLowerCase();
+    if (kind) rows = rows.filter((r) => r.kind === kind);
+    if (tag) rows = rows.filter((r) => (r.tags || []).includes(tag));
+    if (search) rows = rows.filter((r) => r.name.toLowerCase().includes(search) || String(r.summary || '').toLowerCase().includes(search));
+    return { success: true, maxResults: rows.length, skip: 0, totalRecords: rows.length, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: rows };
+  }
+  const id = decodeURIComponent(parts[1]);
+  const found = capabilities().find((r) => r.id === id || r.name === id) || capability(6);
+  return method === 'GET' ? found : { ...found, lastUpdateUtc: iso(0) };
+}
+
 // ---------------------------------------------------------------- conversation file spaces (AD3.8)
 
 /** Text of each version of the cnv_0001 files, keyed by path and version. */
@@ -1791,6 +1883,8 @@ export function respond(method, url) {
     if (collection === 'pipeline-reviews' && parts.length === 2) return { ...pipelineReview(/^prv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 2), id: parts[1] };
     const triggered = triggerRoutes(method, url, parts);
     if (triggered !== undefined) return triggered;
+    const capable = capabilityRoutes(method, url, parts);
+    if (capable !== undefined) return capable;
     const asset = assetRoutes(method, url, parts);
     if (asset !== undefined) return asset;
     const filed = fileSpaceRoutes(method, url, parts);

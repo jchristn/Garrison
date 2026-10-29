@@ -3081,3 +3081,240 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "capabilities": {
+    "label": "Capacités",
+    "tip": "Le catalogue des capacités : agents, outils MCP et outils intégrés aux harness que les agents orchestrateurs peuvent trouver et utiliser, avec des indications de coût et de latence."
+   }
+  }
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Agent",
+   "McpTool": "Outil MCP",
+   "HarnessBuiltIn": "Outil intégré au harness"
+  },
+  "capabilityOrigin": {
+   "Derived": "Dérivée",
+   "Manual": "Manuelle"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Inconnu",
+   "Known": "Connu"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Aucun worker ne dispose de l'outil"
+  },
+  "resourceType": {
+   "ConversationFileSpace": "Espace de fichiers de conversation",
+   "Capability": "Capacité"
+  }
+ },
+ "errorCodes": {
+  "InvalidJsonSchema": "Un schéma n'est pas un JSON Schema valide. Corrigez le schéma d'entrée ou de sortie, puis enregistrez à nouveau.",
+  "NameConflict": "Une autre capacité manuelle utilise déjà ce nom. Choisissez-en un autre.",
+  "CapabilityDerived": "Cette capacité est dérivée de sa source et la suit : elle ne peut donc être ni modifiée ni supprimée ici. Modifiez plutôt la source.",
+  "InvalidTags": "Utilisez au plus 32 tags, de 1 à 64 caractères chacun.",
+  "TooManyRequirements": "Utilisez au plus 16 exigences d'étiquette de nœud."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidJsonSchema": "Ce n'est pas un JSON Schema valide.",
+   "InvalidTags": "Utilisez au plus 32 tags, de 1 à 64 caractères chacun.",
+   "TooManyRequirements": "Utilisez au plus 16 exigences d'étiquette de nœud."
+  },
+  "serverText": {
+   "capabilityDerivedEdit": "La capacité {{name}} est dérivée de sa source et la suit. Modifiez plutôt la source.",
+   "capabilityDerivedDelete": "La capacité {{name}} est dérivée de sa source et disparaît avec elle : elle ne peut donc pas être supprimée directement.",
+   "capabilityShared": "La capacité {{name}} est partagée par tous les locataires et provient d'un profil de harness intégré : elle ne peut donc pas être modifiée.",
+   "capabilityNameConflict": "Une capacité manuelle nommée {{name}} existe déjà.",
+   "capabilitySecretsDenied": "Vous n'êtes pas autorisé à utiliser les secrets qu'envoie le serveur MCP {{server}}, ses outils n'ont donc pas été listés.",
+   "capabilityNoStdioWorker": "Aucun worker prêt n'a activé les diagnostics MCP stdio (GARRISON_WORKER_MCP_TESTS_ENABLED) : les outils du serveur stdio n'ont donc pas pu être listés.",
+   "capabilityRefreshFailed": "Échec de l'actualisation le {{when}} : {{error}}",
+   "capabilityMissingTools": "Outils requis manquants : {{tools}}.",
+   "capabilityProbeShadowed": "Les workers sondent {{name}} en tant que {{probe}}, déjà défini par un autre profil de harness. La définition de ce profil n'est pas sondée."
+  }
+ },
+ "components": {
+  "blocked": {
+   "reasons": {
+    "NoToolWorker": "L'agent de cette exécution utilise {{tools}}, et aucun worker prêt capable d'exécuter {{harness}} ne le signale. Installez l'outil sur l'hôte d'un worker pour que sa sonde signale l'étiquette de nœud garrison.io/tool-{name}=true, ou ajoutez cette étiquette à un worker à la main."
+   }
+  },
+  "revisions": {
+   "columns": {
+    "capabilities": "Capacités"
+   }
+  },
+  "capabilities": {
+   "noSource": "Entrée manuelle",
+   "shared": "Partagée",
+   "hintsLine": "Médiane {{median}}, p90 {{p90}}, {{cost}} par exécution",
+   "hintsLineNoCost": "Médiane {{median}}, p90 {{p90}}, aucun coût enregistré",
+   "hintsTitle": "Indications de coût et de latence",
+   "noCost": "Aucun coût enregistré",
+   "windowDays_one": "{{count}} jour",
+   "windowDays_other": "{{count}} jours",
+   "refreshWarning": "La dernière actualisation de la source de cette entrée a échoué.",
+   "requirementsTitle": "Étiquettes de nœud requises pour une exécution",
+   "noRequirements": "Aucune. Les exécutions qui utilisent cette capacité peuvent aller sur n'importe quel worker.",
+   "noSchema": "Aucun schéma",
+   "fields": {
+    "kind": "Type",
+    "origin": "Origine",
+    "source": "Provenance",
+    "lastRefreshedUtc": "Dernière actualisation",
+    "tags": "Tags",
+    "id": "ID",
+    "summary": "Résumé",
+    "hintStatus": "Statut",
+    "sampleSize": "Exécutions prises en compte",
+    "medianDurationMs": "Durée médiane",
+    "p90DurationMs": "Durée p90",
+    "meanCostUsd": "Coût moyen",
+    "windowDays": "Fenêtre",
+    "computedUtc": "Calculé le",
+    "inputSchemaJson": "Schéma d'entrée",
+    "outputSchemaJson": "Schéma de sortie"
+   },
+   "refreshTitle": "Actualiser le catalogue des capacités",
+   "refreshHint": "Garrison dérive à nouveau les entrées des agents et des outils intégrés aux harness, liste les outils de chaque serveur MCP (les serveurs stdio via un worker dont les diagnostics stdio sont activés) et recalcule les indications des agents. Lister un serveur lui envoie les secrets que nomment ses modèles : vous devez donc avoir le droit de les utiliser.",
+   "refreshServer": "Serveurs MCP à lister",
+   "refreshAll": "Tous les serveurs MCP actifs",
+   "refreshRun": "Actualiser maintenant",
+   "refreshing": "Actualisation...",
+   "refreshDone": "Le catalogue des capacités est à jour.",
+   "refreshPartial_one": "Le catalogue a été actualisé, mais {{count}} serveur MCP n'a pas pu être listé.",
+   "refreshPartial_other": "Le catalogue a été actualisé, mais {{count}} serveurs MCP n'ont pas pu être listés.",
+   "refresh": {
+    "agents": "Entrées d'agent modifiées",
+    "harnessBuiltIns": "Entrées intégrées modifiées",
+    "hints": "Indications recalculées",
+    "servers": "Serveurs MCP listés",
+    "tools": "Entrées d'outil écrites",
+    "removed": "Entrées d'outil supprimées",
+    "failed": "Serveurs en échec",
+    "noServers": "Aucun serveur MCP n'a été listé.",
+    "failedBadge": "Échec",
+    "listedBadge": "Listé",
+    "columns": {
+     "server": "Serveur MCP",
+     "status": "Résultat",
+     "tools": "Outils",
+     "removed": "Supprimés",
+     "warned": "Conservés avec un avertissement",
+     "error": "Erreur"
+    }
+   },
+   "errors": {
+    "nameLength": "Utilisez de 1 à {{max}} caractères.",
+    "summaryLength": "Utilisez au plus {{max}} caractères.",
+    "tags": "Utilisez au plus {{max}} tags, de 1 à {{length}} caractères chacun.",
+    "requirementCount": "Utilisez au plus {{max}} exigences d'étiquette de nœud.",
+    "requirement": "Chaque exigence nécessite une clé d'étiquette de nœud de 1 à {{max}} caractères.",
+    "toolNeedsServer": "Choisissez le serveur MCP auquel appartient l'outil.",
+    "probeCount": "Un profil de harness compte au plus {{max}} sondes d'outil.",
+    "probeName": "Le nom de l'outil comporte de 1 à 63 lettres minuscules, chiffres, points et traits d'union, et commence par une lettre ou un chiffre.",
+    "probeDuplicate": "Une autre sonde de ce profil s'appelle déjà {{name}}.",
+    "probeExecutable": "L'exécutable est un simple nom de fichier trouvé dans le PATH (lettres, chiffres, points, traits de soulignement, signes plus et traits d'union), sans dossier.",
+    "probeArgument": "Choisissez aucun argument ou l'un de ceux-ci : {{allowed}}.",
+    "probeDescription": "Utilisez au plus {{max}} caractères."
+   },
+   "draftTitle": "Capacités",
+   "draftSave": "Enregistrer le brouillon",
+   "draftSaved": "Capacités enregistrées dans la révision brouillon {{number}}.",
+   "draftEdit": "Modifie les capacités de la révision brouillon {{number}}. Le reste du brouillon ne change pas.",
+   "draftNew": "Aucun brouillon n'est ouvert. L'enregistrement crée un nouveau brouillon à partir de la révision publiée {{number}} avec ces capacités.",
+   "draftPlacementHint": "Un outil intégré au harness nommé ici ajoute son étiquette de nœud aux exécutions de cet agent : elles ne vont alors qu'aux workers qui ont signalé l'outil.",
+   "draftEmpty": "Cette révision n'utilise aucune capacité.",
+   "notInCatalog": "Absente du catalogue",
+   "removeName": "Retirer {{name}}",
+   "chooseName": "Choisir une capacité",
+   "nameOption": "{{name}} ({{kinds}})",
+   "addName": "Ajouter la capacité",
+   "newDraftButton": "Choisir les capacités dans un nouveau brouillon",
+   "editDraft": "Capacités"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "title": "Capacités",
+   "subtitle": "Agents, outils MCP et outils intégrés aux harness que les agents orchestrateurs peuvent trouver et utiliser, avec des indications de coût et de latence.",
+   "add": "Ajouter une capacité",
+   "create": "Créer une capacité",
+   "edit": "Modifier la capacité",
+   "view": "Détails de la capacité",
+   "deleteTitle": "Supprimer la capacité",
+   "emptyTitle": "Aucune capacité pour l'instant",
+   "emptyBody": "Publiez une révision d'agent, enregistrez un serveur MCP ou ajoutez une sonde d'outil à un profil de harness, puis actualisez. Vous pouvez aussi ajouter une entrée manuelle.",
+   "columns": {
+    "name": "Nom",
+    "kind": "Type",
+    "origin": "Origine",
+    "summary": "Résumé",
+    "source": "Provenance",
+    "hints": "Indications",
+    "tags": "Tags",
+    "lastRefreshedUtc": "Dernière actualisation",
+    "id": "ID",
+    "createdUtc": "Créée le"
+   },
+   "fields": {
+    "name": "Nom",
+    "kind": "Type",
+    "summary": "Résumé",
+    "sourceAgentId": "Agent qu'elle représente",
+    "sourceMcpServerId": "Serveur MCP auquel elle appartient",
+    "sourceToolName": "Nom de l'outil sur ce serveur",
+    "tags": "Tags",
+    "requirements": "Étiquettes de nœud requises pour une exécution",
+    "inputSchemaJson": "Schéma d'entrée",
+    "outputSchemaJson": "Schéma de sortie"
+   },
+   "hints": {
+    "kind": "Les entrées manuelles peuvent être de n'importe quel type, par exemple un service de conversion que les agents atteignent via une ressource Skill.",
+    "requirements": "Une exécution d'un agent qui utilise cette capacité ne va qu'aux workers qui portent chacune de ces étiquettes de nœud.",
+    "sourceMcpServerId": "Facultatif. Un jeton d'exécution ne voit une entrée qui nomme un serveur que si son déploiement lie ce serveur.",
+    "inputSchemaJson": "Un JSON Schema, par exemple {\"type\": \"object\"}. Laissez vide si la capacité accepte du texte libre."
+   },
+   "tagFilter": "Filtrer par tag",
+   "refresh": "Actualiser",
+   "warningBadge": "Échec de l'actualisation",
+   "warnings_one": "{{count}} entrée a conservé son dernier contenu valide, car la dernière actualisation de sa source a échoué. Ouvrez-la pour en voir la raison.",
+   "warnings_other": "{{count}} entrées ont conservé leur dernier contenu valide, car la dernière actualisation de leur source a échoué. Ouvrez-en une pour en voir la raison.",
+   "noSourceOption": "Aucune",
+   "requirementKey": "Étiquette de nœud",
+   "requirementValue": "Valeur"
+  },
+  "harnessProfiles": {
+   "fields": {
+    "toolProbes": "Sondes d'outil",
+    "probeName": "Nom de l'outil",
+    "probeExecutable": "Exécutable",
+    "probeArgument": "Argument passé",
+    "probeDescription": "Description"
+   },
+   "columns": {
+    "toolProbes": "Sondes d'outil"
+   },
+   "hints": {
+    "toolProbes": "Outils que ce harness peut utiliser lorsque l'hôte du worker en dispose. Les workers lancent chaque sonde avant de s'enregistrer et signalent les outils qui répondent sous forme d'étiquettes de nœud garrison.io/tool-{name}=true."
+   },
+   "addToolProbe": "Ajouter une sonde d'outil",
+   "probeNoArgument": "Aucun argument"
+  }
+ }
+});

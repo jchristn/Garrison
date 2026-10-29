@@ -3033,3 +3033,240 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "capabilities": {
+    "label": "能力",
+    "tip": "能力目錄：負責協調的代理程式可以找到並使用的代理程式、MCP 工具與 Harness 內建工具，附有成本與延遲提示。"
+   }
+  }
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "代理程式",
+   "McpTool": "MCP 工具",
+   "HarnessBuiltIn": "Harness 內建工具"
+  },
+  "capabilityOrigin": {
+   "Derived": "衍生",
+   "Manual": "手動"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "未知",
+   "Known": "已知"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "沒有具備該工具的工作節點"
+  },
+  "resourceType": {
+   "ConversationFileSpace": "對話檔案空間",
+   "Capability": "能力"
+  }
+ },
+ "errorCodes": {
+  "InvalidJsonSchema": "有結構描述不是有效的 JSON Schema。請修正輸入或輸出結構描述後再儲存。",
+  "NameConflict": "已有另一個手動能力使用此名稱。請選擇其他名稱。",
+  "CapabilityDerived": "此能力衍生自其來源並隨來源更新，因此無法在這裡編輯或刪除。請改為變更來源。",
+  "InvalidTags": "最多使用 32 個標籤，每個 1 至 64 個字元。",
+  "TooManyRequirements": "最多使用 16 項節點標籤需求。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidJsonSchema": "這不是有效的 JSON Schema。",
+   "InvalidTags": "最多使用 32 個標籤，每個 1 至 64 個字元。",
+   "TooManyRequirements": "最多使用 16 項節點標籤需求。"
+  },
+  "serverText": {
+   "capabilityDerivedEdit": "能力 {{name}} 衍生自其來源並隨來源更新。請改為變更來源。",
+   "capabilityDerivedDelete": "能力 {{name}} 衍生自其來源，並會隨來源一併移除，因此無法直接刪除。",
+   "capabilityShared": "能力 {{name}} 由所有租用戶共用，且來自內建的 Harness 設定檔，因此無法變更。",
+   "capabilityNameConflict": "已存在名為 {{name}} 的手動能力。",
+   "capabilitySecretsDenied": "您無權使用 MCP 伺服器 {{server}} 所傳送的祕密，因此未列出其工具。",
+   "capabilityNoStdioWorker": "沒有任何就緒的工作節點開啟 stdio MCP 診斷（GARRISON_WORKER_MCP_TESTS_ENABLED），因此無法列出 stdio 伺服器的工具。",
+   "capabilityRefreshFailed": "於 {{when}} 重新整理失敗：{{error}}",
+   "capabilityMissingTools": "缺少必要的工具：{{tools}}。",
+   "capabilityProbeShadowed": "工作節點以 {{probe}} 探測 {{name}}，該探測由另一個 Harness 設定檔先行定義。此設定檔的定義不會被探測。"
+  }
+ },
+ "components": {
+  "blocked": {
+   "reasons": {
+    "NoToolWorker": "此執行的代理程式使用 {{tools}}，但沒有任何能執行 {{harness}} 的就緒工作節點回報此工具。請在工作節點主機上安裝該工具，讓探測回報節點標籤 garrison.io/tool-{name}=true，或手動為工作節點加上該標籤。"
+   }
+  },
+  "revisions": {
+   "columns": {
+    "capabilities": "能力"
+   }
+  },
+  "capabilities": {
+   "noSource": "手動項目",
+   "shared": "共用",
+   "hintsLine": "中位數 {{median}}，p90 {{p90}}，每次執行 {{cost}}",
+   "hintsLineNoCost": "中位數 {{median}}，p90 {{p90}}，未記錄成本",
+   "hintsTitle": "成本與延遲提示",
+   "noCost": "未記錄成本",
+   "windowDays_one": "{{count}} 天",
+   "windowDays_other": "{{count}} 天",
+   "refreshWarning": "上次重新整理此項目的來源時失敗。",
+   "requirementsTitle": "執行所需的節點標籤",
+   "noRequirements": "無。使用此能力的執行可以分派到任何工作節點。",
+   "noSchema": "無結構描述",
+   "fields": {
+    "kind": "類型",
+    "origin": "來源方式",
+    "source": "來源",
+    "lastRefreshedUtc": "上次重新整理",
+    "tags": "標籤",
+    "id": "ID 識別碼",
+    "summary": "摘要",
+    "hintStatus": "狀態",
+    "sampleSize": "彙整的執行數",
+    "medianDurationMs": "耗時中位數",
+    "p90DurationMs": "p90 耗時",
+    "meanCostUsd": "平均成本",
+    "windowDays": "統計期間",
+    "computedUtc": "計算時間",
+    "inputSchemaJson": "輸入結構描述",
+    "outputSchemaJson": "輸出結構描述"
+   },
+   "refreshTitle": "重新整理能力目錄",
+   "refreshHint": "Garrison 會重新衍生代理程式與 Harness 內建工具的項目、列出每個 MCP 伺服器的工具（stdio 伺服器透過已開啟 stdio 診斷的工作節點列出），並重新計算代理程式提示。列出伺服器時會傳送其範本所指名的祕密給它，因此您需要有使用這些祕密的權限。",
+   "refreshServer": "要列出的 MCP 伺服器",
+   "refreshAll": "所有啟用中的 MCP 伺服器",
+   "refreshRun": "立即重新整理",
+   "refreshing": "重新整理中...",
+   "refreshDone": "能力目錄已是最新狀態。",
+   "refreshPartial_one": "目錄已重新整理，但有 {{count}} 個 MCP 伺服器無法列出。",
+   "refreshPartial_other": "目錄已重新整理，但有 {{count}} 個 MCP 伺服器無法列出。",
+   "refresh": {
+    "agents": "已變更的代理程式項目",
+    "harnessBuiltIns": "已變更的內建工具項目",
+    "hints": "已重新計算的提示",
+    "servers": "已列出的 MCP 伺服器",
+    "tools": "已寫入的工具項目",
+    "removed": "已移除的工具項目",
+    "failed": "失敗的伺服器",
+    "noServers": "未列出任何 MCP 伺服器。",
+    "failedBadge": "失敗",
+    "listedBadge": "已列出",
+    "columns": {
+     "server": "MCP 伺服器",
+     "status": "結果",
+     "tools": "工具",
+     "removed": "已移除",
+     "warned": "保留但附警告",
+     "error": "錯誤"
+    }
+   },
+   "errors": {
+    "nameLength": "請使用 1 至 {{max}} 個字元。",
+    "summaryLength": "最多使用 {{max}} 個字元。",
+    "tags": "最多使用 {{max}} 個標籤，每個 1 至 {{length}} 個字元。",
+    "requirementCount": "最多使用 {{max}} 項節點標籤需求。",
+    "requirement": "每項需求都需要長度 1 至 {{max}} 個字元的節點標籤鍵。",
+    "toolNeedsServer": "請選擇此工具所屬的 MCP 伺服器。",
+    "probeCount": "一個 Harness 設定檔最多有 {{max}} 個工具探測。",
+    "probeName": "工具名稱為 1 至 63 個小寫字母、數字、句點與連字號，並以字母或數字開頭。",
+    "probeDuplicate": "此設定檔中已有另一個名為 {{name}} 的探測。",
+    "probeExecutable": "執行檔必須是可在 PATH 上找到的單純檔案名稱（字母、數字、句點、底線、加號與連字號），不得包含資料夾。",
+    "probeArgument": "請不選引數，或從 {{allowed}} 中選擇一個。",
+    "probeDescription": "最多使用 {{max}} 個字元。"
+   },
+   "draftTitle": "能力",
+   "draftSave": "儲存草稿",
+   "draftSaved": "已儲存草稿修訂 {{number}} 的能力。",
+   "draftEdit": "變更草稿修訂 {{number}} 的能力。草稿中的其他內容維持不變。",
+   "draftNew": "目前沒有開啟的草稿。儲存時會以已發佈的修訂 {{number}} 為基礎，建立含這些能力的新草稿。",
+   "draftPlacementHint": "這裡列出的 Harness 內建工具會將其節點標籤加到此代理程式的執行上，讓執行只分派到已回報該工具的工作節點。",
+   "draftEmpty": "此修訂未使用任何能力。",
+   "notInCatalog": "不在目錄中",
+   "removeName": "移除 {{name}}",
+   "chooseName": "選擇能力",
+   "nameOption": "{{name}}（{{kinds}}）",
+   "addName": "新增能力",
+   "newDraftButton": "在新草稿中選擇能力",
+   "editDraft": "能力"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "title": "能力",
+   "subtitle": "負責協調的代理程式可以找到並使用的代理程式、MCP 工具與 Harness 內建工具，附有成本與延遲提示。",
+   "add": "新增能力",
+   "create": "建立能力",
+   "edit": "編輯能力",
+   "view": "能力詳細資料",
+   "deleteTitle": "刪除能力",
+   "emptyTitle": "尚無能力",
+   "emptyBody": "發佈代理程式修訂、註冊 MCP 伺服器，或在 Harness 設定檔中新增工具探測，然後重新整理。您也可以新增手動項目。",
+   "columns": {
+    "name": "名稱",
+    "kind": "類型",
+    "origin": "來源方式",
+    "summary": "摘要",
+    "source": "來源",
+    "hints": "提示",
+    "tags": "標籤",
+    "lastRefreshedUtc": "上次重新整理",
+    "id": "ID 識別碼",
+    "createdUtc": "建立時間"
+   },
+   "fields": {
+    "name": "名稱",
+    "kind": "類型",
+    "summary": "摘要",
+    "sourceAgentId": "代表的代理程式",
+    "sourceMcpServerId": "所屬的 MCP 伺服器",
+    "sourceToolName": "該伺服器上的工具名稱",
+    "tags": "標籤",
+    "requirements": "執行所需的節點標籤",
+    "inputSchemaJson": "輸入結構描述",
+    "outputSchemaJson": "輸出結構描述"
+   },
+   "hints": {
+    "kind": "手動項目可以是任何類型，例如代理程式透過技能使用的轉換服務。",
+    "requirements": "使用此能力的代理程式，其執行只會分派到具備以下所有節點標籤的工作節點。",
+    "sourceMcpServerId": "選填。指名伺服器的項目，只有在執行權杖所屬的部署繫結該伺服器時才看得到。",
+    "inputSchemaJson": "JSON Schema，例如 {\"type\": \"object\"}。若能力接受自由文字，請留空。"
+   },
+   "tagFilter": "標籤",
+   "refresh": "重新整理",
+   "warningBadge": "重新整理失敗",
+   "warnings_one": "有 {{count}} 個項目因來源上次重新整理失敗，而保留最後一次正常的內容。開啟該項目即可查看原因。",
+   "warnings_other": "有 {{count}} 個項目因來源上次重新整理失敗，而保留最後一次正常的內容。開啟其中一個即可查看原因。",
+   "noSourceOption": "無",
+   "requirementKey": "節點標籤",
+   "requirementValue": "值"
+  },
+  "harnessProfiles": {
+   "fields": {
+    "toolProbes": "工具探測",
+    "probeName": "工具名稱",
+    "probeExecutable": "執行檔",
+    "probeArgument": "引數",
+    "probeDescription": "說明"
+   },
+   "columns": {
+    "toolProbes": "工具探測"
+   },
+   "hints": {
+    "toolProbes": "工作節點主機上有安裝時，此 Harness 可以使用的工具。工作節點在註冊前會執行每個探測，並將有回應的工具回報為節點標籤 garrison.io/tool-{name}=true。"
+   },
+   "addToolProbe": "新增工具探測",
+   "probeNoArgument": "無引數"
+  }
+ }
+});

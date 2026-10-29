@@ -3067,3 +3067,240 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "capabilities": {
+    "label": "Fähigkeiten",
+    "tip": "Der Fähigkeitenkatalog: Agents, MCP-Tools und integrierte Harness-Tools, die orchestrierende Agents finden und nutzen können, mit Hinweisen zu Kosten und Latenz."
+   }
+  }
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Agent",
+   "McpTool": "MCP-Tool",
+   "HarnessBuiltIn": "Integriertes Harness-Tool"
+  },
+  "capabilityOrigin": {
+   "Derived": "Abgeleitet",
+   "Manual": "Manuell"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Unbekannt",
+   "Known": "Bekannt"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Kein Worker mit dem Tool"
+  },
+  "resourceType": {
+   "ConversationFileSpace": "Dateibereich der Konversation",
+   "Capability": "Fähigkeit"
+  }
+ },
+ "errorCodes": {
+  "InvalidJsonSchema": "Ein Schema ist kein gültiges JSON Schema. Korrigieren Sie das Eingabe- oder Ausgabeschema und speichern Sie erneut.",
+  "NameConflict": "Eine andere manuelle Fähigkeit verwendet diesen Namen bereits. Wählen Sie einen anderen Namen.",
+  "CapabilityDerived": "Diese Fähigkeit ist von ihrer Quelle abgeleitet und folgt ihr, daher kann sie hier weder bearbeitet noch gelöscht werden. Ändern Sie stattdessen die Quelle.",
+  "InvalidTags": "Verwenden Sie höchstens 32 Schlagwörter mit je 1 bis 64 Zeichen.",
+  "TooManyRequirements": "Verwenden Sie höchstens 16 Knotenlabel-Anforderungen."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidJsonSchema": "Das ist kein gültiges JSON Schema.",
+   "InvalidTags": "Verwenden Sie höchstens 32 Schlagwörter mit je 1 bis 64 Zeichen.",
+   "TooManyRequirements": "Verwenden Sie höchstens 16 Knotenlabel-Anforderungen."
+  },
+  "serverText": {
+   "capabilityDerivedEdit": "Die Fähigkeit {{name}} ist von ihrer Quelle abgeleitet und folgt ihr. Ändern Sie stattdessen die Quelle.",
+   "capabilityDerivedDelete": "Die Fähigkeit {{name}} ist von ihrer Quelle abgeleitet und verschwindet mit ihr, daher kann sie nicht direkt gelöscht werden.",
+   "capabilityShared": "Die Fähigkeit {{name}} gilt für alle Mandanten und stammt aus einem integrierten Harness-Profil, daher kann sie nicht geändert werden.",
+   "capabilityNameConflict": "Eine manuelle Fähigkeit namens {{name}} existiert bereits.",
+   "capabilitySecretsDenied": "Sie dürfen die Geheimnisse nicht verwenden, die der MCP-Server {{server}} sendet, daher wurden seine Tools nicht aufgelistet.",
+   "capabilityNoStdioWorker": "Kein bereiter Worker hat die stdio-MCP-Diagnose aktiviert (GARRISON_WORKER_MCP_TESTS_ENABLED), daher konnten die Tools des stdio-Servers nicht aufgelistet werden.",
+   "capabilityRefreshFailed": "Aktualisierung am {{when}} fehlgeschlagen: {{error}}",
+   "capabilityMissingTools": "Erforderliche Tools fehlen: {{tools}}.",
+   "capabilityProbeShadowed": "Worker prüfen {{name}} als {{probe}}, das ein anderes Harness-Profil zuerst definiert hat. Die Definition in diesem Profil wird nicht geprüft."
+  }
+ },
+ "components": {
+  "blocked": {
+   "reasons": {
+    "NoToolWorker": "Der Agent dieses Laufs verwendet {{tools}}, und kein bereiter Worker, der {{harness}} ausführen kann, meldet es. Installieren Sie das Tool auf einem Worker-Host, damit dessen Prüfung das Knotenlabel garrison.io/tool-{name}=true meldet, oder setzen Sie dieses Label von Hand an einem Worker."
+   }
+  },
+  "revisions": {
+   "columns": {
+    "capabilities": "Fähigkeiten"
+   }
+  },
+  "capabilities": {
+   "noSource": "Manueller Eintrag",
+   "shared": "Gemeinsam",
+   "hintsLine": "Median {{median}}, p90 {{p90}}, {{cost}} pro Lauf",
+   "hintsLineNoCost": "Median {{median}}, p90 {{p90}}, keine Kosten erfasst",
+   "hintsTitle": "Hinweise zu Kosten und Latenz",
+   "noCost": "Keine Kosten erfasst",
+   "windowDays_one": "{{count}} Tag",
+   "windowDays_other": "{{count}} Tage",
+   "refreshWarning": "Die letzte Aktualisierung der Quelle dieses Eintrags ist fehlgeschlagen.",
+   "requirementsTitle": "Knotenlabels, die ein Lauf benötigt",
+   "noRequirements": "Keine. Läufe mit dieser Fähigkeit können auf jedem Worker laufen.",
+   "noSchema": "Kein Schema",
+   "fields": {
+    "kind": "Art",
+    "origin": "Herkunft",
+    "source": "Quelle",
+    "lastRefreshedUtc": "Zuletzt aktualisiert",
+    "tags": "Schlagwörter",
+    "id": "ID",
+    "summary": "Zusammenfassung",
+    "hintStatus": "Status",
+    "sampleSize": "Ausgewertete Läufe",
+    "medianDurationMs": "Mediane Dauer",
+    "p90DurationMs": "p90-Dauer",
+    "meanCostUsd": "Mittlere Kosten",
+    "windowDays": "Zeitfenster",
+    "computedUtc": "Berechnet",
+    "inputSchemaJson": "Eingabeschema",
+    "outputSchemaJson": "Ausgabeschema"
+   },
+   "refreshTitle": "Fähigkeitenkatalog aktualisieren",
+   "refreshHint": "Garrison leitet die Einträge für Agents und integrierte Harness-Tools neu ab, listet die Tools jedes MCP-Servers auf (stdio-Server über einen Worker mit aktivierter stdio-Diagnose) und berechnet die Agent-Hinweise neu. Beim Auflisten erhält ein Server die Geheimnisse, die seine Vorlagen nennen, daher brauchen Sie die Berechtigung, sie zu verwenden.",
+   "refreshServer": "Aufzulistende MCP-Server",
+   "refreshAll": "Alle aktiven MCP-Server",
+   "refreshRun": "Jetzt aktualisieren",
+   "refreshing": "Wird aktualisiert...",
+   "refreshDone": "Der Fähigkeitenkatalog ist auf dem neuesten Stand.",
+   "refreshPartial_one": "Der Katalog wurde aktualisiert, aber {{count}} MCP-Server konnte nicht aufgelistet werden.",
+   "refreshPartial_other": "Der Katalog wurde aktualisiert, aber {{count}} MCP-Server konnten nicht aufgelistet werden.",
+   "refresh": {
+    "agents": "Geänderte Agent-Einträge",
+    "harnessBuiltIns": "Geänderte integrierte Einträge",
+    "hints": "Neu berechnete Hinweise",
+    "servers": "Aufgelistete MCP-Server",
+    "tools": "Geschriebene Tool-Einträge",
+    "removed": "Entfernte Tool-Einträge",
+    "failed": "Fehlgeschlagene Server",
+    "noServers": "Es wurde kein MCP-Server aufgelistet.",
+    "failedBadge": "Fehlgeschlagen",
+    "listedBadge": "Aufgelistet",
+    "columns": {
+     "server": "MCP-Server",
+     "status": "Ergebnis",
+     "tools": "Tool-Einträge",
+     "removed": "Entfernt",
+     "warned": "Mit Warnung behalten",
+     "error": "Fehler"
+    }
+   },
+   "errors": {
+    "nameLength": "Verwenden Sie 1 bis {{max}} Zeichen.",
+    "summaryLength": "Verwenden Sie höchstens {{max}} Zeichen.",
+    "tags": "Verwenden Sie höchstens {{max}} Schlagwörter mit je 1 bis {{length}} Zeichen.",
+    "requirementCount": "Verwenden Sie höchstens {{max}} Knotenlabel-Anforderungen.",
+    "requirement": "Jede Anforderung braucht einen Knotenlabel-Schlüssel mit 1 bis {{max}} Zeichen.",
+    "toolNeedsServer": "Wählen Sie den MCP-Server, zu dem das Tool gehört.",
+    "probeCount": "Ein Harness-Profil hat höchstens {{max}} Tool-Prüfungen.",
+    "probeName": "Der Tool-Name besteht aus 1 bis 63 Kleinbuchstaben, Ziffern, Punkten und Bindestrichen und beginnt mit einem Buchstaben oder einer Ziffer.",
+    "probeDuplicate": "Eine andere Prüfung in diesem Profil heißt bereits {{name}}.",
+    "probeExecutable": "Das Programm ist ein reiner Dateiname, der über den PATH gefunden wird (Buchstaben, Ziffern, Punkte, Unterstriche, Pluszeichen und Bindestriche), ohne Ordner.",
+    "probeArgument": "Wählen Sie kein Argument oder eines von {{allowed}}.",
+    "probeDescription": "Verwenden Sie höchstens {{max}} Zeichen."
+   },
+   "draftTitle": "Fähigkeiten",
+   "draftSave": "Entwurf speichern",
+   "draftSaved": "Die Fähigkeiten wurden in der Entwurfsrevision {{number}} gespeichert.",
+   "draftEdit": "Ändert die Fähigkeiten der Entwurfsrevision {{number}}. Alles andere im Entwurf bleibt unverändert.",
+   "draftNew": "Es gibt keinen offenen Entwurf. Beim Speichern entsteht aus der veröffentlichten Revision {{number}} ein neuer Entwurf mit diesen Fähigkeiten.",
+   "draftPlacementHint": "Ein hier genanntes integriertes Harness-Tool fügt den Läufen dieses Agents sein Knotenlabel hinzu, sodass sie nur an Worker gehen, die das Tool gemeldet haben.",
+   "draftEmpty": "Diese Revision verwendet keine Fähigkeiten.",
+   "notInCatalog": "Nicht im Katalog",
+   "removeName": "{{name}} entfernen",
+   "chooseName": "Fähigkeit auswählen",
+   "nameOption": "{{name}} ({{kinds}})",
+   "addName": "Fähigkeit hinzufügen",
+   "newDraftButton": "Fähigkeiten in einem neuen Entwurf wählen",
+   "editDraft": "Fähigkeiten"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "title": "Fähigkeiten",
+   "subtitle": "Agents, MCP-Tools und integrierte Harness-Tools, die orchestrierende Agents finden und nutzen können, mit Hinweisen zu Kosten und Latenz.",
+   "add": "Fähigkeit hinzufügen",
+   "create": "Fähigkeit erstellen",
+   "edit": "Fähigkeit bearbeiten",
+   "view": "Details der Fähigkeit",
+   "deleteTitle": "Fähigkeit löschen",
+   "emptyTitle": "Noch keine Fähigkeiten",
+   "emptyBody": "Veröffentlichen Sie eine Agent-Revision, registrieren Sie einen MCP-Server oder fügen Sie einem Harness-Profil eine Tool-Prüfung hinzu, und aktualisieren Sie dann. Sie können auch einen manuellen Eintrag anlegen.",
+   "columns": {
+    "name": "Name",
+    "kind": "Art",
+    "origin": "Herkunft",
+    "summary": "Zusammenfassung",
+    "source": "Quelle",
+    "hints": "Hinweise",
+    "tags": "Schlagwörter",
+    "lastRefreshedUtc": "Zuletzt aktualisiert",
+    "id": "ID",
+    "createdUtc": "Erstellt"
+   },
+   "fields": {
+    "name": "Name",
+    "kind": "Art",
+    "summary": "Zusammenfassung",
+    "sourceAgentId": "Agent, für den sie steht",
+    "sourceMcpServerId": "MCP-Server, zu dem sie gehört",
+    "sourceToolName": "Tool-Name auf diesem Server",
+    "tags": "Schlagwörter",
+    "requirements": "Knotenlabels, die ein Lauf benötigt",
+    "inputSchemaJson": "Eingabeschema",
+    "outputSchemaJson": "Ausgabeschema"
+   },
+   "hints": {
+    "kind": "Manuelle Einträge können jede Art haben, zum Beispiel ein Konvertierungsdienst, den Agents über eine Skill-Ressource erreichen.",
+    "requirements": "Ein Lauf eines Agents, der diese Fähigkeit nutzt, geht nur an Worker, die jedes dieser Knotenlabels haben.",
+    "sourceMcpServerId": "Optional. Ein Lauf-Token sieht einen Eintrag, der einen Server nennt, nur dann, wenn seine Bereitstellung diesen Server bindet.",
+    "inputSchemaJson": "Ein JSON Schema, zum Beispiel {\"type\": \"object\"}. Leer lassen, wenn die Fähigkeit freien Text annimmt."
+   },
+   "tagFilter": "Schlagwort",
+   "refresh": "Aktualisieren",
+   "warningBadge": "Aktualisierung fehlgeschlagen",
+   "warnings_one": "{{count}} Eintrag hat seinen letzten gültigen Inhalt behalten, weil die letzte Aktualisierung seiner Quelle fehlgeschlagen ist. Öffnen Sie ihn, um den Grund zu sehen.",
+   "warnings_other": "{{count}} Einträge haben ihren letzten gültigen Inhalt behalten, weil die letzte Aktualisierung ihrer Quelle fehlgeschlagen ist. Öffnen Sie einen davon, um den Grund zu sehen.",
+   "noSourceOption": "Keine",
+   "requirementKey": "Knotenlabel",
+   "requirementValue": "Wert"
+  },
+  "harnessProfiles": {
+   "fields": {
+    "toolProbes": "Tool-Prüfungen",
+    "probeName": "Tool-Name",
+    "probeExecutable": "Programm",
+    "probeArgument": "Aufrufargument",
+    "probeDescription": "Beschreibung"
+   },
+   "columns": {
+    "toolProbes": "Tool-Prüfungen"
+   },
+   "hints": {
+    "toolProbes": "Tools, die diese Harness nutzen kann, wenn der Worker-Host sie hat. Worker führen jede Prüfung vor der Registrierung aus und melden die Tools, die antworten, als Knotenlabels garrison.io/tool-{name}=true."
+   },
+   "addToolProbe": "Tool-Prüfung hinzufügen",
+   "probeNoArgument": "Kein Argument"
+  }
+ }
+});

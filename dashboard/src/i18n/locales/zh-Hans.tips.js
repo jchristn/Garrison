@@ -2456,3 +2456,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "将选择的每个文件逐个发送到共享文件夹，并附上它要替换的版本。"
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "能力目录：列出智能体、MCP 工具和 Harness 内置工具，显示它们的来源以及成本和延迟参考，并可执行刷新。"
+  }
+ },
+ "filters": {
+  "tag": "只显示带有与此完全一致标签的能力。停止输入后列表会更新。",
+  "origin": "只显示随来源变化的派生条目，或只显示由人编写的手动条目。"
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "另一个 Garrison 智能体，根据其最新发布的修订进行描述。编排型智能体可以把任务委派给它。",
+   "McpTool": "在此租户中注册的 MCP 服务器提供的工具，根据服务器的工具列表进行描述。",
+   "HarnessBuiltIn": "Harness 能在其工作节点主机上运行的程序，例如 pandoc 或 LibreOffice，由 Harness 配置文件中的工具探测发现。"
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison 会让此条目与其来源保持同步。它不能在此编辑或删除，请改为修改来源。",
+   "Manual": "由人编写的条目，可以在此编辑和删除。"
+  },
+  "capabilityHintStatus": {
+   "Unknown": "统计窗口内完成的运行太少，无法得出结论，因此不显示数值。MCP 工具和内置工具的参考值始终为“未知”。",
+   "Known": "统计窗口内完成了足够多的运行，因此时长和成本数值都有真实运行作为依据。"
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "已阻塞：此运行的智能体使用了某个 Harness 内置工具（例如 pandoc），但能运行它的就绪工作节点都没有报告该工具。它会在队列中等待，直到有这样的工作节点注册。"
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "为 Garrison 无法派生的内容编写手动条目，例如智能体通过技能访问的转换服务。",
+   "name": "智能体查找此能力时使用的名称。智能体条目以智能体命名，MCP 工具为 server/tool，内置工具以工具命名。",
+   "kind": "智能体、MCP 工具或 Harness 内置工具。手动条目可以使用任意类型。",
+   "origin": "派生条目随来源变化，不能在此更改；手动条目由人编写。",
+   "summary": "能力的作用以及何时使用它，智能体会读取这段内容。最多 4000 个字符。",
+   "source": "条目的出处：智能体、MCP 服务器和工具，或者 Harness 配置文件以及运行所需的节点标签。",
+   "hints": "根据最近完成的运行得出的时长中位数、第 90 百分位时长和平均成本；完成的运行太少时显示为“未知”。",
+   "tags": "用于筛选目录的标签。智能体也可以按标签筛选。",
+   "lastRefreshedUtc": "Garrison 上次从来源刷新派生条目的时间。手动条目为空。",
+   "sourceAgentId": "可选。此手动条目所代表的 Garrison 智能体。",
+   "sourceMcpServerId": "可选。此手动条目所代表的工具所在的 MCP 服务器。",
+   "sourceToolName": "该工具在所选 MCP 服务器上的名称。",
+   "requirements": "节点标签，例如 garrison.io/tool-pandoc=true。工作节点必须先报告这些标签，才能接手使用此能力的运行。",
+   "inputSchemaJson": "描述能力输入内容的 JSON Schema。保存时 Garrison 会检查它是否为有效的 JSON Schema。",
+   "outputSchemaJson": "描述能力返回内容的 JSON Schema。保存时 Garrison 会检查它是否为有效的 JSON Schema。",
+   "kindFilter": "只显示智能体、只显示 MCP 工具，或只显示 Harness 内置工具。选择“全部”可查看整个目录。",
+   "originFilter": "只显示随来源变化的派生条目，或只显示由人编写的手动条目。",
+   "tagFilter": "只显示带有与此完全一致标签的能力。停止输入后列表会更新。",
+   "refresh": "立即刷新派生条目：智能体、Harness 内置工具、MCP 服务器工具和智能体参考值。会显示变更内容以及失败的服务器。",
+   "warnings": "来源无法刷新的条目会保留最后一次正常的内容，并在详情中显示原因。",
+   "warningBadge": "上次刷新此条目的来源时失败，因此显示的是最后一次正常的内容。原因：{{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "工作节点主机上有这些工具时此 Harness 可以使用的工具，例如 pandoc。每个工具都会成为能力目录中的一个 Harness 内置工具。",
+   "toolProbesItems": {
+    "name": "在目录和节点标签 garrison.io/tool-{name} 中使用的工具名称：小写字母、数字、点和连字符。",
+    "executable": "工作节点在其 PATH 中查找的纯文件名，例如 soffice。不允许包含文件夹。",
+    "argument": "探测传入的唯一参数，例如 --version。只允许版本和帮助标志，或者不带参数。",
+    "description": "工具的作用，显示在能力目录中。最多 1024 个字符。"
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "此修订使用的能力（按名称）。其中如果有 Harness 内置工具，此修订的运行只会分配给报告了该工具的工作节点。"
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "打开智能体 {{name}}。此条目根据它最新发布的修订进行描述。",
+  "sourceMcpServer": "在“MCP 服务器”标签页中打开 MCP 服务器 {{name}}。它的工具列表是此条目的来源。",
+  "sourceTool": "该工具在 MCP 服务器上的名称：{{tool}}。",
+  "sourceProfile": "打开 Harness 配置文件 {{name}}。它的工具探测是此条目的来源。",
+  "nodeLabel": "使用此能力的运行只会分配给报告节点标签 {{label}} 的工作节点。",
+  "noSource": "未指定智能体或 MCP 服务器的手动条目。所有能读取目录的运行都能看到它。",
+  "hintsUnknown": "统计窗口内完成的运行太少，无法得出结论，因此不显示数值。这绝不表示为零。",
+  "hintsKnown_one": "根据过去 {{days}} 天内完成的 {{count}} 次运行汇总。",
+  "hintsKnown_other": "根据过去 {{days}} 天内完成的 {{count}} 次运行汇总。",
+  "refreshWarning": "Garrison 无法从来源刷新此条目，因此在下次刷新成功之前，条目会保留最后一次正常的内容。",
+  "lockedBanner": "说明此条目为什么不能在此编辑或删除，以及应该到哪里去修改。",
+  "lockedShared": "由所有租户共享：此条目来自内置 Harness 配置文件中的工具探测，因此不能编辑或删除。要更改其探测，请克隆该配置文件。",
+  "locked": {
+   "Agent": "派生自智能体最新发布的修订，因此不能在此编辑或删除。要更改它，请发布新的修订；停用智能体会移除此条目。",
+   "McpTool": "派生自 MCP 服务器的工具列表，因此不能在此编辑或删除。请修改服务器或其工具，然后刷新。",
+   "HarnessBuiltIn": "派生自 Harness 配置文件中的工具探测，因此不能在此编辑或删除。请改为修改该配置文件的工具探测。"
+  },
+  "shared": "所有租户都能看到此条目。它来自内置 Harness 配置文件中的工具探测。",
+  "hintsTitle": "此智能体最近完成的运行的时长和成本。MCP 工具和内置工具没有参考值。",
+  "requirementsTitle": "工作节点必须先报告这些节点标签，才能接手其智能体使用此能力的运行。",
+  "fields": {
+   "kind": "智能体、MCP 工具或 Harness 内置工具。",
+   "origin": "派生条目随来源变化；手动条目由人编写。",
+   "source": "此条目所来自的智能体、MCP 服务器和工具，或 Harness 配置文件。",
+   "lastRefreshedUtc": "Garrison 上次从来源刷新此条目的时间。手动条目为空。",
+   "tags": "用于筛选目录的标签。",
+   "id": "目录条目的标识符，以 cap_ 开头。",
+   "summary": "能力的作用以及何时使用它，智能体会读取这段内容。",
+   "hintStatus": "统计窗口内完成了足够多的运行时为“已知”，否则为“未知”，此时不显示数值。",
+   "sampleSize": "参考值所汇总的已完成运行数，从最近的开始计。",
+   "medianDurationMs": "所汇总运行从开始到完成所用时间的中位数。",
+   "p90DurationMs": "所汇总的运行中，每 10 次有 9 次在此时间内完成。",
+   "meanCostUsd": "所汇总运行中记录了成本的那些运行的平均成本（美元）。",
+   "windowDays": "参考值回溯的天数（Capabilities.HintWindowDays 设置）。",
+   "computedUtc": "维护循环或刷新上次计算参考值的时间。",
+   "inputSchemaJson": "描述能力输入内容的 JSON Schema；如果接受自由文本则为空。",
+   "outputSchemaJson": "描述能力返回内容的 JSON Schema，也可以为空。"
+  },
+  "refreshServer": "列出所有活动 MCP 服务器的工具，或只列出一个服务器的工具。stdio 服务器通过工作节点列出。",
+  "refreshRun": "立即开始刷新。如果 MCP 服务器响应较慢，可能需要一些时间。",
+  "refresh": {
+   "agents": "本次刷新创建、刷新或移除的智能体条目。",
+   "harnessBuiltIns": "在所有范围内创建、刷新或移除的 Harness 内置工具条目。",
+   "hints": "重新计算了成本和延迟参考值的智能体条目。",
+   "servers": "本次刷新尝试列出的 MCP 服务器数量。",
+   "tools": "根据有响应的服务器写入的工具条目。",
+   "removed": "因服务器不再列出该工具而移除的工具条目。",
+   "failed": "无法列出工具的服务器。它们的条目会保留最后一次正常的内容。",
+   "failedBadge": "无法列出此服务器的工具。它的条目会保留最后一次正常的内容，并附带警告。",
+   "listedBadge": "服务器已响应，其工具条目已是最新。",
+   "columns": {
+    "server": "被列出工具的 MCP 服务器。",
+    "status": "是否成功列出了该服务器的工具。",
+    "tools": "为此服务器写入的工具条目。",
+    "removed": "因服务器不再列出而移除的工具条目。",
+    "warned": "保留了最后一次正常内容、现在带有刷新警告的条目。",
+    "error": "列出失败时的原因。"
+   }
+  },
+  "draftSave": "将这些能力保存到草稿。之后发布草稿，部署才会使用它们。",
+  "notInCatalog": "目前没有使用此名称的目录条目。运行仍会启动，但智能体找不到此能力。",
+  "removeName": "从修订中移除此能力。",
+  "chooseName": "按名称从目录中选择能力。被多种类型使用的名称只列出一次。",
+  "addName": "将所选能力添加到修订中。",
+  "newDraft": "基于最新发布的修订创建新草稿，并选择它使用的能力。",
+  "editDraft": "添加或移除此草稿修订使用的能力。",
+  "revisionName": "此修订使用能力 {{name}}。智能体通过此名称在目录中找到它。"
+ }
+});

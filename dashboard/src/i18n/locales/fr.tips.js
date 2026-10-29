@@ -2459,3 +2459,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "Envoyer chaque fichier choisi dans le dossier partagé, un par un, avec la version qu'il remplace."
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "Le catalogue des capacités : agents, outils MCP et outils intégrés aux harness, avec leurs sources, des indications de coût et de latence, et une actualisation."
+  }
+ },
+ "filters": {
+  "tag": "N'afficher que les capacités portant exactement ce tag. La liste se met à jour dès que vous cessez de taper.",
+  "origin": "N'afficher que les entrées dérivées, qui suivent leur source, ou que les entrées manuelles rédigées par des personnes."
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Un autre agent Garrison, décrit à partir de sa dernière révision publiée. Un agent orchestrateur peut lui déléguer du travail.",
+   "McpTool": "Un outil d'un serveur MCP enregistré dans ce locataire, décrit à partir de la liste d'outils du serveur.",
+   "HarnessBuiltIn": "Un programme que le harness peut lancer sur l'hôte de son worker, comme pandoc ou LibreOffice, détecté par une sonde d'outil d'un profil de harness."
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison maintient cette entrée alignée sur sa source. Elle ne peut être ni modifiée ni supprimée ici ; modifiez plutôt la source.",
+   "Manual": "Une personne a rédigé cette entrée. Elle peut être modifiée et supprimée ici."
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Trop peu d'exécutions se sont terminées dans la fenêtre des indications pour en tirer quoi que ce soit : aucune valeur n'est donc affichée. Les outils MCP et les outils intégrés ont toujours des indications inconnues.",
+   "Known": "Assez d'exécutions se sont terminées dans la fenêtre des indications : les valeurs de durée et de coût reposent donc sur des exécutions réelles."
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Bloquée : l'agent de cette exécution utilise un outil intégré au harness, comme pandoc, et aucun worker prêt capable de l'exécuter ne signale cet outil. Elle attend dans la file d'attente qu'un tel worker s'enregistre."
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "Rédiger une entrée manuelle pour ce que Garrison ne peut pas dériver, par exemple un service de conversion que les agents atteignent via une ressource Skill.",
+   "name": "Nom sous lequel les agents trouvent la capacité. Les agents portent le nom de l'agent, les outils MCP la forme server/tool, les outils intégrés le nom de l'outil.",
+   "kind": "Agent, outil MCP ou outil intégré au harness. Les entrées manuelles peuvent utiliser n'importe quel type.",
+   "origin": "Les entrées dérivées suivent leur source et ne peuvent pas être modifiées ici ; les entrées manuelles ont été rédigées par des personnes.",
+   "summary": "Ce que fait la capacité et quand l'utiliser, tel que les agents le lisent. Jusqu'à 4000 caractères.",
+   "source": "D'où vient l'entrée : l'agent, le serveur MCP et l'outil, ou le profil de harness et l'étiquette de nœud requise par une exécution.",
+   "hints": "Durée médiane et 90e centile des exécutions et coût moyen des exécutions terminées récemment, ou Inconnu si trop peu d'exécutions se sont terminées.",
+   "tags": "Libellés pour filtrer le catalogue. Les agents peuvent aussi filtrer par tag.",
+   "lastRefreshedUtc": "Date à laquelle Garrison a actualisé pour la dernière fois une entrée dérivée depuis sa source. Vide pour les entrées manuelles.",
+   "sourceAgentId": "Facultatif. L'agent Garrison que représente cette entrée manuelle.",
+   "sourceMcpServerId": "Facultatif. Le serveur MCP dont cette entrée manuelle représente un outil.",
+   "sourceToolName": "Le nom de l'outil sur le serveur MCP choisi.",
+   "requirements": "Étiquettes de nœud, comme garrison.io/tool-pandoc=true, qu'un worker doit signaler avant de prendre une exécution qui utilise cette capacité.",
+   "inputSchemaJson": "JSON Schema de ce que la capacité accepte. Garrison vérifie à l'enregistrement qu'il s'agit d'un JSON Schema valide.",
+   "outputSchemaJson": "JSON Schema de ce que la capacité renvoie. Garrison vérifie à l'enregistrement qu'il s'agit d'un JSON Schema valide.",
+   "kindFilter": "N'afficher que les agents, que les outils MCP ou que les outils intégrés aux harness. Choisissez Tous pour voir tout le catalogue.",
+   "originFilter": "N'afficher que les entrées dérivées, qui suivent leur source, ou que les entrées manuelles rédigées par des personnes.",
+   "tagFilter": "N'afficher que les capacités portant exactement ce tag. La liste se met à jour dès que vous cessez de taper.",
+   "refresh": "Actualiser maintenant les entrées dérivées : agents, outils intégrés aux harness, outils des serveurs MCP et indications des agents. Affiche ce qui a changé et quels serveurs ont échoué.",
+   "warnings": "Les entrées dont la source n'a pas pu être actualisée conservent leur dernier contenu valide et indiquent la raison dans leurs détails.",
+   "warningBadge": "La dernière actualisation de la source de cette entrée a échoué : elle affiche donc son dernier contenu valide. Raison : {{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "Outils que ce harness peut utiliser lorsque l'hôte du worker en dispose, comme pandoc. Chacun devient un outil intégré au harness dans le catalogue des capacités.",
+   "toolProbesItems": {
+    "name": "Nom de l'outil dans le catalogue et dans l'étiquette de nœud garrison.io/tool-{name} : lettres minuscules, chiffres, points et traits d'union.",
+    "executable": "Simple nom de fichier que le worker recherche dans son PATH, par exemple soffice. Aucun dossier n'est autorisé.",
+    "argument": "L'unique argument que passe la sonde, comme --version. Seuls les indicateurs de version et d'aide sont autorisés, ou aucun.",
+    "description": "Ce que fait l'outil, affiché dans le catalogue des capacités. Jusqu'à 1024 caractères."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "Capacités qu'utilise cette révision, par nom. Les outils intégrés au harness parmi elles limitent ses exécutions aux workers qui signalent l'outil."
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "Ouvrir l'agent {{name}}, que cette entrée décrit à partir de sa dernière révision publiée.",
+  "sourceMcpServer": "Ouvrir le serveur MCP {{name}} dans l'onglet Serveurs MCP. Sa liste d'outils est la source de cette entrée.",
+  "sourceTool": "Le nom de l'outil sur le serveur MCP : {{tool}}.",
+  "sourceProfile": "Ouvrir le profil de harness {{name}}, dont la sonde d'outil est la source de cette entrée.",
+  "nodeLabel": "Une exécution qui utilise cette capacité ne va qu'à un worker qui signale l'étiquette de nœud {{label}}.",
+  "noSource": "Une entrée manuelle qui ne nomme aucun agent ni serveur MCP. Toute exécution autorisée à lire le catalogue la voit.",
+  "hintsUnknown": "Trop peu d'exécutions se sont terminées dans la fenêtre des indications pour en tirer quoi que ce soit : aucune valeur n'est donc affichée. Cela ne signifie jamais zéro.",
+  "hintsKnown_one": "Calculé à partir de {{count}} exécution terminée au cours des {{days}} derniers jours.",
+  "hintsKnown_other": "Calculé à partir de {{count}} exécutions terminées au cours des {{days}} derniers jours.",
+  "refreshWarning": "Garrison n'a pas pu actualiser cette entrée depuis sa source : elle conserve donc son dernier contenu valide jusqu'à la prochaine actualisation réussie.",
+  "lockedBanner": "Pourquoi cette entrée ne peut être ni modifiée ni supprimée ici, et où la modifier à la place.",
+  "lockedShared": "Partagée par tous les locataires : cette entrée provient d'une sonde d'outil d'un profil de harness intégré, elle ne peut donc être ni modifiée ni supprimée. Clonez le profil pour en changer les sondes.",
+  "locked": {
+   "Agent": "Dérivée de la dernière révision publiée de l'agent, elle ne peut être ni modifiée ni supprimée ici. Publiez une nouvelle révision pour la changer ; désactiver l'agent la supprime.",
+   "McpTool": "Dérivée de la liste d'outils du serveur MCP, elle ne peut être ni modifiée ni supprimée ici. Modifiez le serveur ou ses outils, puis actualisez.",
+   "HarnessBuiltIn": "Dérivée d'une sonde d'outil d'un profil de harness, elle ne peut être ni modifiée ni supprimée ici. Modifiez plutôt les sondes d'outil du profil."
+  },
+  "shared": "Tous les locataires voient cette entrée. Elle provient d'une sonde d'outil d'un profil de harness intégré.",
+  "hintsTitle": "Durée et coût des exécutions récentes terminées de cet agent. Les outils MCP et les outils intégrés n'ont pas d'indications.",
+  "requirementsTitle": "Étiquettes de nœud qu'un worker doit signaler avant de prendre une exécution dont l'agent utilise cette capacité.",
+  "fields": {
+   "kind": "Agent, outil MCP ou outil intégré au harness.",
+   "origin": "Les entrées dérivées suivent leur source ; les entrées manuelles ont été rédigées par des personnes.",
+   "source": "L'agent, le serveur MCP et l'outil, ou le profil de harness dont provient cette entrée.",
+   "lastRefreshedUtc": "Date à laquelle Garrison a actualisé cette entrée depuis sa source pour la dernière fois. Vide pour les entrées manuelles.",
+   "tags": "Libellés pour filtrer le catalogue.",
+   "id": "Identifiant de l'entrée du catalogue, qui commence par cap_.",
+   "summary": "Ce que fait la capacité et quand l'utiliser, tel que les agents le lisent.",
+   "hintStatus": "Connu si assez d'exécutions se sont terminées dans la fenêtre ; Inconnu sinon, et aucune valeur n'est alors affichée.",
+   "sampleSize": "Nombre d'exécutions terminées prises en compte par les indications, les plus récentes d'abord.",
+   "medianDurationMs": "Temps médian entre le démarrage et la fin des exécutions prises en compte.",
+   "p90DurationMs": "Neuf exécutions prises en compte sur dix se sont terminées dans ce délai.",
+   "meanCostUsd": "Coût moyen en dollars US des exécutions prises en compte qui ont enregistré un coût.",
+   "windowDays": "Nombre de jours sur lesquels portent les indications (paramètre Capabilities.HintWindowDays).",
+   "computedUtc": "Date du dernier calcul des indications par la boucle de maintenance ou par une actualisation.",
+   "inputSchemaJson": "JSON Schema de ce que la capacité accepte, ou aucun pour du texte libre.",
+   "outputSchemaJson": "JSON Schema de ce que la capacité renvoie, ou aucun."
+  },
+  "refreshServer": "Lister les outils de tous les serveurs MCP actifs, ou d'un seul serveur. Les serveurs stdio sont listés par l'intermédiaire d'un worker.",
+  "refreshRun": "Lancer l'actualisation maintenant. Elle peut prendre du temps si des serveurs MCP tardent à répondre.",
+  "refresh": {
+   "agents": "Entrées d'agent créées, actualisées ou supprimées par cette actualisation.",
+   "harnessBuiltIns": "Entrées d'outils intégrés aux harness créées, actualisées ou supprimées, toutes portées confondues.",
+   "hints": "Entrées d'agent dont les indications de coût et de latence ont été recalculées.",
+   "servers": "Nombre de serveurs MCP que cette actualisation a tenté de lister.",
+   "tools": "Entrées d'outil écrites à partir des serveurs qui ont répondu.",
+   "removed": "Entrées d'outil supprimées parce que leur serveur ne liste plus l'outil.",
+   "failed": "Serveurs dont les outils n'ont pas pu être listés. Leurs entrées conservent leur dernier contenu valide.",
+   "failedBadge": "Les outils de ce serveur n'ont pas pu être listés. Ses entrées conservent leur dernier contenu valide, avec un avertissement.",
+   "listedBadge": "Le serveur a répondu et ses entrées d'outil sont à jour.",
+   "columns": {
+    "server": "Le serveur MCP dont les outils ont été listés.",
+    "status": "Indique si les outils du serveur ont pu être listés.",
+    "tools": "Entrées d'outil écrites pour ce serveur.",
+    "removed": "Entrées d'outil supprimées parce que le serveur ne les liste plus.",
+    "warned": "Entrées qui ont conservé leur dernier contenu valide et portent désormais un avertissement d'actualisation.",
+    "error": "Pourquoi le listage a échoué, le cas échéant."
+   }
+  },
+  "draftSave": "Enregistrer ces capacités dans le brouillon. Publiez ensuite le brouillon pour que les déploiements les utilisent.",
+  "notInCatalog": "Aucune entrée du catalogue ne porte ce nom pour le moment. L'exécution démarre quand même, mais l'agent ne trouvera pas cette capacité.",
+  "removeName": "Retirer cette capacité de la révision.",
+  "chooseName": "Choisir une capacité du catalogue par son nom. Les noms utilisés par plusieurs types n'apparaissent qu'une fois.",
+  "addName": "Ajouter la capacité choisie à la révision.",
+  "newDraft": "Créer un nouveau brouillon à partir de la dernière révision publiée et choisir les capacités qu'il utilise.",
+  "editDraft": "Ajouter ou retirer les capacités qu'utilise cette révision brouillon.",
+  "revisionName": "Cette révision utilise la capacité {{name}}. Les agents la trouvent dans le catalogue sous ce nom."
+ }
+});

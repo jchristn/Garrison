@@ -2459,3 +2459,151 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "upload": "Enviar cada archivo elegido a la carpeta compartida, de uno en uno, con la versión que reemplaza."
  }
 });
+
+// Capability catalog: the Capabilities page, refresh, tool probes on harness profiles, and capabilities on revisions (AD4.8).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "capabilities": "El catálogo de capacidades: agentes, herramientas MCP e integrados del harness con sus orígenes, indicaciones de coste y latencia, y una opción para actualizarlo."
+  }
+ },
+ "filters": {
+  "tag": "Muestra solo las capacidades con esta etiqueta exacta. La lista se actualiza cuando dejas de escribir.",
+  "origin": "Muestra solo las entradas derivadas, que siguen a su origen, o solo las manuales, escritas por personas."
+ },
+ "enums": {
+  "capabilityKind": {
+   "Agent": "Otro agente de Garrison, descrito a partir de su última revisión publicada. Un agente orquestador puede delegarle trabajo.",
+   "McpTool": "Una herramienta de un servidor MCP registrado en este inquilino, descrita a partir de la lista de herramientas del servidor.",
+   "HarnessBuiltIn": "Un programa que el harness puede ejecutar en el host de su nodo de trabajo, como pandoc o LibreOffice, detectado por una sonda de herramienta de un perfil de harness."
+  },
+  "capabilityOrigin": {
+   "Derived": "Garrison mantiene esta entrada sincronizada con su origen. No se puede editar ni eliminar aquí; cambia el origen.",
+   "Manual": "Una persona escribió esta entrada. Se puede editar y eliminar aquí."
+  },
+  "capabilityHintStatus": {
+   "Unknown": "Terminaron muy pocas ejecuciones en la ventana de indicaciones como para sacar conclusiones, así que no se muestran valores. Las herramientas MCP y los integrados siempre tienen indicaciones Desconocido.",
+   "Known": "Terminaron suficientes ejecuciones en la ventana de indicaciones, así que los valores de duración y coste se basan en ejecuciones reales."
+  },
+  "runBlockedReason": {
+   "NoToolWorker": "Bloqueada: el agente de esta ejecución usa una herramienta integrada del harness, como pandoc, y ningún nodo de trabajo listo capaz de ejecutarla informa esa herramienta. Espera en la cola hasta que se registre un nodo de trabajo así."
+  }
+ },
+ "resources": {
+  "capabilities": {
+   "add": "Escribe una entrada manual para algo que Garrison no puede derivar, por ejemplo un servicio de conversión al que los agentes llegan mediante una skill.",
+   "name": "Nombre con el que los agentes encuentran la capacidad. Los agentes llevan el nombre del agente, las herramientas MCP la forma server/tool y los integrados el de la herramienta.",
+   "kind": "Agente, herramienta MCP o integrado del harness. Las entradas manuales pueden usar cualquier tipo.",
+   "origin": "Las entradas derivadas siguen a su origen y no se pueden cambiar aquí; las manuales las escribieron personas.",
+   "summary": "Qué hace la capacidad y cuándo usarla, tal como lo leen los agentes. Hasta 4000 caracteres.",
+   "source": "De dónde viene la entrada: el agente, el servidor MCP y la herramienta, o el perfil de harness y la etiqueta de nodo que necesita una ejecución.",
+   "hints": "Duración mediana y percentil 90 de las ejecuciones, y coste medio, calculados con ejecuciones terminadas recientes, o Desconocido cuando terminaron muy pocas.",
+   "tags": "Etiquetas para filtrar el catálogo. Los agentes también pueden filtrar por etiqueta.",
+   "lastRefreshedUtc": "Cuándo actualizó Garrison por última vez una entrada derivada desde su origen. Vacío en las entradas manuales.",
+   "sourceAgentId": "Opcional. El agente de Garrison al que representa esta entrada manual.",
+   "sourceMcpServerId": "Opcional. El servidor MCP cuya herramienta representa esta entrada manual.",
+   "sourceToolName": "El nombre de la herramienta en el servidor MCP elegido.",
+   "requirements": "Etiquetas de nodo, como garrison.io/tool-pandoc=true, que un nodo de trabajo debe informar antes de tomar una ejecución que use esta capacidad.",
+   "inputSchemaJson": "JSON Schema de lo que recibe la capacidad. Garrison comprueba que sea un JSON Schema válido al guardar.",
+   "outputSchemaJson": "JSON Schema de lo que devuelve la capacidad. Garrison comprueba que sea un JSON Schema válido al guardar.",
+   "kindFilter": "Muestra solo agentes, solo herramientas MCP o solo integrados del harness. Elige Todos para ver el catálogo completo.",
+   "originFilter": "Muestra solo las entradas derivadas, que siguen a su origen, o solo las manuales, escritas por personas.",
+   "tagFilter": "Muestra solo las capacidades con esta etiqueta exacta. La lista se actualiza cuando dejas de escribir.",
+   "refresh": "Actualiza ahora las entradas derivadas: agentes, integrados del harness, herramientas de los servidores MCP e indicaciones de los agentes. Muestra qué cambió y qué servidores fallaron.",
+   "warnings": "Las entradas cuyo origen no se pudo actualizar conservan su último contenido válido y muestran el motivo en sus detalles.",
+   "warningBadge": "Falló la última actualización del origen de esta entrada, así que muestra su último contenido válido. Motivo: {{warning}}"
+  },
+  "harnessProfiles": {
+   "toolProbes": "Herramientas que este harness puede usar cuando el host del nodo de trabajo las tiene, como pandoc. Cada una se convierte en un integrado del harness en el catálogo de capacidades.",
+   "toolProbesItems": {
+    "name": "Nombre de la herramienta en el catálogo y en la etiqueta de nodo garrison.io/tool-{name}: letras minúsculas, dígitos, puntos y guiones.",
+    "executable": "Nombre de archivo simple que el nodo de trabajo busca en su PATH, por ejemplo soffice. No se permite ninguna carpeta.",
+    "argument": "El único argumento que pasa la sonda, como --version. Solo se permiten opciones de versión y de ayuda, o ninguna.",
+    "description": "Qué hace la herramienta; se muestra en el catálogo de capacidades. Hasta 1024 caracteres."
+   }
+  }
+ },
+ "revisions": {
+  "columns": {
+   "capabilities": "Capacidades que usa esta revisión, por nombre. Los integrados del harness que haya entre ellas limitan sus ejecuciones a los nodos de trabajo que informan la herramienta."
+  }
+ },
+ "capabilities": {
+  "sourceAgent": "Abre el agente {{name}}, que esta entrada describe a partir de su última revisión publicada.",
+  "sourceMcpServer": "Abre el servidor MCP {{name}} en la pestaña Servidores MCP. Su lista de herramientas es el origen de esta entrada.",
+  "sourceTool": "El nombre de la herramienta en el servidor MCP: {{tool}}.",
+  "sourceProfile": "Abre el perfil de harness {{name}}, cuya sonda de herramienta es el origen de esta entrada.",
+  "nodeLabel": "Una ejecución que usa esta capacidad solo va a un nodo de trabajo que informa la etiqueta de nodo {{label}}.",
+  "noSource": "Una entrada manual que no nombra ningún agente ni servidor MCP. La ve toda ejecución que pueda leer el catálogo.",
+  "hintsUnknown": "Terminaron muy pocas ejecuciones en la ventana de indicaciones como para sacar conclusiones, así que no se muestran valores. Nunca significa cero.",
+  "hintsKnown_one": "Resumido a partir de {{count}} ejecución terminada en los últimos {{days}} días.",
+  "hintsKnown_other": "Resumido a partir de {{count}} ejecuciones terminadas en los últimos {{days}} días.",
+  "refreshWarning": "Garrison no pudo actualizar esta entrada desde su origen, así que conserva su último contenido válido hasta que la próxima actualización funcione.",
+  "lockedBanner": "Por qué esta entrada no se puede editar ni eliminar aquí, y dónde cambiarla.",
+  "lockedShared": "Compartida por todos los inquilinos: esta entrada viene de una sonda de herramienta de un perfil de harness integrado, así que no se puede editar ni eliminar. Clona el perfil para cambiar sus sondas.",
+  "locked": {
+   "Agent": "Derivada de la última revisión publicada del agente, así que no se puede editar ni eliminar aquí. Publica una revisión nueva para cambiarla; si desactivas el agente, desaparece.",
+   "McpTool": "Derivada de la lista de herramientas del servidor MCP, así que no se puede editar ni eliminar aquí. Cambia el servidor o sus herramientas y luego actualiza.",
+   "HarnessBuiltIn": "Derivada de una sonda de herramienta de un perfil de harness, así que no se puede editar ni eliminar aquí. Cambia las sondas de herramientas del perfil."
+  },
+  "shared": "Todos los inquilinos ven esta entrada. Viene de una sonda de herramienta de un perfil de harness integrado.",
+  "hintsTitle": "Duración y coste de las ejecuciones terminadas recientes de este agente. Las herramientas MCP y los integrados no tienen indicaciones.",
+  "requirementsTitle": "Etiquetas de nodo que un nodo de trabajo debe informar antes de tomar una ejecución cuyo agente usa esta capacidad.",
+  "fields": {
+   "kind": "Agente, herramienta MCP o integrado del harness.",
+   "origin": "Las entradas derivadas siguen a su origen; las manuales las escribieron personas.",
+   "source": "El agente, el servidor MCP y la herramienta, o el perfil de harness del que viene esta entrada.",
+   "lastRefreshedUtc": "Cuándo actualizó Garrison por última vez esta entrada desde su origen. Vacío en las entradas manuales.",
+   "tags": "Etiquetas para filtrar el catálogo.",
+   "id": "Identificador de la entrada del catálogo, que empieza por cap_.",
+   "summary": "Qué hace la capacidad y cuándo usarla, tal como lo leen los agentes.",
+   "hintStatus": "Conocido cuando terminaron suficientes ejecuciones en la ventana; si no, Desconocido, y entonces no se muestra ningún valor.",
+   "sampleSize": "Cuántas ejecuciones terminadas resumen las indicaciones, empezando por las más recientes.",
+   "medianDurationMs": "Tiempo mediano desde el inicio hasta la finalización de las ejecuciones resumidas.",
+   "p90DurationMs": "Nueve de cada diez ejecuciones resumidas terminaron dentro de este tiempo.",
+   "meanCostUsd": "Coste medio en dólares estadounidenses de las ejecuciones resumidas que registraron un coste.",
+   "windowDays": "Cuántos días hacia atrás miran las indicaciones (el ajuste Capabilities.HintWindowDays).",
+   "computedUtc": "Cuándo se calcularon las indicaciones por última vez, en el ciclo de mantenimiento o en una actualización.",
+   "inputSchemaJson": "JSON Schema de lo que recibe la capacidad, o ninguno si recibe texto libre.",
+   "outputSchemaJson": "JSON Schema de lo que devuelve la capacidad, o ninguno."
+  },
+  "refreshServer": "Lista las herramientas de todos los servidores MCP activos o de uno solo. Los servidores stdio se listan a través de un nodo de trabajo.",
+  "refreshRun": "Inicia la actualización ahora. Puede tardar un rato si los servidores MCP responden despacio.",
+  "refresh": {
+   "agents": "Entradas de agente creadas, actualizadas o eliminadas en esta actualización.",
+   "harnessBuiltIns": "Entradas de integrados del harness creadas, actualizadas o eliminadas, en todos los ámbitos.",
+   "hints": "Entradas de agente cuyas indicaciones de coste y latencia se volvieron a calcular.",
+   "servers": "Cuántos servidores MCP intentó listar esta actualización.",
+   "tools": "Entradas de herramienta escritas a partir de los servidores que respondieron.",
+   "removed": "Entradas de herramienta eliminadas porque su servidor ya no lista la herramienta.",
+   "failed": "Servidores cuyas herramientas no se pudieron listar. Sus entradas conservan su último contenido válido.",
+   "failedBadge": "No se pudieron listar las herramientas de este servidor. Sus entradas conservan su último contenido válido con una advertencia.",
+   "listedBadge": "El servidor respondió y sus entradas de herramienta están al día.",
+   "columns": {
+    "server": "El servidor MCP cuyas herramientas se listaron.",
+    "status": "Si se pudieron listar las herramientas del servidor.",
+    "tools": "Entradas de herramienta escritas para este servidor.",
+    "removed": "Entradas de herramienta eliminadas porque el servidor ya no las lista.",
+    "warned": "Entradas que conservaron su último contenido válido y ahora llevan una advertencia de actualización.",
+    "error": "Por qué falló el listado, si falló."
+   }
+  },
+  "draftSave": "Guarda estas capacidades en el borrador. Después publica el borrador para que los despliegues las usen.",
+  "notInCatalog": "Ahora mismo ninguna entrada del catálogo tiene este nombre. La ejecución empieza igualmente, pero el agente no puede encontrar esta capacidad.",
+  "removeName": "Quita esta capacidad de la revisión.",
+  "chooseName": "Elige una capacidad del catálogo por su nombre. Los nombres que usan varios tipos aparecen una sola vez.",
+  "addName": "Añade la capacidad elegida a la revisión.",
+  "newDraft": "Inicia un borrador nuevo a partir de la última revisión publicada y elige las capacidades que usa.",
+  "editDraft": "Añade o quita las capacidades que usa esta revisión en borrador.",
+  "revisionName": "Esta revisión usa la capacidad {{name}}. Los agentes la encuentran en el catálogo por este nombre."
+ }
+});

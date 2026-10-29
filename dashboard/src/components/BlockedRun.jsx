@@ -1,7 +1,8 @@
 // Blocked queued runs (G-15): the server sets run.blockedReason (NoReadyWorker, NoCapableWorker, NoMatchingPool, or
 // NoIsolatingWorker for an Untrusted run no Ready worker can isolate, P11.14, or a run whose deployment has an egress
-// allowlist no Ready worker can enforce, P11.15) on a Queued run that no Ready worker can take right now, and the
-// overview counts them in blockedRuns.
+// allowlist no Ready worker can enforce, P11.15, or NoToolWorker for a run whose agent uses a harness built-in tool no
+// Ready worker reports, AD4.4) on a Queued run that no Ready worker can take right now, and the overview counts them in
+// blockedRuns.
 
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +11,8 @@ import { tip } from './Tooltip';
 import { pathFor } from '../config/navConfig';
 import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
+import { formatList } from '../i18n/formatters';
+import { toolNamesOf } from '../utils/capabilities';
 
 /** The run's blocked reason, or null when it is not a blocked queued run. */
 export function blockedReasonOf(run) {
@@ -40,11 +43,13 @@ export function blockedReasonTextKey(run, reason) {
 
 /** Run detail notice: what the blocked reason means and where to fix it. */
 export function BlockedRunNotice({ run }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const reason = blockedReasonOf(run);
   if (!reason) return null;
   const harness = enumLabel(t, 'harnessType', run.harnessType);
+  // NoToolWorker names the tools the run needs (its garrison.io/tool-{name} requirements).
+  const tools = formatList(toolNamesOf(run.requirements), i18n.language);
   return (
     <div className="warning-banner blocked-notice" role="status" data-testid="blocked-notice" {...tip(t('tips.blocked.panel'))}>
       <div className="blocked-notice-text">
@@ -52,7 +57,7 @@ export function BlockedRunNotice({ run }) {
           <strong>{t('components.blocked.title')}</strong> <BlockedBadge reason={reason} t={t} />
         </div>
         <p>{t('components.blocked.body')}</p>
-        <p>{t(blockedReasonTextKey(run, reason), { harness })}</p>
+        <p data-testid="blocked-reason-text">{t(blockedReasonTextKey(run, reason), { harness, tools: tools || '-' })}</p>
         <p className="text-muted">{t('components.blocked.failNote')}</p>
       </div>
       <div className="blocked-notice-actions">
