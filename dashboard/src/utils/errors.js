@@ -36,6 +36,19 @@ export function errorMessage(t, err) {
 }
 
 /**
+ * The translated message for an error followed by the server's own text when that adds detail, for refusals whose
+ * server message names what failed (a draft that could not be applied names its failing items). The two are joined
+ * with a space; the server text is left out when it is what the translation already says.
+ */
+export function errorMessageWithDetail(t, err) {
+  const message = errorMessage(t, err);
+  const bodyMessage = err?.body && typeof err.body === 'object' ? err.body.message : null;
+  const serverText = typeof bodyMessage === 'string' ? stripCodePrefix(bodyMessage, err?.code).trim() : '';
+  if (!serverText || serverText === message || message.includes(serverText)) return message;
+  return `${message} ${serverText}`;
+}
+
+/**
  * Detail suffix for an error: request ID and required permission when present.
  * @param {Function} t i18next translate function.
  * @param {unknown} err Error.

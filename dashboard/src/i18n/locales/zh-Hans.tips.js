@@ -3435,3 +3435,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "从一段描述开始，引导你得到在 dev 中运行的已批准智能体。"
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "打开智能体向导：描述你的需求，它会带你完成模型访问、与智能体架构师一起设计、检查、批准和第一次对话。"
+  }
+ },
+ "common": {
+  "openStudio": "打开智能体向导，智能体架构师会在这里与你一起设计智能体。草稿获得批准前，不会有任何内容上线。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "打开智能体向导并描述你的需求。它会带你完成智能体的构建、批准和试用。"
+  },
+  "studioDraft": {
+   "back": "在智能体向导中返回此草稿。"
+  },
+  "agentWizard": {
+   "back": "回到上一步。已输入的内容不会丢失。",
+   "next": "前往下一步。",
+   "advanced": "在完整的工作室工作区中打开此草稿：画布、项编辑器、差异和试验场。",
+   "locked": "请先完成前面的步骤。",
+   "steps": {
+    "goal": "为项目命名，并描述智能体要做的事。",
+    "access": "选择智能体运行所用的 harness、模型和凭据。",
+    "design": "与智能体架构师聊天，由它在草稿中构建智能体。",
+    "review": "将草稿与当前配置进行比对。",
+    "approve": "批准并发布草稿，并设置 dev 部署。",
+    "test": "在 dev 中与新的智能体对话。"
+   },
+   "goal": {
+    "needTitle": "请先输入项目名称。",
+    "needGoal": "请先描述智能体要做的事。",
+    "name": "此项目的简短名称，也用作草稿的名称。",
+    "goal": "用平实的话说明智能体要做的事。架构师从这里开始。",
+    "resume": "从上次离开的地方继续此草稿。",
+    "allDrafts": "查看所有工作室草稿，包括不是在向导中创建的草稿。"
+   },
+   "access": {
+    "needProfile": "请先选择一个 harness 配置文件。",
+    "needCredential": "请先选择或添加凭据。",
+    "harness": "智能体和架构师运行所用的 harness 配置文件。",
+    "model": "要使用的模型。留空则使用 harness 的默认值。",
+    "useSecret": "使用密钥 {{name}} 登录。",
+    "addSecret": "在这里保存新凭据，并附有获取其值的步骤。",
+    "secretName": "密钥的名称，方便之后在密钥页面找到它。",
+    "saveSecret": "保存密钥并用于这些智能体。",
+    "finishSecret": "请先保存或取消新凭据。"
+   },
+   "design": {
+    "needAgent": "草稿中还没有智能体。请继续与架构师交谈。"
+   },
+   "review": {
+    "askFix": "回到聊天，把问题发给架构师。",
+    "validate": "再次将草稿与当前配置进行比对。",
+    "needValid": "草稿必须通过检查才能批准。"
+   },
+   "approve": {
+    "approve": "批准草稿、应用它，并为每个智能体创建 dev 部署。",
+    "openApproval": "在新视图中打开审批请求。",
+    "retry": "重新设置 dev 部署。",
+    "openAgent": "打开此智能体。"
+   },
+   "test": {
+    "message": "要发送给智能体的内容。按 Enter 发送；按 Ctrl+Enter 或 Shift+Enter 换行。",
+    "send": "将消息发送到该智能体的 dev 部署。",
+    "another": "重新开始向导，构建另一组智能体。"
+   }
+  }
+ }
+});

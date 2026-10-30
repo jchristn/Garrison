@@ -3438,3 +3438,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "Un parcours guidé, d'une description jusqu'à des agents approuvés qui tournent en dev."
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Ouvre l'assistant d'agents : décrivez votre besoin, il vous guide dans l'accès au modèle, la conception avec l'architecte d'agents, la vérification, l'approbation et une première conversation."
+  }
+ },
+ "common": {
+  "openStudio": "Ouvre l'assistant d'agents, où l'architecte d'agents conçoit des agents avec vous. Rien n'est mis en service avant l'approbation du brouillon."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Ouvrez l'assistant d'agents et décrivez votre besoin. Il vous guide pour créer, approuver et essayer les agents."
+  },
+  "studioDraft": {
+   "back": "Revenir à ce brouillon dans l'assistant d'agents."
+  },
+  "agentWizard": {
+   "back": "Revenir à l'étape précédente. Rien de ce que vous avez saisi n'est perdu.",
+   "next": "Passer à l'étape suivante.",
+   "advanced": "Ouvrir ce brouillon dans l'espace de travail complet de l'atelier : canevas, éditeur d'éléments, différences et bac à sable.",
+   "locked": "Terminez d'abord les étapes précédentes.",
+   "steps": {
+    "goal": "Nommer le projet et décrire ce que doivent faire les agents.",
+    "access": "Choisir le harness, le modèle et les identifiants des agents.",
+    "design": "Discuter avec l'architecte d'agents, qui crée les agents dans le brouillon.",
+    "review": "Vérifier le brouillon par rapport à la configuration active.",
+    "approve": "Approuver et publier le brouillon, et configurer les déploiements de dev.",
+    "test": "Parler au nouvel agent en dev."
+   },
+   "goal": {
+    "needTitle": "Saisissez d'abord un nom de projet.",
+    "needGoal": "Décrivez d'abord ce que doivent faire les agents.",
+    "name": "Un nom court pour ce projet. Il sert de nom au brouillon.",
+    "goal": "Ce que doivent faire les agents, avec des mots simples. L'architecte part de là.",
+    "resume": "Reprendre ce brouillon là où vous l'avez laissé.",
+    "allDrafts": "Voir tous les brouillons du studio, y compris ceux que vous n'avez pas commencés dans l'assistant."
+   },
+   "access": {
+    "needProfile": "Choisissez d'abord un profil de harness.",
+    "needCredential": "Choisissez ou ajoutez d'abord des identifiants.",
+    "harness": "Le profil de harness sur lequel tournent les agents et l'architecte.",
+    "model": "Le modèle à utiliser. Laissez vide pour le modèle par défaut du harness.",
+    "useSecret": "Se connecter avec la valeur secrète {{name}}.",
+    "addSecret": "Enregistrer ici de nouveaux identifiants, avec la marche à suivre pour obtenir leur valeur.",
+    "secretName": "Un nom pour la valeur secrète, pour la retrouver plus tard sur la page Valeurs secrètes.",
+    "saveSecret": "Enregistrer la valeur secrète et l'utiliser pour ces agents.",
+    "finishSecret": "Enregistrez ou annulez d'abord les nouveaux identifiants."
+   },
+   "design": {
+    "needAgent": "Le brouillon n'a pas encore d'agents. Continuez à discuter avec l'architecte."
+   },
+   "review": {
+    "askFix": "Revenir à la discussion et envoyer les problèmes à l'architecte.",
+    "validate": "Vérifier à nouveau le brouillon par rapport à la configuration active.",
+    "needValid": "Le brouillon doit être valide avant de pouvoir être approuvé."
+   },
+   "approve": {
+    "approve": "Approuver le brouillon, l'appliquer et donner à chaque agent un déploiement de dev.",
+    "openApproval": "Ouvrir la demande d'approbation dans une nouvelle vue.",
+    "retry": "Configurer à nouveau les déploiements de dev.",
+    "openAgent": "Ouvrir cet agent."
+   },
+   "test": {
+    "message": "Ce qui est envoyé à l'agent. Enter envoie ; Ctrl+Enter ou Shift+Enter ajoute une ligne.",
+    "send": "Envoyer le message au déploiement de dev de l'agent.",
+    "another": "Relancer l'assistant pour un autre ensemble d'agents."
+   }
+  }
+ }
+});

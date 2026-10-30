@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '../States';
 import { PlusIcon, SendIcon } from '../Icons';
@@ -11,18 +11,9 @@ import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
 import { TERMINAL_RUN_STATUSES } from '../../utils/constants';
 import { errorMessage } from '../../utils/errors';
-import { TURN_POLL_MS, conversationStorageKey, needsCredential, readStored, writeStored } from '../../utils/studio';
-import { buildPreview } from '../../utils/streamPreview';
+import { conversationStorageKey, needsCredential, readStored, writeStored } from '../../utils/studio';
+import useChatTranscript from '../../hooks/useChatTranscript';
 import { composerKeyDown } from '../../utils/composerKeys';
-
-/** How often streamed events are folded into the answer, in milliseconds. */
-const STREAM_FLUSH_MS = 100;
-
-/** Pages of 500 events read for a finished turn's tool calls. */
-const HISTORY_PAGES = 4;
-
-/** How close to the bottom (pixels) the transcript must be for new output to keep it scrolled to the end. */
-const STICK_PX = 140;
 
 export { TurnStatus } from './ChatTurn';
 
@@ -32,19 +23,18 @@ export { TurnStatus } from './ChatTurn';
  * starts a conversation on that deployment and carries the draft's ID and title, the next ones continue it. Replies
  * are polled until the turn ends, like a conversation's page; then `onTurnFinished` lets the workspace reload the draft
  * the architect changed. The conversation of a draft is remembered in this browser (the draft's own conversationId
- * when it has one).
+ * when it has one). The agent wizard embeds it with `hideArchitectControls` (it chose the architect itself), an
+ * `initialMessage` to start from, and its own `title`.
  */
-export default function StudioChatPanel({ draft, architects, architectId, onArchitectChange, onArchitectCreated, deniedArchitect = '', onTurnFinished }) {
+export default function StudioChatPanel({ draft, architects, architectId, onArchitectChange, onArchitectCreated, deniedArchitect = '', onTurnFinished, hideArchitectControls = false, initialMessage = '', title = '' }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const stored = readStored(conversationStorageKey(draft.id));
   const [binding, setBinding] = useState(() => stored || (draft.conversationId ? { conversationId: draft.conversationId, deploymentId: null } : null));
-  const [turns, setTurns] = useState([]);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialMessage);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
-  const [pending, setPending] = useState(null);
   const [creating, setCreating] = useState(false);
   const unmounted = useRef(false);
   const architect = architects.find((d) => d.id === architectId) || null;
@@ -74,135 +64,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
     };
   }, []);
 
-  const loadTurns = useCallback(() => {
-    if (!apiClient || !conversationId) {
-      setTurns([]);
-      return Promise.resolve();
-    }
-    return apiClient
-      .listConversationRuns(tenantId, conversationId)
-      .then((r) => !unmounted.current && setTurns(r.items || []))
-      .catch(() => !unmounted.current && setTurns([]));
-  }, [apiClient, tenantId, conversationId]);
-
-  useEffect(() => {
-    loadTurns();
-  }, [loadTurns]);
-
-  const pendingActive = !!pending && !TERMINAL_RUN_STATUSES.includes(pending.status);
-
-  // Stream the running turn's events (SSE) so the answer appears as the model writes it. Events are buffered and
-  // folded at most every STREAM_FLUSH_MS, so fast token streams do not re-render the Markdown on every delta. The
-  // polling below stays as the fallback and settles the turn when the stream is unavailable.
-  const [live, setLive] = useState({});
-  const pendingId = pendingActive ? pending.id : null;
-  useEffect(() => {
-    if (!apiClient || !pendingId) return undefined;
-    const runId = pendingId;
-    const buffer = [];
-    const seen = new Set();
-    let events = [];
-    let timer = null;
-    const flush = () => {
-      timer = null;
-      if (!buffer.length || unmounted.current) return;
-      events = [...events, ...buffer.splice(0)].sort((a, b) => a.sequence - b.sequence);
-      setLive((prev) => ({ ...prev, [runId]: { events, preview: buildPreview(events) } }));
-    };
-    const controller = apiClient.streamRunEvents(
-      tenantId,
-      runId,
-      0,
-      (data) => {
-        if (!data || typeof data !== 'object' || (data.runId && data.runId !== runId)) return;
-        if (data.sequence === undefined) {
-          // run.completed carries the final run; run.status carries only the status.
-          if (data.id === runId && data.status) setPending(data);
-          return;
-        }
-        if (seen.has(data.sequence)) return;
-        seen.add(data.sequence);
-        buffer.push(data);
-        if (!timer) timer = setTimeout(flush, STREAM_FLUSH_MS);
-      },
-      () => {}
-    );
-    return () => {
-      controller.abort();
-      if (timer) clearTimeout(timer);
-      flush();
-    };
-  }, [apiClient, tenantId, pendingId]);
-  useEffect(() => {
-    if (!pendingActive) return undefined;
-    const id = setInterval(async () => {
-      try {
-        const run = await apiClient.getRun(tenantId, pending.id);
-        if (unmounted.current) return;
-        setPending(run);
-      } catch {
-        /* keep polling */
-      }
-    }, TURN_POLL_MS);
-    return () => clearInterval(id);
-  }, [pendingActive, pending, apiClient, tenantId]);
-
-  // Finished turns show the tool calls they made as cards, so read their recorded events once (up to a few pages). A
-  // turn streamed in this session is read again when it ends, in case the stream missed the last events.
-  const loaded = useRef(new Set());
-  useEffect(() => {
-    if (!apiClient) return;
-    for (const r of turns) {
-      if (!TERMINAL_RUN_STATUSES.includes(r.status) || loaded.current.has(r.id)) continue;
-      loaded.current.add(r.id);
-      (async () => {
-        let events = [];
-        let after = 0;
-        try {
-          for (let page = 0; page < HISTORY_PAGES; page++) {
-            const res = await apiClient.listRunEvents(tenantId, r.id, after, 500);
-            events = events.concat(res.items || []);
-            if (!res.hasMore || res.lastSequence === null) break;
-            after = res.lastSequence;
-          }
-        } catch {
-          return;
-        }
-        if (unmounted.current || !events.length) return;
-        events.sort((a, b) => a.sequence - b.sequence);
-        setLive((prev) => ({ ...prev, [r.id]: { events, preview: buildPreview(events) } }));
-      })();
-    }
-  }, [turns, apiClient, tenantId]);
-
-  // A turn ended (seen by the stream or by polling): read the conversation again and tell the draft, once per turn.
-  const finished = useRef(null);
-  useEffect(() => {
-    if (!pending || !TERMINAL_RUN_STATUSES.includes(pending.status) || finished.current === pending.id) return;
-    finished.current = pending.id;
-    loadTurns();
-    onTurnFinished?.();
-  }, [pending, loadTurns, onTurnFinished]);
-
-  // Follow the conversation as it grows, but only while the person is at the bottom: scrolling up to read an earlier
-  // turn stops the follow, and scrolling back down (or sending) resumes it.
-  const turnsRef = useRef(null);
-  const stick = useRef(true);
-  const onTurnsScroll = () => {
-    const el = turnsRef.current;
-    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
-  };
-  useLayoutEffect(() => {
-    const el = turnsRef.current;
-    if (!el || typeof MutationObserver === 'undefined') return undefined;
-    const pin = () => {
-      if (stick.current) el.scrollTop = el.scrollHeight;
-    };
-    pin();
-    const observer = new MutationObserver(pin);
-    observer.observe(el, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
-  }, []);
+  const { turns: shownTurns, pendingActive, live, turnsRef, onTurnsScroll, startTurn, reset } = useChatTranscript({ apiClient, tenantId, conversationId, onTurnFinished });
 
   const send = async () => {
     const text = message.trim();
@@ -220,11 +82,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         writeStored(conversationStorageKey(draft.id), next);
         setBinding(next);
       }
-      if (run?.id) {
-        stick.current = true;
-        setPending(run);
-        setTurns((list) => [...list.filter((r) => r.id !== run.id), { ...run, inputText: run.inputText || body.input }]);
-      }
+      if (run?.id) startTurn(run, body.input);
     } catch (e) {
       if (!unmounted.current) setError(e);
     } finally {
@@ -235,44 +93,46 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
   const newConversation = () => {
     writeStored(conversationStorageKey(draft.id), null);
     setBinding(null);
-    setTurns([]);
-    setPending(null);
+    reset();
   };
 
   const fixArchitect = architect ? pathFor('architects', null, { search: architect.name }) : pathFor('architects');
-  const shownTurns = turns.map((r) => (pending && r.id === pending.id ? { ...r, ...pending, inputText: r.inputText || pending.inputText } : r));
 
   return (
     <section className="panel studio-chat" aria-label={t('components.studio.chat.title')} data-testid="studio-chat">
       <div className="studio-row-between">
         <h3 className="section-title" {...tip(t('tips.studio.chat.title'))}>
-          {t('components.studio.chat.title')}
+          {title || t('components.studio.chat.title')}
         </h3>
         <div className="flex gap-sm items-center">
-          <label htmlFor="studio-architect" className="sr-only" {...tip(t('tips.studio.chat.architect'))}>
-            {t('components.studio.chat.architect')}
-          </label>
-          <select id="studio-architect" value={architectId || ''} onChange={(e) => onArchitectChange(e.target.value)} data-testid="studio-architect" {...tip(t('tips.studio.chat.architect'))}>
-            <option value="">{t('components.studio.chat.chooseArchitect')}</option>
-            {architects.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="button-secondary button-sm"
-            onClick={() => !deniedArchitect && setCreating(true)}
-            aria-disabled={deniedArchitect ? 'true' : undefined}
-            data-testid="studio-new-architect"
-            {...tip(deniedArchitect || t('tips.studio.chat.newArchitect'))}
-          >
-            <PlusIcon size={14} /> {t('components.studio.chat.newArchitect')}
-          </button>
-          <StudioLink to={pathFor('architects')} className="button button-secondary button-sm" testId="studio-manage-architects" tipText={t('tips.studio.chat.manageArchitects')}>
-            {t('components.studio.chat.manageArchitects')}
-          </StudioLink>
+          {!hideArchitectControls && (
+            <>
+            <label htmlFor="studio-architect" className="sr-only" {...tip(t('tips.studio.chat.architect'))}>
+              {t('components.studio.chat.architect')}
+            </label>
+            <select id="studio-architect" value={architectId || ''} onChange={(e) => onArchitectChange(e.target.value)} data-testid="studio-architect" {...tip(t('tips.studio.chat.architect'))}>
+              <option value="">{t('components.studio.chat.chooseArchitect')}</option>
+              {architects.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="button-secondary button-sm"
+              onClick={() => !deniedArchitect && setCreating(true)}
+              aria-disabled={deniedArchitect ? 'true' : undefined}
+              data-testid="studio-new-architect"
+              {...tip(deniedArchitect || t('tips.studio.chat.newArchitect'))}
+            >
+              <PlusIcon size={14} /> {t('components.studio.chat.newArchitect')}
+            </button>
+            <StudioLink to={pathFor('architects')} className="button button-secondary button-sm" testId="studio-manage-architects" tipText={t('tips.studio.chat.manageArchitects')}>
+              {t('components.studio.chat.manageArchitects')}
+            </StudioLink>
+            </>
+          )}
           {conversationId && (
             <>
               <StudioLink to={pathFor('conversations', conversationId)} className="button button-secondary button-sm" testId="studio-chat-conversation" tipText={t('tips.studio.chat.openConversation')}>
@@ -285,7 +145,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           )}
         </div>
       </div>
-      {architects.length === 0 && (
+      {architects.length === 0 && !hideArchitectControls && (
         <div className="info-banner" role="note" data-testid="studio-no-architect">
           <span>{t('components.studio.chat.noArchitect')}</span>
         </div>

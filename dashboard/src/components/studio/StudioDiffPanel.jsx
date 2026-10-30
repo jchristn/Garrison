@@ -9,7 +9,7 @@ import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
 import { pathFor } from '../../config/navConfig';
 import { approvalStatusTone } from '../../utils/constants';
-import { errorMessage } from '../../utils/errors';
+import { errorMessage, errorMessageWithDetail } from '../../utils/errors';
 import { enumLabel } from '../../utils/enums';
 import { enumTip } from '../../utils/tips';
 import { formatNumber } from '../../i18n/formatters';
@@ -98,7 +98,7 @@ function ApprovalCard({ approvalId, initial, deniedDecide, onDecided }) {
       )}
       {error && (
         <div className="error-banner" role="alert" data-testid="studio-approval-error">
-          {errorMessage(t, error)}
+          {errorMessageWithDetail(t, error)}
         </div>
       )}
     </div>

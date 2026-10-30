@@ -4718,3 +4718,154 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "Agent wizard",
+    "tip": "A guided path from a description of what you need to approved agents that run in dev: model access, design with the agent architect, review, approval, and a first conversation."
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Agent wizard"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "Or open the agent wizard and describe what you need: it walks you through building, approving, and trying the agents.",
+   "openStudio": "Open the agent wizard"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "Open the agent wizard"
+  },
+  "studioDraft": {
+   "back": "Back to the wizard"
+  },
+  "agentWizard": {
+   "title": "Agent wizard",
+   "subtitle": "Describe what you need. The wizard takes you from there to approved agents running in dev.",
+   "subtitleDraft": "Building: {{title}}",
+   "advanced": "Advanced",
+   "stepsLabel": "Wizard steps",
+   "back": "Back",
+   "working": "Working...",
+   "steps": {
+    "goal": "Goal",
+    "access": "Model access",
+    "design": "Design",
+    "review": "Review",
+    "approve": "Approve",
+    "test": "Try it"
+   },
+   "goal": {
+    "title": "What should your agents do?",
+    "intro": "Give the project a name and describe the job in plain words. The agent architect reads this and designs one agent or a team of agents for it.",
+    "name": "Project name",
+    "namePlaceholder": "Research assistant",
+    "nameHint": "A short name you will recognize later. You cannot change it after this step.",
+    "goal": "What the agents should do",
+    "goalPlaceholder": "Research a topic on the web, summarize what it finds with sources, and write a short report.",
+    "goalHint": "Say who uses it, what goes in, and what should come out. The architect asks about anything it needs to know.",
+    "next": "Start",
+    "resume": "Or continue one of your drafts",
+     "allDrafts": "All drafts"
+   },
+   "access": {
+    "title": "Model access",
+    "intro": "Choose the harness your agents run on and the credential it signs in with. The agent architect uses the same harness and credential while it designs with you.",
+    "harness": "Harness profile",
+    "harnessHint": "The CLI that runs the agents, for example Claude Code or Codex.",
+    "model": "Model",
+    "modelHint": "Optional. Leave it empty to use the harness's default model.",
+    "credential": "Credential",
+    "noCredentialNeeded": "{{profile}} does not need a credential.",
+    "credentialIntro": "{{profile}} signs in with a secret of kind {{kinds}}. Choose one you saved earlier, or add one now.",
+    "noFittingSecret": "You have no saved secret of kind {{kinds}} yet. Add one below; the steps for getting the value are shown with it.",
+    "addSecret": "Add a credential",
+    "saveSecret": "Save the credential",
+    "architectDescription": "Agent architect set up by the agent wizard.",
+    "next": "Continue to design"
+   },
+   "design": {
+    "title": "Design with the architect",
+    "intro": "Chat with the agent architect. It asks what it needs to know and builds the agents in your draft as you talk. The panel on the right shows what the draft holds.",
+    "contents": "In the draft",
+    "empty": "Nothing yet. The architect adds agents here as it designs them.",
+    "agents": "Agents",
+    "firstMessage": "I want to build this: {{goal}}\n\nThe agents will run on the {{profile}} harness profile with the credential secret {{secret}}. Ask me anything you need to know, then design the agents in this draft.",
+    "chatTitle": "Chat with {{architect}}",
+    "next": "Continue to review"
+   },
+   "review": {
+    "title": "Review",
+    "intro": "The wizard checks every item in the draft against your live configuration. Anything that would fail goes back to the architect to fix.",
+    "status": {
+     "PendingApproval": "This draft is waiting for approval. Continue to the next step.",
+     "Applied": "This draft is applied. Continue to the next step.",
+     "Discarded": "This draft was discarded. Start a new one from the first step."
+    },
+    "kind": "Kind",
+    "name": "Name",
+    "change": "Change",
+    "note": "Note",
+    "problems_one": "{{count}} item would not apply.",
+    "problems_other": "{{count}} items would not apply.",
+    "askFix": "Ask the architect to fix it",
+    "valid": "Everything in the draft checks out. Continue to approve it.",
+    "validate": "Check again",
+    "fixMessage": "The draft does not validate yet. Please fix these problems:\n{{problems}}",
+    "next": "Continue to approve"
+   },
+   "approve": {
+    "title": "Approve",
+    "intro": "Approving applies the draft and makes the agents live. The wizard then gives each agent a dev deployment, so you can try it right away.",
+    "reason": "Approved in the agent wizard.",
+    "summary": "The draft holds {{total}} items, including {{agents}} agents. They will run on {{profile}} with the credential {{secret}}.",
+    "will1": "Every item in the draft is created or updated together. If any of them fails, nothing is changed.",
+    "will2": "Each agent gets a dev deployment on the harness you chose, with the credential bound.",
+    "will3": "If you are not allowed to approve, the request waits for someone who is, and this page continues when they decide.",
+    "approve": "Approve and publish",
+    "waiting": "Waiting for someone with approval rights to decide. This page continues on its own when they do.",
+    "openApproval": "Open the approval",
+    "retry": "Try again",
+    "done": "Approved and published. Every agent has a dev deployment that is ready to run.",
+    "agent": "Agent",
+    "deployment": "Dev deployment",
+    "what": "What the wizard did",
+    "actions": {
+     "create": "Created the deployment",
+     "bind": "Bound the credential",
+     "ready": "Already ready"
+    },
+    "next": "Continue to try it"
+   },
+   "test": {
+    "title": "Try it",
+    "intro": "Talk to your new agent in dev. When you are happy with it, open it to promote it or share it.",
+    "talkingTo": "Talking to {{name}}.",
+    "empty": "Send a message to start a conversation.",
+    "message": "Message",
+    "next": "Where to go next",
+    "openAgent": "Open {{name}}",
+    "openApp": "Open the app {{name}}",
+    "openInvoke": "Open in Invoke",
+    "another": "Build another"
+   }
+  }
+ }
+});

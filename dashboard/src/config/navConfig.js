@@ -10,8 +10,9 @@
 //   section: { key (i18n nav.sections.<key>), items }
 //   hub:     { key (i18n nav.hubs.<key>.label/.tip, data-nav), slug, icon (name in components/Icons),
 //              page? (standalone page id), tabs? (array of pages) }
-//   page:    { id (view id and i18n nav.items.<id>), slug (URL segment and tab key), requires?, detail? }
+//   page:    { id (view id and i18n nav.items.<id>), slug (URL segment and tab key), requires?, detail?, hidden? }
 //   A standalone page with `detail: true` also owns `/dashboard/<slug>/<id>` (for example an approval).
+//   A tab with `hidden: true` is left out of its hub's tab bar unless the URL asks for it (?tab=<slug>).
 //
 // requires: undefined (everyone), 'admin' (system or tenant admin), 'systemAdmin'.
 // Client-side gating is UX only; the server enforces authorization.
@@ -68,8 +69,11 @@ export const NAV_SECTIONS = [
           { id: 'apps', slug: 'apps' },
           // Agent architects: reusable deployments of agent-architect that any studio draft can use.
           { id: 'architects', slug: 'architects' },
-          // AD7.10: the agent studio (a tab until AD-023 is confirmed); /dashboard/studio/<id> is a draft's workspace.
-          { id: 'studio', slug: 'studio', detail: true }
+          // AD7.10: the agent studio. Not a tab: the agent wizard is the way in, and its Advanced link opens a draft's
+          // workspace at /dashboard/studio/<id>.
+          { id: 'studio', slug: 'studio', detail: true, hidden: true },
+          // The agent wizard: /dashboard/agent-wizard/new starts one, /dashboard/agent-wizard/<draftId> continues it.
+          { id: 'agentWizard', slug: 'agent-wizard', detail: true, hidden: true }
         ]
       }
     ]

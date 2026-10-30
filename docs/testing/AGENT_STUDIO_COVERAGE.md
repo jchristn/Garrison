@@ -51,7 +51,8 @@ Every surface added in AD1 to AD10, and the tests that cover it. Touchstone suit
 | Run detail fan-out groups, conversation files | `fanout.spec.js`, `files.spec.js` |
 | Agents > Apps | `apps.spec.js` |
 | Agents > Architects (list, create, edit, delete, prompts, deployment link) | `architects.spec.js` |
-| Agents > Studio (list, workspace, canvas, playground, preview, architect prompt panel) | `studio.spec.js`, `canvas.spec.js` |
+| Studio drafts list (`?tab=studio`), workspace, canvas, playground, preview, architect prompt panel | `studio.spec.js`, `canvas.spec.js` |
+| Agents > Agents > Agent wizard (goal, credential, architect, design, review, approve with dev deployments, first conversation, apply failure sent back to the architect) | `agentWizard.spec.js`, `agentWizard.test.jsx` |
 | Every screen: translations, tooltips, accessibility | `i18n.spec.js`, `tooltips.spec.js`, `accessibility.spec.js` |
 | App UI chat, file panel, branding, sign-in | `app-ui` chat.spec.js, files.spec.js, accessibility.spec.js, i18n.spec.js, tooltips.spec.js |
 

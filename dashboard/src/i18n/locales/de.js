@@ -4725,3 +4725,154 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "Agenten-Assistent",
+    "tip": "Ein geführter Weg von der Beschreibung Ihres Bedarfs zu freigegebenen Agenten, die in Dev laufen: Modellzugriff, Entwurf mit dem Agenten-Architekten, Prüfung, Freigabe und ein erstes Gespräch."
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Agenten-Assistent"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "Oder öffnen Sie den Agenten-Assistenten und beschreiben Sie, was Sie brauchen: Er führt Sie durch Aufbau, Freigabe und Test der Agenten.",
+   "openStudio": "Agenten-Assistenten öffnen"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "Agenten-Assistenten öffnen"
+  },
+  "studioDraft": {
+   "back": "Zurück zum Assistenten"
+  },
+  "agentWizard": {
+   "title": "Agenten-Assistent",
+   "subtitle": "Beschreiben Sie, was Sie brauchen. Der Assistent bringt Sie von dort zu freigegebenen Agenten, die in Dev laufen.",
+   "subtitleDraft": "Aufbau: {{title}}",
+   "advanced": "Erweitert",
+   "stepsLabel": "Schritte des Assistenten",
+   "back": "Zurück",
+   "working": "Wird bearbeitet...",
+   "steps": {
+    "goal": "Ziel",
+    "access": "Modellzugriff",
+    "design": "Entwurf",
+    "review": "Prüfung",
+    "approve": "Freigabe",
+    "test": "Ausprobieren"
+   },
+   "goal": {
+    "title": "Was sollen Ihre Agenten tun?",
+    "intro": "Geben Sie dem Projekt einen Namen und beschreiben Sie die Aufgabe in einfachen Worten. Der Agenten-Architekt liest das und entwirft dafür einen Agenten oder ein Team von Agenten.",
+    "name": "Projektname",
+    "namePlaceholder": "Recherche-Assistent",
+    "nameHint": "Ein kurzer Name, den Sie später wiedererkennen. Nach diesem Schritt können Sie ihn nicht mehr ändern.",
+    "goal": "Was die Agenten tun sollen",
+    "goalPlaceholder": "Ein Thema im Web recherchieren, die Ergebnisse mit Quellen zusammenfassen und einen kurzen Bericht schreiben.",
+    "goalHint": "Sagen Sie, wer es nutzt, was hineingeht und was herauskommen soll. Der Architekt fragt nach allem, was er wissen muss.",
+    "next": "Starten",
+    "resume": "Oder einen Ihrer Entwürfe fortsetzen",
+    "allDrafts": "Alle Entwürfe"
+   },
+   "access": {
+    "title": "Modellzugriff",
+    "intro": "Wählen Sie den Harness, auf dem Ihre Agenten laufen, und die Zugangsdaten, mit denen er sich anmeldet. Der Agenten-Architekt nutzt denselben Harness und dieselben Zugangsdaten, während er mit Ihnen entwirft.",
+    "harness": "Harness-Profil",
+    "harnessHint": "Das CLI, das die Agenten ausführt, zum Beispiel Claude Code oder Codex.",
+    "model": "Modell",
+    "modelHint": "Optional. Leer lassen, um das Standardmodell des Harness zu verwenden.",
+    "credential": "Zugangsdaten",
+    "noCredentialNeeded": "{{profile}} braucht keine Zugangsdaten.",
+    "credentialIntro": "{{profile}} meldet sich mit einem Geheimnis der Art {{kinds}} an. Wählen Sie ein gespeichertes aus oder fügen Sie jetzt eines hinzu.",
+    "noFittingSecret": "Sie haben noch kein gespeichertes Geheimnis der Art {{kinds}}. Fügen Sie unten eines hinzu; dort steht auch, wie Sie den Wert erhalten.",
+    "addSecret": "Zugangsdaten hinzufügen",
+    "saveSecret": "Zugangsdaten speichern",
+    "architectDescription": "Vom Agenten-Assistenten eingerichteter Agenten-Architekt.",
+    "next": "Weiter zum Entwurf"
+   },
+   "design": {
+    "title": "Mit dem Architekten entwerfen",
+    "intro": "Chatten Sie mit dem Agenten-Architekten. Er fragt, was er wissen muss, und baut die Agenten im Gespräch in Ihren Entwurf ein. Der Bereich rechts zeigt, was der Entwurf enthält.",
+    "contents": "Im Entwurf",
+    "empty": "Noch nichts. Der Architekt fügt hier Agenten hinzu, sobald er sie entwirft.",
+    "agents": "KI-Agenten",
+    "firstMessage": "Ich möchte Folgendes bauen: {{goal}}\n\nDie Agenten laufen auf dem Harness-Profil {{profile}} mit dem Zugangsdaten-Geheimnis {{secret}}. Fragen Sie mich alles, was Sie wissen müssen, und entwerfen Sie dann die Agenten in diesem Entwurf.",
+    "chatTitle": "Chat mit {{architect}}",
+    "next": "Weiter zur Prüfung"
+   },
+   "review": {
+    "title": "Prüfung",
+    "intro": "Der Assistent prüft jedes Element im Entwurf gegen Ihre aktuelle Konfiguration. Was fehlschlagen würde, geht zur Korrektur an den Architekten zurück.",
+    "status": {
+     "PendingApproval": "Dieser Entwurf wartet auf Freigabe. Fahren Sie mit dem nächsten Schritt fort.",
+     "Applied": "Dieser Entwurf ist angewendet. Fahren Sie mit dem nächsten Schritt fort.",
+     "Discarded": "Dieser Entwurf wurde verworfen. Beginnen Sie im ersten Schritt einen neuen."
+    },
+    "kind": "Art",
+    "name": "Bezeichnung",
+    "change": "Änderung",
+    "note": "Hinweis",
+    "problems_one": "{{count}} Element ließe sich nicht anwenden.",
+    "problems_other": "{{count}} Elemente ließen sich nicht anwenden.",
+    "askFix": "Den Architekten um Korrektur bitten",
+    "valid": "Alles im Entwurf ist in Ordnung. Fahren Sie mit der Freigabe fort.",
+    "validate": "Erneut prüfen",
+    "fixMessage": "Der Entwurf ist noch nicht gültig. Bitte beheben Sie diese Probleme:\n{{problems}}",
+    "next": "Weiter zur Freigabe"
+   },
+   "approve": {
+    "title": "Freigeben",
+    "intro": "Die Freigabe wendet den Entwurf an und schaltet die Agenten live. Danach gibt der Assistent jedem Agenten eine Dev-Bereitstellung, damit Sie ihn sofort ausprobieren können.",
+    "reason": "Im Agenten-Assistenten freigegeben.",
+    "summary": "Der Entwurf enthält {{total}} Elemente, darunter {{agents}} Agenten. Sie laufen auf {{profile}} mit den Zugangsdaten {{secret}}.",
+    "will1": "Alle Elemente im Entwurf werden gemeinsam erstellt oder aktualisiert. Schlägt eines fehl, wird nichts geändert.",
+    "will2": "Jeder Agent erhält eine Dev-Bereitstellung auf dem gewählten Harness, mit gebundenen Zugangsdaten.",
+    "will3": "Wenn Sie nicht freigeben dürfen, wartet die Anfrage auf jemanden, der es darf, und diese Seite macht weiter, sobald entschieden ist.",
+    "approve": "Freigeben und veröffentlichen",
+    "waiting": "Warten auf eine Entscheidung von jemandem mit Freigaberechten. Diese Seite macht danach von selbst weiter.",
+    "openApproval": "Freigabe öffnen",
+    "retry": "Erneut versuchen",
+    "done": "Freigegeben und veröffentlicht. Jeder Agent hat eine startbereite Dev-Bereitstellung.",
+    "agent": "KI-Agent",
+    "deployment": "Dev-Bereitstellung",
+    "what": "Was der Assistent getan hat",
+    "actions": {
+     "create": "Bereitstellung erstellt",
+     "bind": "Zugangsdaten gebunden",
+     "ready": "Bereits bereit"
+    },
+    "next": "Weiter zum Ausprobieren"
+   },
+   "test": {
+    "title": "Ausprobieren",
+    "intro": "Sprechen Sie mit Ihrem neuen Agenten in Dev. Wenn Sie zufrieden sind, öffnen Sie ihn, um ihn hochzustufen oder zu teilen.",
+    "talkingTo": "Gespräch mit {{name}}.",
+    "empty": "Senden Sie eine Nachricht, um ein Gespräch zu beginnen.",
+    "message": "Nachricht",
+    "next": "Wie es weitergeht",
+    "openAgent": "{{name}} öffnen",
+    "openApp": "App {{name}} öffnen",
+    "openInvoke": "In Invoke öffnen",
+    "another": "Weitere bauen"
+   }
+  }
+ }
+});

@@ -30,6 +30,7 @@ import AppsView from '../AppsView';
 import ArchitectsView from '../ArchitectsView';
 import StudioView from '../StudioView';
 import StudioDraftView from '../StudioDraftView';
+import AgentWizardView from '../AgentWizardView';
 import ManifestsView from '../ManifestsView';
 import RequestHistoryView from '../RequestHistoryView';
 import AuditView from '../AuditView';
@@ -105,5 +106,6 @@ export const DETAIL_VIEWS = {
   approvals: ApprovalDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView,
-  studio: StudioDraftView
+  studio: StudioDraftView,
+  agentWizard: AgentWizardView
 };

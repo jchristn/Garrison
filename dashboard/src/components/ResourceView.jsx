@@ -458,7 +458,7 @@ export default function ResourceView({ config }) {
               (config.studioEmptyState || (config.api.create && canManage)) && (
                 <div className="flex gap-sm state-actions">
                   {config.studioEmptyState && (
-                    <button type="button" className="button-secondary" onClick={() => navigate(pathFor('studio'))} data-testid="empty-open-studio" {...tip(t('tips.common.openStudio'))}>
+                    <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', 'new'))} data-testid="empty-open-studio" {...tip(t('tips.common.openStudio'))}>
                       {t('common.states.openStudio')}
                     </button>
                   )}

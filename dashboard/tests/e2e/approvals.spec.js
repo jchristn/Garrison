@@ -82,6 +82,20 @@ test('a 409 says the approval was already decided, and a 403 explains the missin
   await expect(page.locator('.modal')).toBeVisible();
 });
 
+test('a draft that could not be applied says what failed instead of claiming someone else decided', async ({ page }) => {
+  const message = 'Applying the draft failed, and nothing was changed: Deployment/artifact-publisher-dev: The deployment is invalid. artifactStoreId: Artifact globs require an artifact store. The approval was cancelled and the draft is open again; fix it and request approval again.';
+  await page.route(/\/approvals\/apr_0001\/decide$/, (route) => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'Conflict', code: 'DraftInvalid', message }) }));
+  await login(page);
+  await page.goto('/dashboard/approvals/apr_0001');
+  await page.getByTestId('approval-allow').click();
+  await page.getByTestId('decide-submit').click();
+  const banner = page.getByTestId('decide-error');
+  await expect(banner).toContainText('Artifact globs require an artifact store');
+  await expect(banner).toContainText('the draft is open again');
+  await expect(page.locator('.toast-warning')).toHaveCount(0);
+  await expect(page.locator('.modal')).toBeVisible();
+});
+
 test('the detail page shows the request, the redacted input, rules, and links', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/approvals/apr_0004');

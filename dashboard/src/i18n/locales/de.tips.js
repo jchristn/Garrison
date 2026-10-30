@@ -3436,3 +3436,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "Ein geführter Weg von einer Beschreibung zu freigegebenen Agenten, die in Dev laufen."
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Öffnet den Agenten-Assistenten: Beschreiben Sie, was Sie brauchen, und er führt Sie durch Modellzugriff, Entwurf mit dem Agenten-Architekten, Prüfung, Freigabe und ein erstes Gespräch."
+  }
+ },
+ "common": {
+  "openStudio": "Öffnet den Agenten-Assistenten, in dem der Agenten-Architekt mit Ihnen Agenten entwirft. Nichts geht live, bevor der Entwurf freigegeben ist."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Öffnen Sie den Agenten-Assistenten und beschreiben Sie, was Sie brauchen. Er führt Sie durch Aufbau, Freigabe und Test der Agenten."
+  },
+  "studioDraft": {
+   "back": "Zu diesem Entwurf im Agenten-Assistenten zurückkehren."
+  },
+  "agentWizard": {
+   "back": "Zum vorherigen Schritt. Ihre Eingaben bleiben erhalten.",
+   "next": "Zum nächsten Schritt.",
+   "advanced": "Diesen Entwurf im vollständigen Studio-Arbeitsbereich öffnen: Zeichenfläche, Elementeditor, Diff und Playground.",
+   "locked": "Schließen Sie zuerst die vorherigen Schritte ab.",
+   "steps": {
+    "goal": "Projekt benennen und beschreiben, was die Agenten tun sollen.",
+    "access": "Harness, Modell und Zugangsdaten für die Agenten wählen.",
+    "design": "Mit dem Agenten-Architekten chatten, der die Agenten im Entwurf baut.",
+    "review": "Den Entwurf gegen die aktuelle Konfiguration prüfen.",
+    "approve": "Den Entwurf freigeben und veröffentlichen und Dev-Bereitstellungen einrichten.",
+    "test": "Mit dem neuen Agenten in Dev sprechen."
+   },
+   "goal": {
+    "needTitle": "Geben Sie zuerst einen Projektnamen ein.",
+    "needGoal": "Beschreiben Sie zuerst, was die Agenten tun sollen.",
+    "name": "Ein kurzer Name für dieses Projekt. Er benennt den Entwurf.",
+    "goal": "Was die Agenten tun sollen, in einfachen Worten. Der Architekt beginnt damit.",
+    "resume": "Diesen Entwurf dort fortsetzen, wo Sie aufgehört haben.",
+    "allDrafts": "Alle Studio-Entwürfe anzeigen, auch solche, die Sie nicht im Assistenten begonnen haben."
+   },
+   "access": {
+    "needProfile": "Wählen Sie zuerst ein Harness-Profil.",
+    "needCredential": "Wählen oder fügen Sie zuerst Zugangsdaten hinzu.",
+    "harness": "Das Harness-Profil, auf dem die Agenten und der Architekt laufen.",
+    "model": "Das zu verwendende Modell. Leer lassen für den Standard des Harness.",
+    "useSecret": "Mit dem Geheimnis {{name}} anmelden.",
+    "addSecret": "Hier neue Zugangsdaten speichern, mit den Schritten zum Erhalt des Werts.",
+    "secretName": "Ein Name für das Geheimnis, damit Sie es später auf der Seite Geheimnisse finden.",
+    "saveSecret": "Das Geheimnis speichern und für diese Agenten verwenden.",
+    "finishSecret": "Speichern oder verwerfen Sie zuerst die neuen Zugangsdaten."
+   },
+   "design": {
+    "needAgent": "Der Entwurf hat noch keine Agenten. Sprechen Sie weiter mit dem Architekten."
+   },
+   "review": {
+    "askFix": "Zurück zum Chat und die Probleme an den Architekten senden.",
+    "validate": "Den Entwurf erneut gegen die aktuelle Konfiguration prüfen.",
+    "needValid": "Der Entwurf muss die Prüfung bestehen, bevor er freigegeben werden kann."
+   },
+   "approve": {
+    "approve": "Den Entwurf freigeben, anwenden und jedem Agenten eine Dev-Bereitstellung geben.",
+    "openApproval": "Die Freigabeanfrage in einer neuen Ansicht öffnen.",
+    "retry": "Die Dev-Bereitstellungen erneut einrichten.",
+    "openAgent": "Diesen Agenten öffnen."
+   },
+   "test": {
+    "message": "Was an den Agenten gesendet wird. Enter sendet; Ctrl+Enter oder Shift+Enter fügt eine neue Zeile ein.",
+    "send": "Die Nachricht an die Dev-Bereitstellung des Agenten senden.",
+    "another": "Den Assistenten für weitere Agenten neu starten."
+   }
+  }
+ }
+});

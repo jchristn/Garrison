@@ -3436,3 +3436,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "由一段描述開始，帶你去到喺 dev 運行嘅已批核代理程式。"
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "打開代理程式精靈：講低你要乜嘢，佢會帶你完成模型存取、同代理程式架構師一齊設計、檢查、批核同第一次對話。"
+  }
+ },
+ "common": {
+  "openStudio": "打開代理程式精靈，代理程式架構師會喺度同你一齊設計代理程式。草稿未批核之前，乜都唔會上線。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "打開代理程式精靈，講低你要乜嘢。佢會帶你建立、批核同試用啲代理程式。"
+  },
+  "studioDraft": {
+   "back": "喺代理程式精靈度返去呢份草稿。"
+  },
+  "agentWizard": {
+   "back": "返去上一步。你輸入咗嘅嘢唔會唔見。",
+   "next": "去下一步。",
+   "advanced": "喺完整嘅工作室工作區打開呢份草稿：畫布、項目編輯器、差異同試驗場。",
+   "locked": "請先完成之前嘅步驟。",
+   "steps": {
+    "goal": "幫專案改名，講清楚代理程式要做乜。",
+    "access": "揀代理程式運行用嘅 harness、模型同憑證。",
+    "design": "同代理程式架構師傾偈，由佢喺草稿入面建立代理程式。",
+    "review": "將草稿同而家嘅設定對一對。",
+    "approve": "批核並發佈草稿，再設定 dev 部署。",
+    "test": "喺 dev 同新嘅代理程式傾下。"
+   },
+   "goal": {
+    "needTitle": "請先輸入專案名稱。",
+    "needGoal": "請先講清楚代理程式要做乜。",
+    "name": "呢個專案嘅短名，亦都係草稿嘅名。",
+    "goal": "用淺白嘅說話講代理程式要做乜。架構師會由呢度開始。",
+    "resume": "由上次停低嘅地方繼續呢份草稿。",
+    "allDrafts": "睇晒所有工作室草稿，包括唔係喺精靈度開始嘅。"
+   },
+   "access": {
+    "needProfile": "請先揀一個 harness 設定檔。",
+    "needCredential": "請先揀或者加入憑證。",
+    "harness": "代理程式同架構師運行用嘅 harness 設定檔。",
+    "model": "要用嘅模型。留空就用 harness 嘅預設。",
+    "useSecret": "用密鑰 {{name}} 登入。",
+    "addSecret": "喺度儲存新憑證，連埋攞個值嘅步驟。",
+    "secretName": "密鑰嘅名，等你之後喺密鑰頁面搵得返。",
+    "saveSecret": "儲存密鑰，用喺呢啲代理程式。",
+    "finishSecret": "請先儲存或者取消新憑證。"
+   },
+   "design": {
+    "needAgent": "草稿入面仲未有代理程式。繼續同架構師傾。"
+   },
+   "review": {
+    "askFix": "返去傾偈，將啲問題發畀架構師。",
+    "validate": "再將草稿同而家嘅設定對一次。",
+    "needValid": "草稿要通過檢查先可以批核。"
+   },
+   "approve": {
+    "approve": "批核草稿、套用佢，再幫每個代理程式整一個 dev 部署。",
+    "openApproval": "喺新檢視打開批核請求。",
+    "retry": "重新設定 dev 部署。",
+    "openAgent": "打開呢個代理程式。"
+   },
+   "test": {
+    "message": "要發畀代理程式嘅內容。撳 Enter 發送；撳 Ctrl+Enter 或者 Shift+Enter 換行。",
+    "send": "將訊息發去代理程式嘅 dev 部署。",
+    "another": "重新開始精靈，整另一組代理程式。"
+   }
+  }
+ }
+});

@@ -142,7 +142,7 @@ export default function HomeView() {
             <p className="text-muted">{t('views.home.getStartedBody')}</p>
           </div>
           <div className="flex gap-sm">
-            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('studio'))} data-testid="setup-callout-studio" {...tip(t('tips.views.home.openStudio'))}>
+            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', 'new'))} data-testid="setup-callout-studio" {...tip(t('tips.views.home.openStudio'))}>
               {t('views.home.openStudio')}
             </button>
             <button type="button" className="button-primary" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>

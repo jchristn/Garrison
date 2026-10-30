@@ -12,7 +12,7 @@ It has no deployment until you create an architect. Pick the harness and model y
 
 ## Architects
 
-An architect is a deployment of `agent-architect` with `managementAccess: Drafts`, a harness profile, a model, a credential secret, and an architect prompt. Its ID is the deployment ID (`dep_...`). Architects belong to the tenant and are reusable: any studio draft can use any architect, and nothing ties one to a particular draft. Keep one per harness or prompt you like to work with. In the dashboard they are on Agents > Architects (list, create, edit, delete, choose the prompt), and the Architect tab of a draft only picks which architect to talk to.
+An architect is a deployment of `agent-architect` with `managementAccess: Drafts`, a harness profile, a model, a credential secret, and an architect prompt. Its ID is the deployment ID (`dep_...`). Architects belong to the tenant and are reusable: any studio draft can use any architect, and nothing ties one to a particular draft. Keep one per harness or prompt you like to work with. In the dashboard they are on Agents > Architects (list, create, edit, delete, choose the prompt), and the Architect tab of a draft only picks which architect to talk to. The agent wizard (Agents > Agents > Agent wizard) sets one up for you: it keeps one architect per harness profile, named `architect-<profile>`, on `builtin/agent-architect-guided`, and updates its model and credential to what you chose in the wizard.
 
 ```bash
 API=http://127.0.0.1:8700/v1.0/api/tenants/default

@@ -23,10 +23,12 @@ export default function HubView({ hubKey, apiClient }) {
   const hub = findHub(hubKey);
   const title = hub ? t(`nav.hubs.${hub.key}.label`) : '';
 
+  const requested = searchParams.get(TAB_PARAM);
   const tabs = useMemo(
     () =>
       (hub?.tabs || [])
-        .filter((page) => allowed(page.requires, principal) && PAGE_VIEWS[page.id])
+        // A hidden tab (the studio's drafts list) is left out of the tab bar unless a link asks for it by ?tab=.
+        .filter((page) => (!page.hidden || page.slug === requested) && allowed(page.requires, principal) && PAGE_VIEWS[page.id])
         .map((page) => {
           const View = PAGE_VIEWS[page.id];
           return {
@@ -40,10 +42,9 @@ export default function HubView({ hubKey, apiClient }) {
             )
           };
         }),
-    [hub, principal, t, apiClient]
+    [hub, principal, t, apiClient, requested]
   );
 
-  const requested = searchParams.get(TAB_PARAM);
   const active = tabs.find((tab) => tab.id === requested) || tabs[0];
   const appName = t('common.productName');
 

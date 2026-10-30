@@ -192,7 +192,7 @@ export default function StudioDraftView({ recordId }) {
       await apiClient.deleteStudioDraft(tenantId, draft.id);
       addToast({ type: 'success', message: t('views.studio.discarded', { title: draft.title || draft.id }) });
       setConfirmDiscard(false);
-      navigate(pathFor('studio'));
+      navigate(pathFor('agentWizard', 'new'));
     } catch (e) {
       addToast({ type: 'error', message: errorMessage(t, e) });
       setConfirmDiscard(false);
@@ -235,7 +235,7 @@ export default function StudioDraftView({ recordId }) {
         }
         actions={
           <>
-            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('studio'))} {...tip(t('tips.views.studioDraft.back'))}>
+            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', draft.id))} data-testid="studio-back-to-wizard" {...tip(t('tips.views.studioDraft.back'))}>
               {t('views.studioDraft.back')}
             </button>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.studioDraft.viewJson'))}>

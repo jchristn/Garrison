@@ -32,7 +32,7 @@ import AgentAssetVersionsModal from '../components/AgentAssetVersionsModal';
 import { ASSET_KINDS } from '../utils/assets';
 import CapabilityDetail, { CapabilityHints, CapabilitySource } from '../components/CapabilityDetail';
 import CapabilityRefreshModal from '../components/CapabilityRefreshModal';
-import { RefreshIcon } from '../components/Icons';
+import { RefreshIcon, WandIcon } from '../components/Icons';
 import { translateServerText } from '../utils/serverText';
 import {
   CAPABILITY_KINDS,
@@ -1121,8 +1121,14 @@ export const usageQuotasConfig = {
 
 export const agentsConfig = {
   id: 'agents',
-  // An empty list points to Agent Studio as well as to Add (AD12.12).
+  // An empty list points to the agent wizard as well as to Add (AD12.12).
   studioEmptyState: true,
+  // The agent wizard: a guided path from a description to approved agents with working dev deployments.
+  headerActions: ({ t, navigate }) => (
+    <button type="button" className="button-primary" onClick={() => navigate(pathFor('agentWizard', 'new'))} data-testid="open-agent-wizard" {...tip(t('tips.resources.agents.wizard'))}>
+      <WandIcon /> {t('resources.agents.wizard')}
+    </button>
+  ),
   explainer: 'agents',
   explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listAgents', 'createAgent', 'updateAgent', 'deleteAgent'),
@@ -1345,7 +1351,7 @@ function trustBadge(t, r, tenant) {
 
 export const deploymentsConfig = {
   id: 'deployments',
-  // An empty list points to Agent Studio as well as to Add (AD12.12).
+  // An empty list points to the agent wizard as well as to Add (AD12.12).
   studioEmptyState: true,
   explainer: 'deployments',
   explainerDiagram: () => <AgentRelationDiagram />,

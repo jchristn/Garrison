@@ -7,6 +7,7 @@ namespace Test.Shared.Suites
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Manifests;
     using Garrison.Core.Models;
@@ -52,6 +53,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "selectors", "Export everything, by kind, and by Kind/name, with and without following references; built-ins only on request; secrets never exported but listed in the header and the Bundle document; selector errors and download headers (" + provider + ")", ct => SelectorsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "round-trip", "A bundle applied to a fresh tenant fails with MissingSecret field codes until the secrets exist, then creates everything; re-applying reports every document Unchanged and exporting the new tenant gives the same documents (" + provider + ")", ct => RoundTripAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "bundle-document", "Bundle documents check secrets, artifact stores, and built-ins with field codes; built-in documents apply Unchanged; missing references report ReferenceNotFound; the MCP export tool takes selectors and lists required secrets (" + provider + ")", ct => BundleDocumentAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "all-or-nothing", "A dry run refuses what the write would refuse, even for a deployment whose agent is in the same bundle; an apply that fails while writing undoes everything it wrote, including prompt template versions and updates (" + provider + ")", ct => AllOrNothingAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Manifest bundles (" + provider + ")", cases));
             }
             return suites;
@@ -171,6 +173,63 @@ namespace Test.Shared.Suites
                 "spec: { url: 'https://hooks.example.com/garrison', events: [RunFailed], agent: writer }",
                 ""
             });
+        }
+
+        private static async Task AllOrNothingAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string tenant = host.TenantId;
+                string api = "/v1.0/api/tenants/" + tenant;
+                string Doc(params string[] lines) => String.Join("\n", lines);
+                string template = Doc("apiVersion: garrison/v1", "kind: PromptTemplate", "metadata: { name: aon-system }", "spec: { kind: System, content: You plan the work. }");
+                string agents = Doc("apiVersion: garrison/v1", "kind: Agent", "metadata: { name: aon-entry }", "spec: { description: Talks to people }", "---",
+                    "apiVersion: garrison/v1", "kind: Agent", "metadata: { name: aon-helper }", "spec: { description: Helps }");
+
+                // A deployment of an agent the same bundle creates, with artifact globs and no artifact store: the dry run
+                // used to pass it because the full deployment check ran only while writing.
+                string globs = String.Join("\n---\n", template, agents,
+                    Doc("apiVersion: garrison/v1", "kind: Deployment", "metadata: { name: aon-entry-dev }", "spec: { agent: aon-entry, harnessProfile: builtin/fake, artifactGlobs: ['out/**'] }"));
+                ManifestApply dry = await ApplyAsync(host.AdminClient, tenant, globs, "?dryRun=true", 400, token).ConfigureAwait(false);
+                ManifestApplyItem deploymentItem = dry.Items.Single(i => i.Kind == "Deployment");
+                Assert.True(deploymentItem.Result == ManifestApplyResultEnum.Failed && (deploymentItem.Message ?? "").Contains("artifact store", StringComparison.OrdinalIgnoreCase), "The dry run refuses the deployment: " + Serializer.Serialize(dry.Items));
+                ManifestApply real = await ApplyAsync(host.AdminClient, tenant, globs, String.Empty, 400, token).ConfigureAwait(false);
+                Assert.Equal(0, real.CreatedCount, "Nothing was written");
+                Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, api + "/agents/aon-entry", null, token).ConfigureAwait(false)).StatusCode, "No agent from the refused bundle");
+
+                // An existing template the bundle updates, so the undo has an update and a new version to take back.
+                ManifestApply seeded = await ApplyAsync(host.AdminClient, tenant, template, String.Empty, 200, token).ConfigureAwait(false);
+                Assert.Equal(1, seeded.CreatedCount, "Template seeded");
+                string changedTemplate = Doc("apiVersion: garrison/v1", "kind: PromptTemplate", "metadata: { name: aon-system }", "spec: { kind: System, content: You plan the work carefully. }");
+
+                // An app whose calls form a loop: only the app check while writing catches it, after the template, the
+                // agents, and the deployment were written. Everything must be undone.
+                string loop = String.Join("\n---\n", changedTemplate, agents,
+                    Doc("apiVersion: garrison/v1", "kind: Deployment", "metadata: { name: aon-entry-dev }", "spec: { agent: aon-entry, harnessProfile: builtin/fake }"),
+                    Doc("apiVersion: garrison/v1", "kind: AgenticApp", "metadata: { name: aon-app }", "spec:", "  entry: aon-entry",
+                        "  members: [ { agent: aon-entry }, { agent: aon-helper } ]",
+                        "  edges: [ { from: aon-entry, to: aon-helper }, { from: aon-helper, to: aon-entry } ]",
+                        "  environments: [ { environment: dev, deployment: aon-entry-dev } ]"));
+                ManifestApply failed = await ApplyAsync(host.AdminClient, tenant, loop, String.Empty, 400, token).ConfigureAwait(false);
+                Assert.True(failed.Items.Single(i => i.Kind == "AgenticApp").Result == ManifestApplyResultEnum.Failed, "The app fails: " + Serializer.Serialize(failed.Items));
+                foreach (string path in new[] { "/agents/aon-entry", "/agents/aon-helper", "/apps/aon-app" })
+                {
+                    Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, api + path, null, token).ConfigureAwait(false)).StatusCode, "Undone: " + path);
+                }
+                EnumerationResult<Deployment> deployments = await HttpTestHelpers.SendAsync<EnumerationResult<Deployment>>(host.AdminClient, HttpMethod.Get, api + "/deployments?search=aon-entry-dev", null, 200, token).ConfigureAwait(false);
+                Assert.True(deployments.Objects.All(d => d.Name != "aon-entry-dev"), "The deployment was undone");
+                PromptTemplate restored = Assert.NotNull(await host.Server.Context.Database.PromptTemplates.ReadByNameAsync(tenant, "aon-system", token).ConfigureAwait(false), "Template");
+                Assert.True(restored.Content == "You plan the work." && restored.CurrentVersion == 1, "The template update was undone: " + Serializer.Serialize(restored));
+                List<PromptTemplateVersion> versions = await host.Server.Context.Database.PromptTemplateVersions.ListByTemplateAsync(restored.Id, token).ConfigureAwait(false);
+                Assert.True(versions.All(v => v.Version == 1), "The new version row was undone: " + String.Join(", ", versions.Select(v => v.Version)));
+
+                // The same bundle without the loop applies whole, and a later edit of the template gets version 2.
+                string fixedLoop = loop.Replace(", { from: aon-helper, to: aon-entry }", String.Empty, StringComparison.Ordinal);
+                ManifestApply ok = await ApplyAsync(host.AdminClient, tenant, fixedLoop, String.Empty, 200, token).ConfigureAwait(false);
+                Assert.True(ok.FailedCount == 0, "The fixed bundle applies: " + Serializer.Serialize(ok.Items));
+                PromptTemplate after = Assert.NotNull(await host.Server.Context.Database.PromptTemplates.ReadByNameAsync(tenant, "aon-system", token).ConfigureAwait(false), "Template");
+                Assert.Equal(2, after.CurrentVersion, "Version numbers continue cleanly");
+            }
         }
 
         private static async Task<ManifestApply> ApplyAsync(HttpClient client, string tenantId, string yaml, string query, int expectedStatus, CancellationToken token)

@@ -3436,3 +3436,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "A guided path from a description to approved agents running in dev."
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Open the agent wizard: describe what you need, and it walks you through model access, design with the agent architect, review, approval, and a first conversation."
+  }
+ },
+ "common": {
+  "openStudio": "Open the agent wizard, where the agent architect designs agents with you. Nothing goes live until the draft is approved."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Open the agent wizard and describe what you need. It walks you through building, approving, and trying the agents."
+  },
+  "studioDraft": {
+   "back": "Return to this draft in the agent wizard."
+  },
+  "agentWizard": {
+   "back": "Go to the previous step. Nothing you entered is lost.",
+   "next": "Go to the next step.",
+   "advanced": "Open this draft in the full studio workspace: the canvas, item editor, diff, and playground.",
+   "locked": "Finish the steps before this one first.",
+   "steps": {
+    "goal": "Name the project and describe what the agents should do.",
+    "access": "Choose the harness, model, and credential the agents run with.",
+    "design": "Chat with the agent architect, which builds the agents in the draft.",
+    "review": "Check the draft against live configuration.",
+    "approve": "Approve and publish the draft, and set up dev deployments.",
+    "test": "Talk to the new agent in dev."
+   },
+   "goal": {
+    "needTitle": "Enter a project name first.",
+    "needGoal": "Describe what the agents should do first.",
+    "name": "A short name for this project. It names the draft.",
+    "goal": "What the agents should do, in plain words. The architect starts from this.",
+    "resume": "Continue this draft where you left off.",
+     "allDrafts": "See every studio draft, including ones you did not start in the wizard."
+   },
+   "access": {
+    "needProfile": "Choose a harness profile first.",
+    "needCredential": "Choose or add a credential first.",
+    "harness": "The harness profile the agents and the architect run on.",
+    "model": "The model to use. Leave it empty for the harness default.",
+    "useSecret": "Sign in with the secret {{name}}.",
+    "addSecret": "Save a new credential here, with the steps for getting its value.",
+    "secretName": "A name for the secret, so you can find it on the Secrets page later.",
+    "saveSecret": "Save the secret and use it for these agents.",
+    "finishSecret": "Save or cancel the new credential first."
+   },
+   "design": {
+    "needAgent": "The draft has no agents yet. Keep talking to the architect."
+   },
+   "review": {
+    "askFix": "Go back to the chat and send the problems to the architect.",
+    "validate": "Check the draft against live configuration again.",
+    "needValid": "The draft must check out before it can be approved."
+   },
+   "approve": {
+    "approve": "Approve the draft, apply it, and give each agent a dev deployment.",
+    "openApproval": "Open the approval request in a new view.",
+    "retry": "Set up the dev deployments again.",
+    "openAgent": "Open this agent."
+   },
+   "test": {
+    "message": "What to send to the agent. Enter sends; Ctrl+Enter or Shift+Enter adds a new line.",
+    "send": "Send the message to the agent's dev deployment.",
+    "another": "Start the wizard again for another set of agents."
+   }
+  }
+ }
+});

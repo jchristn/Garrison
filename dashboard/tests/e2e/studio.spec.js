@@ -173,7 +173,8 @@ test('a decision refused with DraftStale or ApproverLacksPermission shows a tran
   await expect(page.getByTestId('studio-not-open')).toContainText('waits for a decision');
   await expect(page.getByTestId('studio-request-apply')).toHaveAttribute('data-tip', /only an open draft can change/);
   await page.getByTestId('studio-approval-allow').click();
-  await expect(page.getByTestId('studio-approval-error')).toHaveText('You may not allow this draft: allowing it needs Create on Manifest and Delete on each kind the draft deletes.');
+  // The translated message, followed by the server's detail (which kind needs which permission).
+  await expect(page.getByTestId('studio-approval-error')).toHaveText('You may not allow this draft: allowing it needs Create on Manifest and Delete on each kind the draft deletes. Allowing this draft needs Delete on Agent.');
   await page.getByTestId('studio-approval-allow').click();
   await expect(page.getByTestId('studio-approval-error')).toHaveText(/Live configuration changed after the draft was based on it/);
 });

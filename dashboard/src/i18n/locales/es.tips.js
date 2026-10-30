@@ -3438,3 +3438,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "Un camino guiado desde una descripción hasta agentes aprobados que se ejecutan en dev."
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Abre el asistente de agentes: describa lo que necesita y le guiará por el acceso al modelo, el diseño con el arquitecto de agentes, la revisión, la aprobación y una primera conversación."
+  }
+ },
+ "common": {
+  "openStudio": "Abre el asistente de agentes, donde el arquitecto de agentes diseña agentes con usted. Nada se activa hasta que se aprueba el borrador."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Abra el asistente de agentes y describa lo que necesita. Le guía para crear, aprobar y probar los agentes."
+  },
+  "studioDraft": {
+   "back": "Volver a este borrador en el asistente de agentes."
+  },
+  "agentWizard": {
+   "back": "Ir al paso anterior. No se pierde nada de lo que introdujo.",
+   "next": "Ir al paso siguiente.",
+   "advanced": "Abrir este borrador en el espacio de trabajo completo del estudio: lienzo, editor de elementos, diferencias y zona de pruebas.",
+   "locked": "Termine primero los pasos anteriores.",
+   "steps": {
+    "goal": "Nombre el proyecto y describa lo que deben hacer los agentes.",
+    "access": "Elija el harness, el modelo y la credencial con los que se ejecutan los agentes.",
+    "design": "Converse con el arquitecto de agentes, que crea los agentes en el borrador.",
+    "review": "Compruebe el borrador contra la configuración activa.",
+    "approve": "Apruebe y publique el borrador, y configure los despliegues de dev.",
+    "test": "Hable con el nuevo agente en dev."
+   },
+   "goal": {
+    "needTitle": "Introduzca primero un nombre de proyecto.",
+    "needGoal": "Describa primero lo que deben hacer los agentes.",
+    "name": "Un nombre corto para este proyecto. Da nombre al borrador.",
+    "goal": "Lo que deben hacer los agentes, con palabras sencillas. El arquitecto parte de esto.",
+    "resume": "Continuar este borrador donde lo dejó.",
+    "allDrafts": "Ver todos los borradores del estudio, incluidos los que no empezó en el asistente."
+   },
+   "access": {
+    "needProfile": "Elija primero un perfil de harness.",
+    "needCredential": "Elija o añada primero una credencial.",
+    "harness": "El perfil de harness en el que se ejecutan los agentes y el arquitecto.",
+    "model": "El modelo que se usará. Déjelo vacío para usar el predeterminado del harness.",
+    "useSecret": "Iniciar sesión con el secreto {{name}}.",
+    "addSecret": "Guardar aquí una nueva credencial, con los pasos para obtener su valor.",
+    "secretName": "Un nombre para el secreto, para encontrarlo después en la página Secretos.",
+    "saveSecret": "Guardar el secreto y usarlo para estos agentes.",
+    "finishSecret": "Guarde o cancele primero la nueva credencial."
+   },
+   "design": {
+    "needAgent": "El borrador aún no tiene agentes. Siga hablando con el arquitecto."
+   },
+   "review": {
+    "askFix": "Volver al chat y enviar los problemas al arquitecto.",
+    "validate": "Comprobar de nuevo el borrador contra la configuración activa.",
+    "needValid": "El borrador debe ser correcto antes de poder aprobarse."
+   },
+   "approve": {
+    "approve": "Aprobar el borrador, aplicarlo y dar a cada agente un despliegue de dev.",
+    "openApproval": "Abrir la solicitud de aprobación en una vista nueva.",
+    "retry": "Configurar de nuevo los despliegues de dev.",
+    "openAgent": "Abrir este agente."
+   },
+   "test": {
+    "message": "Lo que se envía al agente. Enter envía; Ctrl+Enter o Shift+Enter añade una línea nueva.",
+    "send": "Enviar el mensaje al despliegue de dev del agente.",
+    "another": "Iniciar de nuevo el asistente para otro conjunto de agentes."
+   }
+  }
+ }
+});

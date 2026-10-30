@@ -953,7 +953,11 @@ namespace Garrison.Core.Services
                 if (String.IsNullOrEmpty(deployment.ArtifactStoreId)) errors["artifactStoreId"] = "Suspension requires an artifact store.";
             }
 
-            if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false) == null) errors["workspaceTemplateId"] = "The workspace template does not exist in this tenant.";
+            // Through the cache when there is one, so a workspace template planned in the same manifest apply counts.
+            WorkspaceTemplate? referencedWorkspace = String.IsNullOrEmpty(deployment.WorkspaceTemplateId) ? null
+                : cache != null ? await cache.ReadAsync("WorkspaceTemplate", deployment.WorkspaceTemplateId, token).ConfigureAwait(false) as WorkspaceTemplate
+                : await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && referencedWorkspace == null) errors["workspaceTemplateId"] = "The workspace template does not exist in this tenant.";
             if (!String.IsNullOrEmpty(deployment.ArtifactStoreId) && await database.ArtifactStores.ReadAsync(tenantId, deployment.ArtifactStoreId, token).ConfigureAwait(false) == null) errors["artifactStoreId"] = "The artifact store does not exist in this tenant.";
             NodePool? pool = String.IsNullOrEmpty(deployment.NodePoolId) ? null : await database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(deployment.NodePoolId) && pool == null) errors["nodePoolId"] = "The node pool does not exist.";
@@ -967,7 +971,7 @@ namespace Garrison.Core.Services
                 errors["podResources"] = "Warm startup uses the pool's default pod resources; per-deployment resources require cold startup.";
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId))
             {
-                WorkspaceTemplate? workspace = await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
+                WorkspaceTemplate? workspace = referencedWorkspace;
                 if (workspace != null && workspace.Kind == WorkspaceKindEnum.PersistentVolume && deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Warm)
                     errors["requiredCapabilities.coldStartClass"] = "PersistentVolume workspaces require cold startup.";
                 if (workspace != null && workspace.Kind == WorkspaceKindEnum.PersistentVolume && RunExecutors.Resolve(deployment, pool) != RunExecutorEnum.KubernetesJob)

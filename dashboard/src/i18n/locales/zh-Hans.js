@@ -4691,3 +4691,154 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "智能体向导",
+    "tip": "从描述需求开始，一步步引导你得到在 dev 中运行的已批准智能体：模型访问、与智能体架构师一起设计、检查、批准，以及第一次对话。"
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "智能体向导"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "也可以打开智能体向导，描述你的需求：它会带你完成智能体的构建、批准和试用。",
+   "openStudio": "打开智能体向导"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "打开智能体向导"
+  },
+  "studioDraft": {
+   "back": "返回向导"
+  },
+  "agentWizard": {
+   "title": "智能体向导",
+   "subtitle": "描述你的需求。向导会从这里带你得到在 dev 中运行的已批准智能体。",
+   "subtitleDraft": "正在构建：{{title}}",
+   "advanced": "高级",
+   "stepsLabel": "向导步骤",
+   "back": "上一步",
+   "working": "处理中...",
+   "steps": {
+    "goal": "目标",
+    "access": "模型访问",
+    "design": "设计",
+    "review": "检查",
+    "approve": "批准",
+    "test": "试用"
+   },
+   "goal": {
+    "title": "你的智能体要做什么？",
+    "intro": "给项目起个名字，用平实的话描述这项工作。智能体架构师会阅读这些内容，并为它设计一个智能体或一组智能体。",
+    "name": "项目名称",
+    "namePlaceholder": "研究助手",
+    "nameHint": "一个以后能认出来的简短名称。这一步之后无法更改。",
+    "goal": "智能体要做的事",
+    "goalPlaceholder": "在网上调研一个主题，附上来源总结发现的内容，并写一份简短报告。",
+    "goalHint": "说明谁在使用、输入什么、应该输出什么。架构师需要了解的内容会主动询问。",
+    "next": "开始",
+    "resume": "或继续你的某个草稿",
+    "allDrafts": "全部草稿"
+   },
+   "access": {
+    "title": "模型访问",
+    "intro": "选择运行智能体的 harness，以及它登录所用的凭据。智能体架构师与你一起设计时也使用同一个 harness 和凭据。",
+    "harness": "Harness 配置文件",
+    "harnessHint": "运行智能体的 CLI，例如 Claude Code 或 Codex。",
+    "model": "模型",
+    "modelHint": "可选。留空则使用 harness 的默认模型。",
+    "credential": "凭据",
+    "noCredentialNeeded": "{{profile}} 不需要凭据。",
+    "credentialIntro": "{{profile}} 使用类型为 {{kinds}} 的密钥登录。选择一个已保存的，或现在添加一个。",
+    "noFittingSecret": "你还没有保存类型为 {{kinds}} 的密钥。请在下方添加；获取该值的步骤会一并显示。",
+    "addSecret": "添加凭据",
+    "saveSecret": "保存凭据",
+    "architectDescription": "由智能体向导设置的智能体架构师。",
+    "next": "继续设计"
+   },
+   "design": {
+    "title": "与架构师一起设计",
+    "intro": "与智能体架构师聊天。它会询问需要了解的内容，并在对话中把智能体构建到你的草稿里。右侧面板显示草稿的内容。",
+    "contents": "草稿内容",
+    "empty": "还没有内容。架构师设计出智能体后会添加到这里。",
+    "agents": "智能体",
+    "firstMessage": "我想构建这个：{{goal}}\n\n智能体将在 harness 配置文件 {{profile}} 上运行，使用凭据密钥 {{secret}}。请先问我任何你需要了解的内容，然后在这个草稿中设计智能体。",
+    "chatTitle": "与 {{architect}} 聊天",
+    "next": "继续检查"
+   },
+   "review": {
+    "title": "检查",
+    "intro": "向导会将草稿中的每一项与当前配置进行比对。会失败的项会退回给架构师修复。",
+    "status": {
+     "PendingApproval": "此草稿正在等待批准。请继续下一步。",
+     "Applied": "此草稿已应用。请继续下一步。",
+     "Discarded": "此草稿已被丢弃。请从第一步开始新建一个。"
+    },
+    "kind": "类型",
+    "name": "名称",
+    "change": "变更",
+    "note": "备注",
+    "problems_one": "{{count}} 项无法应用。",
+    "problems_other": "{{count}} 项无法应用。",
+    "askFix": "请架构师修复",
+    "valid": "草稿中的所有内容都通过了检查。请继续批准。",
+    "validate": "重新检查",
+    "fixMessage": "草稿尚未通过验证。请修复以下问题：\n{{problems}}",
+    "next": "继续批准"
+   },
+   "approve": {
+    "title": "批准",
+    "intro": "批准后会应用草稿并让智能体上线。随后向导会为每个智能体创建一个 dev 部署，你可以马上试用。",
+    "reason": "在智能体向导中批准。",
+    "summary": "草稿包含 {{total}} 项，其中有 {{agents}} 个智能体。它们将在 {{profile}} 上运行，使用凭据 {{secret}}。",
+    "will1": "草稿中的所有项会一起创建或更新。只要有一项失败，就不会做任何更改。",
+    "will2": "每个智能体都会在你选择的 harness 上获得一个 dev 部署，并绑定凭据。",
+    "will3": "如果你没有批准权限，请求会等待有权限的人处理，对方做出决定后此页面会继续。",
+    "approve": "批准并发布",
+    "waiting": "正在等待有批准权限的人做出决定。对方决定后此页面会自动继续。",
+    "openApproval": "打开审批",
+    "retry": "重试",
+    "done": "已批准并发布。每个智能体都有一个可以运行的 dev 部署。",
+    "agent": "智能体",
+    "deployment": "dev 部署",
+    "what": "向导执行的操作",
+    "actions": {
+     "create": "已创建部署",
+     "bind": "已绑定凭据",
+     "ready": "已就绪"
+    },
+    "next": "继续试用"
+   },
+   "test": {
+    "title": "试用",
+    "intro": "在 dev 中与新的智能体对话。满意后，打开它进行升级或共享。",
+    "talkingTo": "正在与 {{name}} 对话。",
+    "empty": "发送一条消息开始对话。",
+    "message": "消息",
+    "next": "下一步去哪里",
+    "openAgent": "打开 {{name}}",
+    "openApp": "打开应用 {{name}}",
+    "openInvoke": "在 Invoke 中打开",
+    "another": "再构建一个"
+   }
+  }
+ }
+});

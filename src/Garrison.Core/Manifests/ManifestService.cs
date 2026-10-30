@@ -176,15 +176,27 @@ namespace Garrison.Core.Manifests
                 plan.Add(planned);
             }
 
+            // The checks that otherwise run only as records are written (a deployment's full validation, an app's entry
+            // deployment per environment) run now against the planned records too, so a dry run, and the studio's
+            // validation built on it, refuses what the write would refuse.
+            if (!plan.Any(p => p.Result == ManifestApplyResultEnum.Failed)) await ValidateWritesAsync(tenantId, plan, cache, token).ConfigureAwait(false);
+
             bool failed = plan.Any(p => p.Result == ManifestApplyResultEnum.Failed);
             if (!options.DryRun && !failed)
             {
+                // All or nothing: when a write fails, the documents already written are undone in reverse order, so a
+                // failed apply leaves configuration as it was.
+                List<Planned> written = new List<Planned>();
+                Dictionary<Planned, object?> before = new Dictionary<Planned, object?>();
                 foreach (Planned planned in plan)
                 {
                     if (planned.Result == ManifestApplyResultEnum.Unchanged) continue;
                     try
                     {
+                        // The plan edits records in place, so keep a fresh copy of each one about to change for the undo.
+                        if (planned.Result == ManifestApplyResultEnum.Updated) before[planned] = await CurrentAsync(tenantId, planned, token).ConfigureAwait(false);
                         await WriteAsync(tenantId, planned, cache, token).ConfigureAwait(false);
+                        written.Add(planned);
                     }
                     catch (ValidationException e)
                     {
@@ -193,6 +205,14 @@ namespace Garrison.Core.Manifests
                         planned.ErrorField = e.Fields.Keys.FirstOrDefault();
                         // A field with its own code (for example trustLevel TenantRequiresUntrusted) reports that code.
                         planned.ErrorCode = planned.ErrorField != null && e.Codes.ContainsKey(planned.ErrorField) ? e.CodeFor(planned.ErrorField) : e.Code;
+                        await RollbackAsync(tenantId, written, before, cache, token).ConfigureAwait(false);
+                        failed = true;
+                        break;
+                    }
+                    catch (Exception) when (!token.IsCancellationRequested)
+                    {
+                        await RollbackAsync(tenantId, written, before, cache, token).ConfigureAwait(false);
+                        throw;
                     }
                 }
             }
@@ -221,7 +241,7 @@ namespace Garrison.Core.Manifests
                 else if (failed)
                 {
                     item.Result = ManifestApplyResultEnum.Validated;
-                    planned.Message = "Not applied because another document failed validation.";
+                    planned.Message = "Not applied because another document failed validation; nothing in this apply was kept.";
                 }
                 else
                 {
@@ -1527,6 +1547,159 @@ namespace Garrison.Core.Manifests
             if (endpoint.ResultTextMaxChars != 1000) tree["resultTextMaxChars"] = (long)endpoint.ResultTextMaxChars;
             if (!endpoint.Active) tree["active"] = false;
             return tree;
+        }
+
+        private static readonly string[] _CacheKinds = { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "AgentAsset", "Deployment", "Pipeline" };
+
+        private async Task ValidateWritesAsync(string tenantId, List<Planned> plan, ConfigurationReferenceCache cache, CancellationToken token)
+        {
+            List<Planned> changing = plan.Where(p => (p.Result == ManifestApplyResultEnum.Created || p.Result == ManifestApplyResultEnum.Updated) && p.Model != null && !String.IsNullOrEmpty(p.ResourceId)).ToList();
+            foreach (Planned p in changing)
+            {
+                string? kind = Kinds.FirstOrDefault(k => k.Equals(p.Document.Kind, StringComparison.OrdinalIgnoreCase));
+                if (kind != null && _CacheKinds.Contains(kind)) cache.Plan(kind, p.ResourceId!, p.Document.Metadata.Name, p.Model!);
+            }
+            Dictionary<string, Deployment> plannedDeployments = changing.Where(p => p.Model is Deployment).ToDictionary(p => p.ResourceId!, p => (Deployment)p.Model!, StringComparer.Ordinal);
+            foreach (Planned planned in changing)
+            {
+                try
+                {
+                    switch (planned.Model)
+                    {
+                        case Deployment deployment:
+                            await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, cache, token).ConfigureAwait(false);
+                            break;
+                        case AgenticApp app:
+                            Dictionary<string, string> errors = new Dictionary<string, string>();
+                            Dictionary<string, string> codes = new Dictionary<string, string>();
+                            for (int i = 0; i < app.Environments.Count; i++)
+                            {
+                                AgenticAppEnvironment env = app.Environments[i];
+                                if (String.IsNullOrEmpty(env.DeploymentId)) continue;
+                                Deployment? target = plannedDeployments.TryGetValue(env.DeploymentId, out Deployment? planned2) ? planned2 : await _Database.Deployments.ReadAsync(tenantId, env.DeploymentId, token).ConfigureAwait(false);
+                                if (target == null || target.AgentId != app.EntryAgentId || !String.Equals(target.Environment, env.Environment, StringComparison.Ordinal))
+                                {
+                                    string field = "environments[" + i + "].deploymentId";
+                                    errors[field] = "Deployment " + (target?.Name ?? env.DeploymentId) + " must be a deployment of the entry agent in environment " + env.Environment + (target == null ? "." : "; it is " + (target.AgentId == app.EntryAgentId ? "in environment " + target.Environment + "." : "a deployment of another agent."));
+                                    codes[field] = "InvalidEntryDeployment";
+                                }
+                            }
+                            if (errors.Count > 0) throw new ValidationException("The app is not valid: " + String.Join(" ", errors.Values), errors, codes);
+                            break;
+                    }
+                }
+                catch (ValidationException e)
+                {
+                    planned.Result = ManifestApplyResultEnum.Failed;
+                    planned.Message = e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Where(f => !String.Equals(f.Value, e.Message, StringComparison.Ordinal)).Select(f => f.Key + ": " + f.Value)) : String.Empty);
+                    planned.ErrorField = e.Fields.Keys.FirstOrDefault();
+                    planned.ErrorCode = planned.ErrorField != null && e.Codes.ContainsKey(planned.ErrorField) ? e.CodeFor(planned.ErrorField) : e.Code;
+                }
+            }
+            foreach (string kind in _CacheKinds) cache.Forget(kind);
+        }
+
+        private async Task<object?> CurrentAsync(string tenantId, Planned planned, CancellationToken token)
+        {
+            string id = planned.ResourceId ?? String.Empty;
+            switch (planned.Model)
+            {
+                case Secret: return await _Database.Secrets.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case PromptTemplate: return await _Database.PromptTemplates.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case HarnessProfile: return await _Database.HarnessProfiles.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case McpServer: return await _Database.McpServers.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case WorkspaceTemplate: return await _Database.WorkspaceTemplates.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case AgentAsset: return await _Database.AgentAssets.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case Agent: return await _Database.Agents.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case Deployment: return await _Database.Deployments.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case AgenticApp: return await _Database.Apps.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case Pipeline: return await _Database.Pipelines.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case Trigger: return await _Database.Triggers.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case NotificationEndpoint: return await _Database.NotificationEndpoints.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                default: return null;
+            }
+        }
+
+        private async Task RollbackAsync(string tenantId, List<Planned> written, Dictionary<Planned, object?> before, ConfigurationReferenceCache cache, CancellationToken token)
+        {
+            // Undo with a token that cannot be cancelled: stopping halfway would leave the partial state this prevents.
+            for (int i = written.Count - 1; i >= 0; i--)
+            {
+                Planned planned = written[i];
+                bool created = planned.Result == ManifestApplyResultEnum.Created;
+                string id = planned.ResourceId ?? String.Empty;
+                object? prior = before.TryGetValue(planned, out object? kept) ? kept : planned.Previous;
+                try
+                {
+                    switch (planned.Model)
+                    {
+                        case Secret:
+                            if (created) await _Database.Secrets.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Secret s) await _Database.Secrets.UpdateAsync(s, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case PromptTemplate template:
+                            // The version row the write added goes too, so the template's version numbers stay as they were.
+                            if (planned.ContentChanged)
+                            {
+                                PromptTemplateVersion? added = await _Database.PromptTemplateVersions.ReadByVersionAsync(id, template.CurrentVersion, CancellationToken.None).ConfigureAwait(false);
+                                if (added != null) await _Database.PromptTemplateVersions.DeleteAsync(added.Id, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            if (created)
+                            {
+                                await _Database.PromptTemplateVersions.DeleteByTemplateAsync(id, CancellationToken.None).ConfigureAwait(false);
+                                await _Database.PromptTemplates.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            else if (prior is PromptTemplate t) await _Database.PromptTemplates.UpdateAsync(t, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case HarnessProfile:
+                            if (created) await _Database.HarnessProfiles.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is HarnessProfile h) await _Database.HarnessProfiles.UpdateAsync(h, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case McpServer:
+                            if (created) await _Database.McpServers.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is McpServer m) await _Database.McpServers.UpdateAsync(m, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case WorkspaceTemplate:
+                            if (created) await _Database.WorkspaceTemplates.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is WorkspaceTemplate w) await _Database.WorkspaceTemplates.UpdateAsync(w, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case AgentAsset:
+                            if (created) await _Database.AgentAssets.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is AgentAsset a) await _Database.AgentAssets.UpdateAsync(a, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case Agent:
+                            if (planned.AgentDraftOnly) break;
+                            if (created) await _Database.Agents.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Agent g) await _Database.Agents.UpdateAsync(g, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case Deployment:
+                            if (created) await _Database.Deployments.DeleteAsync(id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Deployment d) await _Database.Deployments.UpdateAsync(d, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case AgenticApp:
+                            if (created) await _Database.Apps.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is AgenticApp p) await _Database.Apps.UpdateAsync(p, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case Pipeline:
+                            if (created) await _Database.Pipelines.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Pipeline q) await _Database.Pipelines.UpdateAsync(q, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case Trigger:
+                            if (created) await _Database.Triggers.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Trigger r) await _Database.Triggers.UpdateAsync(r, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case NotificationEndpoint:
+                            if (created) await _Database.NotificationEndpoints.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is NotificationEndpoint n) await _Database.NotificationEndpoints.UpdateAsync(n, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Keep undoing the rest; one record that cannot be undone must not leave the others applied.
+                }
+            }
+            foreach (string kind in _CacheKinds) cache.Forget(kind);
         }
 
         private async Task WriteAsync(string tenantId, Planned planned, ConfigurationReferenceCache cache, CancellationToken token)

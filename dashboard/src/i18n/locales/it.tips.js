@@ -3438,3 +3438,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "Un percorso guidato da una descrizione ad agenti approvati in esecuzione in dev."
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Apre la procedura guidata agenti: descrivi ciò che ti serve e ti accompagna tra accesso al modello, progettazione con l'architetto di agenti, verifica, approvazione e una prima conversazione."
+  }
+ },
+ "common": {
+  "openStudio": "Apre la procedura guidata agenti, dove l'architetto di agenti progetta gli agenti con te. Nulla diventa attivo finché la bozza non è approvata."
+ },
+ "views": {
+  "home": {
+   "openStudio": "Apri la procedura guidata agenti e descrivi ciò che ti serve. Ti accompagna nella creazione, approvazione e prova degli agenti."
+  },
+  "studioDraft": {
+   "back": "Torna a questa bozza nella procedura guidata agenti."
+  },
+  "agentWizard": {
+   "back": "Vai al passaggio precedente. Nulla di ciò che hai inserito va perso.",
+   "next": "Vai al passaggio successivo.",
+   "advanced": "Apri questa bozza nello spazio di lavoro completo dello studio: canvas, editor degli elementi, differenze e area di prova.",
+   "locked": "Completa prima i passaggi precedenti.",
+   "steps": {
+    "goal": "Dai un nome al progetto e descrivi cosa devono fare gli agenti.",
+    "access": "Scegli harness, modello e credenziale con cui girano gli agenti.",
+    "design": "Chatta con l'architetto di agenti, che crea gli agenti nella bozza.",
+    "review": "Controlla la bozza rispetto alla configurazione attiva.",
+    "approve": "Approva e pubblica la bozza e configura le distribuzioni dev.",
+    "test": "Parla con il nuovo agente in dev."
+   },
+   "goal": {
+    "needTitle": "Inserisci prima un nome di progetto.",
+    "needGoal": "Descrivi prima cosa devono fare gli agenti.",
+    "name": "Un nome breve per questo progetto. Dà il nome alla bozza.",
+    "goal": "Cosa devono fare gli agenti, con parole semplici. L'architetto parte da qui.",
+    "resume": "Continua questa bozza da dove l'hai lasciata.",
+    "allDrafts": "Mostra tutte le bozze dello studio, comprese quelle non avviate nella procedura guidata."
+   },
+   "access": {
+    "needProfile": "Scegli prima un profilo harness.",
+    "needCredential": "Scegli o aggiungi prima una credenziale.",
+    "harness": "Il profilo harness su cui girano gli agenti e l'architetto.",
+    "model": "Il modello da usare. Lascia vuoto per il predefinito dell'harness.",
+    "useSecret": "Accedi con il segreto {{name}}.",
+    "addSecret": "Salva qui una nuova credenziale, con i passaggi per ottenerne il valore.",
+    "secretName": "Un nome per il segreto, per ritrovarlo poi nella pagina Segreti.",
+    "saveSecret": "Salva il segreto e usalo per questi agenti.",
+    "finishSecret": "Salva o annulla prima la nuova credenziale."
+   },
+   "design": {
+    "needAgent": "La bozza non ha ancora agenti. Continua a parlare con l'architetto."
+   },
+   "review": {
+    "askFix": "Torna alla chat e invia i problemi all'architetto.",
+    "validate": "Controlla di nuovo la bozza rispetto alla configurazione attiva.",
+    "needValid": "La bozza deve superare il controllo prima di poter essere approvata."
+   },
+   "approve": {
+    "approve": "Approva la bozza, applicala e dai a ogni agente una distribuzione dev.",
+    "openApproval": "Apri la richiesta di approvazione in una nuova vista.",
+    "retry": "Configura di nuovo le distribuzioni dev.",
+    "openAgent": "Apri questo agente."
+   },
+   "test": {
+    "message": "Cosa inviare all'agente. Enter invia; Ctrl+Enter o Shift+Enter aggiunge una nuova riga.",
+    "send": "Invia il messaggio alla distribuzione dev dell'agente.",
+    "another": "Riavvia la procedura guidata per un altro gruppo di agenti."
+   }
+  }
+ }
+});

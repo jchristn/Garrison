@@ -35,7 +35,7 @@ The **agent architect** is a protected agent seeded in every tenant. You give it
 
 An **agentic app** groups agents behind one entry agent. Its edges become each member's delegation policy, and it gets its own URL at `/apps/{slug}/`, branding, and sign-in for tenant users, users holding the `AppUser` role, or anonymous visitors when you allow them. End users chat, watch answers stream, and download the files agents wrote, without ever seeing the operator dashboard ([docs/APPS.md](docs/APPS.md), [docs/APP_UI.md](docs/APP_UI.md)).
 
-In the dashboard, the Agent Studio tab has the architect chat, the canvas, the diff and approval, the playground, compile preview, promotion and rollback, and the architect prompt editor. Architects are reusable across drafts: Agents > Architects lists them and creates, edits, and deletes them, and the setup wizard can create the first one for you. Everything in the studio is also reachable over REST, MCP, and the four SDKs; the quickstart below uses `curl` so you can see each step.
+In the dashboard, Agents > Agents > Agent wizard walks you from a description of what you need to approved agents running in dev: model access and credentials, the architect chat, review, approval, and a first conversation. A draft's full workspace (Advanced in the wizard) has the architect chat, the canvas, the diff and approval, the playground, compile preview, promotion and rollback, and the architect prompt editor. Architects are reusable across drafts: Agents > Architects lists them and creates, edits, and deletes them, and the setup wizard can create the first one for you. Everything in the studio is also reachable over REST, MCP, and the four SDKs; the quickstart below uses `curl` so you can see each step.
 
 ## Studio quickstart
 

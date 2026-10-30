@@ -92,7 +92,7 @@ describe('navigation', () => {
     expect(findPage('notifications')).toMatchObject({ hub: 'configuration', tab: 'notifications' });
     expect(pathFor('triggers')).toBe('/dashboard/agents?tab=triggers');
     expect(pathFor('notifications')).toBe('/dashboard/configuration?tab=notifications');
-    expect(findHub('agents').tabs.map((p) => p.id)).toEqual(['agents', 'deployments', 'pipelines', 'triggers', 'capabilities', 'apps', 'architects', 'studio']);
+    expect(findHub('agents').tabs.map((p) => p.id)).toEqual(['agents', 'deployments', 'pipelines', 'triggers', 'capabilities', 'apps', 'architects', 'studio', 'agentWizard']);
     expect(PAGE_VIEWS.triggers).toBeTruthy();
     expect(PAGE_VIEWS.notifications).toBeTruthy();
   });

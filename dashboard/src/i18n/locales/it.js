@@ -4739,3 +4739,154 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "Procedura guidata agenti",
+    "tip": "Un percorso guidato dalla descrizione di ciò che ti serve fino ad agenti approvati in esecuzione in dev: accesso al modello, progettazione con l'architetto di agenti, verifica, approvazione e una prima conversazione."
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Procedura guidata agenti"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "Oppure apri la procedura guidata agenti e descrivi ciò che ti serve: ti accompagna nella creazione, approvazione e prova degli agenti.",
+   "openStudio": "Apri la procedura guidata agenti"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "Apri la procedura guidata agenti"
+  },
+  "studioDraft": {
+   "back": "Torna alla procedura guidata"
+  },
+  "agentWizard": {
+   "title": "Procedura guidata agenti",
+   "subtitle": "Descrivi ciò che ti serve. La procedura guidata ti porta da lì ad agenti approvati in esecuzione in dev.",
+   "subtitleDraft": "In costruzione: {{title}}",
+   "advanced": "Avanzate",
+   "stepsLabel": "Passaggi della procedura guidata",
+   "back": "Indietro",
+   "working": "Elaborazione...",
+   "steps": {
+    "goal": "Obiettivo",
+    "access": "Accesso al modello",
+    "design": "Progettazione",
+    "review": "Verifica",
+    "approve": "Approvazione",
+    "test": "Prova"
+   },
+   "goal": {
+    "title": "Cosa devono fare i tuoi agenti?",
+    "intro": "Dai un nome al progetto e descrivi il lavoro con parole semplici. L'architetto di agenti lo legge e progetta un agente o un team di agenti.",
+    "name": "Nome del progetto",
+    "namePlaceholder": "Assistente di ricerca",
+    "nameHint": "Un nome breve che riconoscerai in seguito. Non potrai cambiarlo dopo questo passaggio.",
+    "goal": "Cosa devono fare gli agenti",
+    "goalPlaceholder": "Cercare un argomento sul web, riassumere i risultati con le fonti e scrivere un breve report.",
+    "goalHint": "Indica chi lo usa, cosa entra e cosa deve uscire. L'architetto chiede tutto ciò che deve sapere.",
+    "next": "Inizia",
+    "resume": "Oppure continua una delle tue bozze",
+    "allDrafts": "Tutte le bozze"
+   },
+   "access": {
+    "title": "Accesso al modello",
+    "intro": "Scegli l'harness su cui girano i tuoi agenti e la credenziale con cui accede. L'architetto di agenti usa lo stesso harness e la stessa credenziale mentre progetta con te.",
+    "harness": "Profilo harness",
+    "harnessHint": "La CLI che esegue gli agenti, per esempio Claude Code o Codex.",
+    "model": "Modello",
+    "modelHint": "Facoltativo. Lascia vuoto per usare il modello predefinito dell'harness.",
+    "credential": "Credenziale",
+    "noCredentialNeeded": "{{profile}} non richiede una credenziale.",
+    "credentialIntro": "{{profile}} accede con un segreto di tipo {{kinds}}. Scegline uno salvato oppure aggiungine uno ora.",
+    "noFittingSecret": "Non hai ancora un segreto salvato di tipo {{kinds}}. Aggiungine uno qui sotto; i passaggi per ottenere il valore sono indicati accanto.",
+    "addSecret": "Aggiungi una credenziale",
+    "saveSecret": "Salva la credenziale",
+    "architectDescription": "Architetto di agenti configurato dalla procedura guidata agenti.",
+    "next": "Continua alla progettazione"
+   },
+   "design": {
+    "title": "Progetta con l'architetto",
+    "intro": "Chatta con l'architetto di agenti. Chiede ciò che deve sapere e crea gli agenti nella tua bozza mentre parlate. Il pannello a destra mostra il contenuto della bozza.",
+    "contents": "Nella bozza",
+    "empty": "Ancora niente. L'architetto aggiunge qui gli agenti man mano che li progetta.",
+    "agents": "Agenti",
+    "firstMessage": "Voglio creare questo: {{goal}}\n\nGli agenti gireranno sul profilo harness {{profile}} con il segreto della credenziale {{secret}}. Chiedimi tutto ciò che ti serve sapere, poi progetta gli agenti in questa bozza.",
+    "chatTitle": "Chat con {{architect}}",
+    "next": "Continua alla verifica"
+   },
+   "review": {
+    "title": "Verifica",
+    "intro": "La procedura guidata controlla ogni elemento della bozza rispetto alla configurazione attiva. Ciò che fallirebbe torna all'architetto per la correzione.",
+    "status": {
+     "PendingApproval": "Questa bozza è in attesa di approvazione. Continua al passaggio successivo.",
+     "Applied": "Questa bozza è applicata. Continua al passaggio successivo.",
+     "Discarded": "Questa bozza è stata scartata. Iniziane una nuova dal primo passaggio."
+    },
+    "kind": "Tipo",
+    "name": "Nome",
+    "change": "Modifica",
+    "note": "Nota",
+    "problems_one": "{{count}} elemento non verrebbe applicato.",
+    "problems_other": "{{count}} elementi non verrebbero applicati.",
+    "askFix": "Chiedi all'architetto di correggere",
+    "valid": "Tutto nella bozza è a posto. Continua per approvarla.",
+    "validate": "Controlla di nuovo",
+    "fixMessage": "La bozza non è ancora valida. Correggi questi problemi:\n{{problems}}",
+    "next": "Continua all'approvazione"
+   },
+   "approve": {
+    "title": "Approva",
+    "intro": "L'approvazione applica la bozza e rende attivi gli agenti. Poi la procedura guidata dà a ogni agente una distribuzione dev, così puoi provarlo subito.",
+    "reason": "Approvato nella procedura guidata agenti.",
+    "summary": "La bozza contiene {{total}} elementi, tra cui {{agents}} agenti. Gireranno su {{profile}} con la credenziale {{secret}}.",
+    "will1": "Tutti gli elementi della bozza vengono creati o aggiornati insieme. Se uno fallisce, non cambia nulla.",
+    "will2": "Ogni agente riceve una distribuzione dev sull'harness scelto, con la credenziale associata.",
+    "will3": "Se non hai il permesso di approvare, la richiesta attende qualcuno che ce l'ha, e questa pagina prosegue quando decide.",
+    "approve": "Approva e pubblica",
+    "waiting": "In attesa della decisione di qualcuno con diritti di approvazione. Questa pagina prosegue da sola quando decide.",
+    "openApproval": "Apri l'approvazione",
+    "retry": "Riprova",
+    "done": "Approvato e pubblicato. Ogni agente ha una distribuzione dev pronta all'uso.",
+    "agent": "Agente IA",
+    "deployment": "Distribuzione dev",
+    "what": "Cosa ha fatto la procedura guidata",
+    "actions": {
+     "create": "Distribuzione creata",
+     "bind": "Credenziale associata",
+     "ready": "Già pronto"
+    },
+    "next": "Continua alla prova"
+   },
+   "test": {
+    "title": "Prova",
+    "intro": "Parla con il tuo nuovo agente in dev. Quando ti soddisfa, aprilo per promuoverlo o condividerlo.",
+    "talkingTo": "Conversazione con {{name}}.",
+    "empty": "Invia un messaggio per iniziare una conversazione.",
+    "message": "Messaggio",
+    "next": "Prossimi passi",
+    "openAgent": "Apri {{name}}",
+    "openApp": "Apri l'app {{name}}",
+    "openInvoke": "Apri in Invoke",
+    "another": "Creane altri"
+   }
+  }
+ }
+});

@@ -4739,3 +4739,154 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "Assistant d'agents",
+    "tip": "Un parcours guidé, de la description de votre besoin jusqu'à des agents approuvés qui tournent en dev : accès au modèle, conception avec l'architecte d'agents, vérification, approbation et une première conversation."
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Assistant d'agents"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "Ou ouvrez l'assistant d'agents et décrivez votre besoin : il vous guide pour créer, approuver et essayer les agents.",
+   "openStudio": "Ouvrir l'assistant d'agents"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "Ouvrir l'assistant d'agents"
+  },
+  "studioDraft": {
+   "back": "Retour à l'assistant"
+  },
+  "agentWizard": {
+   "title": "Assistant d'agents",
+   "subtitle": "Décrivez votre besoin. L'assistant vous mène ensuite jusqu'à des agents approuvés qui tournent en dev.",
+   "subtitleDraft": "Création : {{title}}",
+   "advanced": "Avancé",
+   "stepsLabel": "Étapes de l'assistant",
+   "back": "Retour",
+   "working": "Traitement...",
+   "steps": {
+    "goal": "Objectif",
+    "access": "Accès au modèle",
+    "design": "Conception",
+    "review": "Vérification",
+    "approve": "Approbation",
+    "test": "Essai"
+   },
+   "goal": {
+    "title": "Que doivent faire vos agents ?",
+    "intro": "Nommez le projet et décrivez la tâche avec des mots simples. L'architecte d'agents lit ce texte et conçoit un agent ou une équipe d'agents pour cela.",
+    "name": "Nom du projet",
+    "namePlaceholder": "Assistant de recherche",
+    "nameHint": "Un nom court que vous reconnaîtrez plus tard. Vous ne pourrez plus le changer après cette étape.",
+    "goal": "Ce que doivent faire les agents",
+    "goalPlaceholder": "Rechercher un sujet sur le web, résumer les résultats avec leurs sources et rédiger un court rapport.",
+    "goalHint": "Indiquez qui l'utilise, ce qui entre et ce qui doit sortir. L'architecte pose des questions sur tout ce qu'il doit savoir.",
+    "next": "Commencer",
+    "resume": "Ou reprenez l'un de vos brouillons",
+    "allDrafts": "Tous les brouillons"
+   },
+   "access": {
+    "title": "Accès au modèle",
+    "intro": "Choisissez le harness sur lequel tournent vos agents et les identifiants avec lesquels il se connecte. L'architecte d'agents utilise le même harness et les mêmes identifiants pendant la conception avec vous.",
+    "harness": "Profil de harness",
+    "harnessHint": "La CLI qui exécute les agents, par exemple Claude Code ou Codex.",
+    "model": "Modèle",
+    "modelHint": "Facultatif. Laissez vide pour utiliser le modèle par défaut du harness.",
+    "credential": "Identifiants",
+    "noCredentialNeeded": "{{profile}} n'a pas besoin d'identifiants.",
+    "credentialIntro": "{{profile}} se connecte avec une valeur secrète de type {{kinds}}. Choisissez-en une déjà enregistrée ou ajoutez-en une maintenant.",
+    "noFittingSecret": "Vous n'avez encore aucune valeur secrète de type {{kinds}}. Ajoutez-en une ci-dessous ; la marche à suivre pour obtenir la valeur s'affiche avec.",
+    "addSecret": "Ajouter des identifiants",
+    "saveSecret": "Enregistrer les identifiants",
+    "architectDescription": "Architecte d'agents configuré par l'assistant d'agents.",
+    "next": "Passer à la conception"
+   },
+   "design": {
+    "title": "Concevoir avec l'architecte",
+    "intro": "Discutez avec l'architecte d'agents. Il pose les questions nécessaires et crée les agents dans votre brouillon au fil de la conversation. Le panneau de droite montre le contenu du brouillon.",
+    "contents": "Dans le brouillon",
+    "empty": "Rien pour l'instant. L'architecte ajoute ici les agents à mesure qu'il les conçoit.",
+    "agents": "Liste des agents",
+    "firstMessage": "Je veux construire ceci : {{goal}}\n\nLes agents tourneront sur le profil de harness {{profile}} avec la valeur secrète d'identifiants {{secret}}. Pose-moi toutes les questions nécessaires, puis conçois les agents dans ce brouillon.",
+    "chatTitle": "Discussion avec {{architect}}",
+    "next": "Passer à la vérification"
+   },
+   "review": {
+    "title": "Vérification",
+    "intro": "L'assistant vérifie chaque élément du brouillon par rapport à votre configuration active. Ce qui échouerait retourne à l'architecte pour correction.",
+    "status": {
+     "PendingApproval": "Ce brouillon attend une approbation. Passez à l'étape suivante.",
+     "Applied": "Ce brouillon est appliqué. Passez à l'étape suivante.",
+     "Discarded": "Ce brouillon a été abandonné. Commencez-en un nouveau à la première étape."
+    },
+    "kind": "Type",
+    "name": "Nom",
+    "change": "Modification",
+    "note": "Remarque",
+    "problems_one": "{{count}} élément ne pourrait pas être appliqué.",
+    "problems_other": "{{count}} éléments ne pourraient pas être appliqués.",
+    "askFix": "Demander à l'architecte de corriger",
+    "valid": "Tout le brouillon est valide. Passez à l'approbation.",
+    "validate": "Vérifier à nouveau",
+    "fixMessage": "Le brouillon n'est pas encore valide. Corrige ces problèmes :\n{{problems}}",
+    "next": "Passer à l'approbation"
+   },
+   "approve": {
+    "title": "Approuver",
+    "intro": "L'approbation applique le brouillon et met les agents en service. L'assistant donne ensuite à chaque agent un déploiement de dev pour que vous puissiez l'essayer tout de suite.",
+    "reason": "Approuvé dans l'assistant d'agents.",
+    "summary": "Le brouillon contient {{total}} éléments, dont {{agents}} agents. Ils tourneront sur {{profile}} avec les identifiants {{secret}}.",
+    "will1": "Tous les éléments du brouillon sont créés ou mis à jour ensemble. Si l'un d'eux échoue, rien n'est modifié.",
+    "will2": "Chaque agent reçoit un déploiement de dev sur le harness choisi, avec les identifiants liés.",
+    "will3": "Si vous n'avez pas le droit d'approuver, la demande attend quelqu'un qui l'a, et cette page continue lorsqu'il décide.",
+    "approve": "Approuver et publier",
+    "waiting": "En attente de la décision d'une personne habilitée à approuver. Cette page continuera d'elle-même ensuite.",
+    "openApproval": "Ouvrir l'approbation",
+    "retry": "Réessayer",
+    "done": "Approuvé et publié. Chaque agent a un déploiement de dev prêt à tourner.",
+    "agent": "Agent IA",
+    "deployment": "Déploiement de dev",
+    "what": "Ce qu'a fait l'assistant",
+    "actions": {
+     "create": "Déploiement créé",
+     "bind": "Identifiants liés",
+     "ready": "Déjà prêt"
+    },
+    "next": "Passer à l'essai"
+   },
+   "test": {
+    "title": "Essai",
+    "intro": "Parlez à votre nouvel agent en dev. Quand il vous convient, ouvrez-le pour le promouvoir ou le partager.",
+    "talkingTo": "Conversation avec {{name}}.",
+    "empty": "Envoyez un message pour commencer une conversation.",
+    "message": "Message à envoyer",
+    "next": "Et ensuite",
+    "openAgent": "Ouvrir {{name}}",
+    "openApp": "Ouvrir l'application {{name}}",
+    "openInvoke": "Ouvrir dans Invoke",
+    "another": "En créer d'autres"
+   }
+  }
+ }
+});

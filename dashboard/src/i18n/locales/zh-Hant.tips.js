@@ -3435,3 +3435,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "從一段描述開始，引導你取得在 dev 中執行的已核准代理程式。"
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "開啟代理程式精靈：描述你的需求，它會帶你完成模型存取、與代理程式架構師一起設計、檢查、核准和第一次對話。"
+  }
+ },
+ "common": {
+  "openStudio": "開啟代理程式精靈，代理程式架構師會在這裡與你一起設計代理程式。草稿核准前，不會有任何內容上線。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "開啟代理程式精靈並描述你的需求。它會帶你完成代理程式的建立、核准和試用。"
+  },
+  "studioDraft": {
+   "back": "在代理程式精靈中返回這份草稿。"
+  },
+  "agentWizard": {
+   "back": "回到上一步。已輸入的內容不會遺失。",
+   "next": "前往下一步。",
+   "advanced": "在完整的工作室工作區開啟這份草稿：畫布、項目編輯器、差異和試驗場。",
+   "locked": "請先完成前面的步驟。",
+   "steps": {
+    "goal": "為專案命名，並描述代理程式要做的事。",
+    "access": "選擇代理程式執行時使用的 harness、模型和憑證。",
+    "design": "與代理程式架構師聊天，由它在草稿中建立代理程式。",
+    "review": "將草稿與目前的設定比對。",
+    "approve": "核准並發布草稿，並設定 dev 部署。",
+    "test": "在 dev 中與新的代理程式對話。"
+   },
+   "goal": {
+    "needTitle": "請先輸入專案名稱。",
+    "needGoal": "請先描述代理程式要做的事。",
+    "name": "這個專案的簡短名稱，也會作為草稿的名稱。",
+    "goal": "用淺白的話說明代理程式要做的事。架構師會從這裡開始。",
+    "resume": "從上次離開的地方繼續這份草稿。",
+    "allDrafts": "檢視所有工作室草稿，包括不是在精靈中建立的草稿。"
+   },
+   "access": {
+    "needProfile": "請先選擇一個 harness 設定檔。",
+    "needCredential": "請先選擇或新增憑證。",
+    "harness": "代理程式和架構師執行時使用的 harness 設定檔。",
+    "model": "要使用的模型。留空則使用 harness 的預設值。",
+    "useSecret": "使用密鑰 {{name}} 登入。",
+    "addSecret": "在這裡儲存新憑證，並附上取得其值的步驟。",
+    "secretName": "密鑰的名稱，方便之後在密鑰頁面找到它。",
+    "saveSecret": "儲存密鑰並用於這些代理程式。",
+    "finishSecret": "請先儲存或取消新憑證。"
+   },
+   "design": {
+    "needAgent": "草稿中還沒有代理程式。請繼續與架構師對話。"
+   },
+   "review": {
+    "askFix": "回到聊天，把問題傳給架構師。",
+    "validate": "再次將草稿與目前的設定比對。",
+    "needValid": "草稿必須通過檢查才能核准。"
+   },
+   "approve": {
+    "approve": "核准草稿、套用它，並為每個代理程式建立 dev 部署。",
+    "openApproval": "在新檢視中開啟核准請求。",
+    "retry": "重新設定 dev 部署。",
+    "openAgent": "開啟這個代理程式。"
+   },
+   "test": {
+    "message": "要傳送給代理程式的內容。按 Enter 傳送；按 Ctrl+Enter 或 Shift+Enter 換行。",
+    "send": "將訊息傳送到該代理程式的 dev 部署。",
+    "another": "重新開始精靈，建立另一組代理程式。"
+   }
+  }
+ }
+});

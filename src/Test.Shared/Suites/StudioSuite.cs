@@ -45,6 +45,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "diff-validate", "A draft from a 3-agent app diffs Unchanged; edits show Create and Update with field changes; validation matches manifests/apply?dryRun=true per document (" + provider + ")", ct => DiffAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "graph", "Graph operations add members, connect, set the entry, disconnect, remove, and move nodes on the draft's app (" + provider + ")", ct => GraphAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "apply-approval", "request-apply changes nothing until a person approves; an approver without Create on Manifest is refused; approval applies atomically; a moved live record is DraftStale (" + provider + ")", ct => ApplyAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "apply-failure", "A draft that validates but fails while applying changes nothing live: its approval is cancelled with the reason, the draft opens again, and the decide answers DraftInvalid naming what failed; a draft with a deployment the write would refuse is refused at request-apply (" + provider + ")", ct => ApplyFailureAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "grant-mcp", "A managementAccess Drafts run token runs the draft-to-approval flow over MCP for its person; without the grant, or for a person without design permissions, it is refused; it cannot decide its approval (" + provider + ")", ct => GrantAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "A change made through an MCP tool reaches a studio-draft:{id} subscriber with the new version and the changed item (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-seed", "Every tenant has the protected agent-architect with its skill asset; the four architect templates are built-in and immutable but resettable (" + provider + ")", ct => SeedAsync(provider, ct)));
@@ -234,6 +235,44 @@ namespace Test.Shared.Suites
                 Assert.True(app.Document.Contains("entry: grf-researcher", StringComparison.Ordinal) && app.Document.Contains("grf-editor", StringComparison.Ordinal), "The app document carries the graph: " + app.Document);
                 StudioGraph read = await HttpTestHelpers.SendAsync<StudioGraph>(host.AdminClient, HttpMethod.Get, D(host) + "/" + draft.Id + "/graph", null, 200, token).ConfigureAwait(false);
                 Assert.Equal(Serializer.Serialize(graph), Serializer.Serialize(read), "Reading the graph returns what the last operation returned");
+            }
+        }
+
+        private static async Task ApplyFailureAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                StudioDraft draft = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Loop" }, 201, token).ConfigureAwait(false);
+                string path = D(host) + "/" + draft.Id + "/items/";
+                draft = await PutAsync(host.AdminClient, path + "Agent/afl-entry", draft.Version, AgentYaml("afl-entry", "Talks to people."), token).ConfigureAwait(false);
+                draft = await PutAsync(host.AdminClient, path + "Agent/afl-helper", draft.Version, AgentYaml("afl-helper", "Helps."), token).ConfigureAwait(false);
+                draft = await PutAsync(host.AdminClient, path + "Deployment/afl-entry-dev", draft.Version, "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: afl-entry-dev\nspec:\n  agent: afl-entry\n  harnessProfile: builtin/fake\n  artifactGlobs: ['out/**']\n", token).ConfigureAwait(false);
+
+                // A deployment the write would refuse (artifact globs without a store) is refused before anyone is asked.
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, D(host) + "/" + draft.Id + "/request-apply", new StudioDraftVersionRequest { Version = draft.Version }, token).ConfigureAwait(false), 400, "DraftInvalid", "Validation refuses what the write would refuse");
+                draft = await PutAsync(host.AdminClient, path + "Deployment/afl-entry-dev", draft.Version, "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: afl-entry-dev\nspec:\n  agent: afl-entry\n  harnessProfile: builtin/fake\n", token).ConfigureAwait(false);
+
+                // An app whose calls loop: only the app check while writing catches it.
+                draft = await PutAsync(host.AdminClient, path + "AgenticApp/afl-app", draft.Version, "apiVersion: garrison/v1\nkind: AgenticApp\nmetadata:\n  name: afl-app\nspec:\n  entry: afl-entry\n  members: [ { agent: afl-entry }, { agent: afl-helper } ]\n  edges: [ { from: afl-entry, to: afl-helper }, { from: afl-helper, to: afl-entry } ]\n  environments: [ { environment: dev, deployment: afl-entry-dev } ]\n", token).ConfigureAwait(false);
+                Approval approval = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, D(host) + "/" + draft.Id + "/request-apply", new StudioDraftVersionRequest { Version = draft.Version }, 201, token).ConfigureAwait(false);
+                TestResponse decided = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + approval.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, token).ConfigureAwait(false);
+                Code(decided, 409, "DraftInvalid", "The apply fails");
+                Assert.True(decided.Body.Contains("AgenticApp/afl-app", StringComparison.Ordinal) && decided.Body.Contains("nothing was changed", StringComparison.Ordinal), "The refusal names the failing item and says nothing changed: " + decided.Body);
+                foreach (string agent in new[] { "afl-entry", "afl-helper" })
+                {
+                    Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + agent, null, token).ConfigureAwait(false)).StatusCode, "Nothing live: " + agent);
+                }
+                Approval after = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Get, T(host) + "/approvals/" + approval.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(after.Status == ApprovalStatusEnum.Cancelled && (after.Reason ?? "").Contains("afl-app", StringComparison.Ordinal), "The approval is cancelled with the reason: " + Serializer.Serialize(after));
+                StudioDraft reopened = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Get, D(host) + "/" + draft.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(StudioDraftStatusEnum.Open, reopened.Status, "The draft is open again");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + approval.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, token).ConfigureAwait(false), 409, "ApprovalNotPending", "A second decision is refused as not pending");
+
+                // Fixed, it applies.
+                reopened = await PutAsync(host.AdminClient, path + "AgenticApp/afl-app", reopened.Version, "apiVersion: garrison/v1\nkind: AgenticApp\nmetadata:\n  name: afl-app\nspec:\n  entry: afl-entry\n  members: [ { agent: afl-entry }, { agent: afl-helper } ]\n  edges: [ { from: afl-entry, to: afl-helper } ]\n  environments: [ { environment: dev, deployment: afl-entry-dev } ]\n", token).ConfigureAwait(false);
+                Approval again = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, D(host) + "/" + draft.Id + "/request-apply", new StudioDraftVersionRequest { Version = reopened.Version }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + again.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, 200, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/afl-entry", null, 200, token).ConfigureAwait(false);
             }
         }
 

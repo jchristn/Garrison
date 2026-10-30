@@ -220,6 +220,25 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Remember a record a batch is about to create or change (a manifest apply's plan), so validation that runs before
+        /// anything is written sees it as later documents will: by identifier and by name, with its planned values.
+        /// <see cref="Forget"/> drops it with the rest of its kind once records of that kind are written.
+        /// </summary>
+        /// <param name="kind">Kind (see the class summary).</param>
+        /// <param name="id">Identifier the record has or will have.</param>
+        /// <param name="name">Name, or null.</param>
+        /// <param name="record">The planned record.</param>
+        /// <exception cref="ArgumentNullException">Thrown when kind, id, or record is null or empty.</exception>
+        public void Plan(string kind, string id, string? name, object record)
+        {
+            if (String.IsNullOrEmpty(kind)) throw new ArgumentNullException(nameof(kind));
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            if (record == null) throw new ArgumentNullException(nameof(record));
+            _ById[kind + "/" + id] = record;
+            if (!String.IsNullOrEmpty(name)) _ByName[kind + "/" + name] = record;
+        }
+
+        /// <summary>
         /// Drop every remembered record and miss of a kind, after a record of that kind was created or updated.
         /// </summary>
         /// <param name="kind">Kind; Tenant drops the tenant record.</param>

@@ -4690,3 +4690,154 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "エージェントウィザード",
+    "tip": "必要なことの説明から、dev で動く承認済みエージェントまでを案内します。モデルへのアクセス、エージェントアーキテクトとの設計、確認、承認、最初の会話の順に進みます。"
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "エージェントウィザード"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "または、エージェントウィザードを開いて必要なことを説明してください。エージェントの作成、承認、試用まで案内します。",
+   "openStudio": "エージェントウィザードを開く"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "エージェントウィザードを開く"
+  },
+  "studioDraft": {
+   "back": "ウィザードに戻る"
+  },
+  "agentWizard": {
+   "title": "エージェントウィザード",
+   "subtitle": "必要なことを説明してください。そこから dev で動く承認済みエージェントまでウィザードが案内します。",
+   "subtitleDraft": "作成中: {{title}}",
+   "advanced": "詳細",
+   "stepsLabel": "ウィザードの手順",
+   "back": "戻る",
+   "working": "処理中...",
+   "steps": {
+    "goal": "目的",
+    "access": "モデルへのアクセス",
+    "design": "設計",
+    "review": "確認",
+    "approve": "承認",
+    "test": "試す"
+   },
+   "goal": {
+    "title": "エージェントに何をさせますか?",
+    "intro": "プロジェクトに名前を付け、仕事の内容をわかりやすい言葉で説明してください。エージェントアーキテクトがこれを読み、1 つのエージェントまたはエージェントのチームを設計します。",
+    "name": "プロジェクト名",
+    "namePlaceholder": "リサーチアシスタント",
+    "nameHint": "後で見てわかる短い名前です。この手順の後は変更できません。",
+    "goal": "エージェントにさせること",
+    "goalPlaceholder": "Web でトピックを調べ、見つけた内容を出典付きで要約し、短いレポートを書く。",
+    "goalHint": "誰が使うか、何を入力し、何を出力するかを書いてください。必要なことはアーキテクトが質問します。",
+    "next": "開始",
+    "resume": "または、下書きの続きから始める",
+    "allDrafts": "すべての下書き"
+   },
+   "access": {
+    "title": "モデルへのアクセス",
+    "intro": "エージェントを動かすハーネスと、サインインに使う認証情報を選んでください。エージェントアーキテクトも、あなたと設計する間は同じハーネスと認証情報を使います。",
+    "harness": "ハーネスプロファイル",
+    "harnessHint": "エージェントを実行する CLI です。たとえば Claude Code や Codex。",
+    "model": "モデル",
+    "modelHint": "任意です。空欄にするとハーネスの既定のモデルを使います。",
+    "credential": "認証情報",
+    "noCredentialNeeded": "{{profile}} には認証情報は不要です。",
+    "credentialIntro": "{{profile}} は種類 {{kinds}} のシークレットでサインインします。保存済みのものを選ぶか、今追加してください。",
+    "noFittingSecret": "種類 {{kinds}} のシークレットはまだ保存されていません。下で追加してください。値の取得手順も表示されます。",
+    "addSecret": "認証情報を追加",
+    "saveSecret": "認証情報を保存",
+    "architectDescription": "エージェントウィザードが設定したエージェントアーキテクト。",
+    "next": "設計に進む"
+   },
+   "design": {
+    "title": "アーキテクトと設計する",
+    "intro": "エージェントアーキテクトとチャットします。必要なことを質問しながら、会話に合わせて下書きにエージェントを作成します。右のパネルに下書きの内容が表示されます。",
+    "contents": "下書きの内容",
+    "empty": "まだ何もありません。アーキテクトが設計したエージェントがここに追加されます。",
+    "agents": "エージェント",
+    "firstMessage": "次のものを作りたいです: {{goal}}\n\nエージェントはハーネスプロファイル {{profile}} で、認証情報のシークレット {{secret}} を使って動きます。必要なことを質問してから、この下書きにエージェントを設計してください。",
+    "chatTitle": "{{architect}} とのチャット",
+    "next": "確認に進む"
+   },
+   "review": {
+    "title": "確認",
+    "intro": "ウィザードは下書きの各項目を現在の構成と照らし合わせて確認します。失敗しそうなものは修正のためアーキテクトに戻されます。",
+    "status": {
+     "PendingApproval": "この下書きは承認待ちです。次の手順に進んでください。",
+     "Applied": "この下書きは適用済みです。次の手順に進んでください。",
+     "Discarded": "この下書きは破棄されました。最初の手順から新しく始めてください。"
+    },
+    "kind": "種類",
+    "name": "名前",
+    "change": "変更",
+    "note": "メモ",
+    "problems_one": "{{count}} 件の項目が適用できません。",
+    "problems_other": "{{count}} 件の項目が適用できません。",
+    "askFix": "アーキテクトに修正を依頼",
+    "valid": "下書きはすべて問題ありません。承認に進んでください。",
+    "validate": "再確認",
+    "fixMessage": "下書きはまだ検証に通っていません。次の問題を修正してください:\n{{problems}}",
+    "next": "承認に進む"
+   },
+   "approve": {
+    "title": "承認",
+    "intro": "承認すると下書きが適用され、エージェントが稼働します。その後ウィザードが各エージェントに dev のデプロイメントを用意するので、すぐに試せます。",
+    "reason": "エージェントウィザードで承認しました。",
+    "summary": "下書きには {{total}} 件の項目があり、そのうち {{agents}} 件がエージェントです。{{profile}} 上で認証情報 {{secret}} を使って動きます。",
+    "will1": "下書きのすべての項目がまとめて作成または更新されます。1 つでも失敗すると、何も変更されません。",
+    "will2": "各エージェントは選んだハーネス上に dev のデプロイメントを持ち、認証情報が紐付けられます。",
+    "will3": "承認する権限がない場合、権限のある人の判断を待ちます。判断が出るとこのページは先に進みます。",
+    "approve": "承認して公開",
+    "waiting": "承認権限のある人の判断を待っています。判断が出るとこのページは自動で先に進みます。",
+    "openApproval": "承認を開く",
+    "retry": "再試行",
+    "done": "承認され、公開されました。すべてのエージェントに実行可能な dev のデプロイメントがあります。",
+    "agent": "エージェント",
+    "deployment": "dev のデプロイメント",
+    "what": "ウィザードが行ったこと",
+    "actions": {
+     "create": "デプロイメントを作成",
+     "bind": "認証情報を紐付け",
+     "ready": "準備済み"
+    },
+    "next": "試用に進む"
+   },
+   "test": {
+    "title": "試す",
+    "intro": "dev で新しいエージェントと話してみてください。満足したら、開いて昇格または共有します。",
+    "talkingTo": "{{name}} と会話中。",
+    "empty": "メッセージを送ると会話が始まります。",
+    "message": "メッセージ",
+    "next": "次に行うこと",
+    "openAgent": "{{name}} を開く",
+    "openApp": "アプリ {{name}} を開く",
+    "openInvoke": "Invoke で開く",
+    "another": "別のものを作る"
+   }
+  }
+ }
+});

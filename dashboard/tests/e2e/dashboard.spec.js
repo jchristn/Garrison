@@ -40,7 +40,8 @@ test('navigates every hub and tab without errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await login(page);
-  for (const p of PAGES) {
+  // The agent wizard is a detail page only (/dashboard/agent-wizard/<id>), covered by agentWizard.spec.js.
+  for (const p of PAGES.filter((page) => page.id !== 'agentWizard')) {
     await page.goto(pathFor(p.id));
     await expect(page.locator('.page-header-title').first(), p.id).toBeVisible();
     await expect(page.locator(`.sidebar-item[data-nav="${p.hub}"]`), p.id).toHaveAttribute('aria-current', 'page');

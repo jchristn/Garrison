@@ -4743,3 +4743,154 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "Asistente de agentes",
+    "tip": "Un camino guiado desde la descripción de lo que necesita hasta agentes aprobados que se ejecutan en dev: acceso al modelo, diseño con el arquitecto de agentes, revisión, aprobación y una primera conversación."
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "Asistente de agentes"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "O abra el asistente de agentes y describa lo que necesita: le guía para crear, aprobar y probar los agentes.",
+   "openStudio": "Abrir el asistente de agentes"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "Abrir el asistente de agentes"
+  },
+  "studioDraft": {
+   "back": "Volver al asistente"
+  },
+  "agentWizard": {
+   "title": "Asistente de agentes",
+   "subtitle": "Describa lo que necesita. El asistente le lleva desde ahí hasta agentes aprobados que se ejecutan en dev.",
+   "subtitleDraft": "Creando: {{title}}",
+   "advanced": "Avanzado",
+   "stepsLabel": "Pasos del asistente",
+   "back": "Atrás",
+   "working": "Procesando...",
+   "steps": {
+    "goal": "Objetivo",
+    "access": "Acceso al modelo",
+    "design": "Diseño",
+    "review": "Revisión",
+    "approve": "Aprobación",
+    "test": "Probar"
+   },
+   "goal": {
+    "title": "¿Qué deben hacer sus agentes?",
+    "intro": "Dé un nombre al proyecto y describa el trabajo con palabras sencillas. El arquitecto de agentes lo lee y diseña para ello un agente o un equipo de agentes.",
+    "name": "Nombre del proyecto",
+    "namePlaceholder": "Asistente de investigación",
+    "nameHint": "Un nombre corto que reconozca más tarde. No podrá cambiarlo después de este paso.",
+    "goal": "Lo que deben hacer los agentes",
+    "goalPlaceholder": "Investigar un tema en la web, resumir lo que encuentre con fuentes y escribir un informe breve.",
+    "goalHint": "Indique quién lo usa, qué entra y qué debe salir. El arquitecto preguntará lo que necesite saber.",
+    "next": "Empezar",
+    "resume": "O continúe uno de sus borradores",
+    "allDrafts": "Todos los borradores"
+   },
+   "access": {
+    "title": "Acceso al modelo",
+    "intro": "Elija el harness en el que se ejecutan sus agentes y la credencial con la que inicia sesión. El arquitecto de agentes usa el mismo harness y la misma credencial mientras diseña con usted.",
+    "harness": "Perfil de harness",
+    "harnessHint": "La CLI que ejecuta los agentes, por ejemplo Claude Code o Codex.",
+    "model": "Modelo",
+    "modelHint": "Opcional. Déjelo vacío para usar el modelo predeterminado del harness.",
+    "credential": "Credencial",
+    "noCredentialNeeded": "{{profile}} no necesita credencial.",
+    "credentialIntro": "{{profile}} inicia sesión con un secreto de tipo {{kinds}}. Elija uno guardado o añada uno ahora.",
+    "noFittingSecret": "Aún no tiene ningún secreto guardado de tipo {{kinds}}. Añada uno abajo; junto a él se indican los pasos para obtener el valor.",
+    "addSecret": "Añadir una credencial",
+    "saveSecret": "Guardar la credencial",
+    "architectDescription": "Arquitecto de agentes configurado por el asistente de agentes.",
+    "next": "Continuar al diseño"
+   },
+   "design": {
+    "title": "Diseñar con el arquitecto",
+    "intro": "Converse con el arquitecto de agentes. Pregunta lo que necesita saber y crea los agentes en su borrador mientras hablan. El panel de la derecha muestra lo que contiene el borrador.",
+    "contents": "En el borrador",
+    "empty": "Nada todavía. El arquitecto añade aquí los agentes a medida que los diseña.",
+    "agents": "Agentes",
+    "firstMessage": "Quiero crear esto: {{goal}}\n\nLos agentes se ejecutarán en el perfil de harness {{profile}} con el secreto de credencial {{secret}}. Pregúntame lo que necesites saber y después diseña los agentes en este borrador.",
+    "chatTitle": "Chat con {{architect}}",
+    "next": "Continuar a la revisión"
+   },
+   "review": {
+    "title": "Revisión",
+    "intro": "El asistente comprueba cada elemento del borrador contra su configuración activa. Lo que fallaría vuelve al arquitecto para que lo corrija.",
+    "status": {
+     "PendingApproval": "Este borrador espera aprobación. Continúe al siguiente paso.",
+     "Applied": "Este borrador está aplicado. Continúe al siguiente paso.",
+     "Discarded": "Este borrador se descartó. Empiece uno nuevo desde el primer paso."
+    },
+    "kind": "Tipo",
+    "name": "Nombre",
+    "change": "Cambio",
+    "note": "Nota",
+    "problems_one": "{{count}} elemento no se aplicaría.",
+    "problems_other": "{{count}} elementos no se aplicarían.",
+    "askFix": "Pedir al arquitecto que lo corrija",
+    "valid": "Todo el borrador es correcto. Continúe para aprobarlo.",
+    "validate": "Comprobar de nuevo",
+    "fixMessage": "El borrador todavía no es válido. Corrige estos problemas:\n{{problems}}",
+    "next": "Continuar a la aprobación"
+   },
+   "approve": {
+    "title": "Aprobar",
+    "intro": "Al aprobar se aplica el borrador y los agentes pasan a estar activos. Después el asistente da a cada agente un despliegue de dev para que pueda probarlo enseguida.",
+    "reason": "Aprobado en el asistente de agentes.",
+    "summary": "El borrador contiene {{total}} elementos, entre ellos {{agents}} agentes. Se ejecutarán en {{profile}} con la credencial {{secret}}.",
+    "will1": "Todos los elementos del borrador se crean o actualizan juntos. Si alguno falla, no se cambia nada.",
+    "will2": "Cada agente recibe un despliegue de dev en el harness elegido, con la credencial vinculada.",
+    "will3": "Si no tiene permiso para aprobar, la solicitud espera a alguien que lo tenga, y esta página continúa cuando decida.",
+    "approve": "Aprobar y publicar",
+    "waiting": "Esperando la decisión de alguien con permiso de aprobación. Esta página continuará sola cuando decida.",
+    "openApproval": "Abrir la aprobación",
+    "retry": "Reintentar",
+    "done": "Aprobado y publicado. Cada agente tiene un despliegue de dev listo para ejecutarse.",
+    "agent": "Agente IA",
+    "deployment": "Despliegue de dev",
+    "what": "Lo que hizo el asistente",
+    "actions": {
+     "create": "Despliegue creado",
+     "bind": "Credencial vinculada",
+     "ready": "Ya estaba listo"
+    },
+    "next": "Continuar para probarlo"
+   },
+   "test": {
+    "title": "Probar",
+    "intro": "Hable con su nuevo agente en dev. Cuando esté conforme, ábralo para promocionarlo o compartirlo.",
+    "talkingTo": "Hablando con {{name}}.",
+    "empty": "Envíe un mensaje para empezar una conversación.",
+    "message": "Mensaje",
+    "next": "Siguientes pasos",
+    "openAgent": "Abrir {{name}}",
+    "openApp": "Abrir la aplicación {{name}}",
+    "openInvoke": "Abrir en Invoke",
+    "another": "Crear otro"
+   }
+  }
+ }
+});

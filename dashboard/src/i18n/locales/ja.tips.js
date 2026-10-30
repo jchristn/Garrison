@@ -3436,3 +3436,89 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "agentWizard": "説明から、dev で動く承認済みエージェントまでを案内します。"
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "エージェントウィザードを開きます。必要なことを説明すると、モデルへのアクセス、エージェントアーキテクトとの設計、確認、承認、最初の会話まで案内します。"
+  }
+ },
+ "common": {
+  "openStudio": "エージェントウィザードを開きます。ここでエージェントアーキテクトがあなたとエージェントを設計します。下書きが承認されるまで何も稼働しません。"
+ },
+ "views": {
+  "home": {
+   "openStudio": "エージェントウィザードを開いて必要なことを説明してください。エージェントの作成、承認、試用まで案内します。"
+  },
+  "studioDraft": {
+   "back": "エージェントウィザードでこの下書きに戻ります。"
+  },
+  "agentWizard": {
+   "back": "前の手順に戻ります。入力した内容は失われません。",
+   "next": "次の手順に進みます。",
+   "advanced": "この下書きをスタジオの完全なワークスペースで開きます。キャンバス、項目エディター、差分、プレイグラウンドがあります。",
+   "locked": "先にこれより前の手順を終えてください。",
+   "steps": {
+    "goal": "プロジェクトに名前を付け、エージェントにさせることを説明します。",
+    "access": "エージェントが使うハーネス、モデル、認証情報を選びます。",
+    "design": "エージェントアーキテクトとチャットし、下書きにエージェントを作ってもらいます。",
+    "review": "下書きを現在の構成と照らし合わせて確認します。",
+    "approve": "下書きを承認して公開し、dev のデプロイメントを用意します。",
+    "test": "dev で新しいエージェントと話します。"
+   },
+   "goal": {
+    "needTitle": "先にプロジェクト名を入力してください。",
+    "needGoal": "先にエージェントにさせることを説明してください。",
+    "name": "このプロジェクトの短い名前です。下書きの名前になります。",
+    "goal": "エージェントにさせることを、わかりやすい言葉で。アーキテクトはここから始めます。",
+    "resume": "この下書きを中断したところから続けます。",
+    "allDrafts": "ウィザードで始めていないものも含め、Studio のすべての下書きを表示します。"
+   },
+   "access": {
+    "needProfile": "先にハーネスプロファイルを選んでください。",
+    "needCredential": "先に認証情報を選ぶか追加してください。",
+    "harness": "エージェントとアーキテクトが動くハーネスプロファイルです。",
+    "model": "使うモデルです。空欄にするとハーネスの既定を使います。",
+    "useSecret": "シークレット {{name}} でサインインします。",
+    "addSecret": "新しい認証情報をここに保存します。値の取得手順も表示されます。",
+    "secretName": "シークレットの名前です。後でシークレットのページで見つけられます。",
+    "saveSecret": "シークレットを保存し、これらのエージェントで使います。",
+    "finishSecret": "先に新しい認証情報を保存するかキャンセルしてください。"
+   },
+   "design": {
+    "needAgent": "下書きにはまだエージェントがありません。アーキテクトと話を続けてください。"
+   },
+   "review": {
+    "askFix": "チャットに戻り、問題をアーキテクトに送ります。",
+    "validate": "下書きを現在の構成ともう一度照らし合わせます。",
+    "needValid": "承認するには、下書きが確認に通っている必要があります。"
+   },
+   "approve": {
+    "approve": "下書きを承認して適用し、各エージェントに dev のデプロイメントを用意します。",
+    "openApproval": "承認リクエストを新しいビューで開きます。",
+    "retry": "dev のデプロイメントをもう一度用意します。",
+    "openAgent": "このエージェントを開きます。"
+   },
+   "test": {
+    "message": "エージェントに送る内容です。Enter で送信、Ctrl+Enter または Shift+Enter で改行します。",
+    "send": "メッセージをエージェントの dev のデプロイメントに送ります。",
+    "another": "別のエージェント群のためにウィザードを最初からやり直します。"
+   }
+  }
+ }
+});

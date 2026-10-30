@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { usePendingApprovals } from '../context/ApprovalsContext';
-import { errorMessage, errorDetail } from '../utils/errors';
+import { errorMessage, errorDetail, errorMessageWithDetail } from '../utils/errors';
 import { enumLabel } from '../utils/enums';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 
@@ -27,6 +27,7 @@ export default function ApprovalDecideModal({ approval, initialDecision = 'Allow
   const [remember, setRemember] = useState(false);
   const [rulePattern, setRulePattern] = useState(approval?.suggestedRule || '');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   if (!approval) return null;
 
   const lng = i18n.language;
@@ -36,6 +37,7 @@ export default function ApprovalDecideModal({ approval, initialDecision = 'Allow
   const submit = async () => {
     if (patternMissing) return;
     setBusy(true);
+    setError('');
     const body = { decision };
     if (reason.trim()) body.reason = reason.trim();
     if (remember) {
@@ -49,10 +51,15 @@ export default function ApprovalDecideModal({ approval, initialDecision = 'Allow
       refresh();
       onDecided?.(decided || null);
     } catch (e) {
-      if (e?.status === 409) {
+      if (e?.status === 409 && e?.code === 'ApprovalNotPending') {
         addToast({ type: 'warning', message: t('components.approvals.toasts.notPending') });
         refresh();
         onDecided?.(null);
+      } else if (e?.status === 409) {
+        // Another refusal (a draft that no longer validates or could not be applied): say exactly what failed, keep the
+        // dialog open, and refresh the list, which shows the approval as it is now.
+        setError(`${errorMessageWithDetail(t, e)} ${errorDetail(t, e)}`.trim());
+        refresh();
       } else if (e?.status === 403) {
         addToast({ type: 'error', message: `${t(remember ? 'components.approvals.toasts.forbiddenRemember' : 'components.approvals.toasts.forbidden')} ${errorDetail(t, e)}`.trim() });
       } else {
@@ -158,6 +165,11 @@ export default function ApprovalDecideModal({ approval, initialDecision = 'Allow
                 {t('common.errors.required')}
               </div>
             )}
+          </div>
+        )}
+        {error && (
+          <div className="error-banner" role="alert" data-testid="decide-error">
+            {error}
           </div>
         )}
       </div>

@@ -496,7 +496,7 @@ namespace Garrison.Server.Services
                 await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
                 throw new ConflictException("DraftStale", "Live configuration changed since the draft was validated: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". The draft is open again; validate it and request approval again.");
             }
-            if (!diff.Valid) throw new ConflictException("DraftInvalid", "The draft no longer validates: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+            if (!diff.Valid) await ReopenInvalidAsync(ctx, approvals, approval, draft, "The draft no longer validates: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
 
             ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, approval.TenantId) };
             List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
@@ -505,7 +505,8 @@ namespace Garrison.Server.Services
             {
                 ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(approval.TenantId, Bundle(upserts), options, token).ConfigureAwait(false);
                 applyId = applied.Id;
-                if (applied.FailedCount > 0) throw new ConflictException("DraftInvalid", "Applying the draft failed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+                // A failed apply was rolled back, so nothing changed live.
+                if (applied.FailedCount > 0) await ReopenInvalidAsync(ctx, approvals, approval, draft, "Applying the draft failed, and nothing was changed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
             }
             foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Delete)) await DeleteLiveAsync(ctx, approval.TenantId, item, token).ConfigureAwait(false);
             if (draft.PublishOnApply)
@@ -520,6 +521,28 @@ namespace Garrison.Server.Services
             await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Applied, approval.Id, applyId, token).ConfigureAwait(false);
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Applied draft " + draft.Title + " (" + Summarize(diff) + ")" + (applyId == null ? "." : " as manifest apply " + applyId + "."), approval.TenantId, token).ConfigureAwait(false);
             return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
+        }
+
+        /// <summary>
+        /// A draft that cannot be applied: cancel its approval with the reason, open the draft again so it can be fixed, and
+        /// throw DraftInvalid naming what failed.
+        /// </summary>
+        /// <param name="ctx">Deciding principal.</param>
+        /// <param name="approvals">Approval service.</param>
+        /// <param name="approval">The pending DraftApply approval.</param>
+        /// <param name="draft">The draft.</param>
+        /// <param name="problem">What failed.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Never returns normally.</returns>
+        /// <exception cref="ConflictException">Always thrown, with DraftInvalid.</exception>
+        private async Task ReopenInvalidAsync(RequestContext ctx, Garrison.Server.Runtime.ApprovalService approvals, Approval approval, StudioDraft draft, string problem, CancellationToken token)
+        {
+            string reason = problem.Length > 3500 ? problem.Substring(0, 3500) + "..." : problem;
+            // Cancelled rather than denied: the person allowed it, and the draft could not be applied.
+            await approvals.CancelDraftAsync(approval, reason, token).ConfigureAwait(false);
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ApprovalDecided, "Approval", approval.Id, "Allowed " + approval.ToolName + ", but it could not be applied: " + reason, approval.TenantId, token).ConfigureAwait(false);
+            await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
+            throw new ConflictException("DraftInvalid", problem + " The approval was cancelled and the draft is open again; fix it and request approval again.");
         }
 
         /// <summary>

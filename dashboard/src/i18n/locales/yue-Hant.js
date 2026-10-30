@@ -4690,3 +4690,154 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// Agent wizard: the guided path from a description to approved agents running in dev, its entry points, and the studio tab it replaces.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "agentWizard": {
+    "label": "代理程式精靈",
+    "tip": "由講出你要乜嘢開始，一步步帶你去到喺 dev 運行嘅已批核代理程式：模型存取、同代理程式架構師一齊設計、檢查、批核，同埋第一次對話。"
+   }
+  }
+ },
+ "resources": {
+  "agents": {
+   "wizard": "代理程式精靈"
+  }
+ },
+ "common": {
+  "states": {
+   "studioHint": "或者打開代理程式精靈，講低你要乜嘢：佢會帶你建立、批核同試用啲代理程式。",
+   "openStudio": "打開代理程式精靈"
+  }
+ },
+ "views": {
+  "home": {
+   "openStudio": "打開代理程式精靈"
+  },
+  "studioDraft": {
+   "back": "返去精靈"
+  },
+  "agentWizard": {
+   "title": "代理程式精靈",
+   "subtitle": "講低你要乜嘢。精靈會由呢度帶你去到喺 dev 運行嘅已批核代理程式。",
+   "subtitleDraft": "建立緊：{{title}}",
+   "advanced": "進階",
+   "stepsLabel": "精靈步驟",
+   "back": "上一步",
+   "working": "處理緊...",
+   "steps": {
+    "goal": "目標",
+    "access": "模型存取",
+    "design": "設計",
+    "review": "檢查",
+    "approve": "批核",
+    "test": "試用"
+   },
+   "goal": {
+    "title": "你啲代理程式要做乜？",
+    "intro": "幫個專案改個名，用淺白嘅說話講清楚份工作。代理程式架構師會睇咗呢啲內容，再幫你設計一個代理程式或者一組代理程式。",
+    "name": "專案名稱",
+    "namePlaceholder": "研究助理",
+    "nameHint": "一個之後認得出嘅短名。過咗呢一步就改唔到。",
+    "goal": "代理程式要做嘅嘢",
+    "goalPlaceholder": "喺網上研究一個題目，連埋來源總結搵到嘅內容，再寫一份簡短報告。",
+    "goalHint": "講明邊個用、輸入乜嘢、應該輸出乜嘢。架構師需要知嘅嘢會自己問。",
+    "next": "開始",
+    "resume": "或者繼續你其中一份草稿",
+    "allDrafts": "所有草稿"
+   },
+   "access": {
+    "title": "模型存取",
+    "intro": "揀運行代理程式嘅 harness，同埋佢登入用嘅憑證。代理程式架構師同你一齊設計嗰陣，都會用同一個 harness 同憑證。",
+    "harness": "Harness 設定檔",
+    "harnessHint": "運行代理程式嘅 CLI，例如 Claude Code 或者 Codex。",
+    "model": "模型",
+    "modelHint": "可以唔填。留空就用 harness 嘅預設模型。",
+    "credential": "憑證",
+    "noCredentialNeeded": "{{profile}} 唔使憑證。",
+    "credentialIntro": "{{profile}} 用類型係 {{kinds}} 嘅密鑰登入。揀一個之前儲存咗嘅，或者而家加一個。",
+    "noFittingSecret": "你仲未儲存類型係 {{kinds}} 嘅密鑰。喺下面加一個；攞個值嘅步驟會一齊顯示。",
+    "addSecret": "加入憑證",
+    "saveSecret": "儲存憑證",
+    "architectDescription": "由代理程式精靈設定嘅代理程式架構師。",
+    "next": "繼續去設計"
+   },
+   "design": {
+    "title": "同架構師一齊設計",
+    "intro": "同代理程式架構師傾偈。佢會問需要知嘅嘢，一路傾一路將代理程式建立喺你嘅草稿入面。右邊個面板會顯示草稿有啲乜。",
+    "contents": "草稿入面",
+    "empty": "仲未有嘢。架構師設計好代理程式就會加喺呢度。",
+    "agents": "代理程式",
+    "firstMessage": "我想整呢樣嘢：{{goal}}\n\n啲代理程式會喺 harness 設定檔 {{profile}} 上面運行，用憑證密鑰 {{secret}}。你有咩需要知就問我，然後喺呢份草稿入面設計啲代理程式。",
+    "chatTitle": "同 {{architect}} 傾偈",
+    "next": "繼續去檢查"
+   },
+   "review": {
+    "title": "檢查",
+    "intro": "精靈會將草稿入面每一項同你而家嘅設定對一對。會失敗嘅項目會退返畀架構師修正。",
+    "status": {
+     "PendingApproval": "呢份草稿等緊批核。請繼續下一步。",
+     "Applied": "呢份草稿已經套用咗。請繼續下一步。",
+     "Discarded": "呢份草稿已經棄咗。請由第一步開過一份新嘅。"
+    },
+    "kind": "類型",
+    "name": "名稱",
+    "change": "變更",
+    "note": "備註",
+    "problems_one": "有 {{count}} 項套用唔到。",
+    "problems_other": "有 {{count}} 項套用唔到。",
+    "askFix": "叫架構師修正",
+    "valid": "草稿入面所有嘢都冇問題。請繼續批核。",
+    "validate": "再檢查一次",
+    "fixMessage": "草稿仲未通過驗證。請修正呢啲問題：\n{{problems}}",
+    "next": "繼續去批核"
+   },
+   "approve": {
+    "title": "批核",
+    "intro": "批核之後會套用草稿，啲代理程式就會上線。跟住精靈會幫每個代理程式整一個 dev 部署，你即刻就可以試。",
+    "reason": "喺代理程式精靈度批核。",
+    "summary": "草稿有 {{total}} 項，當中有 {{agents}} 個代理程式。佢哋會喺 {{profile}} 上面運行，用憑證 {{secret}}。",
+    "will1": "草稿入面所有項目會一齊建立或者更新。只要有一項失敗，就乜都唔會改。",
+    "will2": "每個代理程式都會喺你揀嘅 harness 上面有一個 dev 部署，並綁定憑證。",
+    "will3": "如果你冇權批核，個請求會等有權嘅人處理，佢決定咗之後呢頁就會繼續。",
+    "approve": "批核並發佈",
+    "waiting": "等緊有批核權嘅人決定。佢決定咗之後呢頁會自己繼續。",
+    "openApproval": "打開批核",
+    "retry": "再試一次",
+    "done": "已經批核同發佈。每個代理程式都有一個可以運行嘅 dev 部署。",
+    "agent": "代理程式",
+    "deployment": "dev 部署",
+    "what": "精靈做咗啲乜",
+    "actions": {
+     "create": "建立咗部署",
+     "bind": "綁定咗憑證",
+     "ready": "已經準備好"
+    },
+    "next": "繼續去試用"
+   },
+   "test": {
+    "title": "試用",
+    "intro": "喺 dev 同你嘅新代理程式傾下。滿意之後，打開佢嚟升級或者分享。",
+    "talkingTo": "同 {{name}} 傾緊。",
+    "empty": "發一個訊息開始對話。",
+    "message": "訊息",
+    "next": "下一步去邊",
+    "openAgent": "打開 {{name}}",
+    "openApp": "打開應用程式 {{name}}",
+    "openInvoke": "喺 Invoke 打開",
+    "another": "再整一個"
+   }
+  }
+ }
+});
