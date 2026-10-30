@@ -3322,8 +3322,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "studio": {
   "architect": {
-   "credentialSecretId": "The secret the architect's harness signs in with: an Anthropic API key or a Claude Code OAuth token for Claude Code, an OpenAI API key or ChatGPT login for Codex, and so on. Garrison binds it to the architect's deployment.",
-   "addSecret": "Open Secrets in a new tab to add the API key or token, then come back and choose it here."
+   "credentialSecretId": "The secret the architect's harness signs in with: an Anthropic API key or a Claude Code OAuth token for Claude Code, an OpenAI API key or ChatGPT login for Codex, and so on. Garrison binds it to the architect's deployment."
   },
   "chat": {
    "fixCredential": "Open Agents > Architects filtered to this architect, then edit it and choose its credential secret.",

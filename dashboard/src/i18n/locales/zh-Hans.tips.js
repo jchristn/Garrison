@@ -3321,8 +3321,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "studio": {
   "architect": {
-   "credentialSecretId": "架构师的 Harness 用于登录的机密：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
-   "addSecret": "在新标签页中打开机密，添加 API 密钥或令牌，然后回到这里选择它。"
+   "credentialSecretId": "架构师的 Harness 用于登录的机密：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。"
   },
   "chat": {
    "fixCredential": "打开按此架构师筛选的 智能体 > 架构师，编辑它并选择凭据机密。",

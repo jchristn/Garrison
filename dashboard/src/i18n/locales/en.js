@@ -4398,8 +4398,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    },
    "hints": {
     "model": "Leave empty to use the harness profile's default model.",
-    "architectPromptTemplateId": "The System template the architect works with. A change takes effect on its next turn.",
-    "architectPromptVersion": "Leave empty to follow the prompt's current version, so saved edits apply on the next turn."
+    "architectPromptVersion": "Leave empty to always use the prompt's current version."
    },
    "actions": {
     "prompts": "Architect prompts",
@@ -4463,10 +4462,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "architect": {
     "credential": "Credential",
     "noCredential": "None",
-    "credentialOption": "{{name}} ({{kind}})",
-    "credentialHint": "The secret the harness signs in with. Garrison binds it to the architect's deployment.",
-    "credentialMissing": "{{profile}} needs a credential to sign in, and none is chosen. Without one, every turn fails with Not logged in.",
-    "addSecret": "Add a secret"
+    "credentialOption": "{{name}} ({{kind}})"
    },
    "chat": {
     "notCredentialedTitle": "The architect could not sign in to its model provider",
@@ -4485,10 +4481,6 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    },
    "fields": {
     "credentialSecretId": "Credential"
-   },
-   "hints": {
-    "credentialSecretId": "The secret the harness signs in with, bound to the architect's deployment.",
-    "credentialMissing": "{{profile}} needs a credential to sign in. Without one, every turn fails with Not logged in."
    },
    "noCredential": "None"
   }
@@ -4511,16 +4503,16 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "refresh": "Refresh list"
   },
   "architectHints": {
-   "harness": "Harness profiles come from Configuration > Harness Profiles. The built-in ones (Claude Code, Codex, and others) are ready to use.",
+   "harness": "The built-in profiles (Claude Code, Codex, and others) are ready to use.",
    "harnessLink": "Open Configuration > Harness Profiles",
-   "credential": "Choose the secret that holds the harness's API key or token. Secrets are created on Configuration > Secrets: add the key there, then come back and choose it here.",
-   "credentialKinds": "For {{profile}}, add a secret of kind {{kinds}}.",
    "credentialNotNeeded": "{{profile}} needs no credential.",
-   "credentialNone": "This tenant has no secrets yet, so the list is empty.",
-   "credentialMissing": "{{profile}} needs a credential to sign in, and none is chosen. Without one, every turn fails with Not logged in.",
    "credentialLink": "Open Configuration > Secrets",
-   "prompt": "Architect prompts are System templates on Configuration > Prompt Templates; clone and edit them there, or with the Architect prompts action on Agents > Architects.",
-   "promptLink": "Open Configuration > Prompt Templates"
+   "prompt": "A change applies on the architect's next turn.",
+   "promptLink": "Open Configuration > Prompt Templates",
+   "credentialNoProfile": "The secret the harness signs in with.",
+   "credentialChosen": "The secret {{profile}} signs in with.",
+   "credentialPick": "{{profile}} signs in with a secret of kind {{kinds}}. Choose one, or every turn fails with Not logged in.",
+   "credentialAdd": "{{profile}} signs in with a secret of kind {{kinds}}, and this tenant has none yet. Add one on Configuration > Secrets, then choose it here. Without it, every turn fails with Not logged in."
   }
  }
 });

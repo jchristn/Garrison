@@ -3322,8 +3322,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "studio": {
   "architect": {
-   "credentialSecretId": "アーキテクトのハーネスがサインインに使うシークレットです。Claude Code なら Anthropic API キーか Claude Code OAuth トークン、Codex なら OpenAI API キーか ChatGPT ログインなどです。Garrison がアーキテクトのデプロイメントにバインドします。",
-   "addSecret": "新しいタブでシークレットを開いて API キーまたはトークンを追加し、ここに戻って選択します。"
+   "credentialSecretId": "アーキテクトのハーネスがサインインに使うシークレットです。Claude Code なら Anthropic API キーか Claude Code OAuth トークン、Codex なら OpenAI API キーか ChatGPT ログインなどです。Garrison がアーキテクトのデプロイメントにバインドします。"
   },
   "chat": {
    "fixCredential": "このアーキテクトで絞り込んだ エージェント > アーキテクト を開き、編集して認証情報のシークレットを選びます。",

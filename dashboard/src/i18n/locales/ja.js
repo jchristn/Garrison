@@ -4370,8 +4370,7 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
    },
    "hints": {
     "model": "空のままにすると、ハーネスプロファイルの既定のモデルを使用します。",
-    "architectPromptTemplateId": "アーキテクトが使用する System テンプレートです。変更は次のターンから反映されます。",
-    "architectPromptVersion": "空のままにするとプロンプトの現在のバージョンに従うため、保存した編集は次のターンから反映されます。"
+    "architectPromptVersion": "空のままにすると、常にプロンプトの現在のバージョンを使います。"
    },
    "actions": {
     "prompts": "アーキテクトプロンプト",
@@ -4435,10 +4434,7 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
    "architect": {
     "credential": "認証情報",
     "noCredential": "なし",
-    "credentialOption": "{{name}} ({{kind}})",
-    "credentialHint": "ハーネスがサインインに使うシークレットです。Garrison がアーキテクトのデプロイメントにバインドします。",
-    "credentialMissing": "{{profile}} はサインインに認証情報が必要ですが、選択されていません。ないとすべてのターンが Not logged in で失敗します。",
-    "addSecret": "シークレットを追加"
+    "credentialOption": "{{name}} ({{kind}})"
    },
    "chat": {
     "notCredentialedTitle": "アーキテクトがモデルプロバイダーにサインインできませんでした",
@@ -4457,10 +4453,6 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
    },
    "fields": {
     "credentialSecretId": "認証情報"
-   },
-   "hints": {
-    "credentialSecretId": "ハーネスがサインインに使うシークレットで、アーキテクトのデプロイメントにバインドされます。",
-    "credentialMissing": "{{profile}} はサインインに認証情報が必要です。ないとすべてのターンが Not logged in で失敗します。"
    },
    "noCredential": "なし"
   }
@@ -4483,16 +4475,16 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
    "refresh": "一覧を更新"
   },
   "architectHints": {
-   "harness": "ハーネスプロファイルは 構成 > ハーネスプロファイル で管理されます。組み込みのもの (Claude Code、Codex など) はすぐに使えます。",
+   "harness": "組み込みのプロファイル (Claude Code、Codex など) はすぐに使えます。",
    "harnessLink": "構成 > ハーネスプロファイル を開く",
-   "credential": "認証情報は、ハーネスの API キーまたはトークンを保持するシークレットです。シークレットは 構成 > シークレット で作成します。そこでキーを追加してから、ここに戻って選択してください。",
-   "credentialKinds": "{{profile}} には、種類が {{kinds}} のシークレットを追加してください。",
    "credentialNotNeeded": "{{profile}} には認証情報は不要です。",
-   "credentialNone": "このテナントにはまだシークレットがないため、一覧は空です。",
-   "credentialMissing": "{{profile}} はサインインに認証情報が必要ですが、選択されていません。ないとすべてのターンが Not logged in で失敗します。",
    "credentialLink": "構成 > シークレット を開く",
-   "prompt": "アーキテクトプロンプトは 構成 > プロンプトテンプレート にある System テンプレートです。そこで複製と編集を行うか、エージェント > アーキテクト のアーキテクトプロンプト操作を使います。",
-   "promptLink": "構成 > プロンプトテンプレート を開く"
+   "prompt": "変更はアーキテクトの次のターンから反映されます。",
+   "promptLink": "構成 > プロンプトテンプレート を開く",
+   "credentialNoProfile": "ハーネスがサインインに使うシークレットです。",
+   "credentialChosen": "{{profile}} がサインインに使うシークレットです。",
+   "credentialPick": "{{profile}} は種類が {{kinds}} のシークレットでサインインします。選択しないと、すべてのターンが Not logged in で失敗します。",
+   "credentialAdd": "{{profile}} は種類が {{kinds}} のシークレットでサインインしますが、このテナントにはまだありません。構成 > シークレット で追加してから、ここで選択してください。ないとすべてのターンが Not logged in で失敗します。"
   }
  }
 });

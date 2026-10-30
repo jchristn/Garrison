@@ -4371,8 +4371,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    },
    "hints": {
     "model": "留空则使用 Harness 配置文件的默认模型。",
-    "architectPromptTemplateId": "架构师使用的 System 模板。更改从其下一轮开始生效。",
-    "architectPromptVersion": "留空则跟随提示词的当前版本，保存的编辑会从下一轮开始生效。"
+    "architectPromptVersion": "留空则始终使用提示词的当前版本。"
    },
    "actions": {
     "prompts": "架构师提示词",
@@ -4436,10 +4435,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    "architect": {
     "credential": "凭据",
     "noCredential": "无",
-    "credentialOption": "{{name}}（{{kind}}）",
-    "credentialHint": "Harness 用于登录的机密。Garrison 会把它绑定到架构师的部署。",
-    "credentialMissing": "{{profile}} 需要凭据才能登录，但尚未选择。没有凭据时，每一轮都会因 Not logged in 而失败。",
-    "addSecret": "添加机密"
+    "credentialOption": "{{name}}（{{kind}}）"
    },
    "chat": {
     "notCredentialedTitle": "架构师无法登录其模型提供商",
@@ -4458,10 +4454,6 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    },
    "fields": {
     "credentialSecretId": "凭据"
-   },
-   "hints": {
-    "credentialSecretId": "Harness 用于登录的机密，绑定到架构师的部署。",
-    "credentialMissing": "{{profile}} 需要凭据才能登录。没有凭据时，每一轮都会因 Not logged in 而失败。"
    },
    "noCredential": "无"
   }
@@ -4484,16 +4476,16 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    "refresh": "刷新列表"
   },
   "architectHints": {
-   "harness": "Harness 配置文件来自 配置 > Harness 配置文件。内置的（Claude Code、Codex 等）可以直接使用。",
+   "harness": "内置配置文件（Claude Code、Codex 等）可以直接使用。",
    "harnessLink": "打开 配置 > Harness 配置文件",
-   "credential": "凭据是保存 Harness 的 API 密钥或令牌的机密，机密在 配置 > 机密 中创建：先在那里添加机密，然后回到这里选择它。",
-   "credentialKinds": "对于 {{profile}}，请添加类型为 {{kinds}} 的机密。",
    "credentialNotNeeded": "{{profile}} 不需要凭据。",
-   "credentialNone": "此租户还没有任何机密，所以列表为空。",
-   "credentialMissing": "{{profile}} 需要凭据才能登录，但尚未选择。没有凭据时，每一轮都会因 Not logged in 而失败。",
    "credentialLink": "打开 配置 > 机密",
-   "prompt": "架构师提示词是 配置 > 提示词模板 中的 System 模板；可以在那里克隆和编辑，或使用 智能体 > 架构师 中的架构师提示词操作。",
-   "promptLink": "打开 配置 > 提示词模板"
+   "prompt": "更改会从架构师的下一轮开始生效。",
+   "promptLink": "打开 配置 > 提示词模板",
+   "credentialNoProfile": "Harness 用于登录的机密。",
+   "credentialChosen": "{{profile}} 用于登录的机密。",
+   "credentialPick": "{{profile}} 使用类型为 {{kinds}} 的机密登录。请选择一个，否则每一轮都会因 Not logged in 而失败。",
+   "credentialAdd": "{{profile}} 使用类型为 {{kinds}} 的机密登录，但此租户还没有。请在 配置 > 机密 中添加一个，然后在这里选择它。没有它，每一轮都会因 Not logged in 而失败。"
   }
  }
 });

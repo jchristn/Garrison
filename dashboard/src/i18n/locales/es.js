@@ -4423,8 +4423,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    },
    "hints": {
     "model": "Déjalo vacío para usar el modelo predeterminado del perfil de harness.",
-    "architectPromptTemplateId": "La plantilla System con la que trabaja el arquitecto. Un cambio se aplica en su siguiente turno.",
-    "architectPromptVersion": "Déjalo vacío para seguir la versión actual del prompt, de modo que las ediciones guardadas se apliquen en el siguiente turno."
+    "architectPromptVersion": "Déjalo vacío para usar siempre la versión actual del prompt."
    },
    "actions": {
     "prompts": "Prompts del arquitecto",
@@ -4488,10 +4487,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "architect": {
     "credential": "Credencial",
     "noCredential": "Ninguna",
-    "credentialOption": "{{name}} ({{kind}})",
-    "credentialHint": "El secreto con el que el harness inicia sesión. Garrison lo vincula al despliegue del arquitecto.",
-    "credentialMissing": "{{profile}} necesita una credencial para iniciar sesión y no hay ninguna elegida. Sin ella, cada turno falla con Not logged in.",
-    "addSecret": "Añadir un secreto"
+    "credentialOption": "{{name}} ({{kind}})"
    },
    "chat": {
     "notCredentialedTitle": "El arquitecto no pudo iniciar sesión en su proveedor de modelos",
@@ -4510,10 +4506,6 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    },
    "fields": {
     "credentialSecretId": "Credencial"
-   },
-   "hints": {
-    "credentialSecretId": "El secreto con el que el harness inicia sesión, vinculado al despliegue del arquitecto.",
-    "credentialMissing": "{{profile}} necesita una credencial para iniciar sesión. Sin ella, cada turno falla con Not logged in."
    },
    "noCredential": "Ninguna"
   }
@@ -4536,16 +4528,16 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "refresh": "Actualizar lista"
   },
   "architectHints": {
-   "harness": "Los perfiles de harness vienen de Configuración > Perfiles de harness. Los integrados (Claude Code, Codex y otros) se pueden usar ya.",
+   "harness": "Los perfiles integrados (Claude Code, Codex y otros) se pueden usar ya.",
    "harnessLink": "Abrir Configuración > Perfiles de harness",
-   "credential": "La credencial es un secreto que guarda la clave de API o el token del harness, y los secretos se crean en Configuración > Secretos: añade allí la clave y vuelve aquí para elegirla.",
-   "credentialKinds": "Para {{profile}}, añade un secreto de tipo {{kinds}}.",
    "credentialNotNeeded": "{{profile}} no necesita credencial.",
-   "credentialNone": "Este inquilino aún no tiene secretos, así que la lista está vacía.",
-   "credentialMissing": "{{profile}} necesita una credencial para iniciar sesión y no hay ninguna elegida. Sin ella, cada turno falla con Not logged in.",
    "credentialLink": "Abrir Configuración > Secretos",
-   "prompt": "Los prompts del arquitecto son plantillas System de Configuración > Plantillas de prompt; clónalas y edítalas allí, o con la acción Prompts del arquitecto en Agentes > Arquitectos.",
-   "promptLink": "Abrir Configuración > Plantillas de prompt"
+   "prompt": "Un cambio se aplica en el siguiente turno del arquitecto.",
+   "promptLink": "Abrir Configuración > Plantillas de prompt",
+   "credentialNoProfile": "El secreto con el que inicia sesión el harness.",
+   "credentialChosen": "El secreto con el que inicia sesión {{profile}}.",
+   "credentialPick": "{{profile}} inicia sesión con un secreto de tipo {{kinds}}. Elige uno; si no, cada turno falla con Not logged in.",
+   "credentialAdd": "{{profile}} inicia sesión con un secreto de tipo {{kinds}} y este inquilino aún no tiene ninguno. Añade uno en Configuración > Secretos y elígelo aquí. Sin él, cada turno falla con Not logged in."
   }
  }
 });

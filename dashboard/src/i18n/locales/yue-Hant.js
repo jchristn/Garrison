@@ -4370,8 +4370,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    },
    "hints": {
     "model": "留空就用 Harness 設定檔嘅預設模型。",
-    "architectPromptTemplateId": "架構師用嘅 System 範本。改動會喺佢下一輪開始生效。",
-    "architectPromptVersion": "留空就跟提示嘅目前版本，儲存咗嘅編輯會喺下一輪開始生效。"
+    "architectPromptVersion": "留空就一直用提示嘅目前版本。"
    },
    "actions": {
     "prompts": "架構師提示",
@@ -4435,10 +4434,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    "architect": {
     "credential": "憑證",
     "noCredential": "冇",
-    "credentialOption": "{{name}}（{{kind}}）",
-    "credentialHint": "Harness 用嚟登入嘅機密。Garrison 會將佢綁定到架構師嘅部署。",
-    "credentialMissing": "{{profile}} 要有憑證先可以登入，但係仲未揀。冇憑證嘅話，每一輪都會以 Not logged in 失敗。",
-    "addSecret": "新增機密"
+    "credentialOption": "{{name}}（{{kind}}）"
    },
    "chat": {
     "notCredentialedTitle": "架構師登入唔到佢嘅模型供應商",
@@ -4457,10 +4453,6 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    },
    "fields": {
     "credentialSecretId": "憑證"
-   },
-   "hints": {
-    "credentialSecretId": "Harness 用嚟登入嘅機密，綁定到架構師嘅部署。",
-    "credentialMissing": "{{profile}} 要有憑證先可以登入。冇憑證嘅話，每一輪都會以 Not logged in 失敗。"
    },
    "noCredential": "冇"
   }
@@ -4483,16 +4475,16 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    "refresh": "重新載入清單"
   },
   "architectHints": {
-   "harness": "Harness 設定檔嚟自 配置 > Harness 設定檔。內建嗰啲（Claude Code、Codex 等等）即刻用得。",
+   "harness": "內建設定檔（Claude Code、Codex 等等）即刻用得。",
    "harnessLink": "打開 配置 > Harness 設定檔",
-   "credential": "憑證係一個保存 Harness API 金鑰或者權杖嘅機密，機密喺 配置 > 機密 度建立：喺嗰度加金鑰，然後返嚟呢度揀佢。",
-   "credentialKinds": "{{profile}} 要加一個種類係 {{kinds}} 嘅機密。",
    "credentialNotNeeded": "{{profile}} 唔使憑證。",
-   "credentialNone": "呢個租用戶仲未有機密，所以清單係空嘅。",
-   "credentialMissing": "{{profile}} 要有憑證先可以登入，但係仲未揀。冇憑證嘅話，每一輪都會以 Not logged in 失敗。",
    "credentialLink": "打開 配置 > 機密",
-   "prompt": "架構師提示係 配置 > 提示範本 入面嘅 System 範本；可以喺嗰度複製同編輯，或者用 代理程式 > 架構師 入面嘅架構師提示動作。",
-   "promptLink": "打開 配置 > 提示範本"
+   "prompt": "改動會喺架構師下一輪開始生效。",
+   "promptLink": "打開 配置 > 提示範本",
+   "credentialNoProfile": "Harness 用嚟登入嘅機密。",
+   "credentialChosen": "{{profile}} 用嚟登入嘅機密。",
+   "credentialPick": "{{profile}} 用種類係 {{kinds}} 嘅機密登入。請揀一個，唔係嘅話每一輪都會以 Not logged in 失敗。",
+   "credentialAdd": "{{profile}} 用種類係 {{kinds}} 嘅機密登入，但係呢個租用戶仲未有。請喺 配置 > 機密 加一個，然後返嚟呢度揀佢。冇咗佢，每一輪都會以 Not logged in 失敗。"
   }
  }
 });

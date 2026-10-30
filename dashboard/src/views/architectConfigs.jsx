@@ -198,7 +198,7 @@ export const architectsConfig = {
       col(t, 'createdUtc', (r) => when(r.createdUtc, lng), { sortable: true, cellClass: 'nowrap', csv: (r) => r.createdUtc || '' })
     ];
   },
-  fields: (d, { t, i18n, options = {}, reloadOptions }) => {
+  fields: (d, { t, i18n, mode, options = {}, reloadOptions }) => {
     const profiles = (options.profiles || []).map((p) => ({ value: p.id, label: p.name }));
     const prompts = (options.prompts || []).map((p) => ({ value: p.id, label: p.isDefault ? t('components.studio.architect.defaultPrompt', { name: p.name }) : p.name }));
     const secrets = (options.secrets || []).map((x) => ({ value: x.id, label: t('components.studio.architect.credentialOption', { name: x.name, kind: x.kind }) }));
@@ -207,14 +207,14 @@ export const architectsConfig = {
     return [
       field(t, 'name', 'text', { required: true, placeholder: 'architect' }),
       field(t, 'description', 'textarea', { rows: 2 }),
-      field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t, reloadOptions) }),
+      field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t) }),
       field(t, 'credentialSecretId', 'select', {
         noneLabel: t('components.studio.architect.noCredential'),
         options: keep(secrets, d?.credentialSecretId),
         hint: credentialHint(t, { profile, secretCount: secrets.length, chosen: d?.credentialSecretId, onRefresh: reloadOptions, lng: i18n?.language })
       }),
       field(t, 'model', 'text', { placeholder: 'sonnet' }),
-      field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, reloadOptions, t('resources.architects.hints.architectPromptTemplateId')) }),
+      field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, '', mode === 'edit') }),
       field(t, 'architectPromptVersion', 'number', { min: 1 }),
       field(t, 'active', 'checkbox')
     ];

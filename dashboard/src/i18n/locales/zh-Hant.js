@@ -4371,8 +4371,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    },
    "hints": {
     "model": "留空則使用 Harness 設定檔的預設模型。",
-    "architectPromptTemplateId": "架構師使用的 System 範本。變更會從它的下一輪開始生效。",
-    "architectPromptVersion": "留空則跟隨提示的目前版本，儲存的編輯會從下一輪開始生效。"
+    "architectPromptVersion": "留空則一律使用提示的目前版本。"
    },
    "actions": {
     "prompts": "架構師提示",
@@ -4436,10 +4435,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "architect": {
     "credential": "憑證",
     "noCredential": "無",
-    "credentialOption": "{{name}}（{{kind}}）",
-    "credentialHint": "Harness 用來登入的祕密。Garrison 會把它繫結到架構師的部署。",
-    "credentialMissing": "{{profile}} 需要憑證才能登入，但尚未選擇。沒有憑證時，每一輪都會以 Not logged in 失敗。",
-    "addSecret": "新增祕密"
+    "credentialOption": "{{name}}（{{kind}}）"
    },
    "chat": {
     "notCredentialedTitle": "架構師無法登入其模型供應商",
@@ -4458,10 +4454,6 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    },
    "fields": {
     "credentialSecretId": "憑證"
-   },
-   "hints": {
-    "credentialSecretId": "Harness 用來登入的祕密，繫結到架構師的部署。",
-    "credentialMissing": "{{profile}} 需要憑證才能登入。沒有憑證時，每一輪都會以 Not logged in 失敗。"
    },
    "noCredential": "無"
   }
@@ -4484,16 +4476,16 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "refresh": "重新整理清單"
   },
   "architectHints": {
-   "harness": "Harness 設定檔來自 組態 > Harness 設定檔。內建的（Claude Code、Codex 等）可以直接使用。",
+   "harness": "內建設定檔（Claude Code、Codex 等）可以直接使用。",
    "harnessLink": "開啟 組態 > Harness 設定檔",
-   "credential": "憑證是保存 Harness API 金鑰或權杖的祕密，祕密在 組態 > 祕密 中建立：先在那裡新增 API 金鑰，再回到這裡選擇它。",
-   "credentialKinds": "對於 {{profile}}，請新增種類為 {{kinds}} 的祕密。",
    "credentialNotNeeded": "{{profile}} 不需要憑證。",
-   "credentialNone": "這個租用戶還沒有任何祕密，所以清單是空的。",
-   "credentialMissing": "{{profile}} 需要憑證才能登入，但尚未選擇。沒有憑證時，每一輪都會以 Not logged in 失敗。",
    "credentialLink": "開啟 組態 > 祕密",
-   "prompt": "架構師提示是 組態 > 提示範本 中的 System 範本；可以在那裡複製和編輯，或使用 代理程式 > 架構師 中的架構師提示動作。",
-   "promptLink": "開啟 組態 > 提示範本"
+   "prompt": "變更會從架構師的下一輪開始生效。",
+   "promptLink": "開啟 組態 > 提示範本",
+   "credentialNoProfile": "Harness 用來登入的祕密。",
+   "credentialChosen": "{{profile}} 用來登入的祕密。",
+   "credentialPick": "{{profile}} 使用種類為 {{kinds}} 的祕密登入。請選擇一個，否則每一輪都會以 Not logged in 失敗。",
+   "credentialAdd": "{{profile}} 使用種類為 {{kinds}} 的祕密登入，但這個租用戶還沒有。請在 組態 > 祕密 中新增一個，再回到這裡選擇它。沒有它，每一輪都會以 Not logged in 失敗。"
   }
  }
 });

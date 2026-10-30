@@ -4419,8 +4419,7 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
    },
    "hints": {
     "model": "Laissez vide pour utiliser le modèle par défaut du profil de harness.",
-    "architectPromptTemplateId": "Le modèle System avec lequel l'architecte travaille. Un changement s'applique à son prochain tour.",
-    "architectPromptVersion": "Laissez vide pour suivre la version actuelle du prompt : les modifications enregistrées s'appliquent alors au prochain tour."
+    "architectPromptVersion": "Laissez vide pour toujours utiliser la version actuelle du prompt."
    },
    "actions": {
     "prompts": "Prompts d'architecte",
@@ -4484,10 +4483,7 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
    "architect": {
     "credential": "Identifiants",
     "noCredential": "Aucun",
-    "credentialOption": "{{name}} ({{kind}})",
-    "credentialHint": "Le secret avec lequel le harness se connecte. Garrison le lie au déploiement de l'architecte.",
-    "credentialMissing": "{{profile}} a besoin d'identifiants pour se connecter, et aucun n'est choisi. Sans eux, chaque tour échoue avec Not logged in.",
-    "addSecret": "Ajouter un secret"
+    "credentialOption": "{{name}} ({{kind}})"
    },
    "chat": {
     "notCredentialedTitle": "L'architecte n'a pas pu se connecter à son fournisseur de modèles",
@@ -4506,10 +4502,6 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
    },
    "fields": {
     "credentialSecretId": "Identifiants"
-   },
-   "hints": {
-    "credentialSecretId": "Le secret avec lequel le harness se connecte, lié au déploiement de l'architecte.",
-    "credentialMissing": "{{profile}} a besoin d'identifiants pour se connecter. Sans eux, chaque tour échoue avec Not logged in."
    },
    "noCredential": "Aucun"
   }
@@ -4532,16 +4524,16 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
    "refresh": "Actualiser la liste"
   },
   "architectHints": {
-   "harness": "Les profils de harness viennent de Configuration > Profils de harness. Les profils intégrés (Claude Code, Codex et autres) sont prêts à l'emploi.",
+   "harness": "Les profils intégrés (Claude Code, Codex et autres) sont prêts à l'emploi.",
    "harnessLink": "Ouvrir Configuration > Profils de harness",
-   "credential": "Les identifiants sont un secret qui contient la clé d'API ou le jeton du harness, et les secrets se créent dans Configuration > Secrets : ajoutez-y la clé, puis revenez ici pour la choisir.",
-   "credentialKinds": "Pour {{profile}}, ajoutez un secret de type {{kinds}}.",
    "credentialNotNeeded": "{{profile}} n'a pas besoin d'identifiants.",
-   "credentialNone": "Ce locataire n'a encore aucun secret, la liste est donc vide.",
-   "credentialMissing": "{{profile}} a besoin d'identifiants pour se connecter, et aucun n'est choisi. Sans eux, chaque tour échoue avec Not logged in.",
    "credentialLink": "Ouvrir Configuration > Secrets",
-   "prompt": "Les prompts d'architecte sont des modèles System de Configuration > Modèles de prompt ; clonez-les et modifiez-les là, ou avec l'action Prompts d'architecte dans Agents > Architectes.",
-   "promptLink": "Ouvrir Configuration > Modèles de prompt"
+   "prompt": "Un changement s'applique au prochain tour de l'architecte.",
+   "promptLink": "Ouvrir Configuration > Modèles de prompt",
+   "credentialNoProfile": "Le secret avec lequel le harness se connecte.",
+   "credentialChosen": "Le secret avec lequel {{profile}} se connecte.",
+   "credentialPick": "{{profile}} se connecte avec un secret de type {{kinds}}. Choisissez-en un, sinon chaque tour échoue avec Not logged in.",
+   "credentialAdd": "{{profile}} se connecte avec un secret de type {{kinds}}, et ce locataire n'en a encore aucun. Ajoutez-en un dans Configuration > Secrets, puis choisissez-le ici. Sans lui, chaque tour échoue avec Not logged in."
   }
  }
 });

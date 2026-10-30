@@ -134,7 +134,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
   return (
     <>
       <div className="form-grid">
-        {field('name', t('components.studio.architect.name'), <input id={id('name')} value={form.name} onChange={set('name')} {...tip(t('tips.studio.architect.name'))} />)}
+        {field('name', t('resources.architects.fields.name'), <input id={id('name')} value={form.name} onChange={set('name')} {...tip(t('tips.studio.architect.name'))} />)}
         {field(
           'harnessProfileId',
           t('components.studio.architect.harnessProfile'),
@@ -146,7 +146,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
               </option>
             ))}
           </select>,
-          harnessProfileHint(t, loadLists)
+          harnessProfileHint(t)
         )}
         {field(
           'credentialSecretId',
@@ -181,7 +181,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
               </option>
             ))}
           </select>,
-          architectPromptHint(t, loadLists, chosen?.description || '')
+          architectPromptHint(t, chosen?.description || '')
         )}
       </div>
       <div className="studio-architect-preview">

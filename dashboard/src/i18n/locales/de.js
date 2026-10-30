@@ -4405,8 +4405,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    },
    "hints": {
     "model": "Leer lassen, um das Standardmodell des Harness-Profils zu verwenden.",
-    "architectPromptTemplateId": "Die System-Vorlage, mit der der Architekt arbeitet. Eine Änderung gilt ab seinem nächsten Zug.",
-    "architectPromptVersion": "Leer lassen, um der aktuellen Version des Prompts zu folgen; gespeicherte Änderungen gelten dann ab dem nächsten Zug."
+    "architectPromptVersion": "Leer lassen, um immer die aktuelle Version des Prompts zu verwenden."
    },
    "actions": {
     "prompts": "Architekten-Prompts",
@@ -4470,10 +4469,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "architect": {
     "credential": "Zugangsdaten",
     "noCredential": "Keine",
-    "credentialOption": "{{name}} ({{kind}})",
-    "credentialHint": "Das Geheimnis, mit dem sich das Harness anmeldet. Garrison bindet es an die Bereitstellung des Architekten.",
-    "credentialMissing": "{{profile}} braucht Zugangsdaten zum Anmelden, und keine sind gewählt. Ohne sie scheitert jeder Zug mit Not logged in.",
-    "addSecret": "Geheimnis hinzufügen"
+    "credentialOption": "{{name}} ({{kind}})"
    },
    "chat": {
     "notCredentialedTitle": "Der Architekt konnte sich nicht bei seinem Modellanbieter anmelden",
@@ -4492,10 +4488,6 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    },
    "fields": {
     "credentialSecretId": "Zugangsdaten"
-   },
-   "hints": {
-    "credentialSecretId": "Das Geheimnis, mit dem sich das Harness anmeldet, gebunden an die Bereitstellung des Architekten.",
-    "credentialMissing": "{{profile}} braucht Zugangsdaten zum Anmelden. Ohne sie scheitert jeder Zug mit Not logged in."
    },
    "noCredential": "Keine"
   }
@@ -4518,16 +4510,16 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "refresh": "Liste aktualisieren"
   },
   "architectHints": {
-   "harness": "Harness-Profile kommen aus Konfiguration > Harness-Profile. Die integrierten (Claude Code, Codex und andere) sind sofort nutzbar.",
+   "harness": "Die integrierten Profile (Claude Code, Codex und andere) sind sofort nutzbar.",
    "harnessLink": "Konfiguration > Harness-Profile öffnen",
-   "credential": "Die Zugangsdaten sind ein Geheimnis mit dem API-Schlüssel oder Token des Harness, und Geheimnisse werden unter Konfiguration > Geheimnisse angelegt: Fügen Sie den Schlüssel dort hinzu, kommen Sie dann hierher zurück und wählen Sie ihn aus.",
-   "credentialKinds": "Für {{profile}} fügen Sie ein Geheimnis der Art {{kinds}} hinzu.",
    "credentialNotNeeded": "{{profile}} braucht keine Zugangsdaten.",
-   "credentialNone": "Dieser Mandant hat noch keine Geheimnisse, daher ist die Liste leer.",
-   "credentialMissing": "{{profile}} braucht Zugangsdaten zum Anmelden, und keine sind gewählt. Ohne sie scheitert jeder Zug mit Not logged in.",
    "credentialLink": "Konfiguration > Geheimnisse öffnen",
-   "prompt": "Architekten-Prompts sind System-Vorlagen unter Konfiguration > Prompt-Vorlagen; klonen und bearbeiten Sie sie dort oder mit der Aktion Architekten-Prompts unter Agenten > Architekten.",
-   "promptLink": "Konfiguration > Prompt-Vorlagen öffnen"
+   "prompt": "Eine Änderung gilt ab dem nächsten Zug des Architekten.",
+   "promptLink": "Konfiguration > Prompt-Vorlagen öffnen",
+   "credentialNoProfile": "Das Geheimnis, mit dem sich das Harness anmeldet.",
+   "credentialChosen": "Das Geheimnis, mit dem sich {{profile}} anmeldet.",
+   "credentialPick": "{{profile}} meldet sich mit einem Geheimnis der Art {{kinds}} an. Wählen Sie eines, sonst scheitert jeder Zug mit Not logged in.",
+   "credentialAdd": "{{profile}} meldet sich mit einem Geheimnis der Art {{kinds}} an, und dieser Mandant hat noch keines. Fügen Sie unter Konfiguration > Geheimnisse eines hinzu und wählen Sie es dann hier. Ohne es scheitert jeder Zug mit Not logged in."
   }
  }
 });
