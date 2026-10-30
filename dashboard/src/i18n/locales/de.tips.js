@@ -3354,3 +3354,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "Öffnet {{page}} in einem neuen Tab, damit dieses Formular Ihre Eingaben behält. Kommen Sie danach hierher zurück; die Liste wird aktualisiert."
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "Schritte, um diese Art von Zugangsdaten beim Anbieter zu erstellen oder zu finden, und wie Garrison sie an das Harness übergibt.",
+  "link": "Öffnet {{url}} in einem neuen Tab."
+ }
+});

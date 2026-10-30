@@ -3353,3 +3353,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "在新分頁開啟 {{page}}，這個表單會保留你已輸入的內容。完成後回到這裡，清單會重新整理。"
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "在供應商處建立或找到這類憑證的步驟，以及 Garrison 如何把它傳給 Harness。",
+  "link": "在新分頁開啟 {{url}}。"
+ }
+});

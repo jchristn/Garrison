@@ -3354,3 +3354,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "喺新分頁打開 {{page}}，咁呢個表單會保留你打咗嘅嘢。搞掂之後返嚟呢度，清單會重新載入。"
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "喺供應商度建立或者搵到呢類憑證嘅步驟，同埋 Garrison 點樣將佢交俾 Harness。",
+  "link": "喺新分頁打開 {{url}}。"
+ }
+});

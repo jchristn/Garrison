@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { ARCHITECT_AGENT_NAME, SAMPLE_MANIFEST, STORAGE_KEYS } from '../utils/constants';
+import SecretKindGuide from './SecretKindGuide';
+import { MULTILINE_SECRET_KINDS } from '../utils/secretGuides';
 import { architectBody, architectFormErrors, blankArchitectForm } from '../utils/architect';
 import { enumOptions } from '../utils/enums';
 import { pathFor } from '../config/navConfig';
@@ -204,7 +206,10 @@ export default function SetupWizard() {
           <p className="span-full">{t('wizard.secretBody')}</p>
           <FormField id="wiz-secret-name" field={{ name: 'name', type: 'text', label: t('resources.secrets.fields.name'), required: true, tip: t('tips.wizard.secretName') }} value={secret.name} onChange={(v) => setSecret({ ...secret, name: v })} />
           <FormField id="wiz-secret-kind" field={{ name: 'kind', type: 'select', label: t('resources.secrets.fields.kind'), required: true, options: enumOptions(t, 'secretKind'), tip: t('tips.resources.secrets.kind') }} value={secret.kind} onChange={(v) => setSecret({ ...secret, kind: v })} />
-          <FormField id="wiz-secret-value" field={{ name: 'value', type: 'password', label: t('resources.secrets.fields.value'), span: 'full', tip: t('tips.resources.secrets.value') }} value={secret.value} onChange={(v) => setSecret({ ...secret, value: v })} />
+          <div className="span-full">
+            <SecretKindGuide kind={secret.kind} />
+          </div>
+          <FormField id="wiz-secret-value" field={{ name: 'value', type: MULTILINE_SECRET_KINDS.includes(secret.kind) ? 'code' : 'password', rows: 8, label: t('resources.secrets.fields.value'), span: 'full', tip: t('tips.resources.secrets.value') }} value={secret.value} onChange={(v) => setSecret({ ...secret, value: v })} />
         </div>
       )}
       {current === 'studio' && (

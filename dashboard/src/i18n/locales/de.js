@@ -4559,3 +4559,72 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   "studioBody": "Der Agenten-Architekt entwirft mit Ihnen Agenten und Apps im Agenten-Studio. Wählen Sie das Harness-Profil und das Modell, auf denen er läuft, die Zugangsdaten, mit denen er sich anmeldet (das im vorigen Schritt gespeicherte Geheimnis wird gewählt, wenn es zum Harness passt), und den Architekten-Prompt, der ihn leitet. Seine Bereitstellung darf nur Ihre Studio-Entwürfe bearbeiten. Sie können diesen Schritt überspringen und später unter Agenten > Architekten einen Architekten erstellen."
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "secretGuide": {
+   "title": "So erhalten Sie den Wert für {{kind}}",
+   "AnthropicApiKey": {
+    "s1": "Melden Sie sich in der Anthropic Console an und öffnen Sie Settings > API keys:",
+    "s2": "Wählen Sie Create Key, geben Sie einen Namen wie garrison ein und kopieren Sie den Schlüssel. Er beginnt mit sk-ant-api und wird nur einmal angezeigt.",
+    "s3": "Fügen Sie ihn in Wert ein. Claude Code, opencode, pi, Mux und das Provider-API-Harness erhalten ihn als ANTHROPIC_API_KEY."
+   },
+   "ClaudeCodeOAuthToken": {
+    "s1": "Installieren Sie Claude Code auf einem beliebigen Rechner, falls noch nicht vorhanden:",
+    "s2": "Führen Sie diesen Befehl aus und melden Sie sich im sich öffnenden Browserfenster mit dem Claude-Konto an, dessen Pro- oder Max-Abonnement die Agenten nutzen sollen:",
+    "s3": "Kopieren Sie das ausgegebene Token. Es beginnt mit sk-ant-oat und gilt ein Jahr; setzen Sie Läuft ab auf dieses Datum, damit Garrison anzeigt, wann es abläuft.",
+    "s4": "Fügen Sie es in Wert ein. Claude Code erhält es als CLAUDE_CODE_OAUTH_TOKEN.",
+    "note": "Ein Abonnement-Token nutzt den Tarif einer Person, und damit andere Menschen zu bedienen kann gegen die Bedingungen von Anthropic verstoßen. Verwenden Sie für alles Gemeinsame einen Anthropic-API-Schlüssel."
+   },
+   "OpenAiApiKey": {
+    "s1": "Melden Sie sich bei der OpenAI Platform an und öffnen Sie API keys:",
+    "s2": "Wählen Sie Create new secret key, wählen Sie das Projekt, dessen Abrechnung die Läufe bezahlt, und kopieren Sie den Schlüssel. Er beginnt mit sk- und wird nur einmal angezeigt.",
+    "s3": "Fügen Sie ihn in Wert ein. Codex, opencode, pi, Mux und das Provider-API-Harness erhalten ihn als OPENAI_API_KEY."
+   },
+   "CodexAuthJson": {
+    "s1": "Installieren Sie die Codex CLI, falls noch nicht vorhanden:",
+    "s2": "Melden Sie sich mit Ihrem ChatGPT-Konto in einem neuen, leeren Codex-Verzeichnis an, damit diese Anmeldung nur Garrison gehört:",
+    "s3": "Geben Sie die Anmeldedatei aus und fügen Sie sie vollständig in Wert ein:",
+    "s4": "Löschen Sie das Verzeichnis und verwenden Sie diese Anmeldung nirgendwo sonst. Garrison erneuert sie ab jetzt selbst:",
+    "note": "Zwei Kopien einer Anmeldung teilen ein Refresh-Token, und wer zuerst erneuert, macht die andere ungültig. Einen persönlichen ChatGPT-Tarif für andere zu nutzen kann gegen die Bedingungen von OpenAI verstoßen; für gemeinsame Bereitstellungen ist ein OpenAI-API-Schlüssel einfacher."
+   },
+   "GeminiApiKey": {
+    "s1": "Öffnen Sie Google AI Studio und melden Sie sich mit dem Google-Konto an, das zahlen soll:",
+    "s2": "Wählen Sie Create API key, wählen oder erstellen Sie ein Google-Cloud-Projekt und kopieren Sie den Schlüssel. Er beginnt mit AIza.",
+    "s3": "Fügen Sie ihn in Wert ein. Gemini CLI und pi erhalten ihn als GEMINI_API_KEY, opencode als GOOGLE_GENERATIVE_AI_API_KEY."
+   },
+   "GenericEnv": {
+    "s1": "Fügen Sie einen einzelnen Wert ein: ein Token, ein Passwort oder eine URL, die ein Harness oder Werkzeug aus einer Umgebungsvariable liest.",
+    "s2": "Binden Sie das Geheimnis unter einem Alias an eine Bereitstellung und fügen Sie eine Umgebungsüberschreibung hinzu, die es verwendet, zum Beispiel:",
+    "s3": "Die Variable muss in der Zugangsdaten-Positivliste des Harness-Profils stehen, sonst wird die Bereitstellung abgelehnt."
+   },
+   "GenericFile": {
+    "s1": "Fügen Sie die ganze Datei mit Zeilenumbrüchen ein: ein Dienstkonto-JSON, ein Zertifikat oder eine Konfigurationsdatei.",
+    "s2": "Binden Sie das Geheimnis unter einem Alias an eine Bereitstellung und fügen Sie eine Dateiüberschreibung hinzu, deren Inhalt das Geheimnis ist, zum Beispiel:"
+   },
+   "BearerToken": {
+    "s1": "Fügen Sie nur das Token ein, ohne das Wort Bearer.",
+    "s2": "Remote-Agenten verwenden es als ihr Zugangsdaten-Geheimnis, und Arbeitsbereich-Vorlagen klonen damit ein privates Repository (als Passwort für den Benutzer x-access-token). Ein MCP-Server kann es in einem Header als {{secret.<alias>}} senden."
+   },
+   "BasicAuth": {
+    "s1": "Fügen Sie Benutzername und Passwort in dieser Form ein:",
+    "s2": "Binden Sie das Geheimnis unter einem Alias an eine Bereitstellung und verwenden Sie es in einer Vorlage als {{secret.<alias>}}."
+   },
+   "GitCredential": {
+    "s1": "Erstellen Sie für GitHub ein fein abgestuftes persönliches Zugriffstoken mit Lesezugriff auf Contents für die zu klonenden Repositorys:",
+    "s2": "Fügen Sie nur das Token ein; Garrison sendet es als Passwort für den Benutzer x-access-token. Für GitLab, Bitbucket oder einen anderen Host fügen Sie stattdessen username:token ein.",
+    "s3": "Wählen Sie dieses Geheimnis als Git-Zugangsdaten der Arbeitsbereich-Vorlage, die das Repository klont."
+   }
+  }
+ }
+});

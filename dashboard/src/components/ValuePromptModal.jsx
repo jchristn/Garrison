@@ -5,8 +5,11 @@ import { FormField } from './FormFields';
 import { tip } from './Tooltip';
 import { errorMessage } from '../utils/errors';
 
-/** Small modal that collects one value (optionally secret) and submits it. */
-export default function ValuePromptModal({ title, label, tip: fieldTip, saveTip, secret = false, multiline = false, onSubmit, onClose }) {
+/**
+ * Modal that collects one value (optionally secret, optionally multi-line) and submits it. `help` renders above the
+ * field (for example how to get a secret's value); `size` is the modal size, small by default.
+ */
+export default function ValuePromptModal({ title, label, tip: fieldTip, saveTip, secret = false, multiline = false, help = null, size = 'small', onSubmit, onClose }) {
   const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,7 +35,7 @@ export default function ValuePromptModal({ title, label, tip: fieldTip, saveTip,
   return (
     <Modal
       open
-      size="small"
+      size={size}
       onClose={onClose}
       title={title}
       footer={
@@ -46,7 +49,8 @@ export default function ValuePromptModal({ title, label, tip: fieldTip, saveTip,
         </>
       }
     >
-      <FormField id="value-prompt" field={{ name: 'value', type: secret ? 'password' : multiline ? 'textarea' : 'text', label, required: true, tip: fieldTip }} value={value} onChange={setValue} error={error} disabled={busy} />
+      {help}
+      <FormField id="value-prompt" field={{ name: 'value', type: secret ? 'password' : multiline ? 'code' : 'text', label, required: true, tip: fieldTip, rows: multiline ? 8 : undefined }} value={value} onChange={setValue} error={error} disabled={busy} />
     </Modal>
   );
 }

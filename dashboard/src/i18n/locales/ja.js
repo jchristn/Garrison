@@ -4524,3 +4524,72 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   "studioBody": "エージェントアーキテクトは、エージェントスタジオであなたと一緒にエージェントとアプリを設計します。実行に使うハーネスプロファイルとモデル、サインインに使う認証情報 (前のステップで保存したシークレットがハーネスに合えば自動で選ばれます)、そして指針となるアーキテクトプロンプトを選んでください。そのデプロイメントが編集できるのはスタジオ下書きだけです。この手順はスキップして、後で エージェント > アーキテクト で作成することもできます。"
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "secretGuide": {
+   "title": "{{kind}} の値の取得方法",
+   "AnthropicApiKey": {
+    "s1": "Anthropic Console にサインインし、Settings > API keys を開きます:",
+    "s2": "Create Key を選び、garrison などの名前を付けてキーをコピーします。キーは sk-ant-api で始まり、表示されるのは一度だけです。",
+    "s3": "値に貼り付けます。Claude Code、opencode、pi、Mux、プロバイダー API ハーネスは ANTHROPIC_API_KEY として受け取ります。"
+   },
+   "ClaudeCodeOAuthToken": {
+    "s1": "任意のコンピューターに、まだなければ Claude Code をインストールします:",
+    "s2": "このコマンドを実行し、開いたブラウザーウィンドウで、エージェントに使わせる Pro または Max サブスクリプションの Claude アカウントでサインインします:",
+    "s3": "表示されたトークンをコピーします。sk-ant-oat で始まり、有効期間は 1 年です。期限切れが分かるよう、有効期限をその日付に設定してください。",
+    "s4": "値に貼り付けます。Claude Code は CLAUDE_CODE_OAUTH_TOKEN として受け取ります。",
+    "note": "サブスクリプショントークンは個人のプランを使うため、他の人へのサービスに使うと Anthropic の規約に反する場合があります。共有するものには Anthropic API キーを使ってください。"
+   },
+   "OpenAiApiKey": {
+    "s1": "OpenAI Platform にサインインし、API keys を開きます:",
+    "s2": "Create new secret key を選び、実行の料金を支払うプロジェクトを選んでキーをコピーします。キーは sk- で始まり、表示されるのは一度だけです。",
+    "s3": "値に貼り付けます。Codex、opencode、pi、Mux、プロバイダー API ハーネスは OPENAI_API_KEY として受け取ります。"
+   },
+   "CodexAuthJson": {
+    "s1": "まだなければ Codex CLI をインストールします:",
+    "s2": "このログインを Garrison 専用にするため、新しい空の Codex ホームで ChatGPT アカウントにサインインします:",
+    "s3": "ログインファイルを表示し、その全体を値に貼り付けます:",
+    "s4": "そのフォルダーを削除し、このログインを他の場所で使わないでください。以後は Garrison が更新します:",
+    "note": "同じログインの 2 つのコピーはリフレッシュトークンを共有し、後から更新した側がもう一方を壊します。個人の ChatGPT プランを他の人へのサービスに使うと OpenAI の規約に反する場合があります。共有するデプロイメントには OpenAI API キーのほうが簡単です。"
+   },
+   "GeminiApiKey": {
+    "s1": "Google AI Studio を開き、支払いに使う Google アカウントでサインインします:",
+    "s2": "Create API key を選び、Google Cloud プロジェクトを選択または作成してキーをコピーします。キーは AIza で始まります。",
+    "s3": "値に貼り付けます。Gemini CLI と pi は GEMINI_API_KEY、opencode は GOOGLE_GENERATIVE_AI_API_KEY として受け取ります。"
+   },
+   "GenericEnv": {
+    "s1": "単一の値を貼り付けます。ハーネスやツールが環境変数から読み取るトークン、パスワード、URL などです。",
+    "s2": "シークレットをエイリアス付きでデプロイメントにバインドし、それを使う環境オーバーライドを追加します。例:",
+    "s3": "変数はハーネスプロファイルの認証情報許可リストに含まれている必要があります。含まれていないとデプロイメントは拒否されます。"
+   },
+   "GenericFile": {
+    "s1": "改行を含めてファイル全体を貼り付けます。サービスアカウントの JSON、証明書、設定ファイルなどです。",
+    "s2": "シークレットをエイリアス付きでデプロイメントにバインドし、内容がそのシークレットであるファイルオーバーライドを追加します。例:"
+   },
+   "BearerToken": {
+    "s1": "Bearer という語を付けずに、トークンだけを貼り付けます。",
+    "s2": "リモートエージェントは認証情報シークレットとして使い、ワークスペーステンプレートはプライベートリポジトリのクローンに使います (ユーザー x-access-token のパスワードとして)。MCP サーバーは {{secret.<alias>}} と書いたヘッダーで送信できます。"
+   },
+   "BasicAuth": {
+    "s1": "ユーザー名とパスワードを次の形式で貼り付けます:",
+    "s2": "シークレットをエイリアス付きでデプロイメントにバインドし、テンプレートで {{secret.<alias>}} として使います。"
+   },
+   "GitCredential": {
+    "s1": "GitHub の場合、クローンするリポジトリの Contents に読み取りアクセスを持つ fine-grained 個人アクセストークンを作成します:",
+    "s2": "トークンだけを貼り付けます。Garrison はユーザー x-access-token のパスワードとして送信します。GitLab、Bitbucket などのホストでは username:token を貼り付けてください。",
+    "s3": "リポジトリをクローンするワークスペーステンプレートの Git 認証情報として、このシークレットを選びます。"
+   }
+  }
+ }
+});

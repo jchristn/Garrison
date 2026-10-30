@@ -3353,3 +3353,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "在新标签页中打开 {{page}}，这样此表单会保留你已输入的内容。完成后回到这里，列表会自动刷新。"
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "在提供商处创建或找到此类凭据的步骤，以及 Garrison 如何把它传给 Harness。",
+  "link": "在新标签页中打开 {{url}}。"
+ }
+});

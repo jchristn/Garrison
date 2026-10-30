@@ -3354,3 +3354,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "Opens {{page}} in a new tab, so this form keeps what you typed. Come back here when you are done; the list refreshes."
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "Steps to create or find this kind of credential with its provider, and how Garrison passes it to the harness.",
+  "link": "Opens {{url}} in a new tab."
+ }
+});

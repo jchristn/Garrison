@@ -4525,3 +4525,72 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   "studioBody": "代理架構師會在代理工作室中與你一起設計代理和應用程式。請選擇它執行時使用的 Harness 設定檔和模型、它登入時使用的憑證（若上一步儲存的祕密適合該 Harness，會自動選取），以及引導它的架構師提示。它的部署只能編輯你的工作室草稿。你可以略過此步驟，稍後在 代理程式 > 架構師 中建立架構師。"
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "secretGuide": {
+   "title": "如何取得 {{kind}} 的值",
+   "AnthropicApiKey": {
+    "s1": "登入 Anthropic Console，開啟 Settings > API keys：",
+    "s2": "選擇 Create Key，取個名稱（例如 garrison），然後複製金鑰。它以 sk-ant-api 開頭，只會顯示一次。",
+    "s3": "把它貼到「值」。Claude Code、opencode、pi、Mux 和供應商 API Harness 會以 ANTHROPIC_API_KEY 接收它。"
+   },
+   "ClaudeCodeOAuthToken": {
+    "s1": "在任何一台電腦上安裝 Claude Code（如尚未安裝）：",
+    "s2": "執行這個指令，並在開啟的瀏覽器視窗中，用代理應使用其 Pro 或 Max 訂閱的 Claude 帳戶登入：",
+    "s3": "複製它輸出的權杖。它以 sk-ant-oat 開頭，效期一年；把「到期時間」設為該日期，Garrison 就會顯示何時到期。",
+    "s4": "把它貼到「值」。Claude Code 會以 CLAUDE_CODE_OAUTH_TOKEN 接收它。",
+    "note": "訂閱權杖使用的是個人的方案，用它為他人提供服務可能違反 Anthropic 的條款。凡是共用的用途，請使用 Anthropic API 金鑰。"
+   },
+   "OpenAiApiKey": {
+    "s1": "登入 OpenAI Platform，開啟 API keys：",
+    "s2": "選擇 Create new secret key，選定為執行付費的專案，然後複製金鑰。它以 sk- 開頭，只會顯示一次。",
+    "s3": "把它貼到「值」。Codex、opencode、pi、Mux 和供應商 API Harness 會以 OPENAI_API_KEY 接收它。"
+   },
+   "CodexAuthJson": {
+    "s1": "安裝 Codex CLI（如尚未安裝）：",
+    "s2": "在一個新的空 Codex 目錄下用你的 ChatGPT 帳戶登入，讓這個登入只屬於 Garrison：",
+    "s3": "輸出登入檔案，並把全部內容貼到「值」：",
+    "s4": "刪除該資料夾，且不要在其他地方使用這個登入。之後由 Garrison 負責更新：",
+    "note": "同一登入的兩份複本共用一個重新整理權杖，後更新的一方會使另一方失效。用個人 ChatGPT 方案為他人提供服務可能違反 OpenAI 的條款；共用部署使用 OpenAI API 金鑰比較簡單。"
+   },
+   "GeminiApiKey": {
+    "s1": "開啟 Google AI Studio，用負責付費的 Google 帳戶登入：",
+    "s2": "選擇 Create API key，選擇或建立一個 Google Cloud 專案，然後複製金鑰。它以 AIza 開頭。",
+    "s3": "把它貼到「值」。Gemini CLI 和 pi 以 GEMINI_API_KEY 接收它，opencode 以 GOOGLE_GENERATIVE_AI_API_KEY 接收。"
+   },
+   "GenericEnv": {
+    "s1": "貼上任何單一的值：Harness 或工具從環境變數讀取的權杖、密碼或 URL。",
+    "s2": "用別名把這個祕密繫結到部署，然後新增一個使用它的環境覆寫，例如：",
+    "s3": "該變數必須在 Harness 設定檔的憑證允許清單中，否則部署會被拒絕。"
+   },
+   "GenericFile": {
+    "s1": "貼上完整檔案，包含換行：服務帳戶 JSON、憑證或設定檔。",
+    "s2": "用別名把這個祕密繫結到部署，並新增一個內容為該祕密的檔案覆寫，例如："
+   },
+   "BearerToken": {
+    "s1": "只貼上權杖，不要加上 Bearer 一字。",
+    "s2": "遠端代理把它當作憑證祕密，工作區範本用它複製私人儲存庫（作為使用者 x-access-token 的密碼）。MCP 伺服器可以在寫成 {{secret.<alias>}} 的標頭中傳送它。"
+   },
+   "BasicAuth": {
+    "s1": "依下列格式貼上使用者名稱和密碼：",
+    "s2": "用別名把這個祕密繫結到部署，並在範本中以 {{secret.<alias>}} 使用它。"
+   },
+   "GitCredential": {
+    "s1": "若是 GitHub，請建立一個細粒度個人存取權杖，對要複製的儲存庫授予 Contents 讀取權限：",
+    "s2": "只貼上權杖；Garrison 會把它當作使用者 x-access-token 的密碼傳送。若是 GitLab、Bitbucket 或其他主機，請改貼 username:token。",
+    "s3": "在複製該儲存庫的工作區範本中，把這個祕密選為 Git 憑證。"
+   }
+  }
+ }
+});

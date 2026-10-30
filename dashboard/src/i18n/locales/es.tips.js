@@ -3356,3 +3356,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "Abre {{page}} en una pestaña nueva para que este formulario conserve lo que escribiste. Vuelve aquí al terminar; la lista se actualiza."
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "Pasos para crear o encontrar este tipo de credencial con su proveedor, y cómo Garrison la pasa al harness.",
+  "link": "Abre {{url}} en una pestaña nueva."
+ }
+});

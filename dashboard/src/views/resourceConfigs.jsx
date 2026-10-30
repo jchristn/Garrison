@@ -16,6 +16,8 @@ import { resourceTip, enumTip, optionalText } from '../utils/tips';
 import { enumLabel, enumOptions, enumList } from '../utils/enums';
 import { AgentRelationDiagram } from '../components/Explainer';
 import { tip } from '../components/Tooltip';
+import SecretKindGuide from '../components/SecretKindGuide';
+import { MULTILINE_SECRET_KINDS, secretGuide } from '../utils/secretGuides';
 import NamedId from '../components/NamedId';
 import CloneTemplateModal from '../components/CloneTemplateModal';
 import { PROMPT_ROLES, defaultTemplateFor, templatesForRole, profileSecretNeeds } from '../utils/deployments';
@@ -674,11 +676,13 @@ export const secretsConfig = {
     activeCol('secrets', t),
     idCol('secrets', t)
   ],
-  fields: (_d, { t, mode }) => [
+  // On create, a guide under Kind says how to get the value for that kind, and file-shaped kinds get a multi-line box.
+  fields: (d, { t, mode }) => [
     field('secrets', t, 'name', 'text', { required: true }),
-    field('secrets', t, 'kind', 'select', { required: true, options: enumOptions(t, 'secretKind') }),
+    field('secrets', t, 'kind', 'select', { required: true, options: enumOptions(t, 'secretKind'), hint: undefined }),
+    ...(mode === 'create' ? [{ name: 'guide', type: 'custom', label: '', tip: t('tips.secretGuide.title'), render: (current) => <SecretKindGuide kind={current?.kind} /> }] : []),
     field('secrets', t, 'description', 'textarea'),
-    field('secrets', t, 'value', 'password', { required: mode === 'create', showIf: () => mode === 'create' }),
+    field('secrets', t, 'value', MULTILINE_SECRET_KINDS.includes(d?.kind) ? 'code' : 'password', { required: mode === 'create', rows: 8, showIf: () => mode === 'create' }),
     field('secrets', t, 'expiresUtc', 'datetime', { futureOnly: true }),
     field('secrets', t, 'active', 'checkbox')
   ],
@@ -708,7 +712,10 @@ export const secretsConfig = {
             label={ctx.t('resources.secrets.fields.value')}
             tip={resourceTip(ctx.t, 'secrets', 'value')}
             saveTip={ctx.t('tips.resources.secrets.saveValue')}
-            secret
+            secret={!MULTILINE_SECRET_KINDS.includes(r.kind)}
+            multiline={MULTILINE_SECRET_KINDS.includes(r.kind)}
+            size={secretGuide(r.kind) ? 'large' : 'small'}
+            help={<SecretKindGuide kind={r.kind} />}
             onSubmit={async (value) => {
               await ctx.apiClient.setSecretValue(ctx.tenantId, r.id, value);
               ctx.addToast({ type: 'success', message: ctx.t('common.toasts.saved') });

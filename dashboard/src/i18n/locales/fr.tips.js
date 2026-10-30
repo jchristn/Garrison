@@ -3356,3 +3356,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "Ouvre {{page}} dans un nouvel onglet, pour que ce formulaire garde ce que vous avez saisi. Revenez ici ensuite ; la liste s'actualise."
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "Les étapes pour créer ou trouver ce type d'identifiants chez le fournisseur, et comment Garrison les transmet au harness.",
+  "link": "Ouvre {{url}} dans un nouvel onglet."
+ }
+});

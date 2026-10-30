@@ -371,6 +371,8 @@ The model can be overridden per run when the deployment allows it, which is why 
 
 Secrets are stored encrypted and bound to a deployment with an alias. A profile reaches them through `{{secret.<alias>}}` or, for profiles that should work with any deployment, `{{secret.kind.<Kind>}}`. Secret kinds: `AnthropicApiKey`, `ClaudeCodeOAuthToken`, `OpenAiApiKey`, `CodexAuthJson`, `GeminiApiKey`, `GenericEnv`, `GenericFile`, `BearerToken`, `BasicAuth`, `GitCredential`.
 
+The dashboard's Create secret form shows how to get the value for each kind: where to create an API key, `claude setup-token` for a `ClaudeCodeOAuthToken`, and `codex login` under a fresh `CODEX_HOME` for a `CodexAuthJson`.
+
 Every decrypted value is added to the run's scrub list. The worker replaces scrubbed values in events, results, and the stderr tail before anything leaves the node. An environment variable whose value renders empty is not set, so a profile can list both `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` and only the bound one appears.
 
 The worker starts each harness with an empty environment plus a short allowlist (`PATH`, `LANG`, proxy and certificate settings, and a few others; see `docs/CONFIGURATION.md`). Keys sitting in the worker's own environment do not leak into harnesses.

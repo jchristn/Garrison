@@ -3354,3 +3354,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "open": "{{page}} を新しいタブで開くので、このフォームの入力内容は残ります。終わったらここに戻ってください。一覧が更新されます。"
  }
 });
+
+// Secrets: how to get the value for each kind (Create secret, Set value, and the setup wizard).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "secretGuide": {
+  "title": "この種類の認証情報をプロバイダーで作成または確認する手順と、Garrison がそれをハーネスに渡す方法です。",
+  "link": "{{url}} を新しいタブで開きます。"
+ }
+});

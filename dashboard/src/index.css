@@ -1404,3 +1404,6 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .dependency-hint-warning { font-weight: 500; }
 .dependency-hint-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: 2px; }
 .dependency-hint-actions a { font-weight: 500; }
+.secret-guide { display: flex; flex-direction: column; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); }
+.secret-guide-steps { margin: 0; padding-inline-start: 1.25rem; display: flex; flex-direction: column; gap: var(--spacing-xs); font-size: var(--font-size-sm); }
+.secret-guide-steps li > .code-block, .secret-guide-steps li pre { margin-top: var(--spacing-xs); }
