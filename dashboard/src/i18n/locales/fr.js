@@ -4467,3 +4467,51 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "Identifiants",
+    "noCredential": "Aucun",
+    "credentialOption": "{{name}} ({{kind}})",
+    "credentialHint": "Le secret avec lequel le harness se connecte. Garrison le lie au déploiement de l'architecte.",
+    "credentialMissing": "{{profile}} a besoin d'identifiants pour se connecter, et aucun n'est choisi. Sans eux, chaque tour échoue avec Not logged in.",
+    "addSecret": "Ajouter un secret"
+   },
+   "chat": {
+    "notCredentialedTitle": "L'architecte n'a pas pu se connecter à son fournisseur de modèles",
+    "notCredentialedBody": "Son harness n'a pas d'identifiants valides (Claude Code l'indique par Not logged in). Donnez à {{architect}} un secret d'identifiants sur la page Architectes, ou vérifiez la valeur du secret.",
+    "noCredentialTitle": "Cet architecte n'a pas d'identifiants",
+    "noCredentialBody": "{{architect}} s'exécute sur {{profile}}, qui a besoin d'un secret pour se connecter. Sans lui, ses tours échouent avec Not logged in. Choisissez des identifiants sur la page Architectes.",
+    "fixCredential": "Corriger les identifiants de l'architecte",
+    "openSecrets": "Ouvrir les secrets"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "Identifiants"
+   },
+   "fields": {
+    "credentialSecretId": "Identifiants"
+   },
+   "hints": {
+    "credentialSecretId": "Le secret avec lequel le harness se connecte, lié au déploiement de l'architecte.",
+    "credentialMissing": "{{profile}} a besoin d'identifiants pour se connecter. Sans eux, chaque tour échoue avec Not logged in."
+   },
+   "noCredential": "Aucun"
+  }
+ }
+});

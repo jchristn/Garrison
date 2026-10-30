@@ -1707,7 +1707,8 @@ namespace Garrison.Server.Protocols
                     ArchitectRequest create = new ArchitectRequest
                     {
                         Name = arguments.Name ?? String.Empty, Description = arguments.Description, HarnessProfileId = arguments.HarnessProfileId ?? String.Empty, Model = arguments.Model,
-                        Active = arguments.Active ?? true, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion
+                        Active = arguments.Active ?? true, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion,
+                        CredentialSecretId = arguments.CredentialSecretId
                     };
                     return await architects.CreateAsync(ctx, tenantId, create, token).ConfigureAwait(false);
                 }
@@ -1726,7 +1727,8 @@ namespace Garrison.Server.Protocols
                     ArchitectRequest update = new ArchitectRequest
                     {
                         Name = arguments.Name ?? current.Name, Description = arguments.Description ?? current.Description, HarnessProfileId = arguments.HarnessProfileId ?? current.HarnessProfileId,
-                        Model = arguments.Model ?? current.Model, Active = arguments.Active ?? current.Active, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion
+                        Model = arguments.Model ?? current.Model, Active = arguments.Active ?? current.Active, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion,
+                        CredentialSecretId = arguments.CredentialSecretId
                     };
                     return await architects.UpdateAsync(ctx, tenantId, existing, update, token).ConfigureAwait(false);
                 }

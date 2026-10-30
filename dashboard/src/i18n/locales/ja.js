@@ -4418,3 +4418,51 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "認証情報",
+    "noCredential": "なし",
+    "credentialOption": "{{name}} ({{kind}})",
+    "credentialHint": "ハーネスがサインインに使うシークレットです。Garrison がアーキテクトのデプロイメントにバインドします。",
+    "credentialMissing": "{{profile}} はサインインに認証情報が必要ですが、選択されていません。ないとすべてのターンが Not logged in で失敗します。",
+    "addSecret": "シークレットを追加"
+   },
+   "chat": {
+    "notCredentialedTitle": "アーキテクトがモデルプロバイダーにサインインできませんでした",
+    "notCredentialedBody": "ハーネスに有効な認証情報がありません (Claude Code では Not logged in と表示されます)。アーキテクトのページで {{architect}} に認証情報のシークレットを設定するか、シークレットの値を確認してください。",
+    "noCredentialTitle": "このアーキテクトには認証情報がありません",
+    "noCredentialBody": "{{architect}} は {{profile}} で動作し、サインインにシークレットが必要です。ないとターンが Not logged in で失敗します。アーキテクトのページで認証情報を選んでください。",
+    "fixCredential": "アーキテクトの認証情報を修正",
+    "openSecrets": "シークレットを開く"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "認証情報"
+   },
+   "fields": {
+    "credentialSecretId": "認証情報"
+   },
+   "hints": {
+    "credentialSecretId": "ハーネスがサインインに使うシークレットで、アーキテクトのデプロイメントにバインドされます。",
+    "credentialMissing": "{{profile}} はサインインに認証情報が必要です。ないとすべてのターンが Not logged in で失敗します。"
+   },
+   "noCredential": "なし"
+  }
+ }
+});

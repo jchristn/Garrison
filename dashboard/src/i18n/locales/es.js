@@ -4471,3 +4471,51 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "Credencial",
+    "noCredential": "Ninguna",
+    "credentialOption": "{{name}} ({{kind}})",
+    "credentialHint": "El secreto con el que el harness inicia sesión. Garrison lo vincula al despliegue del arquitecto.",
+    "credentialMissing": "{{profile}} necesita una credencial para iniciar sesión y no hay ninguna elegida. Sin ella, cada turno falla con Not logged in.",
+    "addSecret": "Añadir un secreto"
+   },
+   "chat": {
+    "notCredentialedTitle": "El arquitecto no pudo iniciar sesión en su proveedor de modelos",
+    "notCredentialedBody": "Su harness no tiene una credencial válida (Claude Code lo indica como Not logged in). Asigna a {{architect}} un secreto de credencial en la página Arquitectos, o comprueba que el valor del secreto sea correcto.",
+    "noCredentialTitle": "Este arquitecto no tiene credencial",
+    "noCredentialBody": "{{architect}} se ejecuta en {{profile}}, que necesita un secreto para iniciar sesión. Sin él, sus turnos fallan con Not logged in. Elige una credencial en la página Arquitectos.",
+    "fixCredential": "Corregir la credencial del arquitecto",
+    "openSecrets": "Abrir secretos"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "Credencial"
+   },
+   "fields": {
+    "credentialSecretId": "Credencial"
+   },
+   "hints": {
+    "credentialSecretId": "El secreto con el que el harness inicia sesión, vinculado al despliegue del arquitecto.",
+    "credentialMissing": "{{profile}} necesita una credencial para iniciar sesión. Sin ella, cada turno falla con Not logged in."
+   },
+   "noCredential": "Ninguna"
+  }
+ }
+});

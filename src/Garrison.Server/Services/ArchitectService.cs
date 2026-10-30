@@ -45,6 +45,11 @@ namespace Garrison.Server.Services
         /// </summary>
         public static readonly IReadOnlyList<string> PromptKeys = new List<string> { "agent-architect", "agent-architect-guided" };
 
+        /// <summary>
+        /// Alias under which an architect's credential secret is bound to its deployment.
+        /// </summary>
+        public static readonly string CredentialAlias = "credential";
+
         #endregion
 
         #region Private-Members
@@ -234,7 +239,7 @@ namespace Garrison.Server.Services
         /// <param name="request">Name, harness profile, model, active, and prompt.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>The architect.</returns>
-        /// <exception cref="ValidationException">Thrown when a field is missing or invalid, or with InvalidArchitectPrompt.</exception>
+        /// <exception cref="ValidationException">Thrown when a field is missing or invalid, or with InvalidArchitectPrompt or InvalidCredentialSecret.</exception>
         /// <exception cref="ConflictException">Thrown with NameConflict, or ArchitectAgentMissing when the tenant has no agent-architect.</exception>
         public async Task<Architect> CreateAsync(RequestContext ctx, string tenantId, ArchitectRequest request, CancellationToken token)
         {
@@ -252,6 +257,7 @@ namespace Garrison.Server.Services
             deployment.ManagementAccess = ManagementAccessEnum.Drafts;
             deployment.ArchitectPromptTemplateId = String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId) ? null : request.ArchitectPromptTemplateId;
             deployment.ArchitectPromptVersion = request.ArchitectPromptVersion;
+            if (!String.IsNullOrWhiteSpace(request.CredentialSecretId)) BindCredential(deployment, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
             Deployment created = await new TenantConfigurationService(_Server).CreateDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
             return await ToArchitectAsync(created, agent, new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal), token).ConfigureAwait(false);
         }
@@ -266,7 +272,7 @@ namespace Garrison.Server.Services
         /// <param name="request">New fields.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>The architect.</returns>
-        /// <exception cref="ValidationException">Thrown when a field is missing or invalid, or with InvalidArchitectPrompt.</exception>
+        /// <exception cref="ValidationException">Thrown when a field is missing or invalid, or with InvalidArchitectPrompt or InvalidCredentialSecret.</exception>
         /// <exception cref="ConflictException">Thrown with NameConflict or Protected.</exception>
         public async Task<Architect> UpdateAsync(RequestContext ctx, string tenantId, Deployment existing, ArchitectRequest request, CancellationToken token)
         {
@@ -284,6 +290,11 @@ namespace Garrison.Server.Services
             {
                 PromptTemplate template = await ResolvePromptAsync(tenantId, request.ArchitectPromptTemplateId, request.ArchitectPromptVersion, token).ConfigureAwait(false);
                 Bind(changed, template, request.ArchitectPromptVersion);
+            }
+            if (request.CredentialSecretId != null)
+            {
+                if (request.CredentialSecretId.Trim().Length == 0) changed.ResourceBindings.RemoveAll(b => b.Kind == ResourceBindingKindEnum.Secret && String.Equals(b.Alias, CredentialAlias, StringComparison.OrdinalIgnoreCase));
+                else BindCredential(changed, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
             }
             changed.LastUpdateUtc = DateTime.UtcNow;
             Deployment updated = await new TenantConfigurationService(_Server).UpdateDeploymentAsync(ctx, tenantId, existing, changed, token).ConfigureAwait(false);
@@ -446,6 +457,33 @@ namespace Garrison.Server.Services
             return architects;
         }
 
+        private async Task<Secret> ResolveCredentialAsync(string tenantId, string idOrName, CancellationToken token)
+        {
+            Secret? secret = await _Server.Database.Secrets.ReadAsync(tenantId, idOrName, token).ConfigureAwait(false)
+                ?? await _Server.Database.Secrets.ReadByNameAsync(tenantId, idOrName, token).ConfigureAwait(false);
+            string? problem = null;
+            if (secret == null) problem = "Secret " + idOrName + " was not found in this tenant.";
+            else if (!secret.Active) problem = "Secret " + secret.Name + " is inactive; activate it or choose another.";
+            if (problem != null)
+            {
+                ValidationException error = new ValidationException(problem, new Dictionary<string, string> { ["credentialSecretId"] = problem }, new Dictionary<string, string> { ["credentialSecretId"] = "InvalidCredentialSecret" });
+                error.Code = "InvalidCredentialSecret";
+                throw error;
+            }
+            return secret!;
+        }
+
+        private static void BindCredential(Deployment deployment, Secret secret)
+        {
+            DeploymentResourceBinding? binding = deployment.ResourceBindings.FirstOrDefault(b => b.Kind == ResourceBindingKindEnum.Secret && String.Equals(b.Alias, CredentialAlias, StringComparison.OrdinalIgnoreCase));
+            if (binding == null)
+            {
+                binding = new DeploymentResourceBinding { Kind = ResourceBindingKindEnum.Secret, Alias = CredentialAlias, DeploymentId = deployment.Id };
+                deployment.ResourceBindings.Add(binding);
+            }
+            binding.ResourceId = secret.Id;
+        }
+
         private static void ValidateRequest(ArchitectRequest request)
         {
             Dictionary<string, string> fields = new Dictionary<string, string>();
@@ -479,6 +517,16 @@ namespace Garrison.Server.Services
             architect.ArchitectPromptName = template?.Name ?? templateId;
             architect.ArchitectPromptVersion = binding?.PinnedVersion;
             architect.ArchitectPromptCurrentVersion = template?.CurrentVersion ?? 1;
+            // The credential is the secret bound as "credential", else the first bound secret.
+            DeploymentResourceBinding? credential = deployment.ResourceBindings.FirstOrDefault(b => b.Kind == ResourceBindingKindEnum.Secret && String.Equals(b.Alias, CredentialAlias, StringComparison.OrdinalIgnoreCase))
+                ?? deployment.ResourceBindings.FirstOrDefault(b => b.Kind == ResourceBindingKindEnum.Secret);
+            if (credential != null)
+            {
+                Secret? secret = await _Server.Database.Secrets.ReadAsync(deployment.TenantId, credential.ResourceId, token).ConfigureAwait(false);
+                architect.CredentialSecretId = credential.ResourceId;
+                architect.CredentialSecretName = secret?.Name;
+                architect.CredentialSecretKind = secret?.Kind.ToString();
+            }
             architect.ConfigVersion = deployment.ConfigVersion;
             architect.IsProtected = deployment.IsProtected;
             architect.CreatedUtc = deployment.CreatedUtc;

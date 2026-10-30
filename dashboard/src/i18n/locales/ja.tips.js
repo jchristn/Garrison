@@ -3308,3 +3308,33 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "architect": {
+   "credentialSecretId": "アーキテクトのハーネスがサインインに使うシークレットです。Claude Code なら Anthropic API キーか Claude Code OAuth トークン、Codex なら OpenAI API キーか ChatGPT ログインなどです。Garrison がアーキテクトのデプロイメントにバインドします。",
+   "addSecret": "新しいタブでシークレットを開いて API キーまたはトークンを追加し、ここに戻って選択します。"
+  },
+  "chat": {
+   "fixCredential": "このアーキテクトで絞り込んだ エージェント > アーキテクト を開き、編集して認証情報のシークレットを選びます。",
+   "openSecrets": "構成 > シークレット を開き、API キーまたはトークンを追加するか、アーキテクトが使うものの値を確認します。"
+  }
+ },
+ "resources": {
+  "architects": {
+   "credentialSecretId": "アーキテクトのハーネスがサインインに使うシークレットです。Claude Code なら Anthropic API キーか Claude Code OAuth トークン、Codex なら OpenAI API キーか ChatGPT ログインなどです。Garrison がアーキテクトのデプロイメントにバインドします。",
+   "credentialCell": "このアーキテクトのハーネスがサインインに使うシークレットです ({{kind}})。",
+   "noCredential": "認証情報のシークレットがバインドされていないため、それを必要とするハーネス (Claude Code、Codex、Gemini CLI) は Not logged in で失敗します。アーキテクトを編集して選んでください。"
+  }
+ }
+});

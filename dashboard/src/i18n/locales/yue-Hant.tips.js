@@ -3308,3 +3308,33 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "architect": {
+   "credentialSecretId": "架構師個 Harness 用嚟登入嘅密鑰：Claude Code 用 Anthropic API 金鑰或者 Claude Code OAuth 權杖，Codex 用 OpenAI API 金鑰或者 ChatGPT 登入，如此類推。Garrison 會將佢綁定到架構師嘅部署。",
+   "addSecret": "喺新分頁打開密鑰，加 API 金鑰或者權杖，然後返嚟呢度揀佢。"
+  },
+  "chat": {
+   "fixCredential": "打開用呢個架構師篩選咗嘅 代理 > 架構師，編輯佢再揀憑證密鑰。",
+   "openSecrets": "打開 設定 > 密鑰，加 API 金鑰或者權杖，或者檢查架構師用緊嗰個嘅值。"
+  }
+ },
+ "resources": {
+  "architects": {
+   "credentialSecretId": "架構師個 Harness 用嚟登入嘅密鑰：Claude Code 用 Anthropic API 金鑰或者 Claude Code OAuth 權杖，Codex 用 OpenAI API 金鑰或者 ChatGPT 登入，如此類推。Garrison 會將佢綁定到架構師嘅部署。",
+   "credentialCell": "呢個架構師個 Harness 用嚟登入嘅密鑰（{{kind}}）。",
+   "noCredential": "冇綁定憑證密鑰，所以要憑證嘅 Harness（Claude Code、Codex、Gemini CLI）會以 Not logged in 失敗。編輯架構師去揀一個。"
+  }
+ }
+});

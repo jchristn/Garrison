@@ -998,10 +998,14 @@ def t_architects():
     name = f"sdk-py-arch-{SUFFIX}"
     renamed = name + "-renamed"
     architect_id = None
+    credential = client.secrets.create({"name": f"sdk-py-arch-cred-{SUFFIX}", "kind": "AnthropicApiKey", "value": f"sk-ant-fake-{SUFFIX}"})
     try:
         created = client.studio_drafts.create_architect({"name": name, "description": "SDK harness architect",
-                                                         "harnessProfileId": "hrn_builtin_fake"})
+                                                         "harnessProfileId": "hrn_builtin_fake",
+                                                         "credentialSecretId": credential["name"]})
         architect_id = created["id"]
+        require(created.get("credentialSecretId") == credential["id"] and created.get("credentialSecretName") == credential["name"],
+                f"created credential {created}")
         require(created["name"] == name and created["harnessProfileId"] == "hrn_builtin_fake" and created["active"] is True
                 and created.get("agentName") == "agent-architect", f"created {created}")
         require(created["architectPromptName"] == "builtin/agent-architect" and created.get("architectPromptVersion") is None, f"created prompt {created}")
@@ -1016,6 +1020,9 @@ def t_architects():
         require(updated["id"] == architect_id and updated["name"] == renamed and updated.get("model") == "fake-model"
                 and updated["active"] is False, f"updated {updated}")
         require(updated["architectPromptName"] == "builtin/agent-architect-guided", f"updated prompt {updated}")
+        unbound = client.studio_drafts.update_architect(architect_id, {"name": renamed, "harnessProfileId": "hrn_builtin_fake",
+                                                                        "active": False, "credentialSecretId": ""})
+        require(unbound.get("credentialSecretId") is None and unbound.get("credentialSecretName") is None, f"unbound credential {unbound}")
         first = client.studio_drafts.list_architect_prompts(max_results=1)
         require(len(first["objects"]) == 1 and first["objects"][0]["name"] == "builtin/agent-architect" and first["totalRecords"] >= 2
                 and first["endOfResults"] is False, f"prompt page 1 {first}")
@@ -1036,6 +1043,7 @@ def t_architects():
             except GarrisonError as e:
                 if e.status_code != 404:
                     raise
+        client.secrets.delete(credential["id"])
 
 
 def t_app_gateway():

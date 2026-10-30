@@ -387,4 +387,4 @@ export function studioPermissions(t, permissions) {
 }
 
 // The architect form helpers live outside the studio chunk so the setup wizard (AD9.5) can use them.
-export { architectBody, architectFormErrors, blankArchitectForm } from './architect';
+export { architectBody, architectFormErrors, blankArchitectForm, needsCredential, suggestedCredential } from './architect';

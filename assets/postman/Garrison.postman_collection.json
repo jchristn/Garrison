@@ -11693,6 +11693,270 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create architect credential secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets"
+              ]
+            },
+            "description": "An API key for the architect's harness to sign in with.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-key-{{suffix}}\",\n  \"kind\": \"AnthropicApiKey\",\n  \"value\": \"sk-ant-postman-0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('architectSecretId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect with a credential",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "Binds the secret to the architect's deployment under the alias credential.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-cred-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"credentialSecretId\": \"postman-architect-key-{{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('credentialArchitectId', json.id);",
+                  "pm.test('credential is bound', function () { pm.expect(json.credentialSecretId).to.eql(pm.collectionVariables.get('architectSecretId')); pm.expect(json.credentialSecretKind).to.eql('AnthropicApiKey'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create architect with an unknown credential is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "400 InvalidCredentialSecret.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-nokey-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"credentialSecretId\": \"no-such-secret-{{suffix}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('code is InvalidCredentialSecret', function () { pm.expect(json.code).to.eql('InvalidCredentialSecret'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove the architect's credential",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{credentialArchitectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{credentialArchitectId}}"
+              ]
+            },
+            "description": "An empty credentialSecretId removes the binding.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-architect-cred-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_fake\",\n  \"credentialSecretId\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('credential removed', function () { pm.expect(json.credentialSecretId == null).to.be.true; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the credential architect",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{credentialArchitectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{credentialArchitectId}}"
+              ]
+            },
+            "description": "Cleanup."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete architect credential secret",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets/{{architectSecretId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets",
+                "{{architectSecretId}}"
+              ]
+            },
+            "description": "Cleanup."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -22264,6 +22528,14 @@
     },
     {
       "key": "deleteDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "architectSecretId",
+      "value": ""
+    },
+    {
+      "key": "credentialArchitectId",
       "value": ""
     }
   ]

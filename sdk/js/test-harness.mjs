@@ -898,9 +898,11 @@ await check("agent architects", async () => {
   const name = `sdk-js-arch-${suffix}`;
   const renamed = `${name}-renamed`;
   let architectId;
+  const credential = await client.secrets.create({ name: `sdk-js-arch-cred-${suffix}`, kind: "AnthropicApiKey", value: `sk-ant-fake-${suffix}` });
   try {
-    const created = await client.studioDrafts.createArchitect({ name, description: "SDK harness architect", harnessProfileId: "hrn_builtin_fake" });
+    const created = await client.studioDrafts.createArchitect({ name, description: "SDK harness architect", harnessProfileId: "hrn_builtin_fake", credentialSecretId: credential.name });
     architectId = created.id;
+    require(created.credentialSecretId === credential.id && created.credentialSecretName === credential.name, `created credential ${JSON.stringify(created)}`);
     require(created.name === name && created.harnessProfileId === "hrn_builtin_fake" && created.active === true && created.agentName === "agent-architect", `created ${JSON.stringify(created)}`);
     require(created.architectPromptName === "builtin/agent-architect" && created.architectPromptVersion == null, `created prompt ${JSON.stringify(created)}`);
     const page = await client.studioDrafts.listArchitects({ maxResults: 1, search: name });
@@ -912,6 +914,8 @@ await check("agent architects", async () => {
     });
     require(updated.id === created.id && updated.name === renamed && updated.model === "fake-model" && updated.active === false, `updated ${JSON.stringify(updated)}`);
     require(updated.architectPromptName === "builtin/agent-architect-guided", `updated prompt ${JSON.stringify(updated)}`);
+    const unbound = await client.studioDrafts.updateArchitect(created.id, { name: renamed, harnessProfileId: "hrn_builtin_fake", active: false, credentialSecretId: "" });
+    require(unbound.credentialSecretId == null && unbound.credentialSecretName == null, `unbound credential ${JSON.stringify(unbound)}`);
     const first = await client.studioDrafts.listArchitectPrompts({ maxResults: 1 });
     require(first.objects.length === 1 && first.objects[0].name === "builtin/agent-architect" && first.totalRecords >= 2 && first.endOfResults === false, `prompt page 1 ${JSON.stringify(first)}`);
     const second = await client.studioDrafts.listArchitectPrompts({ maxResults: 1, skip: 1 });
@@ -923,6 +927,7 @@ await check("agent architects", async () => {
     require(status === 404, `read after delete ${status}`);
   } finally {
     if (architectId) await client.studioDrafts.deleteArchitect(architectId).catch((e) => { if (!(e instanceof GarrisonError && e.statusCode === 404)) throw e; });
+    await client.secrets.delete(credential.id);
   }
 });
 await check("app gateway chat with the support triage bundle", async () => {

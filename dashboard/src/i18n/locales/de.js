@@ -4453,3 +4453,51 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "Zugangsdaten",
+    "noCredential": "Keine",
+    "credentialOption": "{{name}} ({{kind}})",
+    "credentialHint": "Das Geheimnis, mit dem sich das Harness anmeldet. Garrison bindet es an die Bereitstellung des Architekten.",
+    "credentialMissing": "{{profile}} braucht Zugangsdaten zum Anmelden, und keine sind gewählt. Ohne sie scheitert jeder Zug mit Not logged in.",
+    "addSecret": "Geheimnis hinzufügen"
+   },
+   "chat": {
+    "notCredentialedTitle": "Der Architekt konnte sich nicht bei seinem Modellanbieter anmelden",
+    "notCredentialedBody": "Sein Harness hat keine funktionierenden Zugangsdaten (Claude Code meldet das als Not logged in). Geben Sie {{architect}} auf der Seite Architekten ein Zugangsdaten-Geheimnis, oder prüfen Sie den Wert des Geheimnisses.",
+    "noCredentialTitle": "Dieser Architekt hat keine Zugangsdaten",
+    "noCredentialBody": "{{architect}} läuft auf {{profile}}, das zum Anmelden ein Geheimnis braucht. Ohne eines scheitern seine Züge mit Not logged in. Wählen Sie auf der Seite Architekten Zugangsdaten für ihn.",
+    "fixCredential": "Zugangsdaten des Architekten korrigieren",
+    "openSecrets": "Geheimnisse öffnen"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "Zugangsdaten"
+   },
+   "fields": {
+    "credentialSecretId": "Zugangsdaten"
+   },
+   "hints": {
+    "credentialSecretId": "Das Geheimnis, mit dem sich das Harness anmeldet, gebunden an die Bereitstellung des Architekten.",
+    "credentialMissing": "{{profile}} braucht Zugangsdaten zum Anmelden. Ohne sie scheitert jeder Zug mit Not logged in."
+   },
+   "noCredential": "Keine"
+  }
+ }
+});

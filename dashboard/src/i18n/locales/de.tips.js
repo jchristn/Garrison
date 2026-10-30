@@ -3308,3 +3308,33 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "architect": {
+   "credentialSecretId": "Das Geheimnis, mit dem sich das Harness des Architekten anmeldet: ein Anthropic-API-Schlüssel oder ein Claude-Code-OAuth-Token für Claude Code, ein OpenAI-API-Schlüssel oder eine ChatGPT-Anmeldung für Codex usw. Garrison bindet es an die Bereitstellung des Architekten.",
+   "addSecret": "Geheimnisse in einem neuen Tab öffnen, um den API-Schlüssel oder das Token hinzuzufügen; danach hier zurückkommen und es auswählen."
+  },
+  "chat": {
+   "fixCredential": "Agenten > Architekten gefiltert auf diesen Architekten öffnen, ihn dann bearbeiten und sein Zugangsdaten-Geheimnis wählen.",
+   "openSecrets": "Konfiguration > Geheimnisse öffnen, um den API-Schlüssel oder das Token hinzuzufügen oder den Wert des verwendeten zu prüfen."
+  }
+ },
+ "resources": {
+  "architects": {
+   "credentialSecretId": "Das Geheimnis, mit dem sich das Harness des Architekten anmeldet: ein Anthropic-API-Schlüssel oder ein Claude-Code-OAuth-Token für Claude Code, ein OpenAI-API-Schlüssel oder eine ChatGPT-Anmeldung für Codex usw. Garrison bindet es an die Bereitstellung des Architekten.",
+   "credentialCell": "Das Geheimnis, mit dem sich das Harness dieses Architekten anmeldet ({{kind}}).",
+   "noCredential": "Kein Zugangsdaten-Geheimnis gebunden, daher scheitern Harnesses, die eines brauchen (Claude Code, Codex, Gemini CLI), mit Not logged in. Bearbeiten Sie den Architekten, um eines zu wählen."
+  }
+ }
+});

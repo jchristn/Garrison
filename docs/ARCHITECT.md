@@ -12,12 +12,12 @@ It has no deployment until you create an architect. Pick the harness and model y
 
 ## Architects
 
-An architect is a deployment of `agent-architect` with `managementAccess: Drafts`, a harness profile, a model, and an architect prompt. Its ID is the deployment ID (`dep_...`). Architects belong to the tenant and are reusable: any studio draft can use any architect, and nothing ties one to a particular draft. Keep one per harness or prompt you like to work with. In the dashboard they are on Agents > Architects (list, create, edit, delete, choose the prompt), and the Architect tab of a draft only picks which architect to talk to.
+An architect is a deployment of `agent-architect` with `managementAccess: Drafts`, a harness profile, a model, a credential secret, and an architect prompt. Its ID is the deployment ID (`dep_...`). Architects belong to the tenant and are reusable: any studio draft can use any architect, and nothing ties one to a particular draft. Keep one per harness or prompt you like to work with. In the dashboard they are on Agents > Architects (list, create, edit, delete, choose the prompt), and the Architect tab of a draft only picks which architect to talk to.
 
 ```bash
 API=http://127.0.0.1:8700/v1.0/api/tenants/default
 DEP=$(curl -s -X POST "$API/studio/architects" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"architect","harnessProfileId":"hrn_builtin_claude_code","architectPromptTemplateId":"builtin/agent-architect-guided"}' | jq -r .id)
+  -d '{"name":"architect","harnessProfileId":"hrn_builtin_claude_code","credentialSecretId":"anthropic-api-key","architectPromptTemplateId":"builtin/agent-architect-guided"}' | jq -r .id)
 curl -s "$API/studio/architects?search=arch&activeOnly=true" -H "Authorization: Bearer $TOKEN"
 curl -s -X PUT "$API/studio/architects/$DEP" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"architect","harnessProfileId":"hrn_builtin_claude_code","model":"claude-opus-4-1","active":true}'
@@ -43,12 +43,13 @@ The request body, `ArchitectRequest`, is the same for create and update:
 | `harnessProfileId` | string | Required. Harness profile ID, such as `hrn_builtin_claude_code` |
 | `model` | string? | Null for the harness profile's default model |
 | `active` | bool | Whether the architect accepts new turns. Default true |
+| `credentialSecretId` | string? | A secret ID or name the harness signs in with, bound to the deployment under the alias `credential`: an `AnthropicApiKey` or `ClaudeCodeOAuthToken` for Claude Code, an `OpenAiApiKey` or `CodexAuthJson` for Codex, a `GeminiApiKey` for Gemini CLI. On create, null binds none; on update, null keeps the current one and an empty string removes it |
 | `architectPromptTemplateId` | string? | A `System` template ID or name. On create, null binds `builtin/agent-architect`; on update, null keeps the current prompt |
 | `architectPromptVersion` | int? | Version to pin, minimum 1, or null to follow the template's current version. Give it together with `architectPromptTemplateId` |
 
 An update changes only these fields. The deployment's other settings (limits, executor, egress rules, and so on) stay as they are, and you edit them through the ordinary deployment routes. A prompt change takes effect on the architect's next turn ([the next-turn rule](#the-next-turn-rule)).
 
-The response, `Architect`, has `id`, `tenantId`, `name`, `description`, `agentId`, `agentName` (null when the agent cannot be read), `harnessProfileId`, `model`, `active`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (the pin, or null), `architectPromptCurrentVersion`, `configVersion`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
+The response, `Architect`, has `id`, `tenantId`, `name`, `description`, `agentId`, `agentName` (null when the agent cannot be read), `harnessProfileId`, `model`, `active`, `credentialSecretId`, `credentialSecretName`, and `credentialSecretKind` (the bound credential, or null; the secret bound as `credential`, else the first bound secret), `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion` (the pin, or null), `architectPromptCurrentVersion`, `configVersion`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
 
 The list includes every deployment with `managementAccess: Drafts` and every deployment of the built-in `agent-architect`, so an architect created through `POST /deployments` or a manifest shows up as well.
 
@@ -56,11 +57,14 @@ Errors:
 
 - 400 `ValidationFailed` when `name` or `harnessProfileId` is missing, or `architectPromptVersion` comes without `architectPromptTemplateId`.
 - 400 `InvalidArchitectPrompt` when the template is not a `System` template the tenant can read.
+- 400 `InvalidCredentialSecret` when the credential secret does not exist in the tenant or is inactive.
 - 409 `NameConflict` when another deployment has the name.
 - 409 `ArchitectAgentMissing` on create when the tenant has no built-in `agent-architect`. Restarting the server seeds it.
 - 409 `Protected` on update or delete when the deployment is protected, and on delete 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, or `ReferencedByPipeline` when something still names it.
 
 Deleting an architect removes its deployment. Drafts are kept; only their conversations with that architect end.
+
+**Credentials.** A harness gets its API key or token only from a secret bound to its deployment; keys in the worker's own environment never reach it. An architect without a credential on a harness that needs one fails every turn with outcome `NotCredentialed` (Claude Code prints "Not logged in · Please run /login"). The dashboard suggests a secret whose kind fits the chosen harness profile when you create an architect, warns when there is none, and the studio chat shows a notice with links to the architect and to Secrets when the architect has no credential or a turn fails with `NotCredentialed`.
 
 The MCP tools `garrison_studio_list_architects` (`search`, `activeOnly`, `maxResults` 1 to 100, `skip`), `garrison_studio_get_architect`, `garrison_studio_create_architect`, `garrison_studio_update_architect`, and `garrison_studio_delete_architect` do the same for users and credentials ([MCP_API.md](../MCP_API.md#studio-drafts)). The update tool is partial: fields you leave out keep their values. The delete tool returns `{"id": "dep_...", "deleted": true}`.
 

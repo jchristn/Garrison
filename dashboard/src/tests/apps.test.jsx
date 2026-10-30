@@ -23,7 +23,7 @@ import { findPage, pathFor } from '../config/navConfig';
 import ApiClient, { ApiError } from '../utils/api';
 import { ENUMS } from '../utils/constants';
 import { errorMessage, fieldErrorMessages, withListItemErrors } from '../utils/errors';
-import { architectBody, architectFormErrors } from '../utils/architect';
+import { architectBody, architectFormErrors, needsCredential, suggestedCredential } from '../utils/architect';
 import {
   APP_FIELD_CODES,
   canPromoteTo,
@@ -452,6 +452,23 @@ describe('app environments and promotion (AD9.6)', () => {
   it('builds the architect deployment body from the wizard or dialog form', () => {
     expect(architectBody({ name: ' architect ', harnessProfileId: 'hp_1', model: '', promptId: 'pt_guided' })).toEqual({ name: 'architect', harnessProfileId: 'hp_1', architectPromptTemplateId: 'pt_guided' });
     expect(architectFormErrors({ name: '', harnessProfileId: '' }, t)).toEqual({ name: t('common.errors.required'), harnessProfileId: t('common.errors.required') });
+    expect(architectBody({ name: 'a', harnessProfileId: 'hp_1', credentialSecretId: 'sec_1' })).toEqual({ name: 'a', harnessProfileId: 'hp_1', credentialSecretId: 'sec_1' });
+  });
+
+  it('suggests the secret a harness signs in with, skipping inactive and broken logins', () => {
+    const secrets = [
+      { id: 'a', kind: 'OpenAiApiKey', active: false },
+      { id: 'b', kind: 'CodexAuthJson', status: 'NeedsReauthentication' },
+      { id: 'c', kind: 'ClaudeCodeOAuthToken' },
+      { id: 'd', kind: 'AnthropicApiKey' },
+      { id: 'e', kind: 'GeminiApiKey' }
+    ];
+    expect(suggestedCredential(secrets, 'ClaudeCode').id).toBe('d');
+    expect(suggestedCredential(secrets, 'GeminiCli').id).toBe('e');
+    expect(suggestedCredential(secrets, 'Codex')).toBeNull();
+    expect(suggestedCredential(secrets, 'Generic')).toBeNull();
+    expect(needsCredential('ClaudeCode')).toBe(true);
+    expect(needsCredential('Generic')).toBe(false);
   });
 });
 

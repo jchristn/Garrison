@@ -207,10 +207,15 @@ type Architect struct {
 	ArchitectPromptName           string  `json:"architectPromptName"`
 	ArchitectPromptVersion        *int    `json:"architectPromptVersion,omitempty"`
 	ArchitectPromptCurrentVersion int     `json:"architectPromptCurrentVersion"`
-	ConfigVersion                 int     `json:"configVersion"`
-	IsProtected                   bool    `json:"isProtected"`
-	CreatedUTC                    string  `json:"createdUtc,omitempty"`
-	LastUpdateUTC                 string  `json:"lastUpdateUtc,omitempty"`
+	// CredentialSecretID is the secret the architect's harness signs in with, bound under the alias "credential";
+	// nil when none is bound. CredentialSecretName and CredentialSecretKind (for example "AnthropicApiKey") describe it.
+	CredentialSecretID   *string `json:"credentialSecretId,omitempty"`
+	CredentialSecretName *string `json:"credentialSecretName,omitempty"`
+	CredentialSecretKind *string `json:"credentialSecretKind,omitempty"`
+	ConfigVersion        int     `json:"configVersion"`
+	IsProtected          bool    `json:"isProtected"`
+	CreatedUTC           string  `json:"createdUtc,omitempty"`
+	LastUpdateUTC        string  `json:"lastUpdateUtc,omitempty"`
 }
 
 // ArchitectRequest creates or changes an agent architect. Name and HarnessProfileID are required. Active is sent as
@@ -225,6 +230,10 @@ type ArchitectRequest struct {
 	Active                    *bool   `json:"active,omitempty"`
 	ArchitectPromptTemplateID *string `json:"architectPromptTemplateId,omitempty"`
 	ArchitectPromptVersion    *int    `json:"architectPromptVersion,omitempty"`
+	// CredentialSecretID is the identifier or name of an active tenant secret the harness signs in with, bound under
+	// the alias "credential" (400 InvalidCredentialSecret otherwise). Nil is not sent: it binds none on create and keeps
+	// the current one on update. A pointer to "" on update removes it.
+	CredentialSecretID *string `json:"credentialSecretId,omitempty"`
 }
 
 type studioDraftCreateRequest struct {

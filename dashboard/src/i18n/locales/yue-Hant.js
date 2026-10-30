@@ -4418,3 +4418,51 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "憑證",
+    "noCredential": "冇",
+    "credentialOption": "{{name}}（{{kind}}）",
+    "credentialHint": "Harness 用嚟登入嘅密鑰。Garrison 會將佢綁定到架構師嘅部署。",
+    "credentialMissing": "{{profile}} 要有憑證先可以登入，但係仲未揀。冇憑證嘅話，每一輪都會以 Not logged in 失敗。",
+    "addSecret": "新增密鑰"
+   },
+   "chat": {
+    "notCredentialedTitle": "架構師登入唔到佢嘅模型供應商",
+    "notCredentialedBody": "佢個 Harness 冇可用嘅憑證（Claude Code 會顯示 Not logged in）。請喺架構師頁面俾 {{architect}} 一個憑證密鑰，或者檢查下密鑰嘅值啱唔啱。",
+    "noCredentialTitle": "呢個架構師冇憑證",
+    "noCredentialBody": "{{architect}} 喺 {{profile}} 上面運行，要有密鑰先可以登入。冇密鑰嘅話，佢每一輪都會以 Not logged in 失敗。請喺架構師頁面幫佢揀憑證。",
+    "fixCredential": "修正架構師嘅憑證",
+    "openSecrets": "打開密鑰"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "憑證"
+   },
+   "fields": {
+    "credentialSecretId": "憑證"
+   },
+   "hints": {
+    "credentialSecretId": "Harness 用嚟登入嘅密鑰，綁定到架構師嘅部署。",
+    "credentialMissing": "{{profile}} 要有憑證先可以登入。冇憑證嘅話，每一輪都會以 Not logged in 失敗。"
+   },
+   "noCredential": "冇"
+  }
+ }
+});

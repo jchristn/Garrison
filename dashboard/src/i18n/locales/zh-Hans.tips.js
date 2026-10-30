@@ -3307,3 +3307,33 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "architect": {
+   "credentialSecretId": "架构师的 Harness 用于登录的密钥：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
+   "addSecret": "在新标签页中打开密钥，添加 API 密钥或令牌，然后回到这里选择它。"
+  },
+  "chat": {
+   "fixCredential": "打开按此架构师筛选的 代理 > 架构师，编辑它并选择凭据密钥。",
+   "openSecrets": "打开 配置 > 密钥，添加 API 密钥或令牌，或检查架构师所用密钥的值。"
+  }
+ },
+ "resources": {
+  "architects": {
+   "credentialSecretId": "架构师的 Harness 用于登录的密钥：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
+   "credentialCell": "此架构师的 Harness 用于登录的密钥（{{kind}}）。",
+   "noCredential": "未绑定凭据密钥，因此需要凭据的 Harness（Claude Code、Codex、Gemini CLI）会因 Not logged in 而失败。编辑架构师以选择一个。"
+  }
+ }
+});

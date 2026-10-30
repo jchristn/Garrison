@@ -4467,3 +4467,51 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "Credenziale",
+    "noCredential": "Nessuna",
+    "credentialOption": "{{name}} ({{kind}})",
+    "credentialHint": "Il segreto con cui l'harness accede. Garrison lo associa alla distribuzione dell'architetto.",
+    "credentialMissing": "{{profile}} ha bisogno di una credenziale per accedere e non ne è stata scelta nessuna. Senza, ogni turno fallisce con Not logged in.",
+    "addSecret": "Aggiungi un segreto"
+   },
+   "chat": {
+    "notCredentialedTitle": "L'architetto non è riuscito ad accedere al suo fornitore di modelli",
+    "notCredentialedBody": "Il suo harness non ha una credenziale valida (Claude Code lo segnala come Not logged in). Assegna a {{architect}} un segreto di credenziale nella pagina Architetti, oppure verifica il valore del segreto.",
+    "noCredentialTitle": "Questo architetto non ha una credenziale",
+    "noCredentialBody": "{{architect}} viene eseguito su {{profile}}, che ha bisogno di un segreto per accedere. Senza, i suoi turni falliscono con Not logged in. Scegli una credenziale nella pagina Architetti.",
+    "fixCredential": "Correggi la credenziale dell'architetto",
+    "openSecrets": "Apri segreti"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "Credenziale"
+   },
+   "fields": {
+    "credentialSecretId": "Credenziale"
+   },
+   "hints": {
+    "credentialSecretId": "Il segreto con cui l'harness accede, associato alla distribuzione dell'architetto.",
+    "credentialMissing": "{{profile}} ha bisogno di una credenziale per accedere. Senza, ogni turno fallisce con Not logged in."
+   },
+   "noCredential": "Nessuna"
+  }
+ }
+});

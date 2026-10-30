@@ -14,7 +14,7 @@ import { TERMINAL_RUN_STATUSES, runStatusTone } from '../../utils/constants';
 import { errorMessage } from '../../utils/errors';
 import { enumLabel } from '../../utils/enums';
 import { enumTip } from '../../utils/tips';
-import { TURN_POLL_MS, conversationStorageKey, readStored, stripDraftPrefix, writeStored } from '../../utils/studio';
+import { TURN_POLL_MS, conversationStorageKey, needsCredential, readStored, stripDraftPrefix, writeStored } from '../../utils/studio';
 
 /** A run status pill. */
 export function TurnStatus({ status }) {
@@ -50,6 +50,22 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
   const architect = architects.find((d) => d.id === architectId) || null;
   // A conversation stays on the deployment of its first turn; another architect starts a new conversation.
   const conversationId = binding && (!binding.deploymentId || binding.deploymentId === architectId) ? binding.conversationId : null;
+  // The architect's harness profile, to warn before the first turn when its harness needs a credential and has none.
+  const [profile, setProfile] = useState(null);
+  useEffect(() => {
+    if (!apiClient || !architect?.harnessProfileId) {
+      setProfile(null);
+      return undefined;
+    }
+    let active = true;
+    apiClient
+      .getHarnessProfile(tenantId, architect.harnessProfileId)
+      .then((p) => active && setProfile(p))
+      .catch(() => active && setProfile(null));
+    return () => {
+      active = false;
+    };
+  }, [apiClient, tenantId, architect?.harnessProfileId]);
 
   useEffect(() => {
     unmounted.current = false;
@@ -126,6 +142,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
     setPending(null);
   };
 
+  const fixArchitect = architect ? pathFor('architects', null, { search: architect.name }) : pathFor('architects');
   const shownTurns = turns.map((r) => (pending && r.id === pending.id ? { ...r, ...pending, inputText: r.inputText || pending.inputText } : r));
 
   return (
@@ -156,12 +173,12 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           >
             <PlusIcon size={14} /> {t('components.studio.chat.newArchitect')}
           </button>
-          <StudioLink to={pathFor('architects')} testId="studio-manage-architects" tipText={t('tips.studio.chat.manageArchitects')}>
+          <StudioLink to={pathFor('architects')} className="button button-secondary button-sm" testId="studio-manage-architects" tipText={t('tips.studio.chat.manageArchitects')}>
             {t('components.studio.chat.manageArchitects')}
           </StudioLink>
           {conversationId && (
             <>
-              <StudioLink to={pathFor('conversations', conversationId)} testId="studio-chat-conversation" tipText={t('tips.studio.chat.openConversation')}>
+              <StudioLink to={pathFor('conversations', conversationId)} className="button button-secondary button-sm" testId="studio-chat-conversation" tipText={t('tips.studio.chat.openConversation')}>
                 {t('components.studio.chat.openConversation')}
               </StudioLink>
               <button type="button" className="button-ghost button-sm" onClick={newConversation} data-testid="studio-chat-new-conversation" {...tip(t('tips.studio.chat.newConversation'))}>
@@ -176,6 +193,30 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           <span>{t('components.studio.chat.noArchitect')}</span>
         </div>
       )}
+      {(() => {
+        // A harness that could not sign in (outcome NotCredentialed, for example Claude Code's "Not logged in") needs a
+        // credential secret on the architect; say so and link to where it is fixed.
+        const last = [...shownTurns].reverse().find((r) => TERMINAL_RUN_STATUSES.includes(r.status));
+        const failed = last?.outcome === 'NotCredentialed';
+        const missing = !!architect && !architect.credentialSecretId && !!profile && needsCredential(profile.harnessType);
+        if (!failed && !missing) return null;
+        return (
+          <div className="warning-banner studio-credential-banner" role="alert" data-testid="studio-not-credentialed">
+            <div>
+              <strong>{t(failed ? 'components.studio.chat.notCredentialedTitle' : 'components.studio.chat.noCredentialTitle')}</strong>
+              <div>{t(failed ? 'components.studio.chat.notCredentialedBody' : 'components.studio.chat.noCredentialBody', { architect: architect?.name || '', profile: profile?.name || '' })}</div>
+            </div>
+            <div className="flex gap-sm items-center">
+              <StudioLink to={fixArchitect} className="button button-primary button-sm" testId="studio-fix-credential" tipText={t('tips.studio.chat.fixCredential')}>
+                {t('components.studio.chat.fixCredential')}
+              </StudioLink>
+              <StudioLink to={pathFor('secrets')} className="button button-secondary button-sm" testId="studio-open-secrets" tipText={t('tips.studio.chat.openSecrets')}>
+                {t('components.studio.chat.openSecrets')}
+              </StudioLink>
+            </div>
+          </div>
+        );
+      })()}
       <div className="studio-chat-turns" data-testid="studio-chat-turns">
         {shownTurns.length === 0 ? (
           <div className="text-muted">{t(architect ? 'components.studio.chat.empty' : 'components.studio.chat.pickFirst')}</div>

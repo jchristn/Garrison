@@ -75,6 +75,22 @@ namespace Garrison.Core.Responses
         public int ArchitectPromptCurrentVersion { get; set; } = 1;
 
         /// <summary>
+        /// Identifier of the secret the architect's harness signs in with (for example an AnthropicApiKey for Claude Code),
+        /// or null when none is bound. Without one, most harnesses fail with outcome NotCredentialed.
+        /// </summary>
+        public string? CredentialSecretId { get; set; } = null;
+
+        /// <summary>
+        /// Name of the credential secret, or null.
+        /// </summary>
+        public string? CredentialSecretName { get; set; } = null;
+
+        /// <summary>
+        /// Kind of the credential secret (AnthropicApiKey, ClaudeCodeOAuthToken, OpenAiApiKey, and so on), or null.
+        /// </summary>
+        public string? CredentialSecretKind { get; set; } = null;
+
+        /// <summary>
         /// Configuration version of the underlying deployment; every change adds one.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;

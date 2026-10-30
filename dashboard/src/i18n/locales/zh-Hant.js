@@ -4419,3 +4419,51 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "憑證",
+    "noCredential": "無",
+    "credentialOption": "{{name}}（{{kind}}）",
+    "credentialHint": "Harness 用來登入的密鑰。Garrison 會把它繫結到架構師的部署。",
+    "credentialMissing": "{{profile}} 需要憑證才能登入，但尚未選擇。沒有憑證時，每一輪都會以 Not logged in 失敗。",
+    "addSecret": "新增密鑰"
+   },
+   "chat": {
+    "notCredentialedTitle": "架構師無法登入其模型供應商",
+    "notCredentialedBody": "它的 Harness 沒有可用的憑證（Claude Code 會顯示 Not logged in）。請在架構師頁面為 {{architect}} 指定憑證密鑰，或確認密鑰的值是否正確。",
+    "noCredentialTitle": "這位架構師沒有憑證",
+    "noCredentialBody": "{{architect}} 在 {{profile}} 上執行，需要密鑰才能登入。沒有密鑰時，它的每一輪都會以 Not logged in 失敗。請在架構師頁面為它選擇憑證。",
+    "fixCredential": "修正架構師的憑證",
+    "openSecrets": "開啟密鑰"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "憑證"
+   },
+   "fields": {
+    "credentialSecretId": "憑證"
+   },
+   "hints": {
+    "credentialSecretId": "Harness 用來登入的密鑰，繫結到架構師的部署。",
+    "credentialMissing": "{{profile}} 需要憑證才能登入。沒有憑證時，每一輪都會以 Not logged in 失敗。"
+   },
+   "noCredential": "無"
+  }
+ }
+});

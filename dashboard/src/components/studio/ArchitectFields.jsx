@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
 import { errorMessage } from '../../utils/errors';
-import { ARCHITECT_AGENT, defaultArchitectPrompt, findArchitectAgent, sortArchitectPrompts } from '../../utils/studio';
+import { ARCHITECT_AGENT, defaultArchitectPrompt, findArchitectAgent, needsCredential, sortArchitectPrompts, suggestedCredential } from '../../utils/studio';
 
 /** Sample values the architect prompt preview renders with. */
 const PREVIEW_CONTEXT = {
@@ -23,7 +23,9 @@ const PREVIEW_CONTEXT = {
  * `onAgent(agent)`, null when the tenant has none), lists harness profiles (the first one preselected) and the
  * architect prompts from GET /studio/architect-prompts (built-ins first, the default builtin/agent-architect
  * preselected), renders the chosen prompt with sample values, and links to its page on Prompt Templates to clone it.
- * The form is controlled: `form` holds { name, harnessProfileId, model, promptId } and `onChange(patch)` updates it.
+ * It also offers the tenant's secrets as the credential the harness signs in with, preselecting one whose kind fits
+ * the chosen harness profile and warning when the harness needs one and none is chosen. The form is controlled: `form`
+ * holds { name, harnessProfileId, model, credentialSecretId, promptId } and `onChange(patch)` updates it.
  */
 export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAgent, idPrefix = 'architect' }) {
   const { t } = useTranslation();
@@ -31,6 +33,9 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
   const { tenantId } = useApp();
   const [profiles, setProfiles] = useState([]);
   const [prompts, setPrompts] = useState([]);
+  const [secrets, setSecrets] = useState([]);
+  // Once the person picks a credential (or None), the harness profile no longer changes it.
+  const credentialTouched = useRef(false);
   const [preview, setPreview] = useState(null);
   const [previewError, setPreviewError] = useState(null);
   const changeRef = useRef(onChange);
@@ -57,6 +62,10 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
         if (!formRef.current.harnessProfileId && list.length) changeRef.current({ harnessProfileId: list[0].id });
       })
       .catch(() => active && setProfiles([]));
+    apiClient
+      .listSecrets(tenantId, page)
+      .then((r) => active && setSecrets((r.items || []).filter((x) => x.active !== false)))
+      .catch(() => active && setSecrets([]));
     apiClient
       .listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 })
       .then((page) => {
@@ -88,6 +97,16 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
     };
   }, [apiClient, tenantId, form.promptId, t]);
 
+  const profile = useMemo(() => profiles.find((p) => p.id === form.harnessProfileId) || null, [profiles, form.harnessProfileId]);
+  // Suggest the secret the chosen harness signs in with (an AnthropicApiKey for Claude Code, and so on).
+  useEffect(() => {
+    if (credentialTouched.current || !profile) return;
+    const suggested = suggestedCredential(secrets, profile.harnessType);
+    const next = suggested ? suggested.id : '';
+    if (next !== (formRef.current.credentialSecretId || '')) changeRef.current({ credentialSecretId: next });
+  }, [profile, secrets]);
+  const missingCredential = !!profile && needsCredential(profile.harnessType) && !form.credentialSecretId;
+
   const chosen = useMemo(() => prompts.find((p) => p.id === form.promptId) || null, [prompts, form.promptId]);
   const set = (key) => (e) => onChange({ [key]: e.target.value });
   const id = (key) => `${idPrefix}-${key}`;
@@ -118,6 +137,37 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
               </option>
             ))}
           </select>
+        )}
+        {field(
+          'credentialSecretId',
+          t('components.studio.architect.credential'),
+          <select
+            id={id('credentialSecretId')}
+            value={form.credentialSecretId || ''}
+            onChange={(e) => {
+              credentialTouched.current = true;
+              onChange({ credentialSecretId: e.target.value });
+            }}
+            data-testid="architect-credential"
+            {...tip(t('tips.studio.architect.credentialSecretId'))}
+          >
+            <option value="">{t('components.studio.architect.noCredential')}</option>
+            {secrets.map((x) => (
+              <option key={x.id} value={x.id}>
+                {t('components.studio.architect.credentialOption', { name: x.name, kind: x.kind })}
+              </option>
+            ))}
+          </select>,
+          missingCredential ? (
+            <span className="field-warning" data-testid="architect-credential-missing">
+              {t('components.studio.architect.credentialMissing', { profile: profile?.name || '' })}{' '}
+              <a href={pathFor('secrets')} target="_blank" rel="noopener noreferrer" {...tip(t('tips.studio.architect.addSecret'))}>
+                {t('components.studio.architect.addSecret')}
+              </a>
+            </span>
+          ) : (
+            t('components.studio.architect.credentialHint')
+          )
         )}
         {field('model', t('components.studio.architect.model'), <input id={id('model')} value={form.model} placeholder="sonnet" onChange={set('model')} data-testid="architect-model" {...tip(t('tips.studio.architect.model'))} />, t('components.studio.architect.modelHint'))}
         {field(

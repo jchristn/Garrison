@@ -393,6 +393,12 @@ export interface Architect {
   architectPromptName: string;
   architectPromptVersion?: number | null;
   architectPromptCurrentVersion: number;
+  /** Identifier of the secret the architect's harness signs in with (bound under the alias "credential"); null when none. */
+  credentialSecretId?: string | null;
+  /** Name of the credential secret; null when none is bound. */
+  credentialSecretName?: string | null;
+  /** Kind of the credential secret, for example "AnthropicApiKey"; null when none is bound. */
+  credentialSecretKind?: string | null;
   configVersion: number;
   isProtected: boolean;
   createdUtc: string;
@@ -412,6 +418,12 @@ export interface ArchitectRequest {
   active?: boolean;
   architectPromptTemplateId?: string | null;
   architectPromptVersion?: number | null;
+  /**
+   * Identifier or name of an active tenant secret the harness signs in with, bound under the alias "credential"
+   * (400 InvalidCredentialSecret otherwise). Omitted or null binds none on create and keeps the current one on update;
+   * an empty string on update removes it.
+   */
+  credentialSecretId?: string | null;
 }
 
 /** The prompt an architect deployment uses. architectPromptVersion is null when it follows the template's current version. */

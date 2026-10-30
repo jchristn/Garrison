@@ -1430,14 +1430,17 @@ namespace Garrison.Sdk.Test
                     string name = "sdk-cs-arch-" + suffix;
                     string renamed = name + "-renamed";
                     string? architectId = null;
+                    Secret credential = await client.Secrets.CreateAsync(new SecretRequest { Name = "sdk-cs-arch-cred-" + suffix, Kind = SecretKindEnum.AnthropicApiKey, Value = "sk-ant-fake-" + suffix }, token).ConfigureAwait(false);
                     try
                     {
                         ArchitectRequest create = new ArchitectRequest();
                         create.Name = name;
                         create.Description = "SDK harness architect";
                         create.HarnessProfileId = "hrn_builtin_fake";
+                        create.CredentialSecretId = credential.Name;
                         Architect created = await client.StudioDrafts.CreateArchitectAsync(create, token).ConfigureAwait(false);
                         architectId = created.Id;
+                        Require(created.CredentialSecretId == credential.Id && created.CredentialSecretName == credential.Name, "created credential " + created.CredentialSecretId + " " + created.CredentialSecretName);
                         Require(created.Name == name && created.HarnessProfileId == "hrn_builtin_fake" && created.Active && created.AgentName == "agent-architect", "created " + created.Name + " " + created.AgentName);
                         Require(created.ArchitectPromptName == "builtin/agent-architect" && created.ArchitectPromptVersion == null, "created prompt " + created.ArchitectPromptName);
 
@@ -1461,6 +1464,14 @@ namespace Garrison.Sdk.Test
                         Architect updated = await client.StudioDrafts.UpdateArchitectAsync(created.Id, update, token).ConfigureAwait(false);
                         Require(updated.Id == created.Id && updated.Name == renamed && updated.Model == "fake-model" && !updated.Active, "updated " + updated.Name + " " + updated.Model + " " + updated.Active);
                         Require(updated.ArchitectPromptName == "builtin/agent-architect-guided", "updated prompt " + updated.ArchitectPromptName);
+
+                        ArchitectRequest unbind = new ArchitectRequest();
+                        unbind.Name = renamed;
+                        unbind.HarnessProfileId = "hrn_builtin_fake";
+                        unbind.Active = false;
+                        unbind.CredentialSecretId = "";
+                        Architect unbound = await client.StudioDrafts.UpdateArchitectAsync(created.Id, unbind, token).ConfigureAwait(false);
+                        Require(unbound.CredentialSecretId == null && unbound.CredentialSecretName == null, "unbound credential " + unbound.CredentialSecretId);
 
                         EnumerationQuery promptQuery = new EnumerationQuery();
                         promptQuery.MaxResults = 1;
@@ -1489,6 +1500,7 @@ namespace Garrison.Sdk.Test
                         {
                             try { await client.StudioDrafts.DeleteArchitectAsync(architectId, token).ConfigureAwait(false); } catch (GarrisonException e) when (e.StatusCode == 404) { }
                         }
+                        await client.Secrets.DeleteAsync(credential.Id, token).ConfigureAwait(false);
                     }
                 }).ConfigureAwait(false);
 

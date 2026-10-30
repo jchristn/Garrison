@@ -2201,6 +2201,15 @@ func main() {
 		name := "sdk-go-arch-" + suffix
 		renamed := name + "-renamed"
 		architectID := ""
+		var credential garrison.Secret
+		if err := client.Secrets.Create(ctx, map[string]any{"name": "sdk-go-arch-cred-" + suffix, "kind": "AnthropicApiKey", "value": "sk-ant-fake-" + suffix}, &credential); err != nil {
+			return err
+		}
+		defer func() {
+			if derr := client.Secrets.Delete(ctx, credential.ID); derr != nil && err == nil {
+				err = derr
+			}
+		}()
 		defer func() {
 			if architectID != "" {
 				if derr := client.StudioDrafts.DeleteArchitect(ctx, architectID); derr != nil && !garrison.IsStatus(derr, 404) && err == nil {
@@ -2209,11 +2218,14 @@ func main() {
 			}
 		}()
 		description := "SDK harness architect"
-		created, err := client.StudioDrafts.CreateArchitect(ctx, garrison.ArchitectRequest{Name: name, Description: &description, HarnessProfileID: "hrn_builtin_fake"})
+		created, err := client.StudioDrafts.CreateArchitect(ctx, garrison.ArchitectRequest{Name: name, Description: &description, HarnessProfileID: "hrn_builtin_fake", CredentialSecretID: &credential.Name})
 		if err != nil {
 			return err
 		}
 		architectID = created.ID
+		if created.CredentialSecretID == nil || *created.CredentialSecretID != credential.ID || created.CredentialSecretName == nil || *created.CredentialSecretName != credential.Name {
+			return fmt.Errorf("created architect credential %v %v", created.CredentialSecretID, created.CredentialSecretName)
+		}
 		if created.Name != name || created.HarnessProfileID != "hrn_builtin_fake" || !created.Active || created.AgentName == nil || *created.AgentName != "agent-architect" {
 			return fmt.Errorf("created architect %+v", created)
 		}
@@ -2253,6 +2265,14 @@ func main() {
 		}
 		if updated.ArchitectPromptName != guided {
 			return fmt.Errorf("updated architect prompt %s", updated.ArchitectPromptName)
+		}
+		unbind := ""
+		unbound, err := client.StudioDrafts.UpdateArchitect(ctx, created.ID, garrison.ArchitectRequest{Name: renamed, HarnessProfileID: "hrn_builtin_fake", Active: &inactive, CredentialSecretID: &unbind})
+		if err != nil {
+			return err
+		}
+		if unbound.CredentialSecretID != nil || unbound.CredentialSecretName != nil {
+			return fmt.Errorf("unbound architect credential %v %v", unbound.CredentialSecretID, unbound.CredentialSecretName)
 		}
 		first, err := client.StudioDrafts.ArchitectPrompts(ctx, &garrison.ListOptions{MaxResults: 1})
 		if err != nil {

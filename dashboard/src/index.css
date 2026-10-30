@@ -708,6 +708,7 @@ button[aria-disabled="true"]:hover { filter: none; }
 .settings-subsection { margin-top: var(--spacing-lg); }
 .settings-panel-actions { display: flex; margin-top: var(--spacing-md); }
 .field-hint { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.field-hint .field-warning { color: var(--color-warning); }
 
 /* ================= Responsive ================= */
 @media (max-width: 900px) {
@@ -1398,3 +1399,4 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .about-panel h2 { margin: 0; }
 .about-positioning { margin: var(--spacing-xs) 0 var(--spacing-sm); color: var(--color-text-secondary); max-width: 70ch; }
 .about-links { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.studio-credential-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }

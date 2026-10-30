@@ -27,6 +27,9 @@ namespace Garrison.Server.Protocols
         /// <summary>System template identifier or name, for set, create, and update.</summary>
         public string? ArchitectPromptTemplateId { get; set; } = null;
 
+        /// <summary>Credential secret identifier or name, for create and update; an empty string on update removes it.</summary>
+        public string? CredentialSecretId { get; set; } = null;
+
         /// <summary>Version to pin, for set, create, and update; omit to follow the current version.</summary>
         public int? ArchitectPromptVersion { get; set; } = null;
 

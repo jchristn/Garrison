@@ -146,6 +146,22 @@ namespace Garrison.Sdk.Responses
         public int ArchitectPromptCurrentVersion { get; set; } = 1;
 
         /// <summary>
+        /// Identifier of the credential secret the architect's harness signs in with, bound under the alias "credential",
+        /// or null when none is bound.
+        /// </summary>
+        public string? CredentialSecretId { get; set; } = null;
+
+        /// <summary>
+        /// Name of the credential secret, or null when none is bound.
+        /// </summary>
+        public string? CredentialSecretName { get; set; } = null;
+
+        /// <summary>
+        /// Kind of the credential secret (for example AnthropicApiKey), or null when none is bound.
+        /// </summary>
+        public string? CredentialSecretKind { get; set; } = null;
+
+        /// <summary>
         /// Deployment configuration version. Default 1.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;

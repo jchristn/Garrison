@@ -3308,3 +3308,33 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "architect": {
+   "credentialSecretId": "The secret the architect's harness signs in with: an Anthropic API key or a Claude Code OAuth token for Claude Code, an OpenAI API key or ChatGPT login for Codex, and so on. Garrison binds it to the architect's deployment.",
+   "addSecret": "Open Secrets in a new tab to add the API key or token, then come back and choose it here."
+  },
+  "chat": {
+   "fixCredential": "Open Agents > Architects filtered to this architect, then edit it and choose its credential secret.",
+   "openSecrets": "Open Configuration > Secrets to add the API key or token, or to check the value of the one the architect uses."
+  }
+ },
+ "resources": {
+  "architects": {
+   "credentialSecretId": "The secret the architect's harness signs in with: an Anthropic API key or a Claude Code OAuth token for Claude Code, an OpenAI API key or ChatGPT login for Codex, and so on. Garrison binds it to the architect's deployment.",
+   "credentialCell": "The secret this architect's harness signs in with ({{kind}}).",
+   "noCredential": "No credential secret is bound, so harnesses that need one (Claude Code, Codex, Gemini CLI) fail with Not logged in. Edit the architect to choose one."
+  }
+ }
+});

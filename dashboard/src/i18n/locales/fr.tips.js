@@ -3310,3 +3310,33 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "architect": {
+   "credentialSecretId": "Le secret avec lequel le harness de l'architecte se connecte : une clé d'API Anthropic ou un jeton OAuth Claude Code pour Claude Code, une clé d'API OpenAI ou une connexion ChatGPT pour Codex, etc. Garrison le lie au déploiement de l'architecte.",
+   "addSecret": "Ouvrir Secrets dans un nouvel onglet pour ajouter la clé d'API ou le jeton, puis revenir ici pour le choisir."
+  },
+  "chat": {
+   "fixCredential": "Ouvrir Agents > Architectes filtré sur cet architecte, puis le modifier et choisir son secret d'identifiants.",
+   "openSecrets": "Ouvrir Configuration > Secrets pour ajouter la clé d'API ou le jeton, ou vérifier la valeur de celui qu'utilise l'architecte."
+  }
+ },
+ "resources": {
+  "architects": {
+   "credentialSecretId": "Le secret avec lequel le harness de l'architecte se connecte : une clé d'API Anthropic ou un jeton OAuth Claude Code pour Claude Code, une clé d'API OpenAI ou une connexion ChatGPT pour Codex, etc. Garrison le lie au déploiement de l'architecte.",
+   "credentialCell": "Le secret avec lequel le harness de cet architecte se connecte ({{kind}}).",
+   "noCredential": "Aucun secret d'identifiants n'est lié : les harness qui en ont besoin (Claude Code, Codex, Gemini CLI) échouent avec Not logged in. Modifiez l'architecte pour en choisir un."
+  }
+ }
+});

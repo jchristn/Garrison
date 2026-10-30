@@ -4446,3 +4446,51 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "Credential",
+    "noCredential": "None",
+    "credentialOption": "{{name}} ({{kind}})",
+    "credentialHint": "The secret the harness signs in with. Garrison binds it to the architect's deployment.",
+    "credentialMissing": "{{profile}} needs a credential to sign in, and none is chosen. Without one, every turn fails with Not logged in.",
+    "addSecret": "Add a secret"
+   },
+   "chat": {
+    "notCredentialedTitle": "The architect could not sign in to its model provider",
+    "notCredentialedBody": "Its harness has no working credential (Claude Code reports this as Not logged in). Give {{architect}} a credential secret on the Architects page, or check that the secret's value is right.",
+    "noCredentialTitle": "This architect has no credential",
+    "noCredentialBody": "{{architect}} runs on {{profile}}, which needs a secret to sign in. Without one, its turns fail with Not logged in. Choose a credential for it on the Architects page.",
+    "fixCredential": "Fix the architect's credential",
+    "openSecrets": "Open Secrets"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "Credential"
+   },
+   "fields": {
+    "credentialSecretId": "Credential"
+   },
+   "hints": {
+    "credentialSecretId": "The secret the harness signs in with, bound to the architect's deployment.",
+    "credentialMissing": "{{profile}} needs a credential to sign in. Without one, every turn fails with Not logged in."
+   },
+   "noCredential": "None"
+  }
+ }
+});

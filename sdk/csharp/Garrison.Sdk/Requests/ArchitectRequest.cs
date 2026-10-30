@@ -78,6 +78,13 @@ namespace Garrison.Sdk.Requests
             }
         }
 
+        /// <summary>
+        /// Identifier or name of an active secret in the tenant that the architect's harness signs in with, bound to its
+        /// deployment under the alias "credential" (400 InvalidCredentialSecret otherwise). Null binds none on create and
+        /// keeps the current one on update (null is not sent); an empty string on update removes it.
+        /// </summary>
+        public string? CredentialSecretId { get; set; } = null;
+
         #endregion
 
         #region Private-Members

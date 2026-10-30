@@ -41,6 +41,14 @@ namespace Garrison.Core.Requests
         public string? ArchitectPromptTemplateId { get; set; } = null;
 
         /// <summary>
+        /// Secret identifier or name the architect's harness signs in with, bound to its deployment under the alias
+        /// "credential" (for example an AnthropicApiKey or ClaudeCodeOAuthToken for Claude Code, an OpenAiApiKey or
+        /// CodexAuthJson for Codex). Null on create binds none; null on update keeps the current one; an empty string on
+        /// update removes it.
+        /// </summary>
+        public string? CredentialSecretId { get; set; } = null;
+
+        /// <summary>
         /// Version to pin, or null to follow the template's current version. Minimum 1. Applies with
         /// ArchitectPromptTemplateId.
         /// </summary>

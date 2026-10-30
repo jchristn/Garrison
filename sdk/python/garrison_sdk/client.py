@@ -710,6 +710,10 @@ class Architect(TypedDict, total=False):
     architectPromptName: str
     architectPromptVersion: Optional[int]
     architectPromptCurrentVersion: int
+    # The secret the architect's harness signs in with (bound under the alias "credential"); all None when none is bound.
+    credentialSecretId: Optional[str]
+    credentialSecretName: Optional[str]
+    credentialSecretKind: Optional[str]  # for example "AnthropicApiKey"
     configVersion: int
     isProtected: bool
     createdUtc: str
@@ -727,6 +731,10 @@ class ArchitectRequest(TypedDict, total=False):
     active: bool
     architectPromptTemplateId: Optional[str]
     architectPromptVersion: Optional[int]
+    # Identifier or name of an active tenant secret the harness signs in with, bound under the alias "credential"
+    # (400 InvalidCredentialSecret otherwise). Missing or None binds none on create and keeps the current one on update;
+    # an empty string on update removes it.
+    credentialSecretId: Optional[str]
 
 
 class HarnessToolProbe(TypedDict, total=False):

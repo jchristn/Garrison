@@ -102,7 +102,7 @@ test('creates an architect on the default prompt and shows a taken name on its f
   await page.locator('#architects-name').fill('architect-2');
   await page.getByTestId('save-button').click();
   await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies[1]).toEqual({ name: 'architect-2', description: null, harnessProfileId: 'hp_0001', active: true, model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect' });
+  expect(bodies[1]).toEqual({ name: 'architect-2', description: null, harnessProfileId: 'hp_0001', active: true, model: 'opus', credentialSecretId: '', architectPromptTemplateId: 'pt_builtin_agent_architect' });
 });
 
 test('edits an architect: rename, pin the guided prompt, and turn it off', async ({ page }) => {
@@ -129,7 +129,7 @@ test('edits an architect: rename, pin the guided prompt, and turn it off', async
   await page.locator('#architects-active').uncheck();
   await page.getByTestId('save-button').click();
   await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies).toEqual([{ name: 'research-architect', description: 'Designs our research apps.', harnessProfileId: 'hp_0001', active: false, model: 'sonnet', architectPromptTemplateId: 'pt_builtin_agent_architect_guided', architectPromptVersion: 1 }]);
+  expect(bodies).toEqual([{ name: 'research-architect', description: 'Designs our research apps.', harnessProfileId: 'hp_0001', active: false, model: 'sonnet', credentialSecretId: '', architectPromptTemplateId: 'pt_builtin_agent_architect_guided', architectPromptVersion: 1 }]);
 });
 
 test('deletes an architect after confirming', async ({ page }) => {
@@ -173,4 +173,60 @@ test('the studio offers active architects and links to the Architects page', asy
   await page.getByTestId('studio-manage-architects').click();
   await expect(page).toHaveURL(/\/dashboard\/agents\?tab=architects$/);
   await expect(page.locator('.data-table tbody tr')).toHaveCount(2);
+});
+
+test('the studio warns before the first turn when the architect has no credential, and after a NotCredentialed turn', async ({ page }) => {
+  // hp_0001 is a Codex profile, which needs a credential.
+  const keyed = { ...ARCHITECT, credentialSecretId: 'sec_0001', credentialSecretName: 'secret-1', credentialSecretKind: 'AnthropicApiKey' };
+  let rows = [ARCHITECT];
+  await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true })));
+  await login(page);
+  await page.goto('/dashboard/studio/drf_0001');
+  const banner = page.getByTestId('studio-not-credentialed');
+  await expect(banner).toContainText('This architect has no credential');
+  await expect(page.getByTestId('studio-fix-credential')).toHaveAttribute('href', '/dashboard/agents?tab=architects&search=architect');
+  await expect(page.getByTestId('studio-open-secrets')).toHaveAttribute('href', '/dashboard/configuration?tab=secrets');
+
+  // With a credential the warning goes away; a turn the harness could not sign in for brings it back.
+  rows = [keyed];
+  let failed = false;
+  await page.route(/\/agents\/agt_arch\/invoke(\?.*)?$/, (route) => route.fulfill(json(200, { id: 'run_nc', kind: 'Invoke', status: 'Running', conversationId: 'cnv_nc', inputText: 'Hello' })));
+  await page.route(/\/runs\/run_nc$/, (route) => {
+    failed = true;
+    return route.fulfill(json(200, { id: 'run_nc', kind: 'Invoke', status: 'Failed', outcome: 'NotCredentialed', conversationId: 'cnv_nc', inputText: 'Hello', errorMessage: 'Not logged in · Please run /login' }));
+  });
+  await page.route(/\/conversations\/cnv_nc\/runs(\?.*)?$/, (route) =>
+    route.fulfill(json(200, { objects: [failed ? { id: 'run_nc', kind: 'Invoke', status: 'Failed', outcome: 'NotCredentialed', conversationId: 'cnv_nc', inputText: 'Hello', errorMessage: 'Not logged in · Please run /login' } : { id: 'run_nc', kind: 'Invoke', status: 'Running', conversationId: 'cnv_nc', inputText: 'Hello' }], totalRecords: 1 }))
+  );
+  await page.reload();
+  await expect(page.getByTestId('studio-architect')).toHaveValue('dep_arch');
+  await expect(banner).toHaveCount(0);
+  await page.getByTestId('studio-chat-message').fill('Hello');
+  await page.getByTestId('studio-chat-send').click();
+  await expect(banner).toContainText('The architect could not sign in to its model provider');
+  await page.getByTestId('studio-fix-credential').click();
+  await expect(page).toHaveURL(/\/dashboard\/agents\?tab=architects&search=architect$/);
+});
+
+test('architect forms suggest the secret the harness signs in with and warn when there is none', async ({ page }) => {
+  await withArchitects(page, [ARCHITECT, { ...GUIDED, credentialSecretId: 'sec_0001', credentialSecretName: 'secret-1', credentialSecretKind: 'AnthropicApiKey' }]);
+  await login(page);
+  await page.goto(ARCHITECTS);
+  await expect(row(page, 'architect')).toContainText('None');
+  await expect(row(page, 'guided-architect')).toContainText('secret-1');
+
+  // The studio dialog: a Claude Code profile gets the tenant's Anthropic key; a Codex profile whose only login needs
+  // reauthentication gets none and a warning with a link to Secrets.
+  await page.goto('/dashboard/studio/drf_0001');
+  await page.getByTestId('studio-new-architect').click();
+  await page.getByTestId('architect-profile').selectOption('hp_0004');
+  await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0001');
+  await expect(page.getByTestId('architect-credential-missing')).toHaveCount(0);
+  await page.getByTestId('architect-profile').selectOption('hp_0001');
+  await expect(page.getByTestId('architect-credential')).toHaveValue('');
+  await expect(page.getByTestId('architect-credential-missing')).toContainText('needs a credential to sign in');
+  // A choice the person makes is kept when the profile changes.
+  await page.getByTestId('architect-credential').selectOption('sec_0003');
+  await page.getByTestId('architect-profile').selectOption('hp_0004');
+  await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0003');
 });

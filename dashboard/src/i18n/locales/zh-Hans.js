@@ -4419,3 +4419,51 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Architect credentials: the secret an architect's harness signs in with, and the studio's notice when it cannot.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "studio": {
+   "architect": {
+    "credential": "凭据",
+    "noCredential": "无",
+    "credentialOption": "{{name}}（{{kind}}）",
+    "credentialHint": "Harness 用于登录的密钥。Garrison 会把它绑定到架构师的部署。",
+    "credentialMissing": "{{profile}} 需要凭据才能登录，但尚未选择。没有凭据时，每一轮都会因 Not logged in 而失败。",
+    "addSecret": "添加密钥"
+   },
+   "chat": {
+    "notCredentialedTitle": "架构师无法登录其模型提供商",
+    "notCredentialedBody": "它的 Harness 没有可用的凭据（Claude Code 会显示 Not logged in）。请在架构师页面为 {{architect}} 指定凭据密钥，或检查密钥的值是否正确。",
+    "noCredentialTitle": "此架构师没有凭据",
+    "noCredentialBody": "{{architect}} 运行在 {{profile}} 上，需要密钥才能登录。没有密钥时，它的每一轮都会因 Not logged in 而失败。请在架构师页面为它选择凭据。",
+    "fixCredential": "修复架构师的凭据",
+    "openSecrets": "打开密钥"
+   }
+  }
+ },
+ "resources": {
+  "architects": {
+   "columns": {
+    "credentialSecretId": "凭据"
+   },
+   "fields": {
+    "credentialSecretId": "凭据"
+   },
+   "hints": {
+    "credentialSecretId": "Harness 用于登录的密钥，绑定到架构师的部署。",
+    "credentialMissing": "{{profile}} 需要凭据才能登录。没有凭据时，每一轮都会因 Not logged in 而失败。"
+   },
+   "noCredential": "无"
+  }
+ }
+});
