@@ -47,6 +47,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "apply-approval", "request-apply changes nothing until a person approves; an approver without Create on Manifest is refused; approval applies atomically; a moved live record is DraftStale (" + provider + ")", ct => ApplyAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "apply-failure", "A draft that validates but fails while applying changes nothing live: its approval is cancelled with the reason, the draft opens again, and the decide answers DraftInvalid naming what failed; a draft with a deployment the write would refuse is refused at request-apply (" + provider + ")", ct => ApplyFailureAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "grant-mcp", "A managementAccess Drafts run token runs the draft-to-approval flow over MCP for its person; without the grant, or for a person without design permissions, it is refused; it cannot decide its approval (" + provider + ")", ct => GrantAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "secret-validate", "An architect run validates a draft whose deployment binds a secret as the person it works for: valid for a tenant admin and for a SecretUser, SecretUseDenied for a person who may not use the secret (" + provider + ")", ct => SecretValidateAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "A change made through an MCP tool reaches a studio-draft:{id} subscriber with the new version and the changed item (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-seed", "Every tenant has the protected agent-architect with its skill asset; the four architect templates are built-in and immutable but resettable (" + provider + ")", ct => SeedAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-prompt-flow", "Clone a built-in architect prompt, edit it, spawn an architect on the clone, see the edit on the next turn, pin and reset, refuse deleting it while in use, then switch and delete (" + provider + ")", ct => ArchitectPromptAsync(provider, ct)));
@@ -403,6 +404,39 @@ namespace Test.Shared.Suites
                 await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + pending.ApprovalId + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, 200, token).ConfigureAwait(false);
                 AgenticApp app = await HttpTestHelpers.SendAsync<AgenticApp>(host.AdminClient, HttpMethod.Get, T(host) + "/apps/mcp-app", null, 200, token).ConfigureAwait(false);
                 Assert.True(app.Members.Count == 2 && app.Edges.Count == 1, "The app the architect drafted is live after approval");
+            }
+        }
+
+        private static async Task SecretValidateAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, T(host) + "/secrets", new SecretRequest { Name = "wizard-key", Kind = SecretKindEnum.AnthropicApiKey, Value = "sk-ant-test" }, 201, token).ConfigureAwait(false);
+                User admin = await UserAsync(host, "studio-admin@example.com", BuiltInRoles.TenantAdmin, token).ConfigureAwait(false);
+                User user = await UserAsync(host, "studio-secret-user@example.com", BuiltInRoles.AgentDeveloper, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<UserRoleAssignment>(host.AdminClient, HttpMethod.Post, T(host) + "/user-role-assignments", new AssignmentRequest { UserId = user.Id, RoleName = BuiltInRoles.SecretUser }, 201, token).ConfigureAwait(false);
+                User lacking = await UserAsync(host, "studio-no-secret@example.com", BuiltInRoles.AgentDeveloper, token).ConfigureAwait(false);
+
+                await SecretValidateAsAsync(host, admin, "sv-admin", true, token).ConfigureAwait(false);
+                await SecretValidateAsAsync(host, user, "sv-user", true, token).ConfigureAwait(false);
+                await SecretValidateAsAsync(host, lacking, "sv-lacking", false, token).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task SecretValidateAsAsync(TestServerHost host, User person, string prefix, bool allowed, CancellationToken token)
+        {
+            string bearer = await RunBearerAsync(host, prefix + "-architect", ManagementAccessEnum.Drafts, person, token).ConfigureAwait(false);
+            using (TestMcpClient client = new TestMcpClient())
+            {
+                await client.ConnectAsync(host, bearer, token).ConfigureAwait(false);
+                StudioDraft draft = await client.CallAsync<StudioDraft>("garrison_studio_create_draft", new { title = prefix }, token).ConfigureAwait(false);
+                draft = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId = draft.Id, version = draft.Version, kind = "Agent", name = prefix + "-agent", document = AgentYaml(prefix + "-agent", "Answers.") }, token).ConfigureAwait(false);
+                string deployment = "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: " + prefix + "-dev\nspec:\n  agent: " + prefix + "-agent\n  harnessProfile: builtin/fake\n  resources:\n    secrets: [ { alias: credential, secret: wizard-key } ]\n";
+                draft = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId = draft.Id, version = draft.Version, kind = "Deployment", name = prefix + "-dev", document = deployment }, token).ConfigureAwait(false);
+                StudioDraftDiff diff = await client.CallAsync<StudioDraftDiff>("garrison_studio_validate", new { draftId = draft.Id }, token).ConfigureAwait(false);
+                StudioDraftDiffItem bound = diff.Items.Single(i => i.Kind == "Deployment");
+                if (allowed) Assert.True(diff.Valid && bound.Change == "Create", prefix + ": the person may use the secret, so the draft validates: " + Serializer.Serialize(diff));
+                else Assert.True(!diff.Valid && bound.Change == "Failed" && (bound.Message ?? String.Empty).Contains("wizard-key", StringComparison.Ordinal), prefix + ": the person may not use the secret: " + Serializer.Serialize(diff));
             }
         }
 

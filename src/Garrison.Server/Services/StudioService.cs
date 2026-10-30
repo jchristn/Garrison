@@ -388,7 +388,8 @@ namespace Garrison.Server.Services
             if (upserts.Count > 0)
             {
                 ManifestApplyOptions options = new ManifestApplyOptions { DryRun = true, PrincipalName = ctx?.PrincipalName, PrincipalType = ctx?.PrincipalType ?? PrincipalTypeEnum.User, PrincipalId = ctx?.PrincipalId };
-                if (ctx != null) options.SecretUse = _Server.Authorization.SecretUse(ctx, tenantId);
+                // The architect's run validates as the person it acts for: a run never holds Execute on Secret itself.
+                if (ctx != null) options.SecretUse = _Server.Authorization.SecretUseForDryRun(ctx, tenantId);
                 ManifestApply dryRun = await _Server.Get<ManifestService>().ApplyAsync(tenantId, Bundle(upserts), options, token).ConfigureAwait(false);
                 foreach (ManifestApplyItem item in dryRun.Items) planned[item.Kind + "/" + item.Name] = item;
             }

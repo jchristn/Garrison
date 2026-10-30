@@ -46,6 +46,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 - Applying a studio draft is all or nothing. The manifest dry run now runs the write-time checks too (deployment and app validation against the planned records), and a document that fails while writing rolls back every document written before it, including the prompt template versions it added. A draft whose approval was allowed but could not be applied no longer stays Pending with part of it live: the approval is cancelled, the draft reopens, and the decision answers 409 `DraftInvalid` saying that nothing was changed. The dashboard shows that message in the decision dialog; only 409 `ApprovalNotPending` says someone else decided.
 
+- When the agent architect validates a draft, secrets are checked against the person the architect works for. The architect's run never holds Execute on Secret itself, so every deployment that bound a credential failed with `SecretUseDenied`, even for a tenant administrator, and the architect asked people to grant themselves roles they already had. Applying is still checked as the person who approves.
+
 ### Breaking
 
 - **Version and tags.** The version is `0.2.0` and image tags are `v0.2.0`, with no `-alpha` suffix; a 0.x version means alpha. Replace pinned `v0.1.0-alpha` tags with `v0.2.0` for the server, worker, and dashboard together (AD0, AD-028).

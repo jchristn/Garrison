@@ -305,6 +305,30 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
+        /// A checker for the permission to use secrets on behalf of the person a run acts for, for dry runs only (validating
+        /// a studio draft). A run token never holds Execute on Secret itself, so checking the run would refuse every secret
+        /// the draft binds; what matters is whether the person the draft is built for may use it. Applying is checked again
+        /// as the person who approves. For any other caller this is the same as <see cref="SecretUse"/>.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <returns>Checker.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or tenantId is null.</exception>
+        public SecretUseChecker SecretUseForDryRun(RequestContext ctx, string tenantId)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run) return SecretUse(ctx, tenantId);
+            return new SecretUseChecker(_Database, async (secretId, token) =>
+            {
+                RequestContext? origin = await OriginAsync(ctx, tenantId, token).ConfigureAwait(false);
+                if (origin == null) return false;
+                AuthorizationDecision decision = await EvaluateAsync(origin, tenantId, ResourceTypeEnum.Secret, OperationTypeEnum.Execute, secretId, token).ConfigureAwait(false);
+                return decision.Permitted;
+            });
+        }
+
+        /// <summary>
         /// Expanded grants of one role, as an assignment with the given scope would confer them. When a role identifier is
         /// given the role is resolved by identifier only, so a tenant role whose name matches a built-in role never
         /// receives the built-in's grants.
@@ -501,29 +525,8 @@ namespace Garrison.Server.Services
             if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator) return AuthorizationDecision.Permit("Run on behalf of a system administrator.");
             if (String.IsNullOrEmpty(ctx.OriginPrincipalId)) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run has no originating principal.");
 
-            RequestContext origin = new RequestContext();
-            origin.IsAuthenticated = true;
-            origin.TenantId = tenantId;
-            if (ctx.OriginPrincipalType == PrincipalTypeEnum.Credential)
-            {
-                Credential? credential = await _Database.Credentials.ReadAsync(tenantId, ctx.OriginPrincipalId, token).ConfigureAwait(false);
-                if (credential == null || !credential.Active) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Originating credential is inactive.");
-                User? owner = await _Database.Users.ReadAsync(tenantId, credential.UserId, token).ConfigureAwait(false);
-                origin.PrincipalType = PrincipalTypeEnum.Credential;
-                origin.CredentialId = credential.Id;
-                origin.UserId = credential.UserId;
-                origin.IsAdmin = owner != null && owner.IsAdmin;
-                origin.IsTenantAdmin = owner != null && owner.IsTenantAdmin;
-            }
-            else
-            {
-                User? user = await _Database.Users.ReadAsync(tenantId, ctx.OriginPrincipalId, token).ConfigureAwait(false);
-                if (user == null || !user.Active) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Originating user is inactive.");
-                origin.PrincipalType = PrincipalTypeEnum.User;
-                origin.UserId = user.Id;
-                origin.IsAdmin = user.IsAdmin;
-                origin.IsTenantAdmin = user.IsTenantAdmin;
-            }
+            RequestContext? origin = await OriginAsync(ctx, tenantId, token).ConfigureAwait(false);
+            if (origin == null) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, ctx.OriginPrincipalType == PrincipalTypeEnum.Credential ? "Originating credential is inactive." : "Originating user is inactive.");
 
             if (resourceType == ResourceTypeEnum.Artifact && operation == OperationTypeEnum.Create)
             {
@@ -537,6 +540,39 @@ namespace Garrison.Server.Services
             if (!ceiling.Permitted) ceiling.Reason = "Originating principal ceiling: " + ceiling.Reason;
             ceiling.BypassReason = null;
             return ceiling;
+        }
+
+        private async Task<RequestContext?> OriginAsync(RequestContext ctx, string tenantId, CancellationToken token)
+        {
+            if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator)
+                return new RequestContext { IsAuthenticated = true, TenantId = tenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = ctx.PrincipalName };
+            if (String.IsNullOrEmpty(ctx.OriginPrincipalId)) return null;
+
+            RequestContext origin = new RequestContext();
+            origin.IsAuthenticated = true;
+            origin.TenantId = tenantId;
+            origin.PrincipalName = ctx.PrincipalName;
+            if (ctx.OriginPrincipalType == PrincipalTypeEnum.Credential)
+            {
+                Credential? credential = await _Database.Credentials.ReadAsync(tenantId, ctx.OriginPrincipalId, token).ConfigureAwait(false);
+                if (credential == null || !credential.Active) return null;
+                User? owner = await _Database.Users.ReadAsync(tenantId, credential.UserId, token).ConfigureAwait(false);
+                origin.PrincipalType = PrincipalTypeEnum.Credential;
+                origin.CredentialId = credential.Id;
+                origin.UserId = credential.UserId;
+                origin.IsAdmin = owner != null && owner.IsAdmin;
+                origin.IsTenantAdmin = owner != null && owner.IsTenantAdmin;
+            }
+            else
+            {
+                User? user = await _Database.Users.ReadAsync(tenantId, ctx.OriginPrincipalId, token).ConfigureAwait(false);
+                if (user == null || !user.Active) return null;
+                origin.PrincipalType = PrincipalTypeEnum.User;
+                origin.UserId = user.Id;
+                origin.IsAdmin = user.IsAdmin;
+                origin.IsTenantAdmin = user.IsTenantAdmin;
+            }
+            return origin;
         }
 
         private static bool IsDraftGrant(ResourceTypeEnum resourceType, OperationTypeEnum operation)
