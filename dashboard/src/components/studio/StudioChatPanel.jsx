@@ -13,9 +13,13 @@ import { TERMINAL_RUN_STATUSES } from '../../utils/constants';
 import { errorMessage } from '../../utils/errors';
 import { TURN_POLL_MS, conversationStorageKey, needsCredential, readStored, writeStored } from '../../utils/studio';
 import { buildPreview } from '../../utils/streamPreview';
+import { composerKeyDown } from '../../utils/composerKeys';
 
 /** How often streamed events are folded into the answer, in milliseconds. */
 const STREAM_FLUSH_MS = 100;
+
+/** Pages of 500 events read for a finished turn's tool calls. */
+const HISTORY_PAGES = 4;
 
 /** How close to the bottom (pixels) the transcript must be for new output to keep it scrolled to the end. */
 const STICK_PX = 140;
@@ -142,6 +146,34 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
     }, TURN_POLL_MS);
     return () => clearInterval(id);
   }, [pendingActive, pending, apiClient, tenantId]);
+
+  // Finished turns show the tool calls they made as cards, so read their recorded events once (up to a few pages). A
+  // turn streamed in this session is read again when it ends, in case the stream missed the last events.
+  const loaded = useRef(new Set());
+  useEffect(() => {
+    if (!apiClient) return;
+    for (const r of turns) {
+      if (!TERMINAL_RUN_STATUSES.includes(r.status) || loaded.current.has(r.id)) continue;
+      loaded.current.add(r.id);
+      (async () => {
+        let events = [];
+        let after = 0;
+        try {
+          for (let page = 0; page < HISTORY_PAGES; page++) {
+            const res = await apiClient.listRunEvents(tenantId, r.id, after, 500);
+            events = events.concat(res.items || []);
+            if (!res.hasMore || res.lastSequence === null) break;
+            after = res.lastSequence;
+          }
+        } catch {
+          return;
+        }
+        if (unmounted.current || !events.length) return;
+        events.sort((a, b) => a.sequence - b.sequence);
+        setLive((prev) => ({ ...prev, [r.id]: { events, preview: buildPreview(events) } }));
+      })();
+    }
+  }, [turns, apiClient, tenantId]);
 
   // A turn ended (seen by the stream or by polling): read the conversation again and tell the draft, once per turn.
   const finished = useRef(null);
@@ -299,11 +331,13 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder={t('components.studio.chat.placeholder')}
-          onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()}
+          onKeyDown={(e) => composerKeyDown(e, send, setMessage)}
           data-testid="studio-chat-message"
           {...tip(t('tips.studio.chat.message'))}
         />
-        <div className="field-hint">{t(conversationId ? 'components.studio.chat.continueHint' : 'components.studio.chat.firstHint')}</div>
+        <div className="field-hint">
+          {t(conversationId ? 'components.studio.chat.continueHint' : 'components.studio.chat.firstHint')} {t('components.studio.chat.keysHint')}
+        </div>
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} />}
       <div className="flex gap-sm items-center">
@@ -318,6 +352,9 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           <SendIcon size={14} /> {sending ? t('views.invoke.sending') : t('components.studio.chat.send')}
         </button>
       </div>
+      <p className="chat-disclaimer" data-testid="studio-chat-disclaimer" {...tip(t('tips.studio.chat.disclaimer'))}>
+        {t('components.studio.chat.disclaimer')}
+      </p>
       {creating && (
         <NewArchitectModal
           onClose={() => setCreating(false)}

@@ -3403,3 +3403,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "浏览器不允许在此处复制。请选中文字后按 Ctrl+C（Mac 上为 Cmd+C）。"
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "打开审批 {{id}}，有权限的人在那里批准或拒绝它。",
+    "run": "打开运行 {{id}}，查看其事件、遥测和文件。",
+    "cnv": "打开对话 {{id}}，查看所有轮次。",
+    "agt": "打开智能体 {{id}}，查看其部署和修订。",
+    "sdr": "打开工作室草稿 {{id}}。",
+    "plr": "打开流水线运行 {{id}}，查看其阶段时间线。",
+    "tpl": "打开提示词模板 {{id}} 以阅读或编辑。"
+   },
+   "disclaimer": "回答来自语言模型。在依赖之前请先阅读，并在有人批准之前检查草稿的差异。",
+   "tool": {
+    "running": "{{name}} 正在运行。点击查看架构师发送的参数。",
+    "ok": "{{name}} 已完成。点击查看参数和结果。",
+    "failed": "{{name}} 失败。点击查看参数和返回的错误。"
+   }
+  }
+ }
+});

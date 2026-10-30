@@ -3404,3 +3404,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "瀏覽器唔俾喺度複製。請揀咗啲字再按 Ctrl+C（Mac 用 Cmd+C）。"
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "打開審批 {{id}}，有權限嘅人會喺度批准或者拒絕。",
+    "run": "打開運行 {{id}}，睇佢嘅事件、遙測同檔案。",
+    "cnv": "打開對話 {{id}}，睇晒所有輪次。",
+    "agt": "打開代理程式 {{id}}，睇佢嘅部署同修訂。",
+    "sdr": "打開工作室草稿 {{id}}。",
+    "plr": "打開管線運行 {{id}}，睇佢嘅階段時間線。",
+    "tpl": "打開提示範本 {{id}} 嚟睇或者編輯。"
+   },
+   "disclaimer": "回答嚟自語言模型。依賴之前請先睇清楚，有人批准之前請檢查草稿嘅差異。",
+   "tool": {
+    "running": "{{name}} 運行緊。撳一下睇架構師傳送嘅參數。",
+    "ok": "{{name}} 完成咗。撳一下睇參數同結果。",
+    "failed": "{{name}} 失敗咗。撳一下睇參數同返回嘅錯誤。"
+   }
+  }
+ }
+});

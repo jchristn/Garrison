@@ -4682,3 +4682,46 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "Details zum Zug"
+    },
+    "tool": {
+     "running": "läuft",
+     "ok": "fertig",
+     "failed": "fehlgeschlagen",
+     "input": "Argumente",
+     "output": "Ergebnis",
+     "none": "Keine",
+     "waiting": "Warten auf das Ergebnis..."
+    },
+    "refs": {
+     "apr": "Genehmigung öffnen",
+     "run": "Lauf öffnen",
+     "cnv": "Unterhaltung öffnen",
+     "agt": "Agent öffnen",
+     "sdr": "Entwurf öffnen",
+     "plr": "Pipeline-Lauf öffnen",
+     "tpl": "Prompt-Vorlage öffnen"
+    },
+    "keysHint": "Enter sendet. Strg+Enter oder Umschalt+Enter fügt eine neue Zeile ein.",
+    "disclaimer": "KI kann Fehler machen. Prüfen Sie alle Antworten.",
+    "continueHint": "Setzt die Unterhaltung fort."
+   }
+  }
+ }
+});

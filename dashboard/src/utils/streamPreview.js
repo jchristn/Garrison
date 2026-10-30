@@ -13,7 +13,8 @@ export function isModelOutput(e) {
 
 /**
  * Build the preview model from events sorted by sequence.
- * Returns { segments: [{ kind: 'text', text } | { kind: 'tool', key, name, status: 'running'|'ok'|'failed' }],
+ * Returns { segments: [{ kind: 'text', text } | { kind: 'tool', key, name, status: 'running'|'ok'|'failed', input, output,
+ * startedUtc, endedUtc }] (input is the call's arguments and output the result text, as the harness reported them),
  * thinking, outputTokens, hasText }.
  */
 export function buildPreview(events) {
@@ -36,15 +37,18 @@ export function buildPreview(events) {
       if (thinking.length && e.rawEventJson) thinking.push('\n\n');
       thinking.push(e.text);
     } else if (e.eventType === 'ToolCall') {
-      segments.push({ kind: 'tool', key: e.toolCallId || `seq-${e.sequence}`, callId: e.toolCallId || null, name: e.toolName || '?', status: 'running' });
+      segments.push({ kind: 'tool', key: e.toolCallId || `seq-${e.sequence}`, callId: e.toolCallId || null, name: e.toolName || '?', status: 'running', input: e.text || '', output: '', startedUtc: e.timestampUtc || null, endedUtc: null });
       lastText = null;
     } else if (e.eventType === 'ToolResult') {
       const open = segments.filter((s) => s.kind === 'tool' && s.status === 'running');
       const match = (e.toolCallId && open.find((s) => s.callId === e.toolCallId)) || [...open].reverse().find((s) => s.name === e.toolName) || null;
       const status = e.success === false ? 'failed' : 'ok';
-      if (match) match.status = status;
-      else {
-        segments.push({ kind: 'tool', key: e.toolCallId || `seq-${e.sequence}`, callId: e.toolCallId || null, name: e.toolName || '?', status });
+      if (match) {
+        match.status = status;
+        match.output = e.text || '';
+        match.endedUtc = e.timestampUtc || null;
+      } else {
+        segments.push({ kind: 'tool', key: e.toolCallId || `seq-${e.sequence}`, callId: e.toolCallId || null, name: e.toolName || '?', status, input: '', output: e.text || '', startedUtc: null, endedUtc: e.timestampUtc || null });
         lastText = null;
       }
     } else if (e.eventType === 'Usage' && (e.outputTokens || e.outputTokens === 0)) {

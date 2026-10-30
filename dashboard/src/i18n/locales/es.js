@@ -4700,3 +4700,46 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "Detalles del turno"
+    },
+    "tool": {
+     "running": "en curso",
+     "ok": "hecho",
+     "failed": "fallido",
+     "input": "Argumentos",
+     "output": "Resultado",
+     "none": "Ninguno",
+     "waiting": "Esperando el resultado..."
+    },
+    "refs": {
+     "apr": "Abrir aprobación",
+     "run": "Abrir ejecución",
+     "cnv": "Abrir conversación",
+     "agt": "Abrir agente",
+     "sdr": "Abrir borrador",
+     "plr": "Abrir ejecución de pipeline",
+     "tpl": "Abrir plantilla de prompt"
+    },
+    "keysHint": "Intro envía. Ctrl+Intro o Mayús+Intro añade una línea nueva.",
+    "disclaimer": "La IA puede equivocarse. Revisa todas las respuestas.",
+    "continueHint": "Continúa la conversación."
+   }
+  }
+ }
+});

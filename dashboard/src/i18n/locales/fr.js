@@ -4696,3 +4696,46 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "Détails du tour"
+    },
+    "tool": {
+     "running": "en cours",
+     "ok": "terminé",
+     "failed": "échec",
+     "input": "Arguments",
+     "output": "Résultat",
+     "none": "Aucun",
+     "waiting": "En attente du résultat..."
+    },
+    "refs": {
+     "apr": "Ouvrir l'approbation",
+     "run": "Ouvrir l'exécution",
+     "cnv": "Ouvrir la conversation",
+     "agt": "Ouvrir l'agent",
+     "sdr": "Ouvrir le brouillon",
+     "plr": "Ouvrir l'exécution de pipeline",
+     "tpl": "Ouvrir le modèle de prompt"
+    },
+    "keysHint": "Entrée envoie. Ctrl+Entrée ou Maj+Entrée ajoute une nouvelle ligne.",
+    "disclaimer": "L'IA peut se tromper. Vérifiez toutes les réponses.",
+    "continueHint": "Poursuit la conversation."
+   }
+  }
+ }
+});

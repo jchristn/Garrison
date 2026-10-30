@@ -4648,3 +4648,46 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "本轮详情"
+    },
+    "tool": {
+     "running": "运行中",
+     "ok": "完成",
+     "failed": "失败",
+     "input": "参数",
+     "output": "结果",
+     "none": "无",
+     "waiting": "正在等待结果..."
+    },
+    "refs": {
+     "apr": "打开审批",
+     "run": "打开运行",
+     "cnv": "打开对话",
+     "agt": "打开智能体",
+     "sdr": "打开草稿",
+     "plr": "打开流水线运行",
+     "tpl": "打开提示词模板"
+    },
+    "keysHint": "按 Enter 发送。按 Ctrl+Enter 或 Shift+Enter 换行。",
+    "disclaimer": "AI 可能会出错。请核对所有回答。",
+    "continueHint": "继续对话。"
+   }
+  }
+ }
+});

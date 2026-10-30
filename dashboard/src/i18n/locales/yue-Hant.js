@@ -4647,3 +4647,46 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "呢輪嘅詳細資料"
+    },
+    "tool": {
+     "running": "運行緊",
+     "ok": "完成",
+     "failed": "失敗",
+     "input": "參數",
+     "output": "結果",
+     "none": "冇",
+     "waiting": "等緊結果..."
+    },
+    "refs": {
+     "apr": "打開審批",
+     "run": "打開運行",
+     "cnv": "打開對話",
+     "agt": "打開代理程式",
+     "sdr": "打開草稿",
+     "plr": "打開管線運行",
+     "tpl": "打開提示範本"
+    },
+    "keysHint": "撳 Enter 傳送。撳 Ctrl+Enter 或者 Shift+Enter 換行。",
+    "disclaimer": "AI 可能會出錯。請核對所有回答。",
+    "continueHint": "繼續對話。"
+   }
+  }
+ }
+});

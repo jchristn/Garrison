@@ -3406,3 +3406,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "Le navigateur n'a pas autorisé la copie ici. Sélectionnez le texte et appuyez sur Ctrl+C (Cmd+C sur Mac)."
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "Ouvrir l'approbation {{id}}, où une personne autorisée l'accepte ou la refuse.",
+    "run": "Ouvrir l'exécution {{id}} avec ses événements, sa télémétrie et ses fichiers.",
+    "cnv": "Ouvrir la conversation {{id}} avec tous ses tours.",
+    "agt": "Ouvrir l'agent {{id}} avec ses déploiements et ses révisions.",
+    "sdr": "Ouvrir le brouillon du studio {{id}}.",
+    "plr": "Ouvrir l'exécution de pipeline {{id}} avec la chronologie de ses étapes.",
+    "tpl": "Ouvrir le modèle de prompt {{id}} pour le lire ou le modifier."
+   },
+   "disclaimer": "Les réponses viennent d'un modèle de langage. Lisez-les avant de vous y fier, et vérifiez le diff du brouillon avant que quelqu'un ne l'approuve.",
+   "tool": {
+    "running": "{{name}} est en cours. Cliquez pour voir les arguments envoyés par l'architecte.",
+    "ok": "{{name}} est terminé. Cliquez pour voir les arguments et le résultat.",
+    "failed": "{{name}} a échoué. Cliquez pour voir les arguments et l'erreur renvoyée."
+   }
+  }
+ }
+});

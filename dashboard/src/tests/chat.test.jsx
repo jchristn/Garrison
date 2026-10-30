@@ -118,3 +118,58 @@ describe('chat turn', () => {
     expect(markup).toContain('Not logged in');
   });
 });
+
+describe('record links, telemetry popover, tool cards, and keys', () => {
+  it('links the records an answer mentions and offers a button for each', async () => {
+    const { findRecordRefs, linkifyRecords } = await import('../utils/recordLinks');
+    const text = 'I asked for approval apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa. See run run_abc123456 and run run_abc123456 again.';
+    expect(findRecordRefs(text)).toEqual([
+      { id: 'apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa', kind: 'apr', href: '/dashboard/approvals/apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa' },
+      { id: 'run_abc123456', kind: 'run', href: '/dashboard/runs/run_abc123456' }
+    ]);
+    const root = document.createElement('div');
+    root.innerHTML = '<p>Approve apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa now. <a href="/x">run_abc123456</a> <code>run_zzz999999</code></p>';
+    expect(linkifyRecords(root)).toBe(2);
+    expect([...root.querySelectorAll('a.record-link')].map((a) => a.getAttribute('href'))).toEqual(['/dashboard/approvals/apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa', '/dashboard/runs/run_zzz999999']);
+    const markup = html(<ChatTurn run={{ id: 'run_1', status: 'Succeeded', inputText: 'go', resultText: text }} />);
+    expect(markup).toContain('studio-chat-ref-apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa');
+    expect(markup).toContain('Open approval');
+  });
+
+  it('keeps telemetry behind an (i) button and tool calls in expandable cards', () => {
+    const events = [
+      { sequence: 1, eventType: 'ToolCall', toolName: 'mcp__garrison__garrison_studio_request_apply', toolCallId: 't1', text: '{"draftId":"sdr_1","version":4}', timestampUtc: '2026-10-29T10:00:00Z' },
+      { sequence: 2, eventType: 'ToolResult', toolCallId: 't1', success: true, text: '{"id":"apr_1"}', timestampUtc: '2026-10-29T10:00:01.500Z' },
+      { sequence: 3, eventType: 'AssistantText', text: 'Asked for approval.' }
+    ];
+    const run = { id: 'run_2', status: 'Succeeded', inputText: 'apply', resultText: 'Asked for approval.', timeToFirstTokenMs: 900, inputTokens: 10 };
+    const markup = html(<ChatTurn run={run} live={{ preview: buildPreview(events) }} />);
+    expect(markup).toContain('studio-chat-metrics-button');
+    expect(markup).toContain('chat-info-popover');
+    expect(markup).toContain('chat-tool-head');
+    expect(markup).toContain('garrison_studio_request_apply');
+    expect(markup).not.toContain('mcp__garrison__');
+    expect(markup).toContain('1.5');
+    // The card is closed until clicked: no arguments in the markup yet.
+    expect(markup).not.toContain('studio-chat-tool-body');
+  });
+
+  it('sends on Enter and adds a line on Ctrl+Enter, Cmd+Enter, and Shift+Enter', async () => {
+    const { composerKeyDown } = await import('../utils/composerKeys');
+    const make = (extra) => ({ key: 'Enter', preventDefault: vi.fn(), nativeEvent: {}, currentTarget: { value: 'ab', selectionStart: 1, selectionEnd: 1 }, ...extra });
+    vi.stubGlobal('requestAnimationFrame', (f) => f());
+    const send = vi.fn();
+    const set = vi.fn();
+    composerKeyDown(make({}), send, set);
+    expect(send).toHaveBeenCalledTimes(1);
+    composerKeyDown(make({ ctrlKey: true }), send, set);
+    composerKeyDown(make({ metaKey: true }), send, set);
+    expect(set).toHaveBeenCalledWith('a\nb');
+    expect(send).toHaveBeenCalledTimes(1);
+    const shift = make({ shiftKey: true });
+    composerKeyDown(shift, send, set);
+    expect(shift.preventDefault).not.toHaveBeenCalled();
+    composerKeyDown(make({ nativeEvent: { isComposing: true } }), send, set);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+});

@@ -3403,3 +3403,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "瀏覽器不允許在這裡複製。請選取文字後按 Ctrl+C（Mac 上為 Cmd+C）。"
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "開啟核准 {{id}}，有權限的人會在那裡核准或拒絕。",
+    "run": "開啟執行 {{id}}，查看事件、遙測和檔案。",
+    "cnv": "開啟對話 {{id}}，查看所有輪次。",
+    "agt": "開啟代理程式 {{id}}，查看部署和修訂。",
+    "sdr": "開啟工作室草稿 {{id}}。",
+    "plr": "開啟管線執行 {{id}}，查看階段時間軸。",
+    "tpl": "開啟提示範本 {{id}} 以閱讀或編輯。"
+   },
+   "disclaimer": "回答來自語言模型。依賴之前請先閱讀，並在有人核准之前檢查草稿的差異。",
+   "tool": {
+    "running": "{{name}} 正在執行。按一下以查看架構師傳送的引數。",
+    "ok": "{{name}} 已完成。按一下以查看引數和結果。",
+    "failed": "{{name}} 失敗。按一下以查看引數和傳回的錯誤。"
+   }
+  }
+ }
+});

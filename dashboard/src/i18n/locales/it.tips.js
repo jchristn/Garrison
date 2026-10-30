@@ -3406,3 +3406,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "Il browser non ha permesso di copiare qui. Seleziona il testo e premi Ctrl+C (Cmd+C su Mac)."
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "Apri l'approvazione {{id}}, dove una persona autorizzata la consente o la nega.",
+    "run": "Apri l'esecuzione {{id}} con eventi, telemetria e file.",
+    "cnv": "Apri la conversazione {{id}} con tutti i suoi turni.",
+    "agt": "Apri l'agente {{id}} con distribuzioni e revisioni.",
+    "sdr": "Apri la bozza dello studio {{id}}.",
+    "plr": "Apri l'esecuzione della pipeline {{id}} con la cronologia delle fasi.",
+    "tpl": "Apri il modello di prompt {{id}} per leggerlo o modificarlo."
+   },
+   "disclaimer": "Le risposte provengono da un modello linguistico. Leggile prima di farci affidamento e controlla il diff della bozza prima che qualcuno la approvi.",
+   "tool": {
+    "running": "{{name}} è in corso. Fai clic per vedere gli argomenti inviati dall'architetto.",
+    "ok": "{{name}} è terminato. Fai clic per vedere argomenti e risultato.",
+    "failed": "{{name}} non è riuscito. Fai clic per vedere gli argomenti e l'errore restituito."
+   }
+  }
+ }
+});

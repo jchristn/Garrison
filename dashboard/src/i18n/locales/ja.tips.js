@@ -3404,3 +3404,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "このブラウザーではここでのコピーが許可されませんでした。テキストを選択して Ctrl+C (Mac では Cmd+C) を押してください。"
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "承認 {{id}} を開きます。権限のある人がそこで許可または拒否します。",
+    "run": "実行 {{id}} をイベント、テレメトリー、ファイルとともに開きます。",
+    "cnv": "会話 {{id}} をすべてのターンとともに開きます。",
+    "agt": "エージェント {{id}} をデプロイメントとリビジョンとともに開きます。",
+    "sdr": "スタジオ下書き {{id}} を開きます。",
+    "plr": "パイプライン実行 {{id}} をステージのタイムラインとともに開きます。",
+    "tpl": "プロンプトテンプレート {{id}} を開いて確認または編集します。"
+   },
+   "disclaimer": "回答は言語モデルによるものです。頼る前に内容を読み、誰かが承認する前に下書きの差分を確認してください。",
+   "tool": {
+    "running": "{{name}} を実行中です。クリックすると、アーキテクトが送った引数を表示します。",
+    "ok": "{{name}} が完了しました。クリックすると、引数と結果を表示します。",
+    "failed": "{{name}} が失敗しました。クリックすると、引数と返されたエラーを表示します。"
+   }
+  }
+ }
+});

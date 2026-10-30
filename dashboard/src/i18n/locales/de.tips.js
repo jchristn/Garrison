@@ -3404,3 +3404,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "Der Browser hat das Kopieren hier nicht erlaubt. Markieren Sie den Text und drücken Sie Strg+C (Cmd+C auf dem Mac)."
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "Genehmigung {{id}} öffnen, wo eine berechtigte Person sie erlaubt oder ablehnt.",
+    "run": "Lauf {{id}} mit Ereignissen, Telemetrie und Dateien öffnen.",
+    "cnv": "Unterhaltung {{id}} mit allen Zügen öffnen.",
+    "agt": "Agent {{id}} mit Bereitstellungen und Revisionen öffnen.",
+    "sdr": "Studio-Entwurf {{id}} öffnen.",
+    "plr": "Pipeline-Lauf {{id}} mit seiner Stufen-Zeitleiste öffnen.",
+    "tpl": "Prompt-Vorlage {{id}} zum Lesen oder Bearbeiten öffnen."
+   },
+   "disclaimer": "Antworten stammen von einem Sprachmodell. Lesen Sie sie, bevor Sie sich darauf verlassen, und prüfen Sie den Diff des Entwurfs, bevor ihn jemand genehmigt.",
+   "tool": {
+    "running": "{{name}} läuft. Klicken Sie, um die Argumente zu sehen, die der Architekt gesendet hat.",
+    "ok": "{{name}} ist fertig. Klicken Sie, um Argumente und Ergebnis zu sehen.",
+    "failed": "{{name}} ist fehlgeschlagen. Klicken Sie, um die Argumente und den zurückgegebenen Fehler zu sehen."
+   }
+  }
+ }
+});

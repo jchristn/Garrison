@@ -3404,3 +3404,35 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "failed": "The browser did not allow copying here. Select the text and press Ctrl+C (Cmd+C on a Mac)."
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "refs": {
+    "apr": "Open approval {{id}}, where a person with the permission allows or denies it.",
+    "run": "Open run {{id}} with its events, telemetry, and files.",
+    "cnv": "Open conversation {{id}} with all its turns.",
+    "agt": "Open agent {{id}} with its deployments and revisions.",
+    "sdr": "Open studio draft {{id}}.",
+    "plr": "Open pipeline run {{id}} with its stage timeline.",
+    "tpl": "Open prompt template {{id}} to read or edit it."
+   },
+   "disclaimer": "Answers come from a language model. Read them before you rely on them, and check the draft's diff before anyone approves it.",
+   "tool": {
+    "running": "{{name}} is running. Click to see the arguments the architect sent.",
+    "ok": "{{name}} finished. Click to see the arguments and the result.",
+    "failed": "{{name}} failed. Click to see the arguments and the error it returned."
+   }
+  }
+ }
+});

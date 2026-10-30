@@ -4647,3 +4647,46 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "ターンの詳細"
+    },
+    "tool": {
+     "running": "実行中",
+     "ok": "完了",
+     "failed": "失敗",
+     "input": "引数",
+     "output": "結果",
+     "none": "なし",
+     "waiting": "結果を待っています..."
+    },
+    "refs": {
+     "apr": "承認を開く",
+     "run": "実行を開く",
+     "cnv": "会話を開く",
+     "agt": "エージェントを開く",
+     "sdr": "下書きを開く",
+     "plr": "パイプライン実行を開く",
+     "tpl": "プロンプトテンプレートを開く"
+    },
+    "keysHint": "Enter で送信します。Ctrl+Enter または Shift+Enter で改行します。",
+    "disclaimer": "AI は間違えることがあります。すべての回答を確認してください。",
+    "continueHint": "会話を続けます。"
+   }
+  }
+ }
+});

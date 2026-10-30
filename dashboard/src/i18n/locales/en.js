@@ -4675,3 +4675,46 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "Turn details"
+    },
+    "tool": {
+     "running": "running",
+     "ok": "done",
+     "failed": "failed",
+     "input": "Arguments",
+     "output": "Result",
+     "none": "None",
+     "waiting": "Waiting for the result..."
+    },
+    "refs": {
+     "apr": "Open approval",
+     "run": "Open run",
+     "cnv": "Open conversation",
+     "agt": "Open agent",
+     "sdr": "Open draft",
+     "plr": "Open pipeline run",
+     "tpl": "Open prompt template"
+    },
+    "keysHint": "Enter sends. Ctrl+Enter or Shift+Enter adds a new line.",
+    "disclaimer": "AI can make mistakes. Check all answers.",
+    "continueHint": "Continues the conversation."
+   }
+  }
+ }
+});

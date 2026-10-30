@@ -5,6 +5,7 @@ import { DownloadIcon, PlayIcon } from '../Icons';
 import { tip } from '../Tooltip';
 import StudioLink from './StudioLink';
 import { TurnStatus } from './StudioChatPanel';
+import { composerKeyDown } from '../../utils/composerKeys';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
@@ -170,11 +171,13 @@ export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={t('components.studio.playground.placeholder')}
-            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()}
+            onKeyDown={(e) => composerKeyDown(e, send, setInput)}
             data-testid="studio-playground-input"
             {...tip(t('tips.studio.playground.input'))}
           />
-          <div className="field-hint">{t(conversationId ? 'components.studio.playground.continueHint' : 'components.studio.playground.firstHint')}</div>
+          <div className="field-hint">
+            {t(conversationId ? 'components.studio.playground.continueHint' : 'components.studio.playground.firstHint')} {t('components.studio.chat.keysHint')}
+          </div>
         </div>
       </div>
       {error && (
@@ -195,6 +198,9 @@ export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
           <PlayIcon size={14} /> {busy ? t('views.invoke.sending') : t('components.studio.playground.send')}
         </button>
       </div>
+      <p className="chat-disclaimer" data-testid="studio-playground-disclaimer" {...tip(t('tips.studio.chat.disclaimer'))}>
+        {t('components.studio.chat.disclaimer')}
+      </p>
     </section>
   );
 }

@@ -1316,8 +1316,6 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 @keyframes chat-caret { 50% { opacity: 0; } }
 
 /* Tool calls the architect makes while answering, where they happened in the text. */
-.chat-tool { display: inline-flex; align-items: center; gap: 6px; margin-block: 2px; padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 999px; font-size: var(--font-size-xs); background: var(--color-surface-alt); }
-.chat-tool code { font-size: inherit; }
 .chat-tool-dot { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--color-text-muted); }
 .chat-tool-running .chat-tool-dot { background: var(--color-primary); animation: chat-pulse 1s ease-in-out infinite; }
 .chat-tool-ok .chat-tool-dot { background: var(--color-success); }
@@ -1340,10 +1338,38 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 @keyframes chat-fade { from { opacity: 0; } to { opacity: 1; } }
 .chat-wait-elapsed { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
-/* The run's telemetry under each answer. */
-.chat-metrics { display: flex; flex-wrap: wrap; gap: 4px 6px; padding-inline-start: 2px; }
-.chat-metric { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 7px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); font-size: 0.7rem; color: var(--color-text-secondary); }
-.chat-metric-value { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; }
+/* The run's telemetry behind an (i) icon in the answer's header: shows on hover or focus, pinned open by a click. */
+.chat-bubble-tools { display: inline-flex; align-items: center; gap: 2px; margin-inline-start: auto; }
+.chat-bubble-head .chat-bubble-tools .chat-copy { margin-inline-start: 0; }
+.chat-info { position: relative; display: inline-flex; }
+.chat-info-button { inline-size: 24px; block-size: 24px; padding: 0; border-radius: var(--radius-sm); color: var(--color-text-muted); background: transparent; }
+.chat-info-button:hover, .chat-info.is-open .chat-info-button { color: var(--color-text); background: var(--color-surface-alt); }
+.chat-info-popover { position: absolute; inset-block-start: calc(100% + 6px); inset-inline-end: 0; z-index: 30; min-inline-size: 15rem; padding: var(--spacing-sm) var(--spacing-md); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity 0.12s, transform 0.12s, visibility 0.12s; pointer-events: none; }
+.chat-info:hover .chat-info-popover, .chat-info:focus-within .chat-info-popover, .chat-info.is-open .chat-info-popover { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.chat-info-title { display: block; font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text); margin-block-end: 4px; }
+.chat-info-table { inline-size: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+.chat-info-table th { text-align: start; font-weight: 400; color: var(--color-text-secondary); padding: 2px var(--spacing-md) 2px 0; white-space: nowrap; }
+.chat-info-table td { text-align: end; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--color-text); padding: 2px 0; white-space: nowrap; }
+
+/* Tool calls (usually MCP calls) as cards in the answer: click to see the arguments and the result. */
+.chat-tool { display: flex; flex-direction: column; align-self: stretch; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); }
+.chat-tool-head { display: flex; align-items: center; gap: var(--spacing-sm); inline-size: 100%; justify-content: flex-start; padding: 0.35rem 0.6rem; border: none; border-radius: var(--radius-md); background: transparent; font-weight: 400; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.chat-tool-head:hover { background: color-mix(in srgb, var(--color-surface-alt) 60%, var(--color-border)); }
+.chat-tool-name { font-size: var(--font-size-xs); color: var(--color-text); font-weight: 600; }
+.chat-tool-state { color: var(--color-text-muted); }
+.chat-tool-took { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+.chat-tool-body { display: flex; flex-direction: column; gap: 4px; padding: 0 0.6rem 0.6rem; border-block-start: 1px solid var(--color-border); }
+.chat-tool-label { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin-block-start: var(--spacing-xs); }
+.chat-tool-body pre { max-block-size: 18rem; overflow: auto; }
+.chat-tool-failed { border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border)); }
+
+/* Records the answer mentions (an approval, a run), as buttons to their pages, and linked inline. */
+.chat-refs { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
+.chat-refs code { font-size: var(--font-size-xs); }
+.chat-linked a.record-link { font-family: var(--font-mono); font-size: 0.92em; }
+
+/* The caution under the message box. */
+.chat-disclaimer { margin: 0; font-size: var(--font-size-xs); color: var(--color-text-muted); }
 
 @media (prefers-reduced-motion: reduce) {
   .chat-typing span, .chat-wait-text, .chat-tool-running .chat-tool-dot, .chat-bubble.is-streaming .chat-stream-last .markdown-body > :last-child::after { animation: none; }

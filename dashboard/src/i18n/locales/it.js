@@ -4696,3 +4696,46 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// The studio chat: turn details popover, tool call cards, links to mentioned records, keys, and the caution.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "studio": {
+   "chat": {
+    "metrics": {
+     "title": "Dettagli del turno"
+    },
+    "tool": {
+     "running": "in corso",
+     "ok": "fatto",
+     "failed": "non riuscito",
+     "input": "Argomenti",
+     "output": "Risultato",
+     "none": "Nessuno",
+     "waiting": "In attesa del risultato..."
+    },
+    "refs": {
+     "apr": "Apri approvazione",
+     "run": "Apri esecuzione",
+     "cnv": "Apri conversazione",
+     "agt": "Apri agente",
+     "sdr": "Apri bozza",
+     "plr": "Apri esecuzione pipeline",
+     "tpl": "Apri modello di prompt"
+    },
+    "keysHint": "Invio invia. Ctrl+Invio o Maiusc+Invio aggiunge una nuova riga.",
+    "disclaimer": "L'IA può sbagliare. Controlla tutte le risposte.",
+    "continueHint": "Continua la conversazione."
+   }
+  }
+ }
+});

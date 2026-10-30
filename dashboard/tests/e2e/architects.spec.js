@@ -293,6 +293,22 @@ test('the studio chat streams the answer in bubbles, waits with a phrase and a t
   let done = false;
   await page.route(/\/agents\/agt_arch\/invoke(\?.*)?$/, (route) => route.fulfill(json(200, created)));
   await page.route(/\/runs\/run_live$/, (route) => route.fulfill(json(200, done ? finished : created)));
+  // The recorded events, read again when the turn ends: the call and the whole answer.
+  await page.route(/\/runs\/run_live\/events(\?.*)?$/, (route) =>
+    route.fulfill(
+      json(200, {
+        runId: 'run_live',
+        events: [
+          { sequence: 1, eventType: 'AssistantText', text: 'I added ' },
+          { sequence: 2, eventType: 'ToolCall', toolName: 'mcp__garrison__garrison_studio_put_item', toolCallId: 't1', text: '{"draftId":"drf_0001","kind":"Agent","name":"classifier"}' },
+          { sequence: 3, eventType: 'ToolResult', toolCallId: 't1', success: true, text: '{"version":5}' },
+          { sequence: 4, eventType: 'AssistantText', text: 'a **classifier**.' }
+        ],
+        lastSequence: 4,
+        hasMore: false
+      })
+    )
+  );
   await page.route(/\/conversations\/cnv_live\/runs(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [done ? finished : created], totalRecords: 1 })));
   await login(page);
   await page.goto('/dashboard/studio/drf_0001');
@@ -321,18 +337,33 @@ test('the studio chat streams the answer in bubbles, waits with a phrase and a t
   await expect(page.locator('.chat-bubble.is-streaming')).toHaveCount(1);
   // A caret follows the text still being written.
   expect(await page.locator('.chat-stream-last .markdown-body > :last-child').evaluate((el) => getComputedStyle(el, '::after').content)).toContain('\u258D');
-  await pushRunEvent(page, 'run_live', { sequence: 2, eventType: 'ToolCall', toolName: 'garrison_studio_put_item', toolCallId: 't1' });
-  await expect(page.getByTestId('studio-chat-tool')).toContainText('garrison_studio_put_item');
-  await pushRunEvent(page, 'run_live', { sequence: 3, eventType: 'ToolResult', toolCallId: 't1', success: true });
-  await expect(page.locator('.chat-tool-ok')).toHaveCount(1);
+  await pushRunEvent(page, 'run_live', { sequence: 2, eventType: 'ToolCall', toolName: 'mcp__garrison__garrison_studio_put_item', toolCallId: 't1', text: '{"draftId":"drf_0001","kind":"Agent","name":"classifier"}' });
+  const card = page.getByTestId('studio-chat-tool');
+  await expect(card).toContainText('garrison_studio_put_item');
+  await expect(card).not.toContainText('mcp__garrison__');
+  await pushRunEvent(page, 'run_live', { sequence: 3, eventType: 'ToolResult', toolCallId: 't1', success: true, text: '{"version":5}' });
+  await expect(card).toHaveAttribute('data-status', 'ok');
+  // MCP calls are cards: click to see the arguments and the result.
+  await card.locator('.chat-tool-head').click();
+  const body = page.getByTestId('studio-chat-tool-body');
+  await expect(body).toContainText('"name": "classifier"');
+  await expect(body).toContainText('"version": 5');
+  await card.locator('.chat-tool-head').click();
+  await expect(body).toHaveCount(0);
 
   // The run finishes: the final answer replaces the stream and the telemetry appears under it.
   done = true;
   await page.evaluate((run) => window.__ssePush('run_live', 'run.completed', run), finished);
   await expect(page.locator('.chat-bubble.is-streaming')).toHaveCount(0);
-  await expect(page.getByTestId('studio-chat-answer')).toContainText('I added a classifier.');
+  await expect(page.getByTestId('studio-chat-answer')).toContainText('a classifier.');
+  await expect(page.getByTestId('studio-chat-answer')).toContainText('I added');
+  // Telemetry sits behind an (i) icon in the answer's header, not under the answer.
   const metrics = page.getByTestId('studio-chat-metrics');
-  await expect(metrics).toContainText('claude-sonnet-4-5');
+  const popover = metrics.locator('.chat-info-popover');
+  await expect(popover).toBeHidden();
+  await page.getByTestId('studio-chat-metrics-button').hover();
+  await expect(popover).toBeVisible();
+  await expect(popover).toContainText('claude-sonnet-4-5');
   for (const m of ['timeToFirstTokenMs', 'streamingMs', 'totalMs', 'inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens', 'outputTokensPerSecond', 'costUsd']) await expect(metrics.locator(`[data-metric="${m}"]`)).toHaveCount(1);
   await expect(metrics.locator('[data-metric="inputTokens"]')).toContainText('1,500');
 
@@ -362,10 +393,46 @@ test('copying works where the Clipboard API is missing (plain http to another ho
   const turn = { id: 'run_done', kind: 'Invoke', status: 'Succeeded', outcome: 'Succeeded', conversationId: 'cnv_done', inputText: 'Hello', resultText: 'Hi there', createdUtc: new Date().toISOString() };
   await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ ...ARCHITECT, credentialSecretId: 'sec_0001' }], totalRecords: 1 })));
   await page.route(/\/conversations\/cnv_done\/runs(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [turn], totalRecords: 1 })));
+  await page.route(/\/runs\/run_done\/events(\?.*)?$/, (route) => route.fulfill(json(200, { runId: 'run_done', events: [], lastSequence: 0, hasMore: false })));
   await page.addInitScript(() => localStorage.setItem('garrison.studio.conversation.drf_0001', JSON.stringify({ conversationId: 'cnv_done', deploymentId: 'dep_arch' })));
   await login(page);
   await page.goto('/dashboard/studio/drf_0001');
   await page.getByTestId('studio-chat-copy-answer').click();
   await expect(page.getByTestId('studio-chat-copy-answer')).toHaveAttribute('data-copy-state', 'copied');
   expect(await page.evaluate(() => window.__copied)).toEqual(['Hi there']);
+});
+
+test('the studio chat sends on Enter, adds lines on Ctrl+Enter, links mentioned records, and cautions about AI answers', async ({ page }) => {
+  const bodies = [];
+  const answer = "I've asked for approval to apply the draft. The request is apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa. It expires on 2026-11-06.";
+  const done = { id: 'run_k', kind: 'Invoke', status: 'Succeeded', outcome: 'Succeeded', conversationId: 'cnv_k', inputText: '', resultText: answer, createdUtc: new Date().toISOString() };
+  await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ ...ARCHITECT, credentialSecretId: 'sec_0001' }], totalRecords: 1 })));
+  await page.route(/\/agents\/agt_arch\/invoke(\?.*)?$/, (route) => {
+    bodies.push(route.request().postDataJSON());
+    return route.fulfill(json(200, { ...done, inputText: bodies[bodies.length - 1].input }));
+  });
+  await page.route(/\/runs\/run_k\/events(\?.*)?$/, (route) => route.fulfill(json(200, { runId: 'run_k', events: [], lastSequence: 0, hasMore: false })));
+  await page.route(/\/conversations\/cnv_k\/runs(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ ...done, inputText: bodies[0]?.input || '' }], totalRecords: 1 })));
+  await login(page);
+  await page.goto('/dashboard/studio/drf_0001');
+  await expect(page.getByTestId('studio-chat-disclaimer')).toHaveText('AI can make mistakes. Check all answers.');
+  const box = page.getByTestId('studio-chat-message');
+  await box.fill('First line');
+  await box.press('Control+Enter');
+  await box.type('second line');
+  await expect(box).toHaveValue('First line\nsecond line');
+  expect(bodies).toHaveLength(0);
+  await box.press('Shift+Enter');
+  await box.type('third');
+  await box.press('Enter');
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].input).toBe('First line\nsecond line\nthird');
+  await expect(box).toHaveValue('');
+
+  // The approval the answer names is a link, inline and as a button under the answer.
+  const inline = page.locator('a.record-link', { hasText: 'apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa' });
+  await expect(inline).toHaveAttribute('href', '/dashboard/approvals/apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa');
+  await expect(page.getByTestId('studio-chat-ref-apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa')).toContainText('Open approval');
+  await inline.click();
+  await expect(page).toHaveURL(/\/dashboard\/approvals\/apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa$/);
 });
