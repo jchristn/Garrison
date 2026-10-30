@@ -1,16 +1,23 @@
 import { useTranslation } from 'react-i18next';
-import { tip } from './Tooltip.jsx';
 import Markdown from './Markdown.jsx';
 import { turnPhase, visibleAnswer } from '../utils/turns.js';
+import { activitySteps, currentActivity } from '../utils/activity.js';
+import ActivityLog, { actionLabel } from './ActivityLog.jsx';
 
-// One exchange: the user's message and the agent's answer, which grows as text streams in. Shows a working
-// indicator before the first text, the approval notice while an operator must approve a step, a reconnecting
-// note while the stream is down, and the error when the turn failed.
+// One exchange: the user's message and the agent's answer, which grows as text streams in. Shows what the agent is
+// doing while it works (waiting for a worker, thinking, asking another agent, using a tool), the approval notice while
+// an operator must approve a step, a reconnecting note while the stream is down, and the error when the turn failed.
+// When the app shows operator detail, the activity log lists every step as it happens.
 export default function TurnView({ turn, agentName, showDetail }) {
   const { t } = useTranslation();
   const phase = turnPhase(turn);
   const answer = visibleAnswer(turn);
   const statusText = t(`statuses.${turn.status}`, { defaultValue: turn.status });
+  const steps = showDetail ? activitySteps(turn.details) : [];
+  const live = phase === 'waiting' || phase === 'streaming' || phase === 'approval';
+  const now = live ? currentActivity(steps) : null;
+  const queued = turn.status === 'Pending' || turn.status === 'Queued' || turn.status === 'Leased';
+  const doing = now ? (now.kind === 'thinking' ? t('activity.thinkingNow') : actionLabel(t, now.action)) : queued ? statusText : t('chat.waiting');
   return (
     <li className="turn" data-testid="turn" data-run-id={turn.runId} data-phase={phase}>
       <div className="message message-user">
@@ -24,10 +31,10 @@ export default function TurnView({ turn, agentName, showDetail }) {
             <Markdown text={answer} />
           </div>
         ) : null}
-        {phase === 'waiting' ? (
-          <p className="turn-state" role="status">
+        {phase === 'waiting' || (phase === 'streaming' && now) ? (
+          <p className="turn-state" role="status" data-testid="turn-state">
             <span className="dots" aria-hidden="true" />
-            {t('chat.waiting')} ({statusText})
+            {doing}
           </p>
         ) : null}
         {phase === 'approval' ? (
@@ -45,20 +52,7 @@ export default function TurnView({ turn, agentName, showDetail }) {
             {t('chat.failed')} {turn.streamError || ''} ({statusText})
           </p>
         ) : null}
-        {showDetail && turn.details && turn.details.length ? (
-          <details className="turn-details">
-            <summary {...tip(t('tips.details'))}>{t('chat.details')}</summary>
-            <ol>
-              {turn.details.map((d) => (
-                <li key={d.sequence} className={`detail detail-${d.eventType}`}>
-                  <span className="detail-type">{t(`detailTypes.${d.eventType}`, { defaultValue: d.eventType })}</span>
-                  {d.toolName ? <code className="detail-tool">{d.toolName}</code> : null}
-                  {d.text ? <span className="detail-text">{d.text}</span> : null}
-                </li>
-              ))}
-            </ol>
-          </details>
-        ) : null}
+        <ActivityLog steps={steps} live={live} />
       </div>
     </li>
   );

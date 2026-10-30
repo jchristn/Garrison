@@ -56,7 +56,7 @@ test('agent page shows the draft notice, lists revisions, and diffs latest publi
   await expect(diff.locator('[data-field="description"]')).toContainText('Changed');
   await expect(diff.locator('[data-field="promptPins[System]"]')).toContainText('Added');
   // Multi-line values render as a line diff.
-  await expect(diff.locator('[data-field="outputSchemaJson"] .diff-line.diff-add', { hasText: 'required' })).toHaveCount(1);
+  await expect(diff.locator('[data-field="outputSchema"] .diff-line.diff-add', { hasText: 'required' })).toHaveCount(1);
 
   // Pick another pair: revision 1 against revision 2.
   await page.getByTestId('revision-diff-from').selectOption(revisionId('agt_0001', 1));

@@ -2,6 +2,7 @@ package garrison
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 )
@@ -42,13 +43,14 @@ type AgentRevision struct {
 	AgentID  string `json:"agentId,omitempty"`
 	Number   int    `json:"number,omitempty"`
 	// State is AgentRevisionStateDraft or AgentRevisionStatePublished.
-	State                    string                   `json:"state,omitempty"`
-	ContentHash              string                   `json:"contentHash,omitempty"`
-	DisplayName              string                   `json:"displayName,omitempty"`
-	Description              string                   `json:"description,omitempty"`
-	InputMode                string                   `json:"inputMode,omitempty"`
-	InputSchemaJSON          string                   `json:"inputSchemaJson,omitempty"`
-	OutputSchemaJSON         string                   `json:"outputSchemaJson,omitempty"`
+	State       string `json:"state,omitempty"`
+	ContentHash string `json:"contentHash,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Description string `json:"description,omitempty"`
+	InputMode   string `json:"inputMode,omitempty"`
+	// InputSchema and OutputSchema are JSON Schema documents (usually objects); nil when the revision has none.
+	InputSchema              json.RawMessage          `json:"inputSchema,omitempty"`
+	OutputSchema             json.RawMessage          `json:"outputSchema,omitempty"`
 	DelegationMode           string                   `json:"delegationMode,omitempty"`
 	DelegationMaxDepth       int                      `json:"delegationMaxDepth,omitempty"`
 	DelegationAllowRecursion bool                     `json:"delegationAllowRecursion,omitempty"`
@@ -67,13 +69,14 @@ type AgentRevision struct {
 	LastUpdateUTC            string                   `json:"lastUpdateUtc,omitempty"`
 }
 
-// AgentRevisionChange is one field difference between two revisions; From and To are display values.
+// AgentRevisionChange is one field difference between two revisions. From and To are JSON values: objects for the
+// inputSchema and outputSchema fields, strings for the others; nil (or JSON null) when the side has no value.
 type AgentRevisionChange struct {
 	Field string `json:"field"`
 	// ChangeType is RevisionChangeChanged, RevisionChangeAdded, or RevisionChangeRemoved.
-	ChangeType string  `json:"changeType"`
-	From       *string `json:"from"`
-	To         *string `json:"to"`
+	ChangeType string          `json:"changeType"`
+	From       json.RawMessage `json:"from,omitempty"`
+	To         json.RawMessage `json:"to,omitempty"`
 }
 
 // AgentRevisionDiff compares two revisions of one agent.

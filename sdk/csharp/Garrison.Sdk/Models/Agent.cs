@@ -2,6 +2,7 @@ namespace Garrison.Sdk.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using System.Text.Json.Serialization;
     using Garrison.Sdk.Enums;
 
@@ -125,14 +126,14 @@ namespace Garrison.Sdk.Models
         public AgentInputModeEnum InputMode { get; set; } = AgentInputModeEnum.Text;
 
         /// <summary>
-        /// JSON Schema for structured input (unmanaged JSON).
+        /// JSON Schema for structured input, as a JSON value (usually an object), or null when there is none.
         /// </summary>
-        public string? InputSchemaJson { get; set; } = null;
+        public JsonElement? InputSchema { get; set; } = null;
 
         /// <summary>
-        /// JSON Schema for structured output (unmanaged JSON).
+        /// JSON Schema for structured output, as a JSON value (usually an object), or null when there is none.
         /// </summary>
-        public string? OutputSchemaJson { get; set; } = null;
+        public JsonElement? OutputSchema { get; set; } = null;
 
         /// <summary>
         /// Delegation mode.

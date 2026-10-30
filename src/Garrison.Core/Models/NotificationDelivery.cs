@@ -1,9 +1,11 @@
 namespace Garrison.Core.Models
 {
     using System;
+    using System.Text.Json;
     using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// One notification to one endpoint (P12.14): the durable outbox row, retried with exponential backoff until it
@@ -151,8 +153,10 @@ namespace Garrison.Core.Models
         public DateTime? DeliveredUtc { get; set; } = null;
 
         /// <summary>
-        /// The JSON body sent on every attempt.
+        /// The JSON body sent on every attempt, kept byte for byte because its signature covers it. Not serialized; the
+        /// API returns it as the JSON object <see cref="PayloadValue"/>.
         /// </summary>
+        [JsonIgnore]
         public string Payload
         {
             get
@@ -162,6 +166,22 @@ namespace Garrison.Core.Models
             set
             {
                 _Payload = value ?? String.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The body sent on every attempt, as the JSON object it is; null when it is empty.
+        /// </summary>
+        [JsonPropertyName("payload")]
+        public JsonElement? PayloadValue
+        {
+            get
+            {
+                return JsonText.Value(_Payload);
+            }
+            set
+            {
+                _Payload = JsonText.Text(value) ?? String.Empty;
             }
         }
 

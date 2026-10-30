@@ -2,6 +2,8 @@ namespace Garrison.Core.Responses
 {
     using System;
     using System.Text.Json;
+    using System.Text.Json.Serialization;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// One tool an MCP server listed, with what the capability catalog copies from it (AD4.3).
@@ -33,7 +35,23 @@ namespace Garrison.Core.Responses
         /// <summary>
         /// The tool's input JSON Schema as JSON text, or null. Dropped when longer than <see cref="MaxSchemaLength"/>.
         /// </summary>
+        [JsonIgnore]
         public string? InputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// The tool's input schema as the server listed it, as a JSON object; null when it listed none.
+        /// </summary>
+        public JsonElement? InputSchema
+        {
+            get
+            {
+                return JsonText.Value(InputSchemaJson);
+            }
+            set
+            {
+                InputSchemaJson = JsonText.Text(value);
+            }
+        }
 
         #endregion
 

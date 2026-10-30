@@ -184,7 +184,7 @@ SID=$(curl -s -D - -o /dev/null -X POST $GARRISON_MCP_URL -H "Authorization: Bea
 curl -s -X POST $GARRISON_MCP_URL -H "Authorization: Bearer $TOKEN" -H "MCP-Session-Id: $SID" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"garrison_invoke_agent","arguments":{"agent":"coder","input":"Reply with READY."}}}' |
-  jq -r '.result.content[0].text | fromjson | {status, result}'
+  jq '.result.structuredContent | {status, result}'
 ```
 
 **A2A.** Every agent with A2A exposure has a public card and a JSON-RPC endpoint:

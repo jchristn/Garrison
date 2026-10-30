@@ -112,7 +112,7 @@ namespace Garrison.Harnesses.Parsers
                 case "mcp_tool_call":
                     string name = (JsonPath.Str(item, "server") ?? "mcp") + "." + (JsonPath.Str(item, "tool") ?? "tool");
                     if (!completed) state.Emit(ToolCall(name, id, JsonPath.Str(item, "arguments"), raw));
-                    else state.Emit(ToolResult(name, id, JsonPath.Str(item, "status") != "failed", JsonPath.Str(item, "result") ?? JsonPath.Str(item, "error"), raw));
+                    else state.Emit(ToolResult(name, id, JsonPath.Str(item, "status") != "failed", JsonPath.ContentText(item, "result") ?? JsonPath.Str(item, "error"), raw));
                     break;
                 case "command_execution":
                     if (!completed) state.Emit(ToolCall("shell", id, JsonPath.Str(item, "command"), raw));

@@ -137,7 +137,8 @@ export function promotionErrors(form, environments, t) {
 
 /** Text for a diff value: '' for null, as is otherwise. */
 export function diffValue(value) {
-  return value === null || value === undefined ? '' : String(value);
+  if (value === null || value === undefined) return '';
+  return typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
 }
 
 /** True when a diff value is long or spans lines, so it reads better as a line diff than inline. */

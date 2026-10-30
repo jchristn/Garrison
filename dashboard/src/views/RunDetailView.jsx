@@ -41,6 +41,7 @@ import ApprovalDecideModal from '../components/ApprovalDecideModal';
 import { AwaitingApprovalBadge } from '../components/ApprovalBadges';
 import { errorDetail } from '../utils/errors';
 import RunChildrenTree from '../components/RunChildrenTree';
+import { jsonToText } from '../utils/jsonFields';
 
 /** Tabs of the page; `?tab=children&group={fanOutGroupId}` opens the run tree at one fan-out group (AD5.8). */
 const TAB_KEYS = ['artifacts', 'transcript', 'result', 'input', 'stderr', 'children', 'approvals'];
@@ -518,7 +519,7 @@ export default function RunDetailView({ recordId }) {
                   csv={() =>
                     toCsv(
                       ['sequence', 'timestamp_utc', 'event_type', 'tool_name', 'success', 'input_tokens', 'output_tokens', 'text'],
-                      events.filter((e) => filter === 'all' || e.eventType === filter).map((e) => [e.sequence, e.timestampUtc ? new Date(e.timestampUtc).toISOString() : null, e.eventType, e.toolName, e.success, e.inputTokens, e.outputTokens, e.text])
+                      events.filter((e) => filter === 'all' || e.eventType === filter).map((e) => [e.sequence, e.timestampUtc ? new Date(e.timestampUtc).toISOString() : null, e.eventType, e.toolName, e.success, e.inputTokens, e.outputTokens, e.text ?? jsonToText(e.toolInput ?? e.toolOutput ?? null)])
                     )
                   }
                   json={() => JSON.stringify({ runId: run.id, agent: run.agentName, filter, exportedUtc: new Date().toISOString(), events: events.filter((e) => filter === 'all' || e.eventType === filter) }, null, 2)}
@@ -531,10 +532,10 @@ export default function RunDetailView({ recordId }) {
         {tab === 'result' && (
           <div className="flex-col gap-md">
             <MarkdownView text={run.resultText} rawToggle testId="run-result" emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
-            {run.structuredOutputJson && (
+            {run.structuredOutput !== undefined && run.structuredOutput !== null && (
               <>
                 <h3 className="section-title">{t('views.runDetail.structuredOutput')}</h3>
-                <CodeBlock value={run.structuredOutputJson} prettyJson />
+                <CodeBlock value={jsonToText(run.structuredOutput)} prettyJson />
               </>
             )}
           </div>

@@ -921,8 +921,8 @@ const fr = {
         skillName: 'Nom',
         skillDescription: 'Description',
         inputMode: 'Mode d\'entrée',
-        inputSchemaJson: 'JSON Schema d\'entrée',
-        outputSchemaJson: 'JSON Schema de sortie',
+        inputSchema: 'JSON Schema d\'entrée',
+        outputSchema: 'JSON Schema de sortie',
         delegationMode: 'Délégation',
         delegationAllowList: 'Agents qu\'il peut appeler',
         delegationMaxDepth: 'Profondeur maximale',
@@ -3197,8 +3197,8 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
     "meanCostUsd": "Coût moyen",
     "windowDays": "Fenêtre",
     "computedUtc": "Calculé le",
-    "inputSchemaJson": "Schéma d'entrée",
-    "outputSchemaJson": "Schéma de sortie"
+    "inputSchema": "Schéma d'entrée",
+    "outputSchema": "Schéma de sortie"
    },
    "refreshTitle": "Actualiser le catalogue des capacités",
    "refreshHint": "Garrison dérive à nouveau les entrées des agents et des outils intégrés aux harness, liste les outils de chaque serveur MCP (les serveurs stdio via un worker dont les diagnostics stdio sont activés) et recalcule les indications des agents. Lister un serveur lui envoie les secrets que nomment ses modèles : vous devez donc avoir le droit de les utiliser.",
@@ -3291,14 +3291,14 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
     "sourceToolName": "Nom de l'outil sur ce serveur",
     "tags": "Tags",
     "requirements": "Étiquettes de nœud requises pour une exécution",
-    "inputSchemaJson": "Schéma d'entrée",
-    "outputSchemaJson": "Schéma de sortie"
+    "inputSchema": "Schéma d'entrée",
+    "outputSchema": "Schéma de sortie"
    },
    "hints": {
     "kind": "Les entrées manuelles peuvent être de n'importe quel type, par exemple un service de conversion que les agents atteignent via une ressource Skill.",
     "requirements": "Une exécution d'un agent qui utilise cette capacité ne va qu'aux workers qui portent chacune de ces étiquettes de nœud.",
     "sourceMcpServerId": "Facultatif. Un jeton d'exécution ne voit une entrée qui nomme un serveur que si son déploiement lie ce serveur.",
-    "inputSchemaJson": "Un JSON Schema, par exemple {\"type\": \"object\"}. Laissez vide si la capacité accepte du texte libre."
+    "inputSchema": "Un JSON Schema, par exemple {\"type\": \"object\"}. Laissez vide si la capacité accepte du texte libre."
    },
    "tagFilter": "Filtrer par tag",
    "refresh": "Actualiser",
@@ -4886,6 +4886,26 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
     "openApp": "Ouvrir l'application {{name}}",
     "openInvoke": "Ouvrir dans Invoke",
     "another": "En créer d'autres"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Ouvrir le chat de {{name}}"
    }
   }
  }

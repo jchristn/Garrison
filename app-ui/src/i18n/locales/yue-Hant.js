@@ -87,6 +87,24 @@ const yueHant = {
     Progress: '進度',
     Warning: '警告'
   },
+  activity: {
+    title: '代理活動 ({{count}})',
+    thinking: '思考',
+    thinkingNow: '諗緊',
+    ask: '問緊 {{agent}}',
+    askMany: '同時問緊 {{agents}}',
+    askSeveral: '同時問緊幾個代理',
+    gather: '執緊啲答案',
+    check: '睇緊另一個代理',
+    tool: '用緊 {{tool}}',
+    running: '進行中',
+    done: '完成',
+    failed: '失敗',
+    sent: '傳送咗',
+    returned: '返嚟嘅',
+    nothing: '冇',
+    waiting: '等緊答覆'
+  },
   files: {
     title: '檔案',
     empty: '代理程式喺呢段對話入面仲未寫過任何檔案。',
@@ -143,7 +161,11 @@ const yueHant = {
     answerLink: '喺新分頁打開回覆入面嘅呢條連結，網址係：{{href}}',
     tableHeader: '呢個係回覆入面某個表格嘅欄位標題，內容係：{{text}}',
     poweredBy: '喺新分頁打開 usegarrison.ai，睇吓運行呢個應用程式嘅平台 Garrison Agent Studio 係乜。',
-    skipToChat: '跳過頁首同對話清單，直接將焦點移去下面嘅訊息輸入框度。'
+    skipToChat: '跳過頁首同對話清單，直接將焦點移去下面嘅訊息輸入框度。',
+    activityRunning: '呢一步仲做緊，等到結果一返嚟就會即刻喺呢度顯示出嚟。',
+    activityDone: '呢一步已經完成咗。打開佢就可以睇到傳送咗乜嘢同返嚟咗乜嘢。',
+    activityFailed: '呢一步失敗咗。打開佢就可以睇到傳送咗乜嘢同埋返嚟嘅錯誤訊息。',
+    activityStep: '顯示代理喺呢一步入面傳送咗乜嘢內容，同埋返嚟咗乜嘢內容。'
   }
 };
 

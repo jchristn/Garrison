@@ -6565,7 +6565,7 @@
             "description": "A manual descriptor for something Garrison cannot derive.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-convert-{{suffix}}\",\n  \"kind\": \"HarnessBuiltIn\",\n  \"summary\": \"Converts DOCX to PDF.\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\"}}}\",\n  \"tags\": [\n    \"postman\",\n    \"documents\"\n  ],\n  \"requirements\": [\n    {\n      \"key\": \"garrison.io/tool-libreoffice\",\n      \"value\": \"true\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"postman-convert-{{suffix}}\",\n  \"kind\": \"HarnessBuiltIn\",\n  \"summary\": \"Converts DOCX to PDF.\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"path\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"tags\": [\n    \"postman\",\n    \"documents\"\n  ],\n  \"requirements\": [\n    {\n      \"key\": \"garrison.io/tool-libreoffice\",\n      \"value\": \"true\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6615,7 +6615,7 @@
             "description": "Schemas must be valid JSON Schema: 400 InvalidJsonSchema.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-bad-{{suffix}}\",\n  \"kind\": \"McpTool\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"not-a-type\\\"}\"\n}",
+              "raw": "{\n  \"name\": \"postman-bad-{{suffix}}\",\n  \"kind\": \"McpTool\",\n  \"inputSchema\": {\n    \"type\": \"not-a-type\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7249,7 +7249,7 @@
             "description": "An agent whose input must be a JSON document with a topic. It has no deployment; the input is checked before a deployment is chosen.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-schema-{{suffix}}\",\n  \"inputMode\": \"Structured\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"object\\\",\\\"required\\\":[\\\"topic\\\"],\\\"properties\\\":{\\\"topic\\\":{\\\"type\\\":\\\"string\\\"},\\\"depth\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":1}}}\"\n}",
+              "raw": "{\n  \"name\": \"postman-schema-{{suffix}}\",\n  \"inputMode\": \"Structured\",\n  \"inputSchema\": {\n    \"type\": \"object\",\n    \"required\": [\n      \"topic\"\n    ],\n    \"properties\": {\n      \"topic\": {\n        \"type\": \"string\"\n      },\n      \"depth\": {\n        \"type\": \"integer\",\n        \"minimum\": 1\n      }\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7296,7 +7296,7 @@
             "description": "An input schema must be a usable JSON Schema: 400 with field code InvalidJsonSchema.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-badschema-{{suffix}}\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"objekt\\\"}\"\n}",
+              "raw": "{\n  \"name\": \"postman-badschema-{{suffix}}\",\n  \"inputSchema\": {\n    \"type\": \"objekt\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7311,7 +7311,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
-                  "pm.test('field code', function () { pm.expect(pm.response.json().fieldCodes.inputSchemaJson).to.eql('InvalidJsonSchema'); });"
+                  "pm.test('field code', function () { pm.expect(pm.response.json().fieldCodes.inputSchema).to.eql('InvalidJsonSchema'); });"
                 ]
               }
             }
@@ -19663,7 +19663,7 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('payload is the test notification', function () { var payload = JSON.parse(json.payload); pm.expect(payload.event).to.eql('Test'); pm.expect(payload.id).to.eql(json.id); });"
+                  "pm.test('payload is the test notification', function () { var payload = json.payload; pm.expect(payload).to.be.an('object'); pm.expect(payload.event).to.eql('Test'); pm.expect(payload.id).to.eql(json.id); });"
                 ]
               }
             }

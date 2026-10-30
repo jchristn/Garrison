@@ -905,8 +905,8 @@ const de = {
         skillName: 'Name',
         skillDescription: 'Beschreibung',
         inputMode: 'Eingabemodus',
-        inputSchemaJson: 'JSON-Schema der Eingabe',
-        outputSchemaJson: 'JSON-Schema der Ausgabe',
+        inputSchema: 'JSON-Schema der Eingabe',
+        outputSchema: 'JSON-Schema der Ausgabe',
         delegationMode: 'Delegation',
         delegationAllowList: 'Aufrufbare Agenten',
         delegationMaxDepth: 'Maximale Tiefe',
@@ -3183,8 +3183,8 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
     "meanCostUsd": "Mittlere Kosten",
     "windowDays": "Zeitfenster",
     "computedUtc": "Berechnet",
-    "inputSchemaJson": "Eingabeschema",
-    "outputSchemaJson": "Ausgabeschema"
+    "inputSchema": "Eingabeschema",
+    "outputSchema": "Ausgabeschema"
    },
    "refreshTitle": "Fähigkeitenkatalog aktualisieren",
    "refreshHint": "Garrison leitet die Einträge für Agents und integrierte Harness-Tools neu ab, listet die Tools jedes MCP-Servers auf (stdio-Server über einen Worker mit aktivierter stdio-Diagnose) und berechnet die Agent-Hinweise neu. Beim Auflisten erhält ein Server die Geheimnisse, die seine Vorlagen nennen, daher brauchen Sie die Berechtigung, sie zu verwenden.",
@@ -3277,14 +3277,14 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
     "sourceToolName": "Tool-Name auf diesem Server",
     "tags": "Schlagwörter",
     "requirements": "Knotenlabels, die ein Lauf benötigt",
-    "inputSchemaJson": "Eingabeschema",
-    "outputSchemaJson": "Ausgabeschema"
+    "inputSchema": "Eingabeschema",
+    "outputSchema": "Ausgabeschema"
    },
    "hints": {
     "kind": "Manuelle Einträge können jede Art haben, zum Beispiel ein Konvertierungsdienst, den Agents über eine Skill-Ressource erreichen.",
     "requirements": "Ein Lauf eines Agents, der diese Fähigkeit nutzt, geht nur an Worker, die jedes dieser Knotenlabels haben.",
     "sourceMcpServerId": "Optional. Ein Lauf-Token sieht einen Eintrag, der einen Server nennt, nur dann, wenn seine Bereitstellung diesen Server bindet.",
-    "inputSchemaJson": "Ein JSON Schema, zum Beispiel {\"type\": \"object\"}. Leer lassen, wenn die Fähigkeit freien Text annimmt."
+    "inputSchema": "Ein JSON Schema, zum Beispiel {\"type\": \"object\"}. Leer lassen, wenn die Fähigkeit freien Text annimmt."
    },
    "tagFilter": "Schlagwort",
    "refresh": "Aktualisieren",
@@ -4872,6 +4872,26 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
     "openApp": "App {{name}} öffnen",
     "openInvoke": "In Invoke öffnen",
     "another": "Weitere bauen"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Chat von {{name}} öffnen"
    }
   }
  }

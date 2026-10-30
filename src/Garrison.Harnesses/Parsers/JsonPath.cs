@@ -1,6 +1,7 @@
 namespace Garrison.Harnesses.Parsers
 {
     using System;
+    using System.Collections.Generic;
     using System.Globalization;
     using System.Text.Json;
 
@@ -59,6 +60,55 @@ namespace Garrison.Harnesses.Parsers
         {
             if (!TryGet(element, name, out JsonElement value)) return null;
             return AsText(value);
+        }
+
+        /// <summary>
+        /// A tool result's own output as text, unwrapping the MCP content blocks harnesses report it in. A string is
+        /// returned as it is. An array of content blocks (<c>[{"type":"text","text":"..."}]</c>), or an object holding
+        /// one in <c>content</c> (an MCP call result), gives the text of its text blocks joined by new lines, with
+        /// <c>[type]</c> for blocks that carry no text (an image, for example). Anything else is returned as raw JSON.
+        /// Without this a tool that answers JSON would be recorded as JSON inside a string inside a JSON array.
+        /// </summary>
+        /// <param name="element">Element holding the property.</param>
+        /// <param name="name">Property name.</param>
+        /// <returns>Text, or null when the property is missing.</returns>
+        public static string? ContentText(JsonElement element, string name)
+        {
+            if (!TryGet(element, name, out JsonElement value)) return null;
+            return ContentText(value);
+        }
+
+        /// <summary>
+        /// A tool result's own output as text; see <see cref="ContentText(JsonElement, string)"/>.
+        /// </summary>
+        /// <param name="value">Value.</param>
+        /// <returns>Text.</returns>
+        public static string ContentText(JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.String) return value.GetString() ?? String.Empty;
+            JsonElement blocks = value;
+            if (value.ValueKind == JsonValueKind.Object && TryGet(value, "content", out JsonElement content)) blocks = content;
+            if (blocks.ValueKind != JsonValueKind.Array) return value.GetRawText();
+            List<string> parts = new List<string>();
+            foreach (JsonElement block in blocks.EnumerateArray())
+            {
+                if (block.ValueKind == JsonValueKind.String)
+                {
+                    parts.Add(block.GetString() ?? String.Empty);
+                    continue;
+                }
+                if (block.ValueKind != JsonValueKind.Object) return value.GetRawText();
+                string? text = Str(block, "text");
+                if (text != null)
+                {
+                    parts.Add(text);
+                    continue;
+                }
+                string? type = Str(block, "type");
+                if (type == null) return value.GetRawText();
+                parts.Add("[" + type + "]");
+            }
+            return String.Join("\n", parts);
         }
 
         /// <summary>

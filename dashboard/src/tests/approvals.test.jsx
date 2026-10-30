@@ -311,10 +311,10 @@ describe('run detail and timeline', () => {
   });
 
   it('labels approval events, links the approval, and colors the verdict', () => {
-    const notice = (status, decision) => JSON.stringify({ runId: 'run_1', approvalId: 'apr_0009', status, decision, decisionSource: decision ? 'User' : null, toolName: 'Bash', summary: 'git push' });
+    const notice = (status, decision) => ({ runId: 'run_1', approvalId: 'apr_0009', status, decision, decisionSource: decision ? 'User' : null, toolName: 'Bash', summary: 'git push' });
     const events = [
-      { sequence: 1, eventType: 'Lifecycle', code: 'ApprovalRequested', text: 'Waiting for a person to approve Bash (git push); approval apr_0009 expires at 2026-10-09 12:05:00Z.', rawEventJson: notice('Pending') },
-      { sequence: 2, eventType: 'Lifecycle', code: 'ApprovalDecided', text: 'Bash (git push) denied by admin@garrison (approval apr_0009): no.', rawEventJson: notice('Denied', 'Deny') }
+      { sequence: 1, eventType: 'Lifecycle', code: 'ApprovalRequested', text: 'Waiting for a person to approve Bash (git push); approval apr_0009 expires at 2026-10-09 12:05:00Z.', rawEvent: notice('Pending') },
+      { sequence: 2, eventType: 'Lifecycle', code: 'ApprovalDecided', text: 'Bash (git push) denied by admin@garrison (approval apr_0009): no.', rawEvent: notice('Denied', 'Deny') }
     ];
     const markup = renderToStaticMarkup(
       <MemoryRouter>
@@ -329,8 +329,8 @@ describe('run detail and timeline', () => {
     expect(markup).toContain('href="/dashboard/approvals/apr_0009"');
     expect(markup).toContain('Waiting for a person to approve Bash (git push); approval apr_0009 expires at 2026-10-09 12:05:00Z.');
     expect(parseApprovalNotice(events[1])).toEqual({ approvalId: 'apr_0009', status: 'Denied', decision: 'Deny', decisionSource: 'User' });
-    expect(parseApprovalNotice({ code: 'ApprovalDecided', rawEventJson: 'not json' })).toBeNull();
-    expect(parseApprovalNotice({ code: 'HarnessExited', rawEventJson: '{}' })).toBeNull();
+    expect(parseApprovalNotice({ code: 'ApprovalDecided', rawEventText: 'not json' })).toBeNull();
+    expect(parseApprovalNotice({ code: 'HarnessExited', rawEvent: {} })).toBeNull();
   });
 
   it('translates the waiting message', async () => {

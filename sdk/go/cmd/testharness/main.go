@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -254,7 +255,7 @@ func main() {
 	check("input schema enforcement", func(ctx context.Context) error {
 		var agent garrison.Agent
 		schema := `{"type":"object","properties":{"topic":{"type":"string"},"count":{"type":"integer"}},"required":["topic"]}`
-		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-" + suffix + "-schema", InputMode: "Structured", InputSchemaJSON: schema}, &agent); err != nil {
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-" + suffix + "-schema", InputMode: "Structured", InputSchema: json.RawMessage(schema)}, &agent); err != nil {
 			return err
 		}
 		defer client.Agents.Delete(ctx, agent.ID)
@@ -263,8 +264,14 @@ func main() {
 			return err
 		}
 		defer client.Deployments.Delete(ctx, dep.ID)
-		if !strings.Contains(agent.InputSchemaJSON, "topic") {
-			return errors.New("inputSchemaJson not stored")
+		var storedSchema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		if err := json.Unmarshal(agent.InputSchema, &storedSchema); err != nil {
+			return fmt.Errorf("inputSchema is not a JSON object: %v", err)
+		}
+		if _, ok := storedSchema.Properties["topic"]; !ok {
+			return errors.New("inputSchema not stored")
 		}
 		run, err := client.Agents.Invoke(ctx, agent.ID, garrison.InvokeRequest{Input: `{"topic":"sdk","count":2}`, InputContentType: "application/json", Wait: true, WaitSeconds: 90})
 		if err != nil {
@@ -1358,8 +1365,14 @@ func main() {
 			return fmt.Errorf("delivery log: %v", err)
 		}
 		one, err := client.NotificationEndpoints.GetDelivery(ctx, endpoint.ID, test.ID)
-		if err != nil || !strings.Contains(one.Payload, `"event":"Test"`) {
+		if err != nil {
 			return fmt.Errorf("delivery payload: %v", err)
+		}
+		var payload struct {
+			Event string `json:"event"`
+		}
+		if err := json.Unmarshal(one.Payload, &payload); err != nil || payload.Event != "Test" {
+			return fmt.Errorf("delivery payload is not an object with event Test: %v", err)
 		}
 		inactive := false
 		read.Active = &inactive
@@ -1839,7 +1852,7 @@ func main() {
 		summary := "Manual descriptor from the Go SDK harness."
 		schema := `{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}`
 		created, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{
-			Name: name, Kind: garrison.CapabilityKindMcpTool, Summary: &summary, InputSchemaJSON: &schema, Tags: []string{tag},
+			Name: name, Kind: garrison.CapabilityKindMcpTool, Summary: &summary, InputSchema: json.RawMessage(schema), Tags: []string{tag},
 			Requirements: []garrison.CapabilityRequirement{{Key: "garrison.io/sdk-fixture", Value: "true"}},
 		})
 		if err != nil {
@@ -1886,7 +1899,7 @@ func main() {
 		}
 		badSchema := "[1,2]"
 		var apiErr *garrison.Error
-		if _, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{Name: name + "-bad", Kind: garrison.CapabilityKindMcpTool, InputSchemaJSON: &badSchema}); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.Code != "InvalidJsonSchema" {
+		if _, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{Name: name + "-bad", Kind: garrison.CapabilityKindMcpTool, InputSchema: json.RawMessage(badSchema)}); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.Code != "InvalidJsonSchema" {
 			return fmt.Errorf("invalid schema should fail with 400 InvalidJsonSchema, got %v", err)
 		}
 		if _, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{Name: name, Kind: garrison.CapabilityKindMcpTool}); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "NameConflict" {

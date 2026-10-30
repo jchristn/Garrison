@@ -2,8 +2,10 @@ namespace Garrison.Server.Protocols
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// Run status and result returned by MCP tools.
@@ -77,7 +79,24 @@ namespace Garrison.Server.Protocols
         /// <summary>
         /// Structured output when the agent declares an output schema.
         /// </summary>
+        [JsonIgnore]
         public string? StructuredOutputJson { get; set; } = null;
+
+        /// <summary>
+        /// The structured output, as the JSON value the agent returned (usually an object); null when there is none.
+        /// Stored as <see cref="StructuredOutputJson"/>.
+        /// </summary>
+        public JsonElement? StructuredOutput
+        {
+            get
+            {
+                return JsonText.Value(StructuredOutputJson);
+            }
+            set
+            {
+                StructuredOutputJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Whether the final output validated against the agent's output schema, or null (omitted) when it was not

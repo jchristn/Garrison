@@ -141,7 +141,7 @@ test('creates a manual entry, with schema and name refusals', async ({ page }) =
     if (route.request().method() !== 'POST') return route.fallback();
     bodies.push(route.request().postDataJSON());
     attempt += 1;
-    if (attempt === 1) return route.fulfill(json(400, { error: 'BadRequest', code: 'InvalidJsonSchema', message: 'The capability is not valid: bad', fields: { inputSchemaJson: "'type' must be a string or an array." }, fieldCodes: { inputSchemaJson: 'InvalidJsonSchema' } }));
+    if (attempt === 1) return route.fulfill(json(400, { error: 'BadRequest', code: 'InvalidJsonSchema', message: 'The capability is not valid: bad', fields: { inputSchema: "'type' must be a string or an array." }, fieldCodes: { inputSchema: 'InvalidJsonSchema' } }));
     if (attempt === 2) return route.fulfill(json(409, { error: 'Conflict', code: 'NameConflict', message: 'A manual capability named pdf-render already exists.' }));
     return route.fulfill(json(201, { ...capability(6), ...bodies[bodies.length - 1], id: 'cap_0099', origin: 'Manual' }));
   });
@@ -157,16 +157,16 @@ test('creates a manual entry, with schema and name refusals', async ({ page }) =
   await modal.locator('#capabilities-summary').fill('Renders Markdown to PDF.');
   await modal.locator('#capabilities-tags').fill('docs\npdf');
   // Client-side check first: the schema is not JSON at all.
-  await modal.locator('#capabilities-inputSchemaJson').fill('{');
+  await modal.locator('#capabilities-inputSchema').fill('{');
   await modal.getByTestId('save-button').click();
   await expect(modal.locator('.field-error')).toContainText('This is not valid JSON.');
   expect(bodies).toHaveLength(0);
   // Valid JSON the server refuses as a schema: the field shows the translated field code.
-  await modal.locator('#capabilities-inputSchemaJson').fill('{"type": 5}');
+  await modal.locator('#capabilities-inputSchema').fill('{"type": 5}');
   await modal.getByTestId('save-button').click();
   await expect(modal.locator('.field-error')).toContainText('This is not a valid JSON Schema.');
   await expect(page.locator('.toast-error').first()).toContainText('not a valid JSON Schema');
-  await modal.locator('#capabilities-inputSchemaJson').fill('{"type": "object"}');
+  await modal.locator('#capabilities-inputSchema').fill('{"type": "object"}');
   await modal.getByTestId('save-button').click();
   await expect(page.locator('.toast-error', { hasText: 'A manual capability named pdf-render already exists.' })).toBeVisible();
   await modal.getByTestId('save-button').click();
@@ -176,8 +176,8 @@ test('creates a manual entry, with schema and name refusals', async ({ page }) =
     name: 'pdf-render',
     kind: 'McpTool',
     summary: 'Renders Markdown to PDF.',
-    inputSchemaJson: '{"type": "object"}',
-    outputSchemaJson: null,
+    inputSchema: { type: 'object' },
+    outputSchema: null,
     tags: ['docs', 'pdf'],
     requirements: [],
     sourceAgentId: null,
@@ -211,7 +211,7 @@ test('edits and deletes a manual entry', async ({ page }) => {
   await modal.getByTestId('save-button').click();
   await expect.poll(() => put).not.toBeNull();
   expect(put.requirements).toEqual([{ key: 'garrison.io/tool-pandoc', value: 'true' }]);
-  expect(put.outputSchemaJson).toBe('{"type":"object"}');
+  expect(put.outputSchema).toEqual({ type: 'object' });
 
   await openMenu(page, 'doc-convert');
   const remove = page.locator('.action-menu-dropdown [role="menuitem"]', { hasText: 'Delete' });

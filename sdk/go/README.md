@@ -84,7 +84,7 @@ result, err := client.Approvals.Check(ctx, deploymentID, garrison.ApprovalCheckR
 })
 ```
 
-`Approvals.List` filters by status, run, root run, agent, deployment, decision source, and time range (`FromUTC`, `ToUTC`); for a pending count, use `MaxResults: 1` and read `TotalRecords`. `Approvals.Get` returns an error matching `garrison.IsStatus(err, 404)` for an approval outside the tenant. `Approvals.Decide` fails with 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `Approvals.Check` records nothing and returns a `*garrison.ApprovalCheckResponse`. `garrison.Run` has `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`. The deployment approval fields use `omitempty`: zero values are left out of requests and the server applies its defaults.
+`Approvals.List` filters by status, run, root run, agent, deployment, decision source, and time range (`FromUTC`, `ToUTC`); for a pending count, use `MaxResults: 1` and read `TotalRecords`. `Approvals.Get` returns an error matching `garrison.IsStatus(err, 404)` for an approval outside the tenant. `Approvals.Decide` fails with 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `Approvals.Check` records nothing and returns a `*garrison.ApprovalCheckResponse`. An `Approval` carries its input as `Input` (a `json.RawMessage` object) when the stored input is a JSON object, and as `InputPreview` text otherwise. `garrison.Run` has `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`. The deployment approval fields use `omitempty`: zero values are left out of requests and the server applies its defaults.
 
 ## Pipelines
 
@@ -132,13 +132,13 @@ failed, err := client.Triggers.ListFires(ctx, nightly.ID, garrison.TriggerFireOu
 
 `client.Triggers` adds `List(ctx, opts, triggerType)`, `RotateSecret`, `Fire` (fires now; an optional `TriggerFireRequest.Body` reaches the input template as `webhook.body`), `ListFires`, and `DeliverWebhook` (signs and posts a webhook as an external sender would). Runs a trigger started have `Kind` `Trigger` and `TriggerID`; `RunFilter.TriggerID` lists them, and `PipelineRun.TriggerID` is set the same way.
 
-`client.NotificationEndpoints` manages URLs that receive signed JSON notifications for the `NotificationEvent` constants. It adds `RotateSecret`, `Test` (sends a `Test` notification and returns the delivery after its first attempt), `ListDeliveries` (filter by status), and `GetDelivery`. A loopback or private URL returns an `*garrison.Error` with status 400 and `FieldCodes["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+`client.NotificationEndpoints` manages URLs that receive signed JSON notifications for the `NotificationEvent` constants. It adds `RotateSecret`, `Test` (sends a `Test` notification and returns the delivery after its first attempt), `ListDeliveries` (filter by status), and `GetDelivery`. `NotificationDelivery.Payload` is the notification body as a JSON object (`json.RawMessage`). A loopback or private URL returns an `*garrison.Error` with status 400 and `FieldCodes["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
 
 `garrison.SignWebhook(secret, unixSeconds, body)` builds a signature and `garrison.VerifyWebhook(header, secret, body, tolerance)` checks one (a zero tolerance means 300 seconds). The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
 ## Agent revisions and promotion
 
-An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; a revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.
+An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.
 
 Each deployment belongs to an `Environment` (default `dev`) and may pin `AgentRevisionID`; an unpinned deployment runs the live agent definition, and `Run.AgentRevisionID` records which revision a run used. `client.Environments.Get` and `Update` read and replace the tenant's ordered environment list (`IsDefault` is true while the default `dev`, `staging`, `prod` order applies).
 
@@ -186,7 +186,7 @@ Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, an
 
 ## Capability catalog
 
-The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `garrison.CapabilityDescriptor` has `ID` (`cap_...`), `Name`, `Kind` (`CapabilityKindAgent`, `CapabilityKindMcpTool`, `CapabilityKindHarnessBuiltIn`), `Origin` (`CapabilityOriginDerived` or `CapabilityOriginManual`), `SourceKey`, the source fields (`SourceAgentID`, `SourceRevisionID`, `SourceMcpServerID`, `SourceToolName`, `SourceHarnessProfileID`, `SourceHarnessType`), `Summary`, `InputSchemaJSON`, `OutputSchemaJSON`, `Tags`, `Requirements` (node labels a run needs, as `CapabilityRequirement{Key, Value}`), `Hints`, `RefreshWarning`, `LastRefreshedUTC`, `CreatedUTC`, and `LastUpdateUTC`. `TenantID` is nil for descriptors every tenant shares (harness built-ins of built-in profiles).
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `garrison.CapabilityDescriptor` has `ID` (`cap_...`), `Name`, `Kind` (`CapabilityKindAgent`, `CapabilityKindMcpTool`, `CapabilityKindHarnessBuiltIn`), `Origin` (`CapabilityOriginDerived` or `CapabilityOriginManual`), `SourceKey`, the source fields (`SourceAgentID`, `SourceRevisionID`, `SourceMcpServerID`, `SourceToolName`, `SourceHarnessProfileID`, `SourceHarnessType`), `Summary`, `InputSchema` and `OutputSchema` (JSON Schema documents as `json.RawMessage`, nil when none), `Tags`, `Requirements` (node labels a run needs, as `CapabilityRequirement{Key, Value}`), `Hints`, `RefreshWarning`, `LastRefreshedUTC`, `CreatedUTC`, and `LastUpdateUTC`. `TenantID` is nil for descriptors every tenant shares (harness built-ins of built-in profiles).
 
 Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in `HarnessProfile.ToolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `Hints` (`*CapabilityHints`) has `Status` (`CapabilityHintStatusUnknown` until enough runs finish, then `CapabilityHintStatusKnown`), `SampleSize`, `MedianDurationMs`, `P90DurationMs`, `MeanCostUSD`, `WindowDays`, and `ComputedUTC`; the values are nil while the status is Unknown.
 
@@ -194,9 +194,9 @@ Derived descriptors follow their source: an agent gets one from its latest publi
 agents, err := client.Capabilities.List(ctx, &garrison.CapabilityListOptions{Kind: garrison.CapabilityKindAgent})
 billing, err := client.Capabilities.List(ctx, &garrison.CapabilityListOptions{Tag: "billing", Search: "invoice"})
 summary := "Find an invoice by number."
-schema := `{"type":"object","properties":{"number":{"type":"string"}}}`
+schema := json.RawMessage(`{"type":"object","properties":{"number":{"type":"string"}}}`)
 created, err := client.Capabilities.Create(ctx, garrison.CapabilityDescriptor{
-	Name: "lookup-invoice", Kind: garrison.CapabilityKindMcpTool, Summary: &summary, InputSchemaJSON: &schema, Tags: []string{"billing"},
+	Name: "lookup-invoice", Kind: garrison.CapabilityKindMcpTool, Summary: &summary, InputSchema: schema, Tags: []string{"billing"},
 })
 same, err := client.Capabilities.Get(ctx, "lookup-invoice") // ID or name
 updated, err := client.Capabilities.Update(ctx, created.ID, *created)
@@ -210,7 +210,7 @@ err = client.Capabilities.Delete(ctx, created.ID)
 
 A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; it reads them and cancels them. A `garrison.FanOutGroup` has `ID` (`fog_...`), `ParentRunID`, `Status` (`FanOutGroupStatusRunning`, `FanOutGroupStatusJoined`, `FanOutGroupStatusTimedOut`, `FanOutGroupStatusBudgetExceeded`, `FanOutGroupStatusCancelled`; every status but Running is final), `StatusReason`, `JoinPolicy` (`FanOutJoinPolicyAll`, `FanOutJoinPolicyAny`, `FanOutJoinPolicyQuorum`), `Quorum`, the counts `Total`, `Finished`, and `Succeeded`, the label lists `Pending` and `Failed`, `Members`, the totals `CostUSD` and `Tokens`, the budget `MaxCostUSD` and `MaxTokens` (nil when unset), `DeadlineUTC`, `CreatedUTC`, and `CompletedUTC`. `Summary`, `ContinuationMarker`, and `ContinuationInstruction` are what a harness sees through `garrison_gather` and are normally nil here.
 
-Each `garrison.FanOutMember` has `Label`, `Agent`, `RunID` (the child run), `Status` (a run status), `Outcome` (nil until it finishes), `ResultText` with `ResultTruncated`, `StructuredOutputJSON`, `ErrorMessage`, `FilesWritten` (paths in the shared file space), `CostUSD`, and `Tokens`. A child run's `Run.FanOutGroupID` names its group.
+Each `garrison.FanOutMember` has `Label`, `Agent`, `RunID` (the child run), `Status` (a run status), `Outcome` (nil until it finishes), `ResultText` with `ResultTruncated`, `StructuredOutput` (a `json.RawMessage`, nil when the member produced none), `ErrorMessage`, `FilesWritten` (paths in the shared file space), `CostUSD`, and `Tokens`. A child run's `Run.FanOutGroupID` names its group.
 
 ```go
 groups, err := client.FanOutGroups.ListByRun(ctx, runID) // oldest first; 404 when the run does not exist
@@ -494,7 +494,7 @@ A transcript covers one run, or every turn of a conversation oldest first (`GET 
 
 ## Structured input
 
-An agent with `inputSchemaJson` (JSON Schema text) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
+An agent with `inputSchema` (a JSON Schema document, sent as a JSON object) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
 
 ```go
 _, err := client.Agents.Invoke(ctx, "triage", garrison.InvokeRequest{Input: `{"count":2}`, InputContentType: "application/json"})
@@ -504,7 +504,37 @@ if errors.As(err, &apiErr) && apiErr.FieldCodes["input.topic"] == garrison.Field
 }
 ```
 
-`Agent` has `InputMode`, `InputSchemaJSON`, and `OutputSchemaJSON`; `InvokeRequest` has `InputContentType`.
+`Agent` has `InputMode`, `InputSchema`, and `OutputSchema`; `InvokeRequest` has `InputContentType`. Validation errors about the schemas use the field keys `inputSchema` and `outputSchema`.
+
+```go
+schema := json.RawMessage(`{"type":"object","properties":{"topic":{"type":"string"}},"required":["topic"]}`)
+err := client.Agents.Create(ctx, garrison.Agent{Name: "triage", InputMode: "Structured", InputSchema: schema}, &agent)
+```
+
+## JSON-valued fields
+
+Fields that hold JSON are real JSON values on the wire, and the SDK types them as `json.RawMessage` (with `omitempty`) so they round-trip exactly. Unmarshal one into your own type when you need its contents.
+
+| Type | Field | Value |
+|---|---|---|
+| `Agent`, `AgentRevision`, `CapabilityDescriptor` | `InputSchema`, `OutputSchema` | JSON Schema document, usually an object; nil when none |
+| `Run`, `FanOutMember` | `StructuredOutput` | any JSON value; nil when there is none |
+| `RunEvent` | `RawEvent` | the harness output line as a JSON object; `RawEventText` (`*string`) carries it instead when the line is not valid JSON |
+| `RunEvent`, `TranscriptEntry` | `ToolInput` | a `ToolCall`'s arguments when they are JSON; `Text` is then omitted |
+| `RunEvent`, `TranscriptEntry` | `ToolOutput` | a `ToolResult`'s output when it is a JSON object or array; `Text` is then omitted |
+| `Approval`, `TranscriptApproval` | `Input` | the input as a JSON object; otherwise `InputPreview` holds it as text, and only one of the two is set |
+| `NotificationDelivery` | `Payload` | the notification body as a JSON object |
+| `McpToolDetail` (in `McpServerTestResult.ToolDetails`) | `InputSchema` | the tool's JSON Schema |
+| `AgentRevisionChange` | `From`, `To` | an object for the `inputSchema` and `outputSchema` fields, a JSON string for the others |
+
+```go
+var out struct {
+	Verdict string `json:"verdict"`
+}
+if len(run.StructuredOutput) > 0 {
+	err = json.Unmarshal(run.StructuredOutput, &out)
+}
+```
 
 ## Warnings
 
@@ -755,7 +785,7 @@ The artifact client lists metadata, reads individual records, downloads raw byte
 
 ## Worker stdio MCP diagnostics
 
-Select a Ready node whose `supportsMcpTests` flag is true (workers set it only when their operator turns on `GARRISON_WORKER_MCP_TESTS_ENABLED`), then test the MCP server with that node ID. C# uses `McpServers.TestOnWorkerAsync`, Python uses `mcp_servers.test(id, node_id=...)`, JavaScript uses `mcpServers.test(id, nodeId)`, and Go uses `TestMcpServer(ctx, id, nodeID)`. HTTP testing retains its existing behavior. See [Harness diagnostics](../../docs/HARNESSES.md#test-a-stdio-mcp-server-on-a-worker).
+Select a Ready node whose `supportsMcpTests` flag is true (workers set it only when their operator turns on `GARRISON_WORKER_MCP_TESTS_ENABLED`), then test the MCP server with that node ID. C# uses `McpServers.TestOnWorkerAsync`, Python uses `mcp_servers.test(id, node_id=...)`, JavaScript uses `mcpServers.test(id, nodeId)`, and Go uses `TestMcpServer(ctx, id, nodeID)`, whose `ToolDetails` lists each tool's `Name`, `Description`, and `InputSchema` (`json.RawMessage`). HTTP testing retains its existing behavior. See [Harness diagnostics](../../docs/HARNESSES.md#test-a-stdio-mcp-server-on-a-worker).
 
 ### Optional provider API deployments
 

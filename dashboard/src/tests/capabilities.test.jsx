@@ -147,12 +147,12 @@ describe('capability helpers', () => {
 
   it('checks a manual entry and builds its body', () => {
     expect(capabilityErrors({ name: ' ' }, t)).toHaveProperty('name');
-    const errors = capabilityErrors({ name: 'x', inputSchemaJson: '{', tags: Array.from({ length: 33 }, (_, i) => `t${i}`), requirements: [{ key: '', value: 'x' }], kind: 'McpTool', sourceToolName: 'search' }, t);
-    expect(Object.keys(errors).sort()).toEqual(['inputSchemaJson', 'requirements', 'sourceToolName', 'tags']);
+    const errors = capabilityErrors({ name: 'x', inputSchema: '{', tags: Array.from({ length: 33 }, (_, i) => `t${i}`), requirements: [{ key: '', value: 'x' }], kind: 'McpTool', sourceToolName: 'search' }, t);
+    expect(Object.keys(errors).sort()).toEqual(['inputSchema', 'requirements', 'sourceToolName', 'tags']);
     expect(capabilityErrors(capabilityToForm(capability(6)), t)).toEqual({});
     expect(
-      capabilityToBody({ name: ' doc-convert ', kind: 'McpTool', summary: ' ', inputSchemaJson: '', outputSchemaJson: '{"type":"object"}', tags: [' docs ', ''], requirements: [{ key: ' gpu ', value: '' }, { key: '', value: '' }], sourceAgentId: 'agt_0001', sourceMcpServerId: 'mcp_0001', sourceToolName: ' convert ' })
-    ).toEqual({ name: 'doc-convert', kind: 'McpTool', summary: null, inputSchemaJson: null, outputSchemaJson: '{"type":"object"}', tags: ['docs'], requirements: [{ key: 'gpu', value: 'true' }], sourceAgentId: null, sourceMcpServerId: 'mcp_0001', sourceToolName: 'convert' });
+      capabilityToBody({ name: ' doc-convert ', kind: 'McpTool', summary: ' ', inputSchema: '', outputSchema: '{"type":"object"}', tags: [' docs ', ''], requirements: [{ key: ' gpu ', value: '' }, { key: '', value: '' }], sourceAgentId: 'agt_0001', sourceMcpServerId: 'mcp_0001', sourceToolName: ' convert ' })
+    ).toEqual({ name: 'doc-convert', kind: 'McpTool', summary: null, inputSchema: null, outputSchema: { type: 'object' }, tags: ['docs'], requirements: [{ key: 'gpu', value: 'true' }], sourceAgentId: null, sourceMcpServerId: 'mcp_0001', sourceToolName: 'convert' });
     expect(capabilityToBody({ name: 'a', kind: 'Agent', sourceAgentId: 'agt_0001', sourceMcpServerId: 'mcp_0001', sourceToolName: 'x' })).toMatchObject({ sourceAgentId: 'agt_0001', sourceMcpServerId: null, sourceToolName: null });
   });
 
@@ -303,22 +303,22 @@ describe('Capabilities page configuration', () => {
     const fields = (d, mode) => capabilitiesConfig.fields(d, { t, mode, options: { agents: [{ id: 'agt_0001', name: 'echo-agent' }], servers: [{ id: 'mcp_0001', name: 'mcp-1' }] } });
     expect(fields(capabilityToForm(capability(6)), 'view')).toEqual([]);
     const names = fields(capabilitiesConfig.blank(), 'create').map((f) => f.name);
-    expect(names).toEqual(['name', 'kind', 'summary', 'sourceAgentId', 'sourceMcpServerId', 'sourceToolName', 'tags', 'requirements', 'inputSchemaJson', 'outputSchemaJson']);
+    expect(names).toEqual(['name', 'kind', 'summary', 'sourceAgentId', 'sourceMcpServerId', 'sourceToolName', 'tags', 'requirements', 'inputSchema', 'outputSchema']);
     const byName = Object.fromEntries(fields(capabilitiesConfig.blank(), 'create').map((f) => [f.name, f]));
     expect(byName.sourceAgentId.showIf({ kind: 'Agent' })).toBe(true);
     expect(byName.sourceMcpServerId.showIf({ kind: 'Agent' })).toBe(false);
     expect(byName.sourceToolName.showIf({ kind: 'McpTool', sourceMcpServerId: 'mcp_0001' })).toBe(true);
     expect(capabilitiesConfig.validate({ name: '' }, t)).toHaveProperty('name');
-    expect(capabilitiesConfig.toBody(capabilityToForm(capability(6)))).toMatchObject({ name: 'doc-convert', kind: 'McpTool', tags: ['docs'], outputSchemaJson: '{"type":"object"}' });
+    expect(capabilitiesConfig.toBody(capabilityToForm(capability(6)))).toMatchObject({ name: 'doc-convert', kind: 'McpTool', tags: ['docs'], outputSchema: { type: 'object' } });
   });
 
   it('translates the catalog refusals and the schema field code', () => {
     expect(errorMessage(t, new ApiError(409, { code: 'CapabilityDerived', message: 'Capability echo-agent is derived from its source and follows it; change the source instead.' }))).toBe('Capability echo-agent is derived from its source and follows it. Change the source instead.');
     expect(errorMessage(t, new ApiError(409, { code: 'CapabilityDerived' }))).toMatch(/cannot be edited or deleted here/);
     expect(errorMessage(t, new ApiError(409, { code: 'NameConflict', message: 'A manual capability named doc-convert already exists.' }))).toBe('A manual capability named doc-convert already exists.');
-    const schema = new ApiError(400, { code: 'InvalidJsonSchema', message: 'The capability is not valid: x', fields: { outputSchemaJson: 'x' }, fieldCodes: { outputSchemaJson: 'InvalidJsonSchema' } });
+    const schema = new ApiError(400, { code: 'InvalidJsonSchema', message: 'The capability is not valid: x', fields: { outputSchema: 'x' }, fieldCodes: { outputSchema: 'InvalidJsonSchema' } });
     expect(errorMessage(t, schema)).toMatch(/not a valid JSON Schema/);
-    expect(fieldErrorMessages(t, schema)).toEqual({ outputSchemaJson: 'This is not a valid JSON Schema.' });
+    expect(fieldErrorMessages(t, schema)).toEqual({ outputSchema: 'This is not a valid JSON Schema.' });
     expect(translateServerText(t, 'Refresh failed 2026-10-28 09:15:00Z: Connection refused')).toBe('Refresh failed at 2026-10-28 09:15:00Z: Connection refused');
     expect(translateServerText(t, 'Required tools are missing: search, fetch.')).toBe('Required tools are missing: search, fetch.');
   });

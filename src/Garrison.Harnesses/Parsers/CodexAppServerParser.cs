@@ -3,7 +3,6 @@ namespace Garrison.Harnesses.Parsers
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Text;
     using System.Text.Json;
     using Garrison.Core.Enums;
 
@@ -242,14 +241,14 @@ namespace Garrison.Harnesses.Parsers
                     else
                     {
                         string? failure = JsonPath.TryGet(item, "error", out JsonElement error) ? JsonPath.Str(error, "message") : null;
-                        string? output = failure ?? (JsonPath.TryGet(item, "result", out JsonElement result) ? McpText(result) : null);
+                        string? output = failure ?? (JsonPath.TryGet(item, "result", out JsonElement result) ? JsonPath.ContentText(result) : null);
                         state.Emit(ToolResult(name, id, failure == null && JsonPath.Str(item, "status") == "completed", output, raw));
                     }
                     break;
                 case "dynamicToolCall":
                     string tool = JsonPath.Str(item, "tool") ?? "tool";
                     if (!completed) state.Emit(ToolCall(tool, id, JsonPath.Str(item, "arguments"), raw));
-                    else state.Emit(ToolResult(tool, id, JsonPath.Bool(item, "success") ?? JsonPath.Str(item, "status") == "completed", JsonPath.Str(item, "contentItems"), raw));
+                    else state.Emit(ToolResult(tool, id, JsonPath.Bool(item, "success") ?? JsonPath.Str(item, "status") == "completed", JsonPath.ContentText(item, "contentItems"), raw));
                     break;
                 case "fileChange":
                     if (!completed) state.Emit(ToolCall("file_change", id, FileChangePaths(item), raw));
@@ -377,23 +376,6 @@ namespace Garrison.Harnesses.Parsers
                 if (part.ValueKind == JsonValueKind.String && !String.IsNullOrEmpty(part.GetString())) parts.Add(part.GetString()!);
             }
             return String.Join("\n", parts);
-        }
-
-        private static string McpText(JsonElement result)
-        {
-            if (JsonPath.TryGet(result, "content", out JsonElement content) && content.ValueKind == JsonValueKind.Array)
-            {
-                StringBuilder text = new StringBuilder();
-                foreach (JsonElement part in content.EnumerateArray())
-                {
-                    string? value = JsonPath.Str(part, "text");
-                    if (value == null) continue;
-                    if (text.Length > 0) text.Append('\n');
-                    text.Append(value);
-                }
-                if (text.Length > 0) return text.ToString();
-            }
-            return result.GetRawText();
         }
 
         private static string? FileChangePaths(JsonElement item)

@@ -87,6 +87,24 @@ const zhHans = {
     Progress: '进度',
     Warning: '警告'
   },
+  activity: {
+    title: '智能体活动 ({{count}})',
+    thinking: '思考',
+    thinkingNow: '正在思考',
+    ask: '正在询问 {{agent}}',
+    askMany: '正在同时询问 {{agents}}',
+    askSeveral: '正在同时询问多个智能体',
+    gather: '正在汇总回答',
+    check: '正在查看另一个智能体',
+    tool: '正在使用 {{tool}}',
+    running: '运行中',
+    done: '完成',
+    failed: '失败',
+    sent: '发送内容',
+    returned: '返回内容',
+    nothing: '无',
+    waiting: '正在等待回答'
+  },
   files: {
     title: '文件',
     empty: '智能体还没有在这个对话中写入任何文件。',
@@ -143,7 +161,11 @@ const zhHans = {
     answerLink: '在新标签页中打开回复里的这个链接，地址为：{{href}}',
     tableHeader: '这是回复中某个表格的列标题，内容为：{{text}}',
     poweredBy: '在新标签页中打开 usegarrison.ai，了解运行此应用的平台 Garrison Agent Studio 的更多信息。',
-    skipToChat: '跳过页眉和对话列表，直接把焦点移动到下方的消息输入框里。'
+    skipToChat: '跳过页眉和对话列表，直接把焦点移动到下方的消息输入框里。',
+    activityRunning: '此步骤仍在运行中，结果一旦返回就会立即显示在这里。',
+    activityDone: '此步骤已完成。展开即可查看发送的内容和返回的内容。',
+    activityFailed: '此步骤执行失败。展开即可查看发送的内容以及返回的错误信息。',
+    activityStep: '显示智能体在这一步骤中发送了什么内容，以及返回了什么内容。'
   }
 };
 

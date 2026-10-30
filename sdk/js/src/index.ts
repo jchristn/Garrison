@@ -105,13 +105,14 @@ export interface Agent extends Json, WithWarnings {
   /** "Text" (default) or "Structured"; the A2A card advertises application/json for Structured or schema agents. */
   inputMode?: "Text" | "Structured";
   /**
-   * JSON Schema text for the input. When set, every invocation's input must be a JSON document that matches it; otherwise
-   * the server answers 400 with fieldCodes "input" (InputNotJson) or "input.<path>" (InputSchemaViolation). Saving a
-   * value that is not a valid JSON Schema fails with field code InvalidJsonSchema.
+   * JSON Schema document (a JSON value, usually an object) for the input, or null when none. When set, every invocation's
+   * input must be a JSON document that matches it; otherwise the server answers 400 with fieldCodes "input" (InputNotJson)
+   * or "input.<path>" (InputSchemaViolation). Saving a value that is not a valid JSON Schema fails with field code
+   * InvalidJsonSchema on inputSchema.
    */
-  inputSchemaJson?: string | null;
-  /** JSON Schema text the final output is validated against. */
-  outputSchemaJson?: string | null;
+  inputSchema?: unknown;
+  /** JSON Schema document (a JSON value, usually an object) the final output is validated against, or null when none. */
+  outputSchema?: unknown;
   /** Read-only: newest published revision (arv_ identifier), or null when none was published. */
   latestPublishedRevisionId?: string | null;
   /** Read-only: the single open draft revision, or null when there is none. */
@@ -202,13 +203,13 @@ export interface CapabilityHints {
 
 /**
  * One capability catalog entry: an agent, an MCP tool, or a harness built-in. tenantId is null for descriptors every
- * tenant shares. Schemas are JSON Schema documents as JSON text.
+ * tenant shares. inputSchema and outputSchema are JSON Schema documents as JSON values (usually objects), null when none.
  */
 export interface CapabilityDescriptor extends Json {
   id: string; tenantId?: string | null; name: string; kind: CapabilityKind; origin: CapabilityOrigin; sourceKey: string;
   sourceAgentId?: string | null; sourceRevisionId?: string | null; sourceMcpServerId?: string | null; sourceToolName?: string | null;
   sourceHarnessProfileId?: string | null; sourceHarnessType?: string | null; summary?: string | null;
-  inputSchemaJson?: string | null; outputSchemaJson?: string | null; tags: string[]; requirements: CapabilityRequirement[];
+  inputSchema?: unknown; outputSchema?: unknown; tags: string[]; requirements: CapabilityRequirement[];
   hints: CapabilityHints; refreshWarning?: string | null; lastRefreshedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
 }
 
@@ -444,11 +445,12 @@ export type FanOutJoinPolicy = typeof FAN_OUT_JOIN_POLICIES[number];
 /**
  * One member of a fan-out group: a child run with its state and, once finished, its result. status is a run status and
  * outcome a run outcome (absent until it finishes). resultText is cut at the server's gather limit and resultTruncated
- * reports the cut. filesWritten holds paths the member wrote in the shared file space. tokens counts input plus output.
+ * reports the cut. structuredOutput is the member's structured output as a JSON value, or null. filesWritten holds paths
+ * the member wrote in the shared file space. tokens counts input plus output.
  */
 export interface FanOutMember {
   label: string; agent: string; runId: string; status: RunStatus; outcome?: RunOutcome | null;
-  resultText?: string | null; resultTruncated: boolean; structuredOutputJson?: string | null; errorMessage?: string | null;
+  resultText?: string | null; resultTruncated: boolean; structuredOutput?: unknown; errorMessage?: string | null;
   filesWritten: string[]; costUsd?: number | null; tokens: number;
 }
 
@@ -467,9 +469,9 @@ export interface FanOutGroup {
   summary?: string | null; continuationMarker?: string | null; continuationInstruction?: string | null;
 }
 
-/** Content of a manual capability descriptor for create and update. */
+/** Content of a manual capability descriptor for create and update. inputSchema and outputSchema are JSON Schema documents sent as JSON values. */
 export interface CapabilityDescriptorInput extends Json {
-  name: string; kind: CapabilityKind; summary?: string | null; inputSchemaJson?: string | null; outputSchemaJson?: string | null;
+  name: string; kind: CapabilityKind; summary?: string | null; inputSchema?: unknown; outputSchema?: unknown;
   tags?: string[]; requirements?: CapabilityRequirement[]; sourceAgentId?: string | null; sourceMcpServerId?: string | null; sourceToolName?: string | null;
 }
 
@@ -489,7 +491,8 @@ export interface AgentAssetUpload { path: string; content: Uint8Array | string; 
 export interface AgentRevision extends Json {
   id: string; tenantId: string; agentId: string; number: number; state: AgentRevisionState; contentHash: string;
   displayName?: string | null; description?: string | null; inputMode?: "Text" | "Structured";
-  inputSchemaJson?: string | null; outputSchemaJson?: string | null;
+  /** JSON Schema documents as JSON values (usually objects), null when none. */
+  inputSchema?: unknown; outputSchema?: unknown;
   delegationMode?: string; delegationMaxDepth?: number; delegationAllowRecursion?: boolean; delegationAllowList?: string[];
   promptPins?: AgentRevisionPromptPin[]; assetPins?: AgentRevisionAssetPin[]; capabilities?: string[]; tags?: string[];
   authorUserId?: string | null; authorName?: string | null; changeNote?: string | null;
@@ -497,8 +500,11 @@ export interface AgentRevision extends Json {
   createdUtc: string; lastUpdateUtc: string;
 }
 
-/** One differing field between two revisions. */
-export interface AgentRevisionChange { field: string; changeType: RevisionChangeType; from?: string | null; to?: string | null; }
+/**
+ * One differing field between two revisions. from and to are JSON values: objects for inputSchema and outputSchema,
+ * strings for other fields, and null or absent on the side where the field is not set.
+ */
+export interface AgentRevisionChange { field: string; changeType: RevisionChangeType; from?: unknown; to?: unknown; }
 
 /** Field-level comparison of two revisions of one agent. */
 export interface AgentRevisionDiff {
@@ -550,16 +556,20 @@ export interface TranscriptUsage {
   costUsd?: number; costEstimated: boolean; durationMs?: number;
 }
 
-/** One transcript event; Thinking appears only with includeThinking. Secrets read [REDACTED]. */
+/**
+ * One transcript event; Thinking appears only with includeThinking. Secrets read [REDACTED]. A ToolCall whose arguments
+ * are JSON carries toolInput (an object) and omits text; a ToolResult whose output is a JSON object or array carries
+ * toolOutput and omits text. Otherwise text holds the content.
+ */
 export interface TranscriptEntry {
   sequence: number; timestampUtc: string;
   type: "AssistantText" | "Thinking" | "ToolCall" | "ToolResult" | "Warning" | "Error" | "Lifecycle";
-  text?: string; toolName?: string; toolCallId?: string; success?: boolean; code?: string; textTruncated: boolean;
+  text?: string; toolInput?: Json; toolOutput?: unknown; toolName?: string; toolCallId?: string; success?: boolean; code?: string; textTruncated: boolean;
 }
 
-/** An approval requested during a turn. */
+/** An approval requested during a turn. input is set when the stored input is a JSON object; otherwise inputPreview. Only one is present. */
 export interface TranscriptApproval {
-  id: string; kind: string; toolName: string; summary?: string; inputPreview?: string; status: string; decision?: string;
+  id: string; kind: string; toolName: string; summary?: string; input?: Json; inputPreview?: string; status: string; decision?: string;
   decisionSource?: string; decidedBy?: string; reason?: string; requestedUtc: string; decidedUtc?: string;
 }
 
@@ -724,7 +734,9 @@ export interface Approval extends Json {
   leaseEpoch: number; harnessType: string; kind: ApprovalKind; toolName: string; toolCallId?: string | null;
   /** The studio draft a DraftApply approval would apply, or null for tool approvals. */
   draftId?: string | null;
-  /** Redacted tool input JSON, at most 4000 characters. */
+  /** Redacted tool input as an object, present when the stored input is a JSON object; otherwise inputPreview is set. */
+  input?: Json | null;
+  /** Redacted tool input text, at most 4000 characters, present only when the stored input is not a JSON object. */
   inputPreview?: string | null;
   /** One-line summary (command, URL, paths, or query), redacted, at most 500 characters. */
   summary?: string | null;
@@ -829,12 +841,12 @@ export interface NotificationEndpoint extends Json {
   createdUtc?: string; lastUpdateUtc?: string;
 }
 
-/** One notification to one endpoint: the outbox entry and its delivery log record. */
+/** One notification to one endpoint: the outbox entry and its delivery log record. payload is the event body as an object. */
 export interface NotificationDelivery extends Json {
   id: string; tenantId: string; endpointId: string; event: NotificationEvent; subjectType: string; subjectId?: string | null;
   status: NotificationDeliveryStatus; attempts: number; maxAttempts: number; nextAttemptUtc?: string | null;
   lastStatusCode?: number | null; lastError?: string | null; lastAttemptUtc?: string | null; lastDurationMs: number;
-  deliveredUtc?: string | null; payload: string; createdUtc: string; lastUpdateUtc: string;
+  deliveredUtc?: string | null; payload: Json; createdUtc: string; lastUpdateUtc: string;
 }
 
 export const WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature";
@@ -1236,6 +1248,8 @@ export interface Run extends Json {
   triggerId?: string | null;
   /** Fan-out group this run is a member of, or null when it was not started by garrison_fan_out. */
   fanOutGroupId?: string | null;
+  /** Structured output of the run as a JSON value (any JSON type), or null when there is none. */
+  structuredOutput?: unknown;
 }
 
 /**
@@ -1367,8 +1381,14 @@ export interface Secret extends Json {
   createdUtc: string; lastUpdateUtc: string;
 }
 
+/**
+ * One run event. rawEvent is the harness's source line as an object, or rawEventText (a string) when that line is not
+ * valid JSON. A ToolCall whose arguments are JSON carries toolInput (an object) and omits text; a ToolResult whose output
+ * is a JSON object or array carries toolOutput and omits text. Otherwise text holds the content.
+ */
 export interface RunEvent extends Json {
   id: string; runId: string; sequence: number; eventType: string; timestampUtc: string; text?: string;
+  toolInput?: Json; toolOutput?: unknown; rawEvent?: Json | null; rawEventText?: string | null;
   toolName?: string; toolCallId?: string; success?: boolean; inputTokens?: number; outputTokens?: number;
 }
 

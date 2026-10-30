@@ -1532,3 +1532,22 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
   .wizard-contents { position: static; }
 }
 .wizard-all-drafts { align-self: flex-start; }
+
+/* Chat composer: the message box with Send beside it, as tall as the box. */
+.chat-composer { display: flex; align-items: stretch; gap: var(--spacing-sm); }
+.chat-composer textarea { flex: 1; min-width: 0; }
+.chat-composer-send { align-self: stretch; }
+
+/* The wizard's Design step fills the content area, so only the conversation scrolls. */
+.agent-wizard-fill { height: 100%; min-height: 0; }
+.agent-wizard-fill .page-header, .agent-wizard-fill .wizard-stepper { margin-bottom: 0; }
+.agent-wizard-fill .wizard-panel { flex: 1; min-height: 0; }
+.agent-wizard-fill .wizard-design { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.agent-wizard-fill .wizard-design .studio-chat { min-height: 0; height: 100%; }
+.agent-wizard-fill .studio-chat > * { flex-shrink: 0; }
+.agent-wizard-fill .studio-chat > .studio-chat-turns { flex: 1 1 0; min-height: 0; min-block-size: 0; max-block-size: none; }
+.agent-wizard-fill .wizard-contents { max-height: 100%; overflow-y: auto; }
+@media (max-width: 900px) {
+  .agent-wizard-fill { height: auto; }
+  .agent-wizard-fill .studio-chat > .studio-chat-turns { flex: none; min-block-size: 12rem; max-block-size: 62vh; }
+}

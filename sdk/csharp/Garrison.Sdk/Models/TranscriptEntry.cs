@@ -1,6 +1,7 @@
 namespace Garrison.Sdk.Models
 {
     using System;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -27,9 +28,20 @@ namespace Garrison.Sdk.Models
         public RunEventTypeEnum Type { get; set; } = RunEventTypeEnum.AssistantText;
 
         /// <summary>
-        /// Text, or null.
+        /// Text: model output, a message, or a tool call's input or result when it is not JSON. Null when the event had
+        /// none, or for a tool call or result whose JSON is in <see cref="ToolInput"/> or <see cref="ToolOutput"/>.
         /// </summary>
         public string? Text { get; set; } = null;
+
+        /// <summary>
+        /// A tool call's arguments as a JSON object, when the harness reported JSON; null otherwise.
+        /// </summary>
+        public JsonElement? ToolInput { get; set; } = null;
+
+        /// <summary>
+        /// A tool result as a JSON object or array, when the tool answered JSON; null otherwise.
+        /// </summary>
+        public JsonElement? ToolOutput { get; set; } = null;
 
         /// <summary>
         /// Tool name for tool calls and results, or null.

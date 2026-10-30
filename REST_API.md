@@ -98,7 +98,7 @@ Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`.
 | `GrantCeiling` | An assignment, role permission, credential, or password or email change would give the caller, or someone the caller controls, a permission the caller does not hold, or would act for a tenant administrator |
 | `ReservedRoleName` | A tenant role named like a built-in role, in any letter case |
 | `InputNotJson`, `InputSchemaViolation` | The agent has an input schema and the input is not JSON, or does not match it (the field key is `input` or `input.` plus the path, such as `input.topic`) |
-| `InvalidJsonSchema` | An agent's `inputSchemaJson` or `outputSchemaJson` is not a usable JSON Schema |
+| `InvalidJsonSchema` | An agent's `inputSchema` or `outputSchema` is not a usable JSON Schema |
 | `InvalidFormat` | A transcript `format` other than `markdown` or `json` |
 | `UnknownKind`, `InvalidSelector` | A manifest export `kinds` value that cannot be exported, or a `resources` entry that is not `Kind/name` |
 | `Invalid` | Any other field problem; read the message |
@@ -1108,7 +1108,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/request-history/summary" \
 
 #### `GET /v1.0/api/request-history/{id}`
 
-Read a captured request with headers and bodies.
+Read a captured request with headers and bodies. `requestBody` and `responseBody` are strings, unlike the JSON fields elsewhere in the API: a captured body can be any media type, and a truncated JSON body no longer parses.
 
 | | |
 |---|---|
@@ -2147,7 +2147,7 @@ Update an agent, addressed by identifier or name (identifier first).
 curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "string", "displayName": "string", "description": "string", "kind": "Hosted", "agentVersion": "string", "exposeA2A": false, "exposeMcpTool": false, "mcpToolName": "string", "toolDescriptionTemplateId": "string", "skillDescriptionTemplateId": "string", "inputMode": "Text", "inputSchemaJson": "string", "outputSchemaJson": "string", "delegationMode": "None", "delegationMaxDepth": 0, "delegationAllowRecursion": false, "remoteProtocol": "A2A", "remoteEndpointUrl": "string", "remoteCredentialSecretId": "string", "lastRegisteredUtc": "2026-01-01T00:00:00Z", "registrationTtlSeconds": 0, "active": false, "skills": [{}], "tags": ["string"], "delegationAllowList": ["string"]}'
+  -d '{"name": "string", "displayName": "string", "description": "string", "kind": "Hosted", "agentVersion": "string", "exposeA2A": false, "exposeMcpTool": false, "mcpToolName": "string", "toolDescriptionTemplateId": "string", "skillDescriptionTemplateId": "string", "inputMode": "Text", "inputSchema": {"type": "object"}, "outputSchema": null, "delegationMode": "None", "delegationMaxDepth": 0, "delegationAllowRecursion": false, "remoteProtocol": "A2A", "remoteEndpointUrl": "string", "remoteCredentialSecretId": "string", "lastRegisteredUtc": "2026-01-01T00:00:00Z", "registrationTtlSeconds": 0, "active": false, "skills": [{}], "tags": ["string"], "delegationAllowList": ["string"]}'
 ```
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/agents/{idOrName}`
@@ -2352,7 +2352,7 @@ In a dry run, `createdCount`, `updatedCount`, and `unchangedCount` count what wo
 
 #### `GET /v1.0/api/tenants/{tenantId}/manifests/export`
 
-Export tenant configuration as a manifest bundle: multi-document YAML that `POST .../manifests/apply` accepts unchanged. Secret values are never exported.
+Export tenant configuration as a manifest bundle: multi-document YAML that `POST .../manifests/apply` accepts unchanged. Secret values are never exported. Agent `inputSchema` and `outputSchema` are written as YAML mappings, the same shape `apply` reads.
 
 | Query parameter | Meaning |
 |---|---|
@@ -2642,15 +2642,15 @@ The reason comes from a snapshot of node state that is reused for up to 3 second
 
 ##### Structured output validation (`outputSchemaValid`, `schemaValidationErrors`, `repairAttempts`)
 
-When the run's agent has an output schema (`outputSchemaJson`), the control plane validates the final output against it when a successful execution is reported. It validates the structured output the harness reported (Claude Code `structured_output`) when there is one, and otherwise parses the final `resultText` as JSON. A result that is one JSON document wrapped in a Markdown code fence (three backticks, optionally tagged `json`) is unwrapped first. Agents without an output schema skip validation.
+When the run's agent has an output schema (`outputSchema`), the control plane validates the final output against it when a successful execution is reported. It validates the structured output the harness reported (Claude Code `structured_output`) when there is one, and otherwise parses the final `resultText` as JSON. A result that is one JSON document wrapped in a Markdown code fence (three backticks, optionally tagged `json`) is unwrapped first. Agents without an output schema skip validation.
 
 | Outcome of validation | What happens |
 |---|---|
-| Valid | The run succeeds. `outputSchemaValid` is `true` and `structuredOutputJson` holds the validated document as compact JSON, including when it came from `resultText`. |
+| Valid | The run succeeds. `outputSchemaValid` is `true` and `structuredOutput` holds the validated document as a JSON value, including when it came from `resultText`. |
 | Invalid, first time, resume possible | One repair attempt starts inside the same lease. The worker resumes the harness session in the run's directories with a prompt rendered from the deployment's `Repair` prompt binding, or from `builtin/structured-output-repair` when the deployment binds none. The run stays `Running`, `repairAttempts` becomes 1, and the repair's output is validated the same way. Its result, structured output, and session become the run's; usage, cost, tool calls, streaming time, and execution time are the sum of both executions. |
 | Invalid, no repair possible, or invalid again after the repair | The run fails with status `Failed`, outcome `SchemaValidationFailed`, and an `errorMessage` that names the first few validation errors and, when no repair ran, why. |
 
-A repair is possible when the deployment's harness profile has `supportsResume` set, the harness reported a session ID, no repair ran yet, cancellation was not requested, and the worker supports in-lease repairs. Every failed validation appends one `Warning` run event that lists the errors; its `rawEventJson` is a `SchemaValidationNotice` (`notice` is `SchemaValidationFailed`, plus `repairAttempt`, `source`, `errors`, `totalErrors`, `repairStarted`, and `noRepairReason`). The repair template version is added to the run's `templateVersions`.
+A repair is possible when the deployment's harness profile has `supportsResume` set, the harness reported a session ID, no repair ran yet, cancellation was not requested, and the worker supports in-lease repairs. Every failed validation appends one `Warning` run event that lists the errors; its `rawEvent` is a `SchemaValidationNotice` object (`notice` is `SchemaValidationFailed`, plus `repairAttempt`, `source`, `errors`, `totalErrors`, `repairStarted`, and `noRepairReason`). The repair template version is added to the run's `templateVersions`.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -2767,9 +2767,11 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events"
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Workers merge consecutive `AssistantText` deltas, and consecutive `Thinking` deltas, within one event flush window, up to `EventTextCoalesceMaxChars` (default 2048). Other event types, differing metadata, explicit flushes, and retry batches are boundaries. Text concatenation preserves the transcript; `rawEventJson` retains each original harness line separated by newline, and timestamps retain the earliest merged event time. Live streams use the same ordered database events and flush cadence. Individual events larger than the cap are retained intact.
+Workers merge consecutive `AssistantText` deltas, and consecutive `Thinking` deltas, within one event flush window, up to `EventTextCoalesceMaxChars` (default 2048). Other event types, differing metadata, explicit flushes, and retry batches are boundaries. Text concatenation preserves the transcript; a merged event keeps each original harness line, separated by newlines, in `rawEventText` (several lines are not one JSON value, so `rawEvent` is null), and timestamps retain the earliest merged event time. Live streams use the same ordered database events and flush cadence. Individual events larger than the cap are retained intact.
 
-Events whose text Garrison writes itself (rather than the harness or the model) carry a stable `code` so clients can show a translated label next to, or instead of, the English `text`: `WorkspacePrepared`, `RepairAttemptStarted`, `McpPreflightPassed`, `McpPreflightWarning`, `HarnessExited`, `EventsDropped`, `RunBlocked` (the run's `blockedReason` says why), `StructuredOutputInvalid`, `ApprovalRequested` (a permission request is waiting for a person), and `ApprovalDecided` (a permission request was decided by a rule, the deployment default, a person, the timeout, or a cancellation). The two approval events are `Lifecycle` events the worker records from the control plane; their `rawEventJson` carries the approval ID, status, decision, and source. Other events have no `code`.
+Events whose text Garrison writes itself (rather than the harness or the model) carry a stable `code` so clients can show a translated label next to, or instead of, the English `text`: `WorkspacePrepared`, `RepairAttemptStarted`, `McpPreflightPassed`, `McpPreflightWarning`, `HarnessExited`, `EventsDropped`, `RunBlocked` (the run's `blockedReason` says why), `StructuredOutputInvalid`, `ApprovalRequested` (a permission request is waiting for a person), and `ApprovalDecided` (a permission request was decided by a rule, the deployment default, a person, the timeout, or a cancellation). The two approval events are `Lifecycle` events the worker records from the control plane; their `rawEvent` object carries the approval ID, status, decision, and source. Other events have no `code`.
+
+A `ToolCall` event whose arguments are JSON carries them as the object `toolInput` and has no `text`. A `ToolResult` whose output is a JSON object or array carries it as `toolOutput` and has no `text`. Anything else, including a result cut short, stays in `text`. `rawEvent` is the harness line or Garrison notice as a JSON object. When the line is not valid JSON (a plain output line, one cut at the size limit, or merged lines), it comes back as the string `rawEventText` instead. At most one of the two is present.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream`
 
@@ -2823,7 +2825,7 @@ The transcript has the input, assistant text, tool calls with their arguments an
       "kind": "Invoke", "status": "Succeeded", "outcome": "Success", "callerName": "admin", "model": "sonnet",
       "input": "List the files.", "createdUtc": "2026-10-14T11:59:50Z", "startedUtc": "2026-10-14T11:59:51Z", "completedUtc": "2026-10-14T11:59:59Z",
       "entries": [
-        { "sequence": 2, "timestampUtc": "2026-10-14T11:59:52Z", "type": "ToolCall", "toolName": "Bash", "toolCallId": "t1", "text": "{\"command\":\"ls\"}", "textTruncated": false },
+        { "sequence": 2, "timestampUtc": "2026-10-14T11:59:52Z", "type": "ToolCall", "toolName": "Bash", "toolCallId": "t1", "toolInput": { "command": "ls" }, "textTruncated": false },
         { "sequence": 3, "timestampUtc": "2026-10-14T11:59:53Z", "type": "ToolResult", "toolCallId": "t1", "success": true, "text": "README.md", "textTruncated": false },
         { "sequence": 4, "timestampUtc": "2026-10-14T11:59:55Z", "type": "AssistantText", "text": "There is one file.", "textTruncated": false }
       ],
@@ -2846,7 +2848,8 @@ The transcript has the input, assistant text, tool calls with their arguments an
 | `usage` | Totals over the included turns |
 | `turns[].omittedEvents` | Events the run recorded that are no longer stored, removed by `Runs.EventRetentionDays` |
 | `turns[].entries[].type` | `AssistantText`, `Thinking`, `ToolCall`, `ToolResult`, `Warning`, `Error`, or `Lifecycle` |
-| `turns[].approvals` | Approvals the run asked for: `id`, `kind`, `toolName`, `summary`, `inputPreview` (redacted), `status`, `decision`, `decisionSource`, `decidedBy`, `reason`, `requestedUtc`, `decidedUtc` |
+| `turns[].entries[].toolInput`, `toolOutput` | A tool call's JSON arguments as an object, or a tool result's JSON object or array. When one is set, the entry has no `text`. A tool text cut at `Transcripts.ToolTextMaxChars` is no longer JSON and stays in `text` |
+| `turns[].approvals` | Approvals the run asked for: `id`, `kind`, `toolName`, `summary`, `input` (a JSON object) or `inputPreview` (a string, when the stored input is not a JSON object), both redacted, `status`, `decision`, `decisionSource`, `decidedBy`, `reason`, `requestedUtc`, `decidedUtc` |
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/children`
 
@@ -3033,7 +3036,7 @@ Every request is evaluated against the deployment's `approvalRules`. A matching 
 | `runId`, `rootRunId`, `agentId`, `agentName`, `deploymentId`, `leaseEpoch` | The run (attempt) that asked, and the deployment whose rules applied |
 | `harnessType`, `kind` | `Tool` (Claude Code), `Command` (Codex command, evaluated as `Bash`), or `FileChange` (Codex file change, evaluated as `Edit`) |
 | `toolName`, `toolCallId` | The tool and the harness's call identifier |
-| `inputPreview` | The tool input as JSON, with secrets redacted (values of the deployment's bound secrets, bearer tokens, API keys, `password=`-style assignments, private keys) and cut to 4,000 characters. The full input is never stored. |
+| `input`, `inputPreview` | The tool input, with secrets redacted (values of the deployment's bound secrets, bearer tokens, API keys, `password=`-style assignments, private keys) and cut to 4,000 characters. The full input is never stored. When the stored input is a JSON object it comes back as the object `input`: the tool's arguments, or the diff of a studio draft for `DraftApply`. Otherwise, for example when the cut left it incomplete, it comes back as the string `inputPreview`. Only one of the two is present. |
 | `summary` | One line for lists: the command, URL, paths, or query, redacted |
 | `suggestedRule` | A rule pattern covering this request, used by `remember` |
 | `status` | `Pending`, `Approved`, `Denied`, `Expired`, or `Cancelled` |
@@ -3083,7 +3086,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/approvals?status=
       "kind": "Tool",
       "toolName": "Bash",
       "toolCallId": "toolu_01JmH6x9",
-      "inputPreview": "{\"command\":\"git push origin main\",\"description\":\"Push the release branch\"}",
+      "input": { "command": "git push origin main", "description": "Push the release branch" },
       "summary": "git push origin main",
       "suggestedRule": "Bash(git push:*)",
       "status": "Pending",
@@ -3737,11 +3740,11 @@ Paths are relative to `/v1.0/api/tenants/{tenantId}`. Another tenant's agents an
 
 #### `POST /v1.0/api/tenants/{tenantId}/agents/{idOrName}/revisions`
 
-Create the agent's draft, or replace the content of its open draft. The body carries the content fields of `AgentRevision`: `displayName`, `description`, `inputMode`, `inputSchemaJson`, `outputSchemaJson`, `delegationMode`, `delegationMaxDepth`, `delegationAllowRecursion`, `delegationAllowList`, `promptPins` (`role` `ToolDescription` or `SkillDescription`, `templateId`, optional `pinnedVersion`), `capabilities`, `tags`, and `changeNote`. Identity, number, state, and hash are assigned by the server.
+Create the agent's draft, or replace the content of its open draft. The body carries the content fields of `AgentRevision`: `displayName`, `description`, `inputMode`, `inputSchema`, `outputSchema` (JSON objects, not strings), `delegationMode`, `delegationMaxDepth`, `delegationAllowRecursion`, `delegationAllowList`, `promptPins` (`role` `ToolDescription` or `SkillDescription`, `templateId`, optional `pinnedVersion`), `capabilities`, `tags`, and `changeNote`. Identity, number, state, and hash are assigned by the server.
 
 | | |
 |---|---|
-| Errors | 400 `ValidationFailed` with fields such as `outputSchemaJson` (`InvalidJsonSchema`), `promptPins[0].templateId`, `changeNote`; 409 `Protected` for a protected built-in agent |
+| Errors | 400 `ValidationFailed` with fields such as `outputSchema` (`InvalidJsonSchema`), `promptPins[0].templateId`, `changeNote`; 409 `Protected` for a protected built-in agent |
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/researcher/revisions" \
@@ -3782,7 +3785,7 @@ Publish a draft. Optional body `{"changeNote": "..."}` (at most 2000 characters)
 
 #### `GET /v1.0/api/tenants/{tenantId}/agents/{idOrName}/revisions/diff`
 
-`from` and `to` take identifiers or numbers. With no `to`, the open draft is used (or the latest published revision when there is no draft); with no `from`, the published revision before `to`. The response lists `changes`: `field`, `changeType` (`Changed`, `Added`, `Removed`), `from`, and `to`.
+`from` and `to` take identifiers or numbers. With no `to`, the open draft is used (or the latest published revision when there is no draft); with no `from`, the published revision before `to`. The response lists `changes`: `field`, `changeType` (`Changed`, `Added`, `Removed`), `from`, and `to`. `from` and `to` are JSON values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field, and null when the side has no value.
 
 ```json
 {
@@ -3792,7 +3795,8 @@ Publish a draft. Optional body `{"changeNote": "..."}` (at most 2000 characters)
   "identical": false,
   "changes": [
     { "field": "description", "changeType": "Changed", "from": "Researches a topic", "to": "Researches one source and writes notes" },
-    { "field": "delegationAllowList", "changeType": "Removed", "from": "researcher", "to": null }
+    { "field": "delegationAllowList", "changeType": "Removed", "from": "researcher", "to": null },
+    { "field": "outputSchema", "changeType": "Added", "from": null, "to": { "type": "object", "required": ["notes"] } }
   ]
 }
 ```
@@ -3930,7 +3934,7 @@ Paths are relative to `/v1.0/api/tenants/{tenantId}`; another tenant's group ans
 | `status`, `statusReason` | `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, or `Cancelled`, and why it ended |
 | `joinPolicy`, `quorum` | `All`, `Any`, or `Quorum`, and the successes `Quorum` needs |
 | `total`, `finished`, `succeeded`, `pending`, `failed` | Counts, and the labels of members still running and of members that did not succeed |
-| `members` | Each `label`, `agent`, `runId`, `status`, `outcome`, `resultText`, `resultTruncated`, `structuredOutputJson`, `errorMessage`, `filesWritten`, `costUsd`, `tokens` |
+| `members` | Each `label`, `agent`, `runId`, `status`, `outcome`, `resultText`, `resultTruncated`, `structuredOutput` (a JSON value), `errorMessage`, `filesWritten`, `costUsd`, `tokens` |
 | `costUsd`, `tokens`, `maxCostUsd`, `maxTokens`, `deadlineUtc` | Usage so far and the group's budget and deadline |
 | `createdUtc`, `completedUtc` | When the group started and ended |
 
@@ -3960,14 +3964,14 @@ Paths are relative to `/v1.0/api/tenants/{tenantId}`. A tenant sees its own desc
 | `name` | The agent name, `server/tool` for MCP tools, or the tool name for built-ins. Not unique across kinds |
 | `kind`, `origin` | `Agent`, `McpTool`, or `HarnessBuiltIn`; `Derived` or `Manual` |
 | `sourceKey`, `sourceAgentId`, `sourceRevisionId`, `sourceMcpServerId`, `sourceToolName`, `sourceHarnessProfileId`, `sourceHarnessType` | Where a derived descriptor comes from |
-| `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags` | What it does, its schemas as JSON text, and up to 32 tags |
+| `summary`, `inputSchema`, `outputSchema`, `tags` | What it does, its schemas as JSON objects (null when there is none), and up to 32 tags |
 | `requirements` | Node labels (`key`, `value`) a run needs when its agent uses this capability |
 | `hints` | `status` (`Known` or `Unknown`), `sampleSize`, `medianDurationMs`, `p90DurationMs`, `meanCostUsd`, `windowDays`, `computedUtc`. Values are null while `Unknown` |
 | `refreshWarning`, `lastRefreshedUtc` | Why the last refresh of the source failed (the content is the last good one), and when it last succeeded |
 
 #### `POST /v1.0/api/tenants/{tenantId}/capabilities`
 
-Body: `name`, `kind`, optional `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags`, `requirements`, and `sourceAgentId`, `sourceMcpServerId`, `sourceToolName`.
+Body: `name`, `kind`, optional `summary`, `inputSchema`, `outputSchema` (JSON objects), `tags`, `requirements`, and `sourceAgentId`, `sourceMcpServerId`, `sourceToolName`.
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/capabilities" \
@@ -3977,7 +3981,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/capabilities" \
 
 | | |
 |---|---|
-| Errors | 400 `InvalidJsonSchema` (field codes on `inputSchemaJson`, `outputSchemaJson`), `ValidationFailed` (field codes `InvalidTags`, `TooManyRequirements`); 409 `NameConflict` (a manual descriptor has the name); 409 `CapabilityDerived` on PUT or DELETE of a derived descriptor |
+| Errors | 400 `InvalidJsonSchema` (field codes on `inputSchema`, `outputSchema`), `ValidationFailed` (field codes `InvalidTags`, `TooManyRequirements`); 409 `NameConflict` (a manual descriptor has the name); 409 `CapabilityDerived` on PUT or DELETE of a derived descriptor |
 
 #### `POST /v1.0/api/tenants/{tenantId}/capabilities/refresh`
 
@@ -4105,7 +4109,7 @@ The delivery log, newest first, with the [enumeration](#enumeration) parameters 
 
 #### `GET /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}/deliveries/{deliveryId}`
 
-One delivery, including the exact `payload` sent on every attempt.
+One delivery, including the `payload` sent on every attempt, as a JSON object. The endpoint receives the same JSON as bytes, and the signature covers those bytes.
 
 ### Analytics
 
@@ -4720,7 +4724,7 @@ Report a run finished.
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/runs/{runId}/complete" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"nodeId": "string", "epoch": 0, "status": "Pending", "outcome": "None", "exitCode": 0, "resultText": "string", "structuredOutputJson": "string", "sessionId": "string", "servedModel": "string", "stderrTail": "string", "errorMessage": "string", "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "costUsd": 0, "costEstimated": false, "reasoningTokens": 0, "firstTokenUtc": "2026-01-01T00:00:00Z", "lastTokenUtc": "2026-01-01T00:00:00Z", "timeToFirstTokenMs": 0, "streamingMs": 0, "executionMs": 0, "toolCallCount": 0, "completedUtc": "2026-01-01T00:00:00Z", "repairAttempt": 0, "supportsRepair": true}'
+  -d '{"nodeId": "string", "epoch": 0, "status": "Pending", "outcome": "None", "exitCode": 0, "resultText": "string", "structuredOutput": {}, "sessionId": "string", "servedModel": "string", "stderrTail": "string", "errorMessage": "string", "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "costUsd": 0, "costEstimated": false, "reasoningTokens": 0, "firstTokenUtc": "2026-01-01T00:00:00Z", "lastTokenUtc": "2026-01-01T00:00:00Z", "timeToFirstTokenMs": 0, "streamingMs": 0, "executionMs": 0, "toolCallCount": 0, "completedUtc": "2026-01-01T00:00:00Z", "repairAttempt": 0, "supportsRepair": true}'
 ```
 
 The timing fields (`firstTokenUtc`, `lastTokenUtc`, `timeToFirstTokenMs`, `streamingMs`, `executionMs`) are optional and may be `null`; the server stores them as reported (negative durations become 0) and computes `queueMs` and `totalMs` from its own clock.
@@ -4776,7 +4780,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false. Every call that starts a run from caller input (invoke, conversation turns, `POST .../runs`, `POST .../deployments/{deploymentId}/test`, and pipeline start) needs a non-empty `input`: a missing body or an empty or whitespace input returns 400 `ValidationFailed` with field code `InputRequired` on `input` instead of starting a run that spends harness quota on nothing. Retrying a run (`POST .../runs/{id}/retry`) reuses the stored input and is not checked.
 
-**Input schemas.** When the agent has an `inputSchemaJson`, the input must be a JSON document that matches it. This is checked on every surface that starts a run from caller input: invoke, `POST .../runs`, deployment tests, conversation turns, MCP (`garrison_invoke_agent`, `garrison_start_run`, and agent tools), A2A, and delegation. A mismatch is a 400 `ValidationFailed` with `fields` and `fieldCodes`. The key is `input` for the document itself, otherwise `input.` plus the path to the value, with dots between properties and `[n]` for array items: `input.topic`, `input.tags[1]`, `input.address.city`. A missing required property is reported on its own key (`input.topic`). The code is `InputNotJson` when the input does not parse as JSON and `InputSchemaViolation` for every schema failure. Send `inputContentType: "application/json"` with a structured input. Agents without an input schema take any text.
+**Input schemas.** When the agent has an `inputSchema`, the input must be a JSON document that matches it. This is checked on every surface that starts a run from caller input: invoke, `POST .../runs`, deployment tests, conversation turns, MCP (`garrison_invoke_agent`, `garrison_start_run`, and agent tools), A2A, and delegation. A mismatch is a 400 `ValidationFailed` with `fields` and `fieldCodes`. The key is `input` for the document itself, otherwise `input.` plus the path to the value, with dots between properties and `[n]` for array items: `input.topic`, `input.tags[1]`, `input.address.city`. A missing required property is reported on its own key (`input.topic`). The code is `InputNotJson` when the input does not parse as JSON and `InputSchemaViolation` for every schema failure. Send `inputContentType: "application/json"` with a structured input. Agents without an input schema take any text.
 
 ```json
 { "error": "BadRequest", "code": "ValidationFailed", "message": "The input does not match the agent's input schema.",
@@ -4868,8 +4872,8 @@ Named agent capability exposed by Garrison.
 | `toolDescriptionTemplateId` | `string?` | Template for the MCP tool description; null uses the tenant's `mcp-tool-description` template or `builtin/mcp-tool-description`. |
 | `skillDescriptionTemplateId` | `string?` | Template for the A2A skill description. |
 | `inputMode` | `AgentInputModeEnum` | Input mode. |
-| `inputSchemaJson` | `string?` | JSON Schema for structured input (unmanaged JSON). Must be a valid JSON Schema when saved (field code `InvalidJsonSchema`). When set, every invocation's input must be a JSON document that matches it (field codes `InputNotJson` and `InputSchemaViolation`; see Input schemas under Notes on specific routes), the A2A card advertises `application/json` input, and the dashboard's Invoke page shows a form built from it. |
-| `outputSchemaJson` | `string?` | JSON Schema for structured output (unmanaged JSON). Must be a valid JSON Schema when saved (field code `InvalidJsonSchema`). When set, each run's final output is validated against it, with one repair attempt when the harness can resume (see [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts)). |
+| `inputSchema` | `object?` | JSON Schema for structured input, as a JSON value (usually an object); null when there is none. Send it as an object, not a string. Must be a valid JSON Schema when saved (field code `InvalidJsonSchema`). When set, every invocation's input must be a JSON document that matches it (field codes `InputNotJson` and `InputSchemaViolation`; see Input schemas under Notes on specific routes), the A2A card advertises `application/json` input, and the dashboard's Invoke page shows a form built from it. |
+| `outputSchema` | `object?` | JSON Schema for structured output, as a JSON value (usually an object); null when there is none. Send it as an object, not a string. Must be a valid JSON Schema when saved (field code `InvalidJsonSchema`). When set, each run's final output is validated against it, with one repair attempt when the harness can resume (see [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts)). |
 | `delegationMode` | `DelegationModeEnum` | Delegation mode. |
 | `delegationMaxDepth` | `int` | Maximum delegation depth below this agent. Minimum 0, maximum 10, default 2. |
 | `delegationAllowRecursion` | `bool` | Whether an agent may appear twice in a delegation chain. |
@@ -4933,7 +4937,8 @@ A permission request relayed from a harness and its decision (P12.3). See [Appro
 | `kind` | `ApprovalKindEnum` | Where the request came from. |
 | `toolName` | `string` | Tool the rules were evaluated against (Codex commands are `Bash`, Codex file changes `Edit`). |
 | `toolCallId` | `string?` | The harness's tool call identifier. |
-| `inputPreview` | `string?` | Tool input JSON with secrets redacted, at most 4,000 characters. |
+| `input` | `object?` | The tool's arguments, or the diff of a studio draft for `DraftApply`, as a JSON object with secrets redacted. Present when the stored input is a JSON object. |
+| `inputPreview` | `string?` | The stored input as text, with secrets redacted, at most 4,000 characters. Present only when it is not a JSON object (for example when the cut left it incomplete); otherwise `input` carries it. |
 | `summary` | `string?` | One-line summary (command, URL, paths, or query), redacted, at most 500 characters. |
 | `suggestedRule` | `string?` | A rule pattern covering the request, used by remember. |
 | `status` | `ApprovalStatusEnum` | State. |
@@ -5887,6 +5892,7 @@ MCP server connection test result.
 |---|---|---|
 | `success` | `bool` | Whether the server answered tools/list. |
 | `tools` | `List<string>` | Tool names. |
+| `toolDetails` | `List<McpToolDetail>` | Each tool's `name`, `description`, and `inputSchema` (the tool's input JSON Schema as a JSON object, or null when the server listed none or it was over 65,536 characters). |
 | `missingRequiredTools` | `List<string>` | Required tools the server did not list. |
 | `error` | `string?` | Error message. |
 | `durationMs` | `long` | Duration in milliseconds. |
@@ -6200,7 +6206,7 @@ One invocation of one deployment.
 | `deadlineUtc` | `DateTime?` | Deadline (UTC). |
 | `cancelRequested` | `bool` | Whether cancellation was requested. |
 | `resultText` | `string?` | Final result text. |
-| `structuredOutputJson` | `string?` | Structured output (unmanaged JSON). |
+| `structuredOutput` | `any?` | Structured output, as the JSON value the agent returned (usually an object); null when there is none. |
 | `outputSchemaValid` | `bool?` | Whether the final output validated against the agent's output schema; `null` when not validated. Always present. See [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts). |
 | `schemaValidationErrors` | `string?` | First few errors of the most recent failed schema validation, or `null`. Always present. |
 | `repairAttempts` | `int` | Structured output repair attempts started (0 or 1). |
@@ -6612,7 +6618,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 | `lastAttemptUtc` | `DateTime?` | Time of the last attempt. |
 | `lastDurationMs` | `long` | Duration of the last attempt. |
 | `deliveredUtc` | `DateTime?` | When the endpoint accepted it. |
-| `payload` | `string` | The JSON body sent on every attempt. |
+| `payload` | `object?` | The body sent on every attempt, as a JSON object. The endpoint receives these bytes unchanged, and the signature covers them. |
 | `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
 
 #### `TriggerTypeEnum`
@@ -6782,10 +6788,10 @@ Captured HTTP request and response.
 | `statusCode` | `int` | Response status code. |
 | `durationMs` | `double` | Duration in milliseconds. |
 | `sourceIp` | `string?` | Source IP. |
-| `requestBody` | `string?` | Request body, possibly truncated. |
+| `requestBody` | `string?` | Request body, possibly truncated. Always a string, even for a JSON request, because a body can be any media type and a truncated body is not valid JSON. |
 | `requestBodyBytes` | `long` | Original request body length in bytes. |
 | `requestBodyTruncated` | `bool` | Whether the request body was truncated. |
-| `responseBody` | `string?` | Response body, possibly truncated. |
+| `responseBody` | `string?` | Response body, possibly truncated. Always a string, for the same reason as `requestBody`. |
 | `responseBodyBytes` | `long` | Original response body length in bytes. |
 | `responseBodyTruncated` | `bool` | Whether the response body was truncated. |
 | `createdUtc` | `DateTime` | Request start (UTC). |
@@ -6915,7 +6921,7 @@ Worker report that a run finished.
 | `outcome` | `RunOutcomeEnum` | Outcome code. |
 | `exitCode` | `int?` | Exit code. |
 | `resultText` | `string?` | Final result text. |
-| `structuredOutputJson` | `string?` | Structured output JSON. |
+| `structuredOutput` | `any?` | Structured output, as a JSON value. |
 | `sessionId` | `string?` | Harness session identifier. |
 | `servedModel` | `string?` | Model that served the run. |
 | `stderrTail` | `string?` | Scrubbed stderr tail. |
@@ -6986,7 +6992,8 @@ Normalized event reported by a worker.
 | `success` | `bool?` | Tool result success. |
 | `inputTokens` | `long?` | Input tokens for usage events. |
 | `outputTokens` | `long?` | Output tokens for usage events. |
-| `rawEventJson` | `string?` | Verbatim harness event; merged text events contain the original lines separated by newline (JSONL). |
+| `rawEvent` | `object?` | The harness event or Garrison notice, as a JSON object. |
+| `rawEventText` | `string?` | The source line as a string, sent instead of `rawEvent` when it is not valid JSON (a plain line, a truncated line, or merged lines separated by newlines). |
 
 #### `RunEventTypeEnum`
 
@@ -7017,13 +7024,16 @@ Normalized event emitted by a run.
 | `eventType` | `RunEventTypeEnum` | Event type. |
 | `timestampUtc` | `DateTime` | Event time (UTC). |
 | `code` | `string?` | Stable machine code for text Garrison writes itself (for example `WorkspacePrepared`, `HarnessExited`, `RunBlocked`); null for harness or model text. |
-| `text` | `string?` | Text content. |
+| `text` | `string?` | Text content. Omitted for a tool call or tool result whose JSON is in `toolInput` or `toolOutput`. |
+| `toolInput` | `object?` | A `ToolCall`'s arguments as a JSON object, when the harness reported JSON. |
+| `toolOutput` | `object?` or `array?` | A `ToolResult`'s output, when it is a JSON object or array. |
 | `toolName` | `string?` | Tool name. |
 | `toolCallId` | `string?` | Tool call identifier. |
 | `success` | `bool?` | Success flag for tool results. |
 | `inputTokens` | `long?` | Input tokens for usage events. |
 | `outputTokens` | `long?` | Output tokens for usage events. |
-| `rawEventJson` | `string?` | Verbatim harness event (unmanaged JSON); merged text events contain the original lines separated by newline (JSONL). |
+| `rawEvent` | `object?` | The harness event or Garrison notice this event came from, as a JSON object; null when there is none or when the line is not valid JSON. |
+| `rawEventText` | `string?` | The source line as a string when it is not valid JSON: a plain output line, a line cut at the size limit, or the original lines of merged text events separated by newlines. Null when `rawEvent` carries it. |
 | `createdUtc` | `DateTime` | Persisted (UTC). |
 
 #### `RunStartedRequest`
@@ -7447,8 +7457,8 @@ An immutable snapshot of an agent's definition (AD1, AD-003). An agent has at mo
 | `displayName` | `string?` | Display name. |
 | `description` | `string?` | Description. |
 | `inputMode` | `AgentInputModeEnum` | Input mode. |
-| `inputSchemaJson` | `string?` | Input JSON Schema copied from the agent (unmanaged JSON column, section 7.3 of the plan). |
-| `outputSchemaJson` | `string?` | Output JSON Schema copied from the agent (unmanaged JSON column, section 7.3 of the plan). |
+| `inputSchema` | `object?` | Input JSON Schema copied from the agent, as a JSON value; null when there is none. |
+| `outputSchema` | `object?` | Output JSON Schema copied from the agent, as a JSON value; null when there is none. |
 | `delegationMode` | `DelegationModeEnum` | Delegation mode. |
 | `delegationMaxDepth` | `integer` | Maximum delegation depth below this agent. Minimum 0, maximum 10, default 2. Values outside the range are clamped. |
 | `delegationAllowRecursion` | `boolean` | Whether the agent may appear twice in a delegation chain. |
@@ -7613,8 +7623,8 @@ One entry in the capability catalog (AD4, AD-006, AD-022): an agent, an MCP tool
 | `sourceToolName` | `string?` | Tool name on the source MCP server for McpTool descriptors, or null. |
 | `sourceHarnessProfileId` | `string?` | Harness profile that declares the tool probe of a HarnessBuiltIn descriptor, or null. |
 | `sourceHarnessType` | `HarnessTypeEnum?` | Harness type of that profile, for HarnessBuiltIn descriptors, or null. |
-| `inputSchemaJson` | `string?` | JSON Schema of the input, as JSON text, or null. Validated as a JSON Schema on save (InvalidJsonSchema). |
-| `outputSchemaJson` | `string?` | JSON Schema of the output, as JSON text, or null. Validated as a JSON Schema on save (InvalidJsonSchema). |
+| `inputSchema` | `object?` | JSON Schema of the input, as a JSON value, or null. Validated as a JSON Schema on save (InvalidJsonSchema). |
+| `outputSchema` | `object?` | JSON Schema of the output, as a JSON value, or null. Validated as a JSON Schema on save (InvalidJsonSchema). |
 | `tags` | `string[]` | Tags for filtering. At most 32, each 1 to 64 characters. |
 | `requirements` | `CapabilityRequirement[]` | Node labels a run needs when its agent uses this capability. HarnessBuiltIn descriptors require their tool label; other kinds usually require nothing. At most 16. |
 | `hints` | `CapabilityHintegers` | Cost and latency hints. Never null. |
@@ -7673,7 +7683,7 @@ One member of a fan-out group as gather and the REST routes show it (AD5.3).
 | `outcome` | `RunOutcomeEnum?` | Child run outcome once finished, or null. |
 | `resultText` | `string?` | Result text, cut at Delegation.GatherResultCharLimit, or null. |
 | `resultTruncated` | `boolean` | Whether the result text was cut. |
-| `structuredOutputJson` | `string?` | Structured output as JSON text, or null. |
+| `structuredOutput` | `any?` | Structured output as a JSON value, or null. |
 | `errorMessage` | `string?` | Error message of a failed member, or null. |
 | `filesWritten` | `string[]` | Paths the member wrote in the shared file space. |
 | `costUsd` | `number?` | Cost the member recorded in US dollars, or null. |

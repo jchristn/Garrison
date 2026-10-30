@@ -105,19 +105,19 @@ namespace Test.Shared.Suites
             {
                 string t = "/v1.0/api/tenants/" + host.TenantId;
                 HttpClient admin = host.AdminClient;
-                await ExpectInvalidSchemaAsync(admin, HttpMethod.Post, t + "/agents", new Agent { Name = "bad-input", InputSchemaJson = "{\"type\":\"objekt\"}" }, "inputSchemaJson", token).ConfigureAwait(false);
-                await ExpectInvalidSchemaAsync(admin, HttpMethod.Post, t + "/agents", new Agent { Name = "bad-input-json", InputSchemaJson = "{not json" }, "inputSchemaJson", token).ConfigureAwait(false);
-                await ExpectInvalidSchemaAsync(admin, HttpMethod.Post, t + "/agents", new Agent { Name = "bad-output", OutputSchemaJson = "{\"required\":\"answer\"}" }, "outputSchemaJson", token).ConfigureAwait(false);
+                await ExpectInvalidSchemaAsync(admin, HttpMethod.Post, t + "/agents", new Agent { Name = "bad-input", InputSchemaJson = "{\"type\":\"objekt\"}" }, "inputSchema", token).ConfigureAwait(false);
+                await ExpectInvalidSchemaAsync(admin, HttpMethod.Post, t + "/agents", new { name = "bad-input-json", inputSchema = "{not json" }, "inputSchema", token).ConfigureAwait(false);
+                await ExpectInvalidSchemaAsync(admin, HttpMethod.Post, t + "/agents", new Agent { Name = "bad-output", OutputSchemaJson = "{\"required\":\"answer\"}" }, "outputSchema", token).ConfigureAwait(false);
 
                 Agent good = await HttpTestHelpers.SendAsync<Agent>(admin, HttpMethod.Post, t + "/agents", new Agent { Name = "good-input", InputMode = AgentInputModeEnum.Structured, InputSchemaJson = _Schema }, 201, token).ConfigureAwait(false);
                 Assert.Equal(_Schema, good.InputSchemaJson, "Usable schema kept");
                 good.InputSchemaJson = "{\"properties\":{\"a\":{\"type\":7}}}";
-                await ExpectInvalidSchemaAsync(admin, HttpMethod.Put, t + "/agents/" + good.Id, good, "inputSchemaJson", token).ConfigureAwait(false);
+                await ExpectInvalidSchemaAsync(admin, HttpMethod.Put, t + "/agents/" + good.Id, good, "inputSchema", token).ConfigureAwait(false);
 
                 using (TestMcpClient client = new TestMcpClient())
                 {
                     await client.ConnectAsync(host, null, token).ConfigureAwait(false);
-                    await client.ExpectErrorAsync("garrison_create_agent", new { configuration = new Agent { Name = "mcp-bad-schema", InputSchemaJson = "{\"type\":\"objekt\"}" } }, "inputSchemaJson", token).ConfigureAwait(false);
+                    await client.ExpectErrorAsync("garrison_create_agent", new { configuration = new Agent { Name = "mcp-bad-schema", InputSchemaJson = "{\"type\":\"objekt\"}" } }, "inputSchema", token).ConfigureAwait(false);
                 }
 
                 string manifest = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: manifest-bad-schema\nspec:\n  inputSchema:\n    type: objekt\n";
@@ -126,7 +126,7 @@ namespace Test.Shared.Suites
                 {
                     ManifestApply apply = Assert.NotNull(Serializer.Deserialize<ManifestApply>(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false)), "Apply result");
                     ManifestApplyItem item = apply.Items.Single();
-                    Assert.True(item.Result == ManifestApplyResultEnum.Failed && item.ErrorCode == "InvalidJsonSchema" && item.ErrorField == "inputSchemaJson", "Manifest refuses the schema: " + item.ErrorCode + " " + item.ErrorField + " " + item.Message);
+                    Assert.True(item.Result == ManifestApplyResultEnum.Failed && item.ErrorCode == "InvalidJsonSchema" && item.ErrorField == "inputSchema", "Manifest refuses the schema: " + item.ErrorCode + " " + item.ErrorField + " " + item.Message);
                 }
             }
         }

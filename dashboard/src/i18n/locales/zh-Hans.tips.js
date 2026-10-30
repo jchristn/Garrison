@@ -791,8 +791,8 @@ const tips = {
         description: '技能的作用，面向调用它的智能体编写。'
       },
       inputMode: 'Text 接受纯文本消息。Structured 要求输入符合输入 JSON Schema。',
-      inputSchemaJson: "智能体输入的 JSON 架构。设置后，每次调用的输入都必须是符合它的 JSON 文档，调用页面会显示据此生成的表单。",
-      outputSchemaJson: '结果必须符合的 JSON Schema。Garrison 会验证输出，失败时使用修复提示词重试一次。',
+      inputSchema: "智能体输入的 JSON 架构。设置后，每次调用的输入都必须是符合它的 JSON 文档，调用页面会显示据此生成的表单。",
+      outputSchema: '结果必须符合的 JSON Schema。Garrison 会验证输出，失败时使用修复提示词重试一次。',
       delegationAllowList: '委派使用允许列表时，此智能体可以调用的智能体。',
       delegationMaxDepth: '此智能体之下最多可以有多少层智能体间调用。范围为 0 到 10。',
       delegationAllowRecursion: '允许同一个智能体在一条调用链中出现两次。关闭可防止循环。',
@@ -2516,8 +2516,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "可选。此手动条目所代表的工具所在的 MCP 服务器。",
    "sourceToolName": "该工具在所选 MCP 服务器上的名称。",
    "requirements": "节点标签，例如 garrison.io/tool-pandoc=true。工作节点必须先报告这些标签，才能接手使用此能力的运行。",
-   "inputSchemaJson": "描述能力输入内容的 JSON Schema。保存时 Garrison 会检查它是否为有效的 JSON Schema。",
-   "outputSchemaJson": "描述能力返回内容的 JSON Schema。保存时 Garrison 会检查它是否为有效的 JSON Schema。",
+   "inputSchema": "描述能力输入内容的 JSON Schema。保存时 Garrison 会检查它是否为有效的 JSON Schema。",
+   "outputSchema": "描述能力返回内容的 JSON Schema。保存时 Garrison 会检查它是否为有效的 JSON Schema。",
    "kindFilter": "只显示智能体、只显示 MCP 工具，或只显示 Harness 内置工具。选择“全部”可查看整个目录。",
    "originFilter": "只显示随来源变化的派生条目，或只显示由人编写的手动条目。",
    "tagFilter": "只显示带有与此完全一致标签的能力。停止输入后列表会更新。",
@@ -2576,8 +2576,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "所汇总运行中记录了成本的那些运行的平均成本（美元）。",
    "windowDays": "参考值回溯的天数（Capabilities.HintWindowDays 设置）。",
    "computedUtc": "维护循环或刷新上次计算参考值的时间。",
-   "inputSchemaJson": "描述能力输入内容的 JSON Schema；如果接受自由文本则为空。",
-   "outputSchemaJson": "描述能力返回内容的 JSON Schema，也可以为空。"
+   "inputSchema": "描述能力输入内容的 JSON Schema；如果接受自由文本则为空。",
+   "outputSchema": "描述能力返回内容的 JSON Schema，也可以为空。"
   },
   "refreshServer": "列出所有活动 MCP 服务器的工具，或只列出一个服务器的工具。stdio 服务器通过工作节点列出。",
   "refreshRun": "立即开始刷新。如果 MCP 服务器响应较慢，可能需要一些时间。",
@@ -3517,6 +3517,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "要发送给智能体的内容。按 Enter 发送；按 Ctrl+Enter 或 Shift+Enter 换行。",
     "send": "将消息发送到该智能体的 dev 部署。",
     "another": "重新开始向导，构建另一组智能体。"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "在新标签页中打开应用的聊天：对话会保留历史记录，入口智能体可以询问应用中的其他智能体。"
    }
   }
  }

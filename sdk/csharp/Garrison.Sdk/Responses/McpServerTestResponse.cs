@@ -2,6 +2,7 @@ namespace Garrison.Sdk.Responses
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -21,6 +22,11 @@ namespace Garrison.Sdk.Responses
         /// Tool names.
         /// </summary>
         public List<string> Tools { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Each listed tool with its description and input schema.
+        /// </summary>
+        public List<McpToolDetail> ToolDetails { get; set; } = new List<McpToolDetail>();
 
         /// <summary>
         /// Required tools the server did not list.

@@ -87,6 +87,18 @@ Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a 
 
 Models, enums, request types, and response types live in `Garrison.Sdk.Models`, `Garrison.Sdk.Enums`, `Garrison.Sdk.Requests`, and `Garrison.Sdk.Responses`. They mirror the server contracts.
 
+Fields whose content is free-form JSON are `System.Text.Json.JsonElement?`, not JSON text in a string, and are null when absent: agent, revision, and capability `InputSchema` and `OutputSchema`, `Run.StructuredOutput` and `FanOutMember.StructuredOutput`, `RunEvent.RawEvent`, `ToolInput`, and `ToolOutput` (also on `TranscriptEntry`), `Approval.Input` and `TranscriptApproval.Input`, `NotificationDelivery.Payload`, `McpToolDetail.InputSchema` in `McpServerTestResponse.ToolDetails`, and `AgentRevisionChange.From` and `To`. To send one, parse your JSON text first:
+
+```csharp
+Agent agent = new Agent();
+agent.Name = "summarizer";
+agent.InputMode = AgentInputModeEnum.Structured;
+agent.InputSchema = JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"}},\"required\":[\"topic\"]}");
+agent = await client.Agents.CreateAsync(agent);
+```
+
+A `RunEvent` carries the harness line (or Garrison notice) as `RawEvent`, a JSON object; when the line is not valid JSON, for example because it was truncated, `RawEventText` carries the text and `RawEvent` is null. A `ToolCall` event whose arguments are JSON sets `ToolInput` and leaves `Text` null, and a `ToolResult` whose output is a JSON object or array sets `ToolOutput` and leaves `Text` null; any other event uses `Text`.
+
 ## Permission approvals
 
 When a deployment has `ApprovalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `ApprovalRules` (a list of `DeploymentApprovalRule` with `Action`, `Pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, optional `InputPattern`, and `Description`) decide each request, and `ApprovalDefaultAction` (`ApprovalRuleActionEnum`: `Allow`, `Deny`, `Ask`) covers requests no rule matches. `Ask` sends the request to a person, who has `ApprovalTimeoutSeconds` (10 to 3600, default 300) before `ApprovalTimeoutDecision` applies.
@@ -108,7 +120,7 @@ check.Input.Command = "git status --short";
 ApprovalCheckResponse result = await client.Approvals.CheckAsync(deploymentId, check);
 ```
 
-`Approvals.ListAsync` filters by status, run, root run, agent, deployment, decision source (`ApprovalSourceEnum`), and time range; for a pending count, filter on `Pending` with `MaxResults = 1` and read `TotalRecords`. `GetAsync` returns 404 for an approval outside the tenant. `DecideAsync` answers 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `CheckAsync` records nothing and returns the action, whether a rule or the default decided (`Source`), the matching rule, a `SuggestedRule`, and whether approvals are enabled. `Run` carries `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`.
+`Approvals.ListAsync` filters by status, run, root run, agent, deployment, decision source (`ApprovalSourceEnum`), and time range; for a pending count, filter on `Pending` with `MaxResults = 1` and read `TotalRecords`. `GetAsync` returns 404 for an approval outside the tenant. `DecideAsync` answers 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `Approval.Input` is the request's input (tool call arguments, or a studio draft's diff) as a JSON object with secrets redacted; when the stored input is not a JSON object, for example because it was clipped, `InputPreview` carries it as text instead. Only one of the two is set. `CheckAsync` records nothing and returns the action, whether a rule or the default decided (`Source`), the matching rule, a `SuggestedRule`, and whether approvals are enabled. `Run` carries `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`.
 
 ## Pipelines
 
@@ -146,13 +158,13 @@ EnumerationResult<TriggerFire> fires = await client.Triggers.ListFiresAsync(nigh
 
 `Triggers` adds `ListAsync(query, type)`, `RotateSecretAsync`, `FireAsync` (fires now; an optional `TriggerFireRequest` payload reaches the input template as `webhook.body`), `ListFiresAsync` (filter by `TriggerFireOutcomeEnum`), and `DeliverWebhookAsync` (signs and posts a webhook as an external sender would). Runs a trigger started have `Kind` `Trigger` and `TriggerId`; `RunFilter.TriggerId` lists them, and `PipelineRun.TriggerId` is set the same way.
 
-`NotificationEndpoints` manages URLs that receive signed JSON notifications for `NotificationEventEnum` events (`RunSucceeded`, `RunFailed`, `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed`, `ApprovalRequested`). It adds `RotateSecretAsync`, `TestAsync` (sends a `Test` notification and returns the `NotificationDelivery` after its first attempt), `ListDeliveriesAsync` (filter by `NotificationDeliveryStatusEnum`), and `GetDeliveryAsync`. A loopback or private URL answers 400 with field code `DestinationBlocked` in `GarrisonException.Error.FieldCodes` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+`NotificationEndpoints` manages URLs that receive signed JSON notifications for `NotificationEventEnum` events (`RunSucceeded`, `RunFailed`, `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed`, `ApprovalRequested`). It adds `RotateSecretAsync`, `TestAsync` (sends a `Test` notification and returns the `NotificationDelivery` after its first attempt), `ListDeliveriesAsync` (filter by `NotificationDeliveryStatusEnum`), and `GetDeliveryAsync`; a delivery's `Payload` is the JSON body as a `JsonElement?` object. A loopback or private URL answers 400 with field code `DestinationBlocked` in `GarrisonException.Error.FieldCodes` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
 
 `WebhookSignature.Header(secret, unixSeconds, body)` builds a signature and `WebhookSignature.Verify(header, secret, body, toleranceSeconds)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
 ## Agent revisions and promotion
 
-`AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.
+`AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.
 
 Each `Deployment` has an `Environment` (default `dev`) and an optional `AgentRevisionId` pin; an unpinned deployment runs the agent's current content. `Run.AgentRevisionId` records the revision a run executed.
 
@@ -198,7 +210,7 @@ await client.FileSpaces.DeleteAsync(FileSpaceOwnerEnum.Conversation, conversatio
 
 ## Capability catalog
 
-The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. Each `CapabilityDescriptor` has an `Id` (`cap_...`), `Name`, `Kind` (`CapabilityKindEnum`: `Agent`, `McpTool`, `HarnessBuiltIn`), `Origin` (`CapabilityOriginEnum`: `Derived` or `Manual`), `SourceKey`, the source fields (`SourceAgentId`, `SourceRevisionId`, `SourceMcpServerId`, `SourceToolName`, `SourceHarnessProfileId`, `SourceHarnessType`), `Summary`, `InputSchemaJson`, `OutputSchemaJson`, `Tags`, `Requirements` (node labels a run needs, as `CapabilityRequirement` `Key` and `Value`), `Hints`, `RefreshWarning`, and timestamps. `TenantId` is null for descriptors every tenant shares (harness built-ins of built-in profiles).
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. Each `CapabilityDescriptor` has an `Id` (`cap_...`), `Name`, `Kind` (`CapabilityKindEnum`: `Agent`, `McpTool`, `HarnessBuiltIn`), `Origin` (`CapabilityOriginEnum`: `Derived` or `Manual`), `SourceKey`, the source fields (`SourceAgentId`, `SourceRevisionId`, `SourceMcpServerId`, `SourceToolName`, `SourceHarnessProfileId`, `SourceHarnessType`), `Summary`, `InputSchema` and `OutputSchema` (`JsonElement?`, usually objects), `Tags`, `Requirements` (node labels a run needs, as `CapabilityRequirement` `Key` and `Value`), `Hints`, `RefreshWarning`, and timestamps. `TenantId` is null for descriptors every tenant shares (harness built-ins of built-in profiles).
 
 Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in `HarnessProfile.ToolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `Hints` (`CapabilityHints`) carry `Status` (`CapabilityHintStatusEnum`: `Unknown` until enough runs finish, then `Known`), `SampleSize`, `MedianDurationMs`, `P90DurationMs`, `MeanCostUsd`, `WindowDays`, and `ComputedUtc`; values are null while the status is `Unknown`.
 
@@ -210,7 +222,7 @@ CapabilityDescriptor created = await client.Capabilities.CreateAsync(new Capabil
     Name = "lookup-invoice",
     Kind = CapabilityKindEnum.McpTool,
     Summary = "Find an invoice by number.",
-    InputSchemaJson = "{\"type\":\"object\",\"properties\":{\"number\":{\"type\":\"string\"}}}",
+    InputSchema = JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\",\"properties\":{\"number\":{\"type\":\"string\"}}}"),
     Tags = new List<string> { "billing" }
 });
 CapabilityDescriptor byName = await client.Capabilities.GetAsync("lookup-invoice"); // ID or name
@@ -226,7 +238,7 @@ await client.Capabilities.DeleteAsync(created.Id);
 
 A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; `client.FanOutGroups` reads and cancels them. A `FanOutGroup` has `FanOutGroupId` (`fog_...`), `ParentRunId`, `Status` (`FanOutGroupStatusEnum`: `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, `Cancelled`; every status but `Running` is final), `StatusReason`, `JoinPolicy` (`FanOutJoinPolicyEnum`: `All`, `Any`, `Quorum`), `Quorum`, the counts `Total`, `Finished`, and `Succeeded`, the label lists `Pending` and `Failed`, `Members`, the totals `CostUsd` and `Tokens`, the budget `MaxCostUsd` and `MaxTokens` (null when unset), `DeadlineUtc`, `CreatedUtc`, and `CompletedUtc`. `Summary`, `ContinuationMarker`, and `ContinuationInstruction` are what a harness sees through `garrison_gather` and are normally null here.
 
-Each `FanOutMember` has `Label`, `Agent`, `RunId` (the child run), `Status` (`RunStatusEnum`), `Outcome` (null until it finishes), `ResultText` with `ResultTruncated`, `StructuredOutputJson`, `ErrorMessage`, `FilesWritten` (paths in the shared file space), `CostUsd`, and `Tokens`. A child run's `Run.FanOutGroupId` names its group.
+Each `FanOutMember` has `Label`, `Agent`, `RunId` (the child run), `Status` (`RunStatusEnum`), `Outcome` (null until it finishes), `ResultText` with `ResultTruncated`, `StructuredOutput` (`JsonElement?`), `ErrorMessage`, `FilesWritten` (paths in the shared file space), `CostUsd`, and `Tokens`. A child run's `Run.FanOutGroupId` names its group.
 
 ```csharp
 List<FanOutGroup> groups = await client.FanOutGroups.ListByRunAsync(runId); // oldest first; 404 when the run does not exist
@@ -520,11 +532,11 @@ Transcript transcript = await client.Runs.GetTranscriptAsync(runId, includeThink
 Transcript conversation = await client.Conversations.GetTranscriptAsync(conversationId);
 ```
 
-A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested), `approvals`, `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
+A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested; JSON tool arguments and results arrive in `toolInput` and `toolOutput` with `text` null), `approvals` (`input` as a JSON object, or `inputPreview` text when the input is not one), `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
 
 ## Structured input
 
-An agent with `inputSchemaJson` (JSON Schema text) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
+An agent with `inputSchema` (a JSON Schema object) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
 
 ```csharp
 try

@@ -122,7 +122,7 @@ failed = client.triggers.list_fires(nightly["id"], outcome="Failed")
 
 `client.triggers` adds `list(type=...)`, `rotate_secret`, `fire` (fires now; an optional `body` reaches the input template as `webhook.body`), `list_fires` (filter by `TRIGGER_FIRE_OUTCOMES`), and `deliver_webhook` (signs and posts a webhook as an external sender would). Runs a trigger started have `kind` `Trigger` and `triggerId`; `client.runs.list(trigger_id=...)` lists them, and pipeline runs carry `triggerId` too.
 
-`client.notification_endpoints` manages URLs that receive signed JSON notifications for `NOTIFICATION_EVENTS` (`Test` is only sent by the test action). It adds `rotate_secret`, `test` (sends a `Test` notification and returns the delivery after its first attempt), `list_deliveries` (filter by `NOTIFICATION_DELIVERY_STATUSES`), and `get_delivery`. A loopback or private URL raises `GarrisonError` 400 with `error["fieldCodes"]["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+`client.notification_endpoints` manages URLs that receive signed JSON notifications for `NOTIFICATION_EVENTS` (`Test` is only sent by the test action). It adds `rotate_secret`, `test` (sends a `Test` notification and returns the delivery after its first attempt), `list_deliveries` (filter by `NOTIFICATION_DELIVERY_STATUSES`), and `get_delivery` (a delivery's `payload` is the notification body as a dictionary). A loopback or private URL raises `GarrisonError` 400 with `error["fieldCodes"]["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
 
 `sign_webhook(secret, unix_seconds, body)` builds a signature and `verify_webhook(header, secret, body, tolerance_seconds=300)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
@@ -138,6 +138,8 @@ for item in client.runs.stream(run["id"]):
 ```
 
 The iterator ends after `run.completed`. `runs.events` polls, and `runs.wait_for_completion` waits for a terminal status.
+
+Each event carries the harness's source line as `rawEvent`, a dictionary, or as `rawEventText`, a string, when the line is not valid JSON (for example when it was truncated). A `ToolCall` event whose arguments are JSON has them in `toolInput` (a dictionary) and no `text`; a `ToolResult` whose output is a JSON object or array has it in `toolOutput` and no `text`. Other events carry `text` as before. Transcript entries follow the same rules.
 
 ## Conversations
 
@@ -194,7 +196,7 @@ The server omits most fields it cannot measure, so read them with `run.get(...)`
 
 Runs stopped by a worker run guard end `Failed` with outcome `RepetitionDetected` (the assistant text degenerated into a short repeated unit or into text with no letters or digits), `OutputLimitExceeded` (more assistant text than the deployment's `maxAssistantChars`), or `NoProgress` (nothing happened for `noProgressSeconds`). The partial output is in `run["resultText"]`, and the run has one `Warning` event with code `RunGuardTriggered`. A waiting invoke cancels its run when the connection drops; pass `cancel_on_disconnect=False` to `agents.invoke` or `runs.create` to keep the run going. See "Run guards" and "Cancellation" in `REST_API.md`.
 
-When the agent has an output schema, the server validates each run's final output against it. `run["outputSchemaValid"]` is `True` or `False` after validation and `None` when nothing was validated, `run["schemaValidationErrors"]` holds the first few errors of a failed validation, and `run["repairAttempts"]` (0 or 1) counts the structured output repair Garrison makes when the harness can resume its session. A run whose output still does not validate fails with outcome `SchemaValidationFailed`. See "Structured output validation" in `REST_API.md`.
+When the agent has an output schema, the server validates each run's final output against it, and `run["structuredOutput"]` holds the parsed output as a JSON value (absent or `None` when there is none). `run["outputSchemaValid"]` is `True` or `False` after validation and `None` when nothing was validated, `run["schemaValidationErrors"]` holds the first few errors of a failed validation, and `run["repairAttempts"]` (0 or 1) counts the structured output repair Garrison makes when the harness can resume its session. A run whose output still does not validate fails with outcome `SchemaValidationFailed`. See "Structured output validation" in `REST_API.md`.
 
 ## Executors and run pods
 
@@ -266,13 +268,15 @@ transcript = client.runs.transcript(run_id, include_thinking=True)
 conversation = client.conversations.transcript(conversation_id)
 ```
 
-A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested), `approvals`, `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
+A transcript covers one run, or every turn of a conversation oldest first (`GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript`). The Markdown form is for reading and sharing; the JSON form is the typed `Transcript` document (schema `garrison.transcript/v1`): `kind` (`Run` or `Conversation`), `turnCount`, total `usage`, and `turns`, each with the redacted `input`, `entries` (assistant text, tool calls and results, warnings, errors, lifecycle notes; thinking only when requested), `approvals` (each with `input`, a dictionary, when the requested input is a JSON object, or `inputPreview`, a string, otherwise; never both), `result`, `errorMessage`, `usage` (tokens, tool calls, cost, duration), and timestamps. Secrets read `[REDACTED]`, tool text is cut to the server's `Transcripts.ToolTextMaxChars` (`textTruncated`), and a transcript over `Transcripts.MaxBytes` is cut with `truncated` and a `truncationNote`. Unknown or other-tenant identifiers are a 404.
 
 ## Structured input
 
-An agent with `inputSchemaJson` (JSON Schema text) only accepts input that is a JSON document matching it, on every surface. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema`. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
+An agent with `inputSchema` (a JSON Schema document, sent and returned as a dictionary; `None` when there is none) only accepts input that is a JSON document matching it, on every surface. `outputSchema` works the same way for the run's output. Saving a schema that is not valid JSON Schema fails with field code `InvalidJsonSchema` on the `inputSchema` or `outputSchema` key. An invocation whose input is not JSON is a 400 with field code `InputNotJson` on `input`; one that breaks the schema is a 400 with `InputSchemaViolation` on `input` or `input.<path>` (for example `input.topic` or `input.tags[1]`; a missing required property is reported on its own key).
 
 ```python
+client.agents.create({"name": "triage", "inputMode": "Structured",
+                      "inputSchema": {"type": "object", "properties": {"topic": {"type": "string"}}, "required": ["topic"]}})
 try:
     client.agents.invoke("triage", json.dumps({"count": 2}), input_content_type="application/json")
 except GarrisonError as e:
@@ -304,7 +308,7 @@ published = client.agents.publish_revision("my-agent", draft["id"], change_note=
 revisions = client.agents.revisions("my-agent")["objects"]          # newest first
 diff = client.agents.diff_revisions("my-agent", 1, published["number"])
 for change in diff["changes"]:
-    print(change["field"], change["changeType"], change["from"], "->", change["to"])
+    print(change["field"], change["changeType"], change["from"], "->", change["to"])   # dicts for inputSchema/outputSchema
 
 promotion = client.promotions.promote(published["agentId"], "dev")  # target defaults to the next environment
 for item in promotion["items"]:
@@ -356,7 +360,7 @@ Errors: 400 `InvalidFilePath`, 404 for an unknown conversation, run, or file, an
 
 ## Capability catalog
 
-The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `CapabilityDescriptor` has `id` (`cap_...`), `name`, `kind` (`CAPABILITY_KINDS`: `Agent`, `McpTool`, `HarnessBuiltIn`), `origin` (`CAPABILITY_ORIGINS`: `Derived` or `Manual`), `sourceKey`, the source fields (`sourceAgentId`, `sourceRevisionId`, `sourceMcpServerId`, `sourceToolName`, `sourceHarnessProfileId`, `sourceHarnessType`), `summary`, `inputSchemaJson`, `outputSchemaJson`, `tags`, `requirements` (node labels a run needs, as `{"key", "value"}`), `hints`, `refreshWarning`, `lastRefreshedUtc`, `createdUtc`, and `lastUpdateUtc`. `tenantId` is `None` for descriptors every tenant shares (harness built-ins of built-in profiles).
+The capability catalog describes agents, MCP server tools, and harness built-ins the same way, so an orchestrator can choose between them. A `CapabilityDescriptor` has `id` (`cap_...`), `name`, `kind` (`CAPABILITY_KINDS`: `Agent`, `McpTool`, `HarnessBuiltIn`), `origin` (`CAPABILITY_ORIGINS`: `Derived` or `Manual`), `sourceKey`, the source fields (`sourceAgentId`, `sourceRevisionId`, `sourceMcpServerId`, `sourceToolName`, `sourceHarnessProfileId`, `sourceHarnessType`), `summary`, `inputSchema` and `outputSchema` (JSON Schema documents as dictionaries, `None` when there is none), `tags`, `requirements` (node labels a run needs, as `{"key", "value"}`), `hints`, `refreshWarning`, `lastRefreshedUtc`, `createdUtc`, and `lastUpdateUtc`. `tenantId` is `None` for descriptors every tenant shares (harness built-ins of built-in profiles).
 
 Derived descriptors follow their source: an agent gets one from its latest published revision, an MCP server one per listed tool, and a harness profile one per entry in its `toolProbes`. You cannot change or delete them (409 `CapabilityDerived`). Manual descriptors are yours to create, replace, and delete. Their names are unique per tenant (409 `NameConflict`), and schemas must be JSON Schema (400 with code `InvalidJsonSchema`). `hints` (`CapabilityHints`) has `status` (`CAPABILITY_HINT_STATUSES`: `Unknown` until enough runs finish, then `Known`), `sampleSize`, `medianDurationMs`, `p90DurationMs`, `meanCostUsd`, `windowDays`, and `computedUtc`; the values are `None` while the status is `Unknown`.
 
@@ -364,7 +368,7 @@ Derived descriptors follow their source: an agent gets one from its latest publi
 agents = client.capabilities.list(kind="Agent")["objects"]
 billing = client.capabilities.list(tag="billing", search="invoice")["objects"]
 created = client.capabilities.create({"name": "lookup-invoice", "kind": "McpTool", "summary": "Find an invoice by number.",
-                                      "inputSchemaJson": '{"type":"object","properties":{"number":{"type":"string"}}}',
+                                      "inputSchema": {"type": "object", "properties": {"number": {"type": "string"}}},
                                       "tags": ["billing"]})
 same = client.capabilities.get("lookup-invoice")                  # ID or name
 client.capabilities.update(created["id"], {**created, "summary": "Find an invoice by its number."})
@@ -378,7 +382,7 @@ client.capabilities.delete(created["id"])
 
 A run fans work out to several agents at once by calling the `garrison_fan_out` MCP tool, then collects the results with `garrison_gather`. The SDK cannot start a group; `client.fan_out_groups` reads and cancels them. A `FanOutGroup` has `fanOutGroupId` (`fog_...`), `parentRunId`, `status` (`FAN_OUT_GROUP_STATUSES`: `Running`, `Joined`, `TimedOut`, `BudgetExceeded`, `Cancelled`; every status but `Running` is final), `statusReason`, `joinPolicy` (`FAN_OUT_JOIN_POLICIES`: `All`, `Any`, `Quorum`), `quorum`, the counts `total`, `finished`, and `succeeded`, the label lists `pending` and `failed`, `members`, the totals `costUsd` and `tokens`, the budget `maxCostUsd` and `maxTokens` (absent when unset), `deadlineUtc`, `createdUtc`, and `completedUtc`. `summary`, `continuationMarker`, and `continuationInstruction` are what a harness sees through `garrison_gather` and are normally absent here.
 
-Each `FanOutMember` has `label`, `agent`, `runId` (the child run), `status` (a run status), `outcome` (absent until it finishes), `resultText` with `resultTruncated`, `structuredOutputJson`, `errorMessage`, `filesWritten` (paths in the shared file space), `costUsd`, and `tokens`. A child run's `fanOutGroupId` names its group.
+Each `FanOutMember` has `label`, `agent`, `runId` (the child run), `status` (a run status), `outcome` (absent until it finishes), `resultText` with `resultTruncated`, `structuredOutput` (a JSON value, `None` when there is none), `errorMessage`, `filesWritten` (paths in the shared file space), `costUsd`, and `tokens`. A child run's `fanOutGroupId` names its group.
 
 ```python
 groups = client.fan_out_groups.list_by_run(run_id)                # oldest first; 404 when the run does not exist

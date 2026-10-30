@@ -32,12 +32,14 @@ Each turn (one per run; a run transcript has one) has:
 - the run's agent, deployment, kind, status, outcome, caller, and served model;
 - the input and its content type;
 - created, started, and completed times;
-- entries in event order: assistant text, tool calls (tool name, call identifier, and arguments), tool results (success flag and result text), warnings, errors, lifecycle events, and thinking when asked for;
+- entries in event order: assistant text, tool calls (tool name, call identifier, and arguments), tool results (success flag and result), warnings, errors, lifecycle events, and thinking when asked for;
 - the approvals the run asked for, with the tool, the summary and redacted input preview, the decision, who or what decided it, and the reason;
 - the result text or the error message;
 - usage: input, output, cached, and reasoning tokens, tool calls, cost (and whether it was estimated), and duration.
 
 The transcript also carries usage totals over its turns.
+
+In the JSON format, a tool call whose arguments are JSON carries them as the object `toolInput`, and a tool result that is a JSON object or array carries it as `toolOutput`; those entries have no `text`. Anything else, including tool text cut at `Transcripts.ToolTextMaxChars`, stays in `text`. An approval carries its redacted input as the object `input` when it is a JSON object, and as the string `inputPreview` otherwise.
 
 Left out on purpose: standard output and standard error, progress events, raw harness output, and the separate usage and result events (their content is already on the turn). Use `GET .../runs/{id}/events` when you need every event.
 

@@ -15,6 +15,7 @@ import { useGrafana } from '../hooks/useServerInfo';
 import { traceUrl, logsUrl } from '../utils/grafana';
 import RunGuardNotice from './RunGuardNotice';
 import { guardOutcome } from '../utils/runGuards';
+import { jsonToText } from '../utils/jsonFields';
 
 /** Distance from the bottom (px) within which the preview counts as pinned and keeps following new output. */
 const PIN_SLACK = 24;
@@ -173,10 +174,10 @@ function RunResponse({ run }) {
       {run.errorMessage && !guardOutcome(run) && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
       <h3 className="section-title">{t('views.runDetail.result')}</h3>
       <MarkdownView text={run.resultText} rawToggle testId="invoke-result" emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
-      {run.structuredOutputJson && (
+      {run.structuredOutput !== undefined && run.structuredOutput !== null && (
         <>
           <h3 className="section-title">{t('views.runDetail.structuredOutput')}</h3>
-          <CodeBlock value={run.structuredOutputJson} prettyJson />
+          <CodeBlock value={jsonToText(run.structuredOutput)} prettyJson />
         </>
       )}
       {terminal && <RunTelemetryPanel run={run} />}

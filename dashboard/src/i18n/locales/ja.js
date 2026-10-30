@@ -882,8 +882,8 @@ const ja = {
         skillName: '名前',
         skillDescription: '説明',
         inputMode: '入力モード',
-        inputSchemaJson: '入力 JSON スキーマ',
-        outputSchemaJson: '出力 JSON スキーマ',
+        inputSchema: '入力 JSON スキーマ',
+        outputSchema: '出力 JSON スキーマ',
         delegationMode: '委任',
         delegationAllowList: '呼び出せるエージェント',
         delegationMaxDepth: '最大の深さ',
@@ -3148,8 +3148,8 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
     "meanCostUsd": "平均コスト",
     "windowDays": "集計期間",
     "computedUtc": "算出日時",
-    "inputSchemaJson": "入力スキーマ",
-    "outputSchemaJson": "出力スキーマ"
+    "inputSchema": "入力スキーマ",
+    "outputSchema": "出力スキーマ"
    },
    "refreshTitle": "ケイパビリティカタログを更新",
    "refreshHint": "Garrison はエージェントとハーネスの組み込みツールのエントリーを派生し直し、各 MCP サーバーのツールを一覧にし (stdio サーバーは stdio 診断を有効にしたワーカー経由)、エージェントの目安を再計算します。サーバーを一覧にすると、そのテンプレートが参照するシークレットがサーバーに送信されるため、それらを使用する権限が必要です。",
@@ -3242,14 +3242,14 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
     "sourceToolName": "そのサーバー上のツール名",
     "tags": "タグ",
     "requirements": "実行に必要なノードラベル",
-    "inputSchemaJson": "入力スキーマ",
-    "outputSchemaJson": "出力スキーマ"
+    "inputSchema": "入力スキーマ",
+    "outputSchema": "出力スキーマ"
    },
    "hints": {
     "kind": "手動のエントリーはどの種類にもできます。たとえば、エージェントがスキル経由で利用する変換サービスなどです。",
     "requirements": "このケイパビリティを使うエージェントの実行は、これらのノードラベルをすべて持つワーカーにだけ割り当てられます。",
     "sourceMcpServerId": "省略可能。サーバーを指定したエントリーは、デプロイメントがそのサーバーを結び付けている場合にだけ実行トークンから見えます。",
-    "inputSchemaJson": "JSON Schema。例: {\"type\": \"object\"}。ケイパビリティが自由形式のテキストを受け取る場合は空のままにしてください。"
+    "inputSchema": "JSON Schema。例: {\"type\": \"object\"}。ケイパビリティが自由形式のテキストを受け取る場合は空のままにしてください。"
    },
    "tagFilter": "タグ",
    "refresh": "更新",
@@ -4837,6 +4837,26 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
     "openApp": "アプリ {{name}} を開く",
     "openInvoke": "Invoke で開く",
     "another": "別のものを作る"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "{{name}} のチャットを開く"
    }
   }
  }

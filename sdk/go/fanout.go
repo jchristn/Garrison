@@ -2,6 +2,7 @@ package garrison
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 )
@@ -27,20 +28,21 @@ const (
 // FanOutMember is one member of a fan-out group: a child run with its current state and, once finished, its result.
 // Status is a run status and Outcome a run outcome (nil until the member finishes). ResultText is cut at the server's
 // gather limit, and ResultTruncated reports the cut. FilesWritten holds the paths the member wrote in the shared file
-// space. Tokens counts input plus output tokens.
+// space. StructuredOutput is the member's structured output as a JSON value; nil when it produced none. Tokens counts
+// input plus output tokens.
 type FanOutMember struct {
-	Label                string   `json:"label"`
-	Agent                string   `json:"agent"`
-	RunID                string   `json:"runId"`
-	Status               string   `json:"status"`
-	Outcome              *string  `json:"outcome,omitempty"`
-	ResultText           *string  `json:"resultText,omitempty"`
-	ResultTruncated      bool     `json:"resultTruncated"`
-	StructuredOutputJSON *string  `json:"structuredOutputJson,omitempty"`
-	ErrorMessage         *string  `json:"errorMessage,omitempty"`
-	FilesWritten         []string `json:"filesWritten,omitempty"`
-	CostUSD              *float64 `json:"costUsd,omitempty"`
-	Tokens               int64    `json:"tokens"`
+	Label            string          `json:"label"`
+	Agent            string          `json:"agent"`
+	RunID            string          `json:"runId"`
+	Status           string          `json:"status"`
+	Outcome          *string         `json:"outcome,omitempty"`
+	ResultText       *string         `json:"resultText,omitempty"`
+	ResultTruncated  bool            `json:"resultTruncated"`
+	StructuredOutput json.RawMessage `json:"structuredOutput,omitempty"`
+	ErrorMessage     *string         `json:"errorMessage,omitempty"`
+	FilesWritten     []string        `json:"filesWritten,omitempty"`
+	CostUSD          *float64        `json:"costUsd,omitempty"`
+	Tokens           int64           `json:"tokens"`
 }
 
 // FanOutGroup is a group of child runs a run started with the garrison_fan_out MCP tool, with its members' state and

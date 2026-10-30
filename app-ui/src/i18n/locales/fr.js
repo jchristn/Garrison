@@ -87,6 +87,24 @@ const fr = {
     Progress: 'Progression',
     Warning: 'Avertissement'
   },
+  activity: {
+    title: 'Activité de l\'agent ({{count}})',
+    thinking: 'Réflexion',
+    thinkingNow: 'Réfléchit',
+    ask: 'Interroge {{agent}}',
+    askMany: 'Interroge {{agents}} en parallèle',
+    askSeveral: 'Interroge plusieurs agents en parallèle',
+    gather: 'Rassemble les réponses',
+    check: 'Vérifie un autre agent',
+    tool: 'Utilise {{tool}}',
+    running: 'En cours',
+    done: 'Terminé',
+    failed: 'Échec',
+    sent: 'Envoyé',
+    returned: 'Renvoyé',
+    nothing: 'Rien',
+    waiting: 'En attente de la réponse'
+  },
   files: {
     title: 'Fichiers',
     empty: "L'agent n'a encore écrit aucun fichier dans cette conversation.",
@@ -143,7 +161,11 @@ const fr = {
     answerLink: 'Ouvre un lien de la réponse dans un nouvel onglet : {{href}}',
     tableHeader: "Colonne d'un tableau de la réponse : {{text}}",
     poweredBy: 'Ouvre usegarrison.ai dans un nouvel onglet pour découvrir Garrison Agent Studio, la plateforme sur laquelle fonctionne cette application.',
-    skipToChat: "Passe l'en-tête et la liste des conversations pour aller directement à la zone de message."
+    skipToChat: "Passe l'en-tête et la liste des conversations pour aller directement à la zone de message.",
+    activityRunning: 'Cette étape est en cours ; le résultat apparaîtra ici à son retour.',
+    activityDone: 'Cette étape est terminée. Ouvrez-la pour voir ce qui a été envoyé et ce qui est revenu.',
+    activityFailed: 'Cette étape a échoué. Ouvrez-la pour voir ce qui a été envoyé et l\'erreur renvoyée.',
+    activityStep: 'Affiche ce que l\'agent a envoyé à cette étape et ce qui est revenu.'
   }
 };
 

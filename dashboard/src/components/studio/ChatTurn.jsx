@@ -17,6 +17,7 @@ import { runTelemetry, formatUsd } from '../../utils/telemetry';
 import { WAIT_ROTATE_MS, nextWaitPhrase, waitStage } from '../../utils/chatWait';
 import { stripDraftPrefix } from '../../utils/studio';
 import { findRecordRefs, linkifyRecords } from '../../utils/recordLinks';
+import { prettyJson } from '../../utils/streamPreview';
 
 /** A run status pill. */
 export function TurnStatus({ status }) {
@@ -141,16 +142,6 @@ export function ChatMetrics({ run }) {
 }
 
 /** Pretty-print JSON when the text is JSON; otherwise return it as is. */
-function pretty(text) {
-  const s = String(text || '').trim();
-  if (!s || (s[0] !== '{' && s[0] !== '[')) return s;
-  try {
-    return JSON.stringify(JSON.parse(s), null, 2);
-  } catch {
-    return s;
-  }
-}
-
 /** A tool's name without the MCP prefix the harness adds (mcp__garrison__garrison_studio_put_item). */
 function toolLabel(name) {
   return String(name || '?').replace(/^mcp__[^_]+(?:_[^_]+)*?__/, '');
@@ -166,8 +157,8 @@ function ToolCard({ segment }) {
   const started = segment.startedUtc ? new Date(segment.startedUtc).getTime() : null;
   const ended = segment.endedUtc ? new Date(segment.endedUtc).getTime() : null;
   const took = started && ended && ended >= started ? ended - started : null;
-  const input = pretty(segment.input);
-  const output = pretty(segment.output);
+  const input = prettyJson(segment.input);
+  const output = prettyJson(segment.output);
   return (
     <div className={`chat-tool chat-tool-${segment.status}${open ? ' is-open' : ''}`} data-testid="studio-chat-tool" data-status={segment.status}>
       <button type="button" className="chat-tool-head" aria-expanded={open} onClick={() => setOpen((o) => !o)} {...tip(t(`tips.studio.chat.tool.${segment.status}`, { name: toolLabel(segment.name) }))}>

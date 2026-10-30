@@ -87,6 +87,24 @@ const it = {
     Progress: 'Avanzamento',
     Warning: 'Avviso'
   },
+  activity: {
+    title: 'Attività dell\'agente ({{count}})',
+    thinking: 'Ragionamento',
+    thinkingNow: 'Sta pensando',
+    ask: 'Chiede a {{agent}}',
+    askMany: 'Chiede a {{agents}} in parallelo',
+    askSeveral: 'Chiede a più agenti in parallelo',
+    gather: 'Raccoglie le risposte',
+    check: 'Controlla un altro agente',
+    tool: 'Usa {{tool}}',
+    running: 'In corso',
+    done: 'Fatto',
+    failed: 'Non riuscito',
+    sent: 'Inviato',
+    returned: 'Restituito',
+    nothing: 'Niente',
+    waiting: 'In attesa della risposta'
+  },
   files: {
     title: 'File',
     empty: "L'agente non ha ancora scritto file in questa conversazione.",
@@ -143,7 +161,11 @@ const it = {
     answerLink: 'Apre un link della risposta in una nuova scheda: {{href}}',
     tableHeader: 'Colonna di una tabella nella risposta: {{text}}',
     poweredBy: 'Apre usegarrison.ai in una nuova scheda per scoprire Garrison Agent Studio, la piattaforma su cui funziona questa app.',
-    skipToChat: "Salta l'intestazione e la lista delle conversazioni e passa alla casella del messaggio."
+    skipToChat: "Salta l'intestazione e la lista delle conversazioni e passa alla casella del messaggio.",
+    activityRunning: 'Questo passaggio è ancora in corso; il risultato comparirà qui quando torna.',
+    activityDone: 'Questo passaggio è terminato. Aprilo per vedere cosa è stato inviato e cosa è tornato.',
+    activityFailed: 'Questo passaggio non è riuscito. Aprilo per vedere cosa è stato inviato e l\'errore restituito.',
+    activityStep: 'Mostra cosa ha inviato l\'agente in questo passaggio e cosa è tornato.'
   }
 };
 

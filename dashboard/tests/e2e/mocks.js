@@ -399,7 +399,7 @@ const FACTORIES = {
       mcpToolName: i % 2 === 0 ? `agent_${i}` : undefined,
       inputMode: i === 3 ? 'Structured' : 'Text',
       // P12.22: agent 3 takes structured input described by a JSON Schema, so Invoke renders a form for it.
-      ...(i === 3 ? { inputSchemaJson: STRUCTURED_INPUT_SCHEMA } : {}),
+      ...(i === 3 ? { inputSchema: JSON.parse(STRUCTURED_INPUT_SCHEMA) } : {}),
       delegationMode: i === 2 ? 'AllowList' : 'None',
       delegationMaxDepth: 2,
       delegationAllowRecursion: false,
@@ -620,7 +620,7 @@ export function approval(i) {
     kind: row.kind,
     toolName: row.toolName,
     toolCallId: `toolu_${pad(i)}`,
-    inputPreview: JSON.stringify(row.input),
+    input: row.input,
     summary: row.summary,
     suggestedRule: row.suggestedRule,
     status: row.status,
@@ -1042,7 +1042,7 @@ export function notificationDelivery(i, endpointId = 'nep_0001') {
     maxAttempts: 8,
     lastAttemptUtc: iso(i * 9),
     lastDurationMs: 120,
-    payload: JSON.stringify(payload),
+    payload,
     createdUtc: iso(i * 10),
     lastUpdateUtc: iso(i * 9)
   };
@@ -1132,7 +1132,7 @@ export function agentRevision(agentId, n) {
     createdUtc: iso(600 - n * 100),
     lastUpdateUtc: iso(600 - n * 100)
   };
-  if (n >= 2) out.outputSchemaJson = n >= 3 ? '{\n  "type": "object",\n  "required": ["summary"]\n}' : '{\n  "type": "object"\n}';
+  if (n >= 2) out.outputSchema = n >= 3 ? { type: 'object', required: ['summary'] } : { type: 'object' };
   if (!draft) {
     out.changeNote = n === 1 ? 'Initial revision' : 'Stricter reply format';
     out.publishedByUserId = 'usr_admin';
@@ -1156,8 +1156,8 @@ export function revisionDiff(agentId, from, to) {
   const after = agentRevision(agentId, b);
   const changes = [];
   if (before.description !== after.description) changes.push({ field: 'description', changeType: 'Changed', from: before.description, to: after.description });
-  if (!before.outputSchemaJson && after.outputSchemaJson) changes.push({ field: 'outputSchemaJson', changeType: 'Added', to: after.outputSchemaJson });
-  else if (before.outputSchemaJson !== after.outputSchemaJson) changes.push({ field: 'outputSchemaJson', changeType: after.outputSchemaJson ? 'Changed' : 'Removed', from: before.outputSchemaJson, to: after.outputSchemaJson });
+  if (!before.outputSchema && after.outputSchema) changes.push({ field: 'outputSchema', changeType: 'Added', to: after.outputSchema });
+  else if (JSON.stringify(before.outputSchema) !== JSON.stringify(after.outputSchema)) changes.push({ field: 'outputSchema', changeType: after.outputSchema ? 'Changed' : 'Removed', from: before.outputSchema, to: after.outputSchema });
   if (!before.promptPins.length && after.promptPins.length) changes.push({ field: 'promptPins[System]', changeType: 'Added', to: 'tpl_builtin_default_system@1' });
   const pinText = (p) => `${p.assetId}@${p.version ?? 'current'}`;
   const beforePins = before.assetPins.map(pinText);
@@ -1288,7 +1288,7 @@ const UNKNOWN_HINTS = { status: 'Unknown', sampleSize: 0, windowDays: 14 };
  * by every tenant (built-in profile); libreoffice is probed under another definition; doc-convert is a manual entry.
  */
 const CAPABILITY_ROWS = {
-  1: { name: 'echo-agent', kind: 'Agent', origin: 'Derived', sourceKey: 'agent:agt_0001', sourceAgentId: 'agt_0001', sourceRevisionId: 'arv_0001_2', summary: 'Sample agent\nSkills: Echo: Echoes input', inputSchemaJson: '{"type":"object","properties":{"message":{"type":"string"}}}', tags: ['sample'], hints: KNOWN_HINTS, refreshed: true },
+  1: { name: 'echo-agent', kind: 'Agent', origin: 'Derived', sourceKey: 'agent:agt_0001', sourceAgentId: 'agt_0001', sourceRevisionId: 'arv_0001_2', summary: 'Sample agent\nSkills: Echo: Echoes input', inputSchema: { type: 'object', properties: { message: { type: 'string' } } }, tags: ['sample'], hints: KNOWN_HINTS, refreshed: true },
   2: { name: 'agent-2', kind: 'Agent', origin: 'Derived', sourceKey: 'agent:agt_0002', sourceAgentId: 'agt_0002', sourceRevisionId: 'arv_0002_2', summary: 'Sample agent', tags: ['sample'], hints: { ...UNKNOWN_HINTS, sampleSize: 2 }, refreshed: true },
   3: {
     name: 'mcp-1/search',
@@ -1298,7 +1298,7 @@ const CAPABILITY_ROWS = {
     sourceMcpServerId: 'mcp_0001',
     sourceToolName: 'search',
     summary: 'MCP server',
-    inputSchemaJson: '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
     tags: [],
     hints: UNKNOWN_HINTS,
     refreshWarning: 'Refresh failed 2026-10-28 09:15:00Z: Connection refused (127.0.0.1:9000)',
@@ -1319,7 +1319,7 @@ const CAPABILITY_ROWS = {
     refreshWarning: "Workers probe libreoffice as soffice --version, defined by another harness profile first; this profile's definition is not probed.",
     refreshed: true
   },
-  6: { name: 'doc-convert', kind: 'McpTool', origin: 'Manual', sourceKey: 'manual:cap_0006', summary: 'Converts Markdown to DOCX through the conversion service skill.', tags: ['docs'], requirements: [], hints: UNKNOWN_HINTS, outputSchemaJson: '{"type":"object"}' }
+  6: { name: 'doc-convert', kind: 'McpTool', origin: 'Manual', sourceKey: 'manual:cap_0006', summary: 'Converts Markdown to DOCX through the conversion service skill.', tags: ['docs'], requirements: [], hints: UNKNOWN_HINTS, outputSchema: { type: 'object' } }
 };
 
 /** Capability descriptor i, shaped like GET /capabilities/{id} (nulls omitted the way the server omits them). */
@@ -1473,7 +1473,7 @@ export function draftApproval(id = 'apr_draft_0002', draftId = 'drf_0002') {
     draftId,
     toolName: 'DraftApply',
     summary: 'Apply draft Research app: 1 to create, 1 to update, 0 to delete.',
-    inputPreview: JSON.stringify(studioDiff(draftId, 3, true)),
+    input: studioDiff(draftId, 3, true),
     status: 'Pending',
     timeoutDecision: 'Deny',
     requestedUtc: iso(5),
@@ -2018,13 +2018,13 @@ const EVENTS = [
   // Events Garrison writes carry a machine code (P9.17) so the dashboard can translate them.
   event(1, 'Lifecycle', { text: 'Workspace prepared at /work/run_0001.', code: 'WorkspacePrepared' }),
   event(2, 'Thinking', { text: 'The user wants a greeting. I will check the README first.' }),
-  event(3, 'AssistantText', { text: 'Hello from the fake harness.', rawEventJson: '{"type":"assistant"}' }),
+  event(3, 'AssistantText', { text: 'Hello from the fake harness.', rawEvent: { type: 'assistant' } }),
   event(4, 'ToolCall', { toolName: 'read_file', toolCallId: 'toolu_01', text: '{"path":"README.md"}' }),
   event(5, 'ToolResult', { toolName: 'read_file', toolCallId: 'toolu_01', success: true, text: '# Garrison' }),
   // Token deltas (no raw line), the way Claude Code streams with partial messages (P5.52).
   ...STREAM_DELTAS.map((text, i) => event(6 + i, 'AssistantText', { text })),
   event(6 + STREAM_DELTAS.length, 'Usage', { inputTokens: 1201, outputTokens: 341 }),
-  event(7 + STREAM_DELTAS.length, 'Result', { text: 'Done.', rawEventJson: '{"type":"result","is_error":false}' })
+  event(7 + STREAM_DELTAS.length, 'Result', { text: 'Done.', rawEvent: { type: 'result', is_error: false } })
 ];
 
 /** Transcript of a guard-stopped run: the loop, then one RunGuardTriggered warning and the exit. */

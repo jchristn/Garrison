@@ -2,18 +2,29 @@ package garrison
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 )
 
-// McpServerTestResult is a safe connection outcome, without command, environment or raw output.
+// McpToolDetail is one tool an MCP server test listed. InputSchema is the tool's JSON Schema as a JSON value; nil when
+// the server did not report one.
+type McpToolDetail struct {
+	Name        string          `json:"name"`
+	Description *string         `json:"description,omitempty"`
+	InputSchema json.RawMessage `json:"inputSchema,omitempty"`
+}
+
+// McpServerTestResult is a safe connection outcome, without command, environment or raw output. ToolDetails describes
+// each listed tool.
 type McpServerTestResult struct {
-	Success              bool     `json:"success"`
-	NodeID               string   `json:"nodeId,omitempty"`
-	Tools                []string `json:"tools"`
-	MissingRequiredTools []string `json:"missingRequiredTools"`
-	Error                string   `json:"error,omitempty"`
-	DurationMs           int64    `json:"durationMs"`
+	Success              bool            `json:"success"`
+	NodeID               string          `json:"nodeId,omitempty"`
+	Tools                []string        `json:"tools"`
+	ToolDetails          []McpToolDetail `json:"toolDetails,omitempty"`
+	MissingRequiredTools []string        `json:"missingRequiredTools"`
+	Error                string          `json:"error,omitempty"`
+	DurationMs           int64           `json:"durationMs"`
 }
 
 // TestMcpServer lists HTTP tools, or tests stdio on an explicitly selected Ready worker.

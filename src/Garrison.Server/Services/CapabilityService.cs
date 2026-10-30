@@ -480,14 +480,14 @@ namespace Garrison.Server.Services
             string? input = InputSchemaValidator.CheckSchema(descriptor.InputSchemaJson);
             if (input != null)
             {
-                errors["inputSchemaJson"] = input;
-                codes["inputSchemaJson"] = InputSchemaValidator.InvalidSchemaCode;
+                errors["inputSchema"] = input;
+                codes["inputSchema"] = InputSchemaValidator.InvalidSchemaCode;
             }
             string? output = InputSchemaValidator.CheckSchema(descriptor.OutputSchemaJson);
             if (output != null)
             {
-                errors["outputSchemaJson"] = output;
-                codes["outputSchemaJson"] = InputSchemaValidator.InvalidSchemaCode;
+                errors["outputSchema"] = output;
+                codes["outputSchema"] = InputSchemaValidator.InvalidSchemaCode;
             }
             if (descriptor.Tags.Count > 32 || descriptor.Tags.Any(t => t.Length == 0 || t.Length > 64))
             {

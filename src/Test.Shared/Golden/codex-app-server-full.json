@@ -72,7 +72,18 @@
     ],
     "stdin": "The agent \u0022planner\u0022 is asking you for help as part of a larger task (delegation depth 1). Reply with a concise, self-contained answer that agent can use directly.\n\nRequest:\nSummarize the repository.\n",
     "appServer": {
-      "outputSchemaJson": "{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022answer\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022answer\u0022],\u0022additionalProperties\u0022:false}",
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "additionalProperties": false
+      },
       "approvalPolicy": "never"
     },
     "workspace": {

@@ -9,6 +9,8 @@ import { approvalActionTone } from '../utils/constants';
 import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { parseApprovalNotice } from '../utils/approvals';
+import { prettyJson, toolOutputText } from '../utils/streamPreview';
+import { toolEventText } from '../utils/jsonFields';
 
 /** Event types whose text Garrison or a parser writes (not model output), so it can be translated (M1-24). */
 const SERVER_TEXT_TYPES = new Set(['Lifecycle', 'Warning', 'Error']);
@@ -54,7 +56,7 @@ export default function RunTimeline({ events, filter = 'all' }) {
         const tone = toneFor(e, notice);
         // Text Garrison wrote: translate the known message; otherwise label it by its code and keep the server text.
         const serverText = e.text && (EVENT_CODES.has(e.code) || SERVER_TEXT_TYPES.has(e.eventType));
-        const shown = serverText ? translateServerText(t, e.text) : e.text;
+        const shown = serverText ? translateServerText(t, e.text) : e.eventType === 'ToolResult' ? prettyJson(toolOutputText(toolEventText(e, 'toolOutput'))) : e.eventType === 'ToolCall' ? prettyJson(toolEventText(e, 'toolInput')) : e.text;
         const codeLabel = EVENT_CODES.has(e.code) && (shown === e.text || ALWAYS_LABELED.has(e.code)) ? t(`common.eventCodes.${e.code}`) : null;
         return (
           <li key={`${e.sequence}-${e.id || ''}`} className={`timeline-item timeline-${tone}`}>
@@ -94,7 +96,7 @@ export default function RunTimeline({ events, filter = 'all' }) {
                 </span>
               )}
             </div>
-            {e.text && <pre className={`timeline-text ${e.eventType === 'AssistantText' || e.eventType === 'Result' ? '' : 'monospace'}`}>{shown}</pre>}
+            {shown && <pre className={`timeline-text ${e.eventType === 'AssistantText' || e.eventType === 'Result' ? '' : 'monospace'}`}>{shown}</pre>}
           </li>
         );
       })}

@@ -345,11 +345,12 @@ type Agent struct {
 	Tags                     []string `json:"tags,omitempty"`
 	// InputMode is "Text" (default) or "Structured".
 	InputMode string `json:"inputMode,omitempty"`
-	// InputSchemaJSON is JSON Schema text for the input. When set, every invocation's input must be a JSON document
-	// that matches it (see FieldCodeInputNotJSON and FieldCodeInputSchemaViolation).
-	InputSchemaJSON string `json:"inputSchemaJson,omitempty"`
-	// OutputSchemaJSON is JSON Schema text the final output is validated against.
-	OutputSchemaJSON string `json:"outputSchemaJson,omitempty"`
+	// InputSchema is the JSON Schema document for the input (usually an object); nil when the agent has none. When
+	// set, every invocation's input must be a JSON document that matches it (see FieldCodeInputNotJSON and
+	// FieldCodeInputSchemaViolation).
+	InputSchema json.RawMessage `json:"inputSchema,omitempty"`
+	// OutputSchema is the JSON Schema document the final output is validated against; nil when the agent has none.
+	OutputSchema json.RawMessage `json:"outputSchema,omitempty"`
 	// LatestPublishedRevisionID is the newest published revision (read only); nil when none is published.
 	LatestPublishedRevisionID *string `json:"latestPublishedRevisionId,omitempty"`
 	// DraftRevisionID is the open draft revision (read only); nil when there is no draft.
@@ -483,10 +484,15 @@ type Approval struct {
 	HarnessType  string  `json:"harnessType"`
 	Kind         string  `json:"kind"`
 	// DraftID is the studio draft a DraftApply approval would apply; nil for tool approvals.
-	DraftID          *string `json:"draftId,omitempty"`
-	ToolName         string  `json:"toolName"`
-	ToolCallID       *string `json:"toolCallId"`
-	InputPreview     *string `json:"inputPreview"`
+	DraftID    *string `json:"draftId,omitempty"`
+	ToolName   string  `json:"toolName"`
+	ToolCallID *string `json:"toolCallId"`
+	// Input is the input the approval is about (a tool call's arguments, or a studio draft's diff) when the stored
+	// input is a JSON object; nil otherwise. Only one of Input and InputPreview is set.
+	Input json.RawMessage `json:"input,omitempty"`
+	// InputPreview is the input as text when it is not a JSON object (for example clipped to the preview size); nil
+	// when Input carries it.
+	InputPreview     *string `json:"inputPreview,omitempty"`
 	Summary          *string `json:"summary"`
 	SuggestedRule    *string `json:"suggestedRule"`
 	Status           string  `json:"status"`
@@ -591,19 +597,21 @@ type Run struct {
 	// TrustLevel is the deployment's trust level when the run was admitted.
 	TrustLevel string `json:"trustLevel,omitempty"`
 	// EffectPolicy is the deployment's effect policy when the run was admitted.
-	EffectPolicy string   `json:"effectPolicy,omitempty"`
-	InputText    string   `json:"inputText"`
-	ResultText   string   `json:"resultText"`
-	ErrorMessage string   `json:"errorMessage"`
-	InputTokens  int64    `json:"inputTokens"`
-	OutputTokens int64    `json:"outputTokens"`
-	CachedTokens int64    `json:"cachedTokens"`
-	CostUSD      *float64 `json:"costUsd"`
-	Depth        int      `json:"depth"`
-	ParentRunID  string   `json:"parentRunId"`
-	CreatedUTC   string   `json:"createdUtc"`
-	StartedUTC   string   `json:"startedUtc"`
-	CompletedUTC string   `json:"completedUtc"`
+	EffectPolicy string `json:"effectPolicy,omitempty"`
+	InputText    string `json:"inputText"`
+	ResultText   string `json:"resultText"`
+	ErrorMessage string `json:"errorMessage"`
+	// StructuredOutput is the run's structured output as a JSON value; nil when the run produced none.
+	StructuredOutput json.RawMessage `json:"structuredOutput,omitempty"`
+	InputTokens      int64           `json:"inputTokens"`
+	OutputTokens     int64           `json:"outputTokens"`
+	CachedTokens     int64           `json:"cachedTokens"`
+	CostUSD          *float64        `json:"costUsd"`
+	Depth            int             `json:"depth"`
+	ParentRunID      string          `json:"parentRunId"`
+	CreatedUTC       string          `json:"createdUtc"`
+	StartedUTC       string          `json:"startedUtc"`
+	CompletedUTC     string          `json:"completedUtc"`
 	// FirstTokenUTC is the ISO 8601 UTC time of the first model output event; nil when absent.
 	FirstTokenUTC *string `json:"firstTokenUtc,omitempty"`
 	// LastTokenUTC is the ISO 8601 UTC time of the last model output event; nil when absent.
@@ -745,9 +753,20 @@ type RunEvent struct {
 	Sequence     int64  `json:"sequence"`
 	EventType    string `json:"eventType"`
 	TimestampUTC string `json:"timestampUtc"`
-	Text         string `json:"text"`
-	ToolName     string `json:"toolName"`
-	ToolCallID   string `json:"toolCallId"`
+	// Text is the event text. It is omitted for a ToolCall whose arguments are JSON (see ToolInput) and for a
+	// ToolResult whose output is a JSON object or array (see ToolOutput).
+	Text       string `json:"text,omitempty"`
+	ToolName   string `json:"toolName"`
+	ToolCallID string `json:"toolCallId"`
+	// ToolInput is a ToolCall's arguments as a JSON object; nil when they are not JSON (Text carries them).
+	ToolInput json.RawMessage `json:"toolInput,omitempty"`
+	// ToolOutput is a ToolResult's output when it is a JSON object or array; nil otherwise (Text carries it).
+	ToolOutput json.RawMessage `json:"toolOutput,omitempty"`
+	// RawEvent is the harness output line the event came from, as a JSON object; nil when the line is not valid
+	// JSON or was not kept. Only one of RawEvent and RawEventText is set.
+	RawEvent json.RawMessage `json:"rawEvent,omitempty"`
+	// RawEventText is the harness output line as text, set only when the line is not valid JSON.
+	RawEventText *string `json:"rawEventText,omitempty"`
 }
 
 // RunEventPage is returned by the polling events endpoint.

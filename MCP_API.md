@@ -65,6 +65,8 @@ Users, credentials, and run tokens belong to one tenant, and every tool works in
 
 Each tool checks the same permission its REST equivalent does. Every tool also accepts the optional `tenantId` described above, which the table leaves out.
 
+A tool that returns a record (a run summary, an agent, an approval) puts it in the result's `structuredContent` as a JSON object, and also as JSON text in `content` for clients that read only `content`. Fields that hold JSON, such as `structuredOutput`, `inputSchema`, `outputSchema`, `rawEvent`, and an approval's `input`, are JSON values in that record, not strings. See "Tool results" in [docs/MANAGEMENT_MCP.md](docs/MANAGEMENT_MCP.md).
+
 | Tool | Permission | Required arguments | Optional arguments |
 |---|---|---|---|
 | `garrison_list_agents` | Read on Agent | none | `search` (part of a name), `maxResults` (1 to 100, default 25) |
@@ -183,7 +185,7 @@ A successful call returns one text content item holding a JSON object. The run t
 | `result` | The final text, when finished |
 | `servedModel` | The model the harness reported serving the run, for example `claude-sonnet-5-5`. Always present; `null` until the run reports it or when the harness reports none |
 | `traceId` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, for opening the run in Tempo or searching its logs (`trace=<traceId>`). Always present; `null` only for runs created before trace IDs were recorded (see `docs/TELEMETRY.md`) |
-| `structuredOutputJson` | Structured output as a JSON string, when the agent defines an output schema |
+| `structuredOutput` | Structured output as a JSON value (usually an object), when the agent defines an output schema |
 | `outputSchemaValid` | Whether the final output validated against the agent's output schema. Omitted when the agent has no schema or nothing was validated (see "Structured output validation" in `REST_API.md`) |
 | `repairAttempts` | Structured output repairs started for the run: 0 or 1 |
 | `error` | Error message for failed runs |
@@ -203,7 +205,7 @@ A successful call returns one text content item holding a JSON object. The run t
 | `description` | What the agent does; omitted when not set |
 | `inputMode` | `Text` or `Structured` |
 | `skills` | The agent's skills, each as `name` or `name: description` (an empty list when there are none) |
-| `inputSchemaJson`, `outputSchemaJson` | The agent's input and output JSON Schemas as strings; omitted when the agent has none |
+| `inputSchema`, `outputSchema` | The agent's input and output JSON Schemas as JSON objects; omitted when the agent has none |
 
 For example:
 
@@ -214,7 +216,7 @@ For example:
 
 `garrison_get_run_transcript` and `garrison_get_conversation_transcript` return the transcript that `GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript` download, as `{ "format": "markdown" or "json", "mediaType", "fileName", "truncated", "markdown" or "transcript" }`: `markdown` holds the Markdown text, and `transcript` holds the JSON document (see [docs/TRANSCRIPTS.md](docs/TRANSCRIPTS.md)). Secrets are redacted the same way. A run token can read the transcript of a run in its own run tree, as with `garrison_get_run_events`, and cannot use the conversation tool.
 
-When an agent has an input schema (`inputSchemaJson`), `input` for `garrison_invoke_agent`, `garrison_start_run`, and the agent's own tool must be a JSON document that matches it. A mismatch fails with `ValidationFailed`, and the error text names each field the way REST does (`input.topic`, with the field codes `InputNotJson` or `InputSchemaViolation`).
+When an agent has an input schema (`inputSchema`), `input` for `garrison_invoke_agent`, `garrison_start_run`, and the agent's own tool must be a JSON document that matches it. A mismatch fails with `ValidationFailed`, and the error text names each field the way REST does (`input.topic`, with the field codes `InputNotJson` or `InputSchemaViolation`).
 
 When `garrison_invoke_agent` stops waiting before the run finishes, the summary has `finished: false` and the current status. Follow it with `garrison_get_run` or `garrison_get_run_events`. If `blockedReason` is not null, no worker can take the run yet; waiting longer only helps once a suitable worker registers. Running out of `waitSeconds` never cancels the run.
 
@@ -355,7 +357,7 @@ Members still running when a group times out, goes over budget, or is cancelled 
 `garrison_gather` waits up to `waitSeconds` and returns the group (`FanOutGroupView`), whether or not it ended:
 
 - `status` and `statusReason`.
-- `members`, each with `status`, `outcome`, `resultText` (cut at `Delegation.GatherResultCharLimit`), `structuredOutputJson`, `errorMessage`, and `filesWritten` (paths in the shared file space).
+- `members`, each with `status`, `outcome`, `resultText` (cut at `Delegation.GatherResultCharLimit`), `structuredOutput` (a JSON value), `errorMessage`, and `filesWritten` (paths in the shared file space).
 - `pending` and `failed`, as lists of labels.
 - `costUsd` and `tokens`.
 - `summary`, rendered by the `builtin/fan-out-gather-result` template.

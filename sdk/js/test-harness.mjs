@@ -94,6 +94,18 @@ await check("invoke with wait", async () => {
   require((run.resultText ?? "").startsWith("Echo:"), `result ${run.resultText}`);
   state.run = run;
 });
+await check("run events carry JSON values", async () => {
+  require(state.run, "no finished run");
+  const page = await client.runs.events(state.run.id);
+  require(page.events.length > 0, "no events");
+  for (const e of page.events) {
+    require(e.rawEventJson === undefined, `event ${e.sequence} still has rawEventJson`);
+    require(e.rawEvent == null || typeof e.rawEvent === "object", `event ${e.sequence} rawEvent ${typeof e.rawEvent}`);
+    require(e.rawEventText == null || typeof e.rawEventText === "string", `event ${e.sequence} rawEventText ${typeof e.rawEventText}`);
+    require(e.toolInput == null || typeof e.toolInput === "object", `event ${e.sequence} toolInput ${typeof e.toolInput}`);
+  }
+  require(state.run.structuredOutputJson === undefined, "run still has structuredOutputJson");
+});
 await check("run transcript (Markdown and JSON)", async () => {
   require(state.run, "no finished run");
   const markdown = await client.runs.transcriptMarkdown(state.run.id);
@@ -108,10 +120,11 @@ await check("run transcript (Markdown and JSON)", async () => {
 });
 await check("input schema enforcement", async () => {
   const schema = { type: "object", properties: { topic: { type: "string" }, count: { type: "integer" } }, required: ["topic"] };
-  const agent = await client.agents.create({ name: `sdk-js-${suffix}-schema`, inputMode: "Structured", inputSchemaJson: JSON.stringify(schema) });
+  const agent = await client.agents.create({ name: `sdk-js-${suffix}-schema`, inputMode: "Structured", inputSchema: schema });
   const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-schema-fake`, agentId: agent.id, harnessProfileId: state.fake });
   try {
-    require((agent.inputSchemaJson ?? "").includes("topic"), "inputSchemaJson not stored");
+    require(agent.inputSchema && typeof agent.inputSchema === "object" && agent.inputSchema.properties?.topic?.type === "string", `inputSchema not stored ${JSON.stringify(agent.inputSchema)}`);
+    require(agent.inputSchemaJson === undefined, "inputSchemaJson still returned");
     const run = await client.agents.invoke(agent.id, JSON.stringify({ topic: "sdk", count: 2 }), { waitSeconds: 90, inputContentType: "application/json" });
     require(run.status === "Succeeded", `valid input status ${run.status} ${run.errorMessage ?? ""}`);
     let codes;
@@ -586,7 +599,7 @@ await check("notification endpoints", async () => {
     require(test.event === "Test" && test.attempts === 1 && (test.status === "Pending" || test.status === "Failed"), `test delivery ${JSON.stringify(test)}`);
     require((await client.notificationEndpoints.listDeliveries(endpoint.id)).objects.some((d) => d.id === test.id), "delivery log");
     const one = await client.notificationEndpoints.getDelivery(endpoint.id, test.id);
-    require(one.payload.includes('"event":"Test"'), "delivery payload");
+    require(one.payload && typeof one.payload === "object" && one.payload.event === "Test", `delivery payload ${JSON.stringify(one.payload)}`);
     read.active = false;
     require(!(await client.notificationEndpoints.update(endpoint.id, read)).active, "endpoint update");
   } finally {
@@ -750,9 +763,9 @@ await check("capability catalog", async () => {
   require((await client.capabilities.list({ kind: "Agent" })).objects.every((d) => d.kind === "Agent"), "kind filter");
   const name = `sdk-js-cap-${suffix}`;
   const tag = `sdk-js-tag-${suffix}`;
-  const schema = JSON.stringify({ type: "object", properties: { text: { type: "string" } }, required: ["text"] });
+  const schema = { type: "object", properties: { text: { type: "string" } }, required: ["text"] };
   const created = await client.capabilities.create({
-    name, kind: "McpTool", summary: "Manual descriptor from the JavaScript SDK harness.", inputSchemaJson: schema,
+    name, kind: "McpTool", summary: "Manual descriptor from the JavaScript SDK harness.", inputSchema: schema,
     tags: [tag], requirements: [{ key: "garrison.io/sdk-fixture", value: "true" }],
   });
   try {
@@ -762,10 +775,13 @@ await check("capability catalog", async () => {
     require((await client.capabilities.get(name)).id === created.id, "read by name");
     const tagged = (await client.capabilities.list({ tag })).objects;
     require(tagged.length === 1 && tagged[0].id === created.id, `tag filter returned ${tagged.length}`);
+    require(created.inputSchema && created.inputSchema.required?.[0] === "text", `stored inputSchema ${JSON.stringify(created.inputSchema)}`);
     let badCode = null;
-    try { await client.capabilities.create({ name: `${name}-bad`, kind: "McpTool", inputSchemaJson: "[1,2]" }); }
-    catch (e) { badCode = e instanceof GarrisonError && e.statusCode === 400 ? e.code : String(e); }
+    let badFields = null;
+    try { await client.capabilities.create({ name: `${name}-bad`, kind: "McpTool", inputSchema: [1, 2] }); }
+    catch (e) { badCode = e instanceof GarrisonError && e.statusCode === 400 ? e.code : String(e); badFields = e.fieldCodes ?? null; }
     require(badCode === "InvalidJsonSchema", `invalid schema code ${badCode}`);
+    require(!badFields || Object.keys(badFields).length === 0 || badFields.inputSchema === "InvalidJsonSchema", `invalid schema fieldCodes ${JSON.stringify(badFields)}`);
     let duplicateCode = null;
     try { await client.capabilities.create({ name, kind: "McpTool" }); }
     catch (e) { duplicateCode = e instanceof GarrisonError && e.statusCode === 409 ? e.code : String(e); }

@@ -168,9 +168,10 @@ type NotificationDelivery struct {
 	LastAttemptUTC *string `json:"lastAttemptUtc"`
 	LastDurationMs int64   `json:"lastDurationMs"`
 	DeliveredUTC   *string `json:"deliveredUtc"`
-	Payload        string  `json:"payload"`
-	CreatedUTC     string  `json:"createdUtc"`
-	LastUpdateUTC  string  `json:"lastUpdateUtc"`
+	// Payload is the notification body as a JSON object.
+	Payload       json.RawMessage `json:"payload"`
+	CreatedUTC    string          `json:"createdUtc"`
+	LastUpdateUTC string          `json:"lastUpdateUtc"`
 }
 
 // SignWebhook builds the X-Garrison-Signature header value: t=<unix>,v1=<lowercase hex HMAC-SHA256 of "<t>." + raw

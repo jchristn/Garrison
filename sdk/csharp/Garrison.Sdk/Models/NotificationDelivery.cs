@@ -1,6 +1,7 @@
 namespace Garrison.Sdk.Models
 {
     using System;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -126,19 +127,9 @@ namespace Garrison.Sdk.Models
         public DateTime? DeliveredUtc { get; set; } = null;
 
         /// <summary>
-        /// The JSON body sent on every attempt.
+        /// The JSON body sent on every attempt, as a JSON object, or null.
         /// </summary>
-        public string Payload
-        {
-            get
-            {
-                return _Payload;
-            }
-            set
-            {
-                _Payload = value ?? String.Empty;
-            }
-        }
+        public JsonElement? Payload { get; set; } = null;
 
         /// <summary>
         /// When the event was queued (UTC).
@@ -158,7 +149,6 @@ namespace Garrison.Sdk.Models
         private string _TenantId = String.Empty;
         private string _EndpointId = String.Empty;
         private string _SubjectType = String.Empty;
-        private string _Payload = String.Empty;
 
         #endregion
 

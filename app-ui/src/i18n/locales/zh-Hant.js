@@ -87,6 +87,24 @@ const zhHant = {
     Progress: '進度',
     Warning: '警告'
   },
+  activity: {
+    title: '智慧代理活動 ({{count}})',
+    thinking: '思考',
+    thinkingNow: '正在思考',
+    ask: '正在詢問 {{agent}}',
+    askMany: '正在同時詢問 {{agents}}',
+    askSeveral: '正在同時詢問多個智慧代理',
+    gather: '正在彙整回答',
+    check: '正在查看另一個智慧代理',
+    tool: '正在使用 {{tool}}',
+    running: '執行中',
+    done: '完成',
+    failed: '失敗',
+    sent: '傳送內容',
+    returned: '傳回內容',
+    nothing: '無',
+    waiting: '正在等待回答'
+  },
   files: {
     title: '檔案',
     empty: '代理程式尚未在這段對話中寫入任何檔案。',
@@ -143,7 +161,11 @@ const zhHant = {
     answerLink: '在新分頁中開啟回覆裡的這個連結，網址為：{{href}}',
     tableHeader: '這是回覆中某個表格的欄位標題，內容為：{{text}}',
     poweredBy: '在新分頁中開啟 usegarrison.ai，進一步了解執行此應用程式的平台 Garrison Agent Studio。',
-    skipToChat: '略過頁首和對話清單，直接把焦點移到下方的訊息輸入框裡。'
+    skipToChat: '略過頁首和對話清單，直接把焦點移到下方的訊息輸入框裡。',
+    activityRunning: '此步驟仍在執行中，結果一旦傳回就會立即顯示在這裡。',
+    activityDone: '此步驟已完成。展開即可查看傳送的內容與傳回的內容。',
+    activityFailed: '此步驟執行失敗。展開即可查看傳送的內容以及傳回的錯誤訊息。',
+    activityStep: '顯示智慧代理在這一個步驟中傳送了什麼內容，以及傳回了什麼內容。'
   }
 };
 

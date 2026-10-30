@@ -2,6 +2,8 @@
 // Capabilities page, its detail and refresh dialogs, the harness profile tool probe editor, the revision capability
 // editor, and their tests. Plain functions (no JSX) so Node-based tests can import them.
 
+import { jsonToText, textToJson } from './jsonFields';
+
 /** Capability kinds, in the order the form and the filter list them. */
 export const CAPABILITY_KINDS = ['Agent', 'McpTool', 'HarnessBuiltIn'];
 
@@ -124,8 +126,8 @@ export function capabilityToForm(descriptor) {
     name: d.name || '',
     kind: d.kind || 'Agent',
     summary: d.summary || '',
-    inputSchemaJson: d.inputSchemaJson || '',
-    outputSchemaJson: d.outputSchemaJson || '',
+    inputSchema: jsonToText(d.inputSchema),
+    outputSchema: jsonToText(d.outputSchema),
     tags: d.tags || [],
     requirements: (d.requirements || []).map((r) => ({ key: r.key || '', value: r.value ?? 'true' })),
     sourceAgentId: d.sourceAgentId || null,
@@ -141,7 +143,7 @@ export function capabilityErrors(d, t) {
   if (!name) errors.name = t('common.errors.required');
   else if (name.length > LIMITS.name) errors.name = t('components.capabilities.errors.nameLength', { max: LIMITS.name });
   if (String(d?.summary || '').length > LIMITS.summary) errors.summary = t('components.capabilities.errors.summaryLength', { max: LIMITS.summary });
-  for (const key of ['inputSchemaJson', 'outputSchemaJson']) if (!isJsonOrEmpty(d?.[key])) errors[key] = t('common.errors.invalidJson');
+  for (const key of ['inputSchema', 'outputSchema']) if (!isJsonOrEmpty(d?.[key])) errors[key] = t('common.errors.invalidJson');
   const tags = (d?.tags || []).map((v) => String(v).trim()).filter(Boolean);
   if (tags.length > LIMITS.tags || tags.some((v) => v.length > LIMITS.tagLength)) errors.tags = t('components.capabilities.errors.tags', { max: LIMITS.tags, length: LIMITS.tagLength });
   const reqs = (d?.requirements || []).filter((r) => r && (String(r.key || '').trim() || String(r.value || '').trim()));
@@ -152,7 +154,7 @@ export function capabilityErrors(d, t) {
   return errors;
 }
 
-/** Body for POST and PUT /capabilities: trimmed text, schemas null when empty, empty rows dropped. */
+/** Body for POST and PUT /capabilities: trimmed text, schemas as JSON objects (null when empty), empty rows dropped. */
 export function capabilityToBody(d) {
   const text = (v) => {
     const s = String(v ?? '').trim();
@@ -162,8 +164,8 @@ export function capabilityToBody(d) {
     name: String(d?.name || '').trim(),
     kind: d?.kind || 'Agent',
     summary: text(d?.summary),
-    inputSchemaJson: text(d?.inputSchemaJson),
-    outputSchemaJson: text(d?.outputSchemaJson),
+    inputSchema: textToJson(d?.inputSchema),
+    outputSchema: textToJson(d?.outputSchema),
     tags: (d?.tags || []).map((v) => String(v).trim()).filter(Boolean),
     requirements: (d?.requirements || [])
       .filter((r) => r && String(r.key || '').trim())

@@ -2,6 +2,7 @@ namespace Garrison.Sdk.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -112,14 +113,16 @@ namespace Garrison.Sdk.Models
         public string? Summary { get; set; } = null;
 
         /// <summary>
-        /// JSON Schema of the input, as JSON text, or null. The server validates it on save (400 InvalidJsonSchema).
+        /// JSON Schema of the input, as a JSON value (usually an object), or null when there is none. The server validates
+        /// it on save (400 InvalidJsonSchema).
         /// </summary>
-        public string? InputSchemaJson { get; set; } = null;
+        public JsonElement? InputSchema { get; set; } = null;
 
         /// <summary>
-        /// JSON Schema of the output, as JSON text, or null. The server validates it on save (400 InvalidJsonSchema).
+        /// JSON Schema of the output, as a JSON value (usually an object), or null when there is none. The server validates
+        /// it on save (400 InvalidJsonSchema).
         /// </summary>
-        public string? OutputSchemaJson { get; set; } = null;
+        public JsonElement? OutputSchema { get; set; } = null;
 
         /// <summary>
         /// Tags for filtering. The server accepts at most 32, each 1 to 64 characters. Never null.

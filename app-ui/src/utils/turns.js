@@ -16,6 +16,13 @@ export function newTurnState(view) {
   return { ...view, streamed: '', details: [], streamError: null, lastSequence: 0, reconnecting: false };
 }
 
+/** An event's text: its text, or a tool call's arguments or a tool result as JSON text when the server sent JSON. */
+function eventText(evt) {
+  const json = evt.toolInput ?? evt.toolOutput;
+  if (json !== null && json !== undefined) return JSON.stringify(json);
+  return evt.text || '';
+}
+
 /** Fold one RunEvent into a turn state; returns a new object (or the same one when nothing changed). */
 export function applyEvent(state, evt) {
   if (!evt || typeof evt !== 'object') return state;
@@ -27,7 +34,7 @@ export function applyEvent(state, evt) {
   } else if (evt.eventType === 'Error' && evt.text) {
     next.streamError = evt.text;
   } else if (DETAIL_EVENT_TYPES.includes(evt.eventType)) {
-    next.details = [...state.details, { sequence, eventType: evt.eventType, text: evt.text || '', toolName: evt.toolName || null, success: evt.success }];
+    next.details = [...state.details, { sequence, eventType: evt.eventType, text: eventText(evt), toolName: evt.toolName || null, toolCallId: evt.toolCallId || null, success: evt.success }];
   }
   return next;
 }

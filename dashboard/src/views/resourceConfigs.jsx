@@ -57,6 +57,7 @@ import { DEFAULT_ENVIRONMENT, environmentNames, environmentOf, revisionNumbers }
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
 import { EGRESS_PROTOCOLS, egressErrors, egressRulesToBody, egressRulesToForm, hasEgressRules } from '../utils/egressRules';
 import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
+import { jsonToText, textToJson } from '../utils/jsonFields';
 
 // Pipeline definitions (P12.9) live in their own module; re-exported so configuration-wide tests cover them.
 export { pipelinesConfig } from './pipelineConfigs';
@@ -1045,8 +1046,8 @@ export const capabilitiesConfig = {
           field('capabilities', t, 'sourceToolName', 'text', { showIf: (d) => d.kind === 'McpTool' && !!d.sourceMcpServerId }),
           field('capabilities', t, 'tags', 'stringList'),
           field('capabilities', t, 'requirements', 'keyValue', { keyLabel: t('resources.capabilities.requirementKey'), valueLabel: t('resources.capabilities.requirementValue') }),
-          field('capabilities', t, 'inputSchemaJson', 'json'),
-          field('capabilities', t, 'outputSchemaJson', 'json')
+          field('capabilities', t, 'inputSchema', 'json'),
+          field('capabilities', t, 'outputSchema', 'json')
         ],
   validate: (d, t) => capabilityErrors(d, t),
   toBody: (d) => capabilityToBody(d),
@@ -1144,8 +1145,8 @@ export const agentsConfig = {
     exposeMcpTool: false,
     mcpToolName: '',
     inputMode: 'Text',
-    inputSchemaJson: '',
-    outputSchemaJson: '',
+    inputSchema: '',
+    outputSchema: '',
     delegationMode: 'None',
     delegationMaxDepth: 2,
     delegationAllowRecursion: false,
@@ -1190,8 +1191,8 @@ export const agentsConfig = {
       }),
       section(id, t, 'io'),
       field(id, t, 'inputMode', 'select', { required: true, options: enumOptions(t, 'agentInputMode') }),
-      field(id, t, 'inputSchemaJson', 'json'),
-      field(id, t, 'outputSchemaJson', 'json'),
+      field(id, t, 'inputSchema', 'json'),
+      field(id, t, 'outputSchema', 'json'),
       section(id, t, 'delegation'),
       field(id, t, 'delegationMode', 'select', { required: true, options: enumOptions(t, 'delegationMode') }),
       field(id, t, 'delegationAllowList', 'multiselect', { options: (options.agents || []).map((a) => a.name), showIf: (x) => x.delegationMode === 'AllowList' }),
@@ -1200,10 +1201,13 @@ export const agentsConfig = {
       field(id, t, 'active', 'checkbox')
     ];
   },
+  // The schemas are JSON objects in the API and JSON text in the form.
+  toForm: (r) => ({ ...r, inputSchema: jsonToText(r.inputSchema), outputSchema: jsonToText(r.outputSchema) }),
+  toBody: (d) => ({ ...d, inputSchema: textToJson(d.inputSchema), outputSchema: textToJson(d.outputSchema) }),
   validate: (d, t) => {
     const e = {};
     if (!d.name || !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(d.name)) e.name = t('resources.agents.errors.dnsName');
-    for (const key of ['inputSchemaJson', 'outputSchemaJson']) {
+    for (const key of ['inputSchema', 'outputSchema']) {
       if (d[key]) {
         try {
           JSON.parse(d[key]);

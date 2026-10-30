@@ -21,6 +21,7 @@ import Explainer from '../components/Explainer';
 import SchemaInputForm from '../components/SchemaInputForm';
 import { parseSchema, buildFormModel, initialState, buildValue, stateFromValue, mapServerErrors } from '../utils/schemaForm';
 import { tip } from '../components/Tooltip';
+import { jsonToText } from '../utils/jsonFields';
 
 /** How often (ms) streamed events are flushed to the screen, so a fast token stream re-renders smoothly without flicker. */
 const FLUSH_MS = 50;
@@ -134,7 +135,7 @@ export default function InvokeView() {
   const selectedConversation = conversations.find((c) => c.id === conversationId) || null;
 
   const selectedAgent = agents.find((a) => a.id === agentId) || null;
-  const schemaText = selectedAgent?.inputSchemaJson && String(selectedAgent.inputSchemaJson).trim() ? selectedAgent.inputSchemaJson : null;
+  const schemaText = jsonToText(selectedAgent?.inputSchema).trim() || null;
   const schemaModel = schemaText ? buildFormModel(parseSchema(schemaText)) : null;
   const structured = !!schemaText;
   // A schema that cannot drive a form (no object properties) still takes raw JSON.

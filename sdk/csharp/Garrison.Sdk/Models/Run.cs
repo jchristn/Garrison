@@ -2,6 +2,7 @@ namespace Garrison.Sdk.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using System.Text.Json.Serialization;
     using Garrison.Sdk.Enums;
 
@@ -263,9 +264,9 @@ namespace Garrison.Sdk.Models
         public string? ResultText { get; set; } = null;
 
         /// <summary>
-        /// Structured output (unmanaged JSON).
+        /// Structured output as a JSON value (any JSON type), or null when there is none.
         /// </summary>
-        public string? StructuredOutputJson { get; set; } = null;
+        public JsonElement? StructuredOutput { get; set; } = null;
 
         /// <summary>
         /// Whether the final output validated against the agent's output schema: true or false, or null when the agent

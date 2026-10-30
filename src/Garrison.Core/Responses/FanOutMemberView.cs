@@ -2,7 +2,10 @@ namespace Garrison.Core.Responses
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// One member of a fan-out group as gather and the REST routes show it (AD5.3).
@@ -47,7 +50,24 @@ namespace Garrison.Core.Responses
         /// <summary>
         /// Structured output as JSON text, or null.
         /// </summary>
+        [JsonIgnore]
         public string? StructuredOutputJson { get; set; } = null;
+
+        /// <summary>
+        /// The structured output, as the JSON value the agent returned (usually an object); null when there is none.
+        /// Stored as <see cref="StructuredOutputJson"/>.
+        /// </summary>
+        public JsonElement? StructuredOutput
+        {
+            get
+            {
+                return JsonText.Value(StructuredOutputJson);
+            }
+            set
+            {
+                StructuredOutputJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Error message of a failed member, or null.

@@ -130,7 +130,7 @@ IPv4-mapped, IPv4-compatible, and NAT64 (`64:ff9b::/96`) IPv6 addresses are judg
 
 ## The delivery log and test sends
 
-`GET .../notification-endpoints/{id}/deliveries` lists an endpoint's deliveries newest first, filterable with `status` (`Pending`, `Delivering`, `Succeeded`, `Failed`). Each delivery shows its event, subject, attempts, next attempt, last HTTP status, last error, last duration, delivery time, and the exact body that was sent. `GET .../deliveries/{deliveryId}` reads one.
+`GET .../notification-endpoints/{id}/deliveries` lists an endpoint's deliveries newest first, filterable with `status` (`Pending`, `Delivering`, `Succeeded`, `Failed`). Each delivery shows its event, subject, attempts, next attempt, last HTTP status, last error, last duration, delivery time, and the body that was sent, as the JSON object `payload`. The endpoint received that JSON as bytes, and the signature was computed over those bytes, so returning it as an object in the log changes nothing about what is signed. `GET .../deliveries/{deliveryId}` reads one.
 
 `POST .../notification-endpoints/{id}/test` queues a `Test` notification and makes its first attempt before answering, so the response already tells you whether the receiver accepted it. Test sends work on inactive endpoints too, which lets you check a receiver before switching an endpoint on. A test that fails with a retryable error keeps retrying on the normal schedule.
 

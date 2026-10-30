@@ -921,8 +921,8 @@ const it = {
         skillName: 'Nome',
         skillDescription: 'Descrizione',
         inputMode: 'Modalità di input',
-        inputSchemaJson: 'JSON Schema di input',
-        outputSchemaJson: 'JSON Schema di output',
+        inputSchema: 'JSON Schema di input',
+        outputSchema: 'JSON Schema di output',
         delegationMode: 'Delega',
         delegationAllowList: 'Agenti che può chiamare',
         delegationMaxDepth: 'Profondità massima',
@@ -3197,8 +3197,8 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
     "meanCostUsd": "Costo medio",
     "windowDays": "Finestra",
     "computedUtc": "Calcolato",
-    "inputSchemaJson": "Schema di input",
-    "outputSchemaJson": "Schema di output"
+    "inputSchema": "Schema di input",
+    "outputSchema": "Schema di output"
    },
    "refreshTitle": "Aggiorna il catalogo delle capacità",
    "refreshHint": "Garrison ricava di nuovo le voci degli agenti e degli strumenti integrati degli harness, elenca gli strumenti di ogni server MCP (i server stdio tramite un worker con la diagnostica stdio attiva) e ricalcola le indicazioni degli agenti. Per elencare un server gli vengono inviati i segreti nominati dai suoi modelli, quindi ti serve l'autorizzazione a usarli.",
@@ -3291,14 +3291,14 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
     "sourceToolName": "Nome dello strumento su quel server",
     "tags": "Tag",
     "requirements": "Etichette del nodo richieste da un'esecuzione",
-    "inputSchemaJson": "Schema di input",
-    "outputSchemaJson": "Schema di output"
+    "inputSchema": "Schema di input",
+    "outputSchema": "Schema di output"
    },
    "hints": {
     "kind": "Le voci manuali possono essere di qualsiasi tipo, per esempio un servizio di conversione che gli agenti raggiungono tramite una skill.",
     "requirements": "Un'esecuzione di un agente che usa questa capacità va solo ai worker che hanno tutte queste etichette del nodo.",
     "sourceMcpServerId": "Facoltativo. Un token di esecuzione vede una voce che nomina un server solo quando la sua distribuzione collega quel server.",
-    "inputSchemaJson": "Un JSON Schema, per esempio {\"type\": \"object\"}. Lascialo vuoto se la capacità accetta testo libero."
+    "inputSchema": "Un JSON Schema, per esempio {\"type\": \"object\"}. Lascialo vuoto se la capacità accetta testo libero."
    },
    "tagFilter": "Filtra per tag",
    "refresh": "Aggiorna",
@@ -4886,6 +4886,26 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
     "openApp": "Apri l'app {{name}}",
     "openInvoke": "Apri in Invoke",
     "another": "Creane altri"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Apri la chat di {{name}}"
    }
   }
  }

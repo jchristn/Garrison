@@ -51,6 +51,15 @@ namespace Test.Shared.Infrastructure
             if (result.IsError) throw new TestAssertionException(text);
             return text;
         }
+        /// <summary>Call a tool and return the whole MCP result: its content blocks and its structuredContent.</summary>
+        /// <param name="name">Tool name.</param>
+        /// <param name="arguments">Typed arguments.</param>
+        /// <param name="token">Cancellation.</param>
+        /// <returns>The tool result.</returns>
+        public async Task<ProviderToolResult> CallResultAsync(string name, object arguments, CancellationToken token)
+        {
+            return await _Client.CallAsync<ProviderToolResult>("tools/call", new { name, arguments }, 30000, token).ConfigureAwait(false);
+        }
         /// <summary>Call a tool returning a typed JSON record.</summary>
         /// <typeparam name="T">Record type.</typeparam>
         /// <param name="name">Tool name.</param>

@@ -882,8 +882,8 @@ const yueHant = {
         skillName: '名稱',
         skillDescription: '描述',
         inputMode: '輸入模式',
-        inputSchemaJson: '輸入 JSON Schema',
-        outputSchemaJson: '輸出 JSON Schema',
+        inputSchema: '輸入 JSON Schema',
+        outputSchema: '輸出 JSON Schema',
         delegationMode: '委派',
         delegationAllowList: '可以呼叫嘅代理程式',
         delegationMaxDepth: '最大深度',
@@ -3148,8 +3148,8 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "meanCostUsd": "平均成本",
     "windowDays": "統計期",
     "computedUtc": "計算時間",
-    "inputSchemaJson": "輸入結構",
-    "outputSchemaJson": "輸出結構"
+    "inputSchema": "輸入結構",
+    "outputSchema": "輸出結構"
    },
    "refreshTitle": "重新整理能力目錄",
    "refreshHint": "Garrison 會重新衍生代理程式同 Harness 內置工具嘅項目，列出每個 MCP 伺服器嘅工具（stdio 伺服器就經一個開咗 stdio 診斷嘅工作節點列出），再重新計算代理程式提示。列出一個伺服器嗰陣會將佢範本指明嘅機密傳畀佢，所以你要有權用嗰啲機密。",
@@ -3242,14 +3242,14 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "sourceToolName": "喺嗰個伺服器嘅工具名稱",
     "tags": "標籤",
     "requirements": "執行需要嘅節點標籤",
-    "inputSchemaJson": "輸入結構",
-    "outputSchemaJson": "輸出結構"
+    "inputSchema": "輸入結構",
+    "outputSchema": "輸出結構"
    },
    "hints": {
     "kind": "手動項目可以係任何類型，例如代理程式經技能用到嘅轉換服務。",
     "requirements": "用到呢個能力嘅代理程式，佢嘅執行只會去有齊呢啲節點標籤嘅工作節點。",
     "sourceMcpServerId": "選填。指明咗伺服器嘅項目，只有喺執行權杖所屬嘅部署綁定咗嗰個伺服器嗰陣先睇得到。",
-    "inputSchemaJson": "一個 JSON Schema，例如 {\"type\": \"object\"}。如果個能力收自由文字，就留空。"
+    "inputSchema": "一個 JSON Schema，例如 {\"type\": \"object\"}。如果個能力收自由文字，就留空。"
    },
    "tagFilter": "標籤",
    "refresh": "重新整理",
@@ -4837,6 +4837,26 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "openApp": "打開應用程式 {{name}}",
     "openInvoke": "喺 Invoke 打開",
     "another": "再整一個"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "打開 {{name}} 嘅傾偈"
    }
   }
  }

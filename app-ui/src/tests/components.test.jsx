@@ -185,8 +185,42 @@ describe('TurnView', () => {
       </ol>
     );
     expect(qa('[data-testid="turn-error"]')[0].textContent).toContain('Tool crashed');
-    expect(qa('details.turn-details')).toHaveLength(1);
-    expect(q('.detail-tool').textContent).toBe('search');
+    expect(qa('[data-testid="activity"]')).toHaveLength(1);
+    expect(q('.tool-label').textContent).toBe('Using search');
+  });
+
+  it('says what the agent is doing while it works, and lists the steps live', async () => {
+    const details = [
+      { sequence: 1, eventType: 'Thinking', text: 'Plan the search first.' },
+      { sequence: 2, eventType: 'ToolCall', toolName: 'mcp__garrison__garrison_invoke_agent', toolCallId: 'c1', text: '{"agent":"web-searcher","input":"Find sources"}' },
+      { sequence: 3, eventType: 'ToolResult', toolName: 'mcp__garrison__garrison_invoke_agent', toolCallId: 'c1', success: true, text: '{"status":"Succeeded"}' },
+      { sequence: 4, eventType: 'ToolCall', toolName: 'mcp__garrison__content-retriever', toolCallId: 'c2', text: '{"input":"Fetch them"}' }
+    ];
+    const turn = { ...newTurnState({ ...TURN, status: 'Running' }), details };
+    await render(
+      <ol>
+        <TurnView turn={turn} agentName="Desk" showDetail />
+      </ol>
+    );
+    expect(q('[data-testid="turn-state"]').textContent).toBe('Asking content-retriever');
+    expect(q('[data-testid="activity"]').open).toBe(true);
+    expect(qa('[data-testid="activity-thinking"]')).toHaveLength(1);
+    const tools = qa('[data-testid="activity-tool"]');
+    expect(tools.map((el) => [el.querySelector('.tool-label').textContent, el.dataset.status])).toEqual([
+      ['Asking web-searcher', 'ok'],
+      ['Asking content-retriever', 'running']
+    ]);
+    expect(tools[0].querySelector('pre').textContent).toContain('"agent": "web-searcher"');
+  });
+
+  it('shows only the status without operator detail, without repeating it', async () => {
+    await render(
+      <ol>
+        <TurnView turn={newTurnState({ ...TURN, status: 'Running' })} agentName="Desk" showDetail={false} />
+      </ol>
+    );
+    expect(q('[data-testid="turn-state"]').textContent).toBe('The agent is working on it');
+    expect(qa('[data-testid="activity"]')).toHaveLength(0);
   });
 });
 

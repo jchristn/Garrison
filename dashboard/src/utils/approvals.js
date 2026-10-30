@@ -45,14 +45,14 @@ export function approvalCheckBody(toolName, value) {
 }
 
 /**
- * The approval notice a worker stores as rawEventJson on ApprovalRequested and ApprovalDecided run events, or null.
- * Accepts camelCase and PascalCase property names.
+ * The approval notice a worker attaches as rawEvent (a JSON object) to ApprovalRequested and ApprovalDecided run
+ * events, or null. Accepts camelCase and PascalCase property names.
  * @returns {{approvalId: string|null, status: string|null, decision: string|null, decisionSource: string|null}|null}
  */
 export function parseApprovalNotice(event) {
-  if (!event || (event.code !== 'ApprovalRequested' && event.code !== 'ApprovalDecided') || !event.rawEventJson) return null;
+  if (!event || (event.code !== 'ApprovalRequested' && event.code !== 'ApprovalDecided') || !event.rawEvent) return null;
   try {
-    const raw = JSON.parse(event.rawEventJson);
+    const raw = event.rawEvent;
     if (!raw || typeof raw !== 'object') return null;
     const pick = (name) => raw[name] ?? raw[name.charAt(0).toUpperCase() + name.slice(1)] ?? null;
     return { approvalId: pick('approvalId'), status: pick('status'), decision: pick('decision'), decisionSource: pick('decisionSource') };

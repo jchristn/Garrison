@@ -2,6 +2,7 @@ namespace Garrison.Sdk.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using System.Text.Json.Serialization;
     using Garrison.Sdk.Enums;
 
@@ -83,9 +84,20 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
-        /// Text content.
+        /// Text content: model output, a message, or a tool call's input or result when it is not JSON. Null for a tool
+        /// call or result whose JSON is in <see cref="ToolInput"/> or <see cref="ToolOutput"/>.
         /// </summary>
         public string? Text { get; set; } = null;
+
+        /// <summary>
+        /// A tool call's arguments as a JSON object, when the harness reported JSON; null otherwise.
+        /// </summary>
+        public JsonElement? ToolInput { get; set; } = null;
+
+        /// <summary>
+        /// A tool result as a JSON object or array, when the tool answered JSON; null otherwise.
+        /// </summary>
+        public JsonElement? ToolOutput { get; set; } = null;
 
         /// <summary>
         /// Tool name.
@@ -113,9 +125,16 @@ namespace Garrison.Sdk.Models
         public long? OutputTokens { get; set; } = null;
 
         /// <summary>
-        /// Verbatim harness event (unmanaged JSON).
+        /// Verbatim harness event line or Garrison notice as a JSON object, or null. Null when the line was not valid
+        /// JSON, in which case <see cref="RawEventText"/> carries it.
         /// </summary>
-        public string? RawEventJson { get; set; } = null;
+        public JsonElement? RawEvent { get; set; } = null;
+
+        /// <summary>
+        /// Verbatim harness event line as text, set only when it is not valid JSON (for example truncated); null when
+        /// <see cref="RawEvent"/> carries it.
+        /// </summary>
+        public string? RawEventText { get; set; } = null;
 
         /// <summary>
         /// Persisted (UTC).

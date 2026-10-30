@@ -110,7 +110,7 @@ test('Preview renders streamed Markdown incrementally, with reasoning, tool chip
     status: 'Succeeded',
     outcome: 'Succeeded',
     resultText: '## Summary\n\n| File | Lines |\n|---|---|\n| README.md | 42 |',
-    structuredOutputJson: '{"files":1,"lines":42}',
+    structuredOutput: { files: 1, lines: 42 },
     completedUtc: new Date().toISOString()
   };
   await pushRunFrame(page, 'run_s1', 'run.completed', runs.run_s1);
@@ -186,7 +186,7 @@ test('Codex runs explain that output arrives in one piece, then show the full me
   await expect(preview.getByTestId('stream-codex-note')).toBeVisible();
   await expect(preview.getByTestId('stream-waiting')).toContainText('Codex');
   await expect.poll(() => page.evaluate(() => window.__sse.opened.includes('run_sc'))).toBe(true);
-  await pushRunEvent(page, 'run_sc', ev('AssistantText', { text: 'Full answer with a list:\n\n- one\n- two', rawEventJson: '{"type":"item.completed"}' }));
+  await pushRunEvent(page, 'run_sc', ev('AssistantText', { text: 'Full answer with a list:\n\n- one\n- two', rawEvent: { type: 'item.completed' } }));
   await expect(preview.locator('.markdown-body li')).toHaveCount(2);
   await expect(preview.getByTestId('stream-waiting')).toHaveCount(0);
 });
@@ -217,8 +217,8 @@ test('Preview renders coalesced assistant and thinking groups with JSONL raw eve
   await page.goto('/dashboard/invoke');
   await send(page, 'coalesced stream');
   await expect.poll(() => page.evaluate(() => window.__sse.opened.includes('run_smerged'))).toBe(true);
-  await pushRunEvent(page, 'run_smerged', ev('Thinking', { text: 'First thought. Second thought.', rawEventJson: '{"text":"First thought. "}\n{"text":"Second thought."}' }));
-  await pushRunEvent(page, 'run_smerged', ev('AssistantText', { text: '## Combined\n\n- one\n- two', rawEventJson: '{"text":"## Combined"}\n{"text":"\\n\\n- one\\n- two"}' }));
+  await pushRunEvent(page, 'run_smerged', ev('Thinking', { text: 'First thought. Second thought.', rawEventText: '{"text":"First thought. "}\n{"text":"Second thought."}' }));
+  await pushRunEvent(page, 'run_smerged', ev('AssistantText', { text: '## Combined\n\n- one\n- two', rawEventText: '{"text":"## Combined"}\n{"text":"\\n\\n- one\\n- two"}' }));
   const preview = page.getByTestId('invoke-preview');
   await expect(preview.locator('.markdown-body h2')).toHaveText('Combined');
   await expect(preview.locator('.markdown-body li')).toHaveCount(2);

@@ -10,6 +10,7 @@ import SecretKindGuide from '../SecretKindGuide';
 import StudioChatPanel from '../studio/StudioChatPanel';
 import ChatTurn from '../studio/ChatTurn';
 import StudioLink from '../studio/StudioLink';
+import { appOrigin } from '../AgenticAppShare';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
@@ -20,6 +21,7 @@ import { composerKeyDown } from '../../utils/composerKeys';
 import { CREDENTIAL_KINDS, needsCredential, suggestedCredential } from '../../utils/architect';
 import { conversationStorageKey, readStored } from '../../utils/studio';
 import { MULTILINE_SECRET_KINDS } from '../../utils/secretGuides';
+import { appUrl, effectiveSlug } from '../../utils/apps';
 import { defaultSecretKind, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, slug, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
 
 const page = { pageNumber: 1, pageSize: 1000 };
@@ -711,7 +713,8 @@ export function TestStep({ draft, state, update }) {
       try {
         const agent = await apiClient.getAgent(tenantId, name);
         const ready = (state.deployments || []).find((d) => d.agent.id === agent.id);
-        setTarget({ agent, app, deploymentId: ready?.deployment?.id || null });
+        const appRecord = app ? await apiClient.getApp(tenantId, app).catch(() => null) : null;
+        setTarget({ agent, app, appRecord, deploymentId: ready?.deployment?.id || null });
       } catch (e) {
         setError(e);
       }
@@ -743,7 +746,7 @@ export function TestStep({ draft, state, update }) {
   const links = useMemo(
     () => [
       target && { to: pathFor('agents', target.agent.id), label: t('views.agentWizard.test.openAgent', { name: target.agent.name }), testId: 'wizard-open-agent' },
-      target?.app && { to: pathFor('apps', null, { search: target.app }), label: t('views.agentWizard.test.openApp', { name: target.app }), testId: 'wizard-open-app' },
+      target?.appRecord && effectiveSlug(target.appRecord) && { href: appUrl(appOrigin(), effectiveSlug(target.appRecord)), label: t('views.agentWizard.test.openApp', { name: target.app }), testId: 'wizard-open-app' },
       target && { to: pathFor('invoke', null, { agentId: target.agent.id, deploymentId: target.deploymentId || undefined }), label: t('views.agentWizard.test.openInvoke'), testId: 'wizard-open-invoke' }
     ].filter(Boolean),
     [target, t]
@@ -760,24 +763,30 @@ export function TestStep({ draft, state, update }) {
         <label htmlFor="wizard-test-message" {...tip(t('tips.views.agentWizard.test.message'))}>
           {t('views.agentWizard.test.message')}
         </label>
-        <textarea id="wizard-test-message" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => composerKeyDown(e, send, setMessage)} data-testid="wizard-test-message" {...tip(t('tips.views.agentWizard.test.message'))} />
+        <div className="chat-composer">
+          <textarea id="wizard-test-message" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => composerKeyDown(e, send, setMessage)} data-testid="wizard-test-message" {...tip(t('tips.views.agentWizard.test.message'))} />
+          <button type="button" className="button-primary chat-composer-send" onClick={send} disabled={sending || pendingActive || !message.trim() || !target} data-testid="wizard-test-send" {...tip(t('tips.views.agentWizard.test.send'))}>
+            <SendIcon size={14} /> {t('components.studio.chat.send')}
+          </button>
+        </div>
         <div className="field-hint">{t('components.studio.chat.keysHint')}</div>
       </div>
       {error && <ErrorBanner message={errorMessageWithDetail(t, error)} />}
-      <div className="flex gap-sm items-center">
-        <button type="button" className="button-primary" onClick={send} disabled={sending || pendingActive || !message.trim() || !target} data-testid="wizard-test-send" {...tip(t('tips.views.agentWizard.test.send'))}>
-          <SendIcon size={14} /> {t('components.studio.chat.send')}
-        </button>
-      </div>
       <p className="chat-disclaimer">{t('components.studio.chat.disclaimer')}</p>
       <div className="wizard-finish" data-testid="wizard-finish">
         <div className="form-section-title">{t('views.agentWizard.test.next')}</div>
         <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
-          {links.map((l) => (
-            <StudioLink key={l.testId} to={l.to} className="button button-secondary" testId={l.testId} tipText={l.label}>
-              {l.label}
-            </StudioLink>
-          ))}
+          {links.map((l) =>
+            l.href ? (
+              <a key={l.testId} href={l.href} target="_blank" rel="noopener noreferrer" className="button button-primary" data-testid={l.testId} {...tip(t('tips.views.agentWizard.test.openApp'))}>
+                {l.label}
+              </a>
+            ) : (
+              <StudioLink key={l.testId} to={l.to} className="button button-secondary" testId={l.testId} tipText={l.label}>
+                {l.label}
+              </StudioLink>
+            )
+          )}
           <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', 'new'))} data-testid="wizard-another" {...tip(t('tips.views.agentWizard.test.another'))}>
             {t('views.agentWizard.test.another')}
           </button>

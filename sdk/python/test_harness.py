@@ -384,10 +384,11 @@ def t_run_transcript():
 
 def t_input_schema():
     schema = {"type": "object", "properties": {"topic": {"type": "string"}, "count": {"type": "integer"}}, "required": ["topic"]}
-    agent = client.agents.create({"name": f"sdk-py-{SUFFIX}-schema", "inputMode": "Structured", "inputSchemaJson": json.dumps(schema)})
+    agent = client.agents.create({"name": f"sdk-py-{SUFFIX}-schema", "inputMode": "Structured", "inputSchema": schema})
     deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-schema-fake", "agentId": agent["id"], "harnessProfileId": state["fake"]})
     try:
-        require("topic" in (agent.get("inputSchemaJson") or ""), "inputSchemaJson not stored")
+        stored = agent.get("inputSchema")
+        require(isinstance(stored, dict) and "topic" in (stored.get("properties") or {}), f"inputSchema not stored: {stored}")
         run = client.agents.invoke(agent["id"], json.dumps({"topic": "sdk", "count": 2}), wait=True, wait_seconds=90,
                                    input_content_type="application/json")
         require(run["status"] == "Succeeded", f"valid input status {run['status']} {run.get('errorMessage')}")
@@ -680,7 +681,7 @@ def t_notifications():
         require(test["event"] == "Test" and test["attempts"] == 1 and test["status"] in ("Pending", "Failed"), f"test delivery {test}")
         require(any(d["id"] == test["id"] for d in client.notification_endpoints.list_deliveries(endpoint["id"])["objects"]), "delivery log")
         one = client.notification_endpoints.get_delivery(endpoint["id"], test["id"])
-        require('"event":"Test"' in one["payload"], "delivery payload")
+        require(isinstance(one["payload"], dict) and one["payload"].get("event") == "Test", f"delivery payload {one['payload']}")
         read["active"] = False
         require(not client.notification_endpoints.update(endpoint["id"], read)["active"], "endpoint update")
     finally:
@@ -855,20 +856,21 @@ def t_capabilities():
     require(all(d["kind"] == "Agent" for d in client.capabilities.list(kind="Agent")["objects"]), "kind filter")
     name = f"sdk-py-{SUFFIX}-cap"
     tag = f"sdk-py-{SUFFIX}-tag"
-    schema = '{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}'
+    schema = {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}
     created = client.capabilities.create({"name": name, "kind": "McpTool", "summary": "Manual descriptor from the Python SDK harness.",
-                                          "inputSchemaJson": schema, "tags": [tag],
+                                          "inputSchema": schema, "tags": [tag],
                                           "requirements": [{"key": "garrison.io/sdk-fixture", "value": "true"}]})
     try:
         require(created["origin"] == "Manual" and created["sourceKey"] == "manual:" + created["id"], f"manual descriptor {created}")
         require(tag in created["tags"] and any(r["key"] == "garrison.io/sdk-fixture" for r in created["requirements"]), "tags and requirements")
+        require(created.get("inputSchema") == schema, f"inputSchema round trip {created.get('inputSchema')}")
         require(client.capabilities.get(created["id"])["name"] == name, "read by id")
         require(client.capabilities.get(name)["id"] == created["id"], "read by name")
         tagged = client.capabilities.list(tag=tag)["objects"]
         require(len(tagged) == 1 and tagged[0]["id"] == created["id"], f"tag filter returned {len(tagged)}")
         bad_code = None
         try:
-            client.capabilities.create({"name": name + "-bad", "kind": "McpTool", "inputSchemaJson": "[1,2]"})
+            client.capabilities.create({"name": name + "-bad", "kind": "McpTool", "inputSchema": [1, 2]})
         except GarrisonError as e:
             bad_code = e.code if e.status_code == 400 else f"{e.status_code} {e.code}"
         require(bad_code == "InvalidJsonSchema", f"invalid schema code {bad_code}")

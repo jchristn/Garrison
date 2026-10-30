@@ -159,8 +159,8 @@ namespace Garrison.Core.Services
             fields["displayName"] = revision.DisplayName;
             fields["description"] = revision.Description;
             fields["inputMode"] = revision.InputMode.ToString();
-            fields["inputSchemaJson"] = revision.InputSchemaJson;
-            fields["outputSchemaJson"] = revision.OutputSchemaJson;
+            fields["inputSchema"] = revision.InputSchemaJson;
+            fields["outputSchema"] = revision.OutputSchemaJson;
             fields["delegationMode"] = revision.DelegationMode.ToString();
             fields["delegationMaxDepth"] = revision.DelegationMaxDepth.ToString(CultureInfo.InvariantCulture);
             fields["delegationAllowRecursion"] = revision.DelegationAllowRecursion ? "true" : "false";

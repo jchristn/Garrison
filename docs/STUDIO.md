@@ -57,7 +57,7 @@ An item is `stale` when the live resource changed after the draft was based on i
 `POST .../request-apply` with the version you read:
 
 1. validates the draft and refuses with 400 `DraftStale`, `DraftInvalid`, or `DraftEmpty`;
-2. creates an approval of kind `DraftApply`. Its summary counts the creates, updates, and deletes, and its `inputPreview` holds the full diff;
+2. creates an approval of kind `DraftApply`. Its summary counts the creates, updates, and deletes, and its `input` holds the full diff as a JSON object;
 3. moves the draft to `PendingApproval`.
 
 Nothing changes in live configuration yet. The approval appears with the other approvals ([REST_API.md](../REST_API.md#approvals)) and is decided with the same `POST .../approvals/{id}/decide`:

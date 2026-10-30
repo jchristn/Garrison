@@ -791,8 +791,8 @@ const tips = {
         description: '技能的功能說明，以呼叫端代理程式為對象撰寫。'
       },
       inputMode: 'Text 接受純文字訊息。Structured 要求輸入符合輸入 JSON Schema。',
-      inputSchemaJson: "代理程式輸入的 JSON 結構描述。設定後，每次呼叫的輸入都必須是符合它的 JSON 文件，呼叫頁面會顯示依此產生的表單。",
-      outputSchemaJson: '結果必須符合的 JSON Schema。Garrison 會驗證輸出，若不符合，會以修復提示重試一次。',
+      inputSchema: "代理程式輸入的 JSON 結構描述。設定後，每次呼叫的輸入都必須是符合它的 JSON 文件，呼叫頁面會顯示依此產生的表單。",
+      outputSchema: '結果必須符合的 JSON Schema。Garrison 會驗證輸出，若不符合，會以修復提示重試一次。',
       delegationAllowList: '委派使用允許清單時，此代理程式可以呼叫的代理程式。',
       delegationMaxDepth: '此代理程式之下可以接續多少層代理程式之間的呼叫。介於 0 到 10 之間。',
       delegationAllowRecursion: '允許同一個代理程式在一條呼叫鏈中出現兩次。關閉可防止迴圈。',
@@ -2516,8 +2516,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "選填。此手動項目所代表之工具所屬的 MCP 伺服器。",
    "sourceToolName": "該工具在所選 MCP 伺服器上的名稱。",
    "requirements": "工作節點在接下使用此能力的執行前，必須回報的節點標籤，例如 garrison.io/tool-pandoc=true。",
-   "inputSchemaJson": "描述此能力接受內容的 JSON Schema。儲存時 Garrison 會檢查它是否為有效的 JSON Schema。",
-   "outputSchemaJson": "描述此能力傳回內容的 JSON Schema。儲存時 Garrison 會檢查它是否為有效的 JSON Schema。",
+   "inputSchema": "描述此能力接受內容的 JSON Schema。儲存時 Garrison 會檢查它是否為有效的 JSON Schema。",
+   "outputSchema": "描述此能力傳回內容的 JSON Schema。儲存時 Garrison 會檢查它是否為有效的 JSON Schema。",
    "kindFilter": "只顯示代理程式、只顯示 MCP 工具，或只顯示 Harness 內建工具。選擇「全部」可查看整個目錄。",
    "originFilter": "只顯示隨來源更新的衍生項目，或只顯示由人員撰寫的手動項目。",
    "tagFilter": "只顯示帶有此標籤（完全相符）的能力。停止輸入後清單會自動更新。",
@@ -2576,8 +2576,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "所彙整且有記錄成本之執行的平均成本（美元）。",
    "windowDays": "提示往回統計的天數（Capabilities.HintWindowDays 設定）。",
    "computedUtc": "維護迴圈或重新整理上次計算提示的時間。",
-   "inputSchemaJson": "描述此能力接受內容的 JSON Schema；接受自由文字時則無。",
-   "outputSchemaJson": "描述此能力傳回內容的 JSON Schema，或無。"
+   "inputSchema": "描述此能力接受內容的 JSON Schema；接受自由文字時則無。",
+   "outputSchema": "描述此能力傳回內容的 JSON Schema，或無。"
   },
   "refreshServer": "列出所有啟用中 MCP 伺服器的工具，或只列出單一伺服器的工具。stdio 伺服器會透過工作節點列出。",
   "refreshRun": "立即開始重新整理。MCP 伺服器回應較慢時可能需要一段時間。",
@@ -3517,6 +3517,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "要傳送給代理程式的內容。按 Enter 傳送；按 Ctrl+Enter 或 Shift+Enter 換行。",
     "send": "將訊息傳送到該代理程式的 dev 部署。",
     "another": "重新開始精靈，建立另一組代理程式。"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "在新分頁中開啟應用程式的聊天：對話會保留歷史紀錄，入口智慧代理可以詢問應用程式中的其他智慧代理。"
    }
   }
  }

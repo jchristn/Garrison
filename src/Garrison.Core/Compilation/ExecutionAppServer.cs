@@ -1,6 +1,9 @@
 namespace Garrison.Core.Compilation
 {
     using System;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// Session settings for a harness the worker drives over the Codex app-server protocol (JSON-RPC on stdin and
@@ -19,7 +22,23 @@ namespace Garrison.Core.Compilation
         /// Compact JSON Schema that constrains the final assistant message of the turn (<c>outputSchema</c> on
         /// <c>turn/start</c>); null when the agent has no output schema.
         /// </summary>
+        [JsonIgnore]
         public string? OutputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// JSON Schema for the final assistant message, as a JSON object; null for free text.
+        /// </summary>
+        public JsonElement? OutputSchema
+        {
+            get
+            {
+                return JsonText.Value(OutputSchemaJson);
+            }
+            set
+            {
+                OutputSchemaJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Approval policy sent on <c>thread/start</c> and <c>thread/resume</c>: <c>never</c>, <c>on-request</c>,

@@ -603,6 +603,21 @@ namespace Garrison.Server.Protocols
             }
         }
 
+        private static McpToolCallResult Structured(object? result)
+        {
+            // The result is the record itself as structuredContent (MCP 2025-06-18), serialized the way REST serializes it,
+            // with the same JSON in the text block (readable, quotes not escaped) for clients that read only text. A result
+            // that is not an object (a list, a string) goes as text only, as MCP requires before 2026-07-28.
+            string json = Serializer.SerializeReadable(result);
+            using (JsonDocument document = JsonDocument.Parse(json))
+            {
+                if (document.RootElement.ValueKind != JsonValueKind.Object) return McpToolCallResult.FromText(json);
+                McpToolCallResult structured = McpToolCallResult.FromText(json);
+                structured.StructuredContent = document.RootElement.Clone();
+                return structured;
+            }
+        }
+
         private async Task<object> DispatchAsync(McpToolDefinition tool, RpcParameters? args, RpcCallContext? call, CancellationToken token)
         {
             return await RunDatabaseTelemetry.MeasureAsync(_Context.Database, PrincipalClaims.Decode(call?.Claims).TenantId ?? string.Empty, PrincipalClaims.Decode(call?.Claims).RunId ?? string.Empty, "gateway", ct => GatewayOperation.MeasureAsync(inner => DispatchMeasuredCoreAsync(tool, args, call, inner), ct, PrincipalClaims.Decode(call?.Claims).PrincipalType == PrincipalTypeEnum.Run ? "run" : "operator"), token).ConfigureAwait(false);
@@ -884,7 +899,7 @@ namespace Garrison.Server.Protocols
                 }
                 outcome = "ok";
                 GarrisonTracing.Ok(span);
-                return McpToolCallResult.FromText(Serializer.SerializeReadable(result));
+                return Structured(result);
             }
             catch (McpToolException e)
             {

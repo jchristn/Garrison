@@ -87,6 +87,24 @@ const es = {
     Progress: 'Progreso',
     Warning: 'Aviso'
   },
+  activity: {
+    title: 'Actividad del agente ({{count}})',
+    thinking: 'Razonamiento',
+    thinkingNow: 'Pensando',
+    ask: 'Consultando a {{agent}}',
+    askMany: 'Consultando a {{agents}} a la vez',
+    askSeveral: 'Consultando a varios agentes a la vez',
+    gather: 'Reuniendo las respuestas',
+    check: 'Revisando otro agente',
+    tool: 'Usando {{tool}}',
+    running: 'En curso',
+    done: 'Listo',
+    failed: 'Falló',
+    sent: 'Enviado',
+    returned: 'Devuelto',
+    nothing: 'Nada',
+    waiting: 'Esperando la respuesta'
+  },
   files: {
     title: 'Archivos',
     empty: 'El agente todavía no ha escrito ningún archivo en esta conversación.',
@@ -143,7 +161,11 @@ const es = {
     answerLink: 'Abre un enlace de la respuesta en una pestaña nueva: {{href}}',
     tableHeader: 'Columna de una tabla de la respuesta: {{text}}',
     poweredBy: 'Abre usegarrison.ai en una pestaña nueva para conocer Garrison Agent Studio, la plataforma en la que funciona esta aplicación.',
-    skipToChat: 'Salta el encabezado y la lista de conversaciones para ir al cuadro de mensaje.'
+    skipToChat: 'Salta el encabezado y la lista de conversaciones para ir al cuadro de mensaje.',
+    activityRunning: 'Este paso sigue en curso; el resultado aparecerá aquí cuando vuelva.',
+    activityDone: 'Este paso terminó. Ábralo para ver lo que se envió y lo que volvió.',
+    activityFailed: 'Este paso falló. Ábralo para ver lo que se envió y el error que volvió.',
+    activityStep: 'Muestra lo que el agente envió en este paso y lo que volvió.'
   }
 };
 

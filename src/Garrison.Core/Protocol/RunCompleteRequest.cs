@@ -2,7 +2,10 @@ namespace Garrison.Core.Protocol
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// Worker report that a run finished.
@@ -47,7 +50,24 @@ namespace Garrison.Core.Protocol
         /// <summary>
         /// Structured output JSON.
         /// </summary>
+        [JsonIgnore]
         public string? StructuredOutputJson { get; set; } = null;
+
+        /// <summary>
+        /// The structured output, as the JSON value the agent returned (usually an object); null when there is none.
+        /// Stored as <see cref="StructuredOutputJson"/>.
+        /// </summary>
+        public JsonElement? StructuredOutput
+        {
+            get
+            {
+                return JsonText.Value(StructuredOutputJson);
+            }
+            set
+            {
+                StructuredOutputJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Harness session identifier.

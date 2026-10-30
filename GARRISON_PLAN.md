@@ -476,6 +476,8 @@ Garrison resource types added to the permission vocabulary: `HarnessProfile`, `P
 | `request_history.requestbody`, `request_history.responsebody` | Retained HTTP bodies for diagnostics (explicitly allowed by the requirements). | Method, path, status, duration, principal, sizes, truncation flags. |
 | `notification_deliveries.payload` | The exact outbound notification body (P12.14), fixed when the event is queued so every retry sends and signs the same bytes; it is an HTTP body, not an entity Garrison reads back. | Endpoint, event, event key, subject type and identifier, status, attempts, next attempt, last status code, last error, timestamps. |
 
+The columns stay text in the database, but the API returns them as JSON values, not strings: `raweventjson` as the object `rawEvent` (or the string `rawEventText` when the line is not valid JSON), `structuredoutputjson` as `structuredOutput`, the agent schemas as `inputSchema` and `outputSchema`, and the delivery body as the object `payload`. Requests send the schemas as objects too. The request history bodies are the exception: they can be any media type and may be truncated, so `requestBody` and `responseBody` stay strings.
+
 ---
 
 ## 8. Configurability Model: Harnesses, Prompts, Resources, Deployments

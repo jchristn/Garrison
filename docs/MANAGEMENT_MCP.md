@@ -2,6 +2,10 @@
 
 Normal user and API credentials can manage tenant configuration through Garrison's existing MCP endpoint. `AgentDeveloper` grants the standard agent, deployment, and manifest permissions; tenant/system administrators and equivalent custom grants work too. Each call is authorized for its resource and operation. Hosted run and node tokens cannot use these tools, even when the run originated from an administrator. They are hidden from those callers' tool lists.
 
+## Tool results
+
+A tool that returns a record (an agent, a draft, an approval) answers it as a JSON object in `structuredContent`, with the same fields and values as the REST API. The `content` array also carries the record as JSON text, because MCP clients that predate structured results read only `content`. Read `structuredContent` when your client supports it. A tool that returns a list or plain text answers in `content` only. Errors set `isError` and carry the error code and message as text.
+
 ## Agents and deployments
 
 Agent tools are `garrison_get_agent_configuration`, `garrison_create_agent`, `garrison_update_agent`, and `garrison_delete_agent`. Existing discovery tools remain available. Agent identifiers can be names or IDs.

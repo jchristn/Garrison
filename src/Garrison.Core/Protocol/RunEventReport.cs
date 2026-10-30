@@ -2,7 +2,10 @@ namespace Garrison.Core.Protocol
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// Normalized event reported by a worker.
@@ -63,6 +66,39 @@ namespace Garrison.Core.Protocol
         /// <summary>
         /// Verbatim harness event.
         /// </summary>
+        [JsonIgnore]
         public string? RawEventJson { get; set; } = null;
+
+        /// <summary>
+        /// The harness event or Garrison notice this event came from, as a JSON object; null when there is none or
+        /// when the line is not valid JSON (see <see cref="RawEventText"/>). Stored as <see cref="RawEventJson"/>.
+        /// </summary>
+        public JsonElement? RawEvent
+        {
+            get
+            {
+                return JsonText.Value(RawEventJson);
+            }
+            set
+            {
+                if (value.HasValue) RawEventJson = JsonText.Text(value);
+            }
+        }
+
+        /// <summary>
+        /// The source line as text when it is not valid JSON, for example a plain output line or one truncated to the
+        /// configured size; null when <see cref="RawEvent"/> carries it.
+        /// </summary>
+        public string? RawEventText
+        {
+            get
+            {
+                return JsonText.Value(RawEventJson).HasValue ? null : RawEventJson;
+            }
+            set
+            {
+                if (value != null) RawEventJson = value;
+            }
+        }
     }
 }

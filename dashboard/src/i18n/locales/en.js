@@ -909,8 +909,8 @@ const en = {
         skillName: 'Name',
         skillDescription: 'Description',
         inputMode: 'Input mode',
-        inputSchemaJson: 'Input JSON Schema',
-        outputSchemaJson: 'Output JSON Schema',
+        inputSchema: 'Input JSON Schema',
+        outputSchema: 'Output JSON Schema',
         delegationMode: 'Delegation',
         delegationAllowList: 'Agents it may call',
         delegationMaxDepth: 'Maximum depth',
@@ -3176,8 +3176,8 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
     "meanCostUsd": "Mean cost",
     "windowDays": "Window",
     "computedUtc": "Computed",
-    "inputSchemaJson": "Input schema",
-    "outputSchemaJson": "Output schema"
+    "inputSchema": "Input schema",
+    "outputSchema": "Output schema"
    },
    "refreshTitle": "Refresh the capability catalog",
    "refreshHint": "Garrison derives agent and harness built-in entries again, lists the tools of each MCP server (stdio servers through a worker with stdio diagnostics turned on), and recomputes agent hints. Listing a server sends it the secrets its templates name, so you need permission to use them.",
@@ -3270,14 +3270,14 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
     "sourceToolName": "Tool name on that server",
     "tags": "Tags",
     "requirements": "Node labels a run needs",
-    "inputSchemaJson": "Input schema",
-    "outputSchemaJson": "Output schema"
+    "inputSchema": "Input schema",
+    "outputSchema": "Output schema"
    },
    "hints": {
     "kind": "Manual entries can be of any kind, for example a conversion service that agents reach through a skill.",
     "requirements": "A run of an agent that uses this capability goes only to workers with every one of these node labels.",
     "sourceMcpServerId": "Optional. A run token sees an entry that names a server only when its deployment binds that server.",
-    "inputSchemaJson": "A JSON Schema, for example {\"type\": \"object\"}. Leave empty when the capability takes free text."
+    "inputSchema": "A JSON Schema, for example {\"type\": \"object\"}. Leave empty when the capability takes free text."
    },
    "tagFilter": "Tag",
    "refresh": "Refresh",
@@ -4865,6 +4865,26 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
     "openApp": "Open the app {{name}}",
     "openInvoke": "Open in Invoke",
     "another": "Build another"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Open the {{name}} chat"
    }
   }
  }

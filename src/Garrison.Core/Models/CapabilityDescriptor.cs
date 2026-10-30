@@ -2,8 +2,11 @@ namespace Garrison.Core.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// One entry in the capability catalog (AD4, AD-006, AD-022): an agent, an MCP tool, or a harness built-in, described
@@ -119,12 +122,46 @@ namespace Garrison.Core.Models
         /// <summary>
         /// JSON Schema of the input, as JSON text, or null. Validated as a JSON Schema on save (InvalidJsonSchema).
         /// </summary>
+        [JsonIgnore]
         public string? InputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// JSON Schema the input must match, as a JSON object; null when the agent takes free text. Stored as
+        /// <see cref="InputSchemaJson"/>. A request may also send the schema as a JSON string.
+        /// </summary>
+        public JsonElement? InputSchema
+        {
+            get
+            {
+                return JsonText.Value(InputSchemaJson);
+            }
+            set
+            {
+                InputSchemaJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// JSON Schema of the output, as JSON text, or null. Validated as a JSON Schema on save (InvalidJsonSchema).
         /// </summary>
+        [JsonIgnore]
         public string? OutputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// JSON Schema the structured output must match, as a JSON object; null when the agent answers free text.
+        /// Stored as <see cref="OutputSchemaJson"/>. A request may also send the schema as a JSON string.
+        /// </summary>
+        public JsonElement? OutputSchema
+        {
+            get
+            {
+                return JsonText.Value(OutputSchemaJson);
+            }
+            set
+            {
+                OutputSchemaJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Tags for filtering. At most 32, each 1 to 64 characters.

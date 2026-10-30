@@ -163,8 +163,8 @@ namespace Garrison.Core.Services
             Dictionary<string, string> errors = new Dictionary<string, string>();
             if (!_AgentName.IsMatch(agent.Name ?? String.Empty)) errors["name"] = "Agent names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
             Dictionary<string, string> codes = new Dictionary<string, string>();
-            Schema(agent.InputSchemaJson, errors, codes, "inputSchemaJson");
-            Schema(agent.OutputSchemaJson, errors, codes, "outputSchemaJson");
+            Schema(agent.InputSchemaJson, errors, codes, "inputSchema");
+            Schema(agent.OutputSchemaJson, errors, codes, "outputSchema");
             if (agent.Kind == AgentKindEnum.Remote && String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl)) errors["remoteEndpointUrl"] = "Remote agents need an endpoint URL.";
             else if (!String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl))
             {

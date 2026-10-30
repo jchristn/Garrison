@@ -16,6 +16,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.ProviderHarness;
     using Garrison.Server.Backplane;
     using Garrison.Server.Services;
     using Test.Shared.Infrastructure;
@@ -364,7 +365,10 @@ namespace Test.Shared.Suites
                     draftId = draft.Id;
                     Assert.Equal(designer.Id, draft.OwnerUserId ?? String.Empty, "The draft belongs to the person the run works for");
                     draft = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId, version = draft.Version, kind = "Agent", name = "mcp-researcher", document = AgentYaml("mcp-researcher", "Researches.") }, token).ConfigureAwait(false);
-                    draft = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId, version = draft.Version, kind = "Agent", name = "mcp-lead", document = AgentYaml("mcp-lead", "Leads.") }, token).ConfigureAwait(false);
+                    ProviderToolResult put = await client.CallResultAsync("garrison_studio_put_item", new { draftId, version = draft.Version, kind = "Agent", name = "mcp-lead", document = AgentYaml("mcp-lead", "Leads.") }, token).ConfigureAwait(false);
+                    Assert.True(!put.IsError && put.StructuredContent != null && Convert.ToString(put.StructuredContent["id"], System.Globalization.CultureInfo.InvariantCulture) == draftId, "The tool answers the draft itself as a JSON object (structuredContent), not as JSON inside a string");
+                    draft = Assert.NotNull(Serializer.Deserialize<StudioDraft>(ProviderMcpBridge.Text(put)), "The text block parses as the draft");
+                    Assert.True(draft.Items.Count == 2, "The text block carries the same draft for clients that read only text");
                     StudioGraph graph = await client.CallAsync<StudioGraph>("garrison_studio_graph_operation", new { draftId, version = draft.Version, graphOperation = "AddMember", app = "mcp-app", agent = "mcp-lead" }, token).ConfigureAwait(false);
                     graph = await client.CallAsync<StudioGraph>("garrison_studio_graph_operation", new { draftId, version = graph.Version, graphOperation = "AddMember", app = "mcp-app", agent = "mcp-researcher" }, token).ConfigureAwait(false);
                     graph = await client.CallAsync<StudioGraph>("garrison_studio_graph_operation", new { draftId, version = graph.Version, graphOperation = "Connect", app = "mcp-app", from = "mcp-lead", to = "mcp-researcher" }, token).ConfigureAwait(false);

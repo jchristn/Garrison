@@ -2,6 +2,7 @@ package garrison
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 )
@@ -59,7 +60,7 @@ type CapabilityHints struct {
 }
 
 // CapabilityDescriptor is one capability catalog entry: an agent, an MCP tool, or a harness built-in. TenantID is nil
-// for descriptors every tenant shares. Schemas are JSON Schema documents as JSON text. On create and update the server
+// for descriptors every tenant shares. InputSchema and OutputSchema are JSON Schema documents as JSON values (usually objects), nil when none. On create and update the server
 // uses Name, Kind, Summary, the schemas, Tags, Requirements, and the optional SourceAgentID, SourceMcpServerID, and
 // SourceToolName, and sets the rest.
 type CapabilityDescriptor struct {
@@ -76,8 +77,8 @@ type CapabilityDescriptor struct {
 	SourceHarnessProfileID *string                 `json:"sourceHarnessProfileId,omitempty"`
 	SourceHarnessType      *string                 `json:"sourceHarnessType,omitempty"`
 	Summary                *string                 `json:"summary,omitempty"`
-	InputSchemaJSON        *string                 `json:"inputSchemaJson,omitempty"`
-	OutputSchemaJSON       *string                 `json:"outputSchemaJson,omitempty"`
+	InputSchema            json.RawMessage         `json:"inputSchema,omitempty"`
+	OutputSchema           json.RawMessage         `json:"outputSchema,omitempty"`
 	Tags                   []string                `json:"tags,omitempty"`
 	Requirements           []CapabilityRequirement `json:"requirements,omitempty"`
 	Hints                  *CapabilityHints        `json:"hints,omitempty"`

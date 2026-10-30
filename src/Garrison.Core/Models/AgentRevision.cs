@@ -2,8 +2,11 @@ namespace Garrison.Core.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// An immutable snapshot of an agent's definition (AD1, AD-003). An agent has at most one open draft at a time; a
@@ -103,12 +106,46 @@ namespace Garrison.Core.Models
         /// <summary>
         /// Input JSON Schema copied from the agent (unmanaged JSON column, section 7.3 of the plan).
         /// </summary>
+        [JsonIgnore]
         public string? InputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// JSON Schema the input must match, as a JSON object; null when the agent takes free text. Stored as
+        /// <see cref="InputSchemaJson"/>. A request may also send the schema as a JSON string.
+        /// </summary>
+        public JsonElement? InputSchema
+        {
+            get
+            {
+                return JsonText.Value(InputSchemaJson);
+            }
+            set
+            {
+                InputSchemaJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Output JSON Schema copied from the agent (unmanaged JSON column, section 7.3 of the plan).
         /// </summary>
+        [JsonIgnore]
         public string? OutputSchemaJson { get; set; } = null;
+
+        /// <summary>
+        /// JSON Schema the structured output must match, as a JSON object; null when the agent answers free text.
+        /// Stored as <see cref="OutputSchemaJson"/>. A request may also send the schema as a JSON string.
+        /// </summary>
+        public JsonElement? OutputSchema
+        {
+            get
+            {
+                return JsonText.Value(OutputSchemaJson);
+            }
+            set
+            {
+                OutputSchemaJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Delegation mode.

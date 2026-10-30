@@ -1,13 +1,14 @@
 namespace Garrison.Sdk.Models
 {
     using System;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
     /// A permission request a harness relayed to Garrison and its decision. Requests decided by a rule or by the
     /// deployment default are recorded already decided; requests a rule sends to a person stay Pending until someone
-    /// decides, the approval expires, or the run stops. The tool input is never stored in full: <see cref="InputPreview"/>
-    /// is a redacted, truncated copy.
+    /// decides, the approval expires, or the run stops. The tool input is never stored in full: <see cref="Input"/> (a
+    /// JSON object) or <see cref="InputPreview"/> (text) carries a redacted, truncated copy, and only one of them is set.
     /// </summary>
     public class Approval
     {
@@ -151,8 +152,15 @@ namespace Garrison.Sdk.Models
         public string? ToolCallId { get; set; } = null;
 
         /// <summary>
-        /// Tool input as compact JSON with secrets redacted, truncated to the service's preview limit (default 4000
-        /// characters).
+        /// The input the approval is about as a JSON object (a tool call's arguments, or the diff of a studio draft) with
+        /// secrets redacted. Null when the stored input is not a JSON object, in which case <see cref="InputPreview"/>
+        /// carries it.
+        /// </summary>
+        public JsonElement? Input { get; set; } = null;
+
+        /// <summary>
+        /// Tool input as text with secrets redacted, set only when it is not a JSON object (for example clipped to the
+        /// service's preview limit, default 4000 characters); null when <see cref="Input"/> carries it.
         /// </summary>
         public string? InputPreview { get; set; } = null;
 

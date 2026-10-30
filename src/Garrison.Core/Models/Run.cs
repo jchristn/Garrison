@@ -3,9 +3,11 @@ namespace Garrison.Core.Models
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Text.Json;
     using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
+    using Garrison.Core.Serialization;
 
     /// <summary>
     /// One invocation of one deployment.
@@ -284,7 +286,24 @@ namespace Garrison.Core.Models
         /// <summary>
         /// Structured output (unmanaged JSON).
         /// </summary>
+        [JsonIgnore]
         public string? StructuredOutputJson { get; set; } = null;
+
+        /// <summary>
+        /// The structured output, as the JSON value the agent returned (usually an object); null when there is none.
+        /// Stored as <see cref="StructuredOutputJson"/>.
+        /// </summary>
+        public JsonElement? StructuredOutput
+        {
+            get
+            {
+                return JsonText.Value(StructuredOutputJson);
+            }
+            set
+            {
+                StructuredOutputJson = JsonText.Text(value);
+            }
+        }
 
         /// <summary>
         /// Result of validating the final output against the agent's output schema: true when it validated, false

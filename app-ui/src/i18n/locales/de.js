@@ -87,6 +87,24 @@ const de = {
     Progress: 'Fortschritt',
     Warning: 'Warnung'
   },
+  activity: {
+    title: 'Agentenaktivität ({{count}})',
+    thinking: 'Überlegung',
+    thinkingNow: 'Denkt nach',
+    ask: 'Fragt {{agent}}',
+    askMany: 'Fragt {{agents}} gleichzeitig',
+    askSeveral: 'Fragt mehrere Agenten gleichzeitig',
+    gather: 'Sammelt die Antworten',
+    check: 'Prüft einen anderen Agenten',
+    tool: 'Verwendet {{tool}}',
+    running: 'Läuft',
+    done: 'Fertig',
+    failed: 'Fehlgeschlagen',
+    sent: 'Gesendet',
+    returned: 'Zurückgegeben',
+    nothing: 'Nichts',
+    waiting: 'Wartet auf die Antwort'
+  },
   files: {
     title: 'Dateien',
     empty: 'Der Agent hat in dieser Unterhaltung noch keine Dateien geschrieben.',
@@ -143,7 +161,11 @@ const de = {
     answerLink: 'Öffnet einen Link aus der Antwort in einem neuen Tab: {{href}}',
     tableHeader: 'Spalte einer Tabelle in der Antwort: {{text}}',
     poweredBy: 'Öffnet usegarrison.ai in einem neuen Tab: mehr über Garrison Agent Studio, die Plattform, auf der diese App läuft.',
-    skipToChat: 'Springt über Kopfzeile und Unterhaltungsliste hinweg direkt zum Nachrichtenfeld.'
+    skipToChat: 'Springt über Kopfzeile und Unterhaltungsliste hinweg direkt zum Nachrichtenfeld.',
+    activityRunning: 'Dieser Schritt läuft noch; das Ergebnis erscheint hier, sobald es zurückkommt.',
+    activityDone: 'Dieser Schritt ist abgeschlossen. Öffnen Sie ihn, um Gesendetes und Ergebnis zu sehen.',
+    activityFailed: 'Dieser Schritt ist fehlgeschlagen. Öffnen Sie ihn, um Gesendetes und den Fehler zu sehen.',
+    activityStep: 'Zeigt, was der Agent in diesem Schritt gesendet hat und was zurückkam.'
   }
 };
 

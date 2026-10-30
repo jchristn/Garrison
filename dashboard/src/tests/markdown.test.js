@@ -116,8 +116,8 @@ describe('buildPreview', () => {
       ev(4, 'AssistantText', { text: 'tle' }),
       ev(5, 'ToolCall', { toolName: 'read_file', toolCallId: 'c1' }),
       ev(6, 'ToolResult', { toolName: 'read_file', toolCallId: 'c1', success: false }),
-      ev(7, 'AssistantText', { text: 'One.', rawEventJson: '{}' }),
-      ev(8, 'AssistantText', { text: 'Two.', rawEventJson: '{}' }),
+      ev(7, 'AssistantText', { text: 'One.', rawEvent: {} }),
+      ev(8, 'AssistantText', { text: 'Two.', rawEvent: {} }),
       ev(9, 'Usage', { outputTokens: 12 })
     ]);
     expect(p.thinking).toBe('Let me think.');

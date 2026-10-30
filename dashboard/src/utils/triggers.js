@@ -182,9 +182,10 @@ export function endpointErrors(d, t) {
   return errors;
 }
 
-/** Pretty-printed JSON of a delivery payload, or the raw text when it is not JSON. */
+/** Pretty-printed JSON of a delivery payload (a JSON object; older servers sent JSON text), or the raw text. */
 export function prettyPayload(payload) {
   if (!payload) return '';
+  if (typeof payload === 'object') return JSON.stringify(payload, null, 2);
   try {
     return JSON.stringify(JSON.parse(payload), null, 2);
   } catch {

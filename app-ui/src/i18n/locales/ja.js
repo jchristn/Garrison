@@ -87,6 +87,24 @@ const ja = {
     Progress: '進行状況',
     Warning: '警告'
   },
+  activity: {
+    title: 'エージェントの動作 ({{count}})',
+    thinking: '思考',
+    thinkingNow: '考えています',
+    ask: '{{agent}} に依頼中',
+    askMany: '{{agents}} に同時に依頼中',
+    askSeveral: '複数のエージェントに同時に依頼中',
+    gather: '回答をまとめています',
+    check: '別のエージェントの状況を確認中',
+    tool: '{{tool}} を使用中',
+    running: '実行中',
+    done: '完了',
+    failed: '失敗',
+    sent: '送信内容',
+    returned: '返された内容',
+    nothing: 'なし',
+    waiting: '応答を待っています'
+  },
   files: {
     title: 'ファイル',
     empty: 'この会話では、エージェントはまだファイルを書き込んでいません。',
@@ -143,7 +161,11 @@ const ja = {
     answerLink: '回答内のリンクを新しいタブで開きます: {{href}}',
     tableHeader: '回答に含まれる表の列見出しです: {{text}}',
     poweredBy: 'usegarrison.ai を新しいタブで開き、このアプリが動いているプラットフォーム Garrison Agent Studio について確認します。',
-    skipToChat: 'ヘッダーと会話一覧を飛ばして、メッセージの入力欄へ直接移動します。'
+    skipToChat: 'ヘッダーと会話一覧を飛ばして、メッセージの入力欄へ直接移動します。',
+    activityRunning: 'このステップはまだ実行中です。結果が返ってくると、ここにすぐ表示されます。',
+    activityDone: 'このステップは完了しました。開くと送信内容と返された内容を確認できます。',
+    activityFailed: 'このステップは失敗しました。開くと送信内容と返されたエラーを確認できます。',
+    activityStep: 'このステップでエージェントが送った内容と返ってきた内容を表示します。'
   }
 };
 

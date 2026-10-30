@@ -2,6 +2,7 @@ namespace Garrison.Sdk.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -48,9 +49,9 @@ namespace Garrison.Sdk.Models
         public bool ResultTruncated { get; set; } = false;
 
         /// <summary>
-        /// Structured output as JSON text, or null.
+        /// Structured output as a JSON value (any JSON type), or null when there is none.
         /// </summary>
-        public string? StructuredOutputJson { get; set; } = null;
+        public JsonElement? StructuredOutput { get; set; } = null;
 
         /// <summary>
         /// Error message of a failed member, or null.

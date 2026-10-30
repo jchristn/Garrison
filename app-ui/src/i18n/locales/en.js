@@ -88,6 +88,24 @@ const en = {
     Progress: 'Progress',
     Warning: 'Warning'
   },
+  activity: {
+    title: 'Agent activity ({{count}})',
+    thinking: 'Thinking',
+    thinkingNow: 'Thinking',
+    ask: 'Asking {{agent}}',
+    askMany: 'Asking {{agents}} at once',
+    askSeveral: 'Asking several agents at once',
+    gather: 'Collecting the answers',
+    check: 'Checking on another agent',
+    tool: 'Using {{tool}}',
+    running: 'Running',
+    done: 'Done',
+    failed: 'Failed',
+    sent: 'Sent',
+    returned: 'Returned',
+    nothing: 'Nothing',
+    waiting: 'Waiting for the answer'
+  },
   files: {
     title: 'Files',
     empty: 'The agent has not written any files in this conversation yet.',
@@ -144,7 +162,11 @@ const en = {
     answerLink: 'Opens a link from the answer in a new tab: {{href}}',
     tableHeader: 'Column of a table in the answer: {{text}}',
     poweredBy: 'Open usegarrison.ai in a new tab to learn about Garrison Agent Studio, the platform this app runs on.',
-    skipToChat: 'Jump past the header and conversation list to the message box.'
+    skipToChat: 'Jump past the header and conversation list to the message box.',
+    activityRunning: 'This step is still running; the result appears here when it comes back.',
+    activityDone: 'This step finished. Open it to see what was sent and what came back.',
+    activityFailed: 'This step failed. Open it to see what was sent and the error that came back.',
+    activityStep: 'Show what the agent sent in this step and what came back.'
   }
 };
 

@@ -883,8 +883,8 @@ const zhHant = {
         skillName: '名稱',
         skillDescription: '描述',
         inputMode: '輸入模式',
-        inputSchemaJson: '輸入 JSON Schema',
-        outputSchemaJson: '輸出 JSON Schema',
+        inputSchema: '輸入 JSON Schema',
+        outputSchema: '輸出 JSON Schema',
         delegationMode: '委派',
         delegationAllowList: '可呼叫的代理程式',
         delegationMaxDepth: '最大深度',
@@ -3149,8 +3149,8 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "meanCostUsd": "平均成本",
     "windowDays": "統計期間",
     "computedUtc": "計算時間",
-    "inputSchemaJson": "輸入結構描述",
-    "outputSchemaJson": "輸出結構描述"
+    "inputSchema": "輸入結構描述",
+    "outputSchema": "輸出結構描述"
    },
    "refreshTitle": "重新整理能力目錄",
    "refreshHint": "Garrison 會重新衍生代理程式與 Harness 內建工具的項目、列出每個 MCP 伺服器的工具（stdio 伺服器透過已開啟 stdio 診斷的工作節點列出），並重新計算代理程式提示。列出伺服器時會傳送其範本所指名的祕密給它，因此您需要有使用這些祕密的權限。",
@@ -3243,14 +3243,14 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "sourceToolName": "該伺服器上的工具名稱",
     "tags": "標籤",
     "requirements": "執行所需的節點標籤",
-    "inputSchemaJson": "輸入結構描述",
-    "outputSchemaJson": "輸出結構描述"
+    "inputSchema": "輸入結構描述",
+    "outputSchema": "輸出結構描述"
    },
    "hints": {
     "kind": "手動項目可以是任何類型，例如代理程式透過技能使用的轉換服務。",
     "requirements": "使用此能力的代理程式，其執行只會分派到具備以下所有節點標籤的工作節點。",
     "sourceMcpServerId": "選填。指名伺服器的項目，只有在執行權杖所屬的部署繫結該伺服器時才看得到。",
-    "inputSchemaJson": "JSON Schema，例如 {\"type\": \"object\"}。若能力接受自由文字，請留空。"
+    "inputSchema": "JSON Schema，例如 {\"type\": \"object\"}。若能力接受自由文字，請留空。"
    },
    "tagFilter": "標籤",
    "refresh": "重新整理",
@@ -4838,6 +4838,26 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "openApp": "開啟應用程式 {{name}}",
     "openInvoke": "在 Invoke 中開啟",
     "another": "再建立一個"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "開啟 {{name}} 聊天"
    }
   }
  }

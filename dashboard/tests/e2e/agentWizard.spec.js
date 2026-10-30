@@ -125,6 +125,28 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   await expect(page.getByTestId('studio-chat-answer').first()).toContainText('I added a planner and a writer');
   await expect(page.getByTestId('wizard-contents')).toContainText('planner');
   expect(flow.invokes[0]).toMatchObject({ deploymentId: 'dep_arch', startConversation: true, studioDraftId: FLOW_DRAFT_ID });
+  // Only the conversation scrolls: a long transcript scrolls inside itself and never the page. Send sits to the right
+  // of the message box, as tall as the box.
+  await page.getByTestId('studio-chat-turns').evaluate((el) => {
+    const filler = document.createElement('div');
+    filler.style.height = '3000px';
+    filler.style.flexShrink = '0';
+    el.appendChild(filler);
+  });
+  const scroll = await page.evaluate(() => {
+    const outer = document.querySelector('.dashboard-content');
+    const inner = document.querySelector('[data-testid="studio-chat-turns"]');
+    return { outer: outer.scrollHeight - outer.clientHeight, inner: inner.scrollHeight - inner.clientHeight };
+  });
+  expect(scroll.outer).toBeLessThanOrEqual(1);
+  expect(scroll.inner).toBeGreaterThan(1000);
+  await page.getByTestId('studio-chat-turns').evaluate((el) => el.lastElementChild.remove());
+  const box = await page.getByTestId('studio-chat-message').boundingBox();
+  const send = await page.getByTestId('studio-chat-send').boundingBox();
+  expect(send.x).toBeGreaterThan(box.x + box.width - 1);
+  expect(Math.abs(send.y - box.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(send.height - box.height)).toBeLessThanOrEqual(1);
+
   await page.getByTestId('studio-chat-message').fill('Now put them in an app called docs.');
   await page.getByTestId('studio-chat-send').click();
   await expect(page.getByTestId('studio-chat-answer').nth(1)).toContainText('I added the docs app');

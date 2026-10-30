@@ -92,7 +92,7 @@ namespace Test.Shared.Suites
             AgentRevisionDiff diff = AgentRevisionContent.Diff(first, second);
             AssertFalse(diff.Identical, "Not identical");
             Assert.True(diff.Changes.Any(c => c.Field == "description" && c.From == "one" && c.To == "two"), "Description change listed");
-            Assert.True(diff.Changes.Any(c => c.Field == "outputSchemaJson" && c.From == null && c.To != null), "Schema change listed");
+            Assert.True(diff.Changes.Any(c => c.Field == "outputSchema" && c.From == null && c.To != null), "Schema change listed");
             Assert.True(diff.Changes.Any(c => c.Field == "delegationAllowList" && c.ChangeType == RevisionChangeTypeEnum.Removed && c.From == "b"), "Allow list removal listed");
             Assert.True(diff.Changes.Any(c => c.Field == "delegationAllowList" && c.ChangeType == RevisionChangeTypeEnum.Added && c.To == "c"), "Allow list addition listed");
             Assert.True(diff.Changes.Any(c => c.Field == "promptPins" && c.ChangeType == RevisionChangeTypeEnum.Added && c.To == "ToolDescription:pmt_tool"), "Prompt pin listed");
@@ -167,13 +167,13 @@ namespace Test.Shared.Suites
                 Assert.Equal("First", withDraft.Description, "A draft does not change what runs");
 
                 // Invalid content is refused with field errors.
-                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, revisions, new AgentRevision { OutputSchemaJson = "{not json" }, token).ConfigureAwait(false), 400, "outputSchemaJson", "Invalid schema");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, revisions, new { outputSchema = "{not json" }, token).ConfigureAwait(false), 400, "outputSchema", "Invalid schema");
                 Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, revisions, new AgentRevision { PromptPins = new List<AgentRevisionPromptPin> { new AgentRevisionPromptPin { Role = "ToolDescription", TemplateId = "pmt_missing" } } }, token).ConfigureAwait(false), 400, "promptPins[0].templateId", "Unknown prompt template");
 
                 // Diff from the published revision to the draft.
                 AgentRevisionDiff diff = await HttpTestHelpers.SendAsync<AgentRevisionDiff>(host.AdminClient, HttpMethod.Get, revisions + "/diff?from=1&to=2", null, 200, token).ConfigureAwait(false);
                 Assert.True(diff.Changes.Any(c => c.Field == "description" && c.From == "First" && c.To == "Second"), "Diff lists the description");
-                Assert.True(diff.Changes.Any(c => c.Field == "outputSchemaJson"), "Diff lists the schema");
+                Assert.True(diff.Changes.Any(c => c.Field == "outputSchema"), "Diff lists the schema");
                 Assert.True(diff.Changes.Any(c => c.Field == "delegationAllowList" && c.To == "helper"), "Diff lists the allow list entry");
                 AgentRevisionDiff defaults = await HttpTestHelpers.SendAsync<AgentRevisionDiff>(host.AdminClient, HttpMethod.Get, revisions + "/diff", null, 200, token).ConfigureAwait(false);
                 Assert.Equal(2, defaults.ToNumber, "Default to is the draft");

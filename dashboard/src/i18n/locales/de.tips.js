@@ -792,8 +792,8 @@ const tips = {
         description: 'Was die Fähigkeit tut, geschrieben für den aufrufenden Agenten.'
       },
       inputMode: 'Text akzeptiert eine einfache Nachricht. Strukturiert verlangt eine Eingabe, die dem JSON-Schema der Eingabe entspricht.',
-      inputSchemaJson: "JSON-Schema für die Eingabe des Agenten. Wenn gesetzt, muss jede Eingabe eines Aufrufs ein passendes JSON-Dokument sein, und Aufrufen zeigt ein daraus erzeugtes Formular.",
-      outputSchemaJson: 'JSON-Schema, dem das Ergebnis entsprechen muss. Garrison prüft die Ausgabe und versucht es einmal mit einem Reparatur-Prompt erneut.',
+      inputSchema: "JSON-Schema für die Eingabe des Agenten. Wenn gesetzt, muss jede Eingabe eines Aufrufs ein passendes JSON-Dokument sein, und Aufrufen zeigt ein daraus erzeugtes Formular.",
+      outputSchema: 'JSON-Schema, dem das Ergebnis entsprechen muss. Garrison prüft die Ausgabe und versucht es einmal mit einem Reparatur-Prompt erneut.',
       delegationAllowList: 'Die Agenten, die dieser Agent aufrufen darf, wenn die Delegation eine Zulassungsliste verwendet.',
       delegationMaxDepth: 'Wie viele Ebenen von Agent-zu-Agent-Aufrufen unterhalb dieses Agenten folgen dürfen. Zwischen 0 und 10.',
       delegationAllowRecursion: 'Erlauben, dass derselbe Agent zweimal in einer Aufrufkette vorkommt. Aus verhindert Schleifen.',
@@ -2517,8 +2517,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "Optional. Der MCP-Server, für dessen Tool dieser manuelle Eintrag steht.",
    "sourceToolName": "Der Name des Tools auf dem gewählten MCP-Server.",
    "requirements": "Knotenlabels wie garrison.io/tool-pandoc=true, die ein Worker melden muss, bevor er einen Lauf mit dieser Fähigkeit übernimmt.",
-   "inputSchemaJson": "JSON Schema dessen, was die Fähigkeit annimmt. Garrison prüft beim Speichern, ob es ein gültiges JSON Schema ist.",
-   "outputSchemaJson": "JSON Schema dessen, was die Fähigkeit zurückgibt. Garrison prüft beim Speichern, ob es ein gültiges JSON Schema ist.",
+   "inputSchema": "JSON Schema dessen, was die Fähigkeit annimmt. Garrison prüft beim Speichern, ob es ein gültiges JSON Schema ist.",
+   "outputSchema": "JSON Schema dessen, was die Fähigkeit zurückgibt. Garrison prüft beim Speichern, ob es ein gültiges JSON Schema ist.",
    "kindFilter": "Nur Agents, nur MCP-Tools oder nur integrierte Harness-Tools anzeigen. Wählen Sie Alle, um den ganzen Katalog zu sehen.",
    "originFilter": "Nur abgeleitete Einträge anzeigen, die ihrer Quelle folgen, oder nur manuelle Einträge, die Personen geschrieben haben.",
    "tagFilter": "Nur Fähigkeiten mit genau diesem Schlagwort anzeigen. Die Liste aktualisiert sich, sobald Sie aufhören zu tippen.",
@@ -2577,8 +2577,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "Mittlere Kosten in US-Dollar der ausgewerteten Läufe, die Kosten erfasst haben.",
    "windowDays": "Wie viele Tage die Hinweise zurückblicken (Einstellung Capabilities.HintWindowDays).",
    "computedUtc": "Wann die Hinweise zuletzt von der Wartungsschleife oder einer Aktualisierung berechnet wurden.",
-   "inputSchemaJson": "JSON Schema dessen, was die Fähigkeit annimmt, oder keins bei freiem Text.",
-   "outputSchemaJson": "JSON Schema dessen, was die Fähigkeit zurückgibt, oder keins."
+   "inputSchema": "JSON Schema dessen, was die Fähigkeit annimmt, oder keins bei freiem Text.",
+   "outputSchema": "JSON Schema dessen, was die Fähigkeit zurückgibt, oder keins."
   },
   "refreshServer": "Die Tools aller aktiven MCP-Server auflisten oder nur die eines Servers. stdio-Server werden über einen Worker aufgelistet.",
   "refreshRun": "Die Aktualisierung jetzt starten. Das kann dauern, wenn MCP-Server langsam antworten.",
@@ -3518,6 +3518,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "Was an den Agenten gesendet wird. Enter sendet; Ctrl+Enter oder Shift+Enter fügt eine neue Zeile ein.",
     "send": "Die Nachricht an die Dev-Bereitstellung des Agenten senden.",
     "another": "Den Assistenten für weitere Agenten neu starten."
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Öffnet den Chat der App in einem neuen Tab: Die Unterhaltung behält ihren Verlauf, und der Einstiegsagent kann die anderen Agenten der App fragen."
    }
   }
  }

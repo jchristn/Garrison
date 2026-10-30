@@ -19,8 +19,15 @@ describe('turn state', () => {
     let s = base();
     s = applyEvent(s, { sequence: 1, eventType: 'ToolCall', toolName: 'search' });
     s = applyEvent(s, { sequence: 2, eventType: 'Error', text: 'quota' });
-    expect(s.details).toEqual([{ sequence: 1, eventType: 'ToolCall', text: '', toolName: 'search', success: undefined }]);
+    expect(s.details).toEqual([{ sequence: 1, eventType: 'ToolCall', text: '', toolName: 'search', toolCallId: null, success: undefined }]);
     expect(s.streamError).toBe('quota');
+  });
+
+  it('takes tool arguments and results sent as JSON objects', () => {
+    let s = base();
+    s = applyEvent(s, { sequence: 1, eventType: 'ToolCall', toolName: 'search', toolCallId: 'c1', toolInput: { query: 'tides' } });
+    s = applyEvent(s, { sequence: 2, eventType: 'ToolResult', toolName: 'search', toolCallId: 'c1', success: true, toolOutput: { hits: 3 } });
+    expect(s.details.map((d) => d.text)).toEqual(['{"query":"tides"}', '{"hits":3}']);
   });
 
   it('prefers the final answer once the turn completes', () => {

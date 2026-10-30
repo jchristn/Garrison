@@ -83,7 +83,7 @@ Follow a conversation's shared files (see [docs/FILE_SPACES.md](docs/FILE_SPACES
 {"type":"files.changed","conversationId":"cnv_mv5d1a2b_Tq8LmZ3wR7xKc4Np","fileSpaceId":"cfs_mv5d1a2c_Wb2Nq7Hx4LtYk9Rs","changed":[{"path":"notes/sources.md","version":2,"deleted":false,"sha256":"4b7e...","sizeBytes":118}]}
 ```
 
-The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as REST returns them (see `REST_API.md`), including `rawEventJson`, the harness's original line, when the parser kept it. `runs.changed` carries `runs`, an array of `Run`; `nodes` carries `nodes`, an array of `Node`.
+The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as REST returns them (see `REST_API.md`), including `rawEvent`, the harness's original line as a JSON object, when the parser kept it (or `rawEventText` when that line is not valid JSON), and `toolInput` or `toolOutput` for tool calls and results whose content is JSON. `runs.changed` carries `runs`, an array of `Run`; `nodes` carries `nodes`, an array of `Node`.
 
 ## Server messages
 

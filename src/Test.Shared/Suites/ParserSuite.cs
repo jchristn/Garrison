@@ -34,6 +34,7 @@ namespace Test.Shared.Suites
                 Case("parsers", "claude-mcp-failed", "Claude stream-json: failed MCP server fails the run despite exit 0", ClaudeMcpFailed),
                 Case("parsers", "claude-max-turns", "Claude stream-json: error result with tool use", ClaudeMaxTurns),
                 Case("parsers", "codex-session-model", "Codex: served model read from the session file under CODEX_HOME", CodexSessionModel),
+                Case("parsers", "tool-result-content", "Tool results unwrap MCP content blocks: Claude and Codex record the tool's own output, not JSON inside a string inside a content array", ToolResultContent),
                 Case("parsers", "claude-partial", "Claude stream-json: partial messages stream text once and keep tool input", ClaudePartialMessages),
                 Case("parsers", "codex-success", "Codex JSONL: recorded success with usage", CodexSuccess),
                 Case("parsers", "codex-failed", "Codex JSONL: turn.failed with tool items", CodexFailed),
@@ -111,6 +112,30 @@ namespace Test.Shared.Suites
             foreach (string line in lines) parser.ParseLine(line, state);
             parser.Complete(state);
             return state;
+        }
+
+        private static void ToolResultContent()
+        {
+            string draft = "{\"id\":\"sdr_1\",\"version\":3}";
+            string escaped = draft.Replace("\"", "\\\"");
+            HarnessRunState claude = ParseLines(OutputParserEnum.ClaudeStreamJson, new[]
+            {
+                "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"tu_1\",\"name\":\"mcp__garrison__garrison_studio_put_item\",\"input\":{\"draftId\":\"sdr_1\"}}]}}",
+                "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu_1\",\"content\":[{\"type\":\"text\",\"text\":\"" + escaped + "\"}]}]}}",
+                "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu_2\",\"content\":[{\"type\":\"text\",\"text\":\"first\"},{\"type\":\"image\",\"source\":{}},{\"type\":\"text\",\"text\":\"second\"}]}]}}",
+                "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu_3\",\"content\":\"plain output\"}]}}"
+            });
+            List<RunEventReport> events = claude.Drain().Where(e => e.EventType == RunEventTypeEnum.ToolResult).ToList();
+            Assert.Equal(draft, events.Single(e => e.ToolCallId == "tu_1").Text, "Claude: the tool's JSON as it answered it");
+            Assert.Equal("first\n[image]\nsecond", events.Single(e => e.ToolCallId == "tu_2").Text, "Claude: text blocks joined, other blocks named");
+            Assert.Equal("plain output", events.Single(e => e.ToolCallId == "tu_3").Text, "Claude: a plain string stays as it is");
+
+            HarnessRunState codex = ParseLines(OutputParserEnum.CodexJsonl, new[]
+            {
+                "{\"type\":\"item.completed\",\"item\":{\"id\":\"i1\",\"type\":\"mcp_tool_call\",\"server\":\"garrison\",\"tool\":\"garrison_studio_put_item\",\"status\":\"completed\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + escaped + "\"}],\"structured_content\":null}}}"
+            });
+            RunEventReport mcp = Assert.NotNull(codex.Drain().FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult), "Codex MCP result");
+            Assert.Equal(draft, mcp.Text, "Codex: the tool's JSON as it answered it");
         }
 
         private static void ClaudeSuccess()

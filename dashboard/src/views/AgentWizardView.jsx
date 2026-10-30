@@ -94,7 +94,7 @@ export default function AgentWizardView({ recordId }) {
   const stepProps = { draft, state, update, go, reload: loadDraft, setDraft };
 
   return (
-    <div className="agent-wizard" data-testid="agent-wizard">
+    <div className={`agent-wizard${step === 'design' ? ' agent-wizard-fill' : ''}`} data-testid="agent-wizard">
       <PageHeader
         title={t('views.agentWizard.title')}
         subtitle={draft ? t('views.agentWizard.subtitleDraft', { title: draft.title }) : t('views.agentWizard.subtitle')}

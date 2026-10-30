@@ -1,6 +1,7 @@
 namespace Garrison.Sdk.Models
 {
     using System;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -31,7 +32,14 @@ namespace Garrison.Sdk.Models
         public string? Summary { get; set; } = null;
 
         /// <summary>
-        /// Redacted input preview, or null.
+        /// The input the approval is about as a JSON object (a tool call's arguments, or the diff of a studio draft),
+        /// redacted. Null when the stored input is not a JSON object, in which case <see cref="InputPreview"/> carries it.
+        /// </summary>
+        public JsonElement? Input { get; set; } = null;
+
+        /// <summary>
+        /// Redacted input as text when it is not a JSON object (for example clipped to the preview size); null when
+        /// <see cref="Input"/> carries it.
         /// </summary>
         public string? InputPreview { get; set; } = null;
 

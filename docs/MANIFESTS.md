@@ -430,7 +430,6 @@ Agents accept a few shorthands:
 |---|---|
 | `exposure.a2a`, `exposure.mcpTool`, `exposure.toolName` | `exposeA2A`, `exposeMcpTool`, `mcpToolName` |
 | `delegation.mode`, `delegation.allow`, `delegation.maxDepth`, `delegation.allowRecursion` | `delegationMode`, `delegationAllowList`, `delegationMaxDepth`, `delegationAllowRecursion`. Without `mode`, a non-empty `allow` means `AllowList` and anything else means `None` |
-| `inputSchema`, `outputSchema` as YAML mappings | `inputSchemaJson`, `outputSchemaJson` |
 | `toolDescriptionTemplate`, `skillDescriptionTemplate` | The prompt template, by name |
 
 An agent's content is kept as revisions (see [REVISIONS.md](REVISIONS.md)). Applying an Agent document normally publishes its content as the next revision when it changed. Add a `revision` block to write it as the agent's draft instead, leaving what runs alone until the draft is published:
@@ -449,7 +448,7 @@ In the same way, `capabilities: [pandoc]` names the capabilities the agent's nex
 
 With `publish: false`, only the revision content fields (description, display name, schemas, delegation policy, tags, prompt templates) go into the draft; the agent's other fields stay as they are. A new agent is always created with its content as revision 1, published.
 
-Both schemas must be valid JSON Schema documents; one that is not fails the document with field code `InvalidJsonSchema`. An agent with an input schema only accepts input that is a JSON document matching it, on every surface (see "Input schemas" in `REST_API.md`), and the dashboard's Invoke page builds a form from it:
+`inputSchema` and `outputSchema` are YAML mappings (JSON objects in a JSON manifest), the same shape the REST API uses. Export writes them as mappings too. Both schemas must be valid JSON Schema documents; one that is not fails the document with field code `InvalidJsonSchema`. An agent with an input schema only accepts input that is a JSON document matching it, on every surface (see "Input schemas" in `REST_API.md`), and the dashboard's Invoke page builds a form from it:
 
 ```yaml
 spec:

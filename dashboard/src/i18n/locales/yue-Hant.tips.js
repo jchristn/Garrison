@@ -792,8 +792,8 @@ const tips = {
         description: '技能做咩，寫畀呼叫嘅代理程式睇。'
       },
       inputMode: 'Text 接受純文字訊息。Structured 要求輸入符合輸入 JSON Schema。',
-      inputSchemaJson: "代理輸入嘅 JSON 結構。設定咗之後，每次呼叫嘅輸入都一定要係符合佢嘅 JSON 文件，呼叫頁面會顯示根據佢整出嚟嘅表格。",
-      outputSchemaJson: '結果必須符合嘅 JSON Schema。Garrison 會驗證輸出，唔啱就用修復提示重試一次。',
+      inputSchema: "代理輸入嘅 JSON 結構。設定咗之後，每次呼叫嘅輸入都一定要係符合佢嘅 JSON 文件，呼叫頁面會顯示根據佢整出嚟嘅表格。",
+      outputSchema: '結果必須符合嘅 JSON Schema。Garrison 會驗證輸出，唔啱就用修復提示重試一次。',
       delegationAllowList: '委派用允許清單時，呢個代理程式可以呼叫嘅代理程式。',
       delegationMaxDepth: '喺呢個代理程式之下，代理程式之間嘅呼叫最多可以有幾多層。介乎 0 至 10。',
       delegationAllowRecursion: '容許同一個代理程式喺同一條呼叫鏈出現兩次。熄咗可以防止迴圈。',
@@ -2517,8 +2517,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "選填。呢個手動項目代表嘅工具所屬嘅 MCP 伺服器。",
    "sourceToolName": "個工具喺揀咗嘅 MCP 伺服器上面嘅名。",
    "requirements": "工作節點接一個用到呢個能力嘅執行之前，一定要報返嘅節點標籤，例如 garrison.io/tool-pandoc=true。",
-   "inputSchemaJson": "描述呢個能力收乜嘢嘅 JSON Schema。儲存嗰陣 Garrison 會檢查佢係唔係有效嘅 JSON Schema。",
-   "outputSchemaJson": "描述呢個能力傳返乜嘢嘅 JSON Schema。儲存嗰陣 Garrison 會檢查佢係唔係有效嘅 JSON Schema。",
+   "inputSchema": "描述呢個能力收乜嘢嘅 JSON Schema。儲存嗰陣 Garrison 會檢查佢係唔係有效嘅 JSON Schema。",
+   "outputSchema": "描述呢個能力傳返乜嘢嘅 JSON Schema。儲存嗰陣 Garrison 會檢查佢係唔係有效嘅 JSON Schema。",
    "kindFilter": "只顯示代理程式、只顯示 MCP 工具，或者只顯示 Harness 內置工具。揀「全部」就睇到成個目錄。",
    "originFilter": "只顯示跟住來源變嘅衍生項目，或者只顯示由人寫嘅手動項目。",
    "tagFilter": "只顯示有呢個標籤（要完全一樣）嘅能力。你停低唔打字之後，清單就會更新。",
@@ -2577,8 +2577,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "統計咗而又有記錄成本嘅執行嘅平均成本（美元）。",
    "windowDays": "啲提示往回睇幾多日（Capabilities.HintWindowDays 設定）。",
    "computedUtc": "維護迴圈或者重新整理上次計提示嘅時間。",
-   "inputSchemaJson": "描述呢個能力收乜嘢嘅 JSON Schema；收自由文字嘅話就冇。",
-   "outputSchemaJson": "描述呢個能力傳返乜嘢嘅 JSON Schema，或者冇。"
+   "inputSchema": "描述呢個能力收乜嘢嘅 JSON Schema；收自由文字嘅話就冇。",
+   "outputSchema": "描述呢個能力傳返乜嘢嘅 JSON Schema，或者冇。"
   },
   "refreshServer": "列出所有啟用緊嘅 MCP 伺服器嘅工具，或者淨係列一個伺服器。stdio 伺服器會經工作節點列出。",
   "refreshRun": "即刻開始重新整理。如果 MCP 伺服器回應慢，可能要等一陣。",
@@ -3518,6 +3518,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "要發畀代理程式嘅內容。撳 Enter 發送；撳 Ctrl+Enter 或者 Shift+Enter 換行。",
     "send": "將訊息發去代理程式嘅 dev 部署。",
     "another": "重新開始精靈，整另一組代理程式。"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "喺新分頁打開應用程式嘅傾偈：對話會保留記錄，入口代理可以問應用程式入面其他代理。"
    }
   }
  }

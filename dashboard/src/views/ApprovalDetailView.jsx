@@ -20,6 +20,7 @@ import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { formatMs } from '../utils/telemetry';
+import { jsonToText } from '../utils/jsonFields';
 
 const POLL_MS = 5000;
 
@@ -230,7 +231,7 @@ export default function ApprovalDetailView({ recordId }) {
               {t('resources.approvals.fields.inputPreview')}
             </div>
             <div data-testid="approval-input-preview">
-              <CodeBlock value={a.inputPreview} prettyJson emptyText={t('views.approvalDetail.noInput')} />
+              <CodeBlock value={a.input ? jsonToText(a.input) : a.inputPreview} prettyJson emptyText={t('views.approvalDetail.noInput')} />
             </div>
           </div>
         </div>

@@ -666,16 +666,6 @@ namespace Garrison.Core.Manifests
                 else spec["delegationMode"] = allow is List<object?> list && list.Count > 0 ? "AllowList" : "None";
                 spec.Remove("delegation");
             }
-            if (spec.TryGetValue("inputSchema", out object? input) && input is Dictionary<string, object?>)
-            {
-                spec["inputSchemaJson"] = TemplateValues.ToJson(input);
-                spec.Remove("inputSchema");
-            }
-            if (spec.TryGetValue("outputSchema", out object? output) && output is Dictionary<string, object?>)
-            {
-                spec["outputSchemaJson"] = TemplateValues.ToJson(output);
-                spec.Remove("outputSchema");
-            }
             bool publish = true;
             if (spec.TryGetValue("revision", out object? revisionValue))
             {

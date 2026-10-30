@@ -221,7 +221,7 @@ describe('Revisions panel', () => {
     expect(rows[1].querySelector('[data-testid="revision-publish"]')).toBeNull();
     expect(apiClient.diffAgentRevisions).toHaveBeenCalledWith('default', 'agt_0001', revisionId('agt_0001', 2), revisionId('agt_0001', 3));
     expect(q('[data-testid="revision-diff"] [data-field="description"]').textContent).toContain('Sample agent that also summarizes');
-    expect(q('[data-testid="revision-diff"] [data-field="outputSchemaJson"] .diff-viewer')).not.toBeNull();
+    expect(q('[data-testid="revision-diff"] [data-field="outputSchema"] .diff-viewer')).not.toBeNull();
 
     click(rows[1].querySelector('[data-testid="revision-compare"]'));
     await flush();

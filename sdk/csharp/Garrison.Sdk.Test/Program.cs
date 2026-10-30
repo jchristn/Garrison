@@ -8,6 +8,7 @@ namespace Garrison.Sdk.Test
     using System.Net.Http;
     using System.Security.Cryptography;
     using System.Text;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Sdk;
@@ -194,7 +195,7 @@ namespace Garrison.Sdk.Test
                     Agent structured = new Agent();
                     structured.Name = "sdk-cs-" + suffix + "-schema";
                     structured.InputMode = AgentInputModeEnum.Structured;
-                    structured.InputSchemaJson = "{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"count\":{\"type\":\"integer\"}},\"required\":[\"topic\"]}";
+                    structured.InputSchema = Json("{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"count\":{\"type\":\"integer\"}},\"required\":[\"topic\"]}");
                     structured = await client.Agents.CreateAsync(structured, token).ConfigureAwait(false);
                     Deployment structuredDeployment = new Deployment();
                     structuredDeployment.Name = "sdk-cs-" + suffix + "-schema-fake";
@@ -203,7 +204,7 @@ namespace Garrison.Sdk.Test
                     structuredDeployment = await client.Deployments.CreateAsync(structuredDeployment, token).ConfigureAwait(false);
                     try
                     {
-                        Require(structured.InputSchemaJson != null && structured.InputSchemaJson.Contains("topic", StringComparison.Ordinal), "inputSchemaJson not stored");
+                        Require(structured.InputSchema.HasValue && structured.InputSchema.Value.ValueKind == JsonValueKind.Object && structured.InputSchema.Value.GetProperty("properties").TryGetProperty("topic", out JsonElement _), "inputSchema not stored as an object");
                         InvokeRequest valid = new InvokeRequest();
                         valid.Input = "{\"topic\":\"sdk\",\"count\":2}";
                         valid.InputContentType = "application/json";
@@ -968,7 +969,7 @@ namespace Garrison.Sdk.Test
                         EnumerationResult<NotificationDelivery> deliveries = await client.NotificationEndpoints.ListDeliveriesAsync(endpoint.Id, null, null, token).ConfigureAwait(false);
                         Require(deliveries.Objects.Any(d => d.Id == test.Id), "delivery log");
                         NotificationDelivery one = await client.NotificationEndpoints.GetDeliveryAsync(endpoint.Id, test.Id, token).ConfigureAwait(false);
-                        Require(one.Payload.Contains("\"event\":\"Test\"", StringComparison.Ordinal), "delivery payload");
+                        Require(one.Payload.HasValue && one.Payload.Value.ValueKind == JsonValueKind.Object && one.Payload.Value.TryGetProperty("event", out JsonElement payloadEvent) && payloadEvent.GetString() == "Test", "delivery payload");
                         read.Active = false;
                         Require(!(await client.NotificationEndpoints.UpdateAsync(endpoint.Id, read, token).ConfigureAwait(false)).Active, "endpoint update");
                     }
@@ -1198,7 +1199,7 @@ namespace Garrison.Sdk.Test
                         Name = name,
                         Kind = CapabilityKindEnum.McpTool,
                         Summary = "Manual descriptor from the C# SDK harness.",
-                        InputSchemaJson = "{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}},\"required\":[\"text\"]}",
+                        InputSchema = Json("{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}},\"required\":[\"text\"]}"),
                         Tags = new List<string> { tag },
                         Requirements = new List<CapabilityRequirement> { new CapabilityRequirement { Key = "garrison.io/sdk-fixture", Value = "true" } }
                     };
@@ -1215,7 +1216,7 @@ namespace Garrison.Sdk.Test
                         string? badSchemaCode = null;
                         try
                         {
-                            await client.Capabilities.CreateAsync(new CapabilityDescriptor { Name = name + "-bad", Kind = CapabilityKindEnum.McpTool, InputSchemaJson = "[1,2]" }, token).ConfigureAwait(false);
+                            await client.Capabilities.CreateAsync(new CapabilityDescriptor { Name = name + "-bad", Kind = CapabilityKindEnum.McpTool, InputSchema = Json("[1,2]") }, token).ConfigureAwait(false);
                         }
                         catch (GarrisonException e) when (e.StatusCode == 400)
                         {
@@ -1665,6 +1666,11 @@ namespace Garrison.Sdk.Test
         private static void Require(bool condition, string message)
         {
             if (!condition) throw new InvalidOperationException(message);
+        }
+
+        private static JsonElement Json(string text)
+        {
+            return JsonSerializer.Deserialize<JsonElement>(text);
         }
 
         #endregion

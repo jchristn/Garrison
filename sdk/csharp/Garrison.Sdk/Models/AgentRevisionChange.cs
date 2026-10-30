@@ -1,6 +1,7 @@
 namespace Garrison.Sdk.Models
 {
     using System;
+    using System.Text.Json;
     using Garrison.Sdk.Enums;
 
     /// <summary>
@@ -31,14 +32,16 @@ namespace Garrison.Sdk.Models
         public RevisionChangeTypeEnum ChangeType { get; set; } = RevisionChangeTypeEnum.Changed;
 
         /// <summary>
-        /// Value in the earlier revision, or null.
+        /// Value in the earlier revision as a JSON value, or null. An object for the inputSchema and outputSchema fields,
+        /// a string for every other field.
         /// </summary>
-        public string? From { get; set; } = null;
+        public JsonElement? From { get; set; } = null;
 
         /// <summary>
-        /// Value in the later revision, or null.
+        /// Value in the later revision as a JSON value, or null. An object for the inputSchema and outputSchema fields, a
+        /// string for every other field.
         /// </summary>
-        public string? To { get; set; } = null;
+        public JsonElement? To { get; set; } = null;
 
         #endregion
 

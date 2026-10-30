@@ -792,8 +792,8 @@ const tips = {
         description: 'What the skill does, written for the calling agent.'
       },
       inputMode: 'Text accepts a plain message. Structured requires input that matches the input JSON Schema.',
-      inputSchemaJson: "JSON Schema for the agent input. When set, every invocation input must be a JSON document that matches it, and Invoke shows a form generated from it.",
-      outputSchemaJson: 'JSON Schema the result must match. Garrison validates the output and retries once with a repair prompt.',
+      inputSchema: "JSON Schema for the agent input. When set, every invocation input must be a JSON document that matches it, and Invoke shows a form generated from it.",
+      outputSchema: 'JSON Schema the result must match. Garrison validates the output and retries once with a repair prompt.',
       delegationAllowList: 'The agents this agent may call when delegation uses an allow list.',
       delegationMaxDepth: 'How many levels of agent-to-agent calls may follow below this agent. Between 0 and 10.',
       delegationAllowRecursion: 'Let the same agent appear twice in one chain of calls. Off prevents loops.',
@@ -2517,8 +2517,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "Optional. The MCP server whose tool this manual entry stands for.",
    "sourceToolName": "The tool's name on the chosen MCP server.",
    "requirements": "Node labels, such as garrison.io/tool-pandoc=true, a worker must report before it takes a run that uses this capability.",
-   "inputSchemaJson": "JSON Schema of what the capability takes. Garrison checks that it is a valid JSON Schema when you save.",
-   "outputSchemaJson": "JSON Schema of what the capability returns. Garrison checks that it is a valid JSON Schema when you save.",
+   "inputSchema": "JSON Schema of what the capability takes. Garrison checks that it is a valid JSON Schema when you save.",
+   "outputSchema": "JSON Schema of what the capability returns. Garrison checks that it is a valid JSON Schema when you save.",
    "kindFilter": "Show only agents, only MCP tools, or only harness built-ins. Choose All to see the whole catalog.",
    "originFilter": "Show only derived entries, which follow their source, or only manual entries written by people.",
    "tagFilter": "Show only capabilities with this exact tag. The list updates when you stop typing.",
@@ -2577,8 +2577,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "Mean cost in US dollars of the summarized runs that recorded a cost.",
    "windowDays": "How many days back the hints look (the Capabilities.HintWindowDays setting).",
    "computedUtc": "When the hints were last computed by the maintenance loop or a refresh.",
-   "inputSchemaJson": "JSON Schema of what the capability takes, or none for free text.",
-   "outputSchemaJson": "JSON Schema of what the capability returns, or none."
+   "inputSchema": "JSON Schema of what the capability takes, or none for free text.",
+   "outputSchema": "JSON Schema of what the capability returns, or none."
   },
   "refreshServer": "List the tools of every active MCP server, or of one server only. Stdio servers are listed through a worker.",
   "refreshRun": "Start the refresh now. It can take a while when MCP servers are slow to answer.",
@@ -3518,6 +3518,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "What to send to the agent. Enter sends; Ctrl+Enter or Shift+Enter adds a new line.",
     "send": "Send the message to the agent's dev deployment.",
     "another": "Start the wizard again for another set of agents."
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Open the app's chat in a new tab: the conversation keeps its history, and the entry agent can ask the other agents in the app."
    }
   }
  }

@@ -91,11 +91,18 @@ class TranscriptUsage(TypedDict, total=False):
 
 class TranscriptEntry(TypedDict, total=False):
     """One transcript event. type is AssistantText, Thinking (only with include_thinking), ToolCall, ToolResult, Warning,
-    Error, or Lifecycle. Tool text is cut to the server limit (textTruncated). Secrets read [REDACTED]."""
+    Error, or Lifecycle. Tool text is cut to the server limit (textTruncated). Secrets read [REDACTED]. A ToolCall whose
+    arguments are JSON carries them in toolInput (a dict) and omits text; a ToolResult whose output is a JSON object or
+    array carries it in toolOutput and omits text. rawEvent is the harness's source line as a JSON object; rawEventText
+    holds the line instead only when it is not valid JSON (for example when it was truncated)."""
     sequence: int
     timestampUtc: str
     type: str
     text: Optional[str]
+    toolInput: Dict[str, Any]
+    toolOutput: Any
+    rawEvent: Dict[str, Any]
+    rawEventText: str
     toolName: Optional[str]
     toolCallId: Optional[str]
     success: Optional[bool]
@@ -104,12 +111,14 @@ class TranscriptEntry(TypedDict, total=False):
 
 
 class TranscriptApproval(TypedDict, total=False):
-    """An approval requested during a turn."""
+    """An approval requested during a turn. input is the requested input as a dict when it is a JSON object; otherwise
+    inputPreview holds it as text. Only one of the two is present."""
     id: str
     kind: str
     toolName: str
     summary: Optional[str]
-    inputPreview: Optional[str]
+    input: Dict[str, Any]
+    inputPreview: str
     status: str
     decision: Optional[str]
     decisionSource: Optional[str]
@@ -297,7 +306,7 @@ class CapabilityHints(TypedDict, total=False):
 
 class CapabilityDescriptor(TypedDict, total=False):
     """One capability catalog entry. kind is one of CAPABILITY_KINDS, origin one of CAPABILITY_ORIGINS. tenantId is None
-    for descriptors every tenant shares. Schemas are JSON Schema documents as JSON text."""
+    for descriptors every tenant shares. Schemas are JSON Schema documents as JSON values (usually dicts), None when there is none."""
     id: str
     tenantId: Optional[str]
     name: str
@@ -311,8 +320,8 @@ class CapabilityDescriptor(TypedDict, total=False):
     sourceHarnessProfileId: Optional[str]
     sourceHarnessType: Optional[str]
     summary: Optional[str]
-    inputSchemaJson: Optional[str]
-    outputSchemaJson: Optional[str]
+    inputSchema: Optional[Any]
+    outputSchema: Optional[Any]
     tags: List[str]
     requirements: List[CapabilityRequirement]
     hints: CapabilityHints
@@ -352,7 +361,7 @@ class FanOutMember(TypedDict, total=False):
     outcome: Optional[str]
     resultText: Optional[str]
     resultTruncated: bool
-    structuredOutputJson: Optional[str]
+    structuredOutput: Optional[Any]
     errorMessage: Optional[str]
     filesWritten: List[str]
     costUsd: Optional[float]
@@ -760,7 +769,8 @@ class AgentAssetVersion(TypedDict, total=False):
 
 
 class AgentRevision(TypedDict, total=False):
-    """Immutable (Published) or editable (Draft) snapshot of an agent's content. state is one of AGENT_REVISION_STATES."""
+    """Immutable (Published) or editable (Draft) snapshot of an agent's content. state is one of AGENT_REVISION_STATES.
+    inputSchema and outputSchema are JSON Schema documents as JSON values (usually dicts), None when there is none."""
     id: str
     tenantId: str
     agentId: str
@@ -770,8 +780,8 @@ class AgentRevision(TypedDict, total=False):
     displayName: Optional[str]
     description: Optional[str]
     inputMode: str
-    inputSchemaJson: Optional[str]
-    outputSchemaJson: Optional[str]
+    inputSchema: Optional[Any]
+    outputSchema: Optional[Any]
     delegationMode: str
     delegationMaxDepth: int
     delegationAllowRecursion: bool
@@ -791,7 +801,8 @@ class AgentRevision(TypedDict, total=False):
 
 
 AgentRevisionChange = TypedDict("AgentRevisionChange", {"field": str, "changeType": str, "from": Any, "to": Any})
-AgentRevisionChange.__doc__ = """AgentRevisionDiff["changes"] item. changeType is one of REVISION_CHANGE_TYPES."""
+AgentRevisionChange.__doc__ = """AgentRevisionDiff["changes"] item. changeType is one of REVISION_CHANGE_TYPES.
+"from" and "to" are JSON values: dicts (or None) for the "inputSchema" and "outputSchema" fields, strings otherwise."""
 
 
 class AgentRevisionDiff(TypedDict):
@@ -874,10 +885,10 @@ EFFECT_POLICIES = ("AtMostOnce", "AtLeastOnce", "Journaled")
 # FieldWarning["code"] values. ValueClamped: the value was outside its allowed range and the nearest allowed value was
 # stored (for example deployment maxAttempts 99 is stored as 10).
 FIELD_WARNING_CODES = ("ValueClamped",)
-# Input schema field codes (GarrisonError.field_codes values) when an agent with "inputSchemaJson" is invoked with an
+# Input schema field codes (GarrisonError.field_codes values) when an agent with "inputSchema" is invoked with an
 # input that is not JSON (key "input") or does not match the schema (key "input" or "input.<path>", for example
-# "input.topic" or "input.tags[1]"). Saving an agent whose inputSchemaJson or outputSchemaJson is not a valid JSON
-# Schema fails with InvalidJsonSchema.
+# "input.topic" or "input.tags[1]"). Saving an agent whose inputSchema or outputSchema is not a valid JSON Schema fails
+# with InvalidJsonSchema on the "inputSchema" or "outputSchema" key.
 INPUT_SCHEMA_FIELD_CODES = ("InputNotJson", "InputSchemaViolation", "InvalidJsonSchema")
 # Transcript formats (runs.transcript_markdown / transcript, conversations.transcript_markdown / transcript).
 TRANSCRIPT_FORMATS = ("markdown", "json")
@@ -1425,7 +1436,7 @@ class NotificationEndpoints(Resource):
         return self._t.request("GET", self._item(endpoint) + "/deliveries", {"status": status, "maxResults": max_results, "skip": skip})
 
     def get_delivery(self, endpoint: str, delivery_id: str) -> Dict[str, Any]:
-        """Read one delivery with its payload and last attempt."""
+        """Read one delivery with its payload (a dict) and last attempt."""
         return self._t.request("GET", self._item(endpoint) + f"/deliveries/{_seg(delivery_id)}")
 
 
@@ -1457,7 +1468,7 @@ class Agents(Resource):
         """Invoke an agent by identifier or name. With wait=True the finished run is returned when it completes in time.
         A waiting call that disconnects cancels its run unless cancel_on_disconnect is False. start_conversation=True
         starts a conversation (the run's conversationId names it); conversation_id sends the next turn of one, and raises
-        GarrisonError 409 ConversationBusy while the previous turn is unfinished. For an agent with an "inputSchemaJson",
+        GarrisonError 409 ConversationBusy while the previous turn is unfinished. For an agent with an "inputSchema",
         input must be a JSON document that matches it (send json.dumps(value) with input_content_type="application/json");
         otherwise GarrisonError 400 is raised and field_codes maps "input" (InputNotJson) or "input.<path>"
         (InputSchemaViolation) to the failure."""
@@ -2104,7 +2115,8 @@ class PromptTemplates(Resource):
 
 class McpServers(Resource):
     def test(self, id: str, node_id: Optional[str] = None) -> Dict[str, Any]:
-        """List HTTP tools, or test stdio on the explicitly selected worker."""
+        """List HTTP tools, or test stdio on the explicitly selected worker. Each "toolDetails" item carries its
+        "inputSchema" as a JSON value (usually a dict)."""
         return self._t.request("POST", self._item(id) + "/test", {"nodeId": node_id})
 
 
@@ -2239,6 +2251,9 @@ class Runs:
         return self._t.request("POST", self._p(f"/{_seg(id)}/retry"))
 
     def events(self, id: str, after_sequence: int = 0, limit: int = 500) -> Dict[str, Any]:
+        """Page a run's events. Each event carries "rawEvent" (the harness's source line as a dict), or "rawEventText"
+        when that line is not valid JSON. A ToolCall with JSON arguments carries "toolInput" (a dict) and a ToolResult
+        with a JSON object or array output carries "toolOutput"; both omit "text"."""
         return self._t.request("GET", self._p(f"/{_seg(id)}/events"), {"afterSequence": after_sequence, "limit": limit})
 
     def stream(self, id: str, after_sequence: int = 0) -> Iterator[Dict[str, Any]]:

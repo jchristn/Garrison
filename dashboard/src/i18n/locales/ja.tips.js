@@ -792,8 +792,8 @@ const tips = {
         description: 'スキルの役割です。呼び出し側のエージェントに向けて書きます。'
       },
       inputMode: 'テキストは通常のメッセージを受け付けます。構造化では、入力 JSON スキーマに一致する入力が必要です。',
-      inputSchemaJson: "エージェントの入力の JSON スキーマです。設定すると、呼び出しの入力はすべてこれに一致する JSON ドキュメントである必要があり、呼び出し画面にはここから生成したフォームが表示されます。",
-      outputSchemaJson: '結果が一致しなければならない JSON スキーマです。Garrison は出力を検証し、修復プロンプトで 1 回再試行します。',
+      inputSchema: "エージェントの入力の JSON スキーマです。設定すると、呼び出しの入力はすべてこれに一致する JSON ドキュメントである必要があり、呼び出し画面にはここから生成したフォームが表示されます。",
+      outputSchema: '結果が一致しなければならない JSON スキーマです。Garrison は出力を検証し、修復プロンプトで 1 回再試行します。',
       delegationAllowList: '委任で許可リストを使う場合に、このエージェントが呼び出せるエージェントです。',
       delegationMaxDepth: 'このエージェントの下に続けられるエージェント間呼び出しの階層数です。0 から 10 の範囲です。',
       delegationAllowRecursion: '1 つの呼び出しの連鎖に同じエージェントが 2 回現れることを許可します。オフにするとループを防げます。',
@@ -2517,8 +2517,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "省略可能。この手動エントリーが表すツールを持つ MCP サーバーです。",
    "sourceToolName": "選んだ MCP サーバー上でのツール名です。",
    "requirements": "garrison.io/tool-pandoc=true のようなノードラベルです。このケイパビリティを使う実行を引き受ける前に、ワーカーがこれらを報告している必要があります。",
-   "inputSchemaJson": "ケイパビリティが受け取る内容の JSON Schema です。保存時に、有効な JSON Schema かどうかを Garrison が確認します。",
-   "outputSchemaJson": "ケイパビリティが返す内容の JSON Schema です。保存時に、有効な JSON Schema かどうかを Garrison が確認します。",
+   "inputSchema": "ケイパビリティが受け取る内容の JSON Schema です。保存時に、有効な JSON Schema かどうかを Garrison が確認します。",
+   "outputSchema": "ケイパビリティが返す内容の JSON Schema です。保存時に、有効な JSON Schema かどうかを Garrison が確認します。",
    "kindFilter": "エージェントだけ、MCP ツールだけ、またはハーネスの組み込みツールだけを表示します。カタログ全体を見るには「すべて」を選びます。",
    "originFilter": "ソースに追従する派生エントリーだけ、または人が書いた手動エントリーだけを表示します。",
    "tagFilter": "このタグと完全に一致するケイパビリティだけを表示します。入力を止めると一覧が更新されます。",
@@ -2577,8 +2577,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "集計した実行のうちコストを記録したものの平均コスト (米ドル) です。",
    "windowDays": "目安がさかのぼる日数です (Capabilities.HintWindowDays 設定)。",
    "computedUtc": "メンテナンスループまたは更新によって目安が最後に算出された日時です。",
-   "inputSchemaJson": "ケイパビリティが受け取る内容の JSON Schema です。自由形式のテキストなら指定しません。",
-   "outputSchemaJson": "ケイパビリティが返す内容の JSON Schema です。指定しないこともできます。"
+   "inputSchema": "ケイパビリティが受け取る内容の JSON Schema です。自由形式のテキストなら指定しません。",
+   "outputSchema": "ケイパビリティが返す内容の JSON Schema です。指定しないこともできます。"
   },
   "refreshServer": "有効なすべての MCP サーバー、または 1 つのサーバーだけのツールを一覧にします。stdio サーバーはワーカー経由で一覧にします。",
   "refreshRun": "今すぐ更新を開始します。MCP サーバーの応答が遅いと時間がかかることがあります。",
@@ -3518,6 +3518,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "エージェントに送る内容です。Enter で送信、Ctrl+Enter または Shift+Enter で改行します。",
     "send": "メッセージをエージェントの dev のデプロイメントに送ります。",
     "another": "別のエージェント群のためにウィザードを最初からやり直します。"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "アプリのチャットを新しいタブで開きます。会話の履歴は保持され、入口のエージェントはアプリ内の他のエージェントに依頼できます。"
    }
   }
  }

@@ -794,8 +794,8 @@ const tips = {
         description: 'Qué hace la habilidad, escrito para el agente que la llama.'
       },
       inputMode: 'Text acepta un mensaje simple. Structured exige una entrada que cumpla el JSON Schema de entrada.',
-      inputSchemaJson: "JSON Schema de la entrada del agente. Si se define, cada entrada de invocación debe ser un documento JSON que lo cumpla, e Invocar muestra un formulario generado a partir de él.",
-      outputSchemaJson: 'JSON Schema que debe cumplir el resultado. Garrison valida la salida y reintenta una vez con un prompt de reparación.',
+      inputSchema: "JSON Schema de la entrada del agente. Si se define, cada entrada de invocación debe ser un documento JSON que lo cumpla, e Invocar muestra un formulario generado a partir de él.",
+      outputSchema: 'JSON Schema que debe cumplir el resultado. Garrison valida la salida y reintenta una vez con un prompt de reparación.',
       delegationAllowList: 'Los agentes a los que puede llamar este agente cuando la delegación usa una lista de permitidos.',
       delegationMaxDepth: 'Cuántos niveles de llamadas entre agentes pueden seguir por debajo de este agente. Entre 0 y 10.',
       delegationAllowRecursion: 'Permite que el mismo agente aparezca dos veces en una cadena de llamadas. Desactivado evita bucles.',
@@ -2519,8 +2519,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "sourceMcpServerId": "Opcional. El servidor MCP cuya herramienta representa esta entrada manual.",
    "sourceToolName": "El nombre de la herramienta en el servidor MCP elegido.",
    "requirements": "Etiquetas de nodo, como garrison.io/tool-pandoc=true, que un nodo de trabajo debe informar antes de tomar una ejecución que use esta capacidad.",
-   "inputSchemaJson": "JSON Schema de lo que recibe la capacidad. Garrison comprueba que sea un JSON Schema válido al guardar.",
-   "outputSchemaJson": "JSON Schema de lo que devuelve la capacidad. Garrison comprueba que sea un JSON Schema válido al guardar.",
+   "inputSchema": "JSON Schema de lo que recibe la capacidad. Garrison comprueba que sea un JSON Schema válido al guardar.",
+   "outputSchema": "JSON Schema de lo que devuelve la capacidad. Garrison comprueba que sea un JSON Schema válido al guardar.",
    "kindFilter": "Muestra solo agentes, solo herramientas MCP o solo integrados del harness. Elige Todos para ver el catálogo completo.",
    "originFilter": "Muestra solo las entradas derivadas, que siguen a su origen, o solo las manuales, escritas por personas.",
    "tagFilter": "Muestra solo las capacidades con esta etiqueta exacta. La lista se actualiza cuando dejas de escribir.",
@@ -2579,8 +2579,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "meanCostUsd": "Coste medio en dólares estadounidenses de las ejecuciones resumidas que registraron un coste.",
    "windowDays": "Cuántos días hacia atrás miran las indicaciones (el ajuste Capabilities.HintWindowDays).",
    "computedUtc": "Cuándo se calcularon las indicaciones por última vez, en el ciclo de mantenimiento o en una actualización.",
-   "inputSchemaJson": "JSON Schema de lo que recibe la capacidad, o ninguno si recibe texto libre.",
-   "outputSchemaJson": "JSON Schema de lo que devuelve la capacidad, o ninguno."
+   "inputSchema": "JSON Schema de lo que recibe la capacidad, o ninguno si recibe texto libre.",
+   "outputSchema": "JSON Schema de lo que devuelve la capacidad, o ninguno."
   },
   "refreshServer": "Lista las herramientas de todos los servidores MCP activos o de uno solo. Los servidores stdio se listan a través de un nodo de trabajo.",
   "refreshRun": "Inicia la actualización ahora. Puede tardar un rato si los servidores MCP responden despacio.",
@@ -3520,6 +3520,26 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "message": "Lo que se envía al agente. Enter envía; Ctrl+Enter o Shift+Enter añade una línea nueva.",
     "send": "Enviar el mensaje al despliegue de dev del agente.",
     "another": "Iniciar de nuevo el asistente para otro conjunto de agentes."
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Abre el chat de la aplicación en una pestaña nueva: la conversación conserva su historial y el agente de entrada puede consultar a los demás agentes de la aplicación."
    }
   }
  }

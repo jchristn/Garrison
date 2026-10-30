@@ -2,6 +2,7 @@ package garrison
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,7 +17,7 @@ const (
 )
 
 // Input schema field codes (Error.FieldCodes values). InputNotJson is reported on "input" when an agent with an
-// InputSchemaJSON is invoked with an input that is not JSON; InputSchemaViolation on "input" or "input.<path>" (for
+// InputSchema is invoked with an input that is not JSON; InputSchemaViolation on "input" or "input.<path>" (for
 // example "input.topic" or "input.tags[1]") when the document does not match; InvalidJsonSchema when an agent is saved
 // with an input or output schema that is not a valid JSON Schema.
 const (
@@ -38,33 +39,41 @@ type TranscriptUsage struct {
 }
 
 // TranscriptEntry is one transcript event. Type is AssistantText, Thinking (only with includeThinking), ToolCall,
-// ToolResult, Warning, Error, or Lifecycle. Secrets read [REDACTED].
+// ToolResult, Warning, Error, or Lifecycle. Secrets read [REDACTED]. A ToolCall whose arguments are JSON carries them
+// in ToolInput and omits Text; a ToolResult whose output is a JSON object or array carries it in ToolOutput and omits
+// Text.
 type TranscriptEntry struct {
-	Sequence      int64  `json:"sequence"`
-	TimestampUTC  string `json:"timestampUtc"`
-	Type          string `json:"type"`
-	Text          string `json:"text,omitempty"`
-	ToolName      string `json:"toolName,omitempty"`
-	ToolCallID    string `json:"toolCallId,omitempty"`
-	Success       *bool  `json:"success,omitempty"`
-	Code          string `json:"code,omitempty"`
-	TextTruncated bool   `json:"textTruncated"`
+	Sequence     int64  `json:"sequence"`
+	TimestampUTC string `json:"timestampUtc"`
+	Type         string `json:"type"`
+	Text         string `json:"text,omitempty"`
+	ToolName     string `json:"toolName,omitempty"`
+	ToolCallID   string `json:"toolCallId,omitempty"`
+	// ToolInput is a ToolCall's arguments as a JSON object; nil when Text carries them.
+	ToolInput json.RawMessage `json:"toolInput,omitempty"`
+	// ToolOutput is a ToolResult's output as a JSON object or array; nil when Text carries it.
+	ToolOutput    json.RawMessage `json:"toolOutput,omitempty"`
+	Success       *bool           `json:"success,omitempty"`
+	Code          string          `json:"code,omitempty"`
+	TextTruncated bool            `json:"textTruncated"`
 }
 
-// TranscriptApproval is an approval requested during a turn.
+// TranscriptApproval is an approval requested during a turn. Input is set when the stored input is a JSON object;
+// otherwise InputPreview carries it as text. Only one of the two is present.
 type TranscriptApproval struct {
-	ID             string `json:"id"`
-	Kind           string `json:"kind"`
-	ToolName       string `json:"toolName"`
-	Summary        string `json:"summary,omitempty"`
-	InputPreview   string `json:"inputPreview,omitempty"`
-	Status         string `json:"status"`
-	Decision       string `json:"decision,omitempty"`
-	DecisionSource string `json:"decisionSource,omitempty"`
-	DecidedBy      string `json:"decidedBy,omitempty"`
-	Reason         string `json:"reason,omitempty"`
-	RequestedUTC   string `json:"requestedUtc"`
-	DecidedUTC     string `json:"decidedUtc,omitempty"`
+	ID             string          `json:"id"`
+	Kind           string          `json:"kind"`
+	ToolName       string          `json:"toolName"`
+	Summary        string          `json:"summary,omitempty"`
+	Input          json.RawMessage `json:"input,omitempty"`
+	InputPreview   string          `json:"inputPreview,omitempty"`
+	Status         string          `json:"status"`
+	Decision       string          `json:"decision,omitempty"`
+	DecisionSource string          `json:"decisionSource,omitempty"`
+	DecidedBy      string          `json:"decidedBy,omitempty"`
+	Reason         string          `json:"reason,omitempty"`
+	RequestedUTC   string          `json:"requestedUtc"`
+	DecidedUTC     string          `json:"decidedUtc,omitempty"`
 }
 
 // TranscriptTurn is one run of a transcript (a conversation has one per turn).

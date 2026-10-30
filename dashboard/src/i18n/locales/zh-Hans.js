@@ -883,8 +883,8 @@ const zhHans = {
         skillName: '名称',
         skillDescription: '描述',
         inputMode: '输入模式',
-        inputSchemaJson: '输入 JSON Schema',
-        outputSchemaJson: '输出 JSON Schema',
+        inputSchema: '输入 JSON Schema',
+        outputSchema: '输出 JSON Schema',
         delegationMode: '委派',
         delegationAllowList: '可调用的智能体',
         delegationMaxDepth: '最大深度',
@@ -3149,8 +3149,8 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
     "meanCostUsd": "平均成本",
     "windowDays": "统计窗口",
     "computedUtc": "计算时间",
-    "inputSchemaJson": "输入架构",
-    "outputSchemaJson": "输出架构"
+    "inputSchema": "输入架构",
+    "outputSchema": "输出架构"
    },
    "refreshTitle": "刷新能力目录",
    "refreshHint": "Garrison 会重新派生智能体和 Harness 内置工具条目，列出每个 MCP 服务器的工具（stdio 服务器通过已开启 stdio 诊断的工作节点列出），并重新计算智能体的参考值。列出服务器时会向其发送模板中引用的机密，因此你需要有使用这些机密的权限。",
@@ -3243,14 +3243,14 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
     "sourceToolName": "该服务器上的工具名称",
     "tags": "标签",
     "requirements": "运行所需的节点标签",
-    "inputSchemaJson": "输入架构",
-    "outputSchemaJson": "输出架构"
+    "inputSchema": "输入架构",
+    "outputSchema": "输出架构"
    },
    "hints": {
     "kind": "手动条目可以是任意类型，例如智能体通过技能访问的转换服务。",
     "requirements": "使用此能力的智能体运行只会分配给同时具有所有这些节点标签的工作节点。",
     "sourceMcpServerId": "可选。指定了服务器的条目，只有在部署绑定了该服务器时，运行令牌才能看到。",
-    "inputSchemaJson": "一个 JSON Schema，例如 {\"type\": \"object\"}。如果能力接受自由文本，请留空。"
+    "inputSchema": "一个 JSON Schema，例如 {\"type\": \"object\"}。如果能力接受自由文本，请留空。"
    },
    "tagFilter": "标签",
    "refresh": "刷新",
@@ -4838,6 +4838,26 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
     "openApp": "打开应用 {{name}}",
     "openInvoke": "在 Invoke 中打开",
     "another": "再构建一个"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "打开 {{name}} 聊天"
    }
   }
  }

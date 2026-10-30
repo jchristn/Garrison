@@ -153,7 +153,7 @@ namespace Garrison.Harnesses.Parsers
                 string? name = null;
                 if (id != null) _ToolNames.TryGetValue(id, out name);
                 bool isError = JsonPath.Bool(part, "is_error") ?? false;
-                state.Emit(ToolResult(name, id, !isError, JsonPath.Str(part, "content"), raw));
+                state.Emit(ToolResult(name, id, !isError, JsonPath.ContentText(part, "content"), raw));
             }
         }
 

@@ -185,33 +185,33 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         <label htmlFor="studio-chat-message" {...tip(t('tips.studio.chat.message'))}>
           {t('components.studio.chat.message')}
         </label>
-        <textarea
-          id="studio-chat-message"
-          rows={3}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder={t('components.studio.chat.placeholder')}
-          onKeyDown={(e) => composerKeyDown(e, send, setMessage)}
-          data-testid="studio-chat-message"
-          {...tip(t('tips.studio.chat.message'))}
-        />
+        <div className="chat-composer">
+          <textarea
+            id="studio-chat-message"
+            rows={3}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={t('components.studio.chat.placeholder')}
+            onKeyDown={(e) => composerKeyDown(e, send, setMessage)}
+            data-testid="studio-chat-message"
+            {...tip(t('tips.studio.chat.message'))}
+          />
+          <button
+            type="button"
+            className="button-primary chat-composer-send"
+            onClick={send}
+            disabled={sending || pendingActive || !message.trim() || !architect}
+            data-testid="studio-chat-send"
+            {...tip(t(!architect ? 'tips.studio.chat.sendNoArchitect' : pendingActive ? 'tips.studio.chat.sendBusy' : 'tips.studio.chat.send'))}
+          >
+            <SendIcon size={14} /> {sending ? t('views.invoke.sending') : t('components.studio.chat.send')}
+          </button>
+        </div>
         <div className="field-hint">
           {t(conversationId ? 'components.studio.chat.continueHint' : 'components.studio.chat.firstHint')} {t('components.studio.chat.keysHint')}
         </div>
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} />}
-      <div className="flex gap-sm items-center">
-        <button
-          type="button"
-          className="button-primary"
-          onClick={send}
-          disabled={sending || pendingActive || !message.trim() || !architect}
-          data-testid="studio-chat-send"
-          {...tip(t(!architect ? 'tips.studio.chat.sendNoArchitect' : pendingActive ? 'tips.studio.chat.sendBusy' : 'tips.studio.chat.send'))}
-        >
-          <SendIcon size={14} /> {sending ? t('views.invoke.sending') : t('components.studio.chat.send')}
-        </button>
-      </div>
       <p className="chat-disclaimer" data-testid="studio-chat-disclaimer" {...tip(t('tips.studio.chat.disclaimer'))}>
         {t('components.studio.chat.disclaimer')}
       </p>

@@ -9,6 +9,7 @@ import { enumTip } from '../utils/tips';
 import { translateServerText } from '../utils/serverText';
 import { formatCurrency, formatDateTime, formatDuration, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { hintsKnown, isDerived, isShared, lockedReasonKey, requirementText, sourceOf } from '../utils/capabilities';
+import { jsonToText } from '../utils/jsonFields';
 
 /**
  * Where a capability comes from, as links (AD4.8): an Agent entry links to the agent's page; an McpTool entry links to
@@ -205,12 +206,12 @@ export default function CapabilityDetail({ descriptor, lookups = {} }) {
       )}
 
       <div className="field">
-        <label {...tip(t('tips.capabilities.fields.inputSchemaJson'))}>{t('components.capabilities.fields.inputSchemaJson')}</label>
-        <CodeBlock value={descriptor.inputSchemaJson} prettyJson emptyText={t('components.capabilities.noSchema')} />
+        <label {...tip(t('tips.capabilities.fields.inputSchema'))}>{t('components.capabilities.fields.inputSchema')}</label>
+        <CodeBlock value={jsonToText(descriptor.inputSchema)} prettyJson emptyText={t('components.capabilities.noSchema')} />
       </div>
       <div className="field">
-        <label {...tip(t('tips.capabilities.fields.outputSchemaJson'))}>{t('components.capabilities.fields.outputSchemaJson')}</label>
-        <CodeBlock value={descriptor.outputSchemaJson} prettyJson emptyText={t('components.capabilities.noSchema')} />
+        <label {...tip(t('tips.capabilities.fields.outputSchema'))}>{t('components.capabilities.fields.outputSchema')}</label>
+        <CodeBlock value={jsonToText(descriptor.outputSchema)} prettyJson emptyText={t('components.capabilities.noSchema')} />
       </div>
     </div>
   );

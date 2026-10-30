@@ -925,8 +925,8 @@ const es = {
         skillName: 'Nombre',
         skillDescription: 'Descripción',
         inputMode: 'Modo de entrada',
-        inputSchemaJson: 'JSON Schema de entrada',
-        outputSchemaJson: 'JSON Schema de salida',
+        inputSchema: 'JSON Schema de entrada',
+        outputSchema: 'JSON Schema de salida',
         delegationMode: 'Delegación',
         delegationAllowList: 'Agentes a los que puede llamar',
         delegationMaxDepth: 'Profundidad máxima',
@@ -3201,8 +3201,8 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
     "meanCostUsd": "Coste medio",
     "windowDays": "Ventana",
     "computedUtc": "Calculado",
-    "inputSchemaJson": "Esquema de entrada",
-    "outputSchemaJson": "Esquema de salida"
+    "inputSchema": "Esquema de entrada",
+    "outputSchema": "Esquema de salida"
    },
    "refreshTitle": "Actualizar el catálogo de capacidades",
    "refreshHint": "Garrison vuelve a derivar las entradas de agentes y de integrados del harness, lista las herramientas de cada servidor MCP (los servidores stdio, a través de un nodo de trabajo con los diagnósticos de stdio activados) y recalcula las indicaciones de los agentes. Para listar un servidor se le envían los secretos que nombran sus plantillas, así que necesitas permiso para usarlos.",
@@ -3295,14 +3295,14 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
     "sourceToolName": "Nombre de la herramienta en ese servidor",
     "tags": "Etiquetas",
     "requirements": "Etiquetas de nodo que necesita una ejecución",
-    "inputSchemaJson": "Esquema de entrada",
-    "outputSchemaJson": "Esquema de salida"
+    "inputSchema": "Esquema de entrada",
+    "outputSchema": "Esquema de salida"
    },
    "hints": {
     "kind": "Las entradas manuales pueden ser de cualquier tipo, por ejemplo un servicio de conversión al que los agentes llegan mediante una skill.",
     "requirements": "Una ejecución de un agente que usa esta capacidad solo va a nodos de trabajo que tengan todas estas etiquetas de nodo.",
     "sourceMcpServerId": "Opcional. Un token de ejecución solo ve una entrada que nombra un servidor cuando su despliegue vincula ese servidor.",
-    "inputSchemaJson": "Un JSON Schema, por ejemplo {\"type\": \"object\"}. Déjalo vacío si la capacidad recibe texto libre."
+    "inputSchema": "Un JSON Schema, por ejemplo {\"type\": \"object\"}. Déjalo vacío si la capacidad recibe texto libre."
    },
    "tagFilter": "Etiqueta",
    "refresh": "Actualizar",
@@ -4890,6 +4890,26 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
     "openApp": "Abrir la aplicación {{name}}",
     "openInvoke": "Abrir en Invoke",
     "another": "Crear otro"
+   }
+  }
+ }
+});
+
+// Agent wizard: the Try it step opens the app's own chat.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "views": {
+  "agentWizard": {
+   "test": {
+    "openApp": "Abrir el chat de {{name}}"
    }
   }
  }
