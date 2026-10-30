@@ -4,7 +4,7 @@
 // architect prompt manager and the underlying deployment from the row, and the studio links to the page.
 
 import { test, expect } from '@playwright/test';
-import { installMocks, ARCHITECT } from './mocks.js';
+import { installMocks, installControlledStream, pushRunEvent, ARCHITECT } from './mocks.js';
 
 async function login(page) {
   await page.goto('/');
@@ -282,4 +282,90 @@ test('the New architect dialog names Configuration > Secrets and picks up a secr
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0098');
   await expect(hint.locator('.field-warning')).toHaveCount(0);
+});
+
+test('the studio chat streams the answer in bubbles, waits with a phrase and a timer, then shows telemetry and copies', async ({ page }) => {
+  await installControlledStream(page);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ ...ARCHITECT, credentialSecretId: 'sec_0001' }], totalRecords: 1 })));
+  const created = { id: 'run_live', kind: 'Invoke', status: 'Running', conversationId: 'cnv_live', inputText: 'Build a desk', createdUtc: new Date(Date.now() - 3000).toISOString() };
+  const finished = { ...created, status: 'Succeeded', outcome: 'Succeeded', resultText: 'I added a **classifier**.', servedModel: 'claude-sonnet-4-5', timeToFirstTokenMs: 900, streamingMs: 2400, totalMs: 3600, inputTokens: 1500, outputTokens: 220, cachedTokens: 1000, reasoningTokens: 40, outputTokensPerSecond: 91.7, costUsd: 0.0042, completedUtc: new Date().toISOString() };
+  let done = false;
+  await page.route(/\/agents\/agt_arch\/invoke(\?.*)?$/, (route) => route.fulfill(json(200, created)));
+  await page.route(/\/runs\/run_live$/, (route) => route.fulfill(json(200, done ? finished : created)));
+  await page.route(/\/conversations\/cnv_live\/runs(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [done ? finished : created], totalRecords: 1 })));
+  await login(page);
+  await page.goto('/dashboard/studio/drf_0001');
+  await page.getByTestId('studio-chat-message').fill('Build a desk');
+  await page.getByTestId('studio-chat-send').click();
+
+  // The person's message sits on the right, the architect's answer on the left.
+  const user = page.getByTestId('studio-chat-user');
+  const answer = page.getByTestId('studio-chat-assistant');
+  await expect(user).toContainText('Build a desk');
+  const userBox = await user.boundingBox();
+  const answerBox = await answer.boundingBox();
+  expect(userBox.x + userBox.width).toBeGreaterThan(answerBox.x + answerBox.width);
+  expect(answerBox.x).toBeLessThan(userBox.x);
+
+  // Before the first output: dots, a phrase, and the time waited so far.
+  const wait = page.getByTestId('studio-chat-wait');
+  await expect(wait).toBeVisible();
+  await expect(wait).toHaveAttribute('data-stage', 'model');
+  await expect(page.getByTestId('studio-chat-wait-elapsed')).toBeVisible();
+
+  // The stream: text appears as it is written, with a caret, and tool calls as chips.
+  await pushRunEvent(page, 'run_live', { sequence: 1, eventType: 'AssistantText', text: 'I added ' });
+  await expect(page.getByTestId('studio-chat-answer').first()).toContainText('I added');
+  await expect(wait).toHaveCount(0);
+  await expect(page.locator('.chat-bubble.is-streaming')).toHaveCount(1);
+  // A caret follows the text still being written.
+  expect(await page.locator('.chat-stream-last .markdown-body > :last-child').evaluate((el) => getComputedStyle(el, '::after').content)).toContain('\u258D');
+  await pushRunEvent(page, 'run_live', { sequence: 2, eventType: 'ToolCall', toolName: 'garrison_studio_put_item', toolCallId: 't1' });
+  await expect(page.getByTestId('studio-chat-tool')).toContainText('garrison_studio_put_item');
+  await pushRunEvent(page, 'run_live', { sequence: 3, eventType: 'ToolResult', toolCallId: 't1', success: true });
+  await expect(page.locator('.chat-tool-ok')).toHaveCount(1);
+
+  // The run finishes: the final answer replaces the stream and the telemetry appears under it.
+  done = true;
+  await page.evaluate((run) => window.__ssePush('run_live', 'run.completed', run), finished);
+  await expect(page.locator('.chat-bubble.is-streaming')).toHaveCount(0);
+  await expect(page.getByTestId('studio-chat-answer')).toContainText('I added a classifier.');
+  const metrics = page.getByTestId('studio-chat-metrics');
+  await expect(metrics).toContainText('claude-sonnet-4-5');
+  for (const m of ['timeToFirstTokenMs', 'streamingMs', 'totalMs', 'inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens', 'outputTokensPerSecond', 'costUsd']) await expect(metrics.locator(`[data-metric="${m}"]`)).toHaveCount(1);
+  await expect(metrics.locator('[data-metric="inputTokens"]')).toContainText('1,500');
+
+  // Copy the answer and the message.
+  await page.getByTestId('studio-chat-copy-answer').click();
+  await expect(page.getByTestId('studio-chat-copy-answer')).toHaveAttribute('data-copy-state', 'copied');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('I added a **classifier**.');
+  await page.getByTestId('studio-chat-copy-user').click();
+  await expect(page.getByTestId('studio-chat-copy-user')).toHaveAttribute('data-copy-state', 'copied');
+});
+
+test('copying works where the Clipboard API is missing (plain http to another host)', async ({ page }) => {
+  // Simulate an insecure origin: no navigator.clipboard, so the copy goes through the textarea fallback.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'isSecureContext', { get: () => false });
+    Object.defineProperty(navigator, 'clipboard', { get: () => undefined });
+    window.__copied = [];
+    const original = document.execCommand.bind(document);
+    document.execCommand = (cmd, ...rest) => {
+      if (cmd === 'copy') {
+        window.__copied.push(document.activeElement && document.activeElement.value);
+        return true;
+      }
+      return original(cmd, ...rest);
+    };
+  });
+  const turn = { id: 'run_done', kind: 'Invoke', status: 'Succeeded', outcome: 'Succeeded', conversationId: 'cnv_done', inputText: 'Hello', resultText: 'Hi there', createdUtc: new Date().toISOString() };
+  await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ ...ARCHITECT, credentialSecretId: 'sec_0001' }], totalRecords: 1 })));
+  await page.route(/\/conversations\/cnv_done\/runs(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [turn], totalRecords: 1 })));
+  await page.addInitScript(() => localStorage.setItem('garrison.studio.conversation.drf_0001', JSON.stringify({ conversationId: 'cnv_done', deploymentId: 'dep_arch' })));
+  await login(page);
+  await page.goto('/dashboard/studio/drf_0001');
+  await page.getByTestId('studio-chat-copy-answer').click();
+  await expect(page.getByTestId('studio-chat-copy-answer')).toHaveAttribute('data-copy-state', 'copied');
+  expect(await page.evaluate(() => window.__copied)).toEqual(['Hi there']);
 });

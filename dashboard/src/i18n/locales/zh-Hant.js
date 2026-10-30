@@ -4594,3 +4594,57 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "正在等待工作節點開始這一輪...",
+     "phrases": {
+      "p1": "正在閱讀你的草稿...",
+      "p2": "正在仔細思考...",
+      "p3": "正在勾勒代理...",
+      "p4": "正在釐清誰呼叫誰...",
+      "p5": "正在核對 Garrison 的慣例...",
+      "p6": "正在挑選合適的能力...",
+      "p7": "正在起草清單...",
+      "p8": "正在權衡幾種設計...",
+      "p9": "正在安排部署...",
+      "p10": "正在檢查提示...",
+      "p11": "正在繪製應用程式的關係圖...",
+      "p12": "正在尋找更簡單的結構...",
+      "p13": "正在複核細節...",
+      "p14": "正在把各部分組合起來...",
+      "p15": "快好了...",
+      "p16": "仍在處理中..."
+     }
+    },
+    "thinkingSummary": "思考過程",
+    "metrics": {
+     "model": "模型",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "串流",
+     "totalMs": "總計",
+     "inputTokens": "輸入",
+     "outputTokens": "輸出",
+     "cachedTokens": "快取",
+     "reasoningTokens": "推理",
+     "outputTokensPerSecond": "權杖/秒",
+     "toolCallCount": "工具",
+     "costUsd": "費用"
+    }
+   }
+  }
+ }
+});

@@ -3371,3 +3371,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "link": "Opens {{url}} in a new tab."
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "wait": "The architect is working on its answer. The first words appear here as soon as the model writes them.",
+   "waitElapsed": "How long you have waited for this turn so far.",
+   "metrics": {
+    "model": "The model that answered this turn, as the harness reported it."
+   },
+   "tool": {
+    "running": "{{name}} is running: the architect called this tool while writing its answer.",
+    "ok": "{{name}} finished: the architect called this tool while writing its answer.",
+    "failed": "{{name}} failed: the architect called this tool and it returned an error. Open the run for details."
+   },
+   "copyMessage": "Copy your message to the clipboard.",
+   "copyAnswer": "Copy the architect's answer to the clipboard as Markdown.",
+   "thinkingSummary": "What the model thought before answering, as the harness reported it."
+  }
+ },
+ "copy": {
+  "failed": "The browser did not allow copying here. Select the text and press Ctrl+C (Cmd+C on a Mac)."
+ }
+});

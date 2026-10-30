@@ -148,9 +148,14 @@ button,
   justify-content: center;
   gap: var(--spacing-sm);
   padding: 0.4rem 0.75rem;
-  border: none;
+  /* Every button has a 1px border (transparent unless a variant colors it) and a fixed line height, so primary,
+     secondary, danger, and ghost buttons, and links styled as buttons, are the same height side by side. Labels do
+     not wrap; a row of buttons wraps between buttons instead. */
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
+  line-height: 1.25;
+  white-space: nowrap;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -509,6 +514,7 @@ button[aria-disabled="true"]:hover { filter: none; }
 .copy-btn { width: 24px; height: 24px; padding: 0; color: var(--color-text-muted); background: transparent; border-radius: var(--radius-sm); vertical-align: middle; }
 .copy-btn:hover { background: var(--color-surface-alt); color: var(--color-text); }
 .copy-btn.is-copied { color: var(--color-success); }
+.copy-btn.is-failed { color: var(--color-danger); }
 .copyable-id { display: inline-flex; align-items: center; gap: 0.25rem; }
 .copyable-id code { color: var(--color-text-secondary); }
 
@@ -1003,7 +1009,7 @@ a.button { text-decoration: none; }
 .telemetry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--spacing-sm) var(--spacing-md); }
 .telemetry-phases { display: block; width: 100%; height: 14px; border-radius: 7px; overflow: hidden; background: var(--color-surface-alt); margin: var(--spacing-sm) 0 0.35rem; }
 .telemetry-phases-head { display: flex; justify-content: flex-end; }
-.export-trigger { display: inline-flex; align-items: center; gap: 0.3rem; }
+.export-trigger { display: inline-flex; align-items: center; gap: 0.3rem; height: 30px; }
 .telemetry-legend { display: flex; gap: var(--spacing-md); flex-wrap: wrap; font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: var(--spacing-sm); }
 .analytics-filters { display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-md); align-items: flex-end; }
 .analytics-filters .field { min-width: 160px; flex: 0 1 200px; }
@@ -1281,12 +1287,71 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .studio-summary { margin-block-end: var(--spacing-md); }
 .studio-live-notice { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; justify-content: space-between; }
 .studio-chat, .studio-items, .studio-graph, .studio-diff, .studio-playground, .studio-preview, .studio-prompts { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.studio-chat-turns { display: flex; flex-direction: column; gap: var(--spacing-sm); max-block-size: 60vh; overflow-y: auto; }
-.studio-turn { display: flex; flex-direction: column; gap: var(--spacing-xs); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm); }
-.studio-turn-you { display: flex; flex-direction: column; gap: 2px; }
-.studio-turn-architect { display: flex; flex-direction: column; gap: 2px; border-block-start: 1px dashed var(--color-border); padding-block-start: var(--spacing-xs); }
-.studio-turn-who { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); }
 .studio-turn-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---------------- Studio chat: bubbles, streaming, wait state, telemetry ---------------- */
+/* The transcript scrolls on its own; the person's messages sit on the right, the architect's answers on the left. */
+.chat-transcript { display: flex; flex-direction: column; gap: var(--spacing-md); max-block-size: 62vh; min-block-size: 12rem; overflow-y: auto; overscroll-behavior: contain; padding: var(--spacing-md); background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.chat-turn { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.chat-msg { display: flex; flex-direction: column; gap: 4px; max-inline-size: min(860px, 88%); min-inline-size: 0; }
+.chat-msg-user { align-self: flex-end; align-items: flex-end; }
+.chat-msg-assistant { align-self: flex-start; align-items: flex-start; }
+.chat-bubble { max-inline-size: 100%; padding: 0.6rem 0.85rem; border: 1px solid var(--color-border); border-radius: 14px; overflow-wrap: anywhere; font-size: var(--font-size-sm); line-height: 1.55; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.chat-bubble-user { background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border)); border-end-end-radius: 4px; }
+.chat-bubble-assistant { background: var(--color-surface); border-end-start-radius: 4px; min-inline-size: 14rem; }
+.chat-bubble-assistant.is-error { border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border)); background: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface)); }
+.chat-user-text { white-space: pre-wrap; }
+.chat-bubble .markdown-view .markdown-body > :first-child { margin-block-start: 0; }
+.chat-bubble .markdown-view .markdown-body > :last-child { margin-block-end: 0; }
+.chat-bubble-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-block-end: var(--spacing-xs); }
+.chat-role { font-weight: 600; color: var(--color-text); }
+.chat-bubble-head .chat-copy { margin-inline-start: auto; }
+.chat-msg-meta { display: flex; align-items: center; gap: var(--spacing-sm); font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.chat-msg-time { white-space: nowrap; }
+.chat-msg .copy-btn { opacity: 0.6; }
+.chat-msg .copy-btn:hover, .chat-msg .copy-btn:focus-visible, .chat-msg .copy-btn.is-copied, .chat-msg .copy-btn.is-failed { opacity: 1; }
+
+/* Streaming: a blinking caret after the last block of the text still being written. */
+.chat-bubble.is-streaming .chat-stream-last .markdown-body > :last-child::after { content: '\258D'; display: inline-block; margin-inline-start: 1px; color: var(--color-primary); animation: chat-caret 1s step-start infinite; }
+@keyframes chat-caret { 50% { opacity: 0; } }
+
+/* Tool calls the architect makes while answering, where they happened in the text. */
+.chat-tool { display: inline-flex; align-items: center; gap: 6px; margin-block: 2px; padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 999px; font-size: var(--font-size-xs); background: var(--color-surface-alt); }
+.chat-tool code { font-size: inherit; }
+.chat-tool-dot { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--color-text-muted); }
+.chat-tool-running .chat-tool-dot { background: var(--color-primary); animation: chat-pulse 1s ease-in-out infinite; }
+.chat-tool-ok .chat-tool-dot { background: var(--color-success); }
+.chat-tool-failed .chat-tool-dot { background: var(--color-danger); }
+@keyframes chat-pulse { 50% { opacity: 0.3; } }
+
+/* Thinking text, folded away unless it is all there is so far. */
+.chat-thinking { margin-block-end: var(--spacing-xs); font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.chat-thinking summary { cursor: pointer; }
+.chat-thinking-text { white-space: pre-wrap; margin-block-start: 4px; padding-inline-start: var(--spacing-sm); border-inline-start: 2px solid var(--color-border); max-block-size: 12rem; overflow-y: auto; }
+
+/* Waiting for the first output: bouncing dots, a rotating phrase that fades in, and the time waited. */
+.chat-wait { display: inline-flex; align-items: center; gap: 0.6rem; min-block-size: 1.5rem; }
+.chat-typing { display: inline-flex; gap: 4px; }
+.chat-typing span { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--color-text-secondary); opacity: 0.5; animation: chat-bounce 1.2s infinite ease-in-out; }
+.chat-typing span:nth-child(2) { animation-delay: 0.15s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-4px); opacity: 0.9; } }
+.chat-wait-text { font-style: italic; color: var(--color-text-secondary); animation: chat-fade 0.45s ease; }
+@keyframes chat-fade { from { opacity: 0; } to { opacity: 1; } }
+.chat-wait-elapsed { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+/* The run's telemetry under each answer. */
+.chat-metrics { display: flex; flex-wrap: wrap; gap: 4px 6px; padding-inline-start: 2px; }
+.chat-metric { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 7px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); font-size: 0.7rem; color: var(--color-text-secondary); }
+.chat-metric-value { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing span, .chat-wait-text, .chat-tool-running .chat-tool-dot, .chat-bubble.is-streaming .chat-stream-last .markdown-body > :last-child::after { animation: none; }
+}
+@media (max-width: 640px) {
+  .chat-msg { max-inline-size: 96%; }
+  .chat-bubble-assistant { min-inline-size: 0; }
+}
 .studio-list { list-style: none; display: flex; flex-direction: column; gap: 2px; margin: var(--spacing-xs) 0; padding: 0; }
 .studio-field-changes code, .studio-before, .studio-after { overflow-wrap: anywhere; }
 .studio-before { text-decoration: line-through; color: var(--color-text-secondary); }
@@ -1407,3 +1472,8 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .secret-guide { display: flex; flex-direction: column; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); }
 .secret-guide-steps { margin: 0; padding-inline-start: 1.25rem; display: flex; flex-direction: column; gap: var(--spacing-xs); font-size: var(--font-size-sm); }
 .secret-guide-steps li > .code-block, .secret-guide-steps li pre { margin-top: var(--spacing-xs); }
+/* Rows of actions in studio panel headers wrap between buttons rather than squeezing their labels. */
+.studio-row-between { flex-wrap: wrap; row-gap: var(--spacing-xs); }
+.studio-row-between > .flex { flex-wrap: wrap; justify-content: flex-end; }
+.chat-answer { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-xs); }
+.chat-answer > .markdown-view { align-self: stretch; }

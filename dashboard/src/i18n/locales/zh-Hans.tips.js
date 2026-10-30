@@ -3370,3 +3370,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "link": "在新标签页中打开 {{url}}。"
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "wait": "架构师正在准备回答。模型一开始输出，最先的文字就会出现在这里。",
+   "waitElapsed": "这一轮你目前已等待的时间。",
+   "metrics": {
+    "model": "回答这一轮的模型（以 Harness 的报告为准）。"
+   },
+   "tool": {
+    "running": "{{name}} 正在运行：架构师在撰写回答时调用了此工具。",
+    "ok": "{{name}} 已完成：架构师在撰写回答时调用了此工具。",
+    "failed": "{{name}} 失败：架构师调用了此工具并收到错误。打开运行查看详情。"
+   },
+   "copyMessage": "把你的消息复制到剪贴板。",
+   "copyAnswer": "把架构师的回答以 Markdown 复制到剪贴板。",
+   "thinkingSummary": "模型在回答前的思考内容（以 Harness 的报告为准）。"
+  }
+ },
+ "copy": {
+  "failed": "浏览器不允许在此处复制。请选中文字后按 Ctrl+C（Mac 上为 Cmd+C）。"
+ }
+});

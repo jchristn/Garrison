@@ -4621,3 +4621,57 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "Waiting for a worker to start this turn...",
+     "phrases": {
+      "p1": "Reading your draft...",
+      "p2": "Thinking it through...",
+      "p3": "Sketching the agents...",
+      "p4": "Working out who calls whom...",
+      "p5": "Checking Garrison's conventions...",
+      "p6": "Choosing the right capabilities...",
+      "p7": "Drafting the manifests...",
+      "p8": "Weighing a few designs...",
+      "p9": "Lining up the deployments...",
+      "p10": "Reviewing the prompts...",
+      "p11": "Mapping the app's graph...",
+      "p12": "Looking for a simpler shape...",
+      "p13": "Double-checking the details...",
+      "p14": "Putting the pieces together...",
+      "p15": "Almost there...",
+      "p16": "Still working on it..."
+     }
+    },
+    "thinkingSummary": "Thinking",
+    "metrics": {
+     "model": "Model",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "Streaming",
+     "totalMs": "Total",
+     "inputTokens": "In",
+     "outputTokens": "Out",
+     "cachedTokens": "Cached",
+     "reasoningTokens": "Reasoning",
+     "outputTokensPerSecond": "Tok/s",
+     "toolCallCount": "Tools",
+     "costUsd": "Cost"
+    }
+   }
+  }
+ }
+});

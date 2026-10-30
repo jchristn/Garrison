@@ -4628,3 +4628,57 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "Warten auf einen Worker, der diesen Zug startet...",
+     "phrases": {
+      "p1": "Ihr Entwurf wird gelesen...",
+      "p2": "Wird durchdacht...",
+      "p3": "Die Agenten werden skizziert...",
+      "p4": "Wer wen aufruft, wird geklärt...",
+      "p5": "Die Konventionen von Garrison werden geprüft...",
+      "p6": "Die passenden Fähigkeiten werden gewählt...",
+      "p7": "Die Manifeste werden entworfen...",
+      "p8": "Mehrere Entwürfe werden abgewogen...",
+      "p9": "Die Bereitstellungen werden vorbereitet...",
+      "p10": "Die Prompts werden geprüft...",
+      "p11": "Der Graph der App wird erstellt...",
+      "p12": "Eine einfachere Form wird gesucht...",
+      "p13": "Die Details werden noch einmal geprüft...",
+      "p14": "Die Teile werden zusammengesetzt...",
+      "p15": "Fast geschafft...",
+      "p16": "Wird noch bearbeitet..."
+     }
+    },
+    "thinkingSummary": "Überlegungen",
+    "metrics": {
+     "model": "Modell",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "Streaming",
+     "totalMs": "Gesamt",
+     "inputTokens": "Ein",
+     "outputTokens": "Aus",
+     "cachedTokens": "Zwischengesp.",
+     "reasoningTokens": "Reasoning",
+     "outputTokensPerSecond": "Token/s",
+     "toolCallCount": "Werkzeuge",
+     "costUsd": "Kosten"
+    }
+   }
+  }
+ }
+});

@@ -4593,3 +4593,57 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "等緊工作節點開始呢一輪...",
+     "phrases": {
+      "p1": "睇緊你嘅草稿...",
+      "p2": "諗緊...",
+      "p3": "畫緊啲代理...",
+      "p4": "理緊邊個叫邊個...",
+      "p5": "對緊 Garrison 嘅慣例...",
+      "p6": "揀緊啱用嘅能力...",
+      "p7": "寫緊清單...",
+      "p8": "比較緊幾個設計...",
+      "p9": "安排緊部署...",
+      "p10": "睇緊啲提示...",
+      "p11": "畫緊應用程式嘅關係圖...",
+      "p12": "搵緊簡單啲嘅結構...",
+      "p13": "再核對緊細節...",
+      "p14": "砌緊啲部件...",
+      "p15": "就快得...",
+      "p16": "仲做緊..."
+     }
+    },
+    "thinkingSummary": "思考過程",
+    "metrics": {
+     "model": "模型",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "串流",
+     "totalMs": "總共",
+     "inputTokens": "輸入",
+     "outputTokens": "輸出",
+     "cachedTokens": "快取",
+     "reasoningTokens": "推理",
+     "outputTokensPerSecond": "權杖/秒",
+     "toolCallCount": "工具",
+     "costUsd": "費用"
+    }
+   }
+  }
+ }
+});

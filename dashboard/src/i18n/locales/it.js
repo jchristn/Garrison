@@ -4642,3 +4642,57 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "In attesa di un worker che avvii questo turno...",
+     "phrases": {
+      "p1": "Leggo la tua bozza...",
+      "p2": "Ci sto ragionando...",
+      "p3": "Abbozzo gli agenti...",
+      "p4": "Decido chi chiama chi...",
+      "p5": "Controllo le convenzioni di Garrison...",
+      "p6": "Scelgo le capacità giuste...",
+      "p7": "Scrivo i manifest...",
+      "p8": "Valuto alcune soluzioni...",
+      "p9": "Preparo le distribuzioni...",
+      "p10": "Rivedo i prompt...",
+      "p11": "Disegno il grafo dell'applicazione...",
+      "p12": "Cerco una forma più semplice...",
+      "p13": "Ricontrollo i dettagli...",
+      "p14": "Metto insieme i pezzi...",
+      "p15": "Quasi fatto...",
+      "p16": "Ci sto ancora lavorando..."
+     }
+    },
+    "thinkingSummary": "Ragionamento",
+    "metrics": {
+     "model": "Modello",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "Streaming",
+     "totalMs": "Totale",
+     "inputTokens": "Input",
+     "outputTokens": "Output",
+     "cachedTokens": "In cache",
+     "reasoningTokens": "Ragionamento",
+     "outputTokensPerSecond": "Token/s",
+     "toolCallCount": "Strumenti",
+     "costUsd": "Costo"
+    }
+   }
+  }
+ }
+});

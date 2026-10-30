@@ -3373,3 +3373,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "link": "Apre {{url}} in una nuova scheda."
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "wait": "L'architetto sta preparando la risposta. Le prime parole compaiono qui appena il modello le scrive.",
+   "waitElapsed": "Da quanto tempo stai aspettando questo turno.",
+   "metrics": {
+    "model": "Il modello che ha risposto a questo turno, come riportato dall'harness."
+   },
+   "tool": {
+    "running": "{{name}} è in esecuzione: l'architetto ha chiamato questo strumento mentre scriveva la risposta.",
+    "ok": "{{name}} è terminato: l'architetto ha chiamato questo strumento mentre scriveva la risposta.",
+    "failed": "{{name}} non è riuscito: l'architetto ha chiamato questo strumento e ha ricevuto un errore. Apri l'esecuzione per i dettagli."
+   },
+   "copyMessage": "Copia il tuo messaggio negli appunti.",
+   "copyAnswer": "Copia la risposta dell'architetto negli appunti in Markdown.",
+   "thinkingSummary": "Ciò che il modello ha pensato prima di rispondere, come riportato dall'harness."
+  }
+ },
+ "copy": {
+  "failed": "Il browser non ha permesso di copiare qui. Seleziona il testo e premi Ctrl+C (Cmd+C su Mac)."
+ }
+});

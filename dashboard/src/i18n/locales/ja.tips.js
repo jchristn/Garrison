@@ -3371,3 +3371,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "link": "{{url}} を新しいタブで開きます。"
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "chat": {
+   "wait": "アーキテクトが回答を作成しています。モデルが書き始めると、最初の言葉がここに表示されます。",
+   "waitElapsed": "このターンをこれまでに待っている時間です。",
+   "metrics": {
+    "model": "このターンに回答したモデルです (ハーネスの報告どおり)。"
+   },
+   "tool": {
+    "running": "{{name}} を実行中です。アーキテクトが回答の作成中にこのツールを呼び出しました。",
+    "ok": "{{name}} が完了しました。アーキテクトが回答の作成中にこのツールを呼び出しました。",
+    "failed": "{{name}} が失敗しました。アーキテクトがこのツールを呼び出し、エラーが返されました。詳細は実行を開いて確認してください。"
+   },
+   "copyMessage": "あなたのメッセージをクリップボードにコピーします。",
+   "copyAnswer": "アーキテクトの回答を Markdown としてクリップボードにコピーします。",
+   "thinkingSummary": "回答の前にモデルが考えた内容です (ハーネスの報告どおり)。"
+  }
+ },
+ "copy": {
+  "failed": "このブラウザーではここでのコピーが許可されませんでした。テキストを選択して Ctrl+C (Mac では Cmd+C) を押してください。"
+ }
+});

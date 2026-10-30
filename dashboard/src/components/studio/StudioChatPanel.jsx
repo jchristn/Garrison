@@ -1,30 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import MarkdownView from '../MarkdownView';
 import { ErrorBanner } from '../States';
-import { Badge } from '../StatusBadge';
 import { PlusIcon, SendIcon } from '../Icons';
 import { tip } from '../Tooltip';
+import ChatTurn from './ChatTurn';
 import NewArchitectModal from './NewArchitectModal';
 import StudioLink from './StudioLink';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
-import { TERMINAL_RUN_STATUSES, runStatusTone } from '../../utils/constants';
+import { TERMINAL_RUN_STATUSES } from '../../utils/constants';
 import { errorMessage } from '../../utils/errors';
-import { enumLabel } from '../../utils/enums';
-import { enumTip } from '../../utils/tips';
-import { TURN_POLL_MS, conversationStorageKey, needsCredential, readStored, stripDraftPrefix, writeStored } from '../../utils/studio';
+import { TURN_POLL_MS, conversationStorageKey, needsCredential, readStored, writeStored } from '../../utils/studio';
+import { buildPreview } from '../../utils/streamPreview';
 
-/** A run status pill. */
-export function TurnStatus({ status }) {
-  const { t } = useTranslation();
-  return (
-    <Badge tone={runStatusTone(status)} tip={enumTip(t, 'runStatus', status)}>
-      {enumLabel(t, 'runStatus', status)}
-    </Badge>
-  );
-}
+/** How often streamed events are folded into the answer, in milliseconds. */
+const STREAM_FLUSH_MS = 100;
+
+/** How close to the bottom (pixels) the transcript must be for new output to keep it scrolled to the end. */
+const STICK_PX = 140;
+
+export { TurnStatus } from './ChatTurn';
 
 /**
  * The chat with the agent architect for one draft (AD7.10). The person picks an architect deployment (managementAccess
@@ -90,6 +86,49 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
   }, [loadTurns]);
 
   const pendingActive = !!pending && !TERMINAL_RUN_STATUSES.includes(pending.status);
+
+  // Stream the running turn's events (SSE) so the answer appears as the model writes it. Events are buffered and
+  // folded at most every STREAM_FLUSH_MS, so fast token streams do not re-render the Markdown on every delta. The
+  // polling below stays as the fallback and settles the turn when the stream is unavailable.
+  const [live, setLive] = useState({});
+  const pendingId = pendingActive ? pending.id : null;
+  useEffect(() => {
+    if (!apiClient || !pendingId) return undefined;
+    const runId = pendingId;
+    const buffer = [];
+    const seen = new Set();
+    let events = [];
+    let timer = null;
+    const flush = () => {
+      timer = null;
+      if (!buffer.length || unmounted.current) return;
+      events = [...events, ...buffer.splice(0)].sort((a, b) => a.sequence - b.sequence);
+      setLive((prev) => ({ ...prev, [runId]: { events, preview: buildPreview(events) } }));
+    };
+    const controller = apiClient.streamRunEvents(
+      tenantId,
+      runId,
+      0,
+      (data) => {
+        if (!data || typeof data !== 'object' || (data.runId && data.runId !== runId)) return;
+        if (data.sequence === undefined) {
+          // run.completed carries the final run; run.status carries only the status.
+          if (data.id === runId && data.status) setPending(data);
+          return;
+        }
+        if (seen.has(data.sequence)) return;
+        seen.add(data.sequence);
+        buffer.push(data);
+        if (!timer) timer = setTimeout(flush, STREAM_FLUSH_MS);
+      },
+      () => {}
+    );
+    return () => {
+      controller.abort();
+      if (timer) clearTimeout(timer);
+      flush();
+    };
+  }, [apiClient, tenantId, pendingId]);
   useEffect(() => {
     if (!pendingActive) return undefined;
     const id = setInterval(async () => {
@@ -97,16 +136,41 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         const run = await apiClient.getRun(tenantId, pending.id);
         if (unmounted.current) return;
         setPending(run);
-        if (TERMINAL_RUN_STATUSES.includes(run.status)) {
-          loadTurns();
-          onTurnFinished?.();
-        }
       } catch {
         /* keep polling */
       }
     }, TURN_POLL_MS);
     return () => clearInterval(id);
-  }, [pendingActive, pending, apiClient, tenantId, loadTurns, onTurnFinished]);
+  }, [pendingActive, pending, apiClient, tenantId]);
+
+  // A turn ended (seen by the stream or by polling): read the conversation again and tell the draft, once per turn.
+  const finished = useRef(null);
+  useEffect(() => {
+    if (!pending || !TERMINAL_RUN_STATUSES.includes(pending.status) || finished.current === pending.id) return;
+    finished.current = pending.id;
+    loadTurns();
+    onTurnFinished?.();
+  }, [pending, loadTurns, onTurnFinished]);
+
+  // Follow the conversation as it grows, but only while the person is at the bottom: scrolling up to read an earlier
+  // turn stops the follow, and scrolling back down (or sending) resumes it.
+  const turnsRef = useRef(null);
+  const stick = useRef(true);
+  const onTurnsScroll = () => {
+    const el = turnsRef.current;
+    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+  };
+  useLayoutEffect(() => {
+    const el = turnsRef.current;
+    if (!el || typeof MutationObserver === 'undefined') return undefined;
+    const pin = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    };
+    pin();
+    const observer = new MutationObserver(pin);
+    observer.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, []);
 
   const send = async () => {
     const text = message.trim();
@@ -125,6 +189,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         setBinding(next);
       }
       if (run?.id) {
+        stick.current = true;
         setPending(run);
         setTurns((list) => [...list.filter((r) => r.id !== run.id), { ...run, inputText: run.inputText || body.input }]);
       }
@@ -217,33 +282,11 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
           </div>
         );
       })()}
-      <div className="studio-chat-turns" data-testid="studio-chat-turns">
+      <div className="studio-chat-turns chat-transcript" data-testid="studio-chat-turns" ref={turnsRef} onScroll={onTurnsScroll}>
         {shownTurns.length === 0 ? (
           <div className="text-muted">{t(architect ? 'components.studio.chat.empty' : 'components.studio.chat.pickFirst')}</div>
         ) : (
-          shownTurns.map((r) => (
-            <div key={r.id} className="studio-turn" data-turn={r.id}>
-              <div className="studio-turn-you">
-                <span className="studio-turn-who" {...tip(t('tips.studio.chat.you'))}>
-                  {t('components.studio.chat.you')}
-                </span>
-                <div className="studio-turn-text">{stripDraftPrefix(r.inputText)}</div>
-              </div>
-              <div className="studio-turn-architect">
-                <span className="studio-turn-who inline-meta">
-                  <span {...tip(t('tips.studio.chat.architectSays'))}>{t('components.studio.chat.architectSays')}</span> <TurnStatus status={r.status} />
-                  <StudioLink to={pathFor('runs', r.id)} tipText={t('tips.studio.chat.openRun')}>
-                    {t('components.studio.chat.openRun')}
-                  </StudioLink>
-                </span>
-                {r.resultText || r.errorMessage ? (
-                  <MarkdownView text={r.resultText || r.errorMessage} testId="studio-chat-answer" />
-                ) : (
-                  <div className="text-muted">{TERMINAL_RUN_STATUSES.includes(r.status) ? '-' : t('components.studio.chat.thinking')}</div>
-                )}
-              </div>
-            </div>
-          ))
+          shownTurns.map((r) => <ChatTurn key={r.id} run={r} live={live[r.id] || null} architectName={architect?.name || ''} />)
         )}
       </div>
       <div className="field">

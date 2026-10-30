@@ -4594,3 +4594,57 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "正在等待工作节点开始这一轮...",
+     "phrases": {
+      "p1": "正在阅读你的草稿...",
+      "p2": "正在仔细思考...",
+      "p3": "正在勾画代理...",
+      "p4": "正在理清谁调用谁...",
+      "p5": "正在核对 Garrison 的约定...",
+      "p6": "正在挑选合适的能力...",
+      "p7": "正在起草清单...",
+      "p8": "正在权衡几种设计...",
+      "p9": "正在安排部署...",
+      "p10": "正在检查提示词...",
+      "p11": "正在绘制应用的关系图...",
+      "p12": "正在寻找更简单的结构...",
+      "p13": "正在复核细节...",
+      "p14": "正在把各部分拼起来...",
+      "p15": "马上就好...",
+      "p16": "仍在处理中..."
+     }
+    },
+    "thinkingSummary": "思考过程",
+    "metrics": {
+     "model": "模型",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "流式",
+     "totalMs": "总计",
+     "inputTokens": "输入",
+     "outputTokens": "输出",
+     "cachedTokens": "缓存",
+     "reasoningTokens": "推理",
+     "outputTokensPerSecond": "令牌/秒",
+     "toolCallCount": "工具",
+     "costUsd": "费用"
+    }
+   }
+  }
+ }
+});

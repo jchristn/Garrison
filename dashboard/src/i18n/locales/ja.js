@@ -4593,3 +4593,57 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "このターンを開始するワーカーを待っています...",
+     "phrases": {
+      "p1": "下書きを読んでいます...",
+      "p2": "じっくり考えています...",
+      "p3": "エージェントを描いています...",
+      "p4": "呼び出し関係を整理しています...",
+      "p5": "Garrison の規約を確認しています...",
+      "p6": "適切な機能を選んでいます...",
+      "p7": "マニフェストを作成しています...",
+      "p8": "いくつかの設計を比べています...",
+      "p9": "デプロイメントを準備しています...",
+      "p10": "プロンプトを見直しています...",
+      "p11": "アプリのグラフを描いています...",
+      "p12": "もっと簡単な形を探しています...",
+      "p13": "細部を再確認しています...",
+      "p14": "部品を組み合わせています...",
+      "p15": "もう少しです...",
+      "p16": "まだ作業中です..."
+     }
+    },
+    "thinkingSummary": "思考",
+    "metrics": {
+     "model": "モデル",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "ストリーミング",
+     "totalMs": "合計",
+     "inputTokens": "入力",
+     "outputTokens": "出力",
+     "cachedTokens": "キャッシュ",
+     "reasoningTokens": "推論",
+     "outputTokensPerSecond": "トークン/秒",
+     "toolCallCount": "ツール",
+     "costUsd": "コスト"
+    }
+   }
+  }
+ }
+});

@@ -4642,3 +4642,57 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "En attente d'un worker pour lancer ce tour...",
+     "phrases": {
+      "p1": "Lecture de votre brouillon...",
+      "p2": "Réflexion en cours...",
+      "p3": "Esquisse des agents...",
+      "p4": "Qui appelle qui ? On y travaille...",
+      "p5": "Vérification des conventions de Garrison...",
+      "p6": "Choix des bonnes capacités...",
+      "p7": "Rédaction des manifestes...",
+      "p8": "Comparaison de plusieurs conceptions...",
+      "p9": "Préparation des déploiements...",
+      "p10": "Relecture des prompts...",
+      "p11": "Tracé du graphe de l'application...",
+      "p12": "Recherche d'une forme plus simple...",
+      "p13": "Vérification des détails...",
+      "p14": "Assemblage des pièces...",
+      "p15": "Presque fini...",
+      "p16": "Toujours en cours..."
+     }
+    },
+    "thinkingSummary": "Réflexion",
+    "metrics": {
+     "model": "Modèle",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "Streaming",
+     "totalMs": "Total",
+     "inputTokens": "Entrée",
+     "outputTokens": "Sortie",
+     "cachedTokens": "En cache",
+     "reasoningTokens": "Raisonnement",
+     "outputTokensPerSecond": "Jetons/s",
+     "toolCallCount": "Outils",
+     "costUsd": "Coût"
+    }
+   }
+  }
+ }
+});

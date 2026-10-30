@@ -4646,3 +4646,57 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// The studio chat: wait-state phrases, thinking, per-turn telemetry labels, tool chips, and copy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "studio": {
+   "chat": {
+    "wait": {
+     "worker": "Esperando a que un worker inicie este turno...",
+     "phrases": {
+      "p1": "Leyendo tu borrador...",
+      "p2": "Pensándolo bien...",
+      "p3": "Esbozando los agentes...",
+      "p4": "Decidiendo quién llama a quién...",
+      "p5": "Revisando las convenciones de Garrison...",
+      "p6": "Eligiendo las capacidades adecuadas...",
+      "p7": "Redactando los manifiestos...",
+      "p8": "Sopesando varios diseños...",
+      "p9": "Preparando los despliegues...",
+      "p10": "Revisando los prompts...",
+      "p11": "Trazando el grafo de la aplicación...",
+      "p12": "Buscando una forma más sencilla...",
+      "p13": "Repasando los detalles...",
+      "p14": "Juntando las piezas...",
+      "p15": "Casi listo...",
+      "p16": "Todavía trabajando en ello..."
+     }
+    },
+    "thinkingSummary": "Razonamiento",
+    "metrics": {
+     "model": "Modelo",
+     "timeToFirstTokenMs": "TTFT",
+     "streamingMs": "Streaming",
+     "totalMs": "Total",
+     "inputTokens": "Entrada",
+     "outputTokens": "Salida",
+     "cachedTokens": "En caché",
+     "reasoningTokens": "Razonamiento",
+     "outputTokensPerSecond": "Tokens/s",
+     "toolCallCount": "Herramientas",
+     "costUsd": "Coste"
+    }
+   }
+  }
+ }
+});
