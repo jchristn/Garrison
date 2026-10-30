@@ -3321,19 +3321,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "studio": {
   "architect": {
-   "credentialSecretId": "架構師的 Harness 用來登入的密鑰：Claude Code 使用 Anthropic API 金鑰或 Claude Code OAuth 權杖，Codex 使用 OpenAI API 金鑰或 ChatGPT 登入，依此類推。Garrison 會把它繫結到架構師的部署。",
-   "addSecret": "在新分頁開啟密鑰，新增 API 金鑰或權杖，再回到這裡選擇它。"
+   "credentialSecretId": "架構師的 Harness 用來登入的祕密：Claude Code 使用 Anthropic API 金鑰或 Claude Code OAuth 權杖，Codex 使用 OpenAI API 金鑰或 ChatGPT 登入，依此類推。Garrison 會把它繫結到架構師的部署。",
+   "addSecret": "在新分頁開啟祕密，新增 API 金鑰或權杖，再回到這裡選擇它。"
   },
   "chat": {
-   "fixCredential": "開啟以這位架構師篩選的 代理 > 架構師，編輯它並選擇憑證密鑰。",
-   "openSecrets": "開啟 設定 > 密鑰，新增 API 金鑰或權杖，或確認架構師所用密鑰的值。"
+   "fixCredential": "開啟以這位架構師篩選的 代理程式 > 架構師，編輯它並選擇憑證祕密。",
+   "openSecrets": "開啟 組態 > 祕密，新增 API 金鑰或權杖，或確認架構師所用祕密的值。"
   }
  },
  "resources": {
   "architects": {
-   "credentialSecretId": "架構師的 Harness 用來登入的密鑰：Claude Code 使用 Anthropic API 金鑰或 Claude Code OAuth 權杖，Codex 使用 OpenAI API 金鑰或 ChatGPT 登入，依此類推。Garrison 會把它繫結到架構師的部署。",
-   "credentialCell": "這位架構師的 Harness 用來登入的密鑰（{{kind}}）。",
-   "noCredential": "未繫結憑證密鑰，因此需要憑證的 Harness（Claude Code、Codex、Gemini CLI）會以 Not logged in 失敗。編輯架構師以選擇一個。"
+   "credentialSecretId": "架構師的 Harness 用來登入的祕密：Claude Code 使用 Anthropic API 金鑰或 Claude Code OAuth 權杖，Codex 使用 OpenAI API 金鑰或 ChatGPT 登入，依此類推。Garrison 會把它繫結到架構師的部署。",
+   "credentialCell": "這位架構師的 Harness 用來登入的祕密（{{kind}}）。",
+   "noCredential": "未繫結憑證祕密，因此需要憑證的 Harness（Claude Code、Codex、Gemini CLI）會以 Not logged in 失敗。編輯架構師以選擇一個。"
   }
+ }
+});
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "dependencyHint": {
+  "refresh": "重新讀取這份清單，例如在其他頁面新增記錄之後。",
+  "open": "在新分頁開啟 {{page}}，這個表單會保留你已輸入的內容。完成後回到這裡，清單會重新整理。"
  }
 });

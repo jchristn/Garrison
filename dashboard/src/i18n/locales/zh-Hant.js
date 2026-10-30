@@ -4437,17 +4437,17 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "credential": "憑證",
     "noCredential": "無",
     "credentialOption": "{{name}}（{{kind}}）",
-    "credentialHint": "Harness 用來登入的密鑰。Garrison 會把它繫結到架構師的部署。",
+    "credentialHint": "Harness 用來登入的祕密。Garrison 會把它繫結到架構師的部署。",
     "credentialMissing": "{{profile}} 需要憑證才能登入，但尚未選擇。沒有憑證時，每一輪都會以 Not logged in 失敗。",
-    "addSecret": "新增密鑰"
+    "addSecret": "新增祕密"
    },
    "chat": {
     "notCredentialedTitle": "架構師無法登入其模型供應商",
-    "notCredentialedBody": "它的 Harness 沒有可用的憑證（Claude Code 會顯示 Not logged in）。請在架構師頁面為 {{architect}} 指定憑證密鑰，或確認密鑰的值是否正確。",
+    "notCredentialedBody": "它的 Harness 沒有可用的憑證（Claude Code 會顯示 Not logged in）。請在架構師頁面為 {{architect}} 指定憑證祕密，或確認祕密的值是否正確。",
     "noCredentialTitle": "這位架構師沒有憑證",
-    "noCredentialBody": "{{architect}} 在 {{profile}} 上執行，需要密鑰才能登入。沒有密鑰時，它的每一輪都會以 Not logged in 失敗。請在架構師頁面為它選擇憑證。",
+    "noCredentialBody": "{{architect}} 在 {{profile}} 上執行，需要祕密才能登入。沒有祕密時，它的每一輪都會以 Not logged in 失敗。請在架構師頁面為它選擇憑證。",
     "fixCredential": "修正架構師的憑證",
-    "openSecrets": "開啟密鑰"
+    "openSecrets": "開啟祕密"
    }
   }
  },
@@ -4460,10 +4460,76 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "credentialSecretId": "憑證"
    },
    "hints": {
-    "credentialSecretId": "Harness 用來登入的密鑰，繫結到架構師的部署。",
+    "credentialSecretId": "Harness 用來登入的祕密，繫結到架構師的部署。",
     "credentialMissing": "{{profile}} 需要憑證才能登入。沒有憑證時，每一輪都會以 Not logged in 失敗。"
    },
    "noCredential": "無"
   }
+ }
+});
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "dependencyHint": {
+   "refresh": "重新整理清單"
+  },
+  "architectHints": {
+   "harness": "Harness 設定檔來自 組態 > Harness 設定檔。內建的（Claude Code、Codex 等）可以直接使用。",
+   "harnessLink": "開啟 組態 > Harness 設定檔",
+   "credential": "憑證是保存 Harness API 金鑰或權杖的祕密，祕密在 組態 > 祕密 中建立：先在那裡新增 API 金鑰，再回到這裡選擇它。",
+   "credentialKinds": "對於 {{profile}}，請新增種類為 {{kinds}} 的祕密。",
+   "credentialNotNeeded": "{{profile}} 不需要憑證。",
+   "credentialNone": "這個租用戶還沒有任何祕密，所以清單是空的。",
+   "credentialMissing": "{{profile}} 需要憑證才能登入，但尚未選擇。沒有憑證時，每一輪都會以 Not logged in 失敗。",
+   "credentialLink": "開啟 組態 > 祕密",
+   "prompt": "架構師提示是 組態 > 提示範本 中的 System 範本；可以在那裡複製和編輯，或使用 代理程式 > 架構師 中的架構師提示動作。",
+   "promptLink": "開啟 組態 > 提示範本"
+  }
+ }
+});
+
+// The New architect dialog's introduction names the credential.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "studio": {
+   "architect": {
+    "intro": "代理架構師會在你的草稿中設計代理和應用程式。請為它指定 Harness 設定檔、用來登入的祕密、模型，以及它使用的提示。它只會編輯你的草稿，從不套用它們。"
+   }
+  }
+ }
+});
+
+// The setup wizard's Agent Studio step names the credential and where architects live.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "wizard": {
+  "studioBody": "代理架構師會在代理工作室中與你一起設計代理和應用程式。請選擇它執行時使用的 Harness 設定檔和模型、它登入時使用的憑證（若上一步儲存的祕密適合該 Harness，會自動選取），以及引導它的架構師提示。它的部署只能編輯你的工作室草稿。你可以略過此步驟，稍後在 代理程式 > 架構師 中建立架構師。"
  }
 });

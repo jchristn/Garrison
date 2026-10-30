@@ -3321,19 +3321,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "studio": {
   "architect": {
-   "credentialSecretId": "架构师的 Harness 用于登录的密钥：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
-   "addSecret": "在新标签页中打开密钥，添加 API 密钥或令牌，然后回到这里选择它。"
+   "credentialSecretId": "架构师的 Harness 用于登录的机密：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
+   "addSecret": "在新标签页中打开机密，添加 API 密钥或令牌，然后回到这里选择它。"
   },
   "chat": {
-   "fixCredential": "打开按此架构师筛选的 代理 > 架构师，编辑它并选择凭据密钥。",
-   "openSecrets": "打开 配置 > 密钥，添加 API 密钥或令牌，或检查架构师所用密钥的值。"
+   "fixCredential": "打开按此架构师筛选的 智能体 > 架构师，编辑它并选择凭据机密。",
+   "openSecrets": "打开 配置 > 机密，添加 API 密钥或令牌，或检查架构师所用机密的值。"
   }
  },
  "resources": {
   "architects": {
-   "credentialSecretId": "架构师的 Harness 用于登录的密钥：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
-   "credentialCell": "此架构师的 Harness 用于登录的密钥（{{kind}}）。",
-   "noCredential": "未绑定凭据密钥，因此需要凭据的 Harness（Claude Code、Codex、Gemini CLI）会因 Not logged in 而失败。编辑架构师以选择一个。"
+   "credentialSecretId": "架构师的 Harness 用于登录的机密：Claude Code 使用 Anthropic API 密钥或 Claude Code OAuth 令牌，Codex 使用 OpenAI API 密钥或 ChatGPT 登录，等等。Garrison 会把它绑定到架构师的部署。",
+   "credentialCell": "此架构师的 Harness 用于登录的机密（{{kind}}）。",
+   "noCredential": "未绑定凭据机密，因此需要凭据的 Harness（Claude Code、Codex、Gemini CLI）会因 Not logged in 而失败。编辑架构师以选择一个。"
   }
+ }
+});
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "dependencyHint": {
+  "refresh": "重新读取此列表，例如在其他页面添加记录之后。",
+  "open": "在新标签页中打开 {{page}}，这样此表单会保留你已输入的内容。完成后回到这里，列表会自动刷新。"
  }
 });

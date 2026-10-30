@@ -4494,3 +4494,69 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "dependencyHint": {
+   "refresh": "Refresh list"
+  },
+  "architectHints": {
+   "harness": "Harness profiles come from Configuration > Harness Profiles. The built-in ones (Claude Code, Codex, and others) are ready to use.",
+   "harnessLink": "Open Configuration > Harness Profiles",
+   "credential": "Choose the secret that holds the harness's API key or token. Secrets are created on Configuration > Secrets: add the key there, then come back and choose it here.",
+   "credentialKinds": "For {{profile}}, add a secret of kind {{kinds}}.",
+   "credentialNotNeeded": "{{profile}} needs no credential.",
+   "credentialNone": "This tenant has no secrets yet, so the list is empty.",
+   "credentialMissing": "{{profile}} needs a credential to sign in, and none is chosen. Without one, every turn fails with Not logged in.",
+   "credentialLink": "Open Configuration > Secrets",
+   "prompt": "Architect prompts are System templates on Configuration > Prompt Templates; clone and edit them there, or with the Architect prompts action on Agents > Architects.",
+   "promptLink": "Open Configuration > Prompt Templates"
+  }
+ }
+});
+
+// The New architect dialog's introduction names the credential.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "studio": {
+   "architect": {
+    "intro": "The agent architect designs agents and apps in your drafts. Give it a harness profile, the secret it signs in with, a model, and the prompt it works with. It edits only your drafts and never applies them."
+   }
+  }
+ }
+});
+
+// The setup wizard's Agent Studio step names the credential and where architects live.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "wizard": {
+  "studioBody": "The agent architect designs agents and apps with you in Agent Studio. Choose the harness profile and model it runs on, the credential it signs in with (the secret you saved in the previous step is chosen for you when it fits the harness), and the architect prompt that guides it. Its deployment may only edit your studio drafts. You can skip this step and create an architect later on Agents > Architects."
+ }
+});

@@ -205,6 +205,21 @@ export default function ResourceView({ config }) {
         .catch(() => setOptions({}));
     }
   };
+  // Read the pick lists again, for example after the person added a record on another page (a secret, a profile).
+  const reloadOptions = useCallback(() => {
+    if (!config.loadOptions) return;
+    config
+      .loadOptions(ctx)
+      .then(setOptions)
+      .catch(() => {});
+  }, [config, ctx]);
+  // Forms whose choices live on other pages read them again when the person comes back to this tab.
+  useEffect(() => {
+    if (!editing || !config.reloadOptionsOnFocus) return undefined;
+    const onFocus = () => reloadOptions();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [editing, config.reloadOptionsOnFocus, reloadOptions]);
   const openRow = (row) => {
     if (config.detailPath) navigate(config.detailPath(row));
     else open(isEditable(row) && config.api.update && !deniedTip('update', row) ? 'edit' : 'view', config.toForm ? config.toForm(row) : { ...row });
@@ -215,7 +230,7 @@ export default function ResourceView({ config }) {
   const showErrorStep = (errors) => {
     if (!config.steps || !editing) return;
     const keys = Object.keys(errors || {}).map((k) => k.replace(/[[.].*$/, ''));
-    const owners = config.fields(editing.data, { ...ctx, mode: editing.mode, options }).filter((f) => keys.includes(f.name) || (f.errorKeys || []).some((k) => keys.includes(k)));
+    const owners = config.fields(editing.data, { ...ctx, mode: editing.mode, options, reloadOptions }).filter((f) => keys.includes(f.name) || (f.errorKeys || []).some((k) => keys.includes(k)));
     if (owners.length) setStep(Math.min(...owners.map((f) => f.step || 0)));
   };
 
@@ -336,7 +351,7 @@ export default function ResourceView({ config }) {
 
   const prefix = `resources.${config.id}`;
   const intro = config.intro ? config.intro({ ...ctx, listInfo }) : null;
-  const allFields = editing ? config.fields(editing.data, { ...ctx, mode: editing.mode, options }) : [];
+  const allFields = editing ? config.fields(editing.data, { ...ctx, mode: editing.mode, options, reloadOptions }) : [];
   const steps = config.steps || null;
   const fields = steps ? allFields.filter((f) => (f.step || 0) === step) : allFields;
   const missing = isMissingEndpoint(error);

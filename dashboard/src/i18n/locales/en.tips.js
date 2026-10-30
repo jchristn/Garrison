@@ -3338,3 +3338,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "dependencyHint": {
+  "refresh": "Read this list again, for example after you added a record on another page.",
+  "open": "Opens {{page}} in a new tab, so this form keeps what you typed. Come back here when you are done; the list refreshes."
+ }
+});

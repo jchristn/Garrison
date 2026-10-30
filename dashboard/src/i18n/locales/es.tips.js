@@ -3340,3 +3340,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "dependencyHint": {
+  "refresh": "Vuelve a leer esta lista, por ejemplo después de añadir un registro en otra página.",
+  "open": "Abre {{page}} en una pestaña nueva para que este formulario conserve lo que escribiste. Vuelve aquí al terminar; la lista se actualiza."
+ }
+});

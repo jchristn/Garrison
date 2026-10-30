@@ -221,12 +221,66 @@ test('architect forms suggest the secret the harness signs in with and warn when
   await page.getByTestId('studio-new-architect').click();
   await page.getByTestId('architect-profile').selectOption('hp_0004');
   await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0001');
-  await expect(page.getByTestId('architect-credential-missing')).toHaveCount(0);
+  await expect(page.getByTestId('architect-credential-hint')).not.toContainText('needs a credential to sign in');
   await page.getByTestId('architect-profile').selectOption('hp_0001');
   await expect(page.getByTestId('architect-credential')).toHaveValue('');
-  await expect(page.getByTestId('architect-credential-missing')).toContainText('needs a credential to sign in');
+  await expect(page.getByTestId('architect-credential-hint')).toContainText('needs a credential to sign in');
   // A choice the person makes is kept when the profile changes.
   await page.getByTestId('architect-credential').selectOption('sec_0003');
   await page.getByTestId('architect-profile').selectOption('hp_0004');
   await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0003');
+});
+
+test('the architect form says where harness profiles, secrets, and prompts come from, and refreshes the secrets', async ({ page }) => {
+  await withArchitects(page);
+  let added = false;
+  await page.route(/\/tenants\/[^/]+\/secrets(\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const rows = added ? [{ id: 'sec_0099', tenantId: 'default', name: 'new-openai-key', kind: 'OpenAiApiKey', active: true, status: 'Ok' }] : [];
+    return route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true }));
+  });
+  await login(page);
+  await page.goto(ARCHITECTS);
+  await row(page, 'architect').locator('.action-menu-trigger').click();
+  await menuItem(page, 'Edit').click();
+  // hp_0001 is a Codex profile and the tenant has no secrets: the hint says what to add and where.
+  const hint = page.getByTestId('architect-credential-hint');
+  await expect(hint).toContainText('needs a credential to sign in');
+  await expect(hint).toContainText('Secrets are created on Configuration > Secrets');
+  await expect(hint).toContainText('OpenAiApiKey or CodexAuthJson');
+  await expect(hint).toContainText('This tenant has no secrets yet');
+  await expect(page.getByTestId('architect-open-secrets')).toHaveAttribute('href', '/dashboard/configuration?tab=secrets');
+  await expect(page.getByTestId('architect-open-secrets')).toHaveAttribute('target', '_blank');
+  await expect(page.getByTestId('architect-harness-hint')).toContainText('Configuration > Harness Profiles');
+  await expect(page.getByTestId('architect-prompt-hint')).toContainText('Configuration > Prompt Templates');
+  // After adding the secret on the other page, Refresh list offers it without closing the form.
+  added = true;
+  await page.getByTestId('architect-credential-hint-refresh').click();
+  await expect(page.locator('#architects-credentialSecretId option', { hasText: 'new-openai-key' })).toHaveCount(1);
+  await page.locator('#architects-credentialSecretId').selectOption('sec_0099');
+  await expect(hint).not.toContainText('needs a credential to sign in');
+  await expect(hint).not.toContainText('This tenant has no secrets yet');
+});
+
+test('the New architect dialog names Configuration > Secrets and picks up a secret added in another tab', async ({ page }) => {
+  await withArchitects(page, []);
+  let added = false;
+  await page.route(/\/tenants\/[^/]+\/secrets(\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const rows = added ? [{ id: 'sec_0098', tenantId: 'default', name: 'my-anthropic-key', kind: 'AnthropicApiKey', active: true, status: 'Ok' }] : [];
+    return route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true }));
+  });
+  await login(page);
+  await page.goto('/dashboard/studio/drf_0001');
+  await page.getByTestId('studio-new-architect').click();
+  await page.getByTestId('architect-profile').selectOption('hp_0004');
+  const hint = page.getByTestId('architect-credential-hint');
+  await expect(hint).toContainText('AnthropicApiKey or ClaudeCodeOAuthToken');
+  await expect(hint).toContainText('needs a credential to sign in');
+  await expect(page.getByTestId('architect-open-secrets')).toHaveAttribute('href', '/dashboard/configuration?tab=secrets');
+  // Coming back to the tab reads the secrets again; the new key is suggested for the Claude Code profile.
+  added = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0098');
+  await expect(hint).not.toContainText('needs a credential to sign in');
 });

@@ -1400,3 +1400,7 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .about-positioning { margin: var(--spacing-xs) 0 var(--spacing-sm); color: var(--color-text-secondary); max-width: 70ch; }
 .about-links { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .studio-credential-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.dependency-hint { display: flex; flex-direction: column; gap: 2px; }
+.dependency-hint-warning { font-weight: 500; }
+.dependency-hint-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: 2px; }
+.dependency-hint-actions a { font-weight: 500; }

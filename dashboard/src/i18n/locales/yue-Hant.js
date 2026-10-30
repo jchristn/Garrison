@@ -4436,17 +4436,17 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "credential": "憑證",
     "noCredential": "冇",
     "credentialOption": "{{name}}（{{kind}}）",
-    "credentialHint": "Harness 用嚟登入嘅密鑰。Garrison 會將佢綁定到架構師嘅部署。",
+    "credentialHint": "Harness 用嚟登入嘅機密。Garrison 會將佢綁定到架構師嘅部署。",
     "credentialMissing": "{{profile}} 要有憑證先可以登入，但係仲未揀。冇憑證嘅話，每一輪都會以 Not logged in 失敗。",
-    "addSecret": "新增密鑰"
+    "addSecret": "新增機密"
    },
    "chat": {
     "notCredentialedTitle": "架構師登入唔到佢嘅模型供應商",
-    "notCredentialedBody": "佢個 Harness 冇可用嘅憑證（Claude Code 會顯示 Not logged in）。請喺架構師頁面俾 {{architect}} 一個憑證密鑰，或者檢查下密鑰嘅值啱唔啱。",
+    "notCredentialedBody": "佢個 Harness 冇可用嘅憑證（Claude Code 會顯示 Not logged in）。請喺架構師頁面俾 {{architect}} 一個憑證機密，或者檢查下機密嘅值啱唔啱。",
     "noCredentialTitle": "呢個架構師冇憑證",
-    "noCredentialBody": "{{architect}} 喺 {{profile}} 上面運行，要有密鑰先可以登入。冇密鑰嘅話，佢每一輪都會以 Not logged in 失敗。請喺架構師頁面幫佢揀憑證。",
+    "noCredentialBody": "{{architect}} 喺 {{profile}} 上面運行，要有機密先可以登入。冇機密嘅話，佢每一輪都會以 Not logged in 失敗。請喺架構師頁面幫佢揀憑證。",
     "fixCredential": "修正架構師嘅憑證",
-    "openSecrets": "打開密鑰"
+    "openSecrets": "打開機密"
    }
   }
  },
@@ -4459,10 +4459,76 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "credentialSecretId": "憑證"
    },
    "hints": {
-    "credentialSecretId": "Harness 用嚟登入嘅密鑰，綁定到架構師嘅部署。",
+    "credentialSecretId": "Harness 用嚟登入嘅機密，綁定到架構師嘅部署。",
     "credentialMissing": "{{profile}} 要有憑證先可以登入。冇憑證嘅話，每一輪都會以 Not logged in 失敗。"
    },
    "noCredential": "冇"
   }
+ }
+});
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "dependencyHint": {
+   "refresh": "重新載入清單"
+  },
+  "architectHints": {
+   "harness": "Harness 設定檔嚟自 配置 > Harness 設定檔。內建嗰啲（Claude Code、Codex 等等）即刻用得。",
+   "harnessLink": "打開 配置 > Harness 設定檔",
+   "credential": "憑證係一個保存 Harness API 金鑰或者權杖嘅機密，機密喺 配置 > 機密 度建立：喺嗰度加金鑰，然後返嚟呢度揀佢。",
+   "credentialKinds": "{{profile}} 要加一個種類係 {{kinds}} 嘅機密。",
+   "credentialNotNeeded": "{{profile}} 唔使憑證。",
+   "credentialNone": "呢個租用戶仲未有機密，所以清單係空嘅。",
+   "credentialMissing": "{{profile}} 要有憑證先可以登入，但係仲未揀。冇憑證嘅話，每一輪都會以 Not logged in 失敗。",
+   "credentialLink": "打開 配置 > 機密",
+   "prompt": "架構師提示係 配置 > 提示範本 入面嘅 System 範本；可以喺嗰度複製同編輯，或者用 代理程式 > 架構師 入面嘅架構師提示動作。",
+   "promptLink": "打開 配置 > 提示範本"
+  }
+ }
+});
+
+// The New architect dialog's introduction names the credential.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "studio": {
+   "architect": {
+    "intro": "代理架構師會喺你嘅草稿入面設計代理同應用程式。請俾佢一個 Harness 設定檔、用嚟登入嘅機密、一個模型，同埋佢用嘅提示。佢只會編輯你嘅草稿，永遠唔會套用佢哋。"
+   }
+  }
+ }
+});
+
+// The setup wizard's Agent Studio step names the credential and where architects live.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "wizard": {
+  "studioBody": "代理架構師會喺代理工作室同你一齊設計代理同應用程式。請揀佢運行用嘅 Harness 設定檔同模型、佢登入用嘅憑證（如果上一步儲存嘅機密啱呢個 Harness，會自動揀咗），同埋引導佢嘅架構師提示。佢嘅部署只可以編輯你嘅工作室草稿。你可以跳過呢一步，遲啲喺 代理程式 > 架構師 度建立架構師。"
  }
 });

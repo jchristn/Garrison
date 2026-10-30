@@ -4466,3 +4466,69 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "dependencyHint": {
+   "refresh": "一覧を更新"
+  },
+  "architectHints": {
+   "harness": "ハーネスプロファイルは 構成 > ハーネスプロファイル で管理されます。組み込みのもの (Claude Code、Codex など) はすぐに使えます。",
+   "harnessLink": "構成 > ハーネスプロファイル を開く",
+   "credential": "認証情報は、ハーネスの API キーまたはトークンを保持するシークレットです。シークレットは 構成 > シークレット で作成します。そこでキーを追加してから、ここに戻って選択してください。",
+   "credentialKinds": "{{profile}} には、種類が {{kinds}} のシークレットを追加してください。",
+   "credentialNotNeeded": "{{profile}} には認証情報は不要です。",
+   "credentialNone": "このテナントにはまだシークレットがないため、一覧は空です。",
+   "credentialMissing": "{{profile}} はサインインに認証情報が必要ですが、選択されていません。ないとすべてのターンが Not logged in で失敗します。",
+   "credentialLink": "構成 > シークレット を開く",
+   "prompt": "アーキテクトプロンプトは 構成 > プロンプトテンプレート にある System テンプレートです。そこで複製と編集を行うか、エージェント > アーキテクト のアーキテクトプロンプト操作を使います。",
+   "promptLink": "構成 > プロンプトテンプレート を開く"
+  }
+ }
+});
+
+// The New architect dialog's introduction names the credential.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "studio": {
+   "architect": {
+    "intro": "エージェントアーキテクトは、あなたの下書きでエージェントとアプリを設計します。ハーネスプロファイル、サインインに使うシークレット、モデル、使用するプロンプトを指定してください。アーキテクトは下書きを編集するだけで、適用は決して行いません。"
+   }
+  }
+ }
+});
+
+// The setup wizard's Agent Studio step names the credential and where architects live.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "wizard": {
+  "studioBody": "エージェントアーキテクトは、エージェントスタジオであなたと一緒にエージェントとアプリを設計します。実行に使うハーネスプロファイルとモデル、サインインに使う認証情報 (前のステップで保存したシークレットがハーネスに合えば自動で選ばれます)、そして指針となるアーキテクトプロンプトを選んでください。そのデプロイメントが編集できるのはスタジオ下書きだけです。この手順はスキップして、後で エージェント > アーキテクト で作成することもできます。"
+ }
+});

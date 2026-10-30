@@ -3338,3 +3338,20 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "dependencyHint": {
+  "refresh": "別のページでレコードを追加した後などに、この一覧を読み直します。",
+  "open": "{{page}} を新しいタブで開くので、このフォームの入力内容は残ります。終わったらここに戻ってください。一覧が更新されます。"
+ }
+});

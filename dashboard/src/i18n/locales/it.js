@@ -4515,3 +4515,69 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "dependencyHint": {
+   "refresh": "Aggiorna elenco"
+  },
+  "architectHints": {
+   "harness": "I profili harness provengono da Configurazione > Profili harness. Quelli integrati (Claude Code, Codex e altri) sono pronti all'uso.",
+   "harnessLink": "Apri Configurazione > Profili harness",
+   "credential": "La credenziale è un segreto che contiene la chiave API o il token dell'harness, e i segreti si creano in Configurazione > Segreti: aggiungi lì la chiave, poi torna qui e sceglila.",
+   "credentialKinds": "Per {{profile}}, aggiungi un segreto di tipo {{kinds}}.",
+   "credentialNotNeeded": "{{profile}} non ha bisogno di credenziali.",
+   "credentialNone": "Questo tenant non ha ancora segreti, quindi l'elenco è vuoto.",
+   "credentialMissing": "{{profile}} ha bisogno di una credenziale per accedere e non ne è stata scelta nessuna. Senza, ogni turno fallisce con Not logged in.",
+   "credentialLink": "Apri Configurazione > Segreti",
+   "prompt": "I prompt dell'architetto sono modelli System in Configurazione > Modelli di prompt; clonali e modificali lì, oppure con l'azione Prompt dell'architetto in Agenti > Architetti.",
+   "promptLink": "Apri Configurazione > Modelli di prompt"
+  }
+ }
+});
+
+// The New architect dialog's introduction names the credential.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "studio": {
+   "architect": {
+    "intro": "L'architetto di agenti progetta agenti e applicazioni nelle tue bozze. Dagli un profilo harness, il segreto con cui accede, un modello e il prompt con cui lavora. Modifica solo le tue bozze e non le applica mai."
+   }
+  }
+ }
+});
+
+// The setup wizard's Agent Studio step names the credential and where architects live.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "wizard": {
+  "studioBody": "L'architetto di agenti progetta con te agenti e applicazioni in Agent Studio. Scegli il profilo harness e il modello su cui viene eseguito, la credenziale con cui accede (se adatto all'harness, viene scelto il segreto salvato nel passaggio precedente) e il prompt dell'architetto che lo guida. La sua distribuzione può modificare solo le tue bozze dello studio. Puoi saltare questo passaggio e creare un architetto più tardi in Agenti > Architetti."
+ }
+});

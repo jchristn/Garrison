@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import CodeBlock from '../CodeBlock';
+import { architectPromptHint, credentialHint, harnessProfileHint } from '../ArchitectHints';
 import { tip } from '../Tooltip';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
 import { errorMessage } from '../../utils/errors';
-import { ARCHITECT_AGENT, defaultArchitectPrompt, findArchitectAgent, needsCredential, sortArchitectPrompts, suggestedCredential } from '../../utils/studio';
+import { ARCHITECT_AGENT, defaultArchitectPrompt, findArchitectAgent, sortArchitectPrompts, suggestedCredential } from '../../utils/studio';
 
 /** Sample values the architect prompt preview renders with. */
 const PREVIEW_CONTEXT = {
@@ -28,7 +29,7 @@ const PREVIEW_CONTEXT = {
  * holds { name, harnessProfileId, model, credentialSecretId, promptId } and `onChange(patch)` updates it.
  */
 export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAgent, idPrefix = 'architect' }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const [profiles, setProfiles] = useState([]);
@@ -53,34 +54,43 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
       .listAgents(tenantId, { ...page, search: ARCHITECT_AGENT })
       .then((r) => active && agentRef.current?.(findArchitectAgent(r.items)))
       .catch(() => active && agentRef.current?.(null));
-    apiClient
-      .listHarnessProfiles(tenantId, { ...page, includeBuiltIn: true })
-      .then((r) => {
-        if (!active) return;
-        const list = r.items || [];
-        setProfiles(list);
-        if (!formRef.current.harnessProfileId && list.length) changeRef.current({ harnessProfileId: list[0].id });
-      })
-      .catch(() => active && setProfiles([]));
-    apiClient
-      .listSecrets(tenantId, page)
-      .then((r) => active && setSecrets((r.items || []).filter((x) => x.active !== false)))
-      .catch(() => active && setSecrets([]));
-    apiClient
-      .listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 })
-      .then((page) => {
-        const list = page?.items || [];
-        if (!active) return;
-        const sorted = sortArchitectPrompts(list);
-        setPrompts(sorted);
-        const preferred = defaultArchitectPrompt(sorted);
-        if (!formRef.current.promptId && preferred) changeRef.current({ promptId: preferred.id });
-      })
-      .catch(() => active && setPrompts([]));
     return () => {
       active = false;
     };
   }, [apiClient, tenantId]);
+
+  // Harness profiles, secrets, and architect prompts are made on other pages; read them now, again on Refresh list,
+  // and again when the person comes back to this tab after adding one there.
+  const loadLists = useCallback(() => {
+    if (!apiClient) return;
+    const page = { pageNumber: 1, pageSize: 1000 };
+    apiClient
+      .listHarnessProfiles(tenantId, { ...page, includeBuiltIn: true })
+      .then((r) => {
+        const list = r.items || [];
+        setProfiles(list);
+        if (!formRef.current.harnessProfileId && list.length) changeRef.current({ harnessProfileId: list[0].id });
+      })
+      .catch(() => setProfiles([]));
+    apiClient
+      .listSecrets(tenantId, page)
+      .then((r) => setSecrets((r.items || []).filter((x) => x.active !== false)))
+      .catch(() => setSecrets([]));
+    apiClient
+      .listArchitectPrompts(tenantId, page)
+      .then((result) => {
+        const sorted = sortArchitectPrompts(result?.items || []);
+        setPrompts(sorted);
+        const preferred = defaultArchitectPrompt(sorted);
+        if (!formRef.current.promptId && preferred) changeRef.current({ promptId: preferred.id });
+      })
+      .catch(() => setPrompts([]));
+  }, [apiClient, tenantId]);
+  useEffect(() => {
+    loadLists();
+    window.addEventListener('focus', loadLists);
+    return () => window.removeEventListener('focus', loadLists);
+  }, [loadLists]);
 
   // Render the chosen prompt's current text with sample values.
   useEffect(() => {
@@ -105,7 +115,6 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
     const next = suggested ? suggested.id : '';
     if (next !== (formRef.current.credentialSecretId || '')) changeRef.current({ credentialSecretId: next });
   }, [profile, secrets]);
-  const missingCredential = !!profile && needsCredential(profile.harnessType) && !form.credentialSecretId;
 
   const chosen = useMemo(() => prompts.find((p) => p.id === form.promptId) || null, [prompts, form.promptId]);
   const set = (key) => (e) => onChange({ [key]: e.target.value });
@@ -136,7 +145,8 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
                 {p.name}
               </option>
             ))}
-          </select>
+          </select>,
+          harnessProfileHint(t, loadLists)
         )}
         {field(
           'credentialSecretId',
@@ -158,16 +168,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
               </option>
             ))}
           </select>,
-          missingCredential ? (
-            <span className="field-warning" data-testid="architect-credential-missing">
-              {t('components.studio.architect.credentialMissing', { profile: profile?.name || '' })}{' '}
-              <a href={pathFor('secrets')} target="_blank" rel="noopener noreferrer" {...tip(t('tips.studio.architect.addSecret'))}>
-                {t('components.studio.architect.addSecret')}
-              </a>
-            </span>
-          ) : (
-            t('components.studio.architect.credentialHint')
-          )
+          credentialHint(t, { profile, secretCount: secrets.length, chosen: form.credentialSecretId, onRefresh: loadLists, lng: i18n.language })
         )}
         {field('model', t('components.studio.architect.model'), <input id={id('model')} value={form.model} placeholder="sonnet" onChange={set('model')} data-testid="architect-model" {...tip(t('tips.studio.architect.model'))} />, t('components.studio.architect.modelHint'))}
         {field(
@@ -180,7 +181,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
               </option>
             ))}
           </select>,
-          chosen?.description || null
+          architectPromptHint(t, loadLists, chosen?.description || '')
         )}
       </div>
       <div className="studio-architect-preview">

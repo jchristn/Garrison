@@ -3322,19 +3322,36 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "studio": {
   "architect": {
-   "credentialSecretId": "架構師個 Harness 用嚟登入嘅密鑰：Claude Code 用 Anthropic API 金鑰或者 Claude Code OAuth 權杖，Codex 用 OpenAI API 金鑰或者 ChatGPT 登入，如此類推。Garrison 會將佢綁定到架構師嘅部署。",
-   "addSecret": "喺新分頁打開密鑰，加 API 金鑰或者權杖，然後返嚟呢度揀佢。"
+   "credentialSecretId": "架構師個 Harness 用嚟登入嘅機密：Claude Code 用 Anthropic API 金鑰或者 Claude Code OAuth 權杖，Codex 用 OpenAI API 金鑰或者 ChatGPT 登入，如此類推。Garrison 會將佢綁定到架構師嘅部署。",
+   "addSecret": "喺新分頁打開機密，加 API 金鑰或者權杖，然後返嚟呢度揀佢。"
   },
   "chat": {
-   "fixCredential": "打開用呢個架構師篩選咗嘅 代理 > 架構師，編輯佢再揀憑證密鑰。",
-   "openSecrets": "打開 設定 > 密鑰，加 API 金鑰或者權杖，或者檢查架構師用緊嗰個嘅值。"
+   "fixCredential": "打開用呢個架構師篩選咗嘅 代理程式 > 架構師，編輯佢再揀憑證機密。",
+   "openSecrets": "打開 配置 > 機密，加 API 金鑰或者權杖，或者檢查架構師用緊嗰個機密嘅值。"
   }
  },
  "resources": {
   "architects": {
-   "credentialSecretId": "架構師個 Harness 用嚟登入嘅密鑰：Claude Code 用 Anthropic API 金鑰或者 Claude Code OAuth 權杖，Codex 用 OpenAI API 金鑰或者 ChatGPT 登入，如此類推。Garrison 會將佢綁定到架構師嘅部署。",
-   "credentialCell": "呢個架構師個 Harness 用嚟登入嘅密鑰（{{kind}}）。",
-   "noCredential": "冇綁定憑證密鑰，所以要憑證嘅 Harness（Claude Code、Codex、Gemini CLI）會以 Not logged in 失敗。編輯架構師去揀一個。"
+   "credentialSecretId": "架構師個 Harness 用嚟登入嘅機密：Claude Code 用 Anthropic API 金鑰或者 Claude Code OAuth 權杖，Codex 用 OpenAI API 金鑰或者 ChatGPT 登入，如此類推。Garrison 會將佢綁定到架構師嘅部署。",
+   "credentialCell": "呢個架構師個 Harness 用嚟登入嘅機密（{{kind}}）。",
+   "noCredential": "冇綁定憑證機密，所以要憑證嘅 Harness（Claude Code、Codex、Gemini CLI）會以 Not logged in 失敗。編輯架構師去揀一個。"
   }
+ }
+});
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "dependencyHint": {
+  "refresh": "重新讀取呢份清單，例如喺第二個頁面加咗記錄之後。",
+  "open": "喺新分頁打開 {{page}}，咁呢個表單會保留你打咗嘅嘢。搞掂之後返嚟呢度，清單會重新載入。"
  }
 });

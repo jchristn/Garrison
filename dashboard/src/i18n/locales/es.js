@@ -4519,3 +4519,69 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// Hints that say where a field's choices come from and link to that page (architect forms).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "dependencyHint": {
+   "refresh": "Actualizar lista"
+  },
+  "architectHints": {
+   "harness": "Los perfiles de harness vienen de Configuración > Perfiles de harness. Los integrados (Claude Code, Codex y otros) se pueden usar ya.",
+   "harnessLink": "Abrir Configuración > Perfiles de harness",
+   "credential": "La credencial es un secreto que guarda la clave de API o el token del harness, y los secretos se crean en Configuración > Secretos: añade allí la clave y vuelve aquí para elegirla.",
+   "credentialKinds": "Para {{profile}}, añade un secreto de tipo {{kinds}}.",
+   "credentialNotNeeded": "{{profile}} no necesita credencial.",
+   "credentialNone": "Este inquilino aún no tiene secretos, así que la lista está vacía.",
+   "credentialMissing": "{{profile}} necesita una credencial para iniciar sesión y no hay ninguna elegida. Sin ella, cada turno falla con Not logged in.",
+   "credentialLink": "Abrir Configuración > Secretos",
+   "prompt": "Los prompts del arquitecto son plantillas System de Configuración > Plantillas de prompt; clónalas y edítalas allí, o con la acción Prompts del arquitecto en Agentes > Arquitectos.",
+   "promptLink": "Abrir Configuración > Plantillas de prompt"
+  }
+ }
+});
+
+// The New architect dialog's introduction names the credential.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "studio": {
+   "architect": {
+    "intro": "El arquitecto de agentes diseña agentes y aplicaciones en tus borradores. Dale un perfil de harness, el secreto con el que inicia sesión, un modelo y el prompt con el que trabaja. Solo edita tus borradores y nunca los aplica."
+   }
+  }
+ }
+});
+
+// The setup wizard's Agent Studio step names the credential and where architects live.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "wizard": {
+  "studioBody": "El arquitecto de agentes diseña contigo agentes y aplicaciones en Agent Studio. Elige el perfil de harness y el modelo en los que se ejecuta, la credencial con la que inicia sesión (si encaja con el harness, se elige el secreto que guardaste en el paso anterior) y el prompt del arquitecto que lo guía. Su despliegue solo puede editar tus borradores del estudio. Puedes omitir este paso y crear un arquitecto más tarde en Agentes > Arquitectos."
+ }
+});

@@ -5,6 +5,7 @@ import { Suspense, lazy } from 'react';
 import CopyableId from '../components/CopyableId';
 import Modal from '../components/Modal';
 import NamedId from '../components/NamedId';
+import { architectPromptHint, credentialHint, harnessProfileHint } from '../components/ArchitectHints';
 import { ActiveBadge, Badge } from '../components/StatusBadge';
 import { tip } from '../components/Tooltip';
 import { pathFor } from '../config/navConfig';
@@ -12,7 +13,7 @@ import { formatDateTime, formatRelativeTime, truncate } from '../i18n/formatters
 import { resourceTip, optionalText } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
 import { holds, loadCallerPermissions } from '../utils/apps';
-import { needsCredential, studioPermissions, suggestedCredential } from '../utils/studio';
+import { studioPermissions, suggestedCredential } from '../utils/studio';
 
 // The prompt manager comes with the studio chunk, loaded only when someone opens it.
 const ArchitectPromptPanel = lazy(() => import('../components/studio/ArchitectPromptPanel'));
@@ -113,6 +114,8 @@ export const architectsConfig = {
   },
   defaultSort: 'name',
   defaultSortDir: 'asc',
+  // Harness profiles, secrets, and prompts are made on other pages; read them again when the person comes back.
+  reloadOptionsOnFocus: true,
   loadLookups: async ({ apiClient, tenantId, principal }) => {
     const [profiles, permissions] = await Promise.all([safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })), loadCallerPermissions(apiClient, tenantId, principal)]);
     return { profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), permissions };
@@ -195,24 +198,23 @@ export const architectsConfig = {
       col(t, 'createdUtc', (r) => when(r.createdUtc, lng), { sortable: true, cellClass: 'nowrap', csv: (r) => r.createdUtc || '' })
     ];
   },
-  fields: (d, { t, options = {} }) => {
+  fields: (d, { t, i18n, options = {}, reloadOptions }) => {
     const profiles = (options.profiles || []).map((p) => ({ value: p.id, label: p.name }));
     const prompts = (options.prompts || []).map((p) => ({ value: p.id, label: p.isDefault ? t('components.studio.architect.defaultPrompt', { name: p.name }) : p.name }));
     const secrets = (options.secrets || []).map((x) => ({ value: x.id, label: t('components.studio.architect.credentialOption', { name: x.name, kind: x.kind }) }));
-    const profile = (options.profiles || []).find((p) => p.id === d?.harnessProfileId);
-    const missing = !!profile && needsCredential(profile.harnessType) && !d?.credentialSecretId;
+    const profile = (options.profiles || []).find((p) => p.id === d?.harnessProfileId) || null;
     const keep = (list, value, label) => (value && !list.some((o) => o.value === value) ? [...list, { value, label: label || value }] : list);
     return [
       field(t, 'name', 'text', { required: true, placeholder: 'architect' }),
       field(t, 'description', 'textarea', { rows: 2 }),
-      field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId) }),
+      field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t, reloadOptions) }),
       field(t, 'credentialSecretId', 'select', {
         noneLabel: t('components.studio.architect.noCredential'),
         options: keep(secrets, d?.credentialSecretId),
-        ...(missing ? { hint: t('resources.architects.hints.credentialMissing', { profile: profile?.name || '' }) } : {})
+        hint: credentialHint(t, { profile, secretCount: secrets.length, chosen: d?.credentialSecretId, onRefresh: reloadOptions, lng: i18n?.language })
       }),
       field(t, 'model', 'text', { placeholder: 'sonnet' }),
-      field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId) }),
+      field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, reloadOptions, t('resources.architects.hints.architectPromptTemplateId')) }),
       field(t, 'architectPromptVersion', 'number', { min: 1 }),
       field(t, 'active', 'checkbox')
     ];
