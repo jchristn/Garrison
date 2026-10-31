@@ -375,7 +375,7 @@ namespace Test.Shared.Suites
                     "  environments: [ { environment: dev, deployment: mf-orchestrator-dev } ]",
                     "  authMode: Anonymous",
                     "  anonymousEnabled: true",
-                    "  branding: { displayName: 'Research Desk (Beta & Co.)', primaryColor: '#1F6FEB', welcomeText: Ask for an overview., backgroundColor: '#0B1220', headerColor: '#FFFFFF', agentBubbleColor: '#FEF3C7', font: Serif }",
+                    "  branding: { displayName: 'Research Desk (Beta & Co.)', primaryColor: '#1F6FEB', welcomeText: Ask for an overview., backgroundColor: '#0B1220', headerColor: '#FFFFFF', agentBubbleColor: '#FEF3C7', conversationListColor: '#1E293B', composerColor: '#F1F5F9', filesColor: '#E2E8F0', font: Serif }",
                     ""
                 });
                 ManifestApply first = await ApplyAsync(host, yaml, token).ConfigureAwait(false);
@@ -386,7 +386,7 @@ namespace Test.Shared.Suites
                 Assert.True(app.DisplayName == "Research Desk (Beta & Co.)" && app.Members.Count == 2 && app.Edges.Count == 1 && app.Environments.Count == 1, "Applied app");
                 Assert.True(app.BackgroundColor == "#0B1220" && app.HeaderColor == "#FFFFFF" && app.AgentBubbleColor == "#FEF3C7" && app.FontFamily == AppFontEnum.Serif, "Branding colors and typeface applied");
                 AppInfo info = await HttpTestHelpers.SendAsync<AppInfo>(host.AdminClient, HttpMethod.Get, "/v1.0/apps/" + app.Slug, null, 200, token).ConfigureAwait(false);
-                Assert.True(info.DisplayName == "Research Desk (Beta & Co.)" && info.BackgroundColor == "#0B1220" && info.HeaderColor == "#FFFFFF" && info.AgentBubbleColor == "#FEF3C7" && info.FontFamily == AppFontEnum.Serif && info.FaviconUrl == null, "The app UI receives the branding: " + Serializer.Serialize(info));
+                Assert.True(info.DisplayName == "Research Desk (Beta & Co.)" && info.BackgroundColor == "#0B1220" && info.HeaderColor == "#FFFFFF" && info.AgentBubbleColor == "#FEF3C7" && info.ConversationListColor == "#1E293B" && info.ComposerColor == "#F1F5F9" && info.FilesColor == "#E2E8F0" && info.FontFamily == AppFontEnum.Serif && info.FaviconUrl == null, "The app UI receives the branding: " + Serializer.Serialize(info));
                 AgenticApp badColor = Serializer.Deserialize<AgenticApp>(Serializer.Serialize(app))!;
                 badColor.HeaderColor = "blue";
                 TestResponse refused = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, T(host) + "/apps/" + app.Id, badColor, token).ConfigureAwait(false);

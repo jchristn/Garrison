@@ -26,7 +26,8 @@ export const DEFAULT_SESSION_KEY_PREFIX = "garrison.app.session.";
 export interface AppInfo {
   slug: string; displayName: string; description?: string | null; welcomeText?: string | null; primaryColor?: string | null;
   accentColor?: string | null; logoUrl?: string | null; backgroundColor?: string | null; headerColor?: string | null;
-  agentBubbleColor?: string | null; fontFamily?: AppFont; faviconUrl?: string | null; authMode: AppAuthMode; anonymousAllowed: boolean; showOperatorDetail: boolean;
+  agentBubbleColor?: string | null; conversationListColor?: string | null; composerColor?: string | null; filesColor?: string | null;
+  fontFamily?: AppFont; faviconUrl?: string | null; authMode: AppAuthMode; anonymousAllowed: boolean; showOperatorDetail: boolean;
 }
 
 /** An app session. token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app. */

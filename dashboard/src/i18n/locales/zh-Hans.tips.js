@@ -3566,3 +3566,23 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "defaultColor": "清空{{field}}，让聊天使用默认颜色 {{color}}。"
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "conversationListColor": "会话列表的背景，格式为 #RRGGBB。留空则保留主题颜色。",
+   "composerColor": "消息输入区的背景，格式为 #RRGGBB。留空则保留主题颜色。",
+   "filesColor": "文件列表的背景，格式为 #RRGGBB。留空则保留主题颜色。"
+  }
+ }
+});

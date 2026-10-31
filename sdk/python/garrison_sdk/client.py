@@ -429,8 +429,9 @@ class AgenticApp(TypedDict, total=False):
     UI uses. The server checks that the entry agent is a member, edges connect members, every member is reachable from
     the entry agent, and the edges have no cycle. Branding: displayName takes any characters up to 128 (None shows the
     name). primaryColor (buttons, the header rule, your own messages), accentColor, backgroundColor (page behind the
-    conversation), headerColor (header bar), and agentBubbleColor (the agent's messages) are #RRGGBB or None for the
-    theme default; anything else is 400 InvalidColor. fontFamily is one of APP_FONTS (None means System).
+    conversation), headerColor (header bar), agentBubbleColor (the agent's messages), conversationListColor (the
+    conversation list beside the chat), composerColor (the message input area), and filesColor (the conversation's
+    file list) are #RRGGBB or None for the theme default; anything else is 400 InvalidColor. fontFamily is one of APP_FONTS (None means System).
     faviconAssetId is an image asset shown as the browser tab icon; None uses the logo (logoAssetId), or the default
     icon without one. An unknown asset is 400 UnknownAsset."""
     id: str
@@ -451,6 +452,9 @@ class AgenticApp(TypedDict, total=False):
     backgroundColor: Optional[str]
     headerColor: Optional[str]
     agentBubbleColor: Optional[str]
+    conversationListColor: Optional[str]
+    composerColor: Optional[str]
+    filesColor: Optional[str]
     fontFamily: Optional[str]
     faviconAssetId: Optional[str]
     members: List[AgenticAppMember]
@@ -526,6 +530,9 @@ class AppInfo(TypedDict, total=False):
     backgroundColor: Optional[str]
     headerColor: Optional[str]
     agentBubbleColor: Optional[str]
+    conversationListColor: Optional[str]
+    composerColor: Optional[str]
+    filesColor: Optional[str]
     fontFamily: str
     faviconUrl: Optional[str]
     authMode: str

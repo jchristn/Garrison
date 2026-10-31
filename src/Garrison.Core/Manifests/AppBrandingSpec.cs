@@ -46,6 +46,21 @@ namespace Garrison.Core.Manifests
         public string? AgentBubbleColor { get; set; } = null;
 
         /// <summary>
+        /// Background of the conversation list beside the chat (#RRGGBB), or null.
+        /// </summary>
+        public string? ConversationListColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the message input area under the conversation (#RRGGBB), or null.
+        /// </summary>
+        public string? ComposerColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the conversation's file list (#RRGGBB), or null.
+        /// </summary>
+        public string? FilesColor { get; set; } = null;
+
+        /// <summary>
         /// Typeface: System, Sans, Serif, Rounded, or Mono; null for System.
         /// </summary>
         public string? Font { get; set; } = null;

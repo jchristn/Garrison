@@ -588,6 +588,9 @@ spec:
     backgroundColor: "#F6F8FA"
     headerColor: "#0D1117"
     agentBubbleColor: "#EAEEF2"
+    conversationListColor: "#F0F3F6"
+    composerColor: "#FFFFFF"
+    filesColor: "#F0F3F6"
     font: Serif
     favicon: research-icon
     welcomeText: Ask for an overview of any topic.
@@ -602,7 +605,7 @@ spec:
 | `environments` | The entry deployment per environment, by name. Without `deployment`, the app uses the entry agent's first active deployment in that environment |
 | `liveEnvironment` | The environment the app UI talks to. Default `dev` |
 | `authMode`, `anonymousEnabled`, `showOperatorDetail` | Sign-in and what end users see, as in [APPS.md](APPS.md#sign-in) |
-| `branding` | `displayName` (any characters, up to 128; the app's `metadata.name` and `slug` stay lowercase letters, digits, and hyphens), `logo` (an `AgentAsset` by name; its first image is the logo), `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor` (each `#RRGGBB`), `font` (`System`, `Sans`, `Serif`, `Rounded`, `Mono`; default `System`), `favicon` (an `AgentAsset` by name, shown as the browser tab icon; without it the logo is used), `welcomeText`. Export writes every key the app sets. See [APPS.md](APPS.md#branding) for what each one colors |
+| `branding` | `displayName` (any characters, up to 128; the app's `metadata.name` and `slug` stay lowercase letters, digits, and hyphens), `logo` (an `AgentAsset` by name; its first image is the logo), `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor` (each `#RRGGBB`), `font` (`System`, `Sans`, `Serif`, `Rounded`, `Mono`; default `System`), `favicon` (an `AgentAsset` by name, shown as the browser tab icon; without it the logo is used), `welcomeText`. Export writes every key the app sets. See [APPS.md](APPS.md#branding) for what each one colors |
 | `active` | Whether the app accepts sessions. Default `true`; set `false` to close the app to end users without deleting it |
 
 Agents, deployments, and the logo and favicon assets can come from the same bundle. Apps sort after pipelines, so their members already exist when the app is applied. Export with `followReferences` brings the members, their deployments, and what those refer to, which is how the studio starts a draft from a live app ([STUDIO.md](STUDIO.md#starting-from-an-app)). [examples/agentic-apps](../examples/agentic-apps/README.md) has two complete bundles.

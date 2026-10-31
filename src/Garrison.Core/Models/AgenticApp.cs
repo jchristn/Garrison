@@ -117,6 +117,21 @@ namespace Garrison.Core.Models
         public string? AgentBubbleColor { get; set; } = null;
 
         /// <summary>
+        /// Background of the conversation list beside the chat as #RRGGBB, or null for the theme's surface color.
+        /// </summary>
+        public string? ConversationListColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the message input area under the conversation as #RRGGBB, or null for the theme's surface color.
+        /// </summary>
+        public string? ComposerColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the conversation's file list as #RRGGBB, or null for the theme's surface color.
+        /// </summary>
+        public string? FilesColor { get; set; } = null;
+
+        /// <summary>
         /// Typeface of the chat UI, or null for <see cref="AppFontEnum.System"/>.
         /// </summary>
         public AppFontEnum? FontFamily { get; set; } = null;

@@ -63,7 +63,9 @@ type AgenticAppEnvironment struct {
 //
 // Branding: DisplayName takes any characters up to 128 (nil shows the name). PrimaryColor (buttons, the header rule,
 // your own messages), AccentColor, BackgroundColor (page behind the conversation), HeaderColor (header bar), and
-// AgentBubbleColor (the agent's messages) are #RRGGBB or nil for the theme default; anything else is 400 InvalidColor.
+// AgentBubbleColor (the agent's messages), ConversationListColor (the conversation list beside the chat),
+// ComposerColor (the message input area), and FilesColor (the conversation's file list) are #RRGGBB or nil for the
+// theme default; anything else is 400 InvalidColor.
 // FontFamily is one of the AppFont constants (nil means System). FaviconAssetID is an image asset shown as the browser
 // tab icon; nil uses the logo (LogoAssetID), or the default icon without one. An unknown asset is 400 UnknownAsset.
 type AgenticApp struct {
@@ -85,6 +87,9 @@ type AgenticApp struct {
 	BackgroundColor           *string                 `json:"backgroundColor,omitempty"`
 	HeaderColor               *string                 `json:"headerColor,omitempty"`
 	AgentBubbleColor          *string                 `json:"agentBubbleColor,omitempty"`
+	ConversationListColor     *string                 `json:"conversationListColor,omitempty"`
+	ComposerColor             *string                 `json:"composerColor,omitempty"`
+	FilesColor                *string                 `json:"filesColor,omitempty"`
 	FontFamily                *string                 `json:"fontFamily,omitempty"`
 	FaviconAssetID            *string                 `json:"faviconAssetId,omitempty"`
 	Members                   []AgenticAppMember      `json:"members"`

@@ -341,6 +341,9 @@ namespace Garrison.Server.Services
             to.BackgroundColor = String.IsNullOrWhiteSpace(from.BackgroundColor) ? null : from.BackgroundColor.Trim();
             to.HeaderColor = String.IsNullOrWhiteSpace(from.HeaderColor) ? null : from.HeaderColor.Trim();
             to.AgentBubbleColor = String.IsNullOrWhiteSpace(from.AgentBubbleColor) ? null : from.AgentBubbleColor.Trim();
+            to.ConversationListColor = String.IsNullOrWhiteSpace(from.ConversationListColor) ? null : from.ConversationListColor.Trim();
+            to.ComposerColor = String.IsNullOrWhiteSpace(from.ComposerColor) ? null : from.ComposerColor.Trim();
+            to.FilesColor = String.IsNullOrWhiteSpace(from.FilesColor) ? null : from.FilesColor.Trim();
             to.FontFamily = from.FontFamily;
             to.FaviconAssetId = String.IsNullOrWhiteSpace(from.FaviconAssetId) ? null : from.FaviconAssetId.Trim();
             to.Members = from.Members.Select(m => new AgenticAppMember { AgentId = (m.AgentId ?? String.Empty).Trim(), Role = String.IsNullOrWhiteSpace(m.Role) ? null : m.Role.Trim() }).ToList();
@@ -369,6 +372,9 @@ namespace Garrison.Server.Services
             if (app.BackgroundColor != null && !_ColorPattern.IsMatch(app.BackgroundColor)) Fail("backgroundColor", "InvalidColor", "A color is #RRGGBB.");
             if (app.HeaderColor != null && !_ColorPattern.IsMatch(app.HeaderColor)) Fail("headerColor", "InvalidColor", "A color is #RRGGBB.");
             if (app.AgentBubbleColor != null && !_ColorPattern.IsMatch(app.AgentBubbleColor)) Fail("agentBubbleColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.ConversationListColor != null && !_ColorPattern.IsMatch(app.ConversationListColor)) Fail("conversationListColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.ComposerColor != null && !_ColorPattern.IsMatch(app.ComposerColor)) Fail("composerColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.FilesColor != null && !_ColorPattern.IsMatch(app.FilesColor)) Fail("filesColor", "InvalidColor", "A color is #RRGGBB.");
             if (app.LogoAssetId != null)
             {
                 AgentAsset? logo = await _Server.Database.AgentAssets.ReadAsync(tenantId, app.LogoAssetId, token).ConfigureAwait(false)

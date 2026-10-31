@@ -3567,3 +3567,23 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "defaultColor": "{{field}} を空にして、チャットの既定の色 {{color}} を使います。"
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "conversationListColor": "会話一覧の背景 (#RRGGBB)。空欄ならテーマの色のままです。",
+   "composerColor": "メッセージ入力欄の背景 (#RRGGBB)。空欄ならテーマの色のままです。",
+   "filesColor": "ファイル一覧の背景 (#RRGGBB)。空欄ならテーマの色のままです。"
+  }
+ }
+});

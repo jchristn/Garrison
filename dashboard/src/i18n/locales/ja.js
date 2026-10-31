@@ -4910,3 +4910,30 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "会話一覧の色",
+    "composerColor": "入力欄の色",
+    "filesColor": "ファイル一覧の色"
+   },
+   "hints": {
+    "conversationListColor": "横にある会話の一覧。",
+    "composerColor": "会話の下にある入力する場所。",
+    "filesColor": "エージェントが書いたファイルの一覧。"
+   }
+  }
+ }
+});

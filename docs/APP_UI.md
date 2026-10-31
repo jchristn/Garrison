@@ -105,13 +105,17 @@ Branding comes from `AppInfo` and becomes CSS variables on `<html>`:
 | `--app-on-primary` | computed | Text on primary: black or white, whichever contrasts more (always at least 4.5:1) |
 | `--app-accent` | `accentColor` | Focus rings, the selected conversation, "New" badges |
 | `--app-on-accent` | computed | Text on accent |
-| `--app-background` | `backgroundColor` | The page behind the conversation |
-| `--app-header` | `headerColor` | The header bar |
+| `--app-background` | `backgroundColor` | The page and the area behind the conversation |
+| `--app-header` | `headerColor` | The top bar |
 | `--app-agent-bubble` | `agentBubbleColor` | The agent's messages (your own use `--app-primary`) |
-| `--app-on-background`, `--app-on-header`, `--app-on-agent-bubble` | computed | Text on each of those, black or white, whichever contrasts more |
+| `--app-conversations` | `conversationListColor` | The conversation list beside the chat |
+| `--app-composer` | `composerColor` | The message input area under the conversation |
+| `--app-files` | `filesColor` | The conversation's file list |
+| `--app-on-background`, `--app-on-header`, `--app-on-agent-bubble`, `--app-on-conversations`, `--app-on-composer`, `--app-on-files` | computed | Text on each of those, black or white, whichever contrasts more |
+| `--app-muted-background`, `--app-muted-header`, `--app-muted-agent-bubble`, `--app-muted-conversations`, `--app-muted-composer`, `--app-muted-files` | computed | Secondary text (timestamps, hints, labels) on each of those, a muted shade of the matching text color |
 | `--app-font` | `fontFamily` | The typeface of the whole page |
 
-Primary and accent always get a value: only `#rgb` and `#rrggbb` are accepted, and anything else keeps the built-in teal and amber. The background, header, and agent message variables are set only when the app sets those colors, so a null color keeps the theme's own color in both light and dark mode.
+Primary and accent always get a value: only `#rgb` and `#rrggbb` are accepted, and anything else keeps the built-in teal and amber. The background, header, agent message, conversation list, composer, and file list variables (and their text and muted companions) are set only when the app sets those colors, so a null color keeps the theme's own color in both light and dark mode.
 
 `fontFamily` picks a font stack the browser already has, so no font is downloaded and the Content-Security-Policy needs nothing extra:
 

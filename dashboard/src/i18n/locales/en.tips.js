@@ -3567,3 +3567,23 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "defaultColor": "Clear {{field}} so the chat uses its default color, {{color}}."
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "conversationListColor": "Background of the conversation list, as #RRGGBB. Empty keeps the theme's color.",
+   "composerColor": "Background of the message input area, as #RRGGBB. Empty keeps the theme's color.",
+   "filesColor": "Background of the file list, as #RRGGBB. Empty keeps the theme's color."
+  }
+ }
+});

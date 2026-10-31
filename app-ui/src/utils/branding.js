@@ -56,15 +56,26 @@ export const FONT_STACKS = {
   Mono: "ui-monospace, 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace"
 };
 
-/** Optional surface colors: the AppInfo field, the CSS variable it sets, and the text color variable beside it. */
+/**
+ * Optional surface colors: the AppInfo field, the CSS variable it sets, and the text and muted text variables beside
+ * it (dates, hints, and other secondary text on that surface).
+ */
 const SURFACES = [
-  ['backgroundColor', '--app-background', '--app-on-background'],
-  ['headerColor', '--app-header', '--app-on-header'],
-  ['agentBubbleColor', '--app-agent-bubble', '--app-on-agent-bubble']
+  ['backgroundColor', '--app-background', '--app-on-background', '--app-muted-background'],
+  ['headerColor', '--app-header', '--app-on-header', '--app-muted-header'],
+  ['agentBubbleColor', '--app-agent-bubble', '--app-on-agent-bubble', '--app-muted-agent-bubble'],
+  ['conversationListColor', '--app-conversations', '--app-on-conversations', '--app-muted-conversations'],
+  ['composerColor', '--app-composer', '--app-on-composer', '--app-muted-composer'],
+  ['filesColor', '--app-files', '--app-on-files', '--app-muted-files']
 ];
 
+/** Secondary text on a surface: the readable text color, softened. */
+function mutedOn(background) {
+  return readableOn(background) === LIGHT_TEXT ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.62)';
+}
+
 /** Every variable branding may set, so a later call can clear the ones an app no longer uses. */
-export const BRANDING_VARIABLES = ['--app-primary', '--app-on-primary', '--app-accent', '--app-on-accent', '--app-font', ...SURFACES.flatMap(([, v, on]) => [v, on])];
+export const BRANDING_VARIABLES = ['--app-primary', '--app-on-primary', '--app-accent', '--app-on-accent', '--app-font', ...SURFACES.flatMap(([, v, on, muted]) => [v, on, muted])];
 
 /**
  * CSS variables for an AppInfo: the primary and accent colors (always, with defaults), and the background, header, and
@@ -80,11 +91,12 @@ export function brandingVariables(info) {
     '--app-accent': accent,
     '--app-on-accent': readableOn(accent)
   };
-  for (const [field, variable, on] of SURFACES) {
+  for (const [field, variable, on, muted] of SURFACES) {
     const color = normalizeColor(info && info[field]);
     if (!color) continue;
     vars[variable] = color;
     vars[on] = readableOn(color);
+    vars[muted] = mutedOn(color);
   }
   const font = info && FONT_STACKS[info.fontFamily];
   if (font) vars['--app-font'] = font;

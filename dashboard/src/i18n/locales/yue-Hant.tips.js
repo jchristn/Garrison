@@ -3567,3 +3567,23 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "defaultColor": "清空{{field}}，等傾偈用返預設顏色 {{color}}。"
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "conversationListColor": "對話清單嘅背景，格式係 #RRGGBB。留空就保留主題顏色。",
+   "composerColor": "訊息輸入區嘅背景，格式係 #RRGGBB。留空就保留主題顏色。",
+   "filesColor": "檔案清單嘅背景，格式係 #RRGGBB。留空就保留主題顏色。"
+  }
+ }
+});

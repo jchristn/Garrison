@@ -17,21 +17,24 @@ import (
 // AppFont constants and is always present (default System). FaviconURL is /v1.0/apps/{slug}/favicon when the app has a
 // favicon or a logo, else nil.
 type AppInfo struct {
-	Slug               string  `json:"slug"`
-	DisplayName        string  `json:"displayName"`
-	Description        *string `json:"description"`
-	WelcomeText        *string `json:"welcomeText"`
-	PrimaryColor       *string `json:"primaryColor"`
-	AccentColor        *string `json:"accentColor"`
-	LogoURL            *string `json:"logoUrl"`
-	BackgroundColor    *string `json:"backgroundColor"`
-	HeaderColor        *string `json:"headerColor"`
-	AgentBubbleColor   *string `json:"agentBubbleColor"`
-	FontFamily         string  `json:"fontFamily"`
-	FaviconURL         *string `json:"faviconUrl"`
-	AuthMode           string  `json:"authMode"`
-	AnonymousAllowed   bool    `json:"anonymousAllowed"`
-	ShowOperatorDetail bool    `json:"showOperatorDetail"`
+	Slug                  string  `json:"slug"`
+	DisplayName           string  `json:"displayName"`
+	Description           *string `json:"description"`
+	WelcomeText           *string `json:"welcomeText"`
+	PrimaryColor          *string `json:"primaryColor"`
+	AccentColor           *string `json:"accentColor"`
+	LogoURL               *string `json:"logoUrl"`
+	BackgroundColor       *string `json:"backgroundColor"`
+	HeaderColor           *string `json:"headerColor"`
+	AgentBubbleColor      *string `json:"agentBubbleColor"`
+	ConversationListColor *string `json:"conversationListColor"`
+	ComposerColor         *string `json:"composerColor"`
+	FilesColor            *string `json:"filesColor"`
+	FontFamily            string  `json:"fontFamily"`
+	FaviconURL            *string `json:"faviconUrl"`
+	AuthMode              string  `json:"authMode"`
+	AnonymousAllowed      bool    `json:"anonymousAllowed"`
+	ShowOperatorDetail    bool    `json:"showOperatorDetail"`
 }
 
 // AppSessionResponse is an app session. Token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app.

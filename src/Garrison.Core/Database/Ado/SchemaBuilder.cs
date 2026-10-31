@@ -353,6 +353,11 @@ namespace Garrison.Core.Database.Ado
             v42.BuildVersion42();
             migrations.Add(new SchemaMigration(42, "App branding colors, typeface, and favicon", v42._Statements, v42._Columns));
 
+            // App branding: conversation list, message input, and file list colors.
+            SchemaBuilder v43 = new SchemaBuilder(catalog, dialect);
+            v43.BuildVersion43();
+            migrations.Add(new SchemaMigration(43, "App branding colors for the conversation list, message input, and file list", v43._Statements, v43._Columns));
+
             return migrations;
         }
 
@@ -416,6 +421,13 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion43()
+        {
+            Column("agentic_apps", "conversationlistcolor", "VARCHAR(16)");
+            Column("agentic_apps", "composercolor", "VARCHAR(16)");
+            Column("agentic_apps", "filescolor", "VARCHAR(16)");
         }
 
         private void BuildVersion42()

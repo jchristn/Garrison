@@ -3569,3 +3569,23 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "defaultColor": "Svuota {{field}} perché la chat usi il colore predefinito, {{color}}."
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "conversationListColor": "Sfondo della lista conversazioni, come #RRGGBB. Vuoto mantiene il colore del tema.",
+   "composerColor": "Sfondo dell'area di scrittura, come #RRGGBB. Vuoto mantiene il colore del tema.",
+   "filesColor": "Sfondo della lista file, come #RRGGBB. Vuoto mantiene il colore del tema."
+  }
+ }
+});

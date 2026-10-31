@@ -27,7 +27,7 @@ An agentic app is a group of agents that work together behind one chat UI. One m
 | `liveEnvironment` | The environment the app UI uses. Default `dev` |
 | `authMode`, `anonymousEnabled` | Who may use the app UI (see [Sign-in](#sign-in)) |
 | `showOperatorDetail` | Whether end users see tool calls and thinking. Default false |
-| `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `fontFamily`, `faviconAssetId`, `welcomeText` | Branding (see [Branding](#branding)) |
+| `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor`, `fontFamily`, `faviconAssetId`, `welcomeText` | Branding (see [Branding](#branding)) |
 
 The control plane checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent that belongs to an app cannot be deleted (409 `AgentInUse`); remove it from the app first.
 
@@ -39,14 +39,17 @@ The control plane checks that the entry agent is a member, edges connect members
 | `logoAssetId` | The logo on the sign-in page and in the header: the first image of an agent asset's current version |
 | `primaryColor` | Buttons, the header rule, and your own messages |
 | `accentColor` | Focus rings, the selected conversation, "New" badges, the busy indicator |
-| `backgroundColor` | The page behind the conversation. Null keeps the theme's background |
-| `headerColor` | The header bar. Null keeps the theme's surface color |
+| `backgroundColor` | The page and the area behind the conversation. Null keeps the theme's background |
+| `headerColor` | The top bar. Null keeps the theme's surface color |
 | `agentBubbleColor` | The agent's messages. Null keeps the theme's bubble color |
+| `conversationListColor` | The conversation list beside the chat. Null keeps the theme's surface color |
+| `composerColor` | The message input area under the conversation. Null keeps the theme's surface color |
+| `filesColor` | The conversation's file list. Null keeps the theme's surface color |
 | `fontFamily` | The typeface: `System` (default, the operating system's interface font), `Sans`, `Serif`, `Rounded`, or `Mono`. Each uses fonts browsers already have, so nothing is downloaded |
 | `faviconAssetId` | An image asset shown as the browser tab icon. Null uses the logo, or the default icon when there is no logo |
 | `welcomeText` | Text shown before the first message |
 
-Colors are `#RRGGBB` or null; anything else is 400 `InvalidColor`. An asset that is not one of the tenant's agent assets is 400 `UnknownAsset`. Text on every branded color is black or white, whichever contrasts more, so a dark header or a light bubble stays readable. Branded colors stay the same in light and dark themes; the colors left null follow the theme.
+Colors are `#RRGGBB` or null; anything else is 400 `InvalidColor`. An asset that is not one of the tenant's agent assets is 400 `UnknownAsset`. Text on every branded color is black or white, whichever contrasts more, with a matching muted shade for secondary text, so a dark header or a light bubble stays readable. Branded colors stay the same in light and dark themes; the colors left null follow the theme.
 
 The same app as a manifest document:
 
@@ -75,6 +78,9 @@ spec:
     primaryColor: "#1F6FEB"
     headerColor: "#0D1117"
     agentBubbleColor: "#EAEEF2"
+    conversationListColor: "#F0F3F6"
+    composerColor: "#FFFFFF"
+    filesColor: "#F0F3F6"
     font: Serif
     favicon: research-icon
     welcomeText: Ask for an overview of any topic.

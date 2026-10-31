@@ -4963,3 +4963,30 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "Color de la lista de conversaciones",
+    "composerColor": "Color del área de escritura",
+    "filesColor": "Color de la lista de archivos"
+   },
+   "hints": {
+    "conversationListColor": "La lista de conversaciones del lateral.",
+    "composerColor": "El área bajo la conversación donde escribe.",
+    "filesColor": "La lista de archivos que escribió el agente."
+   }
+  }
+ }
+});

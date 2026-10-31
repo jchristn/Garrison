@@ -4959,3 +4959,30 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "Colore della lista conversazioni",
+    "composerColor": "Colore dell'area di scrittura",
+    "filesColor": "Colore della lista file"
+   },
+   "hints": {
+    "conversationListColor": "La lista delle conversazioni sul lato.",
+    "composerColor": "L'area sotto la conversazione dove scrivi.",
+    "filesColor": "La lista dei file scritti dall'agente."
+   }
+  }
+ }
+});

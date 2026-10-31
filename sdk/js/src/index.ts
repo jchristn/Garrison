@@ -255,7 +255,8 @@ export interface AgenticApp extends Json {
   id: string; tenantId: string; name: string; slug: string; description?: string | null; entryAgentId: string;
   liveEnvironment: string; authMode: AppAuthMode; anonymousEnabled: boolean; showOperatorDetail: boolean;
   displayName?: string | null; logoAssetId?: string | null; primaryColor?: string | null; accentColor?: string | null; welcomeText?: string | null;
-  backgroundColor?: string | null; headerColor?: string | null; agentBubbleColor?: string | null; fontFamily?: AppFont | null; faviconAssetId?: string | null;
+  backgroundColor?: string | null; headerColor?: string | null; agentBubbleColor?: string | null; conversationListColor?: string | null;
+  composerColor?: string | null; filesColor?: string | null; fontFamily?: AppFont | null; faviconAssetId?: string | null;
   members: AgenticAppMember[]; edges: AgenticAppEdge[]; environments: AgenticAppEnvironment[];
   latestPublishedRevisionId?: string | null; active: boolean; createdUtc: string; lastUpdateUtc: string;
 }

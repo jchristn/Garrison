@@ -45,6 +45,9 @@ describe('surface colors, typeface, and favicon', () => {
     expect(vars['--app-on-header']).toBe('#000000');
     expect(vars['--app-agent-bubble']).toBe('#fef3c7');
     expect(vars['--app-font']).toBe(FONT_STACKS.Serif);
+    expect(vars['--app-muted-background']).toBe('rgba(255, 255, 255, 0.75)');
+    const panes = brandingVariables({ conversationListColor: '#1e293b', composerColor: '#f1f5f9', filesColor: '#e2e8f0' });
+    expect([panes['--app-conversations'], panes['--app-on-conversations'], panes['--app-composer'], panes['--app-on-composer'], panes['--app-files']]).toEqual(['#1e293b', '#ffffff', '#f1f5f9', '#000000', '#e2e8f0']);
     const plain = brandingVariables({ fontFamily: 'System', headerColor: 'red' });
     expect(Object.keys(plain).sort()).toEqual(['--app-accent', '--app-on-accent', '--app-on-primary', '--app-primary']);
   });

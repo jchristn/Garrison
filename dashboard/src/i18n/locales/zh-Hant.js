@@ -4911,3 +4911,30 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "對話清單顏色",
+    "composerColor": "輸入區顏色",
+    "filesColor": "檔案清單顏色"
+   },
+   "hints": {
+    "conversationListColor": "側邊的對話清單。",
+    "composerColor": "對話下方輸入訊息的區域。",
+    "filesColor": "智慧代理寫入的檔案清單。"
+   }
+  }
+ }
+});

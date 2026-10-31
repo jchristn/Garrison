@@ -4945,3 +4945,30 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "Farbe der Unterhaltungsliste",
+    "composerColor": "Farbe des Eingabebereichs",
+    "filesColor": "Farbe der Dateiliste"
+   },
+   "hints": {
+    "conversationListColor": "Die Liste der Unterhaltungen an der Seite.",
+    "composerColor": "Der Bereich unter der Unterhaltung, in dem Sie schreiben.",
+    "filesColor": "Die Liste der Dateien, die der Agent geschrieben hat."
+   }
+  }
+ }
+});

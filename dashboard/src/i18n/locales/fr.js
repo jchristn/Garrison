@@ -4959,3 +4959,30 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "Couleur de la liste des conversations",
+    "composerColor": "Couleur de la zone de saisie",
+    "filesColor": "Couleur de la liste des fichiers"
+   },
+   "hints": {
+    "conversationListColor": "La liste des conversations sur le côté.",
+    "composerColor": "La zone sous la conversation où vous écrivez.",
+    "filesColor": "La liste des fichiers écrits par l'agent."
+   }
+  }
+ }
+});

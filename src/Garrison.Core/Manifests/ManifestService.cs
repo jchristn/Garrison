@@ -1211,6 +1211,9 @@ namespace Garrison.Core.Manifests
                 app.BackgroundColor = String.IsNullOrWhiteSpace(spec.Branding.BackgroundColor) ? null : spec.Branding.BackgroundColor;
                 app.HeaderColor = String.IsNullOrWhiteSpace(spec.Branding.HeaderColor) ? null : spec.Branding.HeaderColor;
                 app.AgentBubbleColor = String.IsNullOrWhiteSpace(spec.Branding.AgentBubbleColor) ? null : spec.Branding.AgentBubbleColor;
+                app.ConversationListColor = String.IsNullOrWhiteSpace(spec.Branding.ConversationListColor) ? null : spec.Branding.ConversationListColor;
+                app.ComposerColor = String.IsNullOrWhiteSpace(spec.Branding.ComposerColor) ? null : spec.Branding.ComposerColor;
+                app.FilesColor = String.IsNullOrWhiteSpace(spec.Branding.FilesColor) ? null : spec.Branding.FilesColor;
                 if (!String.IsNullOrWhiteSpace(spec.Branding.Font))
                 {
                     if (!Enum.TryParse(spec.Branding.Font, true, out AppFontEnum font)) throw new ValidationException("branding.font must be System, Sans, Serif, Rounded, or Mono.", new Dictionary<string, string> { { "branding.font", "System, Sans, Serif, Rounded, or Mono." } });
@@ -1294,6 +1297,9 @@ namespace Garrison.Core.Manifests
             if (app.BackgroundColor != null) branding["backgroundColor"] = app.BackgroundColor;
             if (app.HeaderColor != null) branding["headerColor"] = app.HeaderColor;
             if (app.AgentBubbleColor != null) branding["agentBubbleColor"] = app.AgentBubbleColor;
+            if (app.ConversationListColor != null) branding["conversationListColor"] = app.ConversationListColor;
+            if (app.ComposerColor != null) branding["composerColor"] = app.ComposerColor;
+            if (app.FilesColor != null) branding["filesColor"] = app.FilesColor;
             if (app.FontFamily.HasValue && app.FontFamily.Value != AppFontEnum.System) branding["font"] = app.FontFamily.Value.ToString();
             if (app.FaviconAssetId != null) branding["favicon"] = await resolver.NameAsync("AgentAsset", app.FaviconAssetId, token).ConfigureAwait(false) ?? app.FaviconAssetId;
             if (branding.Count > 0) tree["branding"] = branding;

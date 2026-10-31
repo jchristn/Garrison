@@ -76,7 +76,7 @@ namespace Garrison.Server.Services
             {
                 Slug = app.Slug, DisplayName = app.DisplayName ?? app.Name, Description = app.Description, WelcomeText = app.WelcomeText,
                 PrimaryColor = app.PrimaryColor, AccentColor = app.AccentColor, LogoUrl = app.LogoAssetId == null ? null : "/v1.0/apps/" + app.Slug + "/logo",
-                BackgroundColor = app.BackgroundColor, HeaderColor = app.HeaderColor, AgentBubbleColor = app.AgentBubbleColor, FontFamily = app.FontFamily ?? AppFontEnum.System,
+                BackgroundColor = app.BackgroundColor, HeaderColor = app.HeaderColor, AgentBubbleColor = app.AgentBubbleColor, ConversationListColor = app.ConversationListColor, ComposerColor = app.ComposerColor, FilesColor = app.FilesColor, FontFamily = app.FontFamily ?? AppFontEnum.System,
                 FaviconUrl = app.FaviconAssetId == null && app.LogoAssetId == null ? null : "/v1.0/apps/" + app.Slug + "/favicon",
                 AuthMode = app.AuthMode, AnonymousAllowed = AnonymousAllowed(app), ShowOperatorDetail = app.ShowOperatorDetail
             };

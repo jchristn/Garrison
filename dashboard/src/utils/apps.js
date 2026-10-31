@@ -61,7 +61,7 @@ export function signInKey(app) {
 }
 
 /** The app's branding colors, in the order the form shows them. */
-export const APP_COLOR_FIELDS = ['primaryColor', 'accentColor', 'backgroundColor', 'headerColor', 'agentBubbleColor'];
+export const APP_COLOR_FIELDS = ['primaryColor', 'accentColor', 'headerColor', 'backgroundColor', 'agentBubbleColor', 'conversationListColor', 'composerColor', 'filesColor'];
 
 /** The color the app chat uses (light theme) when a branding color is left empty. Mirrors app-ui/src/utils/branding.js. */
 export const APP_DEFAULT_COLORS = {
@@ -69,7 +69,10 @@ export const APP_DEFAULT_COLORS = {
   accentColor: '#B45309',
   backgroundColor: '#F8FAFC',
   headerColor: '#FFFFFF',
-  agentBubbleColor: '#FFFFFF'
+  agentBubbleColor: '#FFFFFF',
+  conversationListColor: '#FFFFFF',
+  composerColor: '#FFFFFF',
+  filesColor: '#FFFFFF'
 };
 
 /** Typefaces of the app chat (AppFontEnum). */
@@ -96,6 +99,9 @@ export function blankApp() {
     backgroundColor: '',
     headerColor: '',
     agentBubbleColor: '',
+    conversationListColor: '',
+    composerColor: '',
+    filesColor: '',
     fontFamily: 'System',
     faviconAssetId: '',
     welcomeText: '',
@@ -120,6 +126,9 @@ export function appToForm(app) {
     backgroundColor: text(a.backgroundColor),
     headerColor: text(a.headerColor),
     agentBubbleColor: text(a.agentBubbleColor),
+    conversationListColor: text(a.conversationListColor),
+    composerColor: text(a.composerColor),
+    filesColor: text(a.filesColor),
     fontFamily: a.fontFamily || 'System',
     faviconAssetId: text(a.faviconAssetId),
     welcomeText: text(a.welcomeText),
@@ -169,6 +178,9 @@ export function appToBody(form) {
     backgroundColor: optional(d.backgroundColor),
     headerColor: optional(d.headerColor),
     agentBubbleColor: optional(d.agentBubbleColor),
+    conversationListColor: optional(d.conversationListColor),
+    composerColor: optional(d.composerColor),
+    filesColor: optional(d.filesColor),
     fontFamily: APP_FONTS.includes(d.fontFamily) && d.fontFamily !== 'System' ? d.fontFamily : null,
     faviconAssetId: optional(d.faviconAssetId),
     welcomeText: d.welcomeText && String(d.welcomeText).trim() ? String(d.welcomeText) : null,

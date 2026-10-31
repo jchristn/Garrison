@@ -3569,3 +3569,23 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "defaultColor": "Videz {{field}} pour que le chat utilise sa couleur par défaut, {{color}}."
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "conversationListColor": "Fond de la liste des conversations, en #RRGGBB. Vide garde la couleur du thème.",
+   "composerColor": "Fond de la zone de saisie, en #RRGGBB. Vide garde la couleur du thème.",
+   "filesColor": "Fond de la liste des fichiers, en #RRGGBB. Vide garde la couleur du thème."
+  }
+ }
+});

@@ -3893,7 +3893,7 @@ Groups of agents behind one end-user chat UI (AD6). [docs/APPS.md](docs/APPS.md)
 
 Errors: 400 `ValidationFailed` with field codes `InvalidName`, `InvalidSlug`, `UnknownAgent`, `DuplicateMember`, `EntryNotMember`, `EdgeNotMember`, `SelfEdge`, `AppGraphCycle`, `UnreachableMember`, `UnknownEnvironment`, `InvalidEntryDeployment`, `InvalidColor`, `UnknownAsset`; 409 `NameConflict`, `AppSlugTaken`, `NoPublishedRevision`, `NoTargetDeployments`. Deleting an agent that belongs to an app answers 409 `AgentInUse`.
 
-Colors (`primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`) must be `#RRGGBB` or null; anything else is `InvalidColor`. `logoAssetId` and `faviconAssetId` must name an agent asset of the tenant; anything else is `UnknownAsset`.
+Colors (`primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor`) must be `#RRGGBB` or null; anything else is `InvalidColor`. `logoAssetId` and `faviconAssetId` must name an agent asset of the tenant; anything else is `UnknownAsset`.
 
 The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens. `GET /v1.0/apps/{slug}`, `GET /v1.0/apps/{slug}/logo`, and `GET /v1.0/apps/{slug}/favicon` (the favicon asset, else the logo; 404 when neither) need no credentials; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
 
@@ -7723,6 +7723,9 @@ An agentic app (AD6, AD-002): a group of agents with one entry agent that talks 
 | `backgroundColor` | `string?` | Page background behind the conversation as #RRGGBB, or null for the theme's background. |
 | `headerColor` | `string?` | Header bar background as #RRGGBB, or null for the theme's surface color. |
 | `agentBubbleColor` | `string?` | Background of the agent's messages as #RRGGBB, or null for the theme's bubble color. Your own messages use `primaryColor`. |
+| `conversationListColor` | `string?` | Background of the conversation list beside the chat as #RRGGBB, or null for the theme's surface color. |
+| `composerColor` | `string?` | Background of the message input area under the conversation as #RRGGBB, or null for the theme's surface color. |
+| `filesColor` | `string?` | Background of the conversation's file list as #RRGGBB, or null for the theme's surface color. |
 | `fontFamily` | `AppFontEnum?` | Typeface of the chat UI, or null for `System`. |
 | `faviconAssetId` | `string?` | Agent asset (an image) shown as the browser tab icon, or null to use the logo, or the default icon without one. An unknown asset is `UnknownAsset`. |
 | `members` | `AgenticAppMember[]` | Members, including the entry agent. |
@@ -7844,6 +7847,9 @@ What an app's chat UI needs before anyone signs in (AD6.6, AD6.10): branding and
 | `backgroundColor` | `string?` | Page background (#RRGGBB), or null for the theme's background. |
 | `headerColor` | `string?` | Header bar background (#RRGGBB), or null for the theme's surface color. |
 | `agentBubbleColor` | `string?` | Background of the agent's messages (#RRGGBB), or null for the theme's bubble color. |
+| `conversationListColor` | `string?` | Background of the conversation list beside the chat (#RRGGBB), or null for the theme's surface color. |
+| `composerColor` | `string?` | Background of the message input area (#RRGGBB), or null for the theme's surface color. |
+| `filesColor` | `string?` | Background of the conversation's file list (#RRGGBB), or null for the theme's surface color. |
 | `fontFamily` | `AppFontEnum` | Typeface of the chat UI. Always present; default `System`. |
 | `faviconUrl` | `string?` | `/v1.0/apps/{slug}/favicon` when the app has a favicon or a logo, or null for the default icon. |
 | `authMode` | `AppAuthModeEnum` | Who may sign in. |

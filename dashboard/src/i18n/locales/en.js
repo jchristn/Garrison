@@ -4938,3 +4938,30 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// App branding: conversation list, message input, and file list colors.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "conversationListColor": "Conversation list color",
+    "composerColor": "Message input color",
+    "filesColor": "File list color"
+   },
+   "hints": {
+    "conversationListColor": "The list of conversations on the side.",
+    "composerColor": "The area under the conversation where you type.",
+    "filesColor": "The list of files the agent wrote."
+   }
+  }
+ }
+});

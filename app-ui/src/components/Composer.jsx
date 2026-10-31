@@ -40,7 +40,7 @@ export default function Composer({ onSend, disabled, busy, sending, autoFocus })
       <textarea
         id="composer-input"
         ref={box}
-        rows={2}
+        rows={1}
         value={text}
         placeholder={t('chat.composerPlaceholder')}
         onChange={(e) => setText(e.target.value)}
