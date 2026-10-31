@@ -221,6 +221,9 @@ export interface CapabilityDescriptor extends Json {
 export const APP_AUTH_MODES = ["TenantUsers", "AppUsers", "Anonymous"] as const;
 /** One of {@link APP_AUTH_MODES}. */
 export type AppAuthMode = typeof APP_AUTH_MODES[number];
+/** Typefaces of an app's chat UI (AppFontEnum). */
+export const APP_FONTS = ["System", "Sans", "Serif", "Rounded", "Mono"] as const;
+export type AppFont = typeof APP_FONTS[number];
 /**
  * Built-in role that lets a user use one agentic app's chat UI. Assign it with resource scope on the app identifier; it
  * grants nothing in the management API.
@@ -252,6 +255,7 @@ export interface AgenticApp extends Json {
   id: string; tenantId: string; name: string; slug: string; description?: string | null; entryAgentId: string;
   liveEnvironment: string; authMode: AppAuthMode; anonymousEnabled: boolean; showOperatorDetail: boolean;
   displayName?: string | null; logoAssetId?: string | null; primaryColor?: string | null; accentColor?: string | null; welcomeText?: string | null;
+  backgroundColor?: string | null; headerColor?: string | null; agentBubbleColor?: string | null; fontFamily?: AppFont | null; faviconAssetId?: string | null;
   members: AgenticAppMember[]; edges: AgenticAppEdge[]; environments: AgenticAppEnvironment[];
   latestPublishedRevisionId?: string | null; active: boolean; createdUtc: string; lastUpdateUtc: string;
 }

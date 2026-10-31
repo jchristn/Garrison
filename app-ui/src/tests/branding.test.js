@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_PRIMARY, applyBranding, brandingVariables, contrastRatio, normalizeColor, readableOn } from '../utils/branding.js';
+import { DEFAULT_PRIMARY, FONT_STACKS, applyBranding, brandingVariables, contrastRatio, normalizeColor, readableOn } from '../utils/branding.js';
 import { appPath, parseAppPath } from '../utils/location.js';
 
 describe('branding', () => {
@@ -33,6 +33,29 @@ describe('branding', () => {
     expect(style.getPropertyValue('--app-on-accent')).toBe('#000000');
     expect(vars['--app-primary']).toBe('#1e3a8a');
     expect(document.title).toBe('Research Desk');
+  });
+});
+
+describe('surface colors, typeface, and favicon', () => {
+  it('sets background, header, and agent message colors with readable text, only when the app sets them', () => {
+    const vars = brandingVariables({ backgroundColor: '#111827', headerColor: '#FFFFFF', agentBubbleColor: '#fef3c7', fontFamily: 'Serif' });
+    expect(vars['--app-background']).toBe('#111827');
+    expect(vars['--app-on-background']).toBe('#ffffff');
+    expect(vars['--app-header']).toBe('#ffffff');
+    expect(vars['--app-on-header']).toBe('#000000');
+    expect(vars['--app-agent-bubble']).toBe('#fef3c7');
+    expect(vars['--app-font']).toBe(FONT_STACKS.Serif);
+    const plain = brandingVariables({ fontFamily: 'System', headerColor: 'red' });
+    expect(Object.keys(plain).sort()).toEqual(['--app-accent', '--app-on-accent', '--app-on-primary', '--app-primary']);
+  });
+
+  it('clears colors an app stopped using and points the tab icon at the favicon', () => {
+    const root = document.createElement('div');
+    applyBranding({ slug: 'demo', backgroundColor: '#111827' }, root);
+    expect(root.style.getPropertyValue('--app-background')).toBe('#111827');
+    applyBranding({ slug: 'demo' }, root, 'https://example.test/v1.0/apps/demo/favicon');
+    expect(root.style.getPropertyValue('--app-background')).toBe('');
+    expect(document.querySelector('link[rel="icon"]').href).toBe('https://example.test/v1.0/apps/demo/favicon');
   });
 });
 

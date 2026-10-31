@@ -61,6 +61,7 @@ namespace Garrison.Server.Routes
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             routes.Anonymous(HttpMethod.GET, _Base, InfoAsync, "App branding and how to sign in", _Tag, null, typeof(AppInfo));
             routes.Anonymous(HttpMethod.GET, _Base + "/logo", LogoAsync, "The app's logo image", _Tag);
+            routes.Anonymous(HttpMethod.GET, _Base + "/favicon", FaviconAsync, "The app's browser tab icon: its favicon asset, else its logo", _Tag);
             routes.Anonymous(HttpMethod.POST, _Base + "/session", StartSessionAsync, "Start an app session: email and password, a management bearer token, or anonymous when the app allows it", _Tag, typeof(AppSessionRequest), typeof(AppSessionResponse));
             routes.Anonymous(HttpMethod.DELETE, _Base + "/session", EndSessionAsync, "End the app session", _Tag);
             routes.Anonymous(HttpMethod.GET, _Base + "/conversations", ConversationsAsync, "The session owner's conversations in the app", _Tag, null, typeof(List<AppConversationView>));
@@ -99,10 +100,21 @@ namespace Garrison.Server.Routes
         private async Task LogoAsync(HttpContextBase http)
         {
             AgenticApp app = await AppAsync(http).ConfigureAwait(false);
-            AgentAsset? asset = app.LogoAssetId == null ? null : await _Server.Database.AgentAssets.ReadAsync(app.TenantId, app.LogoAssetId, http.Token).ConfigureAwait(false);
+            await SendImageAsync(http, app, app.LogoAssetId, "The app has no logo.").ConfigureAwait(false);
+        }
+
+        private async Task FaviconAsync(HttpContextBase http)
+        {
+            AgenticApp app = await AppAsync(http).ConfigureAwait(false);
+            await SendImageAsync(http, app, app.FaviconAssetId ?? app.LogoAssetId, "The app has no favicon or logo.").ConfigureAwait(false);
+        }
+
+        private async Task SendImageAsync(HttpContextBase http, AgenticApp app, string? assetId, string missing)
+        {
+            AgentAsset? asset = assetId == null ? null : await _Server.Database.AgentAssets.ReadAsync(app.TenantId, assetId, http.Token).ConfigureAwait(false);
             AgentAssetVersion? version = asset == null || asset.CurrentVersion < 1 ? null : await _Server.Database.AgentAssets.ReadVersionAsync(app.TenantId, asset.Id, asset.CurrentVersion, http.Token).ConfigureAwait(false);
             AgentAssetFile? file = version?.Files.FirstOrDefault(f => f.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase));
-            if (asset == null || file == null) throw new NotFoundException("The app has no logo.");
+            if (asset == null || file == null) throw new NotFoundException(missing);
             byte[] content = await _Server.Get<AgentAssetService>().ReadFileAsync(app.TenantId, asset, file, http.Token).ConfigureAwait(false);
             http.Response.StatusCode = 200;
             http.Response.ContentType = file.MediaType;

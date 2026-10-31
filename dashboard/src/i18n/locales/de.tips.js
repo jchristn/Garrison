@@ -3542,3 +3542,28 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "backgroundColor": "Seitenhintergrund des App-Chats als #RRGGBB. Leer behält den Hintergrund des Designs.",
+   "headerColor": "Hintergrund der Kopfzeile des Chats als #RRGGBB. Leer behält die Farbe des Designs.",
+   "agentBubbleColor": "Hintergrund der Agentennachrichten als #RRGGBB. Leer behält die Farbe des Designs.",
+   "fontFamily": "Die Schriftart des ganzen Chats. Jede nutzt Schriften, die der Browser bereits hat.",
+   "faviconAssetId": "Ein Bild-Asset als Symbol im Browser-Tab. Leer verwendet das Logo oder ohne Logo das Standardsymbol."
+  }
+ },
+ "form": {
+  "defaultColor": "{{field}} leeren, damit der Chat seine Standardfarbe {{color}} verwendet."
+ }
+});

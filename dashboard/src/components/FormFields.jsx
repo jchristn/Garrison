@@ -187,7 +187,7 @@ function FieldControl({ field, value, onChange, disabled, id }) {
           <input
             type="color"
             className="color-swatch"
-            value={valid ? value : '#000000'}
+            value={valid ? value : field.defaultColor || '#000000'}
             disabled={disabled}
             aria-label={t('components.form.pickColor', { field: field.label })}
             data-empty={valid ? undefined : 'true'}
@@ -195,6 +195,11 @@ function FieldControl({ field, value, onChange, disabled, id }) {
             {...tip(t('tips.form.pickColor', { field: field.label }))}
           />
           <input id={id} {...tp} type="text" value={value ?? ''} disabled={disabled} placeholder={field.placeholder || '#1F6FEB'} maxLength={7} onChange={(e) => onChange(e.target.value)} />
+          {field.defaultColor && value && !disabled ? (
+            <button type="button" className="button-ghost button-sm" onClick={() => onChange('')} data-testid={`${id}-default`} {...tip(t('tips.form.defaultColor', { field: field.label, color: field.defaultColor }))}>
+              {t('components.form.defaultColor')}
+            </button>
+          ) : null}
         </div>
       );
     }

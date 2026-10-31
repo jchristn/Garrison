@@ -68,8 +68,8 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _Apps + " (id, tenantid, name, slug, description, entryagentid, liveenvironment, authmode, anonymousenabled, showoperatordetail, displayname, logoassetid, primarycolor, accentcolor, welcometext, latestpublishedrevisionid, active, createdutc, lastupdateutc) " +
-                    "VALUES (@id, @tenantid, @name, @slug, @description, @entryagentid, @liveenvironment, @authmode, @anonymousenabled, @showoperatordetail, @displayname, @logoassetid, @primarycolor, @accentcolor, @welcometext, @latestpublishedrevisionid, @active, @createdutc, @lastupdateutc);",
+                    "INSERT INTO " + _Apps + " (id, tenantid, name, slug, description, entryagentid, liveenvironment, authmode, anonymousenabled, showoperatordetail, displayname, logoassetid, primarycolor, accentcolor, welcometext, backgroundcolor, headercolor, agentbubblecolor, fontfamily, faviconassetid, latestpublishedrevisionid, active, createdutc, lastupdateutc) " +
+                    "VALUES (@id, @tenantid, @name, @slug, @description, @entryagentid, @liveenvironment, @authmode, @anonymousenabled, @showoperatordetail, @displayname, @logoassetid, @primarycolor, @accentcolor, @welcometext, @backgroundcolor, @headercolor, @agentbubblecolor, @fontfamily, @faviconassetid, @latestpublishedrevisionid, @active, @createdutc, @lastupdateutc);",
                     command => Bind(command, app), ct).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, app, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -85,7 +85,7 @@ namespace Garrison.Core.Database.Ado
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
                     "UPDATE " + _Apps + " SET name = @name, slug = @slug, description = @description, entryagentid = @entryagentid, liveenvironment = @liveenvironment, authmode = @authmode, anonymousenabled = @anonymousenabled, " +
-                    "showoperatordetail = @showoperatordetail, displayname = @displayname, logoassetid = @logoassetid, primarycolor = @primarycolor, accentcolor = @accentcolor, welcometext = @welcometext, " +
+                    "showoperatordetail = @showoperatordetail, displayname = @displayname, logoassetid = @logoassetid, primarycolor = @primarycolor, accentcolor = @accentcolor, welcometext = @welcometext, backgroundcolor = @backgroundcolor, headercolor = @headercolor, agentbubblecolor = @agentbubblecolor, fontfamily = @fontfamily, faviconassetid = @faviconassetid, " +
                     "latestpublishedrevisionid = @latestpublishedrevisionid, active = @active, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
                     command => Bind(command, app), ct).ConfigureAwait(false);
                 foreach (string table in new[] { _Members, _Edges, _Environments })
@@ -456,6 +456,11 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "primarycolor", app.PrimaryColor);
             AdoDatabaseDriver.Add(command, "accentcolor", app.AccentColor);
             AdoDatabaseDriver.Add(command, "welcometext", app.WelcomeText);
+            AdoDatabaseDriver.Add(command, "backgroundcolor", app.BackgroundColor);
+            AdoDatabaseDriver.Add(command, "headercolor", app.HeaderColor);
+            AdoDatabaseDriver.Add(command, "agentbubblecolor", app.AgentBubbleColor);
+            AdoDatabaseDriver.Add(command, "fontfamily", app.FontFamily.HasValue ? app.FontFamily.Value.ToString() : null);
+            AdoDatabaseDriver.Add(command, "faviconassetid", app.FaviconAssetId);
             AdoDatabaseDriver.Add(command, "latestpublishedrevisionid", app.LatestPublishedRevisionId);
             AdoDatabaseDriver.Add(command, "active", app.Active);
             AdoDatabaseDriver.Add(command, "createdutc", app.CreatedUtc);
@@ -480,6 +485,12 @@ namespace Garrison.Core.Database.Ado
             app.PrimaryColor = AdoConverters.NullableStr(reader, "primarycolor");
             app.AccentColor = AdoConverters.NullableStr(reader, "accentcolor");
             app.WelcomeText = AdoConverters.NullableStr(reader, "welcometext");
+            app.BackgroundColor = AdoConverters.NullableStr(reader, "backgroundcolor");
+            app.HeaderColor = AdoConverters.NullableStr(reader, "headercolor");
+            app.AgentBubbleColor = AdoConverters.NullableStr(reader, "agentbubblecolor");
+            string? font = AdoConverters.NullableStr(reader, "fontfamily");
+            app.FontFamily = font != null && Enum.TryParse(font, out AppFontEnum parsedFont) ? parsedFont : null;
+            app.FaviconAssetId = AdoConverters.NullableStr(reader, "faviconassetid");
             app.LatestPublishedRevisionId = AdoConverters.NullableStr(reader, "latestpublishedrevisionid");
             app.Active = AdoConverters.Bool(reader, "active");
             app.CreatedUtc = AdoConverters.Date(reader, "createdutc");

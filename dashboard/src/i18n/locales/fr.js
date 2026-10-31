@@ -4910,3 +4910,52 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "backgroundColor": "Fond de page",
+    "headerColor": "Couleur de l'en-tête",
+    "agentBubbleColor": "Couleur des messages de l'agent",
+    "fontFamily": "Police",
+    "faviconAssetId": "Icône de l'onglet"
+   },
+   "hints": {
+    "displayName": "Affiché dans l'en-tête du chat et sur les messages de l'agent. Tous les caractères, jusqu'à 128. Le nom ci-dessus n'est que l'identifiant.",
+    "faviconAssetId": "Une ressource image. Laissez vide pour utiliser le logo.",
+    "primaryColor": "Boutons et vos propres messages.",
+    "accentColor": "Mises en évidence, contours de focus et conversation sélectionnée.",
+    "backgroundColor": "La page derrière la conversation.",
+    "headerColor": "La barre du haut avec le nom et le logo.",
+    "agentBubbleColor": "Les messages de l'agent. La couleur du texte est choisie pour le contraste."
+   },
+   "faviconFromLogo": "Identique au logo",
+   "defaultColor": "Par défaut {{color}}"
+  }
+ },
+ "enums": {
+  "appFont": {
+   "System": "Système",
+   "Sans": "Sans empattement",
+   "Serif": "Avec empattement",
+   "Rounded": "Arrondie",
+   "Mono": "À chasse fixe"
+  }
+ },
+ "components": {
+  "form": {
+   "defaultColor": "Par défaut"
+  }
+ }
+});

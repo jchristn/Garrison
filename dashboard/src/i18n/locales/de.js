@@ -4896,3 +4896,52 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "backgroundColor": "Seitenhintergrund",
+    "headerColor": "Kopfzeilenfarbe",
+    "agentBubbleColor": "Farbe der Agentennachrichten",
+    "fontFamily": "Schriftart",
+    "faviconAssetId": "Tab-Symbol"
+   },
+   "hints": {
+    "displayName": "Erscheint in der Kopfzeile des Chats und an den Nachrichten des Agenten. Beliebige Zeichen, bis 128. Der Name oben ist nur die Kennung.",
+    "faviconAssetId": "Ein Bild-Asset. Leer lassen, um das Logo zu verwenden.",
+    "primaryColor": "Schaltflächen und Ihre eigenen Nachrichten.",
+    "accentColor": "Hervorhebungen, Fokusrahmen und die gewählte Unterhaltung.",
+    "backgroundColor": "Die Seite hinter der Unterhaltung.",
+    "headerColor": "Die Leiste oben mit Name und Logo.",
+    "agentBubbleColor": "Die Nachrichten des Agenten. Die Textfarbe wird für guten Kontrast gewählt."
+   },
+   "faviconFromLogo": "Wie das Logo",
+   "defaultColor": "Standard {{color}}"
+  }
+ },
+ "enums": {
+  "appFont": {
+   "System": "Systemschrift",
+   "Sans": "Serifenlos",
+   "Serif": "Mit Serifen",
+   "Rounded": "Abgerundet",
+   "Mono": "Festbreite"
+  }
+ },
+ "components": {
+  "form": {
+   "defaultColor": "Standard"
+  }
+ }
+});

@@ -338,6 +338,11 @@ namespace Garrison.Server.Services
             to.PrimaryColor = String.IsNullOrWhiteSpace(from.PrimaryColor) ? null : from.PrimaryColor.Trim();
             to.AccentColor = String.IsNullOrWhiteSpace(from.AccentColor) ? null : from.AccentColor.Trim();
             to.WelcomeText = String.IsNullOrWhiteSpace(from.WelcomeText) ? null : from.WelcomeText;
+            to.BackgroundColor = String.IsNullOrWhiteSpace(from.BackgroundColor) ? null : from.BackgroundColor.Trim();
+            to.HeaderColor = String.IsNullOrWhiteSpace(from.HeaderColor) ? null : from.HeaderColor.Trim();
+            to.AgentBubbleColor = String.IsNullOrWhiteSpace(from.AgentBubbleColor) ? null : from.AgentBubbleColor.Trim();
+            to.FontFamily = from.FontFamily;
+            to.FaviconAssetId = String.IsNullOrWhiteSpace(from.FaviconAssetId) ? null : from.FaviconAssetId.Trim();
             to.Members = from.Members.Select(m => new AgenticAppMember { AgentId = (m.AgentId ?? String.Empty).Trim(), Role = String.IsNullOrWhiteSpace(m.Role) ? null : m.Role.Trim() }).ToList();
             to.Edges = from.Edges.Select(e => new AgenticAppEdge { CallerAgentId = (e.CallerAgentId ?? String.Empty).Trim(), CalleeAgentId = (e.CalleeAgentId ?? String.Empty).Trim(), FanOutAllowed = e.FanOutAllowed }).ToList();
             to.Environments = from.Environments.Select(e => new AgenticAppEnvironment { Environment = (e.Environment ?? String.Empty).Trim(), DeploymentId = String.IsNullOrWhiteSpace(e.DeploymentId) ? null : e.DeploymentId.Trim() }).ToList();
@@ -361,12 +366,22 @@ namespace Garrison.Server.Services
             if (app.WelcomeText != null && app.WelcomeText.Length > 4000) Fail("welcomeText", "TooLong", "At most 4000 characters.");
             if (app.PrimaryColor != null && !_ColorPattern.IsMatch(app.PrimaryColor)) Fail("primaryColor", "InvalidColor", "A color is #RRGGBB.");
             if (app.AccentColor != null && !_ColorPattern.IsMatch(app.AccentColor)) Fail("accentColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.BackgroundColor != null && !_ColorPattern.IsMatch(app.BackgroundColor)) Fail("backgroundColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.HeaderColor != null && !_ColorPattern.IsMatch(app.HeaderColor)) Fail("headerColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.AgentBubbleColor != null && !_ColorPattern.IsMatch(app.AgentBubbleColor)) Fail("agentBubbleColor", "InvalidColor", "A color is #RRGGBB.");
             if (app.LogoAssetId != null)
             {
                 AgentAsset? logo = await _Server.Database.AgentAssets.ReadAsync(tenantId, app.LogoAssetId, token).ConfigureAwait(false)
                     ?? await _Server.Database.AgentAssets.ReadByNameAsync(tenantId, app.LogoAssetId, token).ConfigureAwait(false);
                 if (logo == null) Fail("logoAssetId", "UnknownAsset", "No agent asset " + app.LogoAssetId + " in this tenant.");
                 else app.LogoAssetId = logo.Id;
+            }
+            if (app.FaviconAssetId != null)
+            {
+                AgentAsset? favicon = await _Server.Database.AgentAssets.ReadAsync(tenantId, app.FaviconAssetId, token).ConfigureAwait(false)
+                    ?? await _Server.Database.AgentAssets.ReadByNameAsync(tenantId, app.FaviconAssetId, token).ConfigureAwait(false);
+                if (favicon == null) Fail("faviconAssetId", "UnknownAsset", "No agent asset " + app.FaviconAssetId + " in this tenant.");
+                else app.FaviconAssetId = favicon.Id;
             }
 
             // Members, entry, and edges may name agents; store identifiers.

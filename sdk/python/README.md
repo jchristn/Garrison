@@ -396,7 +396,7 @@ A group that does not exist, or belongs to another tenant, raises `GarrisonError
 
 ## Agentic apps
 
-An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.apps` offers `list`, `get` (identifier or name), `create`, `update`, and `delete`, plus the delegation plan, app revisions, and promotion. An `AgenticApp` has `id` (`app_...`), `name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `description`, `entryAgentId`, `members` (`agentId`, `agentName`, `role`), `edges` (`callerAgentId`, `calleeAgentId`, `fanOutAllowed`, default true), `environments` (`environment`, `deploymentId`), `liveEnvironment` (default `dev`), `authMode` (`APP_AUTH_MODES`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `anonymousEnabled`, `showOperatorDetail`, the branding fields `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, and `welcomeText`, and `latestPublishedRevisionId`. Agents may be given by name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
+An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.apps` offers `list`, `get` (identifier or name), `create`, `update`, and `delete`, plus the delegation plan, app revisions, and promotion. An `AgenticApp` has `id` (`app_...`), `name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `description`, `entryAgentId`, `members` (`agentId`, `agentName`, `role`), `edges` (`callerAgentId`, `calleeAgentId`, `fanOutAllowed`, default true), `environments` (`environment`, `deploymentId`), `liveEnvironment` (default `dev`), `authMode` (`APP_AUTH_MODES`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `anonymousEnabled`, `showOperatorDetail`, the branding fields `displayName` (any characters, up to 128), `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor` (each `#RRGGBB` or null; anything else is 400 `InvalidColor`), `fontFamily` (`APP_FONTS`: `System` (default), `Sans`, `Serif`, `Rounded`, `Mono`), `faviconAssetId` (an image asset for the browser tab icon; null uses the logo; an unknown asset is 400 `UnknownAsset`), and `welcomeText`, and `latestPublishedRevisionId`. Agents may be given by name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
 
 ```python
 app = client.apps.create({"name": "research", "entryAgentId": "orchestrator",
@@ -562,8 +562,9 @@ The support triage bundle runs on the fake harness, so the server needs a worker
 
 | Method | Returns |
 |---|---|
-| `info` | `AppInfo`: display name, colors, logo URL, `authMode`, `anonymousAllowed` (needs no session) |
+| `info` | `AppInfo`: display name, colors, `fontFamily`, logo URL, favicon URL, `authMode`, `anonymousAllowed` (needs no session) |
 | `logo`, `logo_url` | The logo bytes or its URL (404 when the app has none) |
+| `favicon`, `favicon_url` | The browser tab icon bytes or its URL: the favicon asset, else the logo (404 when the app has neither) |
 | `start_session`, `end_session` | `AppSessionResponse`; ending forgets the token |
 | `conversations`, `conversation` | `AppConversationView` dictionaries, with `turns` filled when one is read |
 | `start_conversation`, `send` | `AppConversationStart` (`conversationId` and the first turn), `AppTurnView` |
@@ -638,6 +639,7 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | **App gateway (absolute paths; `gateway` is `client.AppGateway(slug)` in C#, `client.app_gateway(slug)` in Python, `client.appGateway(slug)` or `new AppGatewayClient(baseUrl, slug)` in JavaScript, `client.AppGateway(slug)` or `garrison.NewAppGatewayClient(baseURL, slug)` in Go)** | |
 | `GET /v1.0/apps/{slug}` | `gateway.info` |
 | `GET /v1.0/apps/{slug}/logo` | `gateway.logo`, `logo_url` |
+| `GET /v1.0/apps/{slug}/favicon` | `gateway.favicon`, `favicon_url` |
 | `POST /v1.0/apps/{slug}/session` | `gateway.start_session` |
 | `DELETE /v1.0/apps/{slug}/session` | `gateway.end_session` |
 | `GET /v1.0/apps/{slug}/conversations` | `gateway.conversations` |

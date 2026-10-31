@@ -14,7 +14,7 @@ import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i
 import { resourceTip, enumTip, optionalText } from '../utils/tips';
 import { enumLabel, enumOptions } from '../utils/enums';
 import { environmentNames } from '../utils/revisions';
-import { APP_AUTH_MODES, appDuplicate, appErrors, appToBody, appToForm, blankApp, entryDeployments, holds, loadCallerPermissions, memberIds, unreachableNames } from '../utils/apps';
+import { APP_AUTH_MODES, APP_COLOR_FIELDS, APP_DEFAULT_COLORS, APP_FONTS, appDuplicate, appErrors, appToBody, appToForm, blankApp, entryDeployments, holds, loadCallerPermissions, memberIds, unreachableNames } from '../utils/apps';
 
 const ID = 'apps';
 
@@ -161,6 +161,7 @@ export const appsConfig = {
     const keep = (list, value) => (value && !list.some((o) => o.value === value) ? [...list, { value, label: nameOf(value) }] : list);
     return [
       field(t, 'name', 'text', { required: true, step: 0, placeholder: 'research' }),
+      field(t, 'displayName', 'text', { step: 0, placeholder: t('resources.apps.displayNamePlaceholder') }),
       field(t, 'slug', 'text', { step: 0, placeholder: data.name || 'research' }),
       field(t, 'description', 'textarea', { step: 0, rows: 2 }),
       field(t, 'active', 'checkbox', { step: 0 }),
@@ -218,7 +219,6 @@ export const appsConfig = {
           </div>
         )
       },
-      field(t, 'displayName', 'text', { step: 4, placeholder: t('resources.apps.displayNamePlaceholder') }),
       field(t, 'logoAssetId', 'select', {
         step: 4,
         noneLabel: t('resources.apps.noLogo'),
@@ -227,8 +227,17 @@ export const appsConfig = {
           ...(data.logoAssetId && !(options.assets || []).some((a) => a.id === data.logoAssetId) ? [{ value: data.logoAssetId, label: data.logoAssetId }] : [])
         ]
       }),
-      field(t, 'primaryColor', 'color', { step: 4 }),
-      field(t, 'accentColor', 'color', { step: 4, placeholder: '#F59E0B' }),
+      field(t, 'faviconAssetId', 'select', {
+        step: 4,
+        noneLabel: t('resources.apps.faviconFromLogo'),
+        options: [
+          ...(options.assets || []).map((a) => ({ value: a.id, label: a.name })),
+          ...(data.faviconAssetId && !(options.assets || []).some((a) => a.id === data.faviconAssetId) ? [{ value: data.faviconAssetId, label: data.faviconAssetId }] : [])
+        ]
+      }),
+      // Each color shows the one the chat uses when it is left empty, so the swatch matches what people see.
+      ...APP_COLOR_FIELDS.map((key) => field(t, key, 'color', { step: 4, defaultColor: APP_DEFAULT_COLORS[key], placeholder: t('resources.apps.defaultColor', { color: APP_DEFAULT_COLORS[key] }) })),
+      field(t, 'fontFamily', 'select', { step: 4, options: enumOptions(t, 'appFont', APP_FONTS) }),
       field(t, 'welcomeText', 'textarea', { step: 4, rows: 3 })
     ];
   },

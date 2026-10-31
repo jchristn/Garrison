@@ -10,7 +10,7 @@ import { GarrisonError } from "./errors.js";
 import { backoffDelay } from "./eventStream.js";
 import type { BackoffOptions } from "./eventStream.js";
 import { queryString, readServerSentEvents, seg } from "./http.js";
-import type { AppAuthMode, ConversationFileVersion, FileDownloadUrl, FileSpaceListing, RunEvent, RunStatus } from "./index.js";
+import type { AppAuthMode, AppFont, ConversationFileVersion, FileDownloadUrl, FileSpaceListing, RunEvent, RunStatus } from "./index.js";
 
 export { GarrisonError } from "./errors.js";
 export * from "./eventStream.js";
@@ -25,7 +25,8 @@ export const DEFAULT_SESSION_KEY_PREFIX = "garrison.app.session.";
 /** Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. */
 export interface AppInfo {
   slug: string; displayName: string; description?: string | null; welcomeText?: string | null; primaryColor?: string | null;
-  accentColor?: string | null; logoUrl?: string | null; authMode: AppAuthMode; anonymousAllowed: boolean; showOperatorDetail: boolean;
+  accentColor?: string | null; logoUrl?: string | null; backgroundColor?: string | null; headerColor?: string | null;
+  agentBubbleColor?: string | null; fontFamily?: AppFont; faviconUrl?: string | null; authMode: AppAuthMode; anonymousAllowed: boolean; showOperatorDetail: boolean;
 }
 
 /** An app session. token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app. */
@@ -331,6 +332,12 @@ export class AppGatewayClient {
     const info = args[0];
     if (!info || !info.logoUrl) return null;
     return /^https?:/i.test(info.logoUrl) ? info.logoUrl : `${this.baseUrl}${info.logoUrl}`;
+  }
+
+  /** The favicon URL from an info answer resolved against the base URL, or null when the app has no favicon or logo. */
+  faviconUrl(info: AppInfo | null | undefined): string | null {
+    if (!info || !info.faviconUrl) return null;
+    return /^https?:/i.test(info.faviconUrl) ? info.faviconUrl : `${this.baseUrl}${info.faviconUrl}`;
   }
 
   /** The app's logo image bytes; rejects with 404 when the app has none. */

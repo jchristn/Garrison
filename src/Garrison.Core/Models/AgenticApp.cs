@@ -101,6 +101,33 @@ namespace Garrison.Core.Models
         public string? WelcomeText { get; set; } = null;
 
         /// <summary>
+        /// Page background behind the conversation as #RRGGBB, or null for the theme's background.
+        /// </summary>
+        public string? BackgroundColor { get; set; } = null;
+
+        /// <summary>
+        /// Header bar background as #RRGGBB, or null for the theme's surface color.
+        /// </summary>
+        public string? HeaderColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the agent's messages as #RRGGBB, or null for the theme's bubble color. Your own messages use
+        /// <see cref="PrimaryColor"/>.
+        /// </summary>
+        public string? AgentBubbleColor { get; set; } = null;
+
+        /// <summary>
+        /// Typeface of the chat UI, or null for <see cref="AppFontEnum.System"/>.
+        /// </summary>
+        public AppFontEnum? FontFamily { get; set; } = null;
+
+        /// <summary>
+        /// Agent asset (an image) shown as the browser tab icon, or null to use the logo, or the default icon when there
+        /// is no logo.
+        /// </summary>
+        public string? FaviconAssetId { get; set; } = null;
+
+        /// <summary>
         /// Members, including the entry agent.
         /// </summary>
         public List<AgenticAppMember> Members

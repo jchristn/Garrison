@@ -8743,7 +8743,7 @@
             "description": "An app with one member as its entry agent. Anonymous sessions are allowed so the gateway requests below can run without a user.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\",\n      \"role\": \"Talks to people\"\n    }\n  ],\n  \"authMode\": \"Anonymous\",\n  \"anonymousEnabled\": true,\n  \"displayName\": \"Postman Desk\",\n  \"primaryColor\": \"#1F6FEB\",\n  \"welcomeText\": \"Ask me anything.\"\n}",
+              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\",\n      \"role\": \"Talks to people\"\n    }\n  ],\n  \"authMode\": \"Anonymous\",\n  \"anonymousEnabled\": true,\n  \"displayName\": \"Postman Desk\",\n  \"primaryColor\": \"#1F6FEB\",\n  \"backgroundColor\": \"#F6F8FA\",\n  \"headerColor\": \"#0D1117\",\n  \"agentBubbleColor\": \"#EAEEF2\",\n  \"fontFamily\": \"Serif\",\n  \"faviconAssetId\": null,\n  \"welcomeText\": \"Ask me anything.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8911,7 +8911,7 @@
             "description": "Replace the app; here the welcome text and the live environment.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\",\n      \"role\": \"Talks to people\"\n    }\n  ],\n  \"authMode\": \"Anonymous\",\n  \"anonymousEnabled\": true,\n  \"displayName\": \"Postman Desk\",\n  \"primaryColor\": \"#1F6FEB\",\n  \"welcomeText\": \"Ask me anything, again.\",\n  \"liveEnvironment\": \"dev\"\n}",
+              "raw": "{\n  \"name\": \"postman-{{suffix}}\",\n  \"entryAgentId\": \"{{agentId}}\",\n  \"members\": [\n    {\n      \"agentId\": \"{{agentId}}\",\n      \"role\": \"Talks to people\"\n    }\n  ],\n  \"authMode\": \"Anonymous\",\n  \"anonymousEnabled\": true,\n  \"displayName\": \"Postman Desk\",\n  \"primaryColor\": \"#1F6FEB\",\n  \"backgroundColor\": \"#F6F8FA\",\n  \"headerColor\": \"#0D1117\",\n  \"agentBubbleColor\": \"#EAEEF2\",\n  \"fontFamily\": \"Serif\",\n  \"faviconAssetId\": null,\n  \"welcomeText\": \"Ask me anything, again.\",\n  \"liveEnvironment\": \"dev\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9245,7 +9245,8 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('branding', function () { pm.expect(json.displayName).to.eql('Postman Desk'); pm.expect(json.anonymousAllowed).to.eql(true); });"
+                  "pm.test('branding', function () { pm.expect(json.displayName).to.eql('Postman Desk'); pm.expect(json.anonymousAllowed).to.eql(true); });",
+                  "pm.test('look and feel', function () { pm.expect(json.backgroundColor).to.eql('#F6F8FA'); pm.expect(json.headerColor).to.eql('#0D1117'); pm.expect(json.agentBubbleColor).to.eql('#EAEEF2'); pm.expect(json.fontFamily).to.eql('Serif'); pm.expect(json.faviconUrl).to.eql(null); });"
                 ]
               }
             }
@@ -9356,6 +9357,38 @@
               ]
             },
             "description": "The app has no logo asset: 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway: no favicon",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/apps/postman-{{suffix}}/favicon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "apps",
+                "postman-{{suffix}}",
+                "favicon"
+              ]
+            },
+            "description": "The browser tab icon: the favicon asset, else the logo. This app has neither, so 404. No credentials needed."
           },
           "event": [
             {

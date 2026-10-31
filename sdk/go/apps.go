@@ -15,6 +15,16 @@ const (
 	AppAuthModeAnonymous   = "Anonymous"
 )
 
+// Typefaces of an agentic app's chat UI (AgenticApp.FontFamily, AppInfo.FontFamily). Each maps to a font stack the
+// browser already has, so no font is downloaded. System (the operating system's interface font) is the default.
+const (
+	AppFontSystem  = "System"
+	AppFontSans    = "Sans"
+	AppFontSerif   = "Serif"
+	AppFontRounded = "Rounded"
+	AppFontMono    = "Mono"
+)
+
 // AppUserRole is the built-in role that lets a user use one agentic app's chat UI. Assign it with resource scope on the
 // app identifier; it grants nothing in the management API.
 const AppUserRole = "AppUser"
@@ -50,6 +60,12 @@ type AgenticAppEnvironment struct {
 // the environment the app UI uses. AuthMode is one of the AppAuthMode constants (default AppUsers). Active nil means
 // the server default, true. The server checks that the entry agent is a member, edges connect members, every member is
 // reachable from the entry agent, and the edges have no cycle.
+//
+// Branding: DisplayName takes any characters up to 128 (nil shows the name). PrimaryColor (buttons, the header rule,
+// your own messages), AccentColor, BackgroundColor (page behind the conversation), HeaderColor (header bar), and
+// AgentBubbleColor (the agent's messages) are #RRGGBB or nil for the theme default; anything else is 400 InvalidColor.
+// FontFamily is one of the AppFont constants (nil means System). FaviconAssetID is an image asset shown as the browser
+// tab icon; nil uses the logo (LogoAssetID), or the default icon without one. An unknown asset is 400 UnknownAsset.
 type AgenticApp struct {
 	ID                        string                  `json:"id,omitempty"`
 	TenantID                  string                  `json:"tenantId,omitempty"`
@@ -66,6 +82,11 @@ type AgenticApp struct {
 	PrimaryColor              *string                 `json:"primaryColor,omitempty"`
 	AccentColor               *string                 `json:"accentColor,omitempty"`
 	WelcomeText               *string                 `json:"welcomeText,omitempty"`
+	BackgroundColor           *string                 `json:"backgroundColor,omitempty"`
+	HeaderColor               *string                 `json:"headerColor,omitempty"`
+	AgentBubbleColor          *string                 `json:"agentBubbleColor,omitempty"`
+	FontFamily                *string                 `json:"fontFamily,omitempty"`
+	FaviconAssetID            *string                 `json:"faviconAssetId,omitempty"`
 	Members                   []AgenticAppMember      `json:"members"`
 	Edges                     []AgenticAppEdge        `json:"edges,omitempty"`
 	Environments              []AgenticAppEnvironment `json:"environments,omitempty"`

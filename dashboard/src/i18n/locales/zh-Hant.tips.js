@@ -3541,3 +3541,28 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "backgroundColor": "應用程式聊天的頁面背景，格式為 #RRGGBB。留空則保留佈景主題的背景。",
+   "headerColor": "聊天頁首列的背景，格式為 #RRGGBB。留空則保留佈景主題的顏色。",
+   "agentBubbleColor": "智慧代理訊息的背景，格式為 #RRGGBB。留空則保留佈景主題的顏色。",
+   "fontFamily": "整個聊天介面的字型。每一種都使用瀏覽器已有的字型。",
+   "faviconAssetId": "顯示為瀏覽器分頁圖示的圖片資源。留空則使用標誌，沒有標誌時使用預設圖示。"
+  }
+ },
+ "form": {
+  "defaultColor": "清除{{field}}，讓聊天使用預設顏色 {{color}}。"
+ }
+});

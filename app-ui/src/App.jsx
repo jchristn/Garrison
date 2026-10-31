@@ -61,7 +61,7 @@ export default function App({ fetchImpl }) {
       .info()
       .then((value) => {
         if (cancelled) return;
-        applyBranding(value);
+        applyBranding(value, document.documentElement, client.faviconUrl ? client.faviconUrl(value) : null);
         setInfo(value);
       })
       .catch((err) => !cancelled && setLoadError(err));

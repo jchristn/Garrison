@@ -251,7 +251,7 @@ A group that does not exist, or belongs to another tenant, throws `GarrisonExcep
 
 ## Agentic apps
 
-An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.Apps` lists, reads (by identifier or name), creates, replaces, and deletes them, and adds the delegation plan, app revisions, and promotion. An `AgenticApp` has `Id` (`app_...`), `Name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `Slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `Description`, `EntryAgentId`, `Members` (`AgenticAppMember`: `AgentId`, `AgentName`, `Role`), `Edges` (`AgenticAppEdge`: `CallerAgentId`, `CalleeAgentId`, `FanOutAllowed`, default true), `Environments` (`AgenticAppEnvironment`: `Environment`, `DeploymentId`), `LiveEnvironment` (default `dev`), `AuthMode` (`AppAuthModeEnum`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `AnonymousEnabled`, `ShowOperatorDetail`, the branding fields `DisplayName`, `LogoAssetId`, `PrimaryColor`, `AccentColor`, and `WelcomeText`, and `LatestPublishedRevisionId`. Members, the entry agent, and edge ends may be given by agent name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
+An agentic app is a group of agents behind one chat UI at `/apps/{slug}/` (see [docs/APPS.md](../../docs/APPS.md)). `client.Apps` lists, reads (by identifier or name), creates, replaces, and deletes them, and adds the delegation plan, app revisions, and promotion. An `AgenticApp` has `Id` (`app_...`), `Name` (1 to 64 lowercase letters, digits, and hyphens, unique in the tenant), `Slug` (unique across the cluster, default the name; 409 `AppSlugTaken`), `Description`, `EntryAgentId`, `Members` (`AgenticAppMember`: `AgentId`, `AgentName`, `Role`), `Edges` (`AgenticAppEdge`: `CallerAgentId`, `CalleeAgentId`, `FanOutAllowed`, default true), `Environments` (`AgenticAppEnvironment`: `Environment`, `DeploymentId`), `LiveEnvironment` (default `dev`), `AuthMode` (`AppAuthModeEnum`: `TenantUsers`, `AppUsers` (default), `Anonymous`), `AnonymousEnabled`, `ShowOperatorDetail`, the branding fields `DisplayName` (any characters, up to 128), `LogoAssetId`, `PrimaryColor`, `AccentColor`, `BackgroundColor`, `HeaderColor`, `AgentBubbleColor` (each `#RRGGBB` or null; anything else is 400 `InvalidColor`), `FontFamily` (`AppFontEnum`: `System` (default), `Sans`, `Serif`, `Rounded`, `Mono`), `FaviconAssetId` (an image asset for the browser tab icon; null uses the logo; an unknown asset is 400 `UnknownAsset`), and `WelcomeText`, and `LatestPublishedRevisionId`. Members, the entry agent, and edge ends may be given by agent name on create and update. The server checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent in an app cannot be deleted (409 `AgentInUse`).
 
 ```csharp
 AgenticApp app = await client.Apps.CreateAsync(new AgenticApp
@@ -633,8 +633,9 @@ The support triage bundle runs on the fake harness, so the server needs a worker
 
 | Method | Returns |
 |---|---|
-| `InfoAsync` | `AppInfo`: display name, colors, logo URL, `AuthMode`, `AnonymousAllowed` (needs no session) |
+| `InfoAsync` | `AppInfo`: display name, colors, `FontFamily`, logo URL, favicon URL, `AuthMode`, `AnonymousAllowed` (needs no session) |
 | `GetLogoAsync`, `LogoUrl` | The logo bytes or its URL (404 when the app has none) |
+| `GetFaviconAsync`, `FaviconUrl` | The browser tab icon bytes or its URL: the favicon asset, else the logo (404 when the app has neither) |
 | `StartSessionAsync`, `EndSessionAsync` | `AppSessionResponse`; ending forgets the token |
 | `ListConversationsAsync`, `GetConversationAsync` | `AppConversationView`, with `Turns` filled when one is read |
 | `StartConversationAsync`, `SendAsync` | `AppConversationStart` (conversation identifier and first turn), `AppTurnView` |
@@ -709,6 +710,7 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | **App gateway (absolute paths; `gateway` is `client.AppGateway(slug)` in C#, `client.app_gateway(slug)` in Python, `client.appGateway(slug)` or `new AppGatewayClient(baseUrl, slug)` in JavaScript, `client.AppGateway(slug)` or `garrison.NewAppGatewayClient(baseURL, slug)` in Go)** | |
 | `GET /v1.0/apps/{slug}` | `gateway.InfoAsync` |
 | `GET /v1.0/apps/{slug}/logo` | `gateway.GetLogoAsync`, `LogoUrl` |
+| `GET /v1.0/apps/{slug}/favicon` | `gateway.GetFaviconAsync`, `FaviconUrl` |
 | `POST /v1.0/apps/{slug}/session` | `gateway.StartSessionAsync` |
 | `DELETE /v1.0/apps/{slug}/session` | `gateway.EndSessionAsync` |
 | `GET /v1.0/apps/{slug}/conversations` | `gateway.ListConversationsAsync` |

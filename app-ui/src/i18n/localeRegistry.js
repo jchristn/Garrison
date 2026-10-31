@@ -1,5 +1,5 @@
 // Central locale registry for the Garrison app UI (the same set as the dashboard).
-// Canonical BCP 47 identifiers with direction, display, beta, and font metadata.
+// Canonical BCP 47 identifiers with direction, display, and font metadata.
 // Adding a locale is an entry here plus a catalog in locales/ (see docs/APP_UI.md).
 
 import { STORAGE_KEYS } from '../utils/storage.js';
@@ -23,24 +23,21 @@ const FONT_JA = `${FONT_BASE}, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu
  *  - dir: 'ltr' or 'rtl'; applied to <html dir>.
  *  - intl: BCP 47 tag handed to Intl formatters (defaults to code).
  *  - aliases: lower-case tags and words that resolve to this locale.
- *  - beta / betaLabel: true until a native speaker has reviewed the catalog; the selector appends betaLabel.
  *  - fontFamily: optional font stack applied to <html> as --locale-font (CJK glyph selection).
  */
 export const LOCALES = [
   { code: 'en', englishName: 'English', nativeName: 'English', dir: 'ltr', aliases: ['en-us', 'en-gb', 'en-ca', 'en-au'] },
-  { code: 'de', englishName: 'German', nativeName: 'Deutsch', dir: 'ltr', aliases: ['de-de', 'de-at', 'de-ch'], beta: true, betaLabel: 'Beta' },
-  { code: 'ja', englishName: 'Japanese', nativeName: '日本語', dir: 'ltr', aliases: ['ja-jp', 'kanji', 'japanese'], fontFamily: FONT_JA, beta: true, betaLabel: 'ベータ版' },
-  { code: 'es', englishName: 'Spanish', nativeName: 'Español', dir: 'ltr', aliases: ['es-es', 'es-mx', 'es-419'], beta: true, betaLabel: 'beta' },
-  { code: 'fr', englishName: 'French', nativeName: 'Français', dir: 'ltr', aliases: ['fr-fr', 'fr-ca', 'fr-be', 'fr-ch'], beta: true, betaLabel: 'bêta' },
-  { code: 'it', englishName: 'Italian', nativeName: 'Italiano', dir: 'ltr', aliases: ['it-it', 'it-ch'], beta: true, betaLabel: 'beta' },
+  { code: 'de', englishName: 'German', nativeName: 'Deutsch', dir: 'ltr', aliases: ['de-de', 'de-at', 'de-ch'] },
+  { code: 'ja', englishName: 'Japanese', nativeName: '日本語', dir: 'ltr', aliases: ['ja-jp', 'kanji', 'japanese'], fontFamily: FONT_JA },
+  { code: 'es', englishName: 'Spanish', nativeName: 'Español', dir: 'ltr', aliases: ['es-es', 'es-mx', 'es-419'] },
+  { code: 'fr', englishName: 'French', nativeName: 'Français', dir: 'ltr', aliases: ['fr-fr', 'fr-ca', 'fr-be', 'fr-ch'] },
+  { code: 'it', englishName: 'Italian', nativeName: 'Italiano', dir: 'ltr', aliases: ['it-it', 'it-ch'] },
   {
     code: 'zh-Hans',
     englishName: 'Mandarin (Simplified)',
     nativeName: '简体中文',
     dir: 'ltr',
     aliases: ['zh', 'zh-cn', 'zh-sg', 'zh-hans-cn', 'cmn-hans'],
-    beta: true,
-    betaLabel: '测试版',
     fontFamily: FONT_ZH_HANS
   },
   {
@@ -49,8 +46,6 @@ export const LOCALES = [
     nativeName: '繁體中文',
     dir: 'ltr',
     aliases: ['zh-tw', 'zh-hant-tw', 'cmn-hant'],
-    beta: true,
-    betaLabel: '測試版',
     fontFamily: FONT_ZH_HANT
   },
   {
@@ -60,8 +55,6 @@ export const LOCALES = [
     dir: 'ltr',
     intl: 'zh-Hant-HK',
     aliases: ['yue', 'yue-hk', 'zh-hk', 'zh-mo', 'zh-hant-hk', 'cantonese'],
-    beta: true,
-    betaLabel: '測試版',
     fontFamily: FONT_YUE_HANT
   },
   { code: 'zz', englishName: 'Pseudo (RTL)', nativeName: '‏Pseudo·RTL‏', dir: 'rtl', intl: 'ar', aliases: ['pseudo', 'rtl'] }
@@ -102,10 +95,10 @@ export function getDirection(code) {
   return getLocaleMeta(code).dir;
 }
 
-/** Selector text: the autonym, plus the localized beta label while the catalog awaits native review. */
+/** Selector text: the language's own name (autonym). */
 export function getLocaleLabel(code) {
   const meta = getLocaleMeta(code);
-  return meta.beta && meta.betaLabel ? `${meta.nativeName} (${meta.betaLabel})` : meta.nativeName;
+  return meta.nativeName;
 }
 
 /**

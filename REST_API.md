@@ -3893,7 +3893,9 @@ Groups of agents behind one end-user chat UI (AD6). [docs/APPS.md](docs/APPS.md)
 
 Errors: 400 `ValidationFailed` with field codes `InvalidName`, `InvalidSlug`, `UnknownAgent`, `DuplicateMember`, `EntryNotMember`, `EdgeNotMember`, `SelfEdge`, `AppGraphCycle`, `UnreachableMember`, `UnknownEnvironment`, `InvalidEntryDeployment`, `InvalidColor`, `UnknownAsset`; 409 `NameConflict`, `AppSlugTaken`, `NoPublishedRevision`, `NoTargetDeployments`. Deleting an agent that belongs to an app answers 409 `AgentInUse`.
 
-The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
+Colors (`primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`) must be `#RRGGBB` or null; anything else is `InvalidColor`. `logoAssetId` and `faviconAssetId` must name an agent asset of the tenant; anything else is `UnknownAsset`.
+
+The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens. `GET /v1.0/apps/{slug}`, `GET /v1.0/apps/{slug}/logo`, and `GET /v1.0/apps/{slug}/favicon` (the favicon asset, else the logo; 404 when neither) need no credentials; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
 
 ### Studio drafts
 
@@ -7713,11 +7715,16 @@ An agentic app (AD6, AD-002): a group of agents with one entry agent that talks 
 | `authMode` | `AppAuthModeEnum` | Who may use the app UI. Default AppUsers. |
 | `anonymousEnabled` | `boolean` | Must be true, in addition to AuthMode Anonymous, for anonymous sessions. Default false. |
 | `showOperatorDetail` | `boolean` | Whether the app UI shows operator detail (tool calls, thinking). Default false. |
-| `displayName` | `string?` | Name shown in the app UI, up to 128 characters, or null for the app name. |
+| `displayName` | `string?` | Name shown in the app UI (header, sign-in page, browser tab title), up to 128 characters of any kind, or null for the app name. Unlike `name` and `slug`, it is not limited to lowercase letters, digits, and hyphens. |
 | `logoAssetId` | `string?` | Agent asset (ReferenceFile) whose first image file is the app's logo, or null. |
-| `primaryColor` | `string?` | Primary color as #RRGGBB, or null for the default. |
+| `primaryColor` | `string?` | Primary color as #RRGGBB (buttons, the header rule, your own messages), or null for the default. |
 | `accentColor` | `string?` | Accent color as #RRGGBB, or null for the default. |
 | `welcomeText` | `string?` | Text shown before the first message, up to 4000 characters, or null. |
+| `backgroundColor` | `string?` | Page background behind the conversation as #RRGGBB, or null for the theme's background. |
+| `headerColor` | `string?` | Header bar background as #RRGGBB, or null for the theme's surface color. |
+| `agentBubbleColor` | `string?` | Background of the agent's messages as #RRGGBB, or null for the theme's bubble color. Your own messages use `primaryColor`. |
+| `fontFamily` | `AppFontEnum?` | Typeface of the chat UI, or null for `System`. |
+| `faviconAssetId` | `string?` | Agent asset (an image) shown as the browser tab icon, or null to use the logo, or the default icon without one. An unknown asset is `UnknownAsset`. |
 | `members` | `AgenticAppMember[]` | Members, including the entry agent. |
 | `edges` | `AgenticAppEdge[]` | Calls members may make to each other. |
 | `environments` | `AgenticAppEnvironment[]` | Entry deployment per environment. |
@@ -7758,6 +7765,10 @@ Which deployment of the entry agent an app uses in one environment (AD6.1). The 
 #### `AppAuthModeEnum`
 
 `TenantUsers`, `AppUsers`, `Anonymous`
+
+#### `AppFontEnum`
+
+`System` (default, the operating system's interface font), `Sans`, `Serif`, `Rounded`, `Mono`. Each maps to a font stack browsers already have, so no font is downloaded.
 
 #### `AppRevision`
 
@@ -7830,6 +7841,11 @@ What an app's chat UI needs before anyone signs in (AD6.6, AD6.10): branding and
 | `primaryColor` | `string?` | Primary color (#RRGGBB), or null. |
 | `accentColor` | `string?` | Accent color (#RRGGBB), or null. |
 | `logoUrl` | `string?` | Logo URL relative to the server, or null without a logo. |
+| `backgroundColor` | `string?` | Page background (#RRGGBB), or null for the theme's background. |
+| `headerColor` | `string?` | Header bar background (#RRGGBB), or null for the theme's surface color. |
+| `agentBubbleColor` | `string?` | Background of the agent's messages (#RRGGBB), or null for the theme's bubble color. |
+| `fontFamily` | `AppFontEnum` | Typeface of the chat UI. Always present; default `System`. |
+| `faviconUrl` | `string?` | `/v1.0/apps/{slug}/favicon` when the app has a favicon or a logo, or null for the default icon. |
 | `authMode` | `AppAuthModeEnum` | Who may sign in. |
 | `anonymousAllowed` | `boolean` | Whether an anonymous session can be started. |
 | `showOperatorDetail` | `boolean` | Whether the UI shows operator detail such as tool calls. |

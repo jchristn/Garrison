@@ -3542,3 +3542,28 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "backgroundColor": "アプリのチャットのページ背景 (#RRGGBB)。空欄ならテーマの背景のままです。",
+   "headerColor": "チャットのヘッダーバーの背景 (#RRGGBB)。空欄ならテーマの色のままです。",
+   "agentBubbleColor": "エージェントのメッセージの背景 (#RRGGBB)。空欄ならテーマの色のままです。",
+   "fontFamily": "チャット全体の書体です。どれもブラウザーにすでにあるフォントを使います。",
+   "faviconAssetId": "ブラウザーのタブに表示する画像のアセットです。空欄ならロゴ、ロゴがなければ既定のアイコンを使います。"
+  }
+ },
+ "form": {
+  "defaultColor": "{{field}} を空にして、チャットの既定の色 {{color}} を使います。"
+ }
+});

@@ -27,9 +27,26 @@ An agentic app is a group of agents that work together behind one chat UI. One m
 | `liveEnvironment` | The environment the app UI uses. Default `dev` |
 | `authMode`, `anonymousEnabled` | Who may use the app UI (see [Sign-in](#sign-in)) |
 | `showOperatorDetail` | Whether end users see tool calls and thinking. Default false |
-| `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `welcomeText` | Branding. The logo is the first image of an agent asset's current version |
+| `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `fontFamily`, `faviconAssetId`, `welcomeText` | Branding (see [Branding](#branding)) |
 
 The control plane checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent that belongs to an app cannot be deleted (409 `AgentInUse`); remove it from the app first.
+
+### Branding
+
+| Field | What it changes |
+|---|---|
+| `displayName` | The name in the header, on the sign-in page, and in the browser tab title. Any characters, up to 128, so "Research Desk" or "Équipe R&D" work. Null shows `name`. `name` and `slug` stay restricted to lowercase letters, digits, and hyphens because they identify the app and name its URL |
+| `logoAssetId` | The logo on the sign-in page and in the header: the first image of an agent asset's current version |
+| `primaryColor` | Buttons, the header rule, and your own messages |
+| `accentColor` | Focus rings, the selected conversation, "New" badges, the busy indicator |
+| `backgroundColor` | The page behind the conversation. Null keeps the theme's background |
+| `headerColor` | The header bar. Null keeps the theme's surface color |
+| `agentBubbleColor` | The agent's messages. Null keeps the theme's bubble color |
+| `fontFamily` | The typeface: `System` (default, the operating system's interface font), `Sans`, `Serif`, `Rounded`, or `Mono`. Each uses fonts browsers already have, so nothing is downloaded |
+| `faviconAssetId` | An image asset shown as the browser tab icon. Null uses the logo, or the default icon when there is no logo |
+| `welcomeText` | Text shown before the first message |
+
+Colors are `#RRGGBB` or null; anything else is 400 `InvalidColor`. An asset that is not one of the tenant's agent assets is 400 `UnknownAsset`. Text on every branded color is black or white, whichever contrasts more, so a dark header or a light bubble stays readable. Branded colors stay the same in light and dark themes; the colors left null follow the theme.
 
 The same app as a manifest document:
 
@@ -56,6 +73,10 @@ spec:
     displayName: Research Desk
     logo: research-logo
     primaryColor: "#1F6FEB"
+    headerColor: "#0D1117"
+    agentBubbleColor: "#EAEEF2"
+    font: Serif
+    favicon: research-icon
     welcomeText: Ask for an overview of any topic.
 ```
 
@@ -94,8 +115,9 @@ Runs started through an app run as the app, with the end user recorded as the ca
 
 | Method and path | Result |
 |---|---|
-| `GET /v1.0/apps/{slug}` | `AppInfo`: display name, description, welcome text, colors, logo URL, sign-in mode, whether anonymous use is allowed |
+| `GET /v1.0/apps/{slug}` | `AppInfo`: display name, description, welcome text, colors, `fontFamily`, logo URL, favicon URL, sign-in mode, whether anonymous use is allowed |
 | `GET /v1.0/apps/{slug}/logo` | The logo image |
+| `GET /v1.0/apps/{slug}/favicon` | The browser tab icon: the favicon asset, else the logo; 404 when the app has neither. Needs no credentials |
 | `POST /v1.0/apps/{slug}/session` | 201 `AppSessionResponse` (`token`, `expiresUtc`, `principalName`, `anonymous`); 401 `InvalidCredentials`, `AppSignInRequired`, `AnonymousDisabled`; 403 `AppAccessDenied` |
 | `DELETE /v1.0/apps/{slug}/session` | 204, signs out |
 | `GET /v1.0/apps/{slug}/conversations` | The owner's conversations in the app |

@@ -42,7 +42,7 @@ nginx in the image (`dashboard/nginx.conf`) has three locations for the app UI:
 
 The gateway needs nothing extra. The image already proxies every `/v1.0/` request to `GARRISON_API_UPSTREAM` (default `http://garrison-server:8700`) with buffering off and hour-long timeouts, which covers `/v1.0/apps/` and its event streams. `GARRISON_API_URL`, when set, is written to both `/config.js` and `/apps/config.js`, so the console and the app UI call the same API origin.
 
-The image's Content-Security-Policy applies to the app UI too: scripts and styles from this origin only, images from this origin and `data:`, API calls to this origin plus `GARRISON_API_URL`. A logo is served by the gateway (`/v1.0/apps/{slug}/logo`), so it loads under that policy. Images in agent answers that point at another site are removed before they render.
+The image's Content-Security-Policy applies to the app UI too: scripts and styles from this origin only, images from this origin and `data:`, API calls to this origin plus `GARRISON_API_URL`. The logo and the favicon are served by the gateway (`/v1.0/apps/{slug}/logo` and `/v1.0/apps/{slug}/favicon`), so they load under that policy. Images in agent answers that point at another site are removed before they render.
 
 ### Kubernetes
 
@@ -56,7 +56,7 @@ The supplied ingresses (`k8s/overlays/k3s`, `k8s/overlays/production`, and the H
 | `src/hooks/useConversation.js` | Loads a conversation, sends messages, follows running turns |
 | `src/hooks/useFiles.js` | The file listing, refreshed on `files.changed` |
 | `src/utils/turns.js` | Folds stream events into a turn (text, status, operator detail) |
-| `src/utils/branding.js` | Branding colors to CSS variables |
+| `src/utils/branding.js` | Branding colors and typeface to CSS variables, the page title, and the tab icon |
 | `src/utils/theme.js` | Light and dark theme |
 | `src/utils/location.js` | Slug and conversation from the URL |
 | `src/components/` | Screens and controls |
@@ -105,8 +105,25 @@ Branding comes from `AppInfo` and becomes CSS variables on `<html>`:
 | `--app-on-primary` | computed | Text on primary: black or white, whichever contrasts more (always at least 4.5:1) |
 | `--app-accent` | `accentColor` | Focus rings, the selected conversation, "New" badges |
 | `--app-on-accent` | computed | Text on accent |
+| `--app-background` | `backgroundColor` | The page behind the conversation |
+| `--app-header` | `headerColor` | The header bar |
+| `--app-agent-bubble` | `agentBubbleColor` | The agent's messages (your own use `--app-primary`) |
+| `--app-on-background`, `--app-on-header`, `--app-on-agent-bubble` | computed | Text on each of those, black or white, whichever contrasts more |
+| `--app-font` | `fontFamily` | The typeface of the whole page |
 
-Only `#rgb` and `#rrggbb` values are accepted. Anything else keeps the built-in teal and amber. The page title becomes the display name, and the logo shows on sign-in and in the header.
+Primary and accent always get a value: only `#rgb` and `#rrggbb` are accepted, and anything else keeps the built-in teal and amber. The background, header, and agent message variables are set only when the app sets those colors, so a null color keeps the theme's own color in both light and dark mode.
+
+`fontFamily` picks a font stack the browser already has, so no font is downloaded and the Content-Security-Policy needs nothing extra:
+
+| `fontFamily` | Stack |
+| --- | --- |
+| `System` (default) | The operating system's interface font (the page's default stack) |
+| `Sans` | Helvetica Neue, Helvetica, Arial |
+| `Serif` | Georgia, Times New Roman |
+| `Rounded` | `ui-rounded` (SF Pro Rounded), then Nunito, Varela Round, Arial Rounded MT Bold where installed |
+| `Mono` | `ui-monospace`, SF Mono, Cascadia Code, Consolas, Menlo |
+
+The page title becomes the display name, which may contain any characters (up to 128); the app's `name` and `slug` stay lowercase letters, digits, and hyphens because they identify the app and its URL. The logo shows on sign-in and in the header. The browser tab icon is `faviconUrl` from `AppInfo`: the favicon asset, else the logo, else the built-in icon.
 
 Light and dark themes are `data-theme` on `<html>`. With no saved choice the page follows the system setting and keeps following it. The toggle saves an explicit choice in `localStorage` (`garrison.app.theme`). Brand colors stay the same in both themes, and the computed text colors keep them readable.
 

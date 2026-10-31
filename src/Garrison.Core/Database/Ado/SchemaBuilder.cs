@@ -348,6 +348,11 @@ namespace Garrison.Core.Database.Ado
             v41.BuildVersion41();
             migrations.Add(new SchemaMigration(41, "Studio drafts and deployment management access", v41._Statements, v41._Columns));
 
+            // App branding: background, header, and agent message colors, typeface, and browser tab icon.
+            SchemaBuilder v42 = new SchemaBuilder(catalog, dialect);
+            v42.BuildVersion42();
+            migrations.Add(new SchemaMigration(42, "App branding colors, typeface, and favicon", v42._Statements, v42._Columns));
+
             return migrations;
         }
 
@@ -411,6 +416,16 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion42()
+        {
+            SqlDialect d = _Dialect;
+            Column("agentic_apps", "backgroundcolor", "VARCHAR(16)");
+            Column("agentic_apps", "headercolor", "VARCHAR(16)");
+            Column("agentic_apps", "agentbubblecolor", "VARCHAR(16)");
+            Column("agentic_apps", "fontfamily", "VARCHAR(32)");
+            Column("agentic_apps", "faviconassetid", d.TypeId);
         }
 
         private void BuildVersion41()

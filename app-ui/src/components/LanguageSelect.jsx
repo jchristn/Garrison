@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LOCALES, canonicalizeLocale, getLocaleLabel } from '../i18n/localeRegistry.js';
 import { tip } from './Tooltip.jsx';
 
-// Language picker: each locale by its own name (autonym), with the beta label while a catalog awaits native review.
+// Language picker: each locale by its own name (autonym), the same list as the dashboard's.
 export default function LanguageSelect({ className = '' }) {
   const { t, i18n } = useTranslation();
   const id = useId();
@@ -15,7 +15,7 @@ export default function LanguageSelect({ className = '' }) {
       </label>
       <select id={id} value={current} onChange={(e) => i18n.changeLanguage(e.target.value)} {...tip(t('tips.language'))} data-testid="language-select">
         {LOCALES.map((l) => (
-          <option key={l.code} value={l.code} data-beta={l.beta ? 'true' : undefined}>
+          <option key={l.code} value={l.code}>
             {getLocaleLabel(l.code)}
           </option>
         ))}

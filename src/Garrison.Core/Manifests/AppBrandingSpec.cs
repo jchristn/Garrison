@@ -29,5 +29,30 @@ namespace Garrison.Core.Manifests
         /// Welcome text, or null.
         /// </summary>
         public string? WelcomeText { get; set; } = null;
+
+        /// <summary>
+        /// Page background (#RRGGBB), or null.
+        /// </summary>
+        public string? BackgroundColor { get; set; } = null;
+
+        /// <summary>
+        /// Header bar background (#RRGGBB), or null.
+        /// </summary>
+        public string? HeaderColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the agent's messages (#RRGGBB), or null.
+        /// </summary>
+        public string? AgentBubbleColor { get; set; } = null;
+
+        /// <summary>
+        /// Typeface: System, Sans, Serif, Rounded, or Mono; null for System.
+        /// </summary>
+        public string? Font { get; set; } = null;
+
+        /// <summary>
+        /// Agent asset name or identifier of the browser tab icon, or null to use the logo.
+        /// </summary>
+        public string? Favicon { get; set; } = null;
     }
 }

@@ -4861,3 +4861,52 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "backgroundColor": "頁面背景",
+    "headerColor": "頁頂顏色",
+    "agentBubbleColor": "代理訊息顏色",
+    "fontFamily": "字型",
+    "faviconAssetId": "分頁圖示"
+   },
+   "hints": {
+    "displayName": "會喺傾偈頁頂同代理嘅訊息度顯示。可以用任何字元，最多 128 個。上面個名只係識別碼。",
+    "faviconAssetId": "一個圖片資源。留空就用標誌。",
+    "primaryColor": "按鈕同你自己嘅訊息。",
+    "accentColor": "突出顯示、焦點框同揀咗嘅對話。",
+    "backgroundColor": "對話後面嘅頁面。",
+    "headerColor": "頂部有名同標誌嗰條欄。",
+    "agentBubbleColor": "代理嘅訊息。文字顏色會按對比自動揀。"
+   },
+   "faviconFromLogo": "同標誌一樣",
+   "defaultColor": "預設 {{color}}"
+  }
+ },
+ "enums": {
+  "appFont": {
+   "System": "系統字型",
+   "Sans": "無襯線",
+   "Serif": "襯線",
+   "Rounded": "圓體",
+   "Mono": "等寬"
+  }
+ },
+ "components": {
+  "form": {
+   "defaultColor": "預設"
+  }
+ }
+});

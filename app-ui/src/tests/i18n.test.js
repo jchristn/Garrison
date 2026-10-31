@@ -19,7 +19,7 @@ describe('locales', () => {
     expect(SUPPORTED_CODES).toEqual(['en', 'de', 'ja', 'es', 'fr', 'it', 'zh-Hans', 'zh-Hant', 'yue-Hant', 'zz']);
     expect(Object.keys(resources).sort()).toEqual([...SUPPORTED_CODES].sort());
     expect(canonicalizeLocale('zh-HK')).toBe('yue-Hant');
-    expect(getLocaleLabel('fr')).toBe('Français (bêta)');
+    expect(getLocaleLabel('fr')).toBe('Français');
   });
 
   it.each(Object.keys(TRANSLATIONS))('%s translates every key, keeps placeholders, and changes the text', (code) => {

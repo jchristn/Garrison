@@ -4861,3 +4861,52 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "backgroundColor": "ページの背景",
+    "headerColor": "ヘッダーの色",
+    "agentBubbleColor": "エージェントのメッセージの色",
+    "fontFamily": "書体",
+    "faviconAssetId": "タブのアイコン"
+   },
+   "hints": {
+    "displayName": "チャットのヘッダーとエージェントのメッセージに表示されます。任意の文字を 128 文字まで使えます。上の名前は識別子にすぎません。",
+    "faviconAssetId": "画像のアセットです。空欄にするとロゴを使います。",
+    "primaryColor": "ボタンと自分のメッセージ。",
+    "accentColor": "強調表示、フォーカス枠、選択中の会話。",
+    "backgroundColor": "会話の後ろのページ。",
+    "headerColor": "名前とロゴがある上部のバー。",
+    "agentBubbleColor": "エージェントのメッセージ。文字色はコントラストで自動的に選ばれます。"
+   },
+   "faviconFromLogo": "ロゴと同じ",
+   "defaultColor": "既定 {{color}}"
+  }
+ },
+ "enums": {
+  "appFont": {
+   "System": "システム",
+   "Sans": "ゴシック体",
+   "Serif": "明朝体",
+   "Rounded": "丸ゴシック",
+   "Mono": "等幅"
+  }
+ },
+ "components": {
+  "form": {
+   "defaultColor": "既定値"
+  }
+ }
+});

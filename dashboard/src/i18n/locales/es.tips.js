@@ -3544,3 +3544,28 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "backgroundColor": "Fondo de la página del chat de la aplicación, como #RRGGBB. Vacío mantiene el fondo del tema.",
+   "headerColor": "Fondo de la barra de encabezado del chat, como #RRGGBB. Vacío mantiene el color del tema.",
+   "agentBubbleColor": "Fondo de los mensajes del agente, como #RRGGBB. Vacío mantiene el color del tema.",
+   "fontFamily": "La tipografía de todo el chat. Cada una usa fuentes que el navegador ya tiene.",
+   "faviconAssetId": "Un recurso de imagen que se muestra como icono de la pestaña. Vacío usa el logotipo, o el icono predeterminado si no hay."
+  }
+ },
+ "form": {
+  "defaultColor": "Vacíe {{field}} para que el chat use su color predeterminado, {{color}}."
+ }
+});

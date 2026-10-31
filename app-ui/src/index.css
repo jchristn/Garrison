@@ -72,9 +72,9 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--color-background);
+  background: var(--app-background, var(--color-background));
   color: var(--color-text);
-  font-family: var(--font-family);
+  font-family: var(--app-font, var(--font-family));
   font-size: var(--font-size-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -270,7 +270,8 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
   align-items: center;
   gap: var(--spacing-sm);
   padding: 0 var(--spacing-sm);
-  background: var(--color-surface);
+  background: var(--app-header, var(--color-surface));
+  color: var(--app-on-header, var(--color-text));
   border-bottom: 1px solid var(--color-border);
   border-top: 3px solid var(--app-primary);
 }
@@ -323,7 +324,7 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 
 /* ---------------------------------------------------------------- chat */
 .chat-pane { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.chat-scroll { flex: 1 1 auto; overflow-y: auto; padding: var(--spacing-md); }
+.chat-scroll { flex: 1 1 auto; overflow-y: auto; padding: var(--spacing-md); background: var(--app-background, transparent); color: var(--app-on-background, inherit); }
 .welcome { max-width: 720px; margin: 10vh auto 0; text-align: center; }
 .welcome-title { font-size: var(--font-size-xl); margin-bottom: var(--spacing-sm); }
 .welcome .markdown-body { color: var(--color-text-muted); }
@@ -334,7 +335,7 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 .message-author { display: block; font-size: var(--font-size-xs); font-weight: 700; margin-bottom: 2px; opacity: 0.9; }
 .message-user { align-self: flex-end; margin-inline-start: auto; background: var(--app-primary); color: var(--app-on-primary); border-end-end-radius: var(--spacing-xs); }
 .message-user .message-text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.message-agent { align-self: flex-start; margin-inline-end: auto; background: var(--color-agent-bubble); border: 1px solid var(--color-border); max-width: 88%; border-end-start-radius: var(--spacing-xs); }
+.message-agent { align-self: flex-start; margin-inline-end: auto; background: var(--app-agent-bubble, var(--color-agent-bubble)); color: var(--app-on-agent-bubble, var(--color-text)); border: 1px solid var(--color-border); max-width: 88%; border-end-start-radius: var(--spacing-xs); }
 .turn-state { display: flex; align-items: center; gap: var(--spacing-sm); color: var(--color-text-muted); font-size: var(--font-size-sm); margin: var(--spacing-xs) 0; }
 .dots { width: 10px; height: 10px; border-radius: 50%; background: var(--app-accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.3; } }

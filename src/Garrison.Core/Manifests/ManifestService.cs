@@ -1208,6 +1208,15 @@ namespace Garrison.Core.Manifests
                 app.PrimaryColor = String.IsNullOrWhiteSpace(spec.Branding.PrimaryColor) ? null : spec.Branding.PrimaryColor;
                 app.AccentColor = String.IsNullOrWhiteSpace(spec.Branding.AccentColor) ? null : spec.Branding.AccentColor;
                 app.WelcomeText = String.IsNullOrWhiteSpace(spec.Branding.WelcomeText) ? null : spec.Branding.WelcomeText;
+                app.BackgroundColor = String.IsNullOrWhiteSpace(spec.Branding.BackgroundColor) ? null : spec.Branding.BackgroundColor;
+                app.HeaderColor = String.IsNullOrWhiteSpace(spec.Branding.HeaderColor) ? null : spec.Branding.HeaderColor;
+                app.AgentBubbleColor = String.IsNullOrWhiteSpace(spec.Branding.AgentBubbleColor) ? null : spec.Branding.AgentBubbleColor;
+                if (!String.IsNullOrWhiteSpace(spec.Branding.Font))
+                {
+                    if (!Enum.TryParse(spec.Branding.Font, true, out AppFontEnum font)) throw new ValidationException("branding.font must be System, Sans, Serif, Rounded, or Mono.", new Dictionary<string, string> { { "branding.font", "System, Sans, Serif, Rounded, or Mono." } });
+                    app.FontFamily = font;
+                }
+                if (!String.IsNullOrWhiteSpace(spec.Branding.Favicon)) app.FaviconAssetId = await resolver.RequireAsync("AgentAsset", spec.Branding.Favicon, "branding.favicon", token).ConfigureAwait(false);
             }
 
             AgenticApp? existing = await _Database.Apps.ReadByNameAsync(tenantId, app.Name, token).ConfigureAwait(false);
@@ -1282,6 +1291,11 @@ namespace Garrison.Core.Manifests
             if (app.PrimaryColor != null) branding["primaryColor"] = app.PrimaryColor;
             if (app.AccentColor != null) branding["accentColor"] = app.AccentColor;
             if (app.WelcomeText != null) branding["welcomeText"] = app.WelcomeText;
+            if (app.BackgroundColor != null) branding["backgroundColor"] = app.BackgroundColor;
+            if (app.HeaderColor != null) branding["headerColor"] = app.HeaderColor;
+            if (app.AgentBubbleColor != null) branding["agentBubbleColor"] = app.AgentBubbleColor;
+            if (app.FontFamily.HasValue && app.FontFamily.Value != AppFontEnum.System) branding["font"] = app.FontFamily.Value.ToString();
+            if (app.FaviconAssetId != null) branding["favicon"] = await resolver.NameAsync("AgentAsset", app.FaviconAssetId, token).ConfigureAwait(false) ?? app.FaviconAssetId;
             if (branding.Count > 0) tree["branding"] = branding;
             return tree;
         }

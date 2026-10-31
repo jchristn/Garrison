@@ -22,7 +22,8 @@ import zhHant from '../../src/i18n/locales/zh-Hant.js';
 import yueHant from '../../src/i18n/locales/yue-Hant.js';
 
 const CATALOGS = { de, es, fr, it, ja, 'zh-Hans': zhHans, 'zh-Hant': zhHant, 'yue-Hant': yueHant };
-const BETA = LOCALES.filter((l) => l.beta);
+// Every translated locale (all but English and the pseudo-locale).
+const TRANSLATED = LOCALES.filter((l) => l.code !== 'en' && l.code !== 'zz');
 
 // A raw key: a known top-level namespace followed by at least two dotted segments.
 const RAW_KEY_SOURCE =
@@ -64,14 +65,11 @@ test.beforeEach(async ({ page }) => {
   await installMocks(page);
 });
 
-test('language selectors list every locale by autonym with beta labels', async ({ page }) => {
+test('language selectors list every locale by its own name, with no beta labels', async ({ page }) => {
   await page.goto('/');
   const loginOptions = page.locator('.login-lang select option');
   await expect(loginOptions).toHaveText(LOCALES.map((l) => getLocaleLabel(l.code)));
-  for (const l of BETA) {
-    await expect(page.locator(`.login-lang select option[value="${l.code}"]`)).toHaveAttribute('data-beta', 'true');
-    await expect(page.locator(`.login-lang select option[value="${l.code}"]`)).toContainText(l.betaLabel);
-  }
+  for (const l of TRANSLATED) await expect(page.locator(`.login-lang select option[value="${l.code}"]`)).toHaveText(l.nativeName);
   await expect(page.locator('.login-lang select option[value="en"]')).toHaveText('English');
 
   // The login page selector switches language before sign-in.
@@ -84,7 +82,7 @@ test('language selectors list every locale by autonym with beta labels', async (
   await expect(page.locator('.topbar .topbar-lang select option')).toHaveText(LOCALES.map((l) => getLocaleLabel(l.code)));
 });
 
-for (const meta of BETA) {
+for (const meta of TRANSLATED) {
   const catalog = CATALOGS[meta.code];
   test(`switches to ${meta.code}, renders translations, persists, and shows no raw keys`, async ({ page }) => {
     await login(page);

@@ -4889,3 +4889,52 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "backgroundColor": "Page background",
+    "headerColor": "Header color",
+    "agentBubbleColor": "Agent message color",
+    "fontFamily": "Typeface",
+    "faviconAssetId": "Browser tab icon"
+   },
+   "hints": {
+    "displayName": "Shown in the chat header and on the agent's messages. Any characters, up to 128. The name above is only the identifier.",
+    "faviconAssetId": "An image asset. Leave it empty to use the logo.",
+    "primaryColor": "Buttons and your own messages.",
+    "accentColor": "Highlights, focus rings, and the selected conversation.",
+    "backgroundColor": "The page behind the conversation.",
+    "headerColor": "The bar across the top with the name and logo.",
+    "agentBubbleColor": "The agent's messages. Text color is picked for contrast."
+   },
+   "faviconFromLogo": "Same as the logo",
+   "defaultColor": "Default {{color}}"
+  }
+ },
+ "enums": {
+  "appFont": {
+   "System": "System",
+   "Sans": "Sans-serif",
+   "Serif": "Serif",
+   "Rounded": "Rounded",
+   "Mono": "Monospace"
+  }
+ },
+ "components": {
+  "form": {
+   "defaultColor": "Default"
+  }
+ }
+});

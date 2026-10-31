@@ -43,15 +43,15 @@ describe('locale registry', () => {
     expect(toIntlLocale('yue-Hant')).toBe('zh-Hant-HK');
     expect(toIntlLocale('fr-CA')).toBe('fr');
   });
-  it('labels the new locales beta in their own language', () => {
+  it('labels every locale by its own name, with no beta marker', () => {
     expect(getLocaleLabel('en')).toBe('English');
-    expect(getLocaleLabel('es')).toBe('Español (beta)');
-    expect(getLocaleLabel('fr')).toBe('Français (bêta)');
-    expect(getLocaleLabel('it')).toBe('Italiano (beta)');
-    expect(getLocaleLabel('zh-Hans')).toBe('简体中文 (测试版)');
-    expect(getLocaleLabel('zh-Hant')).toBe('繁體中文 (測試版)');
-    expect(getLocaleLabel('yue-Hant')).toBe('粵語 (測試版)');
-    for (const l of LOCALES) if (l.beta) expect(l.betaLabel, l.code).toBeTruthy();
+    expect(getLocaleLabel('es')).toBe('Español');
+    expect(getLocaleLabel('fr')).toBe('Français');
+    expect(getLocaleLabel('it')).toBe('Italiano');
+    expect(getLocaleLabel('zh-Hans')).toBe('简体中文');
+    expect(getLocaleLabel('zh-Hant')).toBe('繁體中文');
+    expect(getLocaleLabel('yue-Hant')).toBe('粵語');
+    for (const l of LOCALES) expect(l.beta, l.code).toBeUndefined();
   });
   it('gives CJK locales a regional font hint', () => {
     expect(getLocaleMeta('zh-Hans').fontFamily).toContain('PingFang SC');

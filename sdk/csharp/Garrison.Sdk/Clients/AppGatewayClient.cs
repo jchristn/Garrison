@@ -135,6 +135,28 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Absolute URL of the app's browser tab icon: the favicon asset, else the logo. The URL answers 404 when the
+        /// app has neither.
+        /// </summary>
+        /// <returns>Favicon URL.</returns>
+        public string FaviconUrl()
+        {
+            return Transport.BaseUrl + AppPath("/favicon");
+        }
+
+        /// <summary>
+        /// Download the app's browser tab icon: the favicon asset, else the logo.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Image bytes.</returns>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 404 when the app has neither a
+        /// favicon nor a logo.</exception>
+        public async Task<byte[]> GetFaviconAsync(CancellationToken token = default)
+        {
+            return await Transport.DownloadAsync(AppPath("/favicon"), null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Start a session. With a null request (or null email and password) the session is anonymous, which works only
         /// when the app's auth mode is Anonymous and anonymous use is enabled. The token is kept for later calls.
         /// </summary>

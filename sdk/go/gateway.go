@@ -13,7 +13,9 @@ import (
 )
 
 // AppInfo is an app's branding and sign-in mode, from GET /v1.0/apps/{slug}. Reading it needs no credentials.
-// AuthMode is one of AppAuthModeTenantUsers, AppAuthModeAppUsers, or AppAuthModeAnonymous.
+// AuthMode is one of AppAuthModeTenantUsers, AppAuthModeAppUsers, or AppAuthModeAnonymous. FontFamily is one of the
+// AppFont constants and is always present (default System). FaviconURL is /v1.0/apps/{slug}/favicon when the app has a
+// favicon or a logo, else nil.
 type AppInfo struct {
 	Slug               string  `json:"slug"`
 	DisplayName        string  `json:"displayName"`
@@ -22,6 +24,11 @@ type AppInfo struct {
 	PrimaryColor       *string `json:"primaryColor"`
 	AccentColor        *string `json:"accentColor"`
 	LogoURL            *string `json:"logoUrl"`
+	BackgroundColor    *string `json:"backgroundColor"`
+	HeaderColor        *string `json:"headerColor"`
+	AgentBubbleColor   *string `json:"agentBubbleColor"`
+	FontFamily         string  `json:"fontFamily"`
+	FaviconURL         *string `json:"faviconUrl"`
 	AuthMode           string  `json:"authMode"`
 	AnonymousAllowed   bool    `json:"anonymousAllowed"`
 	ShowOperatorDetail bool    `json:"showOperatorDetail"`
@@ -157,6 +164,20 @@ func (g *AppGatewayClient) LogoURL() string { return g.c.BaseURL + g.path("/logo
 // Logo downloads the app's logo image (404 when the app has none).
 func (g *AppGatewayClient) Logo(ctx context.Context) ([]byte, error) {
 	resp, err := g.c.send(ctx, http.MethodGet, g.path("/logo"), nil, nil, "", "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
+}
+
+// FaviconURL returns the absolute URL of the app's browser tab icon: the favicon asset, else the logo (404 when the app
+// has neither).
+func (g *AppGatewayClient) FaviconURL() string { return g.c.BaseURL + g.path("/favicon") }
+
+// Favicon downloads the app's browser tab icon: the favicon asset, else the logo (404 when the app has neither).
+func (g *AppGatewayClient) Favicon(ctx context.Context) ([]byte, error) {
+	resp, err := g.c.send(ctx, http.MethodGet, g.path("/favicon"), nil, nil, "", "")
 	if err != nil {
 		return nil, err
 	}

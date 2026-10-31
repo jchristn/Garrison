@@ -3542,3 +3542,28 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "backgroundColor": "應用程式傾偈嘅頁面背景，格式係 #RRGGBB。留空就保留主題背景。",
+   "headerColor": "傾偈頁頂欄嘅背景，格式係 #RRGGBB。留空就保留主題顏色。",
+   "agentBubbleColor": "代理訊息嘅背景，格式係 #RRGGBB。留空就保留主題顏色。",
+   "fontFamily": "成個傾偈介面嘅字型。每一種都用瀏覽器本身已經有嘅字型。",
+   "faviconAssetId": "喺瀏覽器分頁顯示做圖示嘅圖片資源。留空就用標誌，冇標誌就用預設圖示。"
+  }
+ },
+ "form": {
+  "defaultColor": "清空{{field}}，等傾偈用返預設顏色 {{color}}。"
+ }
+});

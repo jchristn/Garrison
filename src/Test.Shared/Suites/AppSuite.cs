@@ -375,7 +375,7 @@ namespace Test.Shared.Suites
                     "  environments: [ { environment: dev, deployment: mf-orchestrator-dev } ]",
                     "  authMode: Anonymous",
                     "  anonymousEnabled: true",
-                    "  branding: { displayName: Research Desk, primaryColor: '#1F6FEB', welcomeText: Ask for an overview. }",
+                    "  branding: { displayName: 'Research Desk (Beta & Co.)', primaryColor: '#1F6FEB', welcomeText: Ask for an overview., backgroundColor: '#0B1220', headerColor: '#FFFFFF', agentBubbleColor: '#FEF3C7', font: Serif }",
                     ""
                 });
                 ManifestApply first = await ApplyAsync(host, yaml, token).ConfigureAwait(false);
@@ -383,7 +383,14 @@ namespace Test.Shared.Suites
                 ManifestApply second = await ApplyAsync(host, yaml, token).ConfigureAwait(false);
                 Assert.Equal(second.DocumentCount, second.UnchangedCount, "Re-apply is unchanged: " + Serializer.Serialize(second.Items.Where(i => i.Result != ManifestApplyResultEnum.Unchanged)));
                 AgenticApp app = await HttpTestHelpers.SendAsync<AgenticApp>(host.AdminClient, HttpMethod.Get, T(host) + "/apps/mf-research", null, 200, token).ConfigureAwait(false);
-                Assert.True(app.DisplayName == "Research Desk" && app.Members.Count == 2 && app.Edges.Count == 1 && app.Environments.Count == 1, "Applied app");
+                Assert.True(app.DisplayName == "Research Desk (Beta & Co.)" && app.Members.Count == 2 && app.Edges.Count == 1 && app.Environments.Count == 1, "Applied app");
+                Assert.True(app.BackgroundColor == "#0B1220" && app.HeaderColor == "#FFFFFF" && app.AgentBubbleColor == "#FEF3C7" && app.FontFamily == AppFontEnum.Serif, "Branding colors and typeface applied");
+                AppInfo info = await HttpTestHelpers.SendAsync<AppInfo>(host.AdminClient, HttpMethod.Get, "/v1.0/apps/" + app.Slug, null, 200, token).ConfigureAwait(false);
+                Assert.True(info.DisplayName == "Research Desk (Beta & Co.)" && info.BackgroundColor == "#0B1220" && info.HeaderColor == "#FFFFFF" && info.AgentBubbleColor == "#FEF3C7" && info.FontFamily == AppFontEnum.Serif && info.FaviconUrl == null, "The app UI receives the branding: " + Serializer.Serialize(info));
+                AgenticApp badColor = Serializer.Deserialize<AgenticApp>(Serializer.Serialize(app))!;
+                badColor.HeaderColor = "blue";
+                TestResponse refused = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, T(host) + "/apps/" + app.Id, badColor, token).ConfigureAwait(false);
+                Assert.True(refused.StatusCode == 400 && refused.Body.Contains("headerColor", StringComparison.Ordinal) && refused.Body.Contains("InvalidColor", StringComparison.Ordinal), "A color that is not #RRGGBB is refused: " + refused.Body);
 
                 using (HttpResponseMessage exported = await host.AdminClient.GetAsync(T(host) + "/manifests/export?resources=AgenticApp/mf-research&followReferences=true", token).ConfigureAwait(false))
                 {

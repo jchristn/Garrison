@@ -377,7 +377,9 @@ Management tools for apps (AD6), for users and credentials only:
 | `garrison_create_app` | AgenticApp.Create | `configuration` (REST app fields; agents by name or ID) |
 | `garrison_update_app` | AgenticApp.Update on the resolved ID | `app`, `configuration` |
 
-Validation errors use the REST field codes. See [docs/APPS.md](docs/APPS.md).
+`configuration` takes the REST `AgenticApp` fields, including the branding fields `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor` (each color `#RRGGBB` or null), `fontFamily` (`System`, `Sans`, `Serif`, `Rounded`, `Mono`), `faviconAssetId`, and `welcomeText`.
+
+Validation errors use the REST field codes (for example `InvalidColor`, `UnknownAsset`). See [docs/APPS.md](docs/APPS.md).
 
 ## Studio drafts
 

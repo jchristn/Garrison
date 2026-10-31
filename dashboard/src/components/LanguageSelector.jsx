@@ -3,8 +3,8 @@ import { LOCALES, canonicalizeLocale, getLocaleLabel } from '../i18n/localeRegis
 import { tip } from './Tooltip';
 
 /**
- * Locale <select>, rendering autonyms. Locales awaiting native-speaker review carry their localized beta label,
- * for example "Français (bêta)". Used in login, topbar, and settings.
+ * Locale <select>, rendering autonyms (Français, 日本語), the same list as the app UI's. Used in login, topbar, and
+ * settings.
  */
 export default function LanguageSelector({ compact = false, className = '' }) {
   const { i18n, t } = useTranslation();
@@ -20,7 +20,7 @@ export default function LanguageSelector({ compact = false, className = '' }) {
         onChange={(e) => i18n.changeLanguage(e.target.value)}
       >
         {LOCALES.map((l) => (
-          <option key={l.code} value={l.code} lang={l.code === 'zz' ? undefined : l.code} dir={l.dir} data-beta={l.beta ? 'true' : undefined}>
+          <option key={l.code} value={l.code} lang={l.code === 'zz' ? undefined : l.code} dir={l.dir}>
             {getLocaleLabel(l.code)}
           </option>
         ))}

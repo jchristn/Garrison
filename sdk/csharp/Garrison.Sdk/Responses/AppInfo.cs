@@ -65,6 +65,32 @@ namespace Garrison.Sdk.Responses
         public string? LogoUrl { get; set; } = null;
 
         /// <summary>
+        /// Page background as #RRGGBB, or null for the theme's background.
+        /// </summary>
+        public string? BackgroundColor { get; set; } = null;
+
+        /// <summary>
+        /// Header bar background as #RRGGBB, or null for the theme's surface color.
+        /// </summary>
+        public string? HeaderColor { get; set; } = null;
+
+        /// <summary>
+        /// Background of the agent's messages as #RRGGBB, or null for the theme's bubble color.
+        /// </summary>
+        public string? AgentBubbleColor { get; set; } = null;
+
+        /// <summary>
+        /// Typeface of the chat UI. Default System.
+        /// </summary>
+        public AppFontEnum FontFamily { get; set; } = AppFontEnum.System;
+
+        /// <summary>
+        /// Relative URL of the browser tab icon (/v1.0/apps/{slug}/favicon) when the app has a favicon or a logo, or
+        /// null for the default icon.
+        /// </summary>
+        public string? FaviconUrl { get; set; } = null;
+
+        /// <summary>
         /// How end users sign in. Default AppUsers.
         /// </summary>
         public AppAuthModeEnum AuthMode { get; set; } = AppAuthModeEnum.AppUsers;

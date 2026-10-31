@@ -427,7 +427,12 @@ class AgenticApp(TypedDict, total=False):
     name. entryAgentId (an agent name is accepted on write) talks to end users. authMode is one of APP_AUTH_MODES
     (default AppUsers); Anonymous also needs anonymousEnabled. liveEnvironment (default dev) is the environment the app
     UI uses. The server checks that the entry agent is a member, edges connect members, every member is reachable from
-    the entry agent, and the edges have no cycle."""
+    the entry agent, and the edges have no cycle. Branding: displayName takes any characters up to 128 (None shows the
+    name). primaryColor (buttons, the header rule, your own messages), accentColor, backgroundColor (page behind the
+    conversation), headerColor (header bar), and agentBubbleColor (the agent's messages) are #RRGGBB or None for the
+    theme default; anything else is 400 InvalidColor. fontFamily is one of APP_FONTS (None means System).
+    faviconAssetId is an image asset shown as the browser tab icon; None uses the logo (logoAssetId), or the default
+    icon without one. An unknown asset is 400 UnknownAsset."""
     id: str
     tenantId: str
     name: str
@@ -443,6 +448,11 @@ class AgenticApp(TypedDict, total=False):
     primaryColor: Optional[str]
     accentColor: Optional[str]
     welcomeText: Optional[str]
+    backgroundColor: Optional[str]
+    headerColor: Optional[str]
+    agentBubbleColor: Optional[str]
+    fontFamily: Optional[str]
+    faviconAssetId: Optional[str]
     members: List[AgenticAppMember]
     edges: List[AgenticAppEdge]
     environments: List[AgenticAppEnvironment]
@@ -503,7 +513,9 @@ class AppDelegationPlan(TypedDict, total=False):
 
 
 class AppInfo(TypedDict, total=False):
-    """Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials."""
+    """Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. fontFamily is one of
+    APP_FONTS and is always present (default System). faviconUrl is /v1.0/apps/{slug}/favicon when the app has a
+    favicon or a logo, else None."""
     slug: str
     displayName: str
     description: Optional[str]
@@ -511,6 +523,11 @@ class AppInfo(TypedDict, total=False):
     primaryColor: Optional[str]
     accentColor: Optional[str]
     logoUrl: Optional[str]
+    backgroundColor: Optional[str]
+    headerColor: Optional[str]
+    agentBubbleColor: Optional[str]
+    fontFamily: str
+    faviconUrl: Optional[str]
     authMode: str
     anonymousAllowed: bool
     showOperatorDetail: bool
@@ -974,6 +991,9 @@ FAN_OUT_JOIN_POLICIES = ("All", "Any", "Quorum")
 # Agentic apps. AgenticApp["authMode"]: TenantUsers (any active tenant user), AppUsers (users holding the built-in
 # APP_USER_ROLE on the app; the default), or Anonymous (anyone, when anonymousEnabled is also true).
 APP_AUTH_MODES = ("TenantUsers", "AppUsers", "Anonymous")
+# Typefaces of an app's chat UI (AgenticApp["fontFamily"]), each a font stack browsers already have. System is the
+# default.
+APP_FONTS = ("System", "Sans", "Serif", "Rounded", "Mono")
 # Built-in role that lets a user use one app's chat UI. Assign it with resource scope on the app identifier; it grants
 # nothing in the management API. Permissions name the app resource type as APP_RESOURCE_TYPE.
 APP_USER_ROLE = "AppUser"
@@ -1762,6 +1782,15 @@ class AppGateway:
     def logo(self) -> bytes:
         """The app's logo image bytes. Raises GarrisonError 404 when the app has none."""
         return self.transport.request_bytes(self._p("/logo"))
+
+    def favicon_url(self) -> str:
+        """Absolute URL of the app's browser tab icon: the favicon asset, else the logo (404 when it has neither)."""
+        return self.transport.base_url + self._p("/favicon")
+
+    def favicon(self) -> bytes:
+        """The app's browser tab icon bytes: the favicon asset, else the logo. Raises GarrisonError 404 when the app
+        has neither."""
+        return self.transport.request_bytes(self._p("/favicon"))
 
     def start_session(self, email: Optional[str] = None, password: Optional[str] = None) -> AppSessionResponse:
         """Start a session with an email and password, or with neither for an anonymous session (only when the app's

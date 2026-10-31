@@ -60,6 +60,21 @@ export function signInKey(app) {
   return APP_AUTH_MODES.includes(mode) ? mode : 'AppUsers';
 }
 
+/** The app's branding colors, in the order the form shows them. */
+export const APP_COLOR_FIELDS = ['primaryColor', 'accentColor', 'backgroundColor', 'headerColor', 'agentBubbleColor'];
+
+/** The color the app chat uses (light theme) when a branding color is left empty. Mirrors app-ui/src/utils/branding.js. */
+export const APP_DEFAULT_COLORS = {
+  primaryColor: '#0F766E',
+  accentColor: '#B45309',
+  backgroundColor: '#F8FAFC',
+  headerColor: '#FFFFFF',
+  agentBubbleColor: '#FFFFFF'
+};
+
+/** Typefaces of the app chat (AppFontEnum). */
+export const APP_FONTS = ['System', 'Sans', 'Serif', 'Rounded', 'Mono'];
+
 /** A blank app for the create form. */
 export function blankApp() {
   return {
@@ -78,6 +93,11 @@ export function blankApp() {
     logoAssetId: '',
     primaryColor: '',
     accentColor: '',
+    backgroundColor: '',
+    headerColor: '',
+    agentBubbleColor: '',
+    fontFamily: 'System',
+    faviconAssetId: '',
     welcomeText: '',
     active: true
   };
@@ -97,6 +117,11 @@ export function appToForm(app) {
     logoAssetId: text(a.logoAssetId),
     primaryColor: text(a.primaryColor),
     accentColor: text(a.accentColor),
+    backgroundColor: text(a.backgroundColor),
+    headerColor: text(a.headerColor),
+    agentBubbleColor: text(a.agentBubbleColor),
+    fontFamily: a.fontFamily || 'System',
+    faviconAssetId: text(a.faviconAssetId),
     welcomeText: text(a.welcomeText),
     liveEnvironment: a.liveEnvironment || 'dev',
     authMode: a.authMode || 'AppUsers',
@@ -141,6 +166,11 @@ export function appToBody(form) {
     logoAssetId: optional(d.logoAssetId),
     primaryColor: optional(d.primaryColor),
     accentColor: optional(d.accentColor),
+    backgroundColor: optional(d.backgroundColor),
+    headerColor: optional(d.headerColor),
+    agentBubbleColor: optional(d.agentBubbleColor),
+    fontFamily: APP_FONTS.includes(d.fontFamily) && d.fontFamily !== 'System' ? d.fontFamily : null,
+    faviconAssetId: optional(d.faviconAssetId),
     welcomeText: d.welcomeText && String(d.welcomeText).trim() ? String(d.welcomeText) : null,
     active: d.active !== false
   };
@@ -214,7 +244,7 @@ export function appErrors(form, t, nameOf = (id) => id) {
   if (String(d.description || '').length > APP_LIMITS.description) code('description', 'TooLong');
   if (String(d.displayName || '').length > APP_LIMITS.displayName) code('displayName', 'TooLong');
   if (String(d.welcomeText || '').length > APP_LIMITS.welcomeText) code('welcomeText', 'TooLong');
-  for (const key of ['primaryColor', 'accentColor']) {
+  for (const key of APP_COLOR_FIELDS) {
     const v = String(d[key] || '').trim();
     if (v && !APP_COLOR_PATTERN.test(v)) code(key, 'InvalidColor');
   }

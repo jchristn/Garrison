@@ -4862,3 +4862,52 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "resources": {
+  "apps": {
+   "fields": {
+    "backgroundColor": "页面背景",
+    "headerColor": "页眉颜色",
+    "agentBubbleColor": "智能体消息颜色",
+    "fontFamily": "字体",
+    "faviconAssetId": "标签页图标"
+   },
+   "hints": {
+    "displayName": "显示在聊天页眉和智能体的消息上。可用任意字符，最多 128 个。上面的名称只是标识符。",
+    "faviconAssetId": "一个图片资源。留空则使用徽标。",
+    "primaryColor": "按钮和你自己的消息。",
+    "accentColor": "高亮、焦点边框和所选会话。",
+    "backgroundColor": "对话后面的页面。",
+    "headerColor": "顶部显示名称和徽标的栏。",
+    "agentBubbleColor": "智能体的消息。文字颜色会按对比度自动选择。"
+   },
+   "faviconFromLogo": "与徽标相同",
+   "defaultColor": "默认 {{color}}"
+  }
+ },
+ "enums": {
+  "appFont": {
+   "System": "系统字体",
+   "Sans": "无衬线",
+   "Serif": "衬线",
+   "Rounded": "圆体",
+   "Mono": "等宽"
+  }
+ },
+ "components": {
+  "form": {
+   "defaultColor": "默认"
+  }
+ }
+});

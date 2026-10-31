@@ -3542,3 +3542,28 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+// App branding: background, header, and agent message colors, typeface, and browser tab icon.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "backgroundColor": "Page background of the app chat, as #RRGGBB. Empty keeps the theme's background.",
+   "headerColor": "Background of the chat's header bar, as #RRGGBB. Empty keeps the theme's color.",
+   "agentBubbleColor": "Background of the agent's messages, as #RRGGBB. Empty keeps the theme's color.",
+   "fontFamily": "The typeface of the whole chat. Each one uses fonts the browser already has.",
+   "faviconAssetId": "An image asset shown as the browser tab icon. Empty uses the logo, or the default icon without one."
+  }
+ },
+ "form": {
+  "defaultColor": "Clear {{field}} so the chat uses its default color, {{color}}."
+ }
+});
