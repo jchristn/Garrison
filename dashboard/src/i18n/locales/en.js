@@ -456,7 +456,7 @@ const en = {
     connecting: 'Signing in...',
     restoring: 'Restoring your session...',
     errorGeneric: 'Could not sign in. Check your credentials and that the server is reachable.',
-    footerHint: 'Local development default: admin@garrison in tenant default.'
+    footerHint: 'Default credentials: admin@garrison / password in tenant default.'
   },
   topbar: {
     server: 'Server',

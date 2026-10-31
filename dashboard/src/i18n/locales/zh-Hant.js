@@ -433,7 +433,7 @@ const zhHant = {
     connecting: '登入中...',
     restoring: '正在還原你的工作階段...',
     errorGeneric: '無法登入。請檢查你的憑證，並確認伺服器可以連線。',
-    footerHint: '本機開發預設值：租用戶 default 中的 admin@garrison。'
+    footerHint: '預設憑證：租用戶 default 中的 admin@garrison / password。'
   },
   topbar: {
     server: '伺服器',

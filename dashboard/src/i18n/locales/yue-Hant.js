@@ -433,7 +433,7 @@ const yueHant = {
     connecting: '登入緊...',
     restoring: '還原緊你嘅工作階段...',
     errorGeneric: '登入唔到。請檢查你嘅憑證，同埋伺服器係咪連得到。',
-    footerHint: '本機開發預設：租用戶 default 入面嘅 admin@garrison。'
+    footerHint: '預設憑證：租用戶 default 入面嘅 admin@garrison / password。'
   },
   topbar: {
     server: '伺服器',

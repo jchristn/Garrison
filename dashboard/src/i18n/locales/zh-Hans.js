@@ -433,7 +433,7 @@ const zhHans = {
     connecting: '正在登录...',
     restoring: '正在恢复你的会话...',
     errorGeneric: '无法登录。请检查你的凭据，并确认服务器可以访问。',
-    footerHint: '本地开发默认账户：租户 default 中的 admin@garrison。'
+    footerHint: '默认凭据：租户 default 中的 admin@garrison / password。'
   },
   topbar: {
     server: '服务器',

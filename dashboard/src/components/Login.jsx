@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { DEV_DEFAULTS, customServerAllowed, defaultServerUrl, storedServerUrl } from '../utils/constants';
+import { APP_VERSION, DEV_DEFAULTS, customServerAllowed, defaultServerUrl, storedServerUrl } from '../utils/constants';
 import { errorMessage } from '../utils/errors';
 import LanguageSelector from './LanguageSelector';
 import { EyeIcon, EyeOffIcon, SunIcon, MoonIcon } from './Icons';
@@ -69,7 +69,6 @@ export default function Login() {
         <div className="login-brand">
           <img src="/assets/logo.png" alt="" width="56" height="56" />
           <h1>{t('login.title')}</h1>
-          <p>{t('login.subtitle')}</p>
         </div>
 
         <div className="login-tabs" role="tablist">
@@ -141,6 +140,9 @@ export default function Login() {
         <div className="login-footer">{t('login.footerHint')}</div>
         <div className="login-footer login-server" data-testid="login-server" {...tip(t('tips.login.serverInUse'))}>
           {t('login.serverInUse')} <code>{effectiveUrl}</code>
+        </div>
+        <div className="login-version" data-testid="login-version">
+          v{APP_VERSION}
         </div>
       </div>
     </main>

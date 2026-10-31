@@ -464,7 +464,7 @@ const es = {
     connecting: 'Iniciando sesión...',
     restoring: 'Restaurando tu sesión...',
     errorGeneric: 'No se pudo iniciar sesión. Comprueba tus credenciales y que el servidor esté accesible.',
-    footerHint: 'Valor predeterminado en desarrollo local: admin@garrison en el inquilino default.'
+    footerHint: 'Credenciales predeterminadas: admin@garrison / password en el inquilino default.'
   },
   topbar: {
     server: 'Servidor',

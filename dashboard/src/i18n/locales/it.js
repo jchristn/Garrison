@@ -460,7 +460,7 @@ const it = {
     connecting: 'Accesso in corso...',
     restoring: 'Ripristino della sessione...',
     errorGeneric: 'Impossibile accedere. Controlla le tue credenziali e che il server sia raggiungibile.',
-    footerHint: 'Predefinito per lo sviluppo locale: admin@garrison nel tenant default.'
+    footerHint: 'Credenziali predefinite: admin@garrison / password nel tenant default.'
   },
   topbar: {
     server: 'Server',

@@ -433,7 +433,7 @@ const ja = {
     connecting: 'サインイン中...',
     restoring: 'セッションを復元しています...',
     errorGeneric: 'サインインできません。認証情報と、サーバーに接続できるかを確認してください。',
-    footerHint: 'ローカル開発の既定値: テナント default の admin@garrison。'
+    footerHint: '既定の資格情報: テナント default の admin@garrison / password。'
   },
   topbar: {
     server: 'サーバー',

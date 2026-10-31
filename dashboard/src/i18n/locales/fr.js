@@ -460,7 +460,7 @@ const fr = {
     connecting: 'Connexion...',
     restoring: 'Restauration de votre session...',
     errorGeneric: 'Connexion impossible. Vérifiez vos identifiants et que le serveur est joignable.',
-    footerHint: 'Valeur par défaut en développement local : admin@garrison dans le locataire default.'
+    footerHint: 'Identifiants par défaut : admin@garrison / password dans le locataire default.'
   },
   topbar: {
     server: 'Serveur',
