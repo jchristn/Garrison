@@ -10,6 +10,12 @@ It talks only to the app gateway (`/v1.0/apps/{slug}/...`, described in [APPS.md
 2. **Chat.** A list of the user's conversations on the side, a "New conversation" button, and the conversation itself. Before the first message the page shows the app's welcome text (Markdown). Answers stream in as the agent writes them.
 3. **Files.** A panel listing the files the agent wrote in the conversation's [file space](FILE_SPACES.md), with each file's version, size, and last change. Files can be downloaded, and every earlier version is one click away. The list updates while the agent works.
 
+The conversation list has a filter box that matches conversation names, and a sort menu: most recent, oldest, or name. Each conversation can be renamed in place. Deleting one asks for an inline confirmation first, and the delete button is disabled while the agent is still answering in that conversation.
+
+The file list uses compact rows and sorts by newest, oldest, largest, smallest, or name.
+
+Two dividers set the pane widths: one between the conversation list and the chat (200 to 520 px) and one between the chat and the file list (240 to 640 px). Drag a divider, or focus it and use the arrow keys. The browser remembers the widths. On narrow screens, where the panes become overlays, the dividers are hidden.
+
 The header has a files toggle, a language picker, a light and dark theme toggle, and sign out.
 
 ## URLs and routing

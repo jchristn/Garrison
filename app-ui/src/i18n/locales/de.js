@@ -196,4 +196,65 @@ const de = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+  "conversations": {
+    "filter": "Nach Namen filtern",
+    "sort": "Unterhaltungen sortieren",
+    "noMatch": "Keine Unterhaltung passt zum Filter.",
+    "renameLabel": "Neuer Name",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "rename": "{{title}} umbenennen",
+    "delete": "{{title}} löschen",
+    "confirmDelete": "„{{title}}“ löschen? Das lässt sich nicht rückgängig machen.",
+    "deleteConfirm": "Löschen",
+    "sorts": {
+      "recent": "Neueste zuerst",
+      "oldest": "Älteste zuerst",
+      "nameAsc": "Name A bis Z",
+      "nameDesc": "Name Z bis A"
+    }
+  },
+  "files": {
+    "sort": "Dateien sortieren",
+    "sorts": {
+      "newest": "Neueste zuerst",
+      "oldest": "Älteste zuerst",
+      "largest": "Größte zuerst",
+      "smallest": "Kleinste zuerst",
+      "nameAsc": "Name A bis Z",
+      "nameDesc": "Name Z bis A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "Breite der Unterhaltungsliste ändern",
+    "resizeFiles": "Breite der Dateiliste ändern"
+  },
+  "tips": {
+    "conversationFilter": "Zeigt nur Unterhaltungen, deren Name diesen Text enthält.",
+    "conversationSort": "Wählt die Reihenfolge der Unterhaltungen: nach Aktivität oder Name.",
+    "conversationRenameInput": "Neuen Namen eingeben, mit Enter speichern oder mit Escape abbrechen.",
+    "conversationRenameSave": "Speichert den neuen Namen dieser Unterhaltung.",
+    "conversationRenameCancel": "Behält den bisherigen Namen dieser Unterhaltung.",
+    "conversationRename": "Gibt dieser Unterhaltung einen neuen Namen.",
+    "conversationDelete": "Löscht diese Unterhaltung nach einer Bestätigung.",
+    "conversationDeleteBusy": "Sie können diese Unterhaltung löschen, sobald der Agent fertig geantwortet hat.",
+    "conversationDeleteConfirm": "Löscht die Unterhaltung endgültig, mitsamt ihren Dateien.",
+    "conversationDeleteCancel": "Behält die Unterhaltung und schließt diese Frage.",
+    "fileSort": "Wählt die Reihenfolge der Dateien: nach Alter, Größe oder Name.",
+    "resizeConversations": "Ziehen oder Pfeiltasten verwenden, um die Unterhaltungsliste breiter oder schmaler zu machen.",
+    "resizeFiles": "Ziehen oder Pfeiltasten verwenden, um die Dateiliste breiter oder schmaler zu machen."
+  }
+});
+
 export default de;

@@ -393,6 +393,14 @@ export class AppGatewayClient {
   conversation(id: string, options?: AppRequestOptions): Promise<AppConversationView> {
     return this.json("GET", this.conversationPath(id), { signal: options?.signal });
   }
+  /** Rename one of the owner's conversations (the title's first line, at most 200 characters); answers it without turns. */
+  renameConversation(id: string, title: string, options?: AppRequestOptions): Promise<AppConversationView> {
+    return this.json("PUT", this.conversationPath(id), { body: { title }, signal: options?.signal });
+  }
+  /** Delete one of the owner's conversations; rejects with 409 ConversationBusy while a turn runs. Its runs are kept. */
+  async deleteConversation(id: string, options?: AppRequestOptions): Promise<void> {
+    await this.sendRequest("DELETE", this.conversationPath(id), { signal: options?.signal });
+  }
   /** Send the next message; rejects with 409 ConversationBusy while the previous turn runs, or 409 AppRateLimited. */
   send(id: string, message: string, options?: AppRequestOptions): Promise<AppTurnView> {
     return this.json("POST", this.conversationPath(id, "/messages"), { body: { message }, signal: options?.signal });

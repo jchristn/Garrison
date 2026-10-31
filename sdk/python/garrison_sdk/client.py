@@ -1855,6 +1855,16 @@ class AppGateway:
         """One of the owner's conversations with its turns."""
         return self.transport.request("GET", self._c(id))
 
+    def rename_conversation(self, id: str, title: str) -> AppConversationView:
+        """Rename one of the owner's conversations (the title's first line, trimmed, at most 200 characters; blank
+        raises GarrisonError 400). Returns the conversation without its turns."""
+        return self.transport.request("PUT", self._c(id), body={"title": title})
+
+    def delete_conversation(self, id: str) -> None:
+        """Delete one of the owner's conversations; its runs are kept. Raises GarrisonError 409 ConversationBusy while a
+        turn is still running."""
+        self.transport.request("DELETE", self._c(id))
+
     def send(self, id: str, message: str) -> AppTurnView:
         """Send the next message; raises GarrisonError 409 ConversationBusy while the previous turn runs."""
         return self.transport.request("POST", self._c(id, "/messages"), body={"message": message})

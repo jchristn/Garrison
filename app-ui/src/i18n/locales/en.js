@@ -197,4 +197,65 @@ const en = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+  "conversations": {
+    "filter": "Filter by name",
+    "sort": "Sort conversations",
+    "noMatch": "No conversation matches the filter.",
+    "renameLabel": "New name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "rename": "Rename {{title}}",
+    "delete": "Delete {{title}}",
+    "confirmDelete": "Delete \"{{title}}\"? This cannot be undone.",
+    "deleteConfirm": "Delete",
+    "sorts": {
+      "recent": "Recent first",
+      "oldest": "Oldest first",
+      "nameAsc": "Name A to Z",
+      "nameDesc": "Name Z to A"
+    }
+  },
+  "files": {
+    "sort": "Sort files",
+    "sorts": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "largest": "Largest first",
+      "smallest": "Smallest first",
+      "nameAsc": "Name A to Z",
+      "nameDesc": "Name Z to A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "Resize the conversation list",
+    "resizeFiles": "Resize the file list"
+  },
+  "tips": {
+    "conversationFilter": "Show only the conversations whose name contains this text.",
+    "conversationSort": "Choose the order of the conversations: by activity or by name.",
+    "conversationRenameInput": "Type the new name and press Enter to save it, or Escape to cancel.",
+    "conversationRenameSave": "Save the new name of this conversation.",
+    "conversationRenameCancel": "Keep the current name of this conversation.",
+    "conversationRename": "Give this conversation a new name.",
+    "conversationDelete": "Delete this conversation after you confirm.",
+    "conversationDeleteBusy": "You can delete this conversation once the agent finishes answering.",
+    "conversationDeleteConfirm": "Delete the conversation for good. Its files go with it.",
+    "conversationDeleteCancel": "Keep the conversation and close this question.",
+    "fileSort": "Choose the order of the files: by age, by size, or by name.",
+    "resizeConversations": "Drag, or use the arrow keys, to make the conversation list wider or narrower.",
+    "resizeFiles": "Drag, or use the arrow keys, to make the file list wider or narrower."
+  }
+});
+
 export default en;

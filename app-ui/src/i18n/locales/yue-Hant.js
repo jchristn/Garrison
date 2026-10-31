@@ -196,4 +196,65 @@ const yueHant = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+  "conversations": {
+    "filter": "按名稱篩選",
+    "sort": "對話排序",
+    "noMatch": "冇對話符合篩選條件。",
+    "renameLabel": "新名稱",
+    "save": "儲存",
+    "cancel": "取消",
+    "rename": "改 {{title}} 個名",
+    "delete": "刪除 {{title}}",
+    "confirmDelete": "刪除「{{title}}」？刪咗就救唔返。",
+    "deleteConfirm": "刪除",
+    "sorts": {
+      "recent": "最近嘅排先",
+      "oldest": "最早嘅排先",
+      "nameAsc": "名稱 A 至 Z",
+      "nameDesc": "名稱 Z 至 A"
+    }
+  },
+  "files": {
+    "sort": "檔案排序",
+    "sorts": {
+      "newest": "最新嘅排先",
+      "oldest": "最舊嘅排先",
+      "largest": "最大嘅排先",
+      "smallest": "最細嘅排先",
+      "nameAsc": "名稱 A 至 Z",
+      "nameDesc": "名稱 Z 至 A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "調較對話清單闊度",
+    "resizeFiles": "調較檔案清單闊度"
+  },
+  "tips": {
+    "conversationFilter": "淨係顯示名稱入面有呢段文字嘅對話，其他對話會暫時收埋。",
+    "conversationSort": "揀對話清單點樣排：按最近活動嘅時間或者按名稱嚟排。",
+    "conversationRenameInput": "輸入新名稱，撳 Enter 儲存，撳 Escape 就取消修改。",
+    "conversationRenameSave": "儲存呢個對話嘅新名稱，並即刻喺左邊嘅對話清單入面顯示。",
+    "conversationRenameCancel": "保留呢個對話而家個名，唔做任何修改，閂埋個編輯框。",
+    "conversationRename": "幫呢個對話改過個新名，方便之後喺對話清單入面搵返佢。",
+    "conversationDelete": "確認咗先會刪除呢個對話，撳咗都唔會即刻刪除任何嘢。",
+    "conversationDeleteBusy": "等代理答完之後，就可以刪除呢個對話喇，請等多一陣。",
+    "conversationDeleteConfirm": "永久刪除呢個對話同埋佢所有檔案，刪咗之後就救唔返。",
+    "conversationDeleteCancel": "保留呢個對話，唔刪除任何嘢，並且閂埋呢個確認提示。",
+    "fileSort": "揀檔案清單點樣排：按修改時間、檔案大細或者名稱嚟排。",
+    "resizeConversations": "拖動呢條分隔線或者用方向鍵，令左邊嘅對話清單變闊或者變窄。",
+    "resizeFiles": "拖動呢條分隔線或者用方向鍵，令右邊嘅檔案清單變闊或者變窄。"
+  }
+});
+
 export default yueHant;

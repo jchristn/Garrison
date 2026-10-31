@@ -196,4 +196,65 @@ const es = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+  "conversations": {
+    "filter": "Filtrar por nombre",
+    "sort": "Ordenar conversaciones",
+    "noMatch": "Ninguna conversación coincide con el filtro.",
+    "renameLabel": "Nombre nuevo",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "rename": "Cambiar el nombre de {{title}}",
+    "delete": "Eliminar {{title}}",
+    "confirmDelete": "¿Eliminar «{{title}}»? No se puede deshacer.",
+    "deleteConfirm": "Eliminar",
+    "sorts": {
+      "recent": "Recientes primero",
+      "oldest": "Antiguas primero",
+      "nameAsc": "Nombre de la A a la Z",
+      "nameDesc": "Nombre de la Z a la A"
+    }
+  },
+  "files": {
+    "sort": "Ordenar archivos",
+    "sorts": {
+      "newest": "Más nuevos primero",
+      "oldest": "Más antiguos primero",
+      "largest": "Más grandes primero",
+      "smallest": "Más pequeños primero",
+      "nameAsc": "Nombre de la A a la Z",
+      "nameDesc": "Nombre de la Z a la A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "Cambiar el ancho de la lista de conversaciones",
+    "resizeFiles": "Cambiar el ancho de la lista de archivos"
+  },
+  "tips": {
+    "conversationFilter": "Muestra solo las conversaciones cuyo nombre contiene este texto.",
+    "conversationSort": "Elige el orden de las conversaciones: por actividad o por nombre.",
+    "conversationRenameInput": "Escriba el nombre nuevo y pulse Intro para guardarlo, o Escape para cancelar.",
+    "conversationRenameSave": "Guarda el nombre nuevo de esta conversación.",
+    "conversationRenameCancel": "Mantiene el nombre actual de esta conversación.",
+    "conversationRename": "Da un nombre nuevo a esta conversación.",
+    "conversationDelete": "Elimina esta conversación después de confirmarlo.",
+    "conversationDeleteBusy": "Podrá eliminar esta conversación cuando el agente termine de responder.",
+    "conversationDeleteConfirm": "Elimina la conversación para siempre, junto con sus archivos.",
+    "conversationDeleteCancel": "Mantiene la conversación.",
+    "fileSort": "Elige el orden de los archivos: por antigüedad, tamaño o nombre.",
+    "resizeConversations": "Arrastre, o use las flechas, para ensanchar o estrechar la lista de conversaciones.",
+    "resizeFiles": "Arrastre, o use las flechas, para ensanchar o estrechar la lista de archivos."
+  }
+});
+
 export default es;

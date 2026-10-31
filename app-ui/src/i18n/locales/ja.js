@@ -196,4 +196,65 @@ const ja = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+  "conversations": {
+    "filter": "名前で絞り込む",
+    "sort": "会話の並べ替え",
+    "noMatch": "条件に合う会話はありません。",
+    "renameLabel": "新しい名前",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "rename": "{{title}} の名前を変更",
+    "delete": "{{title}} を削除",
+    "confirmDelete": "「{{title}}」を削除しますか? 元に戻せません。",
+    "deleteConfirm": "削除",
+    "sorts": {
+      "recent": "新しい順",
+      "oldest": "古い順",
+      "nameAsc": "名前 (昇順)",
+      "nameDesc": "名前 (降順)"
+    }
+  },
+  "files": {
+    "sort": "ファイルの並べ替え",
+    "sorts": {
+      "newest": "新しい順",
+      "oldest": "古い順",
+      "largest": "大きい順",
+      "smallest": "小さい順",
+      "nameAsc": "名前 (昇順)",
+      "nameDesc": "名前 (降順)"
+    }
+  },
+  "layout": {
+    "resizeConversations": "会話一覧の幅を変更",
+    "resizeFiles": "ファイル一覧の幅を変更"
+  },
+  "tips": {
+    "conversationFilter": "名前にこの文字を含む会話だけを、一覧に絞り込んで表示します。",
+    "conversationSort": "会話の並び順を選びます。活動の新しさか名前で並べます。",
+    "conversationRenameInput": "新しい名前を入力し、Enter で保存、Escape でキャンセルします。",
+    "conversationRenameSave": "入力した新しい名前をこの会話に保存して一覧に表示します。",
+    "conversationRenameCancel": "名前を変えずに、この会話の今の名前のままにします。",
+    "conversationRename": "この会話に新しい名前を付けて、あとで見つけやすくします。",
+    "conversationDelete": "確認を求めてから、この会話を一覧から完全に削除します。",
+    "conversationDeleteBusy": "エージェントの回答が終わると、この会話を削除できます。",
+    "conversationDeleteConfirm": "この会話を、書かれたファイルごと完全に削除します。",
+    "conversationDeleteCancel": "会話を削除せずにそのまま残し、この確認を閉じます。",
+    "fileSort": "ファイルの並び順を選びます。新しさ、サイズ、名前で並べます。",
+    "resizeConversations": "ドラッグするか矢印キーで、会話一覧の幅を広げたり狭めたりします。",
+    "resizeFiles": "ドラッグするか矢印キーで、ファイル一覧の幅を広げたり狭めたりします。"
+  }
+});
+
 export default ja;

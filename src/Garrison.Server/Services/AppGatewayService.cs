@@ -302,6 +302,48 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
+        /// Rename one of the session owner's conversations in the app.
+        /// </summary>
+        /// <param name="app">App.</param>
+        /// <param name="session">Session.</param>
+        /// <param name="conversationId">Conversation identifier.</param>
+        /// <param name="title">New title; its first line, trimmed, at most 200 characters.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The renamed conversation (without turns).</returns>
+        /// <exception cref="NotFoundException">Thrown when the conversation is not the session owner's in this app.</exception>
+        /// <exception cref="ValidationException">Thrown when the title is empty.</exception>
+        public async Task<AppConversationView> RenameAsync(AgenticApp app, AppSession session, string? conversationId, string? title, CancellationToken token)
+        {
+            Conversation conversation = await OwnedAsync(app, session, conversationId, token).ConfigureAwait(false);
+            if (String.IsNullOrWhiteSpace(title)) throw new ValidationException("A title is required.", new Dictionary<string, string> { { "title", "Required." } });
+            conversation.Title = title;
+            conversation.LastUpdateUtc = DateTime.UtcNow;
+            Conversation updated = await _Server.Database.Conversations.UpdateAsync(conversation, token).ConfigureAwait(false);
+            return View(updated);
+        }
+
+        /// <summary>
+        /// Delete one of the session owner's conversations in the app. Its runs are kept, as when an operator deletes a
+        /// conversation.
+        /// </summary>
+        /// <param name="app">App.</param>
+        /// <param name="session">Session.</param>
+        /// <param name="conversationId">Conversation identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="NotFoundException">Thrown when the conversation is not the session owner's in this app.</exception>
+        /// <exception cref="ConflictException">Thrown (ConversationBusy) while a turn is still running.</exception>
+        public async Task DeleteAsync(AgenticApp app, AppSession session, string? conversationId, CancellationToken token)
+        {
+            Conversation conversation = await OwnedAsync(app, session, conversationId, token).ConfigureAwait(false);
+            if (await _Server.Get<ConversationService>().IsBusyAsync(conversation, token).ConfigureAwait(false))
+                throw new ConflictException("ConversationBusy", "The agent is still answering in this conversation. Wait for it to finish, then delete the conversation.");
+            await _Server.Database.Conversations.DeleteAsync(conversation.Id, token).ConfigureAwait(false);
+            RequestContext ctx = new RequestContext { IsAuthenticated = true, PrincipalType = PrincipalTypeEnum.User, TenantId = app.TenantId, UserId = session.OwnerId, PrincipalName = "app " + app.Name + " for " + session.PrincipalName };
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConversationDeleted, "Conversation", conversation.Id, "Deleted conversation " + conversation.Id + " of app " + app.Name + " after " + conversation.TurnCount + " turn(s), from the app UI.", app.TenantId, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// A turn as the end user sees it, with its telemetry when the app shows operator detail.
         /// </summary>
         /// <param name="run">Run.</param>

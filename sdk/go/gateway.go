@@ -267,6 +267,22 @@ func (g *AppGatewayClient) Conversation(ctx context.Context, id string) (*AppCon
 	return &out, nil
 }
 
+// RenameConversation renames one of the owner's conversations and returns it without its turns. The title's first
+// line is kept, trimmed, at most 200 characters; a blank title is 400.
+func (g *AppGatewayClient) RenameConversation(ctx context.Context, id, title string) (*AppConversationView, error) {
+	var out AppConversationView
+	if err := g.c.Do(ctx, http.MethodPut, g.conversation(id, ""), nil, map[string]string{"title": title}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteConversation deletes one of the owner's conversations; its runs are kept. 409 ConversationBusy while a turn
+// is still running.
+func (g *AppGatewayClient) DeleteConversation(ctx context.Context, id string) error {
+	return g.c.Do(ctx, http.MethodDelete, g.conversation(id, ""), nil, nil, nil)
+}
+
 // Send sends the next message in a conversation; 409 ConversationBusy while the previous turn runs.
 func (g *AppGatewayClient) Send(ctx context.Context, id, message string) (*AppTurnView, error) {
 	var out AppTurnView

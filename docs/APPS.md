@@ -129,6 +129,8 @@ Runs started through an app run as the app, with the end user recorded as the ca
 | `GET /v1.0/apps/{slug}/conversations` | The owner's conversations in the app |
 | `POST /v1.0/apps/{slug}/conversations` | `{message}` starts a conversation on the live environment's entry deployment: 201 `{conversationId, turn}`; 409 `AppNotDeployed` without one |
 | `GET /v1.0/apps/{slug}/conversations/{id}` | The conversation with its turns (message, status, answer, error, `awaitingApproval`) |
+| `PUT /v1.0/apps/{slug}/conversations/{id}` | `{title}` renames the conversation: 200 `AppConversationView` without turns. The title's first line is kept, trimmed, at most 200 characters; blank is 400 |
+| `DELETE /v1.0/apps/{slug}/conversations/{id}` | Deletes the conversation: 204; 409 `ConversationBusy` while a turn is still running. Its runs are kept and a `ConversationDeleted` audit event is written |
 | `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `{message}` sends the next turn: 201 `AppTurnView`; 409 `ConversationBusy` while the previous turn runs |
 | `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | Server-sent events: `turn.event` (with the event sequence as its id), `turn.status`, `turn.completed`. Resumes after `Last-Event-ID` |
 | `GET /v1.0/apps/{slug}/conversations/{id}/files` and `/files/content`, `/files/versions`, `POST /files/download-url` | The conversation's file space, as in [FILE_SPACES.md](FILE_SPACES.md) |

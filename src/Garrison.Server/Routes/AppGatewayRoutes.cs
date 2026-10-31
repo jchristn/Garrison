@@ -67,6 +67,8 @@ namespace Garrison.Server.Routes
             routes.Anonymous(HttpMethod.GET, _Base + "/conversations", ConversationsAsync, "The session owner's conversations in the app", _Tag, null, typeof(List<AppConversationView>));
             routes.Anonymous(HttpMethod.POST, _Base + "/conversations", StartConversationAsync, "Start a conversation with the app's entry agent", _Tag, typeof(AppMessageRequest), typeof(AppTurnView));
             routes.Anonymous(HttpMethod.GET, _Base + "/conversations/{id}", ConversationAsync, "One of the session owner's conversations with its turns", _Tag, null, typeof(AppConversationView));
+            routes.Anonymous(HttpMethod.PUT, _Base + "/conversations/{id}", RenameConversationAsync, "Rename one of the session owner's conversations", _Tag, typeof(AppConversationRenameRequest), typeof(AppConversationView));
+            routes.Anonymous(HttpMethod.DELETE, _Base + "/conversations/{id}", DeleteConversationAsync, "Delete one of the session owner's conversations (409 ConversationBusy while a turn runs; its runs are kept)", _Tag);
             routes.Anonymous(HttpMethod.POST, _Base + "/conversations/{id}/messages", SendAsync, "Send the next message in a conversation", _Tag, typeof(AppMessageRequest), typeof(AppTurnView));
             routes.Anonymous(HttpMethod.GET, _Base + "/conversations/{id}/turns/{runId}/stream", TurnStreamAsync, "Stream a turn's visible events (server-sent events; resumes after Last-Event-ID)", _Tag);
             routes.Anonymous(HttpMethod.GET, _Base + "/conversations/{id}/files", FilesAsync, "List the conversation's files", _Tag, null, typeof(FileSpaceListing));
@@ -167,6 +169,22 @@ namespace Garrison.Server.Routes
             AgenticApp app = await AppAsync(http).ConfigureAwait(false);
             AppSession session = await SessionAsync(http, app).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, await _Gateway.ConversationAsync(app, session, RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task RenameConversationAsync(HttpContextBase http)
+        {
+            AgenticApp app = await AppAsync(http).ConfigureAwait(false);
+            AppSession session = await SessionAsync(http, app).ConfigureAwait(false);
+            AppConversationRenameRequest request = RouteHelpers.RequiredBody<AppConversationRenameRequest>(http);
+            await RouteHelpers.JsonAsync(http, 200, await _Gateway.RenameAsync(app, session, RouteHelpers.Param(http, "id"), request.Title, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task DeleteConversationAsync(HttpContextBase http)
+        {
+            AgenticApp app = await AppAsync(http).ConfigureAwait(false);
+            AppSession session = await SessionAsync(http, app).ConfigureAwait(false);
+            await _Gateway.DeleteAsync(app, session, RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task SendAsync(HttpContextBase http)

@@ -6,15 +6,26 @@ import FileVersionsDialog from './FileVersionsDialog.jsx';
 import { formatBytes, formatRelativeTime } from '../i18n/formatters.js';
 import { downloadFile } from '../utils/download.js';
 import { errorText } from '../utils/errors.js';
+import { FILE_SORTS, sortFiles } from '../utils/lists.js';
+import { STORAGE_KEYS, readStorage, writeStorage } from '../utils/storage.js';
 
 // The conversation's file space (AD6.9): every file the agent wrote, live as files change, with download and
-// version history. Files that changed while the panel was open carry a "New" badge.
+// version history, in compact rows sorted by age, size, or name. Files that changed while the panel was open carry a
+// "New" badge.
 export default function FilePanel({ client, conversationId, files, onClose }) {
   const { t } = useTranslation();
   const [versionsOf, setVersionsOf] = useState(null);
   const [downloadError, setDownloadError] = useState(null);
+  const [sort, setSort] = useState(() => {
+    const saved = readStorage(STORAGE_KEYS.fileSort);
+    return FILE_SORTS.includes(saved) ? saved : 'newest';
+  });
   const list = files.listing && Array.isArray(files.listing.files) ? files.listing.files.filter((f) => !f.deleted) : [];
-  const sorted = [...list].sort((a, b) => a.path.localeCompare(b.path));
+  const sorted = sortFiles(list, sort);
+  const changeSort = (value) => {
+    setSort(value);
+    writeStorage(STORAGE_KEYS.fileSort, value);
+  };
 
   const download = async (path, version) => {
     setDownloadError(null);
@@ -46,7 +57,18 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
         </p>
       ) : null}
       {conversationId && files.listing ? (
-        <p className="file-summary">{t('files.summary', { count: sorted.length, size: formatBytes(files.listing.totalBytes || 0) })}</p>
+        <div className="file-toolbar">
+          <p className="file-summary">{t('files.summary', { count: sorted.length, size: formatBytes(files.listing.totalBytes || 0) })}</p>
+          {sorted.length > 1 ? (
+            <select className="list-sort" value={sort} onChange={(e) => changeSort(e.target.value)} aria-label={t('files.sort')} data-testid="file-sort" {...tip(t('tips.fileSort'))}>
+              {FILE_SORTS.map((s) => (
+                <option key={s} value={s}>
+                  {t(`files.sorts.${s}`)}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
       ) : null}
       {conversationId && files.listing && !sorted.length ? <p className="empty-text">{t('files.empty')}</p> : null}
       <ul className="file-list" aria-live="polite">
@@ -64,10 +86,10 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
               </span>
             </div>
             <div className="file-actions">
-              <button type="button" className="icon-button" onClick={() => setVersionsOf(f)} aria-label={`${t('files.versions')}: ${f.path}`} {...tip(t('tips.versions'))} data-testid="file-versions">
+              <button type="button" className="icon-button small" onClick={() => setVersionsOf(f)} aria-label={`${t('files.versions')}: ${f.path}`} {...tip(t('tips.versions'))} data-testid="file-versions">
                 <HistoryIcon />
               </button>
-              <button type="button" className="icon-button" onClick={() => download(f.path)} aria-label={`${t('files.download')}: ${f.path}`} {...tip(t('tips.download'))} data-testid="file-download">
+              <button type="button" className="icon-button small" onClick={() => download(f.path)} aria-label={`${t('files.download')}: ${f.path}`} {...tip(t('tips.download'))} data-testid="file-download">
                 <DownloadIcon />
               </button>
             </div>

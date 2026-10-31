@@ -105,6 +105,7 @@ namespace Garrison.Server.Modules
             _Conversations.Logging = context.Logging;
             _Runs.Conversations = _Conversations;
             _Events.Conversations = _Conversations;
+            context.Register(_Conversations);
             _Scheduler.Conversations = _Conversations;
             _Leases = context.Settings.Leases.Provider == LeaseProviderKindEnum.Database
                 ? new DatabaseLeaseProvider(context.Database.CoordinationLeases)

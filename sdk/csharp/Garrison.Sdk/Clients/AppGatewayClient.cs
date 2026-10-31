@@ -237,6 +237,38 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Rename one of the owner's conversations. The server keeps the title's first line, trimmed, at most 200 characters.
+        /// </summary>
+        /// <param name="id">Conversation identifier.</param>
+        /// <param name="title">New title.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The conversation without its turns.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when id or title is null or empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 400 for a blank title and 404 for another owner's conversation.</exception>
+        public async Task<AppConversationView> RenameConversationAsync(string id, string title, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            if (String.IsNullOrEmpty(title)) throw new ArgumentNullException(nameof(title));
+            AppConversationRenameRequest body = new AppConversationRenameRequest();
+            body.Title = title;
+            return await Transport.SendAsync<AppConversationView>(HttpMethod.Put, ConversationPath(id, String.Empty), body, token: token).ConfigureAwait(false) ?? new AppConversationView();
+        }
+
+        /// <summary>
+        /// Delete one of the owner's conversations. Its runs are kept.
+        /// </summary>
+        /// <param name="id">Conversation identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when id is null or empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 409 ConversationBusy while a turn is still running and 404 for another owner's conversation.</exception>
+        public async Task DeleteConversationAsync(string id, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            await Transport.SendTextAsync(HttpMethod.Delete, ConversationPath(id, String.Empty), token: token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Send the next message in a conversation.
         /// </summary>
         /// <param name="id">Conversation identifier.</param>

@@ -277,6 +277,11 @@ namespace Test.Shared.Suites
                         Assert.Equal(201, (int)started.StatusCode, "Alice starts a conversation: " + body);
                         string conversationId = Assert.NotNull(Serializer.Deserialize<Dictionary<string, object>>(body)?["conversationId"]?.ToString(), "Conversation id");
                         Assert.Equal(404, (int)(await bobClient.GetAsync("/v1.0/apps/ses/conversations/" + conversationId, token).ConfigureAwait(false)).StatusCode, "Bob cannot read Alice's conversation");
+                        Assert.Equal(404, (int)(await bobClient.DeleteAsync("/v1.0/apps/ses/conversations/" + conversationId, token).ConfigureAwait(false)).StatusCode, "Bob cannot delete Alice's conversation");
+                        using (StringContent rename = new StringContent("{\"title\":\"Mine now\"}", System.Text.Encoding.UTF8, "application/json"))
+                        {
+                            Assert.Equal(404, (int)(await bobClient.PutAsync("/v1.0/apps/ses/conversations/" + conversationId, rename, token).ConfigureAwait(false)).StatusCode, "Bob cannot rename Alice's conversation");
+                        }
                         Assert.Equal(200, (int)(await aliceClient.GetAsync("/v1.0/apps/ses/conversations/" + conversationId, token).ConfigureAwait(false)).StatusCode, "Alice reads her own");
                         string bobsList = await bobClient.GetStringAsync("/v1.0/apps/ses/conversations", token).ConfigureAwait(false);
                         Assert.True(!bobsList.Contains(conversationId, StringComparison.Ordinal), "Bob's list has none of Alice's conversations");
@@ -343,6 +348,26 @@ namespace Test.Shared.Suites
                     ConversationFile answer = Assert.NotNull(files.Files.FirstOrDefault(f => f.Path == "answer.txt"), "The agent's file is listed");
                     byte[] bytes = await client.GetByteArrayAsync("/v1.0/apps/gateway/conversations/" + conversationId + "/files/content?path=answer.txt", token).ConfigureAwait(false);
                     Assert.Equal(answer.Sha256, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(), "Downloaded bytes match the SHA-256");
+
+                    // Rename and delete from the app UI.
+                    using (StringContent rename = new StringContent("{\"title\":\"Tide research\\nsecond line\"}", System.Text.Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage renamed = await client.PutAsync("/v1.0/apps/gateway/conversations/" + conversationId, rename, token).ConfigureAwait(false))
+                    {
+                        string body = await renamed.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(200, (int)renamed.StatusCode, "Rename: " + body);
+                        Assert.Equal("Tide research", Assert.NotNull(Serializer.Deserialize<AppConversationView>(body), "Renamed").Title ?? String.Empty, "The title is the first line");
+                    }
+                    Assert.True((await client.GetStringAsync("/v1.0/apps/gateway/conversations", token).ConfigureAwait(false)).Contains("Tide research", StringComparison.Ordinal), "The list shows the new title");
+                    using (StringContent blank = new StringContent("{\"title\":\"  \"}", System.Text.Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage refused = await client.PutAsync("/v1.0/apps/gateway/conversations/" + conversationId, blank, token).ConfigureAwait(false))
+                    {
+                        Assert.Equal(400, (int)refused.StatusCode, "A blank title is refused");
+                    }
+                    using (HttpResponseMessage deleted = await client.DeleteAsync("/v1.0/apps/gateway/conversations/" + conversationId, token).ConfigureAwait(false))
+                    {
+                        Assert.Equal(204, (int)deleted.StatusCode, "Delete: " + await deleted.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+                    }
+                    Assert.Equal(404, (int)(await client.GetAsync("/v1.0/apps/gateway/conversations/" + conversationId, token).ConfigureAwait(false)).StatusCode, "A deleted conversation is gone");
                 }
             }
         }

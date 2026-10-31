@@ -639,6 +639,7 @@ The support triage bundle runs on the fake harness, so the server needs a worker
 | `StartSessionAsync`, `EndSessionAsync` | `AppSessionResponse`; ending forgets the token |
 | `ListConversationsAsync`, `GetConversationAsync` | `AppConversationView`, with `Turns` filled when one is read |
 | `StartConversationAsync`, `SendAsync` | `AppConversationStart` (conversation identifier and first turn), `AppTurnView` (`Telemetry` is an `AppTurnTelemetry` with model, timings, tokens, tool calls, and cost, or null unless the app shows operator detail) |
+| `RenameConversationAsync`, `DeleteConversationAsync` | The renamed `AppConversationView` without turns (the title's first line, trimmed, at most 200 characters; blank is 400); deleting keeps the runs and throws 409 `ConversationBusy` while a turn is still running |
 | `StreamTurnAsync` | `AppTurnStreamEvent` items (`turn.event` with a `RunEvent`, `turn.status`, `turn.completed` with the turn); `afterSequence` resumes |
 | `WaitForTurnAsync` | Polls until the turn is terminal (`PollIntervalMs`, default 500) |
 | `ListFilesAsync`, `ReadFileAsync`, `ListFileVersionsAsync`, `DownloadUrlAsync` | The conversation's file space |
@@ -716,6 +717,8 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | `GET /v1.0/apps/{slug}/conversations` | `gateway.ListConversationsAsync` |
 | `POST /v1.0/apps/{slug}/conversations` | `gateway.StartConversationAsync` |
 | `GET /v1.0/apps/{slug}/conversations/{id}` | `gateway.GetConversationAsync`, `WaitForTurnAsync` |
+| `PUT /v1.0/apps/{slug}/conversations/{id}` | `gateway.RenameConversationAsync` |
+| `DELETE /v1.0/apps/{slug}/conversations/{id}` | `gateway.DeleteConversationAsync` |
 | `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `gateway.SendAsync` |
 | `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `gateway.StreamTurnAsync` |
 | `GET /v1.0/apps/{slug}/conversations/{id}/files` | `gateway.ListFilesAsync` |

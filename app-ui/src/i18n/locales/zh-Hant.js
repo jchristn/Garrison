@@ -196,4 +196,65 @@ const zhHant = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+  "conversations": {
+    "filter": "依名稱篩選",
+    "sort": "對話排序",
+    "noMatch": "沒有符合篩選條件的對話。",
+    "renameLabel": "新名稱",
+    "save": "儲存",
+    "cancel": "取消",
+    "rename": "重新命名 {{title}}",
+    "delete": "刪除 {{title}}",
+    "confirmDelete": "刪除「{{title}}」？此動作無法復原。",
+    "deleteConfirm": "刪除",
+    "sorts": {
+      "recent": "最近的在前",
+      "oldest": "最早的在前",
+      "nameAsc": "名稱 A 到 Z",
+      "nameDesc": "名稱 Z 到 A"
+    }
+  },
+  "files": {
+    "sort": "檔案排序",
+    "sorts": {
+      "newest": "最新的在前",
+      "oldest": "最舊的在前",
+      "largest": "最大的在前",
+      "smallest": "最小的在前",
+      "nameAsc": "名稱 A 到 Z",
+      "nameDesc": "名稱 Z 到 A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "調整對話清單寬度",
+    "resizeFiles": "調整檔案清單寬度"
+  },
+  "tips": {
+    "conversationFilter": "只顯示名稱中包含這段文字的對話，其他對話會暫時隱藏。",
+    "conversationSort": "選擇對話清單的排列順序：依最近活動的時間或依名稱排列。",
+    "conversationRenameInput": "輸入新名稱，按 Enter 儲存，按 Escape 取消修改。",
+    "conversationRenameSave": "儲存這個對話的新名稱，並立即在左側的對話清單中顯示。",
+    "conversationRenameCancel": "保留這個對話現在的名稱，不做任何修改，關閉編輯框。",
+    "conversationRename": "替這個對話取一個新名稱，方便以後在對話清單中找到它。",
+    "conversationDelete": "確認之後才會刪除這個對話，點選後不會立即刪除任何內容。",
+    "conversationDeleteBusy": "等智慧代理回答完畢之後，就可以刪除這個對話了，請稍候。",
+    "conversationDeleteConfirm": "永久刪除這個對話以及它的所有檔案，刪除後無法復原。",
+    "conversationDeleteCancel": "保留這個對話，不刪除任何內容，並關閉這個確認提示。",
+    "fileSort": "選擇檔案清單的排列順序：依修改時間、檔案大小或名稱排列。",
+    "resizeConversations": "拖曳這條分隔線或使用方向鍵，讓左側的對話清單變寬或變窄。",
+    "resizeFiles": "拖曳這條分隔線或使用方向鍵，讓右側的檔案清單變寬或變窄。"
+  }
+});
+
 export default zhHant;

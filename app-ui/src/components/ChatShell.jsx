@@ -9,9 +9,24 @@ import LanguageSelect from './LanguageSelect.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import useConversation from '../hooks/useConversation.js';
 import useFiles from '../hooks/useFiles.js';
+import Splitter from './Splitter.jsx';
+import { STORAGE_KEYS, readStorage, writeStorage } from '../utils/storage.js';
 
 const WIDE = '(min-width: 1100px)';
 const NARROW = '(max-width: 760px)';
+
+// Pane widths in pixels: the default, and the range the dividers allow. Widths are remembered in this browser.
+const LIST_WIDTH = 280;
+const LIST_MIN = 200;
+const LIST_MAX = 520;
+const FILES_WIDTH = 340;
+const FILES_MIN = 240;
+const FILES_MAX = 640;
+
+function storedWidth(key, fallback) {
+  const value = Number(readStorage(key));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
 
 function matches(query) {
   try {
@@ -31,6 +46,16 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
   const [filesOpen, setFilesOpen] = useState(() => matches(WIDE));
   const [missing, setMissing] = useState(false);
   const name = info.displayName || info.slug;
+  const [listWidth, setListWidth] = useState(() => storedWidth(STORAGE_KEYS.conversationsWidth, LIST_WIDTH));
+  const [filesWidth, setFilesWidth] = useState(() => storedWidth(STORAGE_KEYS.filesWidth, FILES_WIDTH));
+  const resizeList = (value) => {
+    setListWidth(value);
+    writeStorage(STORAGE_KEYS.conversationsWidth, String(value));
+  };
+  const resizeFiles = (value) => {
+    setFilesWidth(value);
+    writeStorage(STORAGE_KEYS.filesWidth, String(value));
+  };
 
   const loadConversations = useCallback(() => {
     client
@@ -65,9 +90,18 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
     onNavigate(id);
     if (matches(NARROW)) setListOpen(false);
   };
+  const rename = async (id, title) => {
+    await client.renameConversation(id, title);
+    loadConversations();
+  };
+  const remove = async (id) => {
+    await client.deleteConversation(id);
+    if (id === conversationId) onNavigate(null);
+    loadConversations();
+  };
 
   return (
-    <div className={`shell ${listOpen ? 'list-open' : ''} ${filesOpen ? 'files-open' : ''}`}>
+    <div className={`shell ${listOpen ? 'list-open' : ''} ${filesOpen ? 'files-open' : ''}`} style={{ '--conversations-width': `${listWidth}px`, '--files-width': `${filesWidth}px` }}>
       <a className="skip-link" href="#composer-input" {...tip(t('tips.skipToChat'))}>
         {t('app.skipToChat')}
       </a>
@@ -116,9 +150,11 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
       </header>
       <div className="shell-body">
         <div id="conversation-sidebar" className="sidebar" hidden={!listOpen}>
-          <ConversationList conversations={conversations} error={listError} selectedId={conversationId} onSelect={select} onNew={() => select(null)} />
+          <ConversationList conversations={conversations} error={listError} selectedId={conversationId} onSelect={select} onNew={() => select(null)} onRename={rename} onDelete={remove} />
         </div>
+        {listOpen ? <Splitter edge="start" width={listWidth} min={LIST_MIN} max={LIST_MAX} onChange={resizeList} label={t('layout.resizeConversations')} tipText={t('tips.resizeConversations')} testId="resize-conversations" /> : null}
         <ChatPane key={conversationId || 'new'} info={info} conversation={conversation} conversationMissing={missing} />
+        {filesOpen ? <Splitter edge="end" width={filesWidth} min={FILES_MIN} max={FILES_MAX} onChange={resizeFiles} label={t('layout.resizeFiles')} tipText={t('tips.resizeFiles')} testId="resize-files" /> : null}
         <div id="file-sidebar" className="files-sidebar" hidden={!filesOpen}>
           <FilePanel client={client} conversationId={conversationId} files={files} onClose={() => setFilesOpen(false)} />
         </div>

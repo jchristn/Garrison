@@ -625,6 +625,7 @@ The support triage bundle runs on the fake harness, so the server needs a worker
 | `StartSession`, `EndSession` | `AppSessionResponse`; ending forgets the token |
 | `Conversations`, `Conversation` | `AppConversationView`, with `Turns` filled when one is read |
 | `StartConversation`, `Send` | `AppConversationStart` (conversation identifier and first turn), `AppTurnView` (`Telemetry` is an `*AppTurnTelemetry` with model, timings, tokens, tool calls, and cost, or nil unless the app shows operator detail) |
+| `RenameConversation`, `DeleteConversation` | The renamed `*AppConversationView` without turns (the title's first line, trimmed, at most 200 characters; blank is 400); deleting keeps the runs and returns 409 `ConversationBusy` while a turn is still running |
 | `StreamTurn` | Calls back with `AppTurnStreamItem` (`turn.event` with a `RunEvent`, `turn.status`, `turn.completed` with the turn); `afterSequence` resumes |
 | `WaitForTurn` | Polls until the turn is terminal (`PollInterval`, default 500 milliseconds) |
 | `Files`, `ReadFile`, `FileVersions`, `DownloadURL` | The conversation's file space |
@@ -702,6 +703,8 @@ Every route added in 0.2.0, with the method that calls it. Tenant routes are rel
 | `GET /v1.0/apps/{slug}/conversations` | `gateway.Conversations` |
 | `POST /v1.0/apps/{slug}/conversations` | `gateway.StartConversation` |
 | `GET /v1.0/apps/{slug}/conversations/{id}` | `gateway.Conversation`, `WaitForTurn` |
+| `PUT /v1.0/apps/{slug}/conversations/{id}` | `gateway.RenameConversation` |
+| `DELETE /v1.0/apps/{slug}/conversations/{id}` | `gateway.DeleteConversation` |
 | `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `gateway.Send` |
 | `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `gateway.StreamTurn` |
 | `GET /v1.0/apps/{slug}/conversations/{id}/files` | `gateway.Files` |

@@ -196,4 +196,65 @@ const it = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+  "conversations": {
+    "filter": "Filtra per nome",
+    "sort": "Ordina le conversazioni",
+    "noMatch": "Nessuna conversazione corrisponde al filtro.",
+    "renameLabel": "Nuovo nome",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "rename": "Rinomina {{title}}",
+    "delete": "Elimina {{title}}",
+    "confirmDelete": "Eliminare «{{title}}»? Non si può annullare.",
+    "deleteConfirm": "Elimina",
+    "sorts": {
+      "recent": "Recenti prima",
+      "oldest": "Meno recenti prima",
+      "nameAsc": "Nome dalla A alla Z",
+      "nameDesc": "Nome dalla Z alla A"
+    }
+  },
+  "files": {
+    "sort": "Ordina i file",
+    "sorts": {
+      "newest": "Più recenti prima",
+      "oldest": "Meno recenti prima",
+      "largest": "Più grandi prima",
+      "smallest": "Più piccoli prima",
+      "nameAsc": "Nome dalla A alla Z",
+      "nameDesc": "Nome dalla Z alla A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "Ridimensiona la lista delle conversazioni",
+    "resizeFiles": "Ridimensiona la lista dei file"
+  },
+  "tips": {
+    "conversationFilter": "Mostra solo le conversazioni il cui nome contiene questo testo.",
+    "conversationSort": "Sceglie l'ordine delle conversazioni: per attività o per nome.",
+    "conversationRenameInput": "Scrivi il nuovo nome e premi Invio per salvarlo, o Esc per annullare.",
+    "conversationRenameSave": "Salva il nuovo nome di questa conversazione.",
+    "conversationRenameCancel": "Mantiene il nome attuale di questa conversazione.",
+    "conversationRename": "Dà un nuovo nome a questa conversazione.",
+    "conversationDelete": "Elimina questa conversazione dopo la conferma.",
+    "conversationDeleteBusy": "Potrai eliminare questa conversazione quando l'agente avrà finito di rispondere.",
+    "conversationDeleteConfirm": "Elimina la conversazione per sempre, insieme ai suoi file.",
+    "conversationDeleteCancel": "Mantiene la conversazione.",
+    "fileSort": "Sceglie l'ordine dei file: per età, dimensione o nome.",
+    "resizeConversations": "Trascina, o usa le frecce, per allargare o restringere la lista delle conversazioni.",
+    "resizeFiles": "Trascina, o usa le frecce, per allargare o restringere la lista dei file."
+  }
+});
+
 export default it;

@@ -5,6 +5,8 @@ import i18n from '../i18n';
 import App from '../App.jsx';
 import FilePanel from '../components/FilePanel.jsx';
 import TurnView from '../components/TurnView.jsx';
+import ConversationList from '../components/ConversationList.jsx';
+import Splitter from '../components/Splitter.jsx';
 import { createGatewayClient } from '../api/gateway.js';
 import { newTurnState } from '../utils/turns.js';
 import { FakeEventSource, mockFetch } from './fakes.js';
@@ -295,5 +297,57 @@ describe('copy and telemetry on messages', () => {
     });
     const text = q('[data-testid="turn-telemetry-popover"]').textContent;
     for (const part of ['claude-sonnet-5-5', 'Time to first token', '820 ms', 'Streaming time', '4.1 s', 'Time in tools', '2.5 s', 'Total time', '9.3 s', 'Input tokens', '1,200', 'Cached tokens', '900', 'Reasoning tokens', 'Output speed', '82.9 tokens/s', 'Tool calls', 'Cost']) expect(text).toContain(part);
+  });
+});
+
+describe('conversation list actions', () => {
+  const list = [
+    { id: 'cnv_1', title: 'Tides', turnCount: 2, createdUtc: '2026-10-01T00:00:00Z', lastActivityUtc: '2026-10-03T00:00:00Z' },
+    { id: 'cnv_2', title: 'Apples', turnCount: 1, createdUtc: '2026-10-02T00:00:00Z', lastActivityUtc: '2026-10-02T00:00:00Z', busy: true }
+  ];
+  const change = (el, value) => {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set;
+    setter.call(el, value);
+    el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+  };
+
+  it('filters, sorts, renames, and deletes after a confirmation', async () => {
+    const renamed = [];
+    const deleted = [];
+    await render(<ConversationList conversations={list} error={null} selectedId="cnv_1" onSelect={() => {}} onNew={() => {}} onRename={async (id, title) => renamed.push([id, title])} onDelete={async (id) => deleted.push(id)} />);
+    const titles = () => qa('.conversation-title').map((el) => el.textContent);
+    expect(titles()).toEqual(['Tides', 'Apples']);
+    await act(async () => change(q('[data-testid="conversation-sort"]'), 'nameAsc'));
+    expect(titles()).toEqual(['Apples', 'Tides']);
+    await act(async () => change(q('[data-testid="conversation-filter"]'), 'tid'));
+    expect(titles()).toEqual(['Tides']);
+    await act(async () => change(q('[data-testid="conversation-filter"]'), ''));
+
+    const tides = qa('[data-testid="conversation-row"]').find((row) => row.textContent.includes('Tides'));
+    await act(async () => tides.querySelector('[data-testid="conversation-rename"]').click());
+    await act(async () => change(q('[data-testid="conversation-rename-input"]'), 'Tide research'));
+    await act(async () => q('[data-testid="conversation-rename-save"]').click());
+    expect(renamed).toEqual([['cnv_1', 'Tide research']]);
+
+    const apples = qa('[data-testid="conversation-row"]').find((row) => row.textContent.includes('Apples'));
+    expect(apples.querySelector('[data-testid="conversation-delete"]').disabled).toBe(true);
+    const row = qa('[data-testid="conversation-row"]').find((r) => r.textContent.includes('Tides'));
+    await act(async () => row.querySelector('[data-testid="conversation-delete"]').click());
+    expect(q('[data-testid="conversation-confirm"]').textContent).toContain('Tides');
+    await act(async () => q('[data-testid="conversation-delete-confirm"]').click());
+    expect(deleted).toEqual(['cnv_1']);
+  });
+
+  it('resizes a pane from the keyboard within its limits', async () => {
+    const widths = [];
+    await render(<Splitter edge="start" width={280} min={200} max={520} onChange={(w) => widths.push(w)} label="Resize" tipText="Drag to resize the list" testId="splitter" />);
+    const bar = q('[data-testid="splitter"]');
+    expect(bar.getAttribute('role')).toBe('separator');
+    const press = (key) => bar.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    await act(async () => press('ArrowRight'));
+    await act(async () => press('ArrowLeft'));
+    await act(async () => press('End'));
+    await act(async () => press('Home'));
+    expect(widths).toEqual([296, 264, 520, 200]);
   });
 });

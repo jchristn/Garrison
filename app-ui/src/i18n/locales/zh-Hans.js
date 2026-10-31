@@ -196,4 +196,65 @@ const zhHans = {
   }
 };
 
+// Conversation list and file list controls, and the pane dividers.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+  "conversations": {
+    "filter": "按名称筛选",
+    "sort": "会话排序",
+    "noMatch": "没有符合筛选条件的会话。",
+    "renameLabel": "新名称",
+    "save": "保存",
+    "cancel": "取消",
+    "rename": "重命名 {{title}}",
+    "delete": "删除 {{title}}",
+    "confirmDelete": "删除“{{title}}”？此操作无法撤销。",
+    "deleteConfirm": "删除",
+    "sorts": {
+      "recent": "最近的在前",
+      "oldest": "最早的在前",
+      "nameAsc": "名称 A 到 Z",
+      "nameDesc": "名称 Z 到 A"
+    }
+  },
+  "files": {
+    "sort": "文件排序",
+    "sorts": {
+      "newest": "最新的在前",
+      "oldest": "最旧的在前",
+      "largest": "最大的在前",
+      "smallest": "最小的在前",
+      "nameAsc": "名称 A 到 Z",
+      "nameDesc": "名称 Z 到 A"
+    }
+  },
+  "layout": {
+    "resizeConversations": "调整会话列表宽度",
+    "resizeFiles": "调整文件列表宽度"
+  },
+  "tips": {
+    "conversationFilter": "只显示名称中包含这段文字的会话，其他会话会暂时隐藏。",
+    "conversationSort": "选择会话列表的排列顺序：按最近活动的时间或按名称排列。",
+    "conversationRenameInput": "输入新名称，按 Enter 保存，按 Escape 取消修改。",
+    "conversationRenameSave": "保存这个会话的新名称，并立即在左侧的会话列表中显示。",
+    "conversationRenameCancel": "保留这个会话现在的名称，不做任何修改，关闭编辑框。",
+    "conversationRename": "给这个会话起一个新名称，方便以后在会话列表中找到它。",
+    "conversationDelete": "确认之后才会删除这个会话，点击后不会立即删除任何内容。",
+    "conversationDeleteBusy": "等智能体回答完毕之后，就可以删除这个会话了，请稍候。",
+    "conversationDeleteConfirm": "永久删除这个会话以及它的所有文件，删除后无法恢复。",
+    "conversationDeleteCancel": "保留这个会话，不删除任何内容，并关闭这个确认提示。",
+    "fileSort": "选择文件列表的排列顺序：按修改时间、文件大小或名称排列。",
+    "resizeConversations": "拖动这条分隔线或使用方向键，让左侧的会话列表变宽或变窄。",
+    "resizeFiles": "拖动这条分隔线或使用方向键，让右侧的文件列表变宽或变窄。"
+  }
+});
+
 export default zhHans;

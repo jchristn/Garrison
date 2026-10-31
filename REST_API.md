@@ -3897,6 +3897,13 @@ Colors (`primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentB
 
 The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens. `GET /v1.0/apps/{slug}`, `GET /v1.0/apps/{slug}/logo`, and `GET /v1.0/apps/{slug}/favicon` (the favicon asset, else the logo; 404 when neither) need no credentials; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
 
+Two gateway routes manage the session owner's conversations. Both need the app session (`Authorization: Bearer gas_...`) and answer 404 when the conversation is not the owner's in this app.
+
+| Route | Body | Answer |
+|---|---|---|
+| `PUT /v1.0/apps/{slug}/conversations/{id}` | `{"title": "..."}` | 200 with the `AppConversationView` (no turns). The title's first line is kept, trimmed, at most 200 characters; a blank title is 400 |
+| `DELETE /v1.0/apps/{slug}/conversations/{id}` | none | 204. 409 `ConversationBusy` while a turn is still running. The conversation's runs are kept, as with the management API's conversation delete, and a `ConversationDeleted` audit event is written |
+
 ### Studio drafts
 
 Manifest bundles designed in the studio and applied only after a person approves (AD7). [docs/STUDIO.md](docs/STUDIO.md) explains drafts, versions, diffs, the graph, `DraftApply` approvals, and the `managementAccess: Drafts` grant. Routes are under `/studio/drafts`; the tables are in [docs/STUDIO.md](docs/STUDIO.md#routes).

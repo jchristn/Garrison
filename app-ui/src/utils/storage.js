@@ -4,7 +4,11 @@
 export const STORAGE_KEYS = {
   locale: 'garrison.app.locale',
   theme: 'garrison.app.theme',
-  sessionPrefix: 'garrison.app.session.'
+  sessionPrefix: 'garrison.app.session.',
+  conversationSort: 'garrison.app.conversationSort',
+  fileSort: 'garrison.app.fileSort',
+  conversationsWidth: 'garrison.app.conversationsWidth',
+  filesWidth: 'garrison.app.filesWidth'
 };
 
 function store(kind) {
