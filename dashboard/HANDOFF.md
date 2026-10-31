@@ -1,6 +1,6 @@
 # Dashboard handoff
 
-A summary of what the Garrison operator console contains, how it is checked, and what it does not do yet. The plan (`GARRISON_PLAN.md`, Phase 5) has the task-level history.
+A summary of what the Garrison operator console contains, how it is checked, and what it does not do yet. The plan (`archive/GARRISON_PLAN.md`, Phase 5) has the task-level history.
 
 ## Navigation
 
@@ -109,6 +109,6 @@ Landmarks and labels on every page, keyboard access to tabs (arrow keys, Home, E
 
 ## References
 
-- `GARRISON_PLAN.md` section 14 (dashboard design), decisions D-017 and D-030, tasks P5.1 to P5.51
+- `archive/GARRISON_PLAN.md` section 14 (dashboard design), decisions D-017 and D-030, tasks P5.1 to P5.51
 - `docs/I18N.md` for locales, the glossary, and RTL
 - `~/Code/Agents/requirements/DASHBOARD_STYLE_AND_USABILITY.md` and `FRONTEND_ARCHITECTURE.md`

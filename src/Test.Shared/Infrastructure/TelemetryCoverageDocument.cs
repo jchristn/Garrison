@@ -21,25 +21,25 @@ namespace Test.Shared.Infrastructure
         #region Public-Methods
 
         /// <summary>
-        /// Repository root: the nearest ancestor of the test binaries that holds GARRISON_PLAN.md.
+        /// Repository root: the nearest ancestor of the test binaries that holds src/Garrison.sln.
         /// </summary>
         /// <returns>Path.</returns>
-        /// <exception cref="DirectoryNotFoundException">Thrown when no ancestor holds GARRISON_PLAN.md.</exception>
+        /// <exception cref="DirectoryNotFoundException">Thrown when no ancestor holds src/Garrison.sln.</exception>
         public static string RepositoryRoot()
         {
             DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory != null)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "GARRISON_PLAN.md"))) return directory.FullName;
+                if (File.Exists(Path.Combine(directory.FullName, "src", "Garrison.sln"))) return directory.FullName;
                 directory = directory.Parent;
             }
             directory = new DirectoryInfo(Environment.CurrentDirectory);
             while (directory != null)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "GARRISON_PLAN.md"))) return directory.FullName;
+                if (File.Exists(Path.Combine(directory.FullName, "src", "Garrison.sln"))) return directory.FullName;
                 directory = directory.Parent;
             }
-            throw new DirectoryNotFoundException("Could not find the repository root (GARRISON_PLAN.md) above " + AppContext.BaseDirectory + ".");
+            throw new DirectoryNotFoundException("Could not find the repository root (src/Garrison.sln) above " + AppContext.BaseDirectory + ".");
         }
 
         /// <summary>

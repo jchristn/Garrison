@@ -29,4 +29,4 @@ Add regression cases to the relevant `*Suite.cs`; use descriptive kebab-case cas
 
 ## Commit & Pull Request Guidelines
 
-History uses descriptive, topic-led subjects such as `Plan: ...` and references like `(P12.1)`. Reference applicable plan IDs, describe behavior changes and validation in PRs, and include screenshots for UI changes. Update affected API documentation and SDKs. Read `GARRISON_PLAN.md` before implementation and annotate completed tasks. Commit or push only when requested.
+History uses descriptive, topic-led subjects such as `Plan: ...` and references like `(P12.1)`. Reference applicable plan IDs, describe behavior changes and validation in PRs, and include screenshots for UI changes. Update affected API documentation and SDKs. The build plans are archived in `archive/` (`GARRISON_PLAN.md`, `AGENT_DESIGN_DEPLOY_PLAN.md`): read them for the reasoning behind a design, but record new work in `CHANGELOG.md` instead of annotating them. Commit or push only when requested.

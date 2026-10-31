@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for agents working in this repository. Read `GARRISON_PLAN.md` first: it is the build plan, the decision log, and the progress tracker. Annotate tasks there as you complete them (format in section 1 of the plan).
+Guidance for agents working in this repository. The completed build plans are archived: `archive/GARRISON_PLAN.md` (the original plan and decision log, D- entries) and `archive/AGENT_DESIGN_DEPLOY_PLAN.md` (the 0.2.0 Agent Studio plan, AD entries). Read them for the reasoning behind a design and cite their IDs, but they are no longer annotated; record changes in `CHANGELOG.md`.
 
 ## What Garrison is
 

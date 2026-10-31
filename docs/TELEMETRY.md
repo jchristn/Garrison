@@ -754,7 +754,9 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/apps/{slug}` | `route="/v1.0/apps/{slug}"` | `GET /v1.0/apps/{slug}` | `route=/v1.0/apps/{slug}` | garrison-http |
 | GET | `/v1.0/apps/{slug}/conversations` | `route="/v1.0/apps/{slug}/conversations"` | `GET /v1.0/apps/{slug}/conversations` | `route=/v1.0/apps/{slug}/conversations` | garrison-http |
 | POST | `/v1.0/apps/{slug}/conversations` | `route="/v1.0/apps/{slug}/conversations"` | `POST /v1.0/apps/{slug}/conversations` | `route=/v1.0/apps/{slug}/conversations` | garrison-http |
+| DELETE | `/v1.0/apps/{slug}/conversations/{id}` | `route="/v1.0/apps/{slug}/conversations/{id}"` | `DELETE /v1.0/apps/{slug}/conversations/{id}` | `route=/v1.0/apps/{slug}/conversations/{id}` | garrison-http |
 | GET | `/v1.0/apps/{slug}/conversations/{id}` | `route="/v1.0/apps/{slug}/conversations/{id}"` | `GET /v1.0/apps/{slug}/conversations/{id}` | `route=/v1.0/apps/{slug}/conversations/{id}` | garrison-http |
+| PUT | `/v1.0/apps/{slug}/conversations/{id}` | `route="/v1.0/apps/{slug}/conversations/{id}"` | `PUT /v1.0/apps/{slug}/conversations/{id}` | `route=/v1.0/apps/{slug}/conversations/{id}` | garrison-http |
 | GET | `/v1.0/apps/{slug}/conversations/{id}/files` | `route="/v1.0/apps/{slug}/conversations/{id}/files"` | `GET /v1.0/apps/{slug}/conversations/{id}/files` | `route=/v1.0/apps/{slug}/conversations/{id}/files` | garrison-http |
 | GET | `/v1.0/apps/{slug}/conversations/{id}/files/content` | `route="/v1.0/apps/{slug}/conversations/{id}/files/content"` | `GET /v1.0/apps/{slug}/conversations/{id}/files/content` | `route=/v1.0/apps/{slug}/conversations/{id}/files/content` | garrison-http |
 | POST | `/v1.0/apps/{slug}/conversations/{id}/files/download-url` | `route="/v1.0/apps/{slug}/conversations/{id}/files/download-url"` | `POST /v1.0/apps/{slug}/conversations/{id}/files/download-url` | `route=/v1.0/apps/{slug}/conversations/{id}/files/download-url` | garrison-http |
@@ -762,6 +764,7 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/apps/{slug}/conversations/{id}/files/versions` | `route="/v1.0/apps/{slug}/conversations/{id}/files/versions"` | `GET /v1.0/apps/{slug}/conversations/{id}/files/versions` | `route=/v1.0/apps/{slug}/conversations/{id}/files/versions` | garrison-http |
 | POST | `/v1.0/apps/{slug}/conversations/{id}/messages` | `route="/v1.0/apps/{slug}/conversations/{id}/messages"` | `POST /v1.0/apps/{slug}/conversations/{id}/messages` | `route=/v1.0/apps/{slug}/conversations/{id}/messages` | garrison-http |
 | GET | `/v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `route="/v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream"` | `GET /v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | `route=/v1.0/apps/{slug}/conversations/{id}/turns/{runId}/stream` | garrison-http |
+| GET | `/v1.0/apps/{slug}/favicon` | `route="/v1.0/apps/{slug}/favicon"` | `GET /v1.0/apps/{slug}/favicon` | `route=/v1.0/apps/{slug}/favicon` | garrison-http |
 | GET | `/v1.0/apps/{slug}/logo` | `route="/v1.0/apps/{slug}/logo"` | `GET /v1.0/apps/{slug}/logo` | `route=/v1.0/apps/{slug}/logo` | garrison-http |
 | DELETE | `/v1.0/apps/{slug}/session` | `route="/v1.0/apps/{slug}/session"` | `DELETE /v1.0/apps/{slug}/session` | `route=/v1.0/apps/{slug}/session` | garrison-http |
 | POST | `/v1.0/apps/{slug}/session` | `route="/v1.0/apps/{slug}/session"` | `POST /v1.0/apps/{slug}/session` | `route=/v1.0/apps/{slug}/session` | garrison-http |

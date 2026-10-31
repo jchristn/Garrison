@@ -2,7 +2,7 @@
 
 Garrison is two things built on one model. The runtime is a control plane for headless agent harnesses: it accepts requests to run an agent over REST, MCP, or A2A, turns each request into a fully resolved command line, and hands that to a worker that pulls it. The studio (Garrison Agent Studio) sits on top of the runtime and uses it to build, test, deploy, and serve agentic apps: drafts, the agent architect, the playground, promotion, and an end-user app gateway. Nothing in the studio bypasses the runtime. The architect is an agent, playground runs are runs, and an app's conversation is a series of runs with its entry agent.
 
-This page describes the parts, how a run moves through them, and the decisions that shape the design. `GARRISON_PLAN.md` and `AGENT_DESIGN_DEPLOY_PLAN.md` have the full decision logs.
+This page describes the parts, how a run moves through them, and the decisions that shape the design. `archive/GARRISON_PLAN.md` and `archive/AGENT_DESIGN_DEPLOY_PLAN.md` have the full decision logs.
 
 ## The parts
 

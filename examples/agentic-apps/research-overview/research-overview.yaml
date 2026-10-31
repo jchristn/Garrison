@@ -1,4 +1,4 @@
-# Research overview example app (AD10.5, the walkthrough in section 11 of AGENT_DESIGN_DEPLOY_PLAN.md).
+# Research overview example app (AD10.5, the walkthrough in section 11 of archive/AGENT_DESIGN_DEPLOY_PLAN.md).
 #
 # An orchestrator talks to people. It fans out to two researchers, has a writer draft report.md in the conversation file
 # space, and has the doc-converter agent turn it into report.pdf. Apply ../doc-converter/doc-converter.yaml first.

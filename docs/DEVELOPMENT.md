@@ -1,6 +1,6 @@
 # Development
 
-This page is for people changing Garrison itself: building it, running it on a laptop, running the tests, and the conventions a change has to follow. `CLAUDE.md` at the repository root has the full rule list, and `GARRISON_PLAN.md` is the build plan and progress tracker; annotate tasks there as you finish them.
+This page is for people changing Garrison itself: building it, running it on a laptop, running the tests, and the conventions a change has to follow. `CLAUDE.md` at the repository root has the full rule list, and `archive/GARRISON_PLAN.md` is the build plan and progress tracker; annotate tasks there as you finish them.
 
 ## Prerequisites
 

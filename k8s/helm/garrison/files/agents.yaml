@@ -1,4 +1,4 @@
-# Sample agents applied by the bootstrap Job (format: GARRISON_PLAN.md section 8.5).
+# Sample agents applied by the bootstrap Job (format: archive/GARRISON_PLAN.md section 8.5).
 # Deployments live in separate files so the bootstrap Job applies each one only when its
 # harness credential was provided in the garrison-harness-credentials Secret.
 apiVersion: garrison/v1

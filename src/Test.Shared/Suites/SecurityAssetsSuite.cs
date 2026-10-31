@@ -77,7 +77,7 @@ namespace Test.Shared.Suites
                 DirectoryInfo? directory = new DirectoryInfo(Environment.CurrentDirectory);
                 while (directory != null)
                 {
-                    if (File.Exists(Path.Combine(directory.FullName, "GARRISON_PLAN.md"))) return directory.FullName;
+                    if (File.Exists(Path.Combine(directory.FullName, "src", "Garrison.sln"))) return directory.FullName;
                     directory = directory.Parent;
                 }
                 throw;

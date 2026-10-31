@@ -60,7 +60,7 @@ Garrison is alpha: a 0.x version means the REST API, MCP tools, schema, settings
 - [Latest recovery, continuation and cache acceptance](testing/D063_VALIDATION.md).
 - [Application telemetry, diagnostics and performance evidence](testing/D062_VALIDATION.md).
 - [Documentation accuracy review](testing/documentation-readiness-review.md).
-- [Build plan and decisions](../GARRISON_PLAN.md), [CI coverage](CI.md), [security review](SECURITY_REVIEW.md).
+- [Build plan and decisions](../archive/GARRISON_PLAN.md), [CI coverage](CI.md), [security review](SECURITY_REVIEW.md).
 - [Licensing and dependency notices](../THIRD_PARTY_NOTICES.md), [changelog](../CHANGELOG.md).
 
 Fresh-user acceptance, API/SDK stability review and release work remain deferred. Larger capacity acceptance is also deferred. Local acceptance results describe the measured fixture and topology; they are not universal throughput, latency or compliance claims.

@@ -6,10 +6,10 @@
 # each line must match at least once, so a mirror that moves or disappears also fails.
 # Expressions must work in both grep -E and .NET regular expressions.
 #
-# Files left alone on purpose (AGENT_DESIGN_DEPLOY_PLAN.md, phase AD0): the notdory
+# Files left alone on purpose (archive/AGENT_DESIGN_DEPLOY_PLAN.md, phase AD0): the notdory
 # compose file, Kubernetes component, and doc (third-party images), recorded fixtures,
-# benchmarks/, CHANGELOG.md history, docs/REMAINING_PLAN_MATRIX.md, AB_IMPROVEMENTS.md,
-# and GARRISON_PLAN.md.
+# benchmarks/, CHANGELOG.md history, docs/REMAINING_PLAN_MATRIX.md, archive/AB_IMPROVEMENTS.md,
+# and archive/GARRISON_PLAN.md.
 
 # .NET build, images, and tests
 src/Directory.Build.props|<Version>@V@</Version>

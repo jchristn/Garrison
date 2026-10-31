@@ -134,7 +134,7 @@ The `CodexAppServer` parser reads the same stdout:
 | `mcpServer/startupStatus/updated` with status `failed` | `Warning`; the run fails when the server is required |
 | an approval or elicitation request | `Warning`; the worker declines it (no warning for approvals the worker relays to Garrison) |
 
-Deltas go through the same event path as every other event (D-034 in `GARRISON_PLAN.md`): the worker reports them, the control plane stores them, and live readers tail the database. There is no separate broadcast path for raw deltas.
+Deltas go through the same event path as every other event (D-034 in `archive/GARRISON_PLAN.md`): the worker reports them, the control plane stores them, and live readers tail the database. There is no separate broadcast path for raw deltas.
 
 Requests from the app-server get headless answers: command and file change approvals are declined unless the deployment has approvals enabled (then the worker relays them, see [Permission approvals](#permission-approvals)), MCP elicitations are declined, and everything else (including `account/chatgptAuthTokens/refresh`, since the control plane owns token refresh) gets a JSON-RPC error. With approval policy `never` Codex should not ask in the first place.
 

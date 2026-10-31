@@ -1,6 +1,6 @@
 # Garrison benchmarks
 
-This directory holds everything about the benchmark suite except the harness code, which is `src/Test.Benchmark` (assembly and process `Garrison.Benchmark`). The plan, hypotheses, and metric definitions are in `BENCHMARKING.md` at the repository root; the curated numbers are in `RESULTS.md` here; the fixes the numbers point to are in `IMPROVEMENTS.md` at the root.
+This directory holds everything about the benchmark suite except the harness code, which is `src/Test.Benchmark` (assembly and process `Garrison.Benchmark`). The plan, hypotheses, and metric definitions are in `BENCHMARKING.md` at the repository root; the curated numbers are in `RESULTS.md` here; the fixes the numbers point to are in `archive/IMPROVEMENTS.md` at the root.
 
 The harness talks to Garrison only over the REST API, as a client would, with its own typed client. It never references a product assembly or reads the database. Every run uses the fake harness (`src/Garrison.FakeHarness`), so the suite costs no tokens, needs no credentials, and measures Garrison rather than a model.
 

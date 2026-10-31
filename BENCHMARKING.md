@@ -1,6 +1,6 @@
 # Garrison benchmarking plan
 
-This is the plan for Garrison's benchmark suite: what it measures and why, the hypotheses round 0 was run to confirm or refute, how every metric is computed, and how far the suite has come. It follows `~/Code/Agents/requirements/BENCHMARKING.md` and is GARRISON_PLAN.md Phase 14 (P14.1 to P14.14). The operator's guide is `benchmarks/README.md`; the numbers are in `benchmarks/RESULTS.md`; the fixes they point to are in `IMPROVEMENTS.md`.
+This is the plan for Garrison's benchmark suite: what it measures and why, the hypotheses round 0 was run to confirm or refute, how every metric is computed, and how far the suite has come. It follows `~/Code/Agents/requirements/BENCHMARKING.md` and is archive/GARRISON_PLAN.md Phase 14 (P14.1 to P14.14). The operator's guide is `benchmarks/README.md`; the numbers are in `benchmarks/RESULTS.md`; the fixes they point to are in `archive/IMPROVEMENTS.md`.
 
 ## What the suite measures, and why
 
@@ -41,7 +41,7 @@ The reference suites (Isis, Pneuma, AssistantHub) measure retrieval quality: the
 
 Both committed datasets are small (under 10,000 items) and deterministic, so both are in the CI gate.
 
-**Why no public dataset.** The requirement's catalog lists the Azure Public Dataset (Functions 2019 invocation traces), the Alibaba cluster trace, and the Google cluster data under workflow and scheduling. They are workloads, not benchmarks: no oracle, and no published result for a metric this suite reports. They would be useful for one thing, a realistic open-loop arrival pattern (bursty, diurnal, heavy-tailed run lengths) instead of the fixed rates the load command uses today. That is IMPROVEMENTS.md item I-10; until then no public number is compared, and `benchmarks/baselines.json` says so in every report. The only prior numbers to compare against are Garrison's own, in `docs/SCALING.md` (2026-10-10), and `baselines.json` carries them, marked as internal.
+**Why no public dataset.** The requirement's catalog lists the Azure Public Dataset (Functions 2019 invocation traces), the Alibaba cluster trace, and the Google cluster data under workflow and scheduling. They are workloads, not benchmarks: no oracle, and no published result for a metric this suite reports. They would be useful for one thing, a realistic open-loop arrival pattern (bursty, diurnal, heavy-tailed run lengths) instead of the fixed rates the load command uses today. That is archive/IMPROVEMENTS.md item I-10; until then no public number is compared, and `benchmarks/baselines.json` says so in every report. The only prior numbers to compare against are Garrison's own, in `docs/SCALING.md` (2026-10-10), and `baselines.json` carries them, marked as internal.
 
 ## Metrics
 
@@ -83,7 +83,7 @@ Written while the harness was being built, before the round 0 run. Smoke runs du
 
 ## Product hooks
 
-None were added. Garrison already exposes what the suite needs: per-run timing fields measured by the worker and the server (`timeToFirstTokenMs`, `executionMs`, `queueMs`, `totalMs`), event timestamps from both sides, `blockedReason`, the node that ran each run, and Prometheus histograms on `/metrics` (relayed on the REST port), which the in-progress telemetry work (P13.20 to P13.28) extends with per-route, per-table database, and scheduler metrics that the stage breakdown picks up automatically. Two hooks would sharpen the numbers and are in IMPROVEMENTS.md: a placement dry run ("which nodes could take this run, and why not the others") and a per-run database operation count.
+None were added. Garrison already exposes what the suite needs: per-run timing fields measured by the worker and the server (`timeToFirstTokenMs`, `executionMs`, `queueMs`, `totalMs`), event timestamps from both sides, `blockedReason`, the node that ran each run, and Prometheus histograms on `/metrics` (relayed on the REST port), which the in-progress telemetry work (P13.20 to P13.28) extends with per-route, per-table database, and scheduler metrics that the stage breakdown picks up automatically. Two hooks would sharpen the numbers and are in archive/IMPROVEMENTS.md: a placement dry run ("which nodes could take this run, and why not the others") and a per-run database operation count.
 
 ## Delivery and status
 
@@ -100,7 +100,7 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 | P14.9 | Bootstrap confidence intervals; paired, significance-gated compare for every report kind | Done |
 | P14.10 | `ci-gate` with committed baselines; automatic workflow removed 2026-10-12 to conserve minutes, local script retained | Done |
 | P14.11 | `benchmarks/RESULTS.md` round 0 with the defects found | Done |
-| P14.12 | `IMPROVEMENTS.md` | Done |
+| P14.12 | `archive/IMPROVEMENTS.md` | Done |
 | P14.13 | Every script as a `.sh` and `.bat` pair | Done |
 | P14.14 | Definition of Done (below) | Done, with the departures listed below |
 | P14.15 | Control plane load to failure: the `scale` command, the fake harness paced mode, and `benchmarks/scale.sh` with `scale-up.sh` and `scale-down.sh` (shell only: the scale stack needs Docker and a POSIX shell, so there is no `.bat` pair) | Tooling done; the 1k and 10k tiers are not measured yet |
@@ -123,15 +123,15 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 | Every quality report shows `baselines.json` with the net difference, and `history` produces the per-type round table | Yes (the baselines are internal prior numbers; no published ones exist) |
 | `ci-gate` runs a deterministic subset against committed baselines | Local only since 2026-10-12; automatic CI deferred to conserve minutes |
 | Every script is a `.sh` and `.bat` pair with no hard-coded paths, ids, hosts, or secrets | Yes; the only credentials are the bench stack's obviously fake keys |
-| `BENCHMARKING.md`, `benchmarks/README.md`, `benchmarks/RESULTS.md` (round 0 and its defects), and `IMPROVEMENTS.md` are written | Yes; committing them is the user's call (this phase was delivered uncommitted, by instruction) |
+| `BENCHMARKING.md`, `benchmarks/README.md`, `benchmarks/RESULTS.md` (round 0 and its defects), and `archive/IMPROVEMENTS.md` are written | Yes; committing them is the user's call (this phase was delivered uncommitted, by instruction) |
 
 ## Where the implementation departs from this plan
 
-1. **K3S in Docker instead of Docker Compose.** The requirement describes `benchmarks/docker/compose.yaml`. GARRISON_PLAN.md P14.4 asks for K3S in Docker, because Garrison ships to Kubernetes and the interesting failures (a worker pod crash, a control-plane restart, PostgreSQL restarting under load, several workers on lanes) are Kubernetes behavior. The stack is `benchmarks/k3d/cluster.yaml` (one `k3d cluster create --config` command) plus the `benchmarks/k8s/` overlay on the shipped base. Image digests come from `kubectl get pods`, not `docker inspect`. The CI gate uses a second, lighter stack of local processes (`start-bench-server.sh`), because building the 2 GB worker image and running K3S on every push would make the gate slow and flaky.
+1. **K3S in Docker instead of Docker Compose.** The requirement describes `benchmarks/docker/compose.yaml`. archive/GARRISON_PLAN.md P14.4 asks for K3S in Docker, because Garrison ships to Kubernetes and the interesting failures (a worker pod crash, a control-plane restart, PostgreSQL restarting under load, several workers on lanes) are Kubernetes behavior. The stack is `benchmarks/k3d/cluster.yaml` (one `k3d cluster create --config` command) plus the `benchmarks/k8s/` overlay on the shipped base. Image digests come from `kubectl get pods`, not `docker inspect`. The CI gate uses a second, lighter stack of local processes (`start-bench-server.sh`), because building the 2 GB worker image and running K3S on every push would make the gate slow and flaky.
 2. **No public dataset and no `prepare` command.** See Datasets.
 3. **No observability collector in the stack.** The requirement asks for the SUT's collector with a 1-second export. Garrison serves Prometheus text on `/metrics` directly (pull, not push), so the harness scrapes it before and after each phase with no export interval to wait for. Behind a Service with several replicas each scrape reaches one replica, so stage breakdowns are only clean with one server, which is the default.
 4. **Deterministic gate rule.** The requirement's compare flags a regression only when a drop exceeds the tolerance and is significant. For reports marked deterministic, `compare` also flags any single probe that flips from pass to fail: on a 24-probe corpus one flip is a 4% drop that a bootstrap cannot call significant, yet a deterministic probe has no noise, so the flip is real.
-5. **Run-level, not per-request, overrides.** There is no ablation sweep yet: Garrison's tunables that matter here (lease wait, event flush interval, poll intervals) are cluster settings, and the suite does not change them between arms. IMPROVEMENTS.md I-09 proposes sweeping them.
+5. **Run-level, not per-request, overrides.** There is no ablation sweep yet: Garrison's tunables that matter here (lease wait, event flush interval, poll intervals) are cluster settings, and the suite does not change them between arms. archive/IMPROVEMENTS.md I-09 proposes sweeping them.
 6. **The direct arm runs on the harness machine.** On the k3d stack the Garrison arm's harness runs in a Linux container in the Docker VM while the direct arm runs on the host, so the floor is a floor for the work, not for the container. `clientOverheadMs` (client latency minus the worker's own `executionMs`) is the container-fair overhead and is reported next to it.
 7. **The root README has no Benchmarks section yet.** This phase was delivered by an agent restricted to its own files while two others edited the tree; adding the short section that links `benchmarks/README.md` is a one-line follow-up.
 

@@ -4,7 +4,7 @@ All notable changes to Garrison are recorded here. The format follows [Keep a Ch
 
 ## [0.2.0] - 2026-10-29
 
-The Agent Studio release. Garrison stays a horizontally elastic runtime for headless agent harnesses, and gains a studio on top of it for building, testing, deploying, operating, and observing agentic applications (AD-027). The work is tracked in `AGENT_DESIGN_DEPLOY_PLAN.md`; task IDs below refer to it. The database schema moves from version 34 to 43, and both Sqlite and PostgreSQL migrate on startup.
+The Agent Studio release. Garrison stays a horizontally elastic runtime for headless agent harnesses, and gains a studio on top of it for building, testing, deploying, operating, and observing agentic applications (AD-027). The work is tracked in `archive/AGENT_DESIGN_DEPLOY_PLAN.md`; task IDs below refer to it. The database schema moves from version 34 to 43, and both Sqlite and PostgreSQL migrate on startup.
 
 ### Added
 
@@ -92,7 +92,7 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ## [0.1.0-alpha] - Unreleased
 
-The first build of Garrison: a multi-tenant control plane that runs headless agent harnesses on pull-based worker nodes and exposes them over REST, MCP, and A2A. This release is the MVP milestone in `GARRISON_PLAN.md`.
+The first build of Garrison: a multi-tenant control plane that runs headless agent harnesses on pull-based worker nodes and exposes them over REST, MCP, and A2A. This release is the MVP milestone in `archive/GARRISON_PLAN.md`.
 
 ### Control plane
 
@@ -270,7 +270,7 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - React operator console: nine-hub navigation with tabs, run telemetry columns and a telemetry panel, an Analytics page with charts by agent, harness, and model, CSV, PNG, SVG, and JSON export on every chart, explainer panels for related objects, a useful tooltip on every control, and nine languages (English, German, Japanese, Spanish, French, Italian, Simplified Chinese, Traditional Chinese, and Cantonese) with RTL readiness.
 - SDKs for C#, Python, JavaScript and TypeScript, and Go, a Postman collection, and API documentation.
 - A quick start (`docs/QUICKSTART.md`) with a multi-agent sample manifest (`examples/multi-agent.yaml`) and a validation script (`examples/validate.sh`, `validate.bat`) that checks REST, MCP, A2A, streaming, delegation, telemetry, and analytics and prints PASS or FAIL per check.
-- Benchmark suite (Phase 14, `BENCHMARKING.md`): the `Garrison.Benchmark` harness (`src/Test.Benchmark`) with `validate`, `generate`, `ingest`, `routing`, `e2e`, `load`, `resilience`, `compare`, `history`, `stub`, `ci-gate`, and `wait`; an isolated K3S-in-Docker stack (`benchmarks/stack-up.sh`, k3d cluster `garrison-bench` on 127.0.0.1 ports 37xxx) and a local process stack; synthetic and frozen live datasets with negative probes; the fake harness as the stub and direct invocation as the reference arm; reports with provenance and bootstrap confidence intervals; a paired, significance-gated `compare`; and a deterministic CI gate against committed baselines (`.github/workflows/benchmark.yaml`). Round 0 and the defects it found are in `benchmarks/RESULTS.md`, the ranked fixes in `IMPROVEMENTS.md`.
+- Benchmark suite (Phase 14, `BENCHMARKING.md`): the `Garrison.Benchmark` harness (`src/Test.Benchmark`) with `validate`, `generate`, `ingest`, `routing`, `e2e`, `load`, `resilience`, `compare`, `history`, `stub`, `ci-gate`, and `wait`; an isolated K3S-in-Docker stack (`benchmarks/stack-up.sh`, k3d cluster `garrison-bench` on 127.0.0.1 ports 37xxx) and a local process stack; synthetic and frozen live datasets with negative probes; the fake harness as the stub and direct invocation as the reference arm; reports with provenance and bootstrap confidence intervals; a paired, significance-gated `compare`; and a deterministic CI gate against committed baselines (`.github/workflows/benchmark.yaml`). Round 0 and the defects it found are in `benchmarks/RESULTS.md`, the ranked fixes in `archive/IMPROVEMENTS.md`.
 
 ### Compatibility notes
 

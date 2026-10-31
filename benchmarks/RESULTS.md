@@ -1,6 +1,6 @@
 # Benchmark results
 
-Round 0 is the first honest run of the suite, and it did what round 0 usually does: it found defects before it found anything worth publishing. Garrison's scheduling and run flow are correct in every probe the suite has (52 of 52 routing and run-flow probes, 108 of 108 outcomes with repeats), its per-run overhead is small (about 18 ms at the median over invoking the same harness directly), and it scales out nearly linearly. It does not degrade gracefully past its capacity: an open-loop load just above what two workers can serve exhausted PostgreSQL's connections, failed requests with `500 InternalError`, and got the only server replica killed by its own liveness probe. A database restart turns some API errors into HTML pages. Those are the first things to fix (`IMPROVEMENTS.md`).
+Round 0 is the first honest run of the suite, and it did what round 0 usually does: it found defects before it found anything worth publishing. Garrison's scheduling and run flow are correct in every probe the suite has (52 of 52 routing and run-flow probes, 108 of 108 outcomes with repeats), its per-run overhead is small (about 18 ms at the median over invoking the same harness directly), and it scales out nearly linearly. It does not degrade gracefully past its capacity: an open-loop load just above what two workers can serve exhausted PostgreSQL's connections, failed requests with `500 InternalError`, and got the only server replica killed by its own liveness probe. A database restart turns some API errors into HTML pages. Those are the first things to fix (`archive/IMPROVEMENTS.md`).
 
 ## Hardware and environment
 
@@ -172,7 +172,7 @@ H1 to H4 and H6 were not rerun in round 1.
 
 ## Defects found by the benchmarks
 
-Round 0 found these while the suite was built under an instruction not to change product code; each has an entry in `IMPROVEMENTS.md`. D-1, D-3, D-4, and D-5 are fixed (plan G-23 to G-26): round 1 rechecked D-1, D-4, and D-5, and D-3 is covered by the `correctness-unit.manifest-invalid` test. D-2 was fixed by the P13.22 telemetry work.
+Round 0 found these while the suite was built under an instruction not to change product code; each has an entry in `archive/IMPROVEMENTS.md`. D-1, D-3, D-4, and D-5 are fixed (plan G-23 to G-26): round 1 rechecked D-1, D-4, and D-5, and D-3 is covered by the `correctness-unit.manifest-invalid` test. D-2 was fixed by the P13.22 telemetry work.
 
 | ID | Defect | Where | Found by |
 |---|---|---|---|
@@ -197,7 +197,7 @@ Not defects, but recorded so nobody chases them: out-of-range values such as `ma
 - One machine, shared during round 0; no number here should leave the team without a rerun on a quiet machine.
 - Probes are hand-written against the documentation, and their oracles are mostly exact checks on the fake harness. They test what Garrison does with a harness, not how real harnesses behave.
 - The stage breakdown diffs server-wide counters, so background work (heartbeats, long polls) is mixed into per-level numbers, and with several replicas a scrape reaches only one of them.
-- Closed-loop load hides stalls; round 0's open-loop levels are what exposed D-4 and D-5. The open-loop rates are fixed, not bursty (IMPROVEMENTS.md I-10).
+- Closed-loop load hides stalls; round 0's open-loop levels are what exposed D-4 and D-5. The open-loop rates are fixed, not bursty (archive/IMPROVEMENTS.md I-10).
 - No public dataset and no published baseline exists for this kind of system; the only baselines are Garrison's own earlier numbers, measured on a different topology.
 - The CI gate runs on the local stack (Sqlite, processes), so it cannot catch PostgreSQL- or Kubernetes-specific regressions; those need a round on the k3d stack.
 
