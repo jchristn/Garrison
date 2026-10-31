@@ -548,8 +548,30 @@ class AppSessionResponse(TypedDict, total=False):
     anonymous: bool
 
 
+class AppTurnTelemetry(TypedDict, total=False):
+    """How one app turn ran: the model, timings (milliseconds), tokens, tool calls, and cost. The gateway includes it
+    only for apps that show operator detail. Optional values are None until the run reports them; token counts and
+    toolCallCount default to 0. costUsd is None when the model has no price."""
+    servedModel: Optional[str]
+    timeToFirstTokenMs: Optional[int]
+    streamingMs: Optional[int]
+    executionMs: Optional[int]
+    queueMs: Optional[int]
+    totalMs: Optional[int]
+    delegationWaitMs: Optional[int]
+    approvalWaitMs: Optional[int]
+    inputTokens: int
+    outputTokens: int
+    cachedTokens: int
+    reasoningTokens: int
+    outputTokensPerSecond: Optional[float]
+    toolCallCount: int
+    costUsd: Optional[float]
+
+
 class AppTurnView(TypedDict, total=False):
-    """One turn of an app conversation as an end user sees it."""
+    """One turn of an app conversation as an end user sees it. telemetry is None unless the app shows operator
+    detail."""
     runId: str
     turn: int
     message: str
@@ -559,6 +581,7 @@ class AppTurnView(TypedDict, total=False):
     awaitingApproval: bool
     createdUtc: str
     completedUtc: Optional[str]
+    telemetry: Optional[AppTurnTelemetry]
 
 
 class AppConversationView(TypedDict, total=False):

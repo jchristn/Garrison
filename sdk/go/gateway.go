@@ -56,6 +56,28 @@ type AppTurnView struct {
 	AwaitingApproval bool    `json:"awaitingApproval"`
 	CreatedUTC       string  `json:"createdUtc"`
 	CompletedUTC     *string `json:"completedUtc"`
+	// Telemetry is nil unless the app shows operator detail.
+	Telemetry *AppTurnTelemetry `json:"telemetry"`
+}
+
+// AppTurnTelemetry is how one app turn ran: the model, timings, tokens, tool calls, and cost. The gateway includes it
+// only for apps that show operator detail. Pointer fields are nil until the run reports them.
+type AppTurnTelemetry struct {
+	ServedModel           *string  `json:"servedModel"`
+	TimeToFirstTokenMs    *int64   `json:"timeToFirstTokenMs"`
+	StreamingMs           *int64   `json:"streamingMs"`
+	ExecutionMs           *int64   `json:"executionMs"`
+	QueueMs               *int64   `json:"queueMs"`
+	TotalMs               *int64   `json:"totalMs"`
+	DelegationWaitMs      *int64   `json:"delegationWaitMs"`
+	ApprovalWaitMs        *int64   `json:"approvalWaitMs"`
+	InputTokens           int64    `json:"inputTokens"`
+	OutputTokens          int64    `json:"outputTokens"`
+	CachedTokens          int64    `json:"cachedTokens"`
+	ReasoningTokens       int64    `json:"reasoningTokens"`
+	OutputTokensPerSecond *float64 `json:"outputTokensPerSecond"`
+	ToolCallCount         int      `json:"toolCallCount"`
+	CostUsd               *float64 `json:"costUsd"`
 }
 
 // AppConversationView is an app conversation as its owner sees it. Turns is empty in listings and filled when one

@@ -34,9 +34,19 @@ export interface AppInfo {
 export interface AppSessionResponse { token: string; expiresUtc: string; principalName: string; anonymous: boolean; }
 
 /** One turn of an app conversation as an end user sees it. */
+/** How one app turn ran (AppTurnTelemetry). */
+export interface AppTurnTelemetry {
+  servedModel?: string | null; timeToFirstTokenMs?: number | null; streamingMs?: number | null; executionMs?: number | null;
+  queueMs?: number | null; totalMs?: number | null; delegationWaitMs?: number | null; approvalWaitMs?: number | null;
+  inputTokens: number; outputTokens: number; cachedTokens: number; reasoningTokens: number;
+  outputTokensPerSecond?: number | null; toolCallCount: number; costUsd?: number | null;
+}
+
 export interface AppTurnView {
   runId: string; turn: number; message: string; status: RunStatus; answer?: string | null; error?: string | null;
   awaitingApproval: boolean; createdUtc: string; completedUtc?: string | null;
+  /** How the turn ran; null unless the app shows operator detail. */
+  telemetry?: AppTurnTelemetry | null;
 }
 
 /** An app conversation as its owner sees it. turns is empty in listings and filled when one conversation is read. */

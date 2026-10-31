@@ -34,7 +34,7 @@ export function applyEvent(state, evt) {
   } else if (evt.eventType === 'Error' && evt.text) {
     next.streamError = evt.text;
   } else if (DETAIL_EVENT_TYPES.includes(evt.eventType)) {
-    next.details = [...state.details, { sequence, eventType: evt.eventType, text: eventText(evt), toolName: evt.toolName || null, toolCallId: evt.toolCallId || null, success: evt.success }];
+    next.details = [...state.details, { sequence, eventType: evt.eventType, text: eventText(evt), toolName: evt.toolName || null, toolCallId: evt.toolCallId || null, success: evt.success, timestampUtc: evt.timestampUtc || null }];
   }
   return next;
 }

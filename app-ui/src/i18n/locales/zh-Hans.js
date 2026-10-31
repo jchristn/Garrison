@@ -105,6 +105,33 @@ const zhHans = {
     nothing: '无',
     waiting: '正在等待回答'
   },
+  copy: {
+    copy: '复制',
+    copied: '已复制',
+    failed: '浏览器不允许复制',
+    message: '复制你的消息',
+    answer: '复制回答'
+  },
+  telemetry: {
+    title: '这个回答的运行情况',
+    model: '模型',
+    ttft: '首个令牌时间',
+    streaming: '流式输出时间',
+    tools: '工具耗时',
+    delegation: '等待其他智能体',
+    approval: '等待批准',
+    queue: '等待工作节点',
+    execution: '运行时间',
+    total: '总时间',
+    inputTokens: '输入令牌',
+    outputTokens: '输出令牌',
+    cachedTokens: '缓存令牌',
+    reasoningTokens: '推理令牌',
+    rate: '输出速度',
+    rateValue: '{{value}} 令牌/秒',
+    toolCalls: '工具调用',
+    cost: '费用'
+  },
   files: {
     title: '文件',
     empty: '智能体还没有在这个对话中写入任何文件。',

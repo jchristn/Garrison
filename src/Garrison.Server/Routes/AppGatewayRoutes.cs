@@ -203,7 +203,7 @@ namespace Garrison.Server.Routes
                         evt.RawEventJson = null;
                         await http.Response.SendEvent(new ServerSentEvent { Id = evt.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture), Event = "turn.event", Data = Serializer.Serialize(evt) }, false, http.Token).ConfigureAwait(false);
                     }
-                    AppTurnView turn = AppGatewayService.Turn(current);
+                    AppTurnView turn = AppGatewayService.Turn(current, app.ShowOperatorDetail);
                     string status = turn.Status + ":" + turn.AwaitingApproval;
                     if (status != lastStatus)
                     {

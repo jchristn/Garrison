@@ -106,6 +106,33 @@ const en = {
     nothing: 'Nothing',
     waiting: 'Waiting for the answer'
   },
+  copy: {
+    copy: 'Copy',
+    copied: 'Copied',
+    failed: 'The browser did not allow copying',
+    message: 'Copy your message',
+    answer: 'Copy the answer'
+  },
+  telemetry: {
+    title: 'How this answer ran',
+    model: 'Model',
+    ttft: 'Time to first token',
+    streaming: 'Streaming time',
+    tools: 'Time in tools',
+    delegation: 'Waiting for other agents',
+    approval: 'Waiting for approval',
+    queue: 'Waiting for a worker',
+    execution: 'Run time',
+    total: 'Total time',
+    inputTokens: 'Input tokens',
+    outputTokens: 'Output tokens',
+    cachedTokens: 'Cached tokens',
+    reasoningTokens: 'Reasoning tokens',
+    rate: 'Output speed',
+    rateValue: '{{value}} tokens/s',
+    toolCalls: 'Tool calls',
+    cost: 'Cost'
+  },
   files: {
     title: 'Files',
     empty: 'The agent has not written any files in this conversation yet.',

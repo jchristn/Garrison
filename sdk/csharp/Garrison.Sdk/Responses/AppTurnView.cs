@@ -73,6 +73,11 @@ namespace Garrison.Sdk.Responses
         /// </summary>
         public DateTime? CompletedUtc { get; set; } = null;
 
+        /// <summary>
+        /// How the turn ran (model, timings, tokens, tool calls, cost), or null unless the app shows operator detail.
+        /// </summary>
+        public AppTurnTelemetry? Telemetry { get; set; } = null;
+
         private string _RunId = String.Empty;
         private string _Message = String.Empty;
     }

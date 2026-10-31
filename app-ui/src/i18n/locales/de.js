@@ -105,6 +105,33 @@ const de = {
     nothing: 'Nichts',
     waiting: 'Wartet auf die Antwort'
   },
+  copy: {
+    copy: 'Kopieren',
+    copied: 'Kopiert',
+    failed: 'Der Browser hat das Kopieren nicht erlaubt',
+    message: 'Ihre Nachricht kopieren',
+    answer: 'Antwort kopieren'
+  },
+  telemetry: {
+    title: 'So lief diese Antwort',
+    model: 'Modell',
+    ttft: 'Zeit bis zum ersten Token',
+    streaming: 'Streaming-Zeit',
+    tools: 'Zeit in Werkzeugen',
+    delegation: 'Warten auf andere Agenten',
+    approval: 'Warten auf Freigabe',
+    queue: 'Warten auf einen Worker',
+    execution: 'Laufzeit',
+    total: 'Gesamtzeit',
+    inputTokens: 'Eingabe-Tokens',
+    outputTokens: 'Ausgabe-Tokens',
+    cachedTokens: 'Zwischengespeicherte Tokens',
+    reasoningTokens: 'Reasoning-Tokens',
+    rate: 'Ausgabegeschwindigkeit',
+    rateValue: '{{value}} Tokens/s',
+    toolCalls: 'Werkzeugaufrufe',
+    cost: 'Kosten'
+  },
   files: {
     title: 'Dateien',
     empty: 'Der Agent hat in dieser Unterhaltung noch keine Dateien geschrieben.',

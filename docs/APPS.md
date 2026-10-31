@@ -136,7 +136,7 @@ Runs started through an app run as the app, with the end user recorded as the ca
 
 Send the session token as `Authorization: Bearer gas_...`. Event streams also accept `?session=gas_...`, because a browser `EventSource` cannot set headers.
 
-End users see the answer, results, errors, and lifecycle events. Thinking, tool calls, progress, and warnings appear only when the app sets `showOperatorDetail`. Process output never does.
+End users see the answer, results, errors, and lifecycle events. Thinking, tool calls, progress, and warnings appear only when the app sets `showOperatorDetail`. Process output never does. With `showOperatorDetail` on, each turn view (from the conversation and turn routes and in `turn.status` events) also carries `telemetry`, an `AppTurnTelemetry` with the served model, timings, tokens, tool calls, and cost; the app chat shows it behind an (i) beside each answer, with tool time summed from the tool call and result times in the activity log. Every message in the app chat has a copy button in its top right corner. It works on http and https and turns into a green check once the text is copied.
 
 ```bash
 B=http://127.0.0.1:8700/v1.0/apps/research

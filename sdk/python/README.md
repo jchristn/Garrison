@@ -567,7 +567,7 @@ The support triage bundle runs on the fake harness, so the server needs a worker
 | `favicon`, `favicon_url` | The browser tab icon bytes or its URL: the favicon asset, else the logo (404 when the app has neither) |
 | `start_session`, `end_session` | `AppSessionResponse`; ending forgets the token |
 | `conversations`, `conversation` | `AppConversationView` dictionaries, with `turns` filled when one is read |
-| `start_conversation`, `send` | `AppConversationStart` (`conversationId` and the first turn), `AppTurnView` |
+| `start_conversation`, `send` | `AppConversationStart` (`conversationId` and the first turn), `AppTurnView` (`telemetry` is an `AppTurnTelemetry` with model, timings, tokens, tool calls, and cost, or None unless the app shows operator detail) |
 | `stream_turn` | `{"event", "id", "data"}` items until `turn.completed`; `after_sequence` resumes |
 | `wait_for_turn` | Polls until the turn is terminal (`timeout_seconds` default 120) |
 | `files`, `read_file`, `file_versions`, `download_url` | The conversation's file space |

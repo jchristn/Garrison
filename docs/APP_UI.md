@@ -91,6 +91,10 @@ While a turn runs, Send is off and the hint under the box says why. The box stay
 
 The gateway sends `Thinking`, `ToolCall`, `ToolResult`, `Progress`, and `Warning` events only when the app sets `showOperatorDetail`. When they arrive, each answer gets a collapsed "Agent activity" list under it. Otherwise end users see the answer text and nothing else.
 
+With `showOperatorDetail` on, the turn view also carries `telemetry` (`AppTurnTelemetry`: served model, timings, tokens, tool calls, cost). The chat shows it behind an (i) beside each answer, with tool time summed from the tool call and result times in the activity log.
+
+Every message has a copy button in its top right corner. It works on http and https (it falls back when the Clipboard API is not available) and turns into a green check once the text is copied.
+
 ### Downloads
 
 Download asks `POST .../files/download-url` for a short-lived link that needs no credentials, then lets the browser fetch it, so large files go straight to disk. If that request fails for any reason other than a lost session, the page fetches `.../files/content` with the session and saves the bytes instead. The versions dialog downloads any version the same way.

@@ -52,5 +52,10 @@ namespace Garrison.Core.Responses
         /// When the turn finished (UTC), or null.
         /// </summary>
         public DateTime? CompletedUtc { get; set; } = null;
+
+        /// <summary>
+        /// How the turn ran (model, timings, tokens, tool calls, cost), or null when the app does not show operator detail.
+        /// </summary>
+        public AppTurnTelemetry? Telemetry { get; set; } = null;
     }
 }

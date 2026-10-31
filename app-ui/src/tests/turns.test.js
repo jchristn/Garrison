@@ -19,7 +19,7 @@ describe('turn state', () => {
     let s = base();
     s = applyEvent(s, { sequence: 1, eventType: 'ToolCall', toolName: 'search' });
     s = applyEvent(s, { sequence: 2, eventType: 'Error', text: 'quota' });
-    expect(s.details).toEqual([{ sequence: 1, eventType: 'ToolCall', text: '', toolName: 'search', toolCallId: null, success: undefined }]);
+    expect(s.details).toEqual([{ sequence: 1, eventType: 'ToolCall', text: '', toolName: 'search', toolCallId: null, success: undefined, timestampUtc: null }]);
     expect(s.streamError).toBe('quota');
   });
 

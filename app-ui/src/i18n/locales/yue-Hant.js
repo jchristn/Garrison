@@ -105,6 +105,33 @@ const yueHant = {
     nothing: '冇',
     waiting: '等緊答覆'
   },
+  copy: {
+    copy: '複製',
+    copied: '複製咗',
+    failed: '瀏覽器唔俾複製',
+    message: '複製你嘅訊息',
+    answer: '複製答案'
+  },
+  telemetry: {
+    title: '呢個答案點樣運行',
+    model: '模型',
+    ttft: '第一個權杖嘅時間',
+    streaming: '串流時間',
+    tools: '用喺工具嘅時間',
+    delegation: '等其他代理',
+    approval: '等批准',
+    queue: '等工作節點',
+    execution: '運行時間',
+    total: '總時間',
+    inputTokens: '輸入權杖',
+    outputTokens: '輸出權杖',
+    cachedTokens: '快取權杖',
+    reasoningTokens: '推理權杖',
+    rate: '輸出速度',
+    rateValue: '每秒 {{value}} 個權杖',
+    toolCalls: '工具調用',
+    cost: '費用'
+  },
   files: {
     title: '檔案',
     empty: '代理程式喺呢段對話入面仲未寫過任何檔案。',

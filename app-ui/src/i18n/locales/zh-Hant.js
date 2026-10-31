@@ -105,6 +105,33 @@ const zhHant = {
     nothing: '無',
     waiting: '正在等待回答'
   },
+  copy: {
+    copy: '複製',
+    copied: '已複製',
+    failed: '瀏覽器不允許複製',
+    message: '複製你的訊息',
+    answer: '複製回答'
+  },
+  telemetry: {
+    title: '這個回答的執行情況',
+    model: '模型',
+    ttft: '首個權杖時間',
+    streaming: '串流輸出時間',
+    tools: '工具耗時',
+    delegation: '等待其他智慧代理',
+    approval: '等待核准',
+    queue: '等待工作節點',
+    execution: '執行時間',
+    total: '總時間',
+    inputTokens: '輸入權杖',
+    outputTokens: '輸出權杖',
+    cachedTokens: '快取權杖',
+    reasoningTokens: '推理權杖',
+    rate: '輸出速度',
+    rateValue: '{{value}} 權杖/秒',
+    toolCalls: '工具呼叫',
+    cost: '費用'
+  },
   files: {
     title: '檔案',
     empty: '代理程式尚未在這段對話中寫入任何檔案。',

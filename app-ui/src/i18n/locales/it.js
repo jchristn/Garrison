@@ -105,6 +105,33 @@ const it = {
     nothing: 'Niente',
     waiting: 'In attesa della risposta'
   },
+  copy: {
+    copy: 'Copia',
+    copied: 'Copiato',
+    failed: 'Il browser non ha permesso la copia',
+    message: 'Copia il tuo messaggio',
+    answer: 'Copia la risposta'
+  },
+  telemetry: {
+    title: 'Come è stata prodotta questa risposta',
+    model: 'Modello',
+    ttft: 'Tempo al primo token',
+    streaming: 'Tempo di streaming',
+    tools: 'Tempo negli strumenti',
+    delegation: 'Attesa di altri agenti',
+    approval: 'Attesa di approvazione',
+    queue: 'Attesa di un worker',
+    execution: 'Tempo di esecuzione',
+    total: 'Tempo totale',
+    inputTokens: 'Token in ingresso',
+    outputTokens: 'Token in uscita',
+    cachedTokens: 'Token in cache',
+    reasoningTokens: 'Token di ragionamento',
+    rate: 'Velocità di uscita',
+    rateValue: '{{value}} token/s',
+    toolCalls: 'Chiamate agli strumenti',
+    cost: 'Costo'
+  },
   files: {
     title: 'File',
     empty: "L'agente non ha ancora scritto file in questa conversazione.",

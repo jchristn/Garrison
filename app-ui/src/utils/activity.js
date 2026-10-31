@@ -78,7 +78,7 @@ export function activitySteps(details) {
       if (last && last.kind === 'thinking') last.text += `\n\n${d.text}`;
       else steps.push({ kind: 'thinking', key: `t-${d.sequence}`, text: d.text });
     } else if (d.eventType === 'ToolCall') {
-      steps.push({ kind: 'tool', key: d.toolCallId || `c-${d.sequence}`, callId: d.toolCallId || null, name: d.toolName || '?', action: describeTool(d.toolName, d.text), input: d.text || '', output: '', status: 'running' });
+      steps.push({ kind: 'tool', key: d.toolCallId || `c-${d.sequence}`, callId: d.toolCallId || null, name: d.toolName || '?', action: describeTool(d.toolName, d.text), input: d.text || '', output: '', status: 'running', startedUtc: d.timestampUtc || null, endedUtc: null });
     } else if (d.eventType === 'ToolResult') {
       const open = steps.filter((s) => s.kind === 'tool' && s.status === 'running');
       const match = (d.toolCallId && open.find((s) => s.callId === d.toolCallId)) || [...open].reverse().find((s) => s.name === d.toolName) || null;
@@ -86,6 +86,7 @@ export function activitySteps(details) {
       if (match) {
         match.output = d.text || '';
         match.status = status;
+        match.endedUtc = d.timestampUtc || null;
       } else {
         steps.push({ kind: 'tool', key: d.toolCallId || `r-${d.sequence}`, callId: d.toolCallId || null, name: d.toolName || '?', action: describeTool(d.toolName, ''), input: '', output: d.text || '', status });
       }
@@ -94,6 +95,21 @@ export function activitySteps(details) {
     }
   }
   return steps;
+}
+
+/** Milliseconds the turn spent in tools: the sum of each finished call's start-to-result time; null when none is timed. */
+export function toolTimeMs(steps) {
+  let total = 0;
+  let timed = false;
+  for (const s of steps || []) {
+    if (s.kind !== 'tool' || !s.startedUtc || !s.endedUtc) continue;
+    const ms = Date.parse(s.endedUtc) - Date.parse(s.startedUtc);
+    if (Number.isFinite(ms) && ms >= 0) {
+      total += ms;
+      timed = true;
+    }
+  }
+  return timed ? total : null;
 }
 
 /** What the agent is doing right now: the running tool step, else 'thinking' when it last thought, else null. */

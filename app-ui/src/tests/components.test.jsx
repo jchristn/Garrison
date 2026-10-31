@@ -250,3 +250,50 @@ describe('FilePanel', () => {
     expect(q('.file-summary').textContent).toBe('Files: 2 (2 KB)');
   });
 });
+
+describe('copy and telemetry on messages', () => {
+  it('copies with a fallback where the Clipboard API is missing and shows a green check', async () => {
+    const copied = [];
+    const original = document.execCommand;
+    document.execCommand = (cmd) => {
+      copied.push([cmd, document.body.querySelector('textarea[readonly]')?.value]);
+      return true;
+    };
+    const turn = { ...newTurnState({ ...TURN, status: 'Succeeded', answer: 'The answer.' }) };
+    await render(
+      <ol>
+        <TurnView turn={turn} agentName="Desk" showDetail={false} />
+      </ol>
+    );
+    expect(qa('[data-testid="copy-message"]')).toHaveLength(1);
+    const button = q('[data-testid="copy-answer"]');
+    await act(async () => {
+      button.click();
+    });
+    expect(copied).toEqual([['copy', 'The answer.']]);
+    expect(button.dataset.state).toBe('copied');
+    expect(button.classList.contains('copy-copied')).toBe(true);
+    document.execCommand = original;
+  });
+
+  it('shows how the turn ran behind the (i) when the app shows operator detail', async () => {
+    const details = [
+      { sequence: 1, eventType: 'ToolCall', toolName: 'search', toolCallId: 'c1', text: '{}', timestampUtc: '2026-10-28T12:00:00.000Z' },
+      { sequence: 2, eventType: 'ToolResult', toolName: 'search', toolCallId: 'c1', success: true, text: '{}', timestampUtc: '2026-10-28T12:00:02.500Z' }
+    ];
+    const telemetry = { servedModel: 'claude-sonnet-5-5', timeToFirstTokenMs: 820, streamingMs: 4100, totalMs: 9300, inputTokens: 1200, outputTokens: 340, cachedTokens: 900, reasoningTokens: 50, outputTokensPerSecond: 82.9, toolCallCount: 1, costUsd: 0.0123 };
+    const turn = { ...newTurnState({ ...TURN, status: 'Succeeded', answer: 'Done.', telemetry }), details };
+    await render(
+      <ol>
+        <TurnView turn={turn} agentName="Desk" showDetail />
+        <TurnView turn={{ ...turn, runId: 'run_2', telemetry: null }} agentName="Desk" showDetail={false} />
+      </ol>
+    );
+    expect(qa('[data-testid="turn-telemetry"]')).toHaveLength(1);
+    await act(async () => {
+      q('[data-testid="turn-telemetry"]').focus();
+    });
+    const text = q('[data-testid="turn-telemetry-popover"]').textContent;
+    for (const part of ['claude-sonnet-5-5', 'Time to first token', '820 ms', 'Streaming time', '4.1 s', 'Time in tools', '2.5 s', 'Total time', '9.3 s', 'Input tokens', '1,200', 'Cached tokens', '900', 'Reasoning tokens', 'Output speed', '82.9 tokens/s', 'Tool calls', 'Cost']) expect(text).toContain(part);
+  });
+});

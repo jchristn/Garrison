@@ -205,7 +205,7 @@ namespace Garrison.Server.Services
             AppConversationView view = View(conversation);
             RunFilter filter = new RunFilter { TenantId = app.TenantId, ConversationId = conversation.Id, MaxResults = 1000, Ordering = EnumerationOrderEnum.CreatedAscending };
             EnumerationResult<Run> runs = await _Server.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
-            foreach (Run run in runs.Objects) view.Turns.Add(Turn(run));
+            foreach (Run run in runs.Objects) view.Turns.Add(Turn(run, app.ShowOperatorDetail));
             return view;
         }
 
@@ -302,11 +302,12 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
-        /// A turn as the end user sees it.
+        /// A turn as the end user sees it, with its telemetry when the app shows operator detail.
         /// </summary>
         /// <param name="run">Run.</param>
+        /// <param name="telemetry">Whether to include how the turn ran (the app's showOperatorDetail).</param>
         /// <returns>Turn.</returns>
-        public static AppTurnView Turn(Run run)
+        public static AppTurnView Turn(Run run, bool telemetry)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             bool failed = RunService.IsTerminal(run.Status) && run.Status != RunStatusEnum.Succeeded;
@@ -315,7 +316,14 @@ namespace Garrison.Server.Services
                 RunId = run.Id, Turn = run.ConversationTurn, Message = run.InputText ?? String.Empty, Status = run.Status,
                 Answer = run.Status == RunStatusEnum.Succeeded ? run.ResultText : null,
                 Error = failed ? "The agent could not finish this turn (" + run.Status + ")." : null,
-                AwaitingApproval = run.AwaitingApproval, CreatedUtc = run.CreatedUtc, CompletedUtc = run.CompletedUtc
+                AwaitingApproval = run.AwaitingApproval, CreatedUtc = run.CreatedUtc, CompletedUtc = run.CompletedUtc,
+                Telemetry = !telemetry ? null : new AppTurnTelemetry
+                {
+                    ServedModel = run.ServedModel, TimeToFirstTokenMs = run.TimeToFirstTokenMs, StreamingMs = run.StreamingMs, ExecutionMs = run.ExecutionMs,
+                    QueueMs = run.QueueMs, TotalMs = run.TotalMs, DelegationWaitMs = run.DelegationWaitMs, ApprovalWaitMs = run.ApprovalWaitMs,
+                    InputTokens = run.InputTokens, OutputTokens = run.OutputTokens, CachedTokens = run.CachedTokens, ReasoningTokens = run.ReasoningTokens,
+                    OutputTokensPerSecond = run.OutputTokensPerSecond, ToolCallCount = run.ToolCallCount, CostUsd = run.CostUsd
+                }
             };
         }
 
@@ -371,7 +379,7 @@ namespace Garrison.Server.Services
             options.Wait = false;
             options.Surface = "app";
             Run run = await _Server.Get<AgentInvoker>().InvokeAsync(ctx, app.TenantId, entry, options, token).ConfigureAwait(false);
-            return Turn(run);
+            return Turn(run, app.ShowOperatorDetail);
         }
 
         private void Throttle(AppSession session)

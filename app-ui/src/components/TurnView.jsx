@@ -1,13 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import Markdown from './Markdown.jsx';
 import { turnPhase, visibleAnswer } from '../utils/turns.js';
-import { activitySteps, currentActivity } from '../utils/activity.js';
+import { activitySteps, currentActivity, toolTimeMs } from '../utils/activity.js';
 import ActivityLog, { actionLabel } from './ActivityLog.jsx';
+import CopyButton from './CopyButton.jsx';
+import TurnTelemetry from './TurnTelemetry.jsx';
 
 // One exchange: the user's message and the agent's answer, which grows as text streams in. Shows what the agent is
 // doing while it works (waiting for a worker, thinking, asking another agent, using a tool), the approval notice while
 // an operator must approve a step, a reconnecting note while the stream is down, and the error when the turn failed.
-// When the app shows operator detail, the activity log lists every step as it happens.
+// When the app shows operator detail, the activity log lists every step as it happens and the (i) beside the answer
+// shows how the turn ran. Every message has a copy button in its top right corner.
 export default function TurnView({ turn, agentName, showDetail }) {
   const { t } = useTranslation();
   const phase = turnPhase(turn);
@@ -21,11 +24,20 @@ export default function TurnView({ turn, agentName, showDetail }) {
   return (
     <li className="turn" data-testid="turn" data-run-id={turn.runId} data-phase={phase}>
       <div className="message message-user">
-        <span className="message-author">{t('chat.you')}</span>
+        <div className="message-header">
+          <span className="message-author">{t('chat.you')}</span>
+          <CopyButton text={turn.message} label={t('copy.message')} testId="copy-message" />
+        </div>
         <div className="message-text">{turn.message}</div>
       </div>
       <div className={`message message-agent phase-${phase}`} aria-busy={phase === 'waiting' || phase === 'streaming' ? 'true' : 'false'}>
-        <span className="message-author">{agentName}</span>
+        <div className="message-header">
+          <span className="message-author">{agentName}</span>
+          <span className="message-tools">
+            {!live && turn.telemetry ? <TurnTelemetry telemetry={turn.telemetry} toolMs={toolTimeMs(steps)} /> : null}
+            {answer ? <CopyButton text={answer} label={t('copy.answer')} testId="copy-answer" /> : null}
+          </span>
+        </div>
         {answer ? (
           <div className="message-answer" data-testid="answer">
             <Markdown text={answer} />

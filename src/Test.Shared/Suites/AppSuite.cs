@@ -387,6 +387,10 @@ namespace Test.Shared.Suites
                 Assert.True(app.BackgroundColor == "#0B1220" && app.HeaderColor == "#FFFFFF" && app.AgentBubbleColor == "#FEF3C7" && app.FontFamily == AppFontEnum.Serif, "Branding colors and typeface applied");
                 AppInfo info = await HttpTestHelpers.SendAsync<AppInfo>(host.AdminClient, HttpMethod.Get, "/v1.0/apps/" + app.Slug, null, 200, token).ConfigureAwait(false);
                 Assert.True(info.DisplayName == "Research Desk (Beta & Co.)" && info.BackgroundColor == "#0B1220" && info.HeaderColor == "#FFFFFF" && info.AgentBubbleColor == "#FEF3C7" && info.ConversationListColor == "#1E293B" && info.ComposerColor == "#F1F5F9" && info.FilesColor == "#E2E8F0" && info.FontFamily == AppFontEnum.Serif && info.FaviconUrl == null, "The app UI receives the branding: " + Serializer.Serialize(info));
+                Run timed = new Run { Id = "run_t", Status = RunStatusEnum.Succeeded, ResultText = "Done.", ServedModel = "fake-model", TimeToFirstTokenMs = 40, StreamingMs = 120, TotalMs = 300, InputTokens = 12, OutputTokens = 7, CachedTokens = 3, ReasoningTokens = 2, ToolCallCount = 1, CostUsd = 0.001 };
+                AppTurnView withDetail = Garrison.Server.Services.AppGatewayService.Turn(timed, true);
+                Assert.True(withDetail.Telemetry != null && withDetail.Telemetry.ServedModel == "fake-model" && withDetail.Telemetry.TimeToFirstTokenMs == 40 && withDetail.Telemetry.CachedTokens == 3 && withDetail.Telemetry.ToolCallCount == 1, "A turn carries its telemetry when the app shows operator detail");
+                Assert.True(Garrison.Server.Services.AppGatewayService.Turn(timed, false).Telemetry == null, "and none otherwise");
                 AgenticApp badColor = Serializer.Deserialize<AgenticApp>(Serializer.Serialize(app))!;
                 badColor.HeaderColor = "blue";
                 TestResponse refused = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, T(host) + "/apps/" + app.Id, badColor, token).ConfigureAwait(false);

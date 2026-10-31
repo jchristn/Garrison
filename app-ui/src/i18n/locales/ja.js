@@ -105,6 +105,33 @@ const ja = {
     nothing: 'なし',
     waiting: '応答を待っています'
   },
+  copy: {
+    copy: 'コピー',
+    copied: 'コピーしました',
+    failed: 'ブラウザーがコピーを許可しませんでした',
+    message: '自分のメッセージをコピー',
+    answer: '回答をコピー'
+  },
+  telemetry: {
+    title: 'この回答の実行内容',
+    model: 'モデル',
+    ttft: '最初のトークンまでの時間',
+    streaming: 'ストリーミング時間',
+    tools: 'ツールにかかった時間',
+    delegation: '他のエージェントの待ち時間',
+    approval: '承認の待ち時間',
+    queue: 'ワーカーの待ち時間',
+    execution: '実行時間',
+    total: '合計時間',
+    inputTokens: '入力トークン',
+    outputTokens: '出力トークン',
+    cachedTokens: 'キャッシュ済みトークン',
+    reasoningTokens: '推論トークン',
+    rate: '出力速度',
+    rateValue: '{{value}} トークン/秒',
+    toolCalls: 'ツール呼び出し',
+    cost: 'コスト'
+  },
   files: {
     title: 'ファイル',
     empty: 'この会話では、エージェントはまだファイルを書き込んでいません。',

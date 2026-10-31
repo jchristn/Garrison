@@ -519,3 +519,20 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 .chat-scroll .turn-state, .chat-scroll .welcome .markdown-body { color: var(--app-muted-background, var(--color-text-muted)); }
 .message-agent .activity > summary, .message-agent .step-kind, .message-agent .thinking-text { color: var(--app-muted-agent-bubble, var(--color-text-muted)); }
 .app-header .principal { color: var(--app-muted-header, var(--color-text-muted)); }
+
+/* Message header: the author on the left, the (i) telemetry and copy controls in the top right corner. */
+.message-header { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-xs); min-height: 28px; }
+.message-header .message-author { margin-bottom: 0; }
+.message-tools { display: inline-flex; align-items: center; gap: 2px; }
+.message-header .icon-button { width: 28px; height: 28px; color: inherit; opacity: 0.75; }
+.message-header .icon-button:hover, .message-header .icon-button:focus-visible { opacity: 1; background: rgba(127, 127, 127, 0.18); }
+.copy-button.copy-copied { color: #15803d; opacity: 1; }
+.message-user .copy-button.copy-copied { color: #bbf7d0; }
+.copy-button.copy-failed { color: #b91c1c; opacity: 1; }
+.telemetry { position: relative; display: inline-flex; }
+.telemetry-popover { position: absolute; top: 100%; inset-inline-end: 0; z-index: 20; min-width: 240px; margin-top: 4px; padding: var(--spacing-sm); background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); font-size: var(--font-size-xs); }
+.telemetry-title { display: block; font-weight: 700; margin-bottom: var(--spacing-xs); }
+.telemetry-popover dl { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.telemetry-row { display: flex; justify-content: space-between; gap: var(--spacing-md); }
+.telemetry-row dt { color: var(--color-text-muted); }
+.telemetry-row dd { margin: 0; font-variant-numeric: tabular-nums; text-align: end; overflow-wrap: anywhere; }

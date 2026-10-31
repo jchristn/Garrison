@@ -7897,6 +7897,29 @@ One turn of an app conversation as its end user sees it (AD6.6).
 | `awaitingApproval` | `boolean` | Whether the agent waits for an operator to approve a tool call. |
 | `createdUtc` | `DateTime` | When the turn started (UTC). |
 | `completedUtc` | `DateTime?` | When the turn finished (UTC), or null. |
+| `telemetry` | `AppTurnTelemetry?` | How the turn ran, or null unless the app sets `showOperatorDetail`. |
+
+#### `AppTurnTelemetry`
+
+How one app turn ran: the model, timings, tokens, tool calls, and cost. Included only for apps that set `showOperatorDetail`. Nullable values stay null until the run reports them.
+
+| Field | Type | Description |
+|---|---|---|
+| `servedModel` | `string?` | Model the harness reported serving the turn, or null. |
+| `timeToFirstTokenMs` | `long?` | Milliseconds from the start of execution to the first model output, or null. |
+| `streamingMs` | `long?` | Milliseconds from the first to the last model output, or null. |
+| `executionMs` | `long?` | Milliseconds the harness ran, or null. |
+| `queueMs` | `long?` | Milliseconds the turn waited for a worker, or null. |
+| `totalMs` | `long?` | Milliseconds from the message to the answer, or null. |
+| `delegationWaitMs` | `long?` | Milliseconds spent waiting for other agents this turn asked, or null. |
+| `approvalWaitMs` | `long?` | Milliseconds spent waiting for a person to approve a step, or null. |
+| `inputTokens` | `long` | Input tokens. Default 0. |
+| `outputTokens` | `long` | Output tokens. Default 0. |
+| `cachedTokens` | `long` | Input tokens served from the model's cache. Default 0. |
+| `reasoningTokens` | `long` | Reasoning (thinking) tokens. Default 0. |
+| `outputTokensPerSecond` | `double?` | Output tokens per second while streaming, or null. |
+| `toolCallCount` | `integer` | Tool calls the turn made. Default 0. |
+| `costUsd` | `double?` | Cost in US dollars, or null when the model has no price. |
 
 #### `StudioDraft`
 
