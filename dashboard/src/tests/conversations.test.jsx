@@ -53,6 +53,10 @@ describe('conversation helpers', () => {
     const t = i18n.getFixedT('en');
     for (const code of CONVERSATION_ERROR_CODES) {
       const message = errorMessage(t, new ApiError(409, { code, message: `Conversation cnv_1: ${code}` }));
+      if (code === 'ConversationBusy') {
+        expect(message).toBe(`Conversation cnv_1: ${code}`);
+        continue;
+      }
       expect(message, code).not.toContain(code);
       expect(message.length, code).toBeGreaterThan(40);
     }
@@ -218,7 +222,7 @@ describe('conversation API methods', () => {
     const err = await client().deleteConversation('default', 'cnv_0002').catch((e) => e);
     expect(err.status).toBe(409);
     expect(err.code).toBe('ConversationBusy');
-    expect(errorMessage(i18n.getFixedT('en'), err)).toMatch(/previous turn/);
+    expect(errorMessage(i18n.getFixedT('en'), err)).toContain('cnv_0002 has an unfinished turn (run run_0004)');
   });
 
   it('sends startConversation and conversationId in the invoke body', async () => {

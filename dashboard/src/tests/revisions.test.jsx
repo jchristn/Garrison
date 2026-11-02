@@ -149,6 +149,11 @@ describe('revision and environment helpers', () => {
     expect(ENUMS.revisionChangeType).toEqual(['Changed', 'Added', 'Removed']);
     expect(ENUMS.resourceType).toEqual(expect.arrayContaining(['AgentRevision', 'Promotion']));
     for (const code of ['PromotionOrderViolation', 'NoNextEnvironment', 'NoTargetDeployments', 'NoSourceRevision', 'AmbiguousSourceRevision', 'RevisionNotPublished', 'PromotionConflict', 'NotAPromotion', 'AlreadyRolledBack', 'RevisionUnchanged', 'RevisionPublished', 'EnvironmentInUse']) {
+      if (['RevisionPublished', 'EnvironmentInUse'].includes(code)) {
+        expect(errorMessage(t, conflict(code, `${code} contextual reason`))).toBe(`${code} contextual reason`);
+        expect(errorMessage(t, conflict(code, ''))).toBe(t(`errorCodes.${code}`));
+        continue;
+      }
       const text = errorMessage(t, conflict(code, `${code} raw server text`));
       expect(text, code).not.toContain('raw server text');
       expect(text, code).toBe(t(`errorCodes.${code}`));

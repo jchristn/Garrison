@@ -111,7 +111,19 @@ namespace Test.Shared.Suites
                 AgenticApp outside = App("outside", agents);
                 outside.Members.RemoveAt(2);
                 Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, apps, outside, token).ConfigureAwait(false), 400, "EdgeNotMember", "Edge to a non-member");
-                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/agents/" + agents[2].Id, null, token).ConfigureAwait(false), 409, "AgentInUse", "A member agent cannot be deleted");
+                TestResponse blocked = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/agents/" + agents[2].Id, null, token).ConfigureAwait(false);
+                Code(blocked, 409, "AgentInUse", "A member agent cannot be deleted");
+                Assert.True(blocked.Body.Contains(agents[2].Name, StringComparison.Ordinal) && blocked.Body.Contains(created.Name, StringComparison.Ordinal) && blocked.Body.Contains("Remove it from that app first", StringComparison.Ordinal), "Delete refusal names the agent, app, and recovery step");
+                TestResponse protectedAgent = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/agents/agent-architect", null, token).ConfigureAwait(false);
+                Code(protectedAgent, 409, "Protected", "The built-in architect cannot be deleted");
+                Assert.True(protectedAgent.Body.Contains("agent-architect", StringComparison.Ordinal) && protectedAgent.Body.Contains("protected built-in agent and cannot be deleted", StringComparison.Ordinal), "Protected refusal explains why agent-architect cannot be deleted");
+
+                using (TestMcpClient caller = new TestMcpClient())
+                {
+                    await caller.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    await caller.ExpectErrorAsync("garrison_delete_agent", new { agent = agents[2].Id }, "AgentInUse: Agent " + agents[2].Name + " is a member of app " + created.Name + ". Remove it from that app first.", token).ConfigureAwait(false);
+                    await caller.ExpectErrorAsync("garrison_delete_agent", new { agent = "agent-architect" }, "Protected: Agent agent-architect is a protected built-in agent and cannot be deleted.", token).ConfigureAwait(false);
+                }
 
                 created.Description = "Builds research overviews.";
                 AgenticApp updated = await HttpTestHelpers.SendAsync<AgenticApp>(host.AdminClient, HttpMethod.Put, apps + "/research", created, 200, token).ConfigureAwait(false);

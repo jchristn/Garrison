@@ -42,9 +42,9 @@ namespace Garrison.Server.Routes
         /// <exception cref="NotFoundException">Thrown when the record belongs to another tenant.</exception>
         public static void EnsureEditable(string? recordTenantId, bool isBuiltIn, bool isProtected, string routeTenantId, string what)
         {
-            if (isBuiltIn || recordTenantId == null) throw new ConflictException("BuiltInImmutable", what + " is built in and cannot be modified. Clone it to customize.");
+            if (isBuiltIn || recordTenantId == null) throw new ConflictException("BuiltInImmutable", what + " is built in and cannot be modified or deleted. Clone it to customize.");
             if (recordTenantId != routeTenantId) throw new NotFoundException(what + " not found.");
-            if (isProtected) throw new ConflictException("Protected", what + " is protected.");
+            if (isProtected) throw new ConflictException("Protected", what + " is protected and cannot be modified or deleted.");
         }
 
         /// <summary>

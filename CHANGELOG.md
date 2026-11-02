@@ -6,6 +6,10 @@ All notable changes to Garrison are recorded here. The format follows [Keep a Ch
 
 The Agent Studio release. Garrison stays a horizontally elastic runtime for headless agent harnesses, and gains a studio on top of it for building, testing, deploying, operating, and observing agentic applications (AD-027). The work is tracked in `archive/AGENT_DESIGN_DEPLOY_PLAN.md`; task IDs below refer to it. The database schema moves from version 34 to 43, and both Sqlite and PostgreSQL migrate on startup.
 
+### Fixed
+
+- Delete refusals throughout the dashboard retain the server's resource names and recovery steps for app membership, upstream references, active resources, and protected built-ins. REST and MCP explain that the protected `agent-architect` cannot be deleted.
+
 ### Added
 
 - **Release start (AD0.1 to AD0.5).** Branch `feature/agent-studio`, version `0.2.0` everywhere the version is written (the .NET build, images, Compose, Kustomize, the Helm chart, the dashboard, all four SDKs, Postman, and docs), and `scripts/check-version.sh` (with a `.bat` twin and the push-only `version.yaml` workflow), which fails when a mirror drifts from `src/Directory.Build.props` or carries an `-alpha` suffix.

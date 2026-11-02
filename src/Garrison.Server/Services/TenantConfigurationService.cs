@@ -127,6 +127,7 @@ namespace Garrison.Server.Services
         /// <returns>Whether the agent row was deleted.</returns>
         public async Task<bool> DeleteAgentAsync(RequestContext ctx, string tenantId, Agent existing, CancellationToken token)
         {
+            if (existing.TenantId == tenantId && existing.IsProtected) throw new ConflictException("Protected", "Agent " + existing.Name + " is a protected built-in agent and cannot be deleted.");
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
             await EnsureNotReferencedAsync(tenantId, "agentid", existing.Id, "Agent " + existing.Name, token).ConfigureAwait(false);
             foreach (Deployment owned in await _Server.Database.Deployments.ListByAgentAsync(tenantId, existing.Id, token).ConfigureAwait(false))

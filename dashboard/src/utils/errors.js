@@ -8,9 +8,16 @@ import { translateServerText, stripCodePrefix } from './serverText';
  */
 const GENERIC_CODES = new Set(['NotFound', 'Conflict', 'NameConflict', 'InUse', 'ValidationFailed', 'InvalidBody', 'Http400', 'Http404', 'Http409']);
 
+// Delete refusals carry resource names and recovery steps that a code translation cannot preserve.
+const DELETE_REFUSAL_CODES = new Set(['Protected', 'BuiltInImmutable', 'RevisionPublished', 'CapabilityDerived', 'RunActive', 'PipelineRunActive', 'NodeActive', 'NodeHasRuns', 'ConversationBusy']);
+
+function hasDeleteReason(code) {
+  return DELETE_REFUSAL_CODES.has(code) || /InUse$/.test(code || '') || /^ReferencedBy/.test(code || '');
+}
+
 /**
  * Localized message for an error. Order: a translation of a known server message pattern; the server's own message
- * for generic codes (NotFound, Conflict, ...); a translation of the stable error code; the server message.
+ * for generic codes and delete refusals (including reference and protection conflicts); a translation of the stable error code; the server message.
  * @param {Function} t i18next translate function.
  * @param {unknown} err Error (ApiError or any Error).
  * @returns {string}
@@ -24,7 +31,7 @@ export function errorMessage(t, err) {
   if (serverText) {
     const known = translateServerText(t, serverText);
     if (known !== serverText) return known;
-    if (GENERIC_CODES.has(code)) return serverText;
+    if (GENERIC_CODES.has(code) || hasDeleteReason(code)) return serverText;
   }
   if (code) {
     const key = `errorCodes.${code}`;
