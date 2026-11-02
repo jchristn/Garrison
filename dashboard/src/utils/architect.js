@@ -11,15 +11,15 @@ export const CREDENTIAL_KINDS = {
   ClaudeCode: ['AnthropicApiKey', 'ClaudeCodeOAuthToken'],
   Codex: ['OpenAiApiKey', 'CodexAuthJson'],
   GeminiCli: ['GeminiApiKey'],
-  Mux: ['AnthropicApiKey', 'OpenAiApiKey', 'GeminiApiKey'],
+  Mux: ['OpenAiApiKey'],
   OpenCode: ['AnthropicApiKey', 'OpenAiApiKey', 'GeminiApiKey'],
   Pi: ['AnthropicApiKey', 'OpenAiApiKey', 'GeminiApiKey'],
   ProviderApi: ['AnthropicApiKey', 'OpenAiApiKey', 'GeminiApiKey']
 };
 
-/** Whether a harness type needs a credential secret to sign in (the fake and generic harnesses do not). */
+/** Whether a harness type needs a credential secret. Mux endpoints may accept unauthenticated requests. */
 export function needsCredential(harnessType) {
-  return !!CREDENTIAL_KINDS[harnessType];
+  return harnessType !== 'Mux' && !!CREDENTIAL_KINDS[harnessType];
 }
 
 /**
@@ -27,6 +27,7 @@ export function needsCredential(harnessType) {
  * null when the tenant has none that fits. A login that needs reauthentication is never suggested.
  */
 export function suggestedCredential(secrets, harnessType) {
+  if (harnessType === 'Mux') return null;
   const kinds = CREDENTIAL_KINDS[harnessType] || [];
   const usable = (secrets || []).filter((s) => s && s.active !== false && s.status !== 'NeedsReauthentication');
   for (const kind of kinds) {

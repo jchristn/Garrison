@@ -1513,7 +1513,22 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .wizard-intro p { margin: 0; max-width: 72ch; }
 .wizard-nav { display: flex; justify-content: space-between; align-items: center; gap: var(--spacing-sm); padding-top: var(--spacing-sm); border-top: 1px solid var(--color-border); }
 .wizard-resume, .wizard-credential, .wizard-finish { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.wizard-resume li { padding: 2px 0; }
+.wizard-resume { margin-top: var(--spacing-md); padding-top: var(--spacing-lg); border-top: 1px solid var(--color-border); }
+.wizard-resume-header { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); }
+.wizard-resume-header h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.wizard-draft-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--spacing-sm); }
+.wizard-draft-list li { min-width: 0; }
+.wizard-draft-card { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-md); text-align: left; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); white-space: normal; }
+.wizard-draft-card:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.wizard-draft-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.wizard-draft-info { display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; }
+.wizard-draft-title { font-weight: 600; overflow-wrap: anywhere; }
+.wizard-draft-date { font-size: 0.8125rem; font-weight: 400; color: var(--color-text-muted); }
+.wizard-draft-action { display: flex; flex-shrink: 0; align-items: center; gap: var(--spacing-xs); color: var(--color-primary); font-size: 0.875rem; }
+@media (max-width: 600px) {
+  .wizard-resume-header { align-items: flex-start; flex-direction: column; }
+  .wizard-draft-card { align-items: flex-start; flex-direction: column; gap: var(--spacing-sm); }
+}
 .wizard-credential > .button-secondary { align-self: flex-start; }
 .wizard-choices { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .wizard-choices .checkbox-chip.selected { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary); }
@@ -1534,10 +1549,10 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 }
 .wizard-all-drafts { align-self: flex-start; }
 
-/* Chat composer: the message box with Send beside it, as tall as the box. */
-.chat-composer { display: flex; align-items: stretch; gap: var(--spacing-sm); }
+/* Chat composer: resizing the message keeps Send at its normal button height. */
+.chat-composer { display: flex; align-items: flex-end; gap: var(--spacing-sm); }
 .chat-composer textarea { flex: 1; min-width: 0; }
-.chat-composer-send { align-self: stretch; }
+.chat-composer-send { align-self: flex-end; flex: 0 0 auto; }
 
 /* The wizard's Design step fills the content area, so only the conversation scrolls. */
 .agent-wizard-fill { height: 100%; min-height: 0; }

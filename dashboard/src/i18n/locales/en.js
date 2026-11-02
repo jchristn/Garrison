@@ -4965,3 +4965,20 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(en.views.agentWizard.goal, {
+  "updated": "Updated {{date}}",
+  "continue": "Continue"
+});
+Object.assign(en.views.agentWizard.access, {
+  "muxEndpoint": "Mux endpoint URL",
+  "muxAdapter": "Endpoint adapter",
+  "muxOptionalCredential": "Credential (optional)",
+  "muxHint": "Mux can use an endpoint without a provider API key. Enter an endpoint URL that the worker can reach. Choose a credential only if that endpoint requires authentication.",
+  "needEndpoint": "Enter a valid HTTP or HTTPS Mux endpoint URL."
+});
+Object.assign(en.views.agentWizard.design, {
+  "firstMessageMux": "I want to build this: {{goal}}\n\nUse Mux with endpoint {{endpoint}}, adapter {{adapter}}, and model {{model}}. No provider API key is required unless the endpoint requires authentication. Ask me anything you need to know, then design the agents in this draft."
+});
+Object.assign(en.views.agentWizard.approve.actions, {"configure": "Endpoint configured"});

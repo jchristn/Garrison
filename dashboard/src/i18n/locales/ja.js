@@ -4937,3 +4937,20 @@ ja.tips.enums.auditEventType.QueueFull = "クラスター、テナント、ま�
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(ja.views.agentWizard.goal, {
+  "updated": "更新日時: {{date}}",
+  "continue": "再開"
+});
+Object.assign(ja.views.agentWizard.access, {
+  "muxEndpoint": "Mux エンドポイント URL",
+  "muxAdapter": "エンドポイントのアダプター",
+  "muxOptionalCredential": "認証情報（任意）",
+  "muxHint": "Mux はプロバイダーの API キーなしでエンドポイントを利用できます。ワーカーから接続できる URL を入力してください。エンドポイントで認証が必要な場合のみ認証情報を選択してください。",
+  "needEndpoint": "HTTP または HTTPS で始まる有効な Mux エンドポイント URL を入力してください。"
+});
+Object.assign(ja.views.agentWizard.design, {
+  "firstMessageMux": "作成したいもの: {{goal}}\n\nMux をエンドポイント {{endpoint}}、アダプター {{adapter}}、モデル {{model}} で使用してください。エンドポイントで認証が必要な場合のみ API キーが必要です。必要な質問をしてから、このドラフトでエージェントを設計してください。"
+});
+Object.assign(ja.views.agentWizard.approve.actions, {"configure": "エンドポイント設定済み"});

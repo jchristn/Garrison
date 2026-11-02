@@ -4986,3 +4986,20 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(fr.views.agentWizard.goal, {
+  "updated": "Mis à jour le {{date}}",
+  "continue": "Reprendre"
+});
+Object.assign(fr.views.agentWizard.access, {
+  "muxEndpoint": "URL du point de terminaison Mux",
+  "muxAdapter": "Adaptateur du point de terminaison",
+  "muxOptionalCredential": "Identifiant (facultatif)",
+  "muxHint": "Mux peut utiliser un point de terminaison sans clé API de fournisseur. Saisissez une URL accessible par le worker. Choisissez un identifiant uniquement si le point de terminaison exige une authentification.",
+  "needEndpoint": "Saisissez une URL de point de terminaison Mux valide avec HTTP ou HTTPS."
+});
+Object.assign(fr.views.agentWizard.design, {
+  "firstMessageMux": "Je souhaite créer ceci : {{goal}}\n\nUtilise Mux avec le point de terminaison {{endpoint}}, l’adaptateur {{adapter}} et le modèle {{model}}. Une clé API est nécessaire uniquement si le point de terminaison exige une authentification. Pose-moi les questions nécessaires, puis conçois les agents dans ce brouillon."
+});
+Object.assign(fr.views.agentWizard.approve.actions, {"configure": "Point de terminaison configuré"});

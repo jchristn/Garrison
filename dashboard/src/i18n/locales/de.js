@@ -4972,3 +4972,20 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(de.views.agentWizard.goal, {
+  "updated": "Aktualisiert am {{date}}",
+  "continue": "Fortsetzen"
+});
+Object.assign(de.views.agentWizard.access, {
+  "muxEndpoint": "Mux-Endpunkt-URL",
+  "muxAdapter": "Endpunktadapter",
+  "muxOptionalCredential": "Zugangsdaten (optional)",
+  "muxHint": "Mux kann einen Endpunkt ohne API-Schlüssel eines Anbieters verwenden. Gib eine Endpunkt-URL ein, die der Worker erreichen kann. Wähle Zugangsdaten nur, wenn der Endpunkt eine Authentifizierung erfordert.",
+  "needEndpoint": "Gib eine gültige Mux-Endpunkt-URL mit HTTP oder HTTPS ein."
+});
+Object.assign(de.views.agentWizard.design, {
+  "firstMessageMux": "Ich möchte Folgendes erstellen: {{goal}}\n\nVerwende Mux mit Endpunkt {{endpoint}}, Adapter {{adapter}} und Modell {{model}}. Ein API-Schlüssel ist nur erforderlich, wenn der Endpunkt eine Authentifizierung erfordert. Stelle mir die nötigen Fragen und entwirf dann die Agenten in diesem Entwurf."
+});
+Object.assign(de.views.agentWizard.approve.actions, {"configure": "Endpunkt konfiguriert"});

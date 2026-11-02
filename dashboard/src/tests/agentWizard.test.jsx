@@ -6,10 +6,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import { findHub, findPage, pathFor } from '../config/navConfig';
+import { needsCredential, suggestedCredential } from '../utils/architect';
 import { DETAIL_VIEWS } from '../views/hubs/hubPanels';
 import { agentsConfig } from '../views/resourceConfigs';
 import {
   WIZARD_STEPS,
+  withMuxSettings,
   defaultSecretKind,
   deploymentPlan,
   devDeploymentBody,
@@ -104,6 +106,22 @@ describe('agent wizard helpers', () => {
       { kind: 'Secret', alias: 'github', resourceId: 'sec_gh' },
       { kind: 'Secret', alias: 'credential', resourceId: 'sec_new' }
     ]);
+  });
+
+  it('allows Mux without provider secrets and preserves endpoint parameters on new and existing deployments', () => {
+    expect(needsCredential('Mux')).toBe(false);
+    expect(suggestedCredential([{ id: 'sec_openai', kind: 'OpenAiApiKey', active: true }], 'Mux')).toBeNull();
+    const state = { muxBaseUrl: 'http://ollama:11434', muxAdapterType: 'ollama', harnessProfileId: 'hp_mux', model: 'gpt-oss:20b' };
+    const agent = { id: 'agt_local', name: 'local' };
+    const created = devDeploymentBody(agent, state);
+    expect(created.resourceBindings).toEqual([]);
+    expect(created.parameters).toEqual([{ name: 'baseUrl', value: state.muxBaseUrl }, { name: 'adapterType', value: 'ollama' }]);
+    const existing = { ...created, id: 'dep_local', parameters: [{ name: 'timeoutMs', value: '300000' }, { name: 'baseUrl', value: 'http://old:11434' }] };
+    const updated = withMuxSettings(existing, state);
+    expect(updated.parameters).toEqual([{ name: 'timeoutMs', value: '300000' }, ...created.parameters]);
+    expect(existing.parameters[1].value).toBe('http://old:11434');
+    expect(deploymentPlan([agent], [existing], '', state)[0].action).toBe('configure');
+    expect(deploymentPlan([agent], [updated], '', state)[0].action).toBe('ready');
   });
 
   it('turns failed and stale diff items into lines for the architect', () => {

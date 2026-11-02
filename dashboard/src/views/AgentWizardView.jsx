@@ -28,6 +28,10 @@ import { WIZARD_STEPS, draftAgentNames, readWizardState, writeWizardState } from
  * architect, goal) are kept per draft in this browser.
  */
 export default function AgentWizardView({ recordId }) {
+  return <WizardDraft key={recordId || 'new'} recordId={recordId} />;
+}
+
+function WizardDraft({ recordId }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
@@ -68,7 +72,7 @@ export default function AgentWizardView({ recordId }) {
   // Which steps can be opened: each needs the ones before it done.
   const reachable = useMemo(() => {
     const applied = draft?.status === 'Applied';
-    return {
+    const available = {
       goal: true,
       access: !isNew,
       design: !isNew && !!state.architectId,
@@ -76,12 +80,15 @@ export default function AgentWizardView({ recordId }) {
       approve: !isNew && (applied || draft?.status === 'PendingApproval' || (!!state.validVersion && state.validVersion === draft?.version)),
       test: !isNew && applied && !!state.deploymentsReady
     };
+    // Every earlier step remains available, including when a later draft status changes its prerequisites.
+    const last = Math.max(0, ...WIZARD_STEPS.map((s, i) => available[s] ? i : 0));
+    return Object.fromEntries(WIZARD_STEPS.map((s, i) => [s, i <= last]));
   }, [draft, state, isNew]);
 
   const requested = searchParams.get('step');
   const fallback = isNew ? 'goal' : WIZARD_STEPS.filter((s) => reachable[s]).pop() || 'goal';
   const step = WIZARD_STEPS.includes(requested) && reachable[requested] ? requested : fallback;
-  const go = (next) => setSearchParams(next === 'goal' ? {} : { step: next }, { replace: false });
+  const go = (next) => setSearchParams({ step: next }, { replace: false });
 
   const onCreated = (created, goal) => {
     writeWizardState(created.id, { goal });

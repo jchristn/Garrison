@@ -6,7 +6,7 @@
 // the problem back to the architect.
 
 import { test, expect } from '@playwright/test';
-import { installMocks, studioRun } from './mocks.js';
+import { ARCHITECT, ARCHITECT_DEPLOYMENT, installMocks, studioRun } from './mocks.js';
 import { installStudioFlow, FLOW_DRAFT_ID } from './studioFlowMocks.js';
 
 const json = (status, body) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -76,7 +76,7 @@ test.beforeEach(async ({ page }) => {
   await installMocks(page);
 });
 
-test('the Agents page opens the wizard, and Studio is no longer a tab', async ({ page }) => {
+test('the Agents page opens the wizard, and Studio is no longer a tab', async ({ page }, testInfo) => {
   await login(page);
   await page.goto('/dashboard/agents');
   await expect(page.getByRole('tab', { name: 'Agents', exact: true })).toBeVisible();
@@ -86,6 +86,17 @@ test('the Agents page opens the wizard, and Studio is no longer a tab', async ({
   await expect(page.getByTestId('wizard-panel-goal')).toBeVisible();
   await expect(page.getByTestId('wizard-step-access')).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByTestId('wizard-resume')).toBeVisible();
+  const cards = page.locator('.wizard-draft-card');
+  await expect(cards.first()).toBeVisible();
+  await expect(cards.first().locator('time')).toContainText('Updated');
+  await expect(cards.first()).toContainText('Continue');
+  await page.getByTestId('wizard-resume').screenshot({ path: testInfo.outputPath('draft-picker-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(cards.first()).toBeVisible();
+  await expect(page.locator('.dashboard-sidebar')).not.toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath('draft-picker-mobile-page.png') });
+  expect(await cards.first().evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.getByTestId('wizard-resume').screenshot({ path: testInfo.outputPath('draft-picker-mobile.png') });
 });
 
 test('end to end: goal, credential, architect, design, review, approve with dev deployments, and a first conversation', async ({ page }) => {
@@ -117,6 +128,19 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   expect(flow.architectBodies).toHaveLength(1);
   expect(flow.architectBodies[0]).toMatchObject({ name: 'architect-claude-code', harnessProfileId: 'hp_0001', model: 'opus', credentialSecretId: 'sec_0100', architectPromptTemplateId: 'builtin/agent-architect-guided' });
 
+  // Back must reach each preceding step, and completed steps must open directly without redirect loops.
+  await page.getByTestId('wizard-back').click();
+  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
+  await page.getByTestId('wizard-back').click();
+  await expect(page.getByTestId('wizard-panel-goal')).toBeVisible();
+  await expect(page.locator('#wizard-goal')).toHaveValue('Plan and write short documents.');
+  await page.getByTestId('wizard-step-design').click();
+  await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId('wizard-panel-goal')).toBeVisible();
+  await page.goForward();
+  await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+
   // 3. Design: the composer starts with the goal; two turns build the agents and the app.
   await expect(page.getByTestId('studio-architect')).toHaveCount(0);
   await expect(page.getByTestId('studio-chat-message')).toHaveValue(/Plan and write short documents\./);
@@ -126,7 +150,7 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   await expect(page.getByTestId('wizard-contents')).toContainText('planner');
   expect(flow.invokes[0]).toMatchObject({ deploymentId: 'dep_arch', startConversation: true, studioDraftId: FLOW_DRAFT_ID });
   // Only the conversation scrolls: a long transcript scrolls inside itself and never the page. Send sits to the right
-  // of the message box, as tall as the box.
+  // of the message box, keeping its normal height when the box is resized.
   await page.getByTestId('studio-chat-turns').evaluate((el) => {
     const filler = document.createElement('div');
     filler.style.height = '3000px';
@@ -144,8 +168,13 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   const box = await page.getByTestId('studio-chat-message').boundingBox();
   const send = await page.getByTestId('studio-chat-send').boundingBox();
   expect(send.x).toBeGreaterThan(box.x + box.width - 1);
-  expect(Math.abs(send.y - box.y)).toBeLessThanOrEqual(1);
-  expect(Math.abs(send.height - box.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(send.y + send.height - box.y - box.height)).toBeLessThanOrEqual(1);
+  await page.getByTestId('studio-chat-message').evaluate((el) => { el.style.height = `${el.getBoundingClientRect().height + 60}px`; });
+  const resized = await page.getByTestId('studio-chat-message').boundingBox();
+  const unchangedSend = await page.getByTestId('studio-chat-send').boundingBox();
+  expect(resized.height).toBeGreaterThan(box.height + 50);
+  expect(unchangedSend.height).toBeCloseTo(send.height, 1);
+  await page.getByTestId('studio-chat-message').evaluate((el) => { el.style.height = ''; });
 
   await page.getByTestId('studio-chat-message').fill('Now put them in an app called docs.');
   await page.getByTestId('studio-chat-send').click();
@@ -180,6 +209,17 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   // Every step stays reachable afterwards, and Advanced opens the studio workspace.
   await expect(page.getByTestId('wizard-step-goal')).not.toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByTestId('wizard-advanced')).toHaveAttribute('href', `/dashboard/studio/${FLOW_DRAFT_ID}`);
+  for (const previous of ['approve', 'review', 'design', 'access', 'goal']) {
+    await page.getByTestId('wizard-back').click();
+    await expect(page.getByTestId(`wizard-panel-${previous}`)).toBeVisible();
+  }
+  for (const completed of ['test', 'goal', 'approve', 'access', 'review', 'design', 'goal']) {
+    await page.getByTestId(`wizard-step-${completed}`).click();
+    await expect(page.getByTestId(`wizard-panel-${completed}`)).toBeVisible();
+  }
+  await page.reload();
+  await expect(page.getByTestId('wizard-panel-goal')).toBeVisible();
+
 });
 
 test('a draft that could not be applied says why and sends the problem back to the architect', async ({ page }) => {
@@ -210,4 +250,55 @@ test('a draft that could not be applied says why and sends the problem back to t
   await page.getByTestId('wizard-ask-fix').click();
   await expect(page).toHaveURL(/step=design$/);
   await expect(page.getByTestId('studio-chat-message')).toHaveValue(/Artifact globs require an artifact store\./);
+});
+
+test('Mux needs only an endpoint and carries it into the architect and dev deployments without secrets', async ({ page }) => {
+  const flow = await installStudioFlow(page);
+  const wizard = await installWizardRoutes(page);
+  const mux = { ...PROFILE, name: 'builtin/mux', harnessType: 'Mux' };
+  const updates = [];
+  await page.route(/\/tenants\/[^/]+\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [mux], totalRecords: 1 })));
+  await page.route(/\/tenants\/[^/]+\/harness-profiles\/hp_0001$/, (route) => route.fulfill(json(200, mux)));
+  await page.route(/\/studio\/architects\/dep_arch$/, (route) => route.fulfill(json(200, { ...ARCHITECT, credentialSecretId: null })));
+  await page.route(/\/deployments\/dep_arch$/, (route) => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON();
+      updates.push(body);
+      return route.fulfill(json(200, body));
+    }
+    return route.fulfill(json(200, { ...ARCHITECT_DEPLOYMENT, parameters: [{ name: 'timeoutMs', value: '300000' }], resourceBindings: [] }));
+  });
+  await login(page);
+  await skipSetup(page);
+  await page.goto('/dashboard/agent-wizard/new');
+  await page.locator('#wizard-title').fill('Local Mux agents');
+  await page.locator('#wizard-goal').fill('Plan documents using my local endpoint.');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-mux')).toBeVisible();
+  await expect(page.getByTestId('wizard-add-secret')).toHaveCount(0);
+  await page.getByTestId('wizard-next').click({ force: true });
+  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
+  await page.locator('#wizard-mux-endpoint').fill('http://ollama:11434');
+  await page.locator('#wizard-mux-adapter').selectOption('ollama');
+  await page.locator('#wizard-model').fill('gpt-oss:20b');
+  await expect(page.locator('#wizard-mux-credential')).toHaveValue('');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+  expect(flow.architectBodies[0].credentialSecretId).toBe('');
+  expect(updates[0]).toMatchObject({ model: 'gpt-oss:20b', resourceBindings: [], parameters: [{ name: 'timeoutMs', value: '300000' }, { name: 'baseUrl', value: 'http://ollama:11434' }, { name: 'adapterType', value: 'ollama' }] });
+  await expect(page.getByTestId('studio-not-credentialed')).toHaveCount(0);
+  await expect(page.getByTestId('studio-chat-message')).toHaveValue(/http:\/\/ollama:11434/);
+  await page.getByTestId('studio-chat-send').click();
+  await expect(page.getByTestId('wizard-contents')).toContainText('planner');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-valid')).toBeVisible();
+  await page.getByTestId('wizard-next').click();
+  await page.getByTestId('wizard-approve-button').click();
+  await expect(page.getByTestId('wizard-approved')).toBeVisible();
+  expect(wizard.secretBodies).toEqual([]);
+  expect(wizard.deploymentUpdates).toHaveLength(2);
+  for (const deployment of wizard.deploymentUpdates) {
+    expect(deployment.parameters).toEqual(expect.arrayContaining([{ name: 'baseUrl', value: 'http://ollama:11434' }, { name: 'adapterType', value: 'ollama' }]));
+    expect(deployment.resourceBindings).not.toEqual(expect.arrayContaining([expect.objectContaining({ alias: 'credential' })]));
+  }
 });

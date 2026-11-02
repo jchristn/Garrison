@@ -46,6 +46,7 @@ namespace Test.Shared.Suites
                 foreach (string profile in _Profiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-basic", "Golden: " + profile + " basic (" + provider + ")", ct => GoldenAsync(provider, profile, false, ct)));
                 foreach (string profile in _FullProfiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-full", "Golden: " + profile + " with MCP, schema, delegation, workspace (" + provider + ")", ct => GoldenAsync(provider, profile, true, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "no-hardcoded-text", "D-021: prompts contain only template text and caller input (" + provider + ")", ct => NoHardCodedTextAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(suiteId, "mux-without-credential", "Mux endpoints compile without a credential or unresolved API key placeholder (" + provider + ")", ct => MuxWithoutCredentialAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "secret-allowlist", "Secrets in environment variables outside the credential allowlist are rejected (" + provider + ")", ct => SecretAllowlistAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "pinned-version", "Pinned template versions compile the pinned content and are recorded (" + provider + ")", ct => PinnedVersionAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "overrides", "Argument, environment, and file overrides apply to the profile (" + provider + ")", ct => OverridesAsync(provider, ct)));
@@ -155,6 +156,23 @@ namespace Test.Shared.Suites
                 {
                     Assert.Equal("SecretNotAllowed", e.Code, "code");
                 }
+            }
+        }
+
+        private static async Task MuxWithoutCredentialAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                Deployment deployment = await fixture.DeploymentAsync("mux", false, token).ConfigureAwait(false);
+                string secretId = deployment.ResourceBindings.Single(b => b.Kind == ResourceBindingKindEnum.Secret).ResourceId;
+                deployment.ResourceBindings.Clear();
+                await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                await fixture.Database.Secrets.DeleteAsync(secretId, token).ConfigureAwait(false);
+                CompilationResult result = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), null, token).ConfigureAwait(false);
+                ExecutionFile endpoints = result.Spec.Files.First(f => f.Path.EndsWith("endpoints.json", StringComparison.Ordinal));
+                Assert.True(endpoints.Content.Contains("http://ollama:11434/v1", StringComparison.Ordinal), "The configured endpoint is rendered");
+                Assert.True(!endpoints.Content.Contains("apiKey", StringComparison.Ordinal) && !endpoints.Content.Contains("GARRISON_MUX_API_KEY", StringComparison.Ordinal), "Unauthenticated endpoints carry no unresolved API key reference");
+                Assert.True(!result.Spec.Environment.Any(v => v.Name == "GARRISON_MUX_API_KEY"), "No provider credential is injected");
             }
         }
 

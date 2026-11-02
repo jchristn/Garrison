@@ -4937,3 +4937,20 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(yueHant.views.agentWizard.goal, {
+  "updated": "更新時間：{{date}}",
+  "continue": "繼續"
+});
+Object.assign(yueHant.views.agentWizard.access, {
+  "muxEndpoint": "Mux 端點 URL",
+  "muxAdapter": "端點配接器",
+  "muxOptionalCredential": "憑證（可選）",
+  "muxHint": "Mux 可以用唔需要供應商 API 金鑰嘅端點。請輸入工作節點連得到嘅端點 URL。只有端點要求驗證先需要揀憑證。",
+  "needEndpoint": "請輸入以 HTTP 或 HTTPS 開頭嘅有效 Mux 端點 URL。"
+});
+Object.assign(yueHant.views.agentWizard.design, {
+  "firstMessageMux": "我想建立：{{goal}}\n\n請用 Mux，端點係 {{endpoint}}，配接器係 {{adapter}}，模型係 {{model}}。只有端點要求驗證先需要 API 金鑰。請先問清楚需要嘅資料，再喺呢個草稿設計代理。"
+});
+Object.assign(yueHant.views.agentWizard.approve.actions, {"configure": "端點已設定"});

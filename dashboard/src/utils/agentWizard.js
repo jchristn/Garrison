@@ -84,26 +84,31 @@ export function testTarget(draft, graph) {
  * What the approve step has to do for each agent so it is ready to run in dev: create a dev deployment on the
  * chosen harness profile with the credential bound, or bind the credential to a dev deployment that lacks one.
  * `agents` are the applied agents ({ id, name }); `deployments` the tenant's deployments. Returns
- * [{ agent, action: 'create' | 'bind' | 'ready', deployment }].
+ * [{ agent, action: 'create' | 'bind' | 'configure' | 'ready', deployment }].
  */
-export function deploymentPlan(agents, deployments, credentialSecretId) {
+export function deploymentPlan(agents, deployments, credentialSecretId, state = {}) {
   return (agents || []).map((agent) => {
     const dev = (deployments || []).filter((d) => d.agentId === agent.id && (d.environment || 'dev') === 'dev');
     if (!dev.length) return { agent, action: 'create', deployment: null };
     const bound = dev.find((d) => !credentialSecretId || (d.resourceBindings || []).some((b) => b.kind === 'Secret' && b.resourceId === credentialSecretId));
-    if (bound) return { agent, action: 'ready', deployment: bound };
+    if (bound) {
+      const settings = muxParameters(state);
+      const changed = state.muxBaseUrl && (bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v));
+      return { agent, action: changed ? 'configure' : 'ready', deployment: bound };
+    }
     return { agent, action: 'bind', deployment: dev[0] };
   });
 }
 
 /** Body for a new dev deployment of an agent on the chosen harness, model, and credential. */
-export function devDeploymentBody(agent, { harnessProfileId, model, credentialSecretId }, takenNames = []) {
+export function devDeploymentBody(agent, state, takenNames = []) {
+  const { harnessProfileId, model, credentialSecretId } = state;
   let name = `${agent.name}-dev`;
   for (let n = 2; takenNames.includes(name); n++) name = `${agent.name}-dev-${n}`;
   const body = { name, agentId: agent.id, harnessProfileId, environment: 'dev', active: true, resourceBindings: [] };
   if (model) body.model = model;
   if (credentialSecretId) body.resourceBindings.push({ kind: 'Secret', alias: 'credential', resourceId: credentialSecretId });
-  return body;
+  return withMuxSettings(body, state);
 }
 
 /** The deployment with the credential bound under the alias "credential" (replacing an earlier credential binding). */
@@ -116,4 +121,18 @@ export function withCredential(deployment, credentialSecretId) {
 /** The draft's failing and stale items from a diff, as lines for the architect to fix. */
 export function diffProblems(diff) {
   return (diff?.items || []).filter((i) => i.change === 'Failed' || i.stale).map((i) => `${i.kind}/${i.name}: ${i.message || (i.stale ? 'stale' : 'failed')}`);
+}
+
+/** Mux endpoint settings shared by the architect and the agents it builds. */
+export function muxParameters(state) {
+  return state.muxBaseUrl ? { baseUrl: state.muxBaseUrl, adapterType: state.muxAdapterType || 'openai-compatible' } : {};
+}
+
+/** Apply the wizard's Mux settings while retaining other deployment parameters and bindings. */
+export function withMuxSettings(deployment, state) {
+  if (!state.muxBaseUrl) return deployment;
+  const settings = muxParameters(state);
+  const parameters = (deployment.parameters || []).filter((p) => !Object.hasOwn(settings, p.name));
+  parameters.push(...Object.entries(settings).map(([name, value]) => ({ name, value })));
+  return { ...deployment, harnessProfileId: state.harnessProfileId, model: state.model || null, parameters };
 }

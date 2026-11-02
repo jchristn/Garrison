@@ -4986,3 +4986,20 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(it.views.agentWizard.goal, {
+  "updated": "Aggiornato il {{date}}",
+  "continue": "Riprendi"
+});
+Object.assign(it.views.agentWizard.access, {
+  "muxEndpoint": "URL endpoint Mux",
+  "muxAdapter": "Adattatore dell’endpoint",
+  "muxOptionalCredential": "Credenziale (facoltativa)",
+  "muxHint": "Mux può usare un endpoint senza una chiave API del provider. Inserisci un URL raggiungibile dal worker. Scegli una credenziale solo se l’endpoint richiede autenticazione.",
+  "needEndpoint": "Inserisci un URL endpoint Mux valido con HTTP o HTTPS."
+});
+Object.assign(it.views.agentWizard.design, {
+  "firstMessageMux": "Voglio creare questo: {{goal}}\n\nUsa Mux con endpoint {{endpoint}}, adattatore {{adapter}} e modello {{model}}. Una chiave API serve solo se l’endpoint richiede autenticazione. Fammi le domande necessarie, poi progetta gli agenti in questa bozza."
+});
+Object.assign(it.views.agentWizard.approve.actions, {"configure": "Endpoint configurato"});

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { FormField } from '../FormFields';
 import { ErrorBanner, LoadingState } from '../States';
 import { Badge } from '../StatusBadge';
-import { SendIcon } from '../Icons';
+import { SendIcon, ChevronRightIcon } from '../Icons';
 import { tip } from '../Tooltip';
 import SecretKindGuide from '../SecretKindGuide';
 import StudioChatPanel from '../studio/StudioChatPanel';
@@ -22,7 +22,7 @@ import { CREDENTIAL_KINDS, needsCredential, suggestedCredential } from '../../ut
 import { conversationStorageKey, readStored } from '../../utils/studio';
 import { MULTILINE_SECRET_KINDS } from '../../utils/secretGuides';
 import { appUrl, effectiveSlug } from '../../utils/apps';
-import { defaultSecretKind, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, slug, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
+import { withMuxSettings, defaultSecretKind, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, slug, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
 
 const page = { pageNumber: 1, pageSize: 1000 };
 
@@ -113,20 +113,25 @@ export function GoalStep({ draft, state, update, go, onCreated }) {
       <StepNav next={next} nextLabel={t('views.agentWizard.goal.next')} nextDisabled={missing} busy={busy} />
       {!draft && drafts.length > 0 && (
         <div className="wizard-resume" data-testid="wizard-resume">
-          <div className="form-section-title">{t('views.agentWizard.goal.resume')}</div>
-          <ul className="wizard-list">
+          <div className="wizard-resume-header">
+            <h3>{t('views.agentWizard.goal.resume')}</h3>
+            <StudioLink to={pathFor('studio')} className="button button-secondary button-sm" testId="wizard-all-drafts" tipText={t('tips.views.agentWizard.goal.allDrafts')}>
+              {t('views.agentWizard.goal.allDrafts')}
+            </StudioLink>
+          </div>
+          <ul className="wizard-draft-list">
             {drafts.map((d) => (
               <li key={d.id}>
-                <button type="button" className="button-link" onClick={() => navigate(pathFor('agentWizard', d.id))} {...tip(t('tips.views.agentWizard.goal.resume'))}>
-                  {d.title}
-                </button>{' '}
-                <span className="text-muted">{new Date(d.lastUpdateUtc || d.createdUtc).toLocaleString(i18n.language)}</span>
+                <button type="button" className="wizard-draft-card" onClick={() => navigate(pathFor('agentWizard', d.id))} {...tip(t('tips.views.agentWizard.goal.resume'))}>
+                  <span className="wizard-draft-info">
+                    <span className="wizard-draft-title">{d.title}</span>
+                    <time className="wizard-draft-date" dateTime={d.lastUpdateUtc || d.createdUtc}>{t('views.agentWizard.goal.updated', { date: new Date(d.lastUpdateUtc || d.createdUtc).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }) })}</time>
+                  </span>
+                  <span className="wizard-draft-action">{t('views.agentWizard.goal.continue')} <ChevronRightIcon size={16} /></span>
+                </button>
               </li>
             ))}
           </ul>
-          <StudioLink to={pathFor('studio')} className="button button-secondary button-sm wizard-all-drafts" testId="wizard-all-drafts" tipText={t('tips.views.agentWizard.goal.allDrafts')}>
-            {t('views.agentWizard.goal.allDrafts')}
-          </StudioLink>
         </div>
       )}
     </>
@@ -146,6 +151,8 @@ export function AccessStep({ state, update, go }) {
   const [secrets, setSecrets] = useState([]);
   const [profileId, setProfileId] = useState(state.harnessProfileId || '');
   const [model, setModel] = useState(state.model || '');
+  const [muxBaseUrl, setMuxBaseUrl] = useState(state.muxBaseUrl || '');
+  const [muxAdapterType, setMuxAdapterType] = useState(state.muxAdapterType || 'openai-compatible');
   const [secretId, setSecretId] = useState(state.credentialSecretId || '');
   const [adding, setAdding] = useState(false);
   const [newSecret, setNewSecret] = useState({ name: '', kind: '', value: '' });
@@ -180,8 +187,10 @@ export function AccessStep({ state, update, go }) {
 
   const profile = (profiles || []).find((p) => p.id === profileId) || null;
   const kinds = profile ? CREDENTIAL_KINDS[profile.harnessType] || [] : [];
+  const isMux = profile?.harnessType === 'Mux';
   const needs = !!profile && needsCredential(profile.harnessType);
   const fitting = secrets.filter((s) => kinds.includes(s.kind));
+  const credentialId = fitting.some((s) => s.id === secretId) ? secretId : '';
 
   // Suggest a credential that fits the harness when none is chosen yet.
   useEffect(() => {
@@ -210,7 +219,14 @@ export function AccessStep({ state, update, go }) {
     }
   };
 
-  const missing = !profile ? t('tips.views.agentWizard.access.needProfile') : needs && !secretId ? t('tips.views.agentWizard.access.needCredential') : '';
+  const endpointValid = (() => {
+    try {
+      return ['http:', 'https:'].includes(new URL(muxBaseUrl.trim()).protocol);
+    } catch {
+      return false;
+    }
+  })();
+  const missing = !profile ? t('tips.views.agentWizard.access.needProfile') : isMux && !endpointValid ? t('views.agentWizard.access.needEndpoint') : needs && !credentialId ? t('tips.views.agentWizard.access.needCredential') : '';
 
   // Set up the wizard's architect: same harness, model, and credential; the guided architect prompt.
   const next = async () => {
@@ -220,12 +236,16 @@ export function AccessStep({ state, update, go }) {
       const name = wizardArchitectName(profile);
       const found = await apiClient.listArchitects(tenantId, { pageNumber: 1, pageSize: 50, search: name });
       const existing = (found.items || []).find((a) => a.name === name);
-      const body = { name, harnessProfileId: profile.id, model: model.trim() || null, active: true, credentialSecretId: secretId || '' };
+      const body = { name, harnessProfileId: profile.id, model: model.trim() || null, active: true, credentialSecretId: credentialId };
       const architect = existing
         ? await apiClient.updateArchitect(tenantId, existing.id, body)
         : await apiClient.createArchitect(tenantId, { ...body, description: t('views.agentWizard.access.architectDescription'), architectPromptTemplateId: 'builtin/agent-architect-guided' });
-      const secret = secrets.find((s) => s.id === secretId);
-      update({ harnessProfileId: profile.id, profileName: profile.name, model: model.trim(), credentialSecretId: secretId, secretName: secret?.name || '', architectId: architect.id });
+      if (isMux) {
+        const deployment = await apiClient.getDeployment(tenantId, architect.id);
+        await apiClient.updateDeployment(tenantId, architect.id, withMuxSettings(deployment, { muxBaseUrl: muxBaseUrl.trim(), muxAdapterType, harnessProfileId: profile.id, model: model.trim() }));
+      }
+      const secret = fitting.find((s) => s.id === credentialId);
+      update({ muxBaseUrl: isMux ? muxBaseUrl.trim() : '', muxAdapterType, harnessProfileId: profile.id, profileName: profile.name, model: model.trim(), credentialSecretId: credentialId, secretName: secret?.name || '', architectId: architect.id });
       go('design');
     } catch (e) {
       setError(e);
@@ -248,11 +268,19 @@ export function AccessStep({ state, update, go }) {
           onChange={(v) => {
             setProfileId(v);
             setSecretId('');
+            setAdding(false);
           }}
         />
-        <FormField id="wizard-model" field={{ name: 'model', type: 'text', label: t('views.agentWizard.access.model'), placeholder: 'sonnet', tip: t('tips.views.agentWizard.access.model'), hint: t('views.agentWizard.access.modelHint') }} value={model} onChange={setModel} />
+        <FormField id="wizard-model" field={{ name: 'model', type: 'text', label: t('views.agentWizard.access.model'), placeholder: isMux ? 'gpt-oss:20b' : 'sonnet', tip: t('tips.views.agentWizard.access.model'), hint: t('views.agentWizard.access.modelHint') }} value={model} onChange={setModel} />
       </div>
-      {profile && (
+      {isMux && (
+        <div className="form-grid wizard-mux" data-testid="wizard-mux">
+          <FormField id="wizard-mux-endpoint" field={{ name: 'muxBaseUrl', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, placeholder: 'http://ollama:11434', hint: t('views.agentWizard.access.muxHint'), tip: t('views.agentWizard.access.muxHint') }} value={muxBaseUrl} onChange={setMuxBaseUrl} />
+          <FormField id="wizard-mux-adapter" field={{ name: 'muxAdapterType', type: 'select', label: t('views.agentWizard.access.muxAdapter'), options: ['openai-compatible', 'openai', 'ollama', 'vllm'].map((v) => ({ value: v, label: v })), tip: t('views.agentWizard.access.muxAdapter') }} value={muxAdapterType} onChange={setMuxAdapterType} />
+          <FormField id="wizard-mux-credential" field={{ name: 'credentialSecretId', type: 'select', label: t('views.agentWizard.access.muxOptionalCredential'), options: [{ value: '', label: t('components.studio.architect.noCredential') }, ...fitting.map((s) => ({ value: s.id, label: s.name }))], tip: t('views.agentWizard.access.muxOptionalCredential') }} value={credentialId} onChange={setSecretId} />
+        </div>
+      )}
+      {profile && !isMux && (
         <div className="wizard-credential" data-testid="wizard-credential">
           <div className="form-section-title">{t('views.agentWizard.access.credential')}</div>
           {!needs ? (
@@ -370,7 +398,7 @@ export function DesignStep({ draft, state, update, go, reload }) {
   const [first] = useState(() => {
     if (state.fixMessage) return state.fixMessage;
     const started = !!readStored(conversationStorageKey(draft.id)) || !!draft.conversationId;
-    return started ? '' : t('views.agentWizard.design.firstMessage', { goal: state.goal || draft.title, profile: state.profileName || '', secret: state.secretName || '-' });
+    return started ? '' : state.muxBaseUrl ? t('views.agentWizard.design.firstMessageMux', { goal: state.goal || draft.title, endpoint: state.muxBaseUrl, adapter: state.muxAdapterType, model: state.model || '' }) : t('views.agentWizard.design.firstMessage', { goal: state.goal || draft.title, profile: state.profileName || '', secret: state.secretName || '-' });
   });
   const agents = draftAgentNames(draft);
 
@@ -507,7 +535,7 @@ async function prepareDeployments(apiClient, tenantId, draft, state) {
     }
   }
   const all = (await apiClient.listDeployments(tenantId, page)).items || [];
-  const plan = deploymentPlan(agents, all, state.credentialSecretId);
+  const plan = deploymentPlan(agents, all, state.credentialSecretId, state);
   const taken = all.map((d) => d.name);
   const results = [];
   for (const item of plan) {
@@ -515,9 +543,9 @@ async function prepareDeployments(apiClient, tenantId, draft, state) {
       const body = devDeploymentBody(item.agent, state, taken);
       taken.push(body.name);
       results.push({ ...item, deployment: await apiClient.createDeployment(tenantId, body) });
-    } else if (item.action === 'bind') {
+    } else if (item.action === 'bind' || item.action === 'configure') {
       const current = await apiClient.getDeployment(tenantId, item.deployment.id);
-      results.push({ ...item, deployment: await apiClient.updateDeployment(tenantId, current.id, withCredential(current, state.credentialSecretId)) });
+      results.push({ ...item, deployment: await apiClient.updateDeployment(tenantId, current.id, withMuxSettings(state.credentialSecretId ? withCredential(current, state.credentialSecretId) : current, state)) });
     } else {
       results.push(item);
     }
@@ -694,7 +722,7 @@ export function ApproveStep({ draft, state, update, go, reload }) {
 }
 
 /** Step 6: talk to the new agent (the app's entry agent) on its dev deployment, then go on from there. */
-export function TestStep({ draft, state, update }) {
+export function TestStep({ draft, state, update, go }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
@@ -773,6 +801,7 @@ export function TestStep({ draft, state, update }) {
       </div>
       {error && <ErrorBanner message={errorMessageWithDetail(t, error)} />}
       <p className="chat-disclaimer">{t('components.studio.chat.disclaimer')}</p>
+      <StepNav back={() => go('approve')} />
       <div className="wizard-finish" data-testid="wizard-finish">
         <div className="form-section-title">{t('views.agentWizard.test.next')}</div>
         <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>

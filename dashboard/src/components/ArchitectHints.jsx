@@ -4,7 +4,7 @@
 
 import DependencyHint from './DependencyHint';
 import { pathFor } from '../config/navConfig';
-import { CREDENTIAL_KINDS } from '../utils/architect';
+import { CREDENTIAL_KINDS, needsCredential } from '../utils/architect';
 import { formatList } from '../i18n/formatters';
 
 /** Harness profiles live on Configuration > Harness Profiles. */
@@ -22,7 +22,8 @@ export function credentialHint(t, { profile = null, secretCount = 0, chosen = ''
   let text;
   let warning = '';
   if (!profile) text = t('components.architectHints.credentialNoProfile');
-  else if (!kinds.length) text = t('components.architectHints.credentialNotNeeded', { profile: profile.name });
+  else if (profile.harnessType === 'Mux') text = t('views.agentWizard.access.muxHint');
+  else if (!needsCredential(profile.harnessType)) text = t('components.architectHints.credentialNotNeeded', { profile: profile.name });
   else if (chosen) text = t('components.architectHints.credentialChosen', { profile: profile.name });
   else warning = t(secretCount ? 'components.architectHints.credentialPick' : 'components.architectHints.credentialAdd', { profile: profile.name, kinds: list });
   return (

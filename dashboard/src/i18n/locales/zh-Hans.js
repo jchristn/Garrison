@@ -4938,3 +4938,20 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
  }
 });
+
+// Wizard draft picker and credential-optional Mux endpoints.
+Object.assign(zhHans.views.agentWizard.goal, {
+  "updated": "更新于 {{date}}",
+  "continue": "继续"
+});
+Object.assign(zhHans.views.agentWizard.access, {
+  "muxEndpoint": "Mux 端点 URL",
+  "muxAdapter": "端点适配器",
+  "muxOptionalCredential": "凭据（可选）",
+  "muxHint": "Mux 可以使用无需提供商 API 密钥的端点。请输入工作节点可访问的端点 URL。仅当端点要求身份验证时才需选择凭据。",
+  "needEndpoint": "请输入以 HTTP 或 HTTPS 开头的有效 Mux 端点 URL。"
+});
+Object.assign(zhHans.views.agentWizard.design, {
+  "firstMessageMux": "我想构建：{{goal}}\n\n请使用 Mux，端点为 {{endpoint}}，适配器为 {{adapter}}，模型为 {{model}}。仅当端点要求身份验证时才需要 API 密钥。请先询问必要的问题，然后在此草稿中设计代理。"
+});
+Object.assign(zhHans.views.agentWizard.approve.actions, {"configure": "已配置端点"});

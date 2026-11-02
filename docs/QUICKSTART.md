@@ -133,24 +133,30 @@ From now on each `echo` run gets its own pod (the KubernetesJob executor), and t
 
 ## 3. Add an agent in the dashboard
 
+For the guided flow, open **Agents**, **Agent wizard**. Start a project or select **Continue** beside a saved draft. For `builtin/mux`, Model access asks for an endpoint URL and adapter; the credential is optional. Completed steps remain clickable, and Back returns to the previous step.
+
+![Saved drafts in the Agent wizard](images/agent-wizard-drafts.png)
+
+The manual flow below creates the same resources directly.
+
 The fourth agent runs on Mux, which talks to any OpenAI-compatible or Ollama endpoint, including one on your own network. You need the endpoint's base URL, a model name, an adapter type (`openai-compatible` or `ollama`), and an API key if the endpoint wants one. If you have none of that, skip to step 4 and leave `researcher` out of the commands.
 
-1. **Configuration**, Secrets tab, **Add secret**: name `mux-credential`, Kind **OpenAI API key**, the endpoint's key as the value (anything, such as `none`, if it has no key).
+1. If the endpoint requires authentication, use **Configuration**, Secrets tab, **Add secret**: name `mux-credential`, Kind **OpenAI API key**, the endpoint's key as the value. Skip this for an unauthenticated endpoint; no dummy key is needed.
 2. **Agents**, **Add agent**: name `researcher`, display name `Researcher`, a one-line description. Under Exposure, keep **Expose over A2A** and tick **Expose as its own MCP tool**. Leave Delegation at `None`. Save.
 3. **Agents**, Deployments tab, **Add deployment**. The form has six steps:
    - Basics: name `researcher-mux`, Agent `researcher`.
    - Harness: Harness profile `builtin/mux`, Model your model name (for example `gpt-oss:20b`), Maximum turns `8`. Under Parameters, **Add item** twice: `baseUrl` with the endpoint URL and `adapterType` with `ollama` or `openai-compatible`. If you know the model's context window, add a third item, `contextWindow` (for example `131072`); otherwise Mux assumes 32,768 tokens and each run carries a warning saying so.
    - Prompts: keep the defaults.
-   - Resources: under Resource bindings, **Add item**, Kind `Secret`, Alias `mux`, Resource "Secret: mux-credential".
+   - Resources: if the endpoint requires authentication, under Resource bindings, **Add item**, Kind `Secret`, Alias `mux`, Resource "Secret: mux-credential". Otherwise leave the resource bindings empty.
    - Overrides: nothing.
    - Placement and limits: Timeout (seconds) `300`. Save.
 
 The deployment's row menu has **Compile preview**, which shows the exact command line, files, and environment a run would get, with secrets masked. It is the quickest way to check a parameter before spending a run on it.
 
-The same agent with curl, if you prefer:
+The same agent with curl, if you prefer (this example uses an authenticated endpoint; for an unauthenticated endpoint, omit the secret creation and use an empty `resourceBindings` list):
 
 ```bash
-SEC=$(jq -n --arg v "${MUX_API_KEY:-none}" '{name:"mux-credential",kind:"OpenAiApiKey",value:$v}' |
+SEC=$(jq -n --arg v "${MUX_API_KEY}" '{name:"mux-credential",kind:"OpenAiApiKey",value:$v}' |
   curl -s -X POST $API/secrets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary @- | jq -r .id)
 AGT=$(curl -s -X POST $API/agents -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"researcher","displayName":"Researcher","description":"Answers questions with a local model","exposeA2A":true,"exposeMcpTool":true}' | jq -r .id)
