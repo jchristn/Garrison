@@ -13,6 +13,9 @@ namespace Garrison.Worker.Execution
         /// <summary>Optional private git mirror cache directory. Null disables caching.</summary>
         public string? GitCacheRoot { get; set; } = null;
 
+        /// <summary>Worker-owned Mux configuration directory. Null uses the worker environment or ~/.mux; never supplied by a run.</summary>
+        public string? MuxConfigDirectory { get; set; } = null;
+
         /// <summary>Root directory for per-run directories.</summary>
         public string WorkRoot { get; set; } = "workspaces";
 

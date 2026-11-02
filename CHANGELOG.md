@@ -8,8 +8,10 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Mux in Agent wizard now asks only for a configured endpoint name. It passes that name through to `mux --print -e`, using the endpoint's own URL, adapter, model, and authentication. The execution worker loads only the selected endpoint from its Mux configuration into the private run configuration, with local credentials redacted from output. Existing URL-based deployments remain compatible.
+- Harness setup reflects each CLI: Pi and OpenCode use provider/model identifiers and do not universally require one of three API keys; their authentication depends on the provider and private profile configuration. Claude Code, Codex, and Gemini retain the credentials their isolated built-in profiles support. The direct provider-API harness now requests its required URL/model and supports explicit anonymous access, with OpenAiApiKey as its supported credential kind.
+
 - Agent wizard drafts use readable, responsive rows with update times and clear Continue actions. Back and completed-step navigation open the selected step directly, including Goal, and changing drafts reloads its saved choices. The chat Send button keeps its normal height when the message box is resized.
-- Mux no longer requires a provider secret in the wizard or Studio. The wizard accepts the endpoint URL and adapter and applies them to the architect and dev deployments. Unauthenticated endpoints omit the API key reference from the generated Mux configuration; authenticated endpoints can still use an optional OpenAI API key secret.
 
 - Delete refusals throughout the dashboard retain the server's resource names and recovery steps for app membership, upstream references, active resources, and protected built-ins. REST and MCP explain that the protected `agent-architect` cannot be deleted.
 

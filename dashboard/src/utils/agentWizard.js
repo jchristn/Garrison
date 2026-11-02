@@ -92,8 +92,8 @@ export function deploymentPlan(agents, deployments, credentialSecretId, state = 
     if (!dev.length) return { agent, action: 'create', deployment: null };
     const bound = dev.find((d) => !credentialSecretId || (d.resourceBindings || []).some((b) => b.kind === 'Secret' && b.resourceId === credentialSecretId));
     if (bound) {
-      const settings = muxParameters(state);
-      const changed = state.muxBaseUrl && (bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v));
+      const settings = wizardParameters(state);
+      const changed = Object.keys(settings).length > 0 && (bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v));
       return { agent, action: changed ? 'configure' : 'ready', deployment: bound };
     }
     return { agent, action: 'bind', deployment: dev[0] };
@@ -108,7 +108,7 @@ export function devDeploymentBody(agent, state, takenNames = []) {
   const body = { name, agentId: agent.id, harnessProfileId, environment: 'dev', active: true, resourceBindings: [] };
   if (model) body.model = model;
   if (credentialSecretId) body.resourceBindings.push({ kind: 'Secret', alias: 'credential', resourceId: credentialSecretId });
-  return withMuxSettings(body, state);
+  return withWizardSettings(body, state);
 }
 
 /** The deployment with the credential bound under the alias "credential" (replacing an earlier credential binding). */
@@ -123,16 +123,24 @@ export function diffProblems(diff) {
   return (diff?.items || []).filter((i) => i.change === 'Failed' || i.stale).map((i) => `${i.kind}/${i.name}: ${i.message || (i.stale ? 'stale' : 'failed')}`);
 }
 
-/** Mux endpoint settings shared by the architect and the agents it builds. */
-export function muxParameters(state) {
-  return state.muxBaseUrl ? { baseUrl: state.muxBaseUrl, adapterType: state.muxAdapterType || 'openai-compatible' } : {};
+/** Settings the selected harness needs, shared by the architect and the resulting dev deployments. */
+export function wizardParameters(state) {
+  if (state.muxEndpoint) return { endpoint: state.muxEndpoint };
+  if (state.providerApiBaseUrl) return { provider: 'OpenAiCompatible', baseUrl: state.providerApiBaseUrl, allowAnonymous: String(!!state.providerApiAnonymous) };
+  return {};
 }
 
-/** Apply the wizard's Mux settings while retaining other deployment parameters and bindings. */
-export function withMuxSettings(deployment, state) {
-  if (!state.muxBaseUrl) return deployment;
-  const settings = muxParameters(state);
-  const parameters = (deployment.parameters || []).filter((p) => !Object.hasOwn(settings, p.name));
+/** Apply wizard settings while retaining unrelated deployment parameters and bindings. */
+export function withWizardSettings(deployment, state) {
+  const settings = wizardParameters(state);
+  if (!Object.keys(settings).length) return deployment;
+  const parameters = (deployment.parameters || []).filter((p) => !Object.hasOwn(settings, p.name) && !(state.muxEndpoint && ['baseUrl', 'adapterType'].includes(p.name)));
   parameters.push(...Object.entries(settings).map(([name, value]) => ({ name, value })));
-  return { ...deployment, harnessProfileId: state.harnessProfileId, model: state.model || null, parameters };
+  const resourceBindings = state.muxEndpoint || state.providerApiAnonymous ? (deployment.resourceBindings || []).filter((b) => !(b.kind === 'Secret' && b.alias === 'credential')) : deployment.resourceBindings;
+  return { ...deployment, harnessProfileId: state.harnessProfileId, model: state.model || null, parameters, resourceBindings };
+}
+
+/** A model example in the CLI's own format. */
+export function modelExample(harnessType) {
+  return ['OpenCode', 'Pi'].includes(harnessType) ? 'provider/model' : '';
 }

@@ -30,11 +30,11 @@ async function skipSetup(page) {
 }
 
 /** Profiles, secrets, the applied agents by name, their dev deployments, and the entry agent's test conversation. */
-async function installWizardRoutes(page) {
+async function installWizardRoutes(page, profile = PROFILE) {
   const wizard = { secrets: [], secretBodies: [], deploymentUpdates: [], testInvokes: [] };
   const page1 = (rows) => json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true });
-  await page.route(/\/tenants\/[^/]+\/harness-profiles(\?.*)?$/, (route) => (route.request().method() === 'GET' ? route.fulfill(page1([PROFILE])) : route.fallback()));
-  await page.route(/\/tenants\/[^/]+\/harness-profiles\/hp_0001$/, (route) => route.fulfill(json(200, PROFILE)));
+  await page.route(/\/tenants\/[^/]+\/harness-profiles(\?.*)?$/, (route) => (route.request().method() === 'GET' ? route.fulfill(page1([profile])) : route.fallback()));
+  await page.route(/\/tenants\/[^/]+\/harness-profiles\/hp_0001$/, (route) => route.fulfill(json(200, profile)));
   await page.route(/\/tenants\/[^/]+\/secrets(\?.*)?$/, (route) => {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
@@ -252,7 +252,7 @@ test('a draft that could not be applied says why and sends the problem back to t
   await expect(page.getByTestId('studio-chat-message')).toHaveValue(/Artifact globs require an artifact store\./);
 });
 
-test('Mux needs only an endpoint and carries it into the architect and dev deployments without secrets', async ({ page }) => {
+test('Mux needs only a configured endpoint name and carries it into the architect and dev deployments without secrets', async ({ page }, testInfo) => {
   const flow = await installStudioFlow(page);
   const wizard = await installWizardRoutes(page);
   const mux = { ...PROFILE, name: 'builtin/mux', harnessType: 'Mux' };
@@ -279,15 +279,19 @@ test('Mux needs only an endpoint and carries it into the architect and dev deplo
   await page.getByTestId('wizard-next').click({ force: true });
   await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
   await page.locator('#wizard-mux-endpoint').fill('http://ollama:11434');
-  await page.locator('#wizard-mux-adapter').selectOption('ollama');
-  await page.locator('#wizard-model').fill('gpt-oss:20b');
-  await expect(page.locator('#wizard-mux-credential')).toHaveValue('');
+  await page.getByTestId('wizard-next').click({ force: true });
+  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
+  await page.locator('#wizard-mux-endpoint').fill('local');
+  await page.getByTestId('wizard-panel-access').screenshot({ path: testInfo.outputPath('mux-endpoint-name.png') });
+  await expect(page.locator('#wizard-mux-adapter')).toHaveCount(0);
+  await expect(page.locator('#wizard-mux-credential')).toHaveCount(0);
+  await expect(page.locator('#wizard-model')).toHaveCount(0);
   await page.getByTestId('wizard-next').click();
   await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
   expect(flow.architectBodies[0].credentialSecretId).toBe('');
-  expect(updates[0]).toMatchObject({ model: 'gpt-oss:20b', resourceBindings: [], parameters: [{ name: 'timeoutMs', value: '300000' }, { name: 'baseUrl', value: 'http://ollama:11434' }, { name: 'adapterType', value: 'ollama' }] });
+  expect(updates[0]).toMatchObject({ model: null, resourceBindings: [], parameters: [{ name: 'timeoutMs', value: '300000' }, { name: 'endpoint', value: 'local' }] });
   await expect(page.getByTestId('studio-not-credentialed')).toHaveCount(0);
-  await expect(page.getByTestId('studio-chat-message')).toHaveValue(/http:\/\/ollama:11434/);
+  await expect(page.getByTestId('studio-chat-message')).toHaveValue(/local/);
   await page.getByTestId('studio-chat-send').click();
   await expect(page.getByTestId('wizard-contents')).toContainText('planner');
   await page.getByTestId('wizard-next').click();
@@ -298,7 +302,81 @@ test('Mux needs only an endpoint and carries it into the architect and dev deplo
   expect(wizard.secretBodies).toEqual([]);
   expect(wizard.deploymentUpdates).toHaveLength(2);
   for (const deployment of wizard.deploymentUpdates) {
-    expect(deployment.parameters).toEqual(expect.arrayContaining([{ name: 'baseUrl', value: 'http://ollama:11434' }, { name: 'adapterType', value: 'ollama' }]));
+    expect(deployment.parameters).toEqual(expect.arrayContaining([{ name: 'endpoint', value: 'local' }]));
     expect(deployment.resourceBindings).not.toEqual(expect.arrayContaining([expect.objectContaining({ alias: 'credential' })]));
   }
+});
+
+for (const harness of [
+  { harnessType: 'Pi', name: 'builtin/pi', model: 'anthropic/claude-sonnet-4-5' },
+  { harnessType: 'OpenCode', name: 'builtin/opencode', model: 'opencode/free-model' },
+  { harnessType: 'Generic', name: 'builtin/generic-jsonl', model: '' },
+  { harnessType: 'Fake', name: 'builtin/fake', model: '' }
+]) {
+  test(`${harness.name} accepts its CLI model without forcing a provider secret`, async ({ page }) => {
+    const flow = await installStudioFlow(page);
+    await installWizardRoutes(page, { ...PROFILE, ...harness });
+    await login(page);
+    await skipSetup(page);
+    await page.goto('/dashboard/agent-wizard/new');
+    await page.locator('#wizard-title').fill('Harness audit');
+    await page.locator('#wizard-goal').fill('Design an agent.');
+    await page.getByTestId('wizard-next').click();
+    await expect(page.getByTestId('wizard-mux')).toHaveCount(0);
+    await expect(page.getByTestId('wizard-credential').locator('.warning-banner')).toHaveCount(0);
+    if (harness.model) await page.locator('#wizard-model').fill(harness.model);
+    await page.getByTestId('wizard-next').click();
+    await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+    expect(flow.architectBodies[0]).toMatchObject({ credentialSecretId: '', model: harness.model || null });
+  });
+}
+
+for (const harness of [
+  { harnessType: 'Codex', name: 'builtin/codex', kind: 'OpenAiApiKey' },
+  { harnessType: 'Codex', name: 'builtin/codex-app-server', kind: 'OpenAiApiKey' },
+  { harnessType: 'GeminiCli', name: 'builtin/gemini-cli', kind: 'GeminiApiKey' }
+]) {
+  test(`${harness.name} requires a compatible isolated-run credential`, async ({ page }) => {
+    await installStudioFlow(page);
+    await installWizardRoutes(page, { ...PROFILE, ...harness });
+    await login(page);
+    await skipSetup(page);
+    await page.goto('/dashboard/agent-wizard/new');
+    await page.locator('#wizard-title').fill('Credential audit');
+    await page.locator('#wizard-goal').fill('Design an agent.');
+    await page.getByTestId('wizard-next').click();
+    await expect(page.getByTestId('wizard-credential')).toContainText(harness.kind);
+    await page.getByTestId('wizard-next').click({ force: true });
+    await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
+    await page.getByTestId('wizard-add-secret').click();
+    await expect(page.locator('#wizard-secret-kind')).toHaveValue(harness.kind);
+  });
+}
+
+test('provider-api requires an explicit URL and model and supports an explicitly anonymous endpoint', async ({ page }) => {
+  const flow = await installStudioFlow(page);
+  await installWizardRoutes(page, { ...PROFILE, name: 'builtin/provider-api', harnessType: 'ProviderApi' });
+  let deployment;
+  await page.route(/\/deployments\/dep_arch$/, (route) => {
+    if (route.request().method() === 'PUT') {
+      deployment = route.request().postDataJSON();
+      return route.fulfill(json(200, deployment));
+    }
+    return route.fulfill(json(200, { ...ARCHITECT_DEPLOYMENT, resourceBindings: [], parameters: [] }));
+  });
+  await login(page);
+  await skipSetup(page);
+  await page.goto('/dashboard/agent-wizard/new');
+  await page.locator('#wizard-title').fill('Provider audit');
+  await page.locator('#wizard-goal').fill('Design an agent.');
+  await page.getByTestId('wizard-next').click();
+  await page.getByTestId('wizard-next').click({ force: true });
+  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
+  await page.locator('#wizard-provider-endpoint').fill('http://provider:8080/v1');
+  await page.locator('#wizard-model').fill('local-model');
+  await page.locator('#wizard-provider-anonymous').check();
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+  expect(flow.architectBodies[0].credentialSecretId).toBe('');
+  expect(deployment.parameters).toEqual([{ name: 'provider', value: 'OpenAiCompatible' }, { name: 'baseUrl', value: 'http://provider:8080/v1' }, { name: 'allowAnonymous', value: 'true' }]);
 });

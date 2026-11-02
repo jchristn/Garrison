@@ -133,11 +133,11 @@ From now on each `echo` run gets its own pod (the KubernetesJob executor), and t
 
 ## 3. Add an agent in the dashboard
 
-For the guided flow, open **Agents**, **Agent wizard**. Start a project or select **Continue** beside a saved draft. For `builtin/mux`, Model access asks for an endpoint URL and adapter; the credential is optional. Completed steps remain clickable, and Back returns to the previous step.
+For the guided flow, open **Agents**, **Agent wizard**. Start a project or select **Continue** beside a saved draft. For `builtin/mux`, Model access asks only for the endpoint name configured in Mux on the execution workers. URL, adapter, model, and authentication come from that Mux configuration. Completed steps remain clickable, and Back returns to the previous step.
 
 ![Saved drafts in the Agent wizard](images/agent-wizard-drafts.png)
 
-The manual flow below creates the same resources directly.
+The manual flow below demonstrates the legacy URL-based deployment option. For normal Mux setup in the wizard, use a configured endpoint name.
 
 The fourth agent runs on Mux, which talks to any OpenAI-compatible or Ollama endpoint, including one on your own network. You need the endpoint's base URL, a model name, an adapter type (`openai-compatible` or `ollama`), and an API key if the endpoint wants one. If you have none of that, skip to step 4 and leave `researcher` out of the commands.
 

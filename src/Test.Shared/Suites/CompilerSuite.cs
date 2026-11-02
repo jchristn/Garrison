@@ -46,6 +46,7 @@ namespace Test.Shared.Suites
                 foreach (string profile in _Profiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-basic", "Golden: " + profile + " basic (" + provider + ")", ct => GoldenAsync(provider, profile, false, ct)));
                 foreach (string profile in _FullProfiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-full", "Golden: " + profile + " with MCP, schema, delegation, workspace (" + provider + ")", ct => GoldenAsync(provider, profile, true, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "no-hardcoded-text", "D-021: prompts contain only template text and caller input (" + provider + ")", ct => NoHardCodedTextAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(suiteId, "mux-named-endpoint", "Mux passes the configured endpoint name without a URL, model override, or generated endpoint (" + provider + ")", ct => MuxNamedEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "mux-without-credential", "Mux endpoints compile without a credential or unresolved API key placeholder (" + provider + ")", ct => MuxWithoutCredentialAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "secret-allowlist", "Secrets in environment variables outside the credential allowlist are rejected (" + provider + ")", ct => SecretAllowlistAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "pinned-version", "Pinned template versions compile the pinned content and are recorded (" + provider + ")", ct => PinnedVersionAsync(provider, ct)));
@@ -156,6 +157,23 @@ namespace Test.Shared.Suites
                 {
                     Assert.Equal("SecretNotAllowed", e.Code, "code");
                 }
+            }
+        }
+
+        private static async Task MuxNamedEndpointAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                Deployment deployment = await fixture.DeploymentAsync("mux", false, token).ConfigureAwait(false);
+                deployment.ResourceBindings.Clear();
+                deployment.Parameters.Clear();
+                deployment.Parameters.Add(new DeploymentParameter { Name = "endpoint", Value = "local" });
+                deployment.Model = null;
+                await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                ExecutionSpec spec = (await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), null, token).ConfigureAwait(false)).Spec;
+                Assert.Equal("local", spec.Arguments[spec.Arguments.IndexOf("-e") + 1], "Endpoint name passed to Mux");
+                Assert.True(!spec.Arguments.Contains("-m") && !spec.Files.Any(f => f.Path == "mux/endpoints.json"), "The endpoint's own model and configuration are used");
+                Assert.True(!spec.Environment.Any(v => v.Name == "GARRISON_MUX_API_KEY"), "A named endpoint needs no control-plane credential");
             }
         }
 

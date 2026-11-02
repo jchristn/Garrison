@@ -4989,3 +4989,20 @@ Object.assign(de.views.agentWizard.design, {
   "firstMessageMux": "Ich möchte Folgendes erstellen: {{goal}}\n\nVerwende Mux mit Endpunkt {{endpoint}}, Adapter {{adapter}} und Modell {{model}}. Ein API-Schlüssel ist nur erforderlich, wenn der Endpunkt eine Authentifizierung erfordert. Stelle mir die nötigen Fragen und entwirf dann die Agenten in diesem Entwurf."
 });
 Object.assign(de.views.agentWizard.approve.actions, {"configure": "Endpunkt konfiguriert"});
+
+// Harness-specific wizard configuration.
+Object.assign(de.views.agentWizard.access, {
+  "muxEndpoint": "Mux-Endpunktname",
+  "muxHint": "Gib den in Mux auf den Ausführungs-Workern konfigurierten Endpunktnamen ein, etwa local. Mux liefert URL, Adapter, Modell und Authentifizierung.",
+  "needEndpoint": "Gib einen konfigurierten Mux-Endpunktnamen ein, keine URL.",
+  "providerModelHint": "Verwende die CLI-Modellkennung, meist provider/model. Die Authentifizierung hängt vom Anbieter ab; gespeicherte Zugangsdaten sind optional.",
+  "optionalCredentialIntro": "{{profile}} unterstützt gespeicherte Secrets vom Typ {{kinds}}. Wähle eines, wenn dein Anbieter es benötigt, oder fahre ohne gespeicherte Zugangsdaten fort.",
+  "providerEndpoint": "URL des Anbieter-API-Endpunkts",
+  "providerEndpointHint": "Dieser Harness ruft eine OpenAI-kompatible HTTP-API direkt auf. Gib Basis-URL und Modell ein.",
+  "providerAnonymous": "Der Anbieterendpunkt benötigt keine Authentifizierung",
+  "needProviderEndpoint": "Gib eine gültige HTTP- oder HTTPS-Anbieter-URL ohne Zugangsdaten, Abfrageparameter oder Fragment ein."
+});
+Object.assign(de.views.agentWizard.design, {
+  "firstMessageMux": "Ich möchte Folgendes erstellen: {{goal}}\n\nVerwende den konfigurierten Mux-Endpunkt {{endpoint}}. Modell und Authentifizierung kommen von Mux. Stelle mir die nötigen Fragen und entwirf die Agenten in diesem Entwurf."
+});
+Object.assign(de.views.agentWizard.access, {"intro": "Wähle den Harness und seine Verbindungseinstellungen. Der Agentenarchitekt verwendet beim Entwerfen dieselbe Konfiguration."});

@@ -4955,3 +4955,20 @@ Object.assign(zhHant.views.agentWizard.design, {
   "firstMessageMux": "我想建構：{{goal}}\n\n請使用 Mux，端點為 {{endpoint}}，配接器為 {{adapter}}，模型為 {{model}}。只有端點需要驗證時才需要 API 金鑰。請先詢問必要的問題，然後在此草稿中設計代理。"
 });
 Object.assign(zhHant.views.agentWizard.approve.actions, {"configure": "已設定端點"});
+
+// Harness-specific wizard configuration.
+Object.assign(zhHant.views.agentWizard.access, {
+  "muxEndpoint": "Mux 端點名稱",
+  "muxHint": "輸入執行工作節點上 Mux 中設定的端點名稱，例如 local。URL、配接器、模型和驗證均由 Mux 提供。",
+  "needEndpoint": "請輸入已設定的 Mux 端點名稱，而非 URL。",
+  "providerModelHint": "使用 CLI 模型識別碼，通常為 provider/model。驗證取決於供應商，已儲存的憑證為選填。",
+  "optionalCredentialIntro": "{{profile}} 支援 {{kinds}} 類型的已儲存密鑰。供應商要求時請選擇，亦可不使用已儲存憑證繼續。",
+  "providerEndpoint": "供應商 API 端點 URL",
+  "providerEndpointHint": "此執行框架直接呼叫相容 OpenAI 的 HTTP API。請輸入其基礎 URL 和模型。",
+  "providerAnonymous": "供應商端點不需要驗證",
+  "needProviderEndpoint": "請輸入不含憑證、查詢參數或片段的有效 HTTP 或 HTTPS 供應商 URL。"
+});
+Object.assign(zhHant.views.agentWizard.design, {
+  "firstMessageMux": "我想建構：{{goal}}\n\n請使用已設定的 Mux 端點 {{endpoint}}。模型和驗證來自 Mux。請先詢問必要的問題，然後在此草稿中設計代理。"
+});
+Object.assign(zhHant.views.agentWizard.access, {"intro": "選擇執行框架及其連線設定。代理架構師在與你設計時使用相同設定。"});

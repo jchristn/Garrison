@@ -11,7 +11,7 @@ import { DETAIL_VIEWS } from '../views/hubs/hubPanels';
 import { agentsConfig } from '../views/resourceConfigs';
 import {
   WIZARD_STEPS,
-  withMuxSettings,
+  withWizardSettings,
   defaultSecretKind,
   deploymentPlan,
   devDeploymentBody,
@@ -111,13 +111,13 @@ describe('agent wizard helpers', () => {
   it('allows Mux without provider secrets and preserves endpoint parameters on new and existing deployments', () => {
     expect(needsCredential('Mux')).toBe(false);
     expect(suggestedCredential([{ id: 'sec_openai', kind: 'OpenAiApiKey', active: true }], 'Mux')).toBeNull();
-    const state = { muxBaseUrl: 'http://ollama:11434', muxAdapterType: 'ollama', harnessProfileId: 'hp_mux', model: 'gpt-oss:20b' };
+    const state = { muxEndpoint: 'local', harnessProfileId: 'hp_mux', model: '' };
     const agent = { id: 'agt_local', name: 'local' };
     const created = devDeploymentBody(agent, state);
     expect(created.resourceBindings).toEqual([]);
-    expect(created.parameters).toEqual([{ name: 'baseUrl', value: state.muxBaseUrl }, { name: 'adapterType', value: 'ollama' }]);
+    expect(created.parameters).toEqual([{ name: 'endpoint', value: 'local' }]);
     const existing = { ...created, id: 'dep_local', parameters: [{ name: 'timeoutMs', value: '300000' }, { name: 'baseUrl', value: 'http://old:11434' }] };
-    const updated = withMuxSettings(existing, state);
+    const updated = withWizardSettings(existing, state);
     expect(updated.parameters).toEqual([{ name: 'timeoutMs', value: '300000' }, ...created.parameters]);
     expect(existing.parameters[1].value).toBe('http://old:11434');
     expect(deploymentPlan([agent], [existing], '', state)[0].action).toBe('configure');

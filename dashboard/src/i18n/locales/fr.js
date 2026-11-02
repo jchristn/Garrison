@@ -5003,3 +5003,20 @@ Object.assign(fr.views.agentWizard.design, {
   "firstMessageMux": "Je souhaite créer ceci : {{goal}}\n\nUtilise Mux avec le point de terminaison {{endpoint}}, l’adaptateur {{adapter}} et le modèle {{model}}. Une clé API est nécessaire uniquement si le point de terminaison exige une authentification. Pose-moi les questions nécessaires, puis conçois les agents dans ce brouillon."
 });
 Object.assign(fr.views.agentWizard.approve.actions, {"configure": "Point de terminaison configuré"});
+
+// Harness-specific wizard configuration.
+Object.assign(fr.views.agentWizard.access, {
+  "muxEndpoint": "Nom du point de terminaison Mux",
+  "muxHint": "Saisissez le nom configuré dans Mux sur les workers d’exécution, par exemple local. Mux fournit son URL, son adaptateur, son modèle et son authentification.",
+  "needEndpoint": "Saisissez un nom de point de terminaison Mux configuré, pas une URL.",
+  "providerModelHint": "Utilisez l’identifiant de modèle de la CLI, généralement provider/model. L’authentification dépend du fournisseur ; un identifiant enregistré est facultatif.",
+  "optionalCredentialIntro": "{{profile}} accepte les secrets enregistrés de type {{kinds}}. Choisissez-en un si votre fournisseur l’exige, ou continuez sans identifiant enregistré.",
+  "providerEndpoint": "URL de l’API du fournisseur",
+  "providerEndpointHint": "Ce harness appelle directement une API HTTP compatible avec OpenAI. Saisissez son URL de base et son modèle.",
+  "providerAnonymous": "Le point de terminaison du fournisseur ne nécessite pas d’authentification",
+  "needProviderEndpoint": "Saisissez une URL HTTP ou HTTPS valide sans identifiants, paramètres de requête ni fragment."
+});
+Object.assign(fr.views.agentWizard.design, {
+  "firstMessageMux": "Je souhaite créer ceci : {{goal}}\n\nUtilise le point de terminaison Mux configuré nommé {{endpoint}}. Son modèle et son authentification viennent de Mux. Pose-moi les questions nécessaires, puis conçois les agents dans ce brouillon."
+});
+Object.assign(fr.views.agentWizard.access, {"intro": "Choisissez le harness et ses paramètres de connexion. L’architecte d’agents utilise la même configuration pendant la conception."});

@@ -23,7 +23,8 @@ export function credentialHint(t, { profile = null, secretCount = 0, chosen = ''
   let warning = '';
   if (!profile) text = t('components.architectHints.credentialNoProfile');
   else if (profile.harnessType === 'Mux') text = t('views.agentWizard.access.muxHint');
-  else if (!needsCredential(profile.harnessType)) text = t('components.architectHints.credentialNotNeeded', { profile: profile.name });
+  else if (kinds.length && !needsCredential(profile.harnessType)) text = t('views.agentWizard.access.optionalCredentialIntro', { profile: profile.name, kinds: list });
+  else if (!kinds.length) text = t('components.architectHints.credentialNotNeeded', { profile: profile.name });
   else if (chosen) text = t('components.architectHints.credentialChosen', { profile: profile.name });
   else warning = t(secretCount ? 'components.architectHints.credentialPick' : 'components.architectHints.credentialAdd', { profile: profile.name, kinds: list });
   return (

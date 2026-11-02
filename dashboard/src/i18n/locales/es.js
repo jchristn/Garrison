@@ -5007,3 +5007,20 @@ Object.assign(es.views.agentWizard.design, {
   "firstMessageMux": "Quiero crear esto: {{goal}}\n\nUsa Mux con el endpoint {{endpoint}}, el adaptador {{adapter}} y el modelo {{model}}. Solo se necesita una clave API si el endpoint requiere autenticación. Hazme las preguntas necesarias y diseña los agentes en este borrador."
 });
 Object.assign(es.views.agentWizard.approve.actions, {"configure": "Endpoint configurado"});
+
+// Harness-specific wizard configuration.
+Object.assign(es.views.agentWizard.access, {
+  "muxEndpoint": "Nombre del endpoint de Mux",
+  "muxHint": "Introduce el nombre del endpoint configurado en Mux en los workers de ejecución, por ejemplo local. Mux aporta su URL, adaptador, modelo y autenticación.",
+  "needEndpoint": "Introduce un nombre de endpoint de Mux configurado, no una URL.",
+  "providerModelHint": "Usa el identificador de modelo de la CLI, normalmente provider/model. La autenticación depende del proveedor; la credencial guardada es opcional.",
+  "optionalCredentialIntro": "{{profile}} admite secretos guardados de tipo {{kinds}}. Elige uno si tu proveedor lo requiere o continúa sin credencial guardada.",
+  "providerEndpoint": "URL del endpoint de la API del proveedor",
+  "providerEndpointHint": "Este harness llama directamente a una API HTTP compatible con OpenAI. Introduce la URL base y el modelo.",
+  "providerAnonymous": "El endpoint del proveedor no requiere autenticación",
+  "needProviderEndpoint": "Introduce una URL HTTP o HTTPS válida sin credenciales, parámetros de consulta ni fragmento."
+});
+Object.assign(es.views.agentWizard.design, {
+  "firstMessageMux": "Quiero crear esto: {{goal}}\n\nUsa el endpoint de Mux configurado llamado {{endpoint}}. El modelo y la autenticación proceden de Mux. Hazme las preguntas necesarias y diseña los agentes en este borrador."
+});
+Object.assign(es.views.agentWizard.access, {"intro": "Elige el harness y su configuración de conexión. El arquitecto de agentes usa la misma configuración al diseñar contigo."});

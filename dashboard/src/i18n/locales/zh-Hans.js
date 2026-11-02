@@ -4955,3 +4955,20 @@ Object.assign(zhHans.views.agentWizard.design, {
   "firstMessageMux": "我想构建：{{goal}}\n\n请使用 Mux，端点为 {{endpoint}}，适配器为 {{adapter}}，模型为 {{model}}。仅当端点要求身份验证时才需要 API 密钥。请先询问必要的问题，然后在此草稿中设计代理。"
 });
 Object.assign(zhHans.views.agentWizard.approve.actions, {"configure": "已配置端点"});
+
+// Harness-specific wizard configuration.
+Object.assign(zhHans.views.agentWizard.access, {
+  "muxEndpoint": "Mux 端点名称",
+  "muxHint": "输入执行工作节点上 Mux 中配置的端点名称，例如 local。URL、适配器、模型和身份验证均由 Mux 提供。",
+  "needEndpoint": "请输入已配置的 Mux 端点名称，而非 URL。",
+  "providerModelHint": "使用 CLI 模型标识符，通常为 provider/model。身份验证取决于提供商，已保存的凭据为可选项。",
+  "optionalCredentialIntro": "{{profile}} 支持 {{kinds}} 类型的已保存密钥。提供商要求时请选择，也可不使用已保存凭据继续。",
+  "providerEndpoint": "提供商 API 端点 URL",
+  "providerEndpointHint": "此运行框架直接调用兼容 OpenAI 的 HTTP API。请输入其基础 URL 和模型。",
+  "providerAnonymous": "提供商端点不需要身份验证",
+  "needProviderEndpoint": "请输入不含凭据、查询参数或片段的有效 HTTP 或 HTTPS 提供商 URL。"
+});
+Object.assign(zhHans.views.agentWizard.design, {
+  "firstMessageMux": "我想构建：{{goal}}\n\n请使用已配置的 Mux 端点 {{endpoint}}。模型和身份验证来自 Mux。请先询问必要的问题，然后在此草稿中设计代理。"
+});
+Object.assign(zhHans.views.agentWizard.access, {"intro": "选择运行框架及其连接设置。代理架构师在与你设计时使用相同配置。"});

@@ -1,6 +1,6 @@
 {
   "name": "builtin/mux",
-  "description": "Mux print mode (Mux 1.3.0) with JSONL events against a configurable OpenAI-compatible (or other) endpoint. The final answer comes from --output-last-message. Agents with an output schema, and conversation turns, run under --session-id <run id> so a structured output repair or the next turn can --resume the session.",
+  "description": "Mux print mode (Mux 1.3.0) with JSONL events and a named endpoint from worker-owned Mux configuration (the endpoint parameter). Legacy baseUrl/adapterType deployments retain their generated endpoint. The final answer comes from --output-last-message. Agents with an output schema, and conversation turns, run under --session-id <run id> so a structured output repair or the next turn can --resume the session.",
   "harnessType": "Mux",
   "executable": "mux",
   "promptDelivery": "Stdin",
@@ -31,7 +31,7 @@
       "template": "-e"
     },
     {
-      "template": "garrison"
+      "template": "{{deployment.parameters.endpoint | default: \"garrison\"}}"
     },
     {
       "template": "--output-format"
@@ -176,7 +176,8 @@
       "baseDirectory": "Config",
       "pathTemplate": "mux/endpoints.json",
       "contentTemplate": "{{> builtin/mux-endpoints}}",
-      "isSecret": false
+      "isSecret": false,
+      "condition": "{{#unless deployment.parameters.endpoint}}true{{/unless}}"
     },
     {
       "baseDirectory": "Config",

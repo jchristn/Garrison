@@ -172,6 +172,8 @@ namespace Garrison.Worker.Execution
                         }
                         if (preparedRestore) Lifecycle(reporter, "WorkspaceCacheHit", "Restored prepared workspace snapshot for immutable commit " + spec.Workspace.GitRef + ".");
                         if (conversation != null) DeleteStaleResult(spec, directories);
+                        List<string> muxSecrets = await MuxEndpointPreparer.PrepareAsync(spec, _Options.MuxConfigDirectory, environment, token).ConfigureAwait(false);
+                        scrubber = new SecretScrubber(CollectSecrets(spec).Concat(muxSecrets));
                         foreach (ExecutionFile file in spec.Files) await FileMaterializer.WriteAsync(file, directories, token).ConfigureAwait(false);
                         GarrisonTracing.Ok(workspaceSpan);
                     }

@@ -4954,3 +4954,20 @@ Object.assign(ja.views.agentWizard.design, {
   "firstMessageMux": "作成したいもの: {{goal}}\n\nMux をエンドポイント {{endpoint}}、アダプター {{adapter}}、モデル {{model}} で使用してください。エンドポイントで認証が必要な場合のみ API キーが必要です。必要な質問をしてから、このドラフトでエージェントを設計してください。"
 });
 Object.assign(ja.views.agentWizard.approve.actions, {"configure": "エンドポイント設定済み"});
+
+// Harness-specific wizard configuration.
+Object.assign(ja.views.agentWizard.access, {
+  "muxEndpoint": "Mux エンドポイント名",
+  "muxHint": "実行ワーカーの Mux に設定したエンドポイント名（例: local）を入力してください。URL、アダプター、モデル、認証は Mux の設定を使用します。",
+  "needEndpoint": "URL ではなく、設定済みの Mux エンドポイント名を入力してください。",
+  "providerModelHint": "CLI のモデル識別子（通常 provider/model）を使用します。認証はプロバイダーによって異なり、保存済み認証情報は任意です。",
+  "optionalCredentialIntro": "{{profile}} は {{kinds}} の保存済みシークレットに対応しています。プロバイダーが要求する場合は選択し、それ以外は認証情報なしで続行できます。",
+  "providerEndpoint": "プロバイダー API のエンドポイント URL",
+  "providerEndpointHint": "このハーネスは OpenAI 互換の HTTP API を直接呼び出します。ベース URL とモデルを入力してください。",
+  "providerAnonymous": "プロバイダーのエンドポイントは認証不要",
+  "needProviderEndpoint": "認証情報、クエリ、フラグメントを含まない有効な HTTP または HTTPS の URL を入力してください。"
+});
+Object.assign(ja.views.agentWizard.design, {
+  "firstMessageMux": "作成したいもの: {{goal}}\n\n設定済みの Mux エンドポイント {{endpoint}} を使用してください。モデルと認証には Mux の設定を使用します。必要な質問をしてから、このドラフトでエージェントを設計してください。"
+});
+Object.assign(ja.views.agentWizard.access, {"intro": "ハーネスと接続設定を選択してください。エージェント設計者も同じ設定で設計を進めます。"});

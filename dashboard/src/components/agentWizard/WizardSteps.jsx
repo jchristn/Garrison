@@ -22,7 +22,7 @@ import { CREDENTIAL_KINDS, needsCredential, suggestedCredential } from '../../ut
 import { conversationStorageKey, readStored } from '../../utils/studio';
 import { MULTILINE_SECRET_KINDS } from '../../utils/secretGuides';
 import { appUrl, effectiveSlug } from '../../utils/apps';
-import { withMuxSettings, defaultSecretKind, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, slug, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
+import { modelExample, withWizardSettings, defaultSecretKind, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, slug, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
 
 const page = { pageNumber: 1, pageSize: 1000 };
 
@@ -151,8 +151,9 @@ export function AccessStep({ state, update, go }) {
   const [secrets, setSecrets] = useState([]);
   const [profileId, setProfileId] = useState(state.harnessProfileId || '');
   const [model, setModel] = useState(state.model || '');
-  const [muxBaseUrl, setMuxBaseUrl] = useState(state.muxBaseUrl || '');
-  const [muxAdapterType, setMuxAdapterType] = useState(state.muxAdapterType || 'openai-compatible');
+  const [muxEndpoint, setMuxEndpoint] = useState(state.muxEndpoint || '');
+  const [providerApiBaseUrl, setProviderApiBaseUrl] = useState(state.providerApiBaseUrl || '');
+  const [providerApiAnonymous, setProviderApiAnonymous] = useState(!!state.providerApiAnonymous);
   const [secretId, setSecretId] = useState(state.credentialSecretId || '');
   const [adding, setAdding] = useState(false);
   const [newSecret, setNewSecret] = useState({ name: '', kind: '', value: '' });
@@ -188,7 +189,8 @@ export function AccessStep({ state, update, go }) {
   const profile = (profiles || []).find((p) => p.id === profileId) || null;
   const kinds = profile ? CREDENTIAL_KINDS[profile.harnessType] || [] : [];
   const isMux = profile?.harnessType === 'Mux';
-  const needs = !!profile && needsCredential(profile.harnessType);
+  const isProviderApi = profile?.harnessType === 'ProviderApi';
+  const needs = !!profile && needsCredential(profile.harnessType) && !(isProviderApi && providerApiAnonymous);
   const fitting = secrets.filter((s) => kinds.includes(s.kind));
   const credentialId = fitting.some((s) => s.id === secretId) ? secretId : '';
 
@@ -219,14 +221,20 @@ export function AccessStep({ state, update, go }) {
     }
   };
 
-  const endpointValid = (() => {
+  const providerEndpointValid = (() => {
     try {
-      return ['http:', 'https:'].includes(new URL(muxBaseUrl.trim()).protocol);
+      const url = new URL(providerApiBaseUrl.trim());
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
     } catch {
       return false;
     }
   })();
-  const missing = !profile ? t('tips.views.agentWizard.access.needProfile') : isMux && !endpointValid ? t('views.agentWizard.access.needEndpoint') : needs && !credentialId ? t('tips.views.agentWizard.access.needCredential') : '';
+  const missing = !profile ? t('tips.views.agentWizard.access.needProfile')
+    : isMux && (!muxEndpoint.trim() || muxEndpoint.includes('://')) ? t('views.agentWizard.access.needEndpoint')
+      : isProviderApi && !providerEndpointValid ? t('views.agentWizard.access.needProviderEndpoint')
+        : isProviderApi && !model.trim() ? t('common.errors.required')
+          : needs && !credentialId ? t('tips.views.agentWizard.access.needCredential') : '';
+  const harnessSettings = { muxEndpoint: isMux ? muxEndpoint.trim() : '', providerApiBaseUrl: isProviderApi ? providerApiBaseUrl.trim() : '', providerApiAnonymous: isProviderApi && providerApiAnonymous, harnessProfileId: profile?.id, model: isMux ? '' : model.trim() };
 
   // Set up the wizard's architect: same harness, model, and credential; the guided architect prompt.
   const next = async () => {
@@ -236,16 +244,16 @@ export function AccessStep({ state, update, go }) {
       const name = wizardArchitectName(profile);
       const found = await apiClient.listArchitects(tenantId, { pageNumber: 1, pageSize: 50, search: name });
       const existing = (found.items || []).find((a) => a.name === name);
-      const body = { name, harnessProfileId: profile.id, model: model.trim() || null, active: true, credentialSecretId: credentialId };
+      const body = { name, harnessProfileId: profile.id, model: isMux ? null : model.trim() || null, active: true, credentialSecretId: isMux || (isProviderApi && providerApiAnonymous) ? '' : credentialId };
       const architect = existing
         ? await apiClient.updateArchitect(tenantId, existing.id, body)
         : await apiClient.createArchitect(tenantId, { ...body, description: t('views.agentWizard.access.architectDescription'), architectPromptTemplateId: 'builtin/agent-architect-guided' });
-      if (isMux) {
+      if (isMux || isProviderApi) {
         const deployment = await apiClient.getDeployment(tenantId, architect.id);
-        await apiClient.updateDeployment(tenantId, architect.id, withMuxSettings(deployment, { muxBaseUrl: muxBaseUrl.trim(), muxAdapterType, harnessProfileId: profile.id, model: model.trim() }));
+        await apiClient.updateDeployment(tenantId, architect.id, withWizardSettings(deployment, harnessSettings));
       }
       const secret = fitting.find((s) => s.id === credentialId);
-      update({ muxBaseUrl: isMux ? muxBaseUrl.trim() : '', muxAdapterType, harnessProfileId: profile.id, profileName: profile.name, model: model.trim(), credentialSecretId: credentialId, secretName: secret?.name || '', architectId: architect.id });
+      update({ ...harnessSettings, profileName: profile.name, credentialSecretId: body.credentialSecretId, secretName: secret?.name || '', architectId: architect.id });
       go('design');
     } catch (e) {
       setError(e);
@@ -271,25 +279,35 @@ export function AccessStep({ state, update, go }) {
             setAdding(false);
           }}
         />
-        <FormField id="wizard-model" field={{ name: 'model', type: 'text', label: t('views.agentWizard.access.model'), placeholder: isMux ? 'gpt-oss:20b' : 'sonnet', tip: t('tips.views.agentWizard.access.model'), hint: t('views.agentWizard.access.modelHint') }} value={model} onChange={setModel} />
+        {!isMux && <FormField id="wizard-model" field={{ name: 'model', type: 'text', label: t('views.agentWizard.access.model'), placeholder: modelExample(profile?.harnessType), tip: t('tips.views.agentWizard.access.model'), hint: ['Pi', 'OpenCode'].includes(profile?.harnessType) ? t('views.agentWizard.access.providerModelHint') : t('views.agentWizard.access.modelHint') }} value={model} onChange={setModel} />}
       </div>
       {isMux && (
         <div className="form-grid wizard-mux" data-testid="wizard-mux">
-          <FormField id="wizard-mux-endpoint" field={{ name: 'muxBaseUrl', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, placeholder: 'http://ollama:11434', hint: t('views.agentWizard.access.muxHint'), tip: t('views.agentWizard.access.muxHint') }} value={muxBaseUrl} onChange={setMuxBaseUrl} />
-          <FormField id="wizard-mux-adapter" field={{ name: 'muxAdapterType', type: 'select', label: t('views.agentWizard.access.muxAdapter'), options: ['openai-compatible', 'openai', 'ollama', 'vllm'].map((v) => ({ value: v, label: v })), tip: t('views.agentWizard.access.muxAdapter') }} value={muxAdapterType} onChange={setMuxAdapterType} />
-          <FormField id="wizard-mux-credential" field={{ name: 'credentialSecretId', type: 'select', label: t('views.agentWizard.access.muxOptionalCredential'), options: [{ value: '', label: t('components.studio.architect.noCredential') }, ...fitting.map((s) => ({ value: s.id, label: s.name }))], tip: t('views.agentWizard.access.muxOptionalCredential') }} value={credentialId} onChange={setSecretId} />
+          <FormField id="wizard-mux-endpoint" field={{ name: 'muxEndpoint', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, placeholder: 'local', hint: t('views.agentWizard.access.muxHint'), tip: t('views.agentWizard.access.muxHint') }} value={muxEndpoint} onChange={setMuxEndpoint} />
+        </div>
+      )}
+      {isProviderApi && (
+        <div className="form-grid" data-testid="wizard-provider-api">
+          <FormField id="wizard-provider-endpoint" field={{ name: 'providerApiBaseUrl', type: 'text', label: t('views.agentWizard.access.providerEndpoint'), required: true, placeholder: 'https://api.openai.com/v1', hint: t('views.agentWizard.access.providerEndpointHint'), tip: t('views.agentWizard.access.providerEndpointHint') }} value={providerApiBaseUrl} onChange={setProviderApiBaseUrl} />
+          <FormField id="wizard-provider-anonymous" field={{ name: 'providerApiAnonymous', type: 'checkbox', label: t('views.agentWizard.access.providerAnonymous'), tip: t('views.agentWizard.access.providerAnonymous') }} value={providerApiAnonymous} onChange={setProviderApiAnonymous} />
         </div>
       )}
       {profile && !isMux && (
         <div className="wizard-credential" data-testid="wizard-credential">
           <div className="form-section-title">{t('views.agentWizard.access.credential')}</div>
-          {!needs ? (
+          {!kinds.length || (isProviderApi && providerApiAnonymous) ? (
             <p className="text-muted">{t('views.agentWizard.access.noCredentialNeeded', { profile: profile.name })}</p>
           ) : (
             <>
-              <p className="text-muted">{t('views.agentWizard.access.credentialIntro', { profile: profile.name, kinds: list(kinds) })}</p>
-              {fitting.length > 0 && (
+              <p className="text-muted">{t(needs ? 'views.agentWizard.access.credentialIntro' : 'views.agentWizard.access.optionalCredentialIntro', { profile: profile.name, kinds: list(kinds) })}</p>
+              {(fitting.length > 0 || !needs) && (
                 <div className="wizard-choices" role="radiogroup" aria-label={t('views.agentWizard.access.credential')}>
+                  {!needs && (
+                    <label className={`checkbox-chip${!secretId ? ' selected' : ''}`}>
+                      <input type="radio" name="wizard-secret" value="" checked={!secretId} onChange={() => setSecretId('')} />
+                      <span>{t('components.studio.architect.noCredential')}</span>
+                    </label>
+                  )}
                   {fitting.map((s) => (
                     <label key={s.id} className={`checkbox-chip${secretId === s.id ? ' selected' : ''}`} {...tip(t('tips.views.agentWizard.access.useSecret', { name: s.name }))}>
                       <input type="radio" name="wizard-secret" value={s.id} checked={secretId === s.id} onChange={() => setSecretId(s.id)} data-testid={`wizard-secret-${s.name}`} />
@@ -300,7 +318,7 @@ export function AccessStep({ state, update, go }) {
                   ))}
                 </div>
               )}
-              {!fitting.length && !adding && <div className="warning-banner" role="note">{t('views.agentWizard.access.noFittingSecret', { kinds: list(kinds) })}</div>}
+              {needs && !fitting.length && !adding && <div className="warning-banner" role="note">{t('views.agentWizard.access.noFittingSecret', { kinds: list(kinds) })}</div>}
               {!adding ? (
                 <button type="button" className="button-secondary" onClick={startAdding} data-testid="wizard-add-secret" {...tip(t('tips.views.agentWizard.access.addSecret'))}>
                   {t('views.agentWizard.access.addSecret')}
@@ -398,7 +416,10 @@ export function DesignStep({ draft, state, update, go, reload }) {
   const [first] = useState(() => {
     if (state.fixMessage) return state.fixMessage;
     const started = !!readStored(conversationStorageKey(draft.id)) || !!draft.conversationId;
-    return started ? '' : state.muxBaseUrl ? t('views.agentWizard.design.firstMessageMux', { goal: state.goal || draft.title, endpoint: state.muxBaseUrl, adapter: state.muxAdapterType, model: state.model || '' }) : t('views.agentWizard.design.firstMessage', { goal: state.goal || draft.title, profile: state.profileName || '', secret: state.secretName || '-' });
+    if (started) return '';
+    if (state.muxEndpoint) return t('views.agentWizard.design.firstMessageMux', { goal: state.goal || draft.title, endpoint: state.muxEndpoint });
+    const introduction = t('views.agentWizard.design.firstMessage', { goal: state.goal || draft.title, profile: state.profileName || '', secret: state.secretName || t('components.studio.architect.noCredential') });
+    return state.providerApiBaseUrl ? `${introduction}\n\n${t('views.agentWizard.access.providerEndpoint')}: ${state.providerApiBaseUrl}` : introduction;
   });
   const agents = draftAgentNames(draft);
 
@@ -545,7 +566,7 @@ async function prepareDeployments(apiClient, tenantId, draft, state) {
       results.push({ ...item, deployment: await apiClient.createDeployment(tenantId, body) });
     } else if (item.action === 'bind' || item.action === 'configure') {
       const current = await apiClient.getDeployment(tenantId, item.deployment.id);
-      results.push({ ...item, deployment: await apiClient.updateDeployment(tenantId, current.id, withMuxSettings(state.credentialSecretId ? withCredential(current, state.credentialSecretId) : current, state)) });
+      results.push({ ...item, deployment: await apiClient.updateDeployment(tenantId, current.id, withWizardSettings(state.credentialSecretId ? withCredential(current, state.credentialSecretId) : current, state)) });
     } else {
       results.push(item);
     }

@@ -12,6 +12,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
+    using Garrison.Core.Serialization;
     using Garrison.Harnesses.Probing;
     using Garrison.Worker.Execution;
     using Garrison.Worker.Hosting;
@@ -37,6 +38,7 @@ namespace Test.Shared.Suites
         {
             List<TestCaseDescriptor> executor = new List<TestCaseDescriptor>
             {
+                new TestCaseDescriptor("worker-executor", "mux-named-endpoint", "Mux resolves only the selected worker-owned endpoint into private run configuration", MuxNamedEndpointAsync),
                 new TestCaseDescriptor("worker-executor", "git-mirror-cache", "Git mirror cache refreshes real git refs and produces independent byte-identical clones", GitMirrorCacheAsync),
                 new TestCaseDescriptor("worker-executor", "portable-snapshot", "Workspace snapshots round-trip all session directories and reject traversal, links, and decompression bombs", SnapshotAsync),
                 new TestCaseDescriptor("worker-executor", "success-claude", "Executor: fake harness success in Claude format", ct => FormatSuccessAsync("claude", OutputParserEnum.ClaudeStreamJson, ct)),
@@ -664,6 +666,37 @@ namespace Test.Shared.Suites
             settings.Probes = new List<HarnessProbeSettings> { probe };
             settings.Logging.ConsoleLogging = Environment.GetEnvironmentVariable("GARRISON_TEST_LOGS") == "true";
             return settings;
+        }
+
+        private static async Task MuxNamedEndpointAsync(CancellationToken token)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "garrison-mux-endpoint-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                await File.WriteAllTextAsync(Path.Combine(root, "endpoints.json"), Serializer.Serialize(new { endpoints = new[] {
+                    new { name = "local", adapterType = "ollama", baseUrl = "http://127.0.0.1:11434", model = "configured-model", apiKey = "test-endpoint-credential" },
+                    new { name = "other", adapterType = "openai", baseUrl = "http://127.0.0.1:9999", model = "other-model", apiKey = "${UNUSED_ENDPOINT_SECRET}" }
+                } }), token).ConfigureAwait(false);
+                ExecutionSpec spec = new ExecutionSpec { HarnessType = HarnessTypeEnum.Mux, Arguments = new List<string> { "--print", "-e", "local" } };
+                Dictionary<string, string> environment = new Dictionary<string, string>();
+                List<string> secrets = await MuxEndpointPreparer.PrepareAsync(spec, root, environment, token).ConfigureAwait(false);
+                ExecutionFile file = spec.Files.Single();
+                Assert.True(file.IsSecret && file.Mode == "600", "Worker endpoint configuration is private");
+                Assert.True(file.Content.Contains("configured-model", StringComparison.Ordinal) && !file.Content.Contains("other-model", StringComparison.Ordinal), "Only the selected endpoint is copied, preserving its model");
+                Assert.True(secrets.Contains("test-endpoint-credential") && environment.Count == 0, "Endpoint credential joins output redaction; unused endpoint variables are not loaded");
+                ExecutionSpec missing = new ExecutionSpec { HarnessType = HarnessTypeEnum.Mux, Arguments = new List<string> { "-e", "missing" } };
+                bool rejected = false;
+                try { await MuxEndpointPreparer.PrepareAsync(missing, root, environment, token).ConfigureAwait(false); }
+                catch (InvalidOperationException e) { rejected = e.Message.Contains("missing", StringComparison.Ordinal) && e.Message.Contains("not configured", StringComparison.Ordinal); }
+                Assert.True(rejected, "An unknown endpoint names the missing configuration instead of synthesizing a URL");
+                environment["UNUSED_ENDPOINT_SECRET"] = "resolved-endpoint-credential";
+                ExecutionSpec referenced = new ExecutionSpec { HarnessType = HarnessTypeEnum.Mux, Arguments = new List<string> { "-e", "other" } };
+                List<string> referencedSecrets = await MuxEndpointPreparer.PrepareAsync(referenced, root, environment, token).ConfigureAwait(false);
+                Assert.True(referencedSecrets.Contains("resolved-endpoint-credential"), "Selected endpoint environment credentials join output redaction");
+                Assert.True(!referenced.Files.Single().Content.Contains("configured-model", StringComparison.Ordinal), "Another endpoint never inherits the first endpoint's configuration");
+            }
+            finally { Directory.Delete(root, true); }
         }
 
         private static async Task MuxProbeVersionAsync(CancellationToken token)
