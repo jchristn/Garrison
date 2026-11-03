@@ -41,6 +41,9 @@ namespace Garrison.Core.Manifests
         /// </summary>
         public string? Model { get; set; } = null;
 
+        /// <summary>HTTP inference protocol and secret-backed authentication.</summary>
+        public InferenceEndpoint? InferenceEndpoint { get; set; } = null;
+
         /// <summary>
         /// Fallback model.
         /// </summary>

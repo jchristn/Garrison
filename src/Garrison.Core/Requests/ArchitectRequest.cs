@@ -29,6 +29,10 @@ namespace Garrison.Core.Requests
         /// </summary>
         public string? Model { get; set; } = null;
 
+        /// <summary>Explicit HTTP inference endpoint for ProviderApi execution, or null for legacy/profile-defined configuration.</summary>
+        public Garrison.Core.Models.InferenceEndpoint? InferenceEndpoint { get; set; } = null;
+
+
         /// <summary>
         /// Named Mux endpoint from execution-worker configuration. Null preserves an existing selection on update.
         /// Supplying a name uses the endpoint's model and authentication instead of a model override or credential.

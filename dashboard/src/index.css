@@ -1567,3 +1567,15 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
   .agent-wizard-fill { height: auto; }
   .agent-wizard-fill .studio-chat > .studio-chat-turns { flex: none; min-block-size: 12rem; max-block-size: 62vh; }
 }
+
+/* Shared inference protocol/authentication editor. */
+.inference-endpoint { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.inference-endpoint > p { margin: 0; }
+.inference-endpoint > button { align-self: flex-start; }
+.inference-credential { display: flex; flex-direction: column; gap: var(--spacing-sm); padding-top: var(--spacing-sm); border-top: 1px solid var(--color-border); }
+.inference-endpoint, .inference-credential { min-width: 0; }
+.inference-endpoint .form-grid > *, .agent-wizard .form-grid > * { min-width: 0; }
+.inference-endpoint select, .agent-wizard select { max-width: 100%; }
+@media (max-width: 640px) {
+  .agent-wizard .form-grid { grid-template-columns: minmax(0, 1fr); }
+}

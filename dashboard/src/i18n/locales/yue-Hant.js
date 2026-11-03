@@ -4971,3 +4971,33 @@ Object.assign(yueHant.views.agentWizard.design, {
   "firstMessageMux": "我想建立：{{goal}}\n\n請用已設定嘅 Mux 端點 {{endpoint}}。模型同驗證都用 Mux 嘅設定。請先問清楚需要嘅資料，再喺呢個草稿設計代理。"
 });
 Object.assign(yueHant.views.agentWizard.access, {"intro": "揀執行框架同連線設定。代理架構師會用同一套設定同你一齊設計。"});
+
+// Typed inference protocol and authentication editor.
+Object.assign(yueHant, {
+  "inference": {
+    "modelHint": "選擇此端點提供嘅模型。",
+    "title": "推論端點",
+    "protocol": "API 協定",
+    "baseUrl": "基礎 URL",
+    "authentication": "驗證類型",
+    "name": "標頭 / 查詢參數名稱",
+    "location": "憑證位置",
+    "header": "標頭欄位",
+    "query": "查詢字串",
+    "secret": "憑證密文",
+    "addValue": "新增憑證值",
+    "username": "用戶名密文",
+    "password": "密碼密文",
+    "hint": "分開揀協定同驗證。Ollama Cloud 用持有者權杖驗證；本機 Ollama 通常唔使驗證。數值會儲存成加密密文。",
+    "invalid": "請輸入有效 URL，同揀齊所需嘅憑證名稱同密文。",
+    "value": "憑證數值",
+    "auth": {
+      "None": "冇",
+      "BearerToken": "持有者權杖",
+      "ApiKey": "API 金鑰",
+      "Headers": "標頭數值",
+      "QueryString": "查詢參數",
+      "Basic": "基本驗證"
+    }
+  }
+});

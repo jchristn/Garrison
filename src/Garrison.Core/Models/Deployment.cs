@@ -149,6 +149,10 @@ namespace Garrison.Core.Models
         /// </summary>
         public string? Model { get; set; } = null;
 
+        /// <summary>Explicit HTTP inference endpoint for ProviderApi execution, or null for legacy/profile-defined configuration.</summary>
+        public Garrison.Core.Models.InferenceEndpoint? InferenceEndpoint { get; set; } = null;
+
+
         /// <summary>
         /// Fallback model.
         /// </summary>

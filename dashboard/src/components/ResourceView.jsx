@@ -245,7 +245,7 @@ export default function ResourceView({ config }) {
         showErrorStep(validation);
         return;
       }
-      const body = config.toBody ? config.toBody(d, editing.mode) : d;
+      const body = config.toBody ? config.toBody(d, editing.mode, { ...ctx, options }) : d;
       let result;
       if (editing.mode === 'edit') result = await config.api.update(apiClient, tenantId, d.id, body);
       else result = await config.api.create(apiClient, tenantId, body);

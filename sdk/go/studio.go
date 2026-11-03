@@ -194,20 +194,21 @@ type ArchitectPromptRequest struct {
 // the deployment identifier; AgentID is normally the built-in agent-architect. ArchitectPromptVersion is nil when the
 // architect follows the template's current version (ArchitectPromptCurrentVersion).
 type Architect struct {
-	ID                            string  `json:"id"`
-	TenantID                      string  `json:"tenantId"`
-	Name                          string  `json:"name"`
-	Description                   *string `json:"description,omitempty"`
-	AgentID                       string  `json:"agentId"`
-	AgentName                     *string `json:"agentName,omitempty"`
-	HarnessProfileID              string  `json:"harnessProfileId"`
-	Model                         *string `json:"model,omitempty"`
-	EndpointName                  *string `json:"endpointName,omitempty"` // Named worker-configured Mux endpoint.
-	Active                        bool    `json:"active"`
-	ArchitectPromptTemplateID     string  `json:"architectPromptTemplateId"`
-	ArchitectPromptName           string  `json:"architectPromptName"`
-	ArchitectPromptVersion        *int    `json:"architectPromptVersion,omitempty"`
-	ArchitectPromptCurrentVersion int     `json:"architectPromptCurrentVersion"`
+	InferenceEndpoint             *InferenceEndpoint `json:"inferenceEndpoint,omitempty"`
+	ID                            string             `json:"id"`
+	TenantID                      string             `json:"tenantId"`
+	Name                          string             `json:"name"`
+	Description                   *string            `json:"description,omitempty"`
+	AgentID                       string             `json:"agentId"`
+	AgentName                     *string            `json:"agentName,omitempty"`
+	HarnessProfileID              string             `json:"harnessProfileId"`
+	Model                         *string            `json:"model,omitempty"`
+	EndpointName                  *string            `json:"endpointName,omitempty"` // Named worker-configured Mux endpoint.
+	Active                        bool               `json:"active"`
+	ArchitectPromptTemplateID     string             `json:"architectPromptTemplateId"`
+	ArchitectPromptName           string             `json:"architectPromptName"`
+	ArchitectPromptVersion        *int               `json:"architectPromptVersion,omitempty"`
+	ArchitectPromptCurrentVersion int                `json:"architectPromptCurrentVersion"`
 	// CredentialSecretID is the secret the architect's harness signs in with, bound under the alias "credential";
 	// nil when none is bound. CredentialSecretName and CredentialSecretKind (for example "AnthropicApiKey") describe it.
 	CredentialSecretID   *string `json:"credentialSecretId,omitempty"`
@@ -224,14 +225,15 @@ type Architect struct {
 // name) nil binds builtin/agent-architect on create and keeps the current prompt on update; ArchitectPromptVersion pins
 // a version (1 or more), nil follows the current one.
 type ArchitectRequest struct {
-	Name                      string  `json:"name"`
-	Description               *string `json:"description,omitempty"`
-	HarnessProfileID          string  `json:"harnessProfileId"`
-	Model                     *string `json:"model,omitempty"`
-	EndpointName              *string `json:"endpointName,omitempty"` // Named worker-configured Mux endpoint.
-	Active                    *bool   `json:"active,omitempty"`
-	ArchitectPromptTemplateID *string `json:"architectPromptTemplateId,omitempty"`
-	ArchitectPromptVersion    *int    `json:"architectPromptVersion,omitempty"`
+	InferenceEndpoint         *InferenceEndpoint `json:"inferenceEndpoint,omitempty"`
+	Name                      string             `json:"name"`
+	Description               *string            `json:"description,omitempty"`
+	HarnessProfileID          string             `json:"harnessProfileId"`
+	Model                     *string            `json:"model,omitempty"`
+	EndpointName              *string            `json:"endpointName,omitempty"` // Named worker-configured Mux endpoint.
+	Active                    *bool              `json:"active,omitempty"`
+	ArchitectPromptTemplateID *string            `json:"architectPromptTemplateId,omitempty"`
+	ArchitectPromptVersion    *int               `json:"architectPromptVersion,omitempty"`
 	// CredentialSecretID is the identifier or name of an active tenant secret the harness signs in with, bound under
 	// the alias "credential" (400 InvalidCredentialSecret otherwise). Nil is not sent: it binds none on create and keeps
 	// the current one on update. A pointer to "" on update removes it.

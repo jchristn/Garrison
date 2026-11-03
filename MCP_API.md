@@ -497,3 +497,8 @@ Remote registered A2A/MCP agents use the existing invocation tools and authoriza
 ## Optional agent memory
 
 When enabled, `garrison_memory_read`, `garrison_memory_write` and `garrison_memory_delete` expose provider-neutral persistent memory. Keys are scoped to the authenticated tenant and agent; hosted runs cannot select another agent. User/developer calls require Agent.Execute. Mutations use the run effect gateway. See [agent memory](docs/AGENT_MEMORY.md) for schemas, bounds, provider replacement and deployment.
+
+
+## HTTP inference endpoints (v0.2.0)
+
+Architects and agent deployments can use `hrn_builtin_provider_api` with a model and a typed `inferenceEndpoint`. Supported protocols are `OpenAiCompatible` and native `Ollama`. Select authentication explicitly: `None`, `BearerToken`, `ApiKey` (header or query parameter), `Headers`, `QueryString`, or `Basic`. Each credential contains `name`, `location` (`Header` or `QueryString`), and a tenant `secretId`; responses contain references rather than secret values. Ollama Cloud uses bearer authentication; local Ollama can use no authentication. The same contract is supported by REST architect/deployment requests, MCP architect tools and deployment manifests, all four SDKs, and the dashboard. See [the endpoint contract, examples, validation, and compatibility rules](docs/PROVIDER_API.md).

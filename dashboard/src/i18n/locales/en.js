@@ -4999,3 +4999,33 @@ Object.assign(en.views.agentWizard.design, {
   "firstMessageMux": "I want to build this: {{goal}}\n\nUse the configured Mux endpoint named {{endpoint}}. Its model and authentication come from Mux. Ask me anything you need to know, then design the agents in this draft."
 });
 Object.assign(en.views.agentWizard.access, {"intro": "Choose the harness and its connection settings. The agent architect uses the same configuration while it designs with you."});
+
+// Typed inference protocol and authentication editor.
+Object.assign(en, {
+  "inference": {
+    "modelHint": "Choose a model served by this endpoint.",
+    "title": "Inference endpoint",
+    "protocol": "API protocol",
+    "baseUrl": "Base URL",
+    "authentication": "Authentication type",
+    "name": "Header / query parameter name",
+    "location": "Credential placement",
+    "header": "Header",
+    "query": "Query string",
+    "secret": "Credential secret",
+    "addValue": "Add credential value",
+    "username": "Username secret",
+    "password": "Password secret",
+    "hint": "Choose protocol and authentication independently. Ollama Cloud uses bearer authentication; local Ollama usually needs none. Values are stored as encrypted secrets.",
+    "invalid": "Enter a valid endpoint URL and select all required credential names and secrets.",
+    "value": "Credential value",
+    "auth": {
+      "None": "None",
+      "BearerToken": "Bearer token",
+      "ApiKey": "API key",
+      "Headers": "Header values",
+      "QueryString": "Query parameters",
+      "Basic": "Basic authentication"
+    }
+  }
+});

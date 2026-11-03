@@ -155,7 +155,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         // credential secret on the architect; say so and link to where it is fixed.
         const last = [...shownTurns].reverse().find((r) => TERMINAL_RUN_STATUSES.includes(r.status));
         const failed = last?.outcome === 'NotCredentialed';
-        const missing = !!architect && !architect.credentialSecretId && !!profile && needsCredential(profile.harnessType);
+        const missing = !!architect && !architect.credentialSecretId && !architect.inferenceEndpoint && !!profile && needsCredential(profile.harnessType);
         if (!failed && !missing) return null;
         return (
           <div className="warning-banner studio-credential-banner" role="alert" data-testid="studio-not-credentialed">

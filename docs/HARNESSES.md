@@ -570,4 +570,4 @@ The transient database queue contains configuration references and structured ou
 
 ## Optional provider API mode
 
-Select `builtin/provider-api` for a deployment with an explicit compatible endpoint and model. It streams through the normal worker process path, supports HTTP MCP tools and Garrison approvals, and reuses the existing conversation and structured-output flows. See [Provider API execution](PROVIDER_API.md) for credentials, parameters, tool limitations, and validation.
+Select `builtin/provider-api` for a deployment with an explicit native Ollama or OpenAI-compatible endpoint and model. Choose authentication independently: none, bearer token, API key, custom headers, query parameters, or HTTP Basic. It streams through the normal worker process path, supports HTTP MCP tools and Garrison approvals, and reuses the existing conversation and structured-output flows. See [Provider API execution](PROVIDER_API.md) for credentials, parameters, tool limitations, and validation.

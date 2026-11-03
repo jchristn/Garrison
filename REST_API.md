@@ -7447,7 +7447,7 @@ Worker capability records additionally expose `warmStart` (boolean, default fals
 
 ### Optional provider API deployment
 
-The existing agent/deployment APIs support `hrn_builtin_provider_api` (`harnessType: ProviderApi`, `outputParser: ProviderApiJsonl`). Set an explicit deployment model and `baseUrl` parameter, bind an `OpenAiApiKey` secret, and use the usual prompt bindings. Existing invoke, conversation, approval, artifact, and cost-estimation endpoints apply. See [configuration and limits](docs/PROVIDER_API.md). Daily quotas remain opt-in.
+The existing agent/deployment APIs support `hrn_builtin_provider_api` (`harnessType: ProviderApi`, `outputParser: ProviderApiJsonl`). Set an explicit deployment model and `inferenceEndpoint` protocol, base URL, authentication type, and secret references, and use the usual prompt bindings. Legacy `baseUrl` parameters and credential bindings remain supported. Existing invoke, conversation, approval, artifact, and cost-estimation endpoints apply. See [configuration and limits](docs/PROVIDER_API.md). Daily quotas remain opt-in.
 
 
 ### Agent Studio models (0.2.0)
@@ -8175,3 +8175,8 @@ Synchronous invocation wait is best effort. `Scheduling.MaxSynchronousWaiters` b
 `GET /v1.0/api/tenants/{tenantId}/runs/{id}/database-usage` uses the same Run Read authorization and cross-tenant 404 behavior as run details. It returns an array of `RunDatabaseUsage` rows: `tenantId`, `runId`, `operation`, `statements`, `reads`, `writes`, `errors`, `transactions`, and `durationMicroseconds`.
 
 Counts are actual centrally instrumented ADO statement attempts in completed run scopes, including failed attempts and retries. Explicit transaction wrappers are separate from statements. Duration sums statement wall time, including lock waits; concurrent statement durations can exceed run elapsed time. Admission, claim/compile, worker event/completion, gateway, broker, continuation and invocation-wait scopes are attributed. Shared candidate scans and candidate eligibility prechecks before atomic claim, heartbeat/maintenance work, request history and attribution persistence are excluded. A process lost before its best-effort flush can leave a missing scope; inspect `garrison_application_operations_total{component="telemetry",operation="attribution_flush",result="error"}` for failed flushes. This is operational telemetry rather than a billing or effect-safety ledger. Rows follow run/tenant deletion.
+
+
+## HTTP inference endpoints (v0.2.0)
+
+Architects and agent deployments can use `hrn_builtin_provider_api` with a model and a typed `inferenceEndpoint`. Supported protocols are `OpenAiCompatible` and native `Ollama`. Select authentication explicitly: `None`, `BearerToken`, `ApiKey` (header or query parameter), `Headers`, `QueryString`, or `Basic`. Each credential contains `name`, `location` (`Header` or `QueryString`), and a tenant `secretId`; responses contain references rather than secret values. Ollama Cloud uses bearer authentication; local Ollama can use no authentication. The same contract is supported by REST architect/deployment requests, MCP architect tools and deployment manifests, all four SDKs, and the dashboard. See [the endpoint contract, examples, validation, and compatibility rules](docs/PROVIDER_API.md).

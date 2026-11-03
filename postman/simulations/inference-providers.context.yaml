@@ -1,0 +1,19 @@
+purpose: Exercise the real Garrison provider process against local native Ollama and OpenAI-compatible HTTP fixtures.
+provider: Local Postman simulation; no provider tokens or external model calls.
+sourceContracts:
+  - https://docs.ollama.com/api/chat
+  - https://docs.ollama.com/api/authentication
+  - https://docs.ollama.com/api/streaming
+  - https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events
+assumptions:
+  - Ollama emits newline-delimited JSON and OpenAI-compatible endpoints emit SSE.
+  - Native Ollama Cloud authentication is Authorization Bearer; local endpoints can be anonymous.
+  - Credentials in tests are synthetic and have no external privileges.
+scenarios:
+  - Default successful streamed answer with token usage for both protocols.
+  - HTTP 401 and 429 selected through the x-mock-response-code fixture header.
+validation:
+  - Real garrison-provider-api process returned fixture answer for both protocols through the simulation route; 401 mapped to NotCredentialed and 429 with no retries mapped to ProviderRequestFailed.
+  - Shared ProviderApiSuite separately validates all authentication schemes, retries, rejected credentials, native tools and approvals, stream truncation, cancellation, compilation and persistence.
+limitations:
+  - This fixture does not establish live Ollama Cloud availability or model-specific behavior.

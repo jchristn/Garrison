@@ -498,3 +498,38 @@ test('Studio New architect exposes the named Mux endpoint field', async ({ page 
   expect(bodies[0].model).toBeUndefined();
   expect(bodies[0].credentialSecretId).toBeUndefined();
 });
+
+test('Architects create and edit native Ollama authentication through the shared endpoint editor', async ({ page }) => {
+  const profile = { id: 'hp_api', name: 'builtin/provider-api', harnessType: 'ProviderApi', active: true };
+  const endpoint = { protocol: 'Ollama', baseUrl: 'http://ollama:11434', authenticationType: 'None', credentials: [] };
+  const architect = { ...ARCHITECT, harnessProfileId: profile.id, model: 'local-model', inferenceEndpoint: endpoint, credentialSecretId: null };
+  const bodies = [];
+  await withArchitects(page, [architect]);
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [profile], totalRecords: 1 })));
+  await page.route(/\/studio\/architects(\/dep_arch)?$/, (route) => {
+    if (!['POST', 'PUT'].includes(route.request().method())) return route.fallback();
+    bodies.push(route.request().postDataJSON());
+    return route.fulfill(json(route.request().method() === 'POST' ? 201 : 200, { ...architect, ...bodies.at(-1) }));
+  });
+  await login(page);
+  await page.goto(ARCHITECTS);
+  await page.getByTestId('add-button').click();
+  await page.locator('#architects-inference-protocol').selectOption({ value: 'Ollama' });
+  await page.locator('#architects-inference-base-url').fill(endpoint.baseUrl);
+  await page.locator('#architects-inference-authentication').selectOption({ value: 'None' });
+  await page.locator('#architects-model').fill('local-model');
+  await page.getByTestId('save-button').click();
+  await expect(page.locator('.modal')).toHaveCount(0);
+  expect(bodies[0].inferenceEndpoint).toEqual(endpoint);
+  await openMenu(page, architect.name);
+  await menuItem(page, 'Edit').click();
+  await expect(page.locator('#architects-inference-protocol')).toHaveValue('Ollama');
+  await expect(page.locator('#architects-inference-base-url')).toHaveValue(endpoint.baseUrl);
+  await page.locator('#architects-inference-authentication').selectOption({ value: 'ApiKey' });
+  await page.locator('#architects-inference-location-0').selectOption({ value: 'QueryString' });
+  await page.locator('#architects-inference-name-0').fill('token');
+  await page.locator('#architects-inference-secret-0').selectOption('sec_0001');
+  await page.getByTestId('save-button').click();
+  await expect(page.locator('.modal')).toHaveCount(0);
+  expect(bodies[1].inferenceEndpoint.credentials[0]).toEqual({ name: 'token', location: 'QueryString', secretId: 'sec_0001' });
+});

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import InferenceEndpointFields from '../InferenceEndpointFields';
+import { blankInferenceEndpoint } from '../../utils/inferenceEndpoints';
 import CodeBlock from '../CodeBlock';
 import { architectPromptHint, credentialHint, harnessProfileHint } from '../ArchitectHints';
 import { tip } from '../Tooltip';
@@ -109,9 +111,10 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
 
   const profile = useMemo(() => profiles.find((p) => p.id === form.harnessProfileId) || null, [profiles, form.harnessProfileId]);
   const isMux = profile?.harnessType === 'Mux';
+  const isProviderApi = profile?.harnessType === 'ProviderApi';
   useEffect(() => {
-    if (profile && formRef.current.isMux !== isMux) changeRef.current({ isMux });
-  }, [profile, isMux]);
+    if (profile && (formRef.current.isMux !== isMux || formRef.current.isProviderApi !== isProviderApi)) changeRef.current({ isMux, isProviderApi });
+  }, [profile, isMux, isProviderApi]);
   // Suggest the secret the chosen harness signs in with (an AnthropicApiKey for Claude Code, and so on).
   useEffect(() => {
     if (credentialTouched.current || !profile) return;
@@ -146,13 +149,13 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
             <option value="">{t('components.studio.architect.chooseProfile')}</option>
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {p.harnessType === 'ProviderApi' ? `${p.name} (Ollama / OpenAI)` : p.name}
               </option>
             ))}
           </select>,
           harnessProfileHint(t)
         )}
-        {!isMux && field(
+        {!isMux && !isProviderApi && field(
           'credentialSecretId',
           t('components.studio.architect.credential'),
           <select
@@ -174,6 +177,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
           </select>,
           credentialHint(t, { profile, secretCount: secrets.length, chosen: form.credentialSecretId, onRefresh: loadLists, lng: i18n.language })
         )}
+        {isProviderApi && <InferenceEndpointFields value={form.inferenceEndpoint || blankInferenceEndpoint()} onChange={(inferenceEndpoint) => onChange({ inferenceEndpoint })} errors={fieldErrors} idPrefix={idPrefix} />}
         {isMux && field('endpointName', t('views.agentWizard.access.muxEndpoint'), <input id={id('endpointName')} value={form.endpointName || ''} onChange={set('endpointName')} data-testid="architect-endpoint-name" {...tip(t('views.agentWizard.access.muxHint'))} />, t('views.agentWizard.access.muxHint'))}
         {!isMux && field('model', t('components.studio.architect.model'), <input id={id('model')} value={form.model} placeholder="sonnet" onChange={set('model')} data-testid="architect-model" {...tip(t('tips.studio.architect.model'))} />, t('components.studio.architect.modelHint'))}
         {field(

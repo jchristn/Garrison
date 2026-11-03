@@ -1,3 +1,5 @@
+import InferenceEndpointFields from '../components/InferenceEndpointFields';
+import { deploymentInferenceEndpoint, inferenceEndpointErrors } from '../utils/inferenceEndpoints';
 // Declarative configurations for record pages rendered by ResourceView.
 // Field labels come from resources.<id>.fields.<name>; hints from resources.<id>.hints.<name>.
 
@@ -1495,6 +1497,7 @@ export const deploymentsConfig = {
       field(id, t, 'weight', 'number', { min: 0, max: 1000, step: 0 }),
       field(id, t, 'active', 'checkbox', { step: 0 }),
       field(id, t, 'harnessProfileId', 'select', { required: true, options: sel(options.profiles), step: 1 }),
+      ...((options.profiles || []).find((p) => p.id === d.harnessProfileId)?.harnessType === 'ProviderApi' ? [{ name: 'inferenceEndpoint', type: 'custom', step: 1, label: t('inference.title'), tip: t('inference.hint'), render: (data, { disabled, onChange, errors }) => <InferenceEndpointFields value={deploymentInferenceEndpoint(data)} onChange={(inferenceEndpoint) => onChange({ ...data, inferenceEndpoint })} disabled={disabled} errors={errors} idPrefix="deployment-inference" /> }] : []),
       field(id, t, 'model', 'text', { step: 1 }),
       field(id, t, 'fallbackModel', 'text', { step: 1 }),
       field(id, t, 'effort', 'text', { step: 1 }),
@@ -1675,7 +1678,7 @@ export const deploymentsConfig = {
     delete form.retryOnNodeLoss;
     return form;
   },
-  toBody: (d) => {
+  toBody: (d, _mode, { options = {} } = {}) => {
     const body = deploymentToBody(d);
     // P12.29: send only effectPolicy. The deprecated retryOnNodeLoss is derived by the server, and a stale copy that
     // disagrees with an edited policy would be rejected (EffectPolicyConflict).
@@ -1691,9 +1694,11 @@ export const deploymentsConfig = {
     body.environment = d.environment || DEFAULT_ENVIRONMENT;
     body.agentRevisionId = d.agentRevisionId || null;
     body.fileSpaceMountPath = String(d.fileSpaceMountPath || '').trim() || 'files';
+    const profile = options.profiles?.find((p) => p.id === d.harnessProfileId);
+    if (profile) body.inferenceEndpoint = profile.harnessType === 'ProviderApi' ? deploymentInferenceEndpoint(d) : null;
     return body;
   },
-  validate: (d, t) => {
+  validate: (d, t, { options = {} } = {}) => {
     const e = {};
     if (!d.name) e.name = t('common.errors.required');
     if (!d.agentId) e.agentId = t('common.errors.required');
@@ -1704,6 +1709,7 @@ export const deploymentsConfig = {
     const egress = egressErrors(d, t);
     if (egress.executor && e.executor) delete egress.executor;
     Object.assign(e, egress);
+    if (options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType === 'ProviderApi') Object.assign(e, inferenceEndpointErrors(deploymentInferenceEndpoint(d), d.model, t));
     return e;
   },
   rowActions: (r, ctx) => [

@@ -840,6 +840,20 @@ namespace Garrison.Core.Services
             HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null
                 : cache != null ? await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false)
                 : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (deployment.InferenceEndpoint != null)
+            {
+                foreach (KeyValuePair<string, string> error in InferenceEndpointRules.Validate(deployment.InferenceEndpoint)) errors[error.Key] = error.Value;
+                if (profile?.HarnessType != HarnessTypeEnum.ProviderApi) errors["inferenceEndpoint"] = "An inference endpoint requires a ProviderApi harness profile.";
+                if (String.IsNullOrWhiteSpace(deployment.Model)) errors["model"] = "Choose a model for the inference endpoint.";
+                for (int c = 0; c < deployment.InferenceEndpoint.Credentials.Count; c++)
+                {
+                    InferenceCredential credential = deployment.InferenceEndpoint.Credentials[c];
+                    if (credential == null || String.IsNullOrWhiteSpace(credential.SecretId)) continue;
+                    Secret? authenticationSecret = cache != null ? await cache.ReadAsync("Secret", credential.SecretId, token).ConfigureAwait(false) as Secret : await database.Secrets.ReadAsync(tenantId, credential.SecretId, token).ConfigureAwait(false);
+                    bool exists = authenticationSecret?.Active == true && authenticationSecret.Kind != SecretKindEnum.GenericFile && authenticationSecret.Kind != SecretKindEnum.CodexAuthJson;
+                    if (!exists) errors["inferenceEndpoint.credentials[" + c + "].secretId"] = "The authentication secret must be an active string secret belonging to this tenant. File and CLI sign-in secrets are not HTTP credential values.";
+                }
+            }
             if (profile == null) errors["harnessProfileId"] = "The harness profile does not exist or is not visible to this tenant.";
             if (profile != null && deployment.RequiredCapabilities.SessionContinuation && !profile.SupportsResume)
                 errors["requiredCapabilities.sessionContinuation"] = "Session continuation requires a harness profile with supportsResume enabled.";

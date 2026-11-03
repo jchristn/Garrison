@@ -447,7 +447,7 @@ namespace Garrison.Core.Compilation
 
             if (inputs.AgentRevision != null) await LoadAssetsAsync(tenantId, inputs, token).ConfigureAwait(false);
 
-            foreach (DeploymentResourceBinding binding in inputs.Deployment.ResourceBindings)
+            foreach (DeploymentResourceBinding binding in InferenceEndpointRules.Bindings(inputs.Deployment))
             {
                 if (binding.Kind == ResourceBindingKindEnum.McpServer)
                 {
@@ -663,6 +663,32 @@ namespace Garrison.Core.Compilation
             context.Set("studio", studio);
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
+            Dictionary<string, object?> inference = TemplateContext.NewMap();
+            if (deployment.InferenceEndpoint != null)
+            {
+                InferenceEndpoint endpoint = deployment.InferenceEndpoint;
+                inference["configured"] = true;
+                inference["protocol"] = endpoint.Protocol.ToString();
+                inference["baseUrl"] = endpoint.BaseUrl;
+                List<object?> credentials = new List<object?>();
+                for (int i = 0; i < endpoint.Credentials.Count; i++)
+                {
+                    InferenceCredential credential = endpoint.Credentials[i];
+                    string alias = "inference_auth_" + i;
+                    if (!inputs.Secrets.TryGetValue(alias, out Secret? secret)) throw new CompilationException("NotCredentialed", "Inference authentication secret " + credential.SecretId + " is missing or inactive.");
+                    string value = Decrypt(secret);
+                    string variable = "GARRISON_INFERENCE_AUTH_" + i;
+                    scrub.Add(value);
+                    spec.Environment.Add(Variable(variable, value, true));
+                    Dictionary<string, object?> item = TemplateContext.NewMap();
+                    item["name"] = credential.Name; item["location"] = credential.Location.ToString(); item["valueVariable"] = variable;
+                    credentials.Add(item);
+                }
+                Dictionary<string, object?> authentication = TemplateContext.NewMap();
+                authentication["type"] = endpoint.AuthenticationType.ToString(); authentication["bindings"] = credentials;
+                inference["authentication"] = authentication;
+            }
+            context.Set("inference", inference);
 
             bool managementEnabled = deployment.ManagementAccess == ManagementAccessEnum.Drafts && !String.IsNullOrEmpty(runToken);
             List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled || managementEnabled, approvalsEnabled, spec, scrub);

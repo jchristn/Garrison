@@ -362,6 +362,7 @@ type Agent struct {
 
 // Deployment binds an agent to a harness profile and model.
 type Deployment struct {
+	InferenceEndpoint *InferenceEndpoint `json:"inferenceEndpoint,omitempty"`
 	// FileSpaceMountPath is the workspace-relative directory where the conversation file space is mounted for runs. Empty means the server default, "files".
 	FileSpaceMountPath string `json:"fileSpaceMountPath,omitempty"`
 	// SuspensionEnabled opts in to durable suspension on resumable harnesses.

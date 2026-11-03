@@ -42,6 +42,7 @@ namespace Test.Shared.Suites
             {
                 string id = "studio-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
+                cases.Add(new TestCaseDescriptor(id, "architect-inference-endpoint", "Architect REST and MCP accept native Ollama and explicit authentication without legacy API-key assumptions (" + provider + ")", ct => InferenceArchitectEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-mux-endpoint", "Architect create/read/update retains the named Mux endpoint without model or credential overrides (" + provider + ")", ct => MuxArchitectEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "drafts", "Drafts hold one document per kind and name; a stale version is 409 DraftVersionConflict; documents must match their path (" + provider + ")", ct => DraftsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "diff-validate", "A draft from a 3-agent app diffs Unchanged; edits show Create and Update with field changes; validation matches manifests/apply?dryRun=true per document (" + provider + ")", ct => DiffAsync(provider, ct)));
@@ -908,6 +909,37 @@ spec:
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Nope" }, token).ConfigureAwait(false)).StatusCode, "No permission: create a draft");
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/nope", new StudioDraftItemRequest { Version = draft.Version, Document = AgentYaml("nope", "No.") }, token).ConfigureAwait(false)).StatusCode, "No permission: edit a draft");
                 }
+            }
+        }
+
+        private static async Task InferenceArchitectEndpointAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string path = T(host) + "/studio/architects";
+                Secret secret = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, T(host) + "/secrets", new SecretRequest { Name = "ollama-token", Kind = SecretKindEnum.BearerToken, Value = "fixture-ollama-bearer" }, 201, token).ConfigureAwait(false);
+                InferenceEndpoint endpoint = new InferenceEndpoint { Protocol = InferenceProtocolEnum.Ollama, BaseUrl = "https://ollama.com", AuthenticationType = InferenceAuthenticationTypeEnum.BearerToken, Credentials = new List<InferenceCredential> { new InferenceCredential { SecretId = secret.Id } } };
+                Architect created = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Post, path, new ArchitectRequest { Name = "ollama-architect", HarnessProfileId = "hrn_builtin_provider_api", Model = "fixture-model", InferenceEndpoint = endpoint }, 201, token).ConfigureAwait(false);
+                Assert.Equal(InferenceProtocolEnum.Ollama, created.InferenceEndpoint!.Protocol, "Native protocol returned");
+                Assert.True(created.CredentialSecretId == null, "No legacy API-key binding is needed");
+                Deployment read = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + created.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(secret.Id, read.InferenceEndpoint!.Credentials.Single().SecretId, "Deployment round trip retains only the secret reference");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/secrets/" + secret.Id, null, token).ConfigureAwait(false), 409, "InUse", "Referenced HTTP credentials cannot be deleted");
+                endpoint.Credentials[0].SecretId = "sec_missing";
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, path + "/" + created.Id, new ArchitectRequest { Name = created.Name, HarnessProfileId = "hrn_builtin_provider_api", Model = "fixture-model", InferenceEndpoint = endpoint }, token).ConfigureAwait(false), 400, "inferenceEndpoint.credentials", "Invalid secret references have field errors");
+                endpoint.AuthenticationType = InferenceAuthenticationTypeEnum.None;
+                endpoint.Credentials.Clear();
+                using (TestMcpClient client = new TestMcpClient())
+                {
+                    await client.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    Architect changed = await client.CallAsync<Architect>("garrison_studio_update_architect", new { architect = created.Id, inferenceEndpoint = new { protocol = "Ollama", baseUrl = endpoint.BaseUrl, authenticationType = "None", credentials = Array.Empty<object>() } }, token).ConfigureAwait(false);
+                    Assert.Equal(InferenceAuthenticationTypeEnum.None, changed.InferenceEndpoint!.AuthenticationType, "MCP can select anonymous local Ollama");
+                    endpoint.Protocol = InferenceProtocolEnum.OpenAiCompatible;
+                    endpoint.BaseUrl = "https://compatible.example/v1";
+                    Architect compatible = await client.CallAsync<Architect>("garrison_studio_create_architect", new { name = "compatible-architect", harnessProfileId = "hrn_builtin_provider_api", model = "compatible-model", inferenceEndpoint = new { protocol = "OpenAiCompatible", baseUrl = endpoint.BaseUrl, authenticationType = "None", credentials = Array.Empty<object>() } }, token).ConfigureAwait(false);
+                    Assert.Equal(InferenceProtocolEnum.OpenAiCompatible, compatible.InferenceEndpoint!.Protocol, "MCP can create a compatible architect");
+                }
+                await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/secrets/" + secret.Id, null, token).ConfigureAwait(false);
             }
         }
 

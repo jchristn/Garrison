@@ -1,7 +1,8 @@
 {
-  "provider": {{deployment.parameters.provider | default: "OpenAiCompatible" | json}},
-  "endpoint": {{deployment.parameters.baseUrl | default: "" | json}},
-  "model": {{deployment.model | json}},
+  "provider": {{#if inference.configured}}{{inference.protocol | json}}{{else}}{{deployment.parameters.provider | default: "OpenAiCompatible" | json}}{{/if}},
+  "endpoint": {{#if inference.configured}}{{inference.baseUrl | json}}{{else}}{{deployment.parameters.baseUrl | default: "" | json}}{{/if}},
+{{#if inference.configured}}  "authentication": {{inference.authentication | json}},
+{{/if}}  "model": {{deployment.model | json}},
   "allowAnonymous": {{deployment.parameters.allowAnonymous | default: "false" | json}},
   "systemPrompt": {{prompts.system | json}},
   "maxTurns": {{deployment.maxTurns | default: "20" | json}},

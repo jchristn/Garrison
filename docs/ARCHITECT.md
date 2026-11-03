@@ -235,3 +235,8 @@ The architect, its prompts, selection, the next-turn rule, and the delete protec
 In **Agents → Architects**, choose `builtin/mux` in Add or Edit. **Mux endpoint name** replaces Model and Credential. Studio’s **New architect** dialog and the setup wizard use the same field. Enter the endpoint name configured in Mux on the execution workers, such as `local`; its model and authentication come from Mux. The selection is returned as `endpointName` and is preserved when editing.
 
 ![Mux endpoint name in the Architects form](images/architect-mux-endpoint.png)
+
+
+## HTTP inference endpoints (v0.2.0)
+
+Architects and agent deployments can use `hrn_builtin_provider_api` with a model and a typed `inferenceEndpoint`. Supported protocols are `OpenAiCompatible` and native `Ollama`. Select authentication explicitly: `None`, `BearerToken`, `ApiKey` (header or query parameter), `Headers`, `QueryString`, or `Basic`. Each credential contains `name`, `location` (`Header` or `QueryString`), and a tenant `secretId`; responses contain references rather than secret values. Ollama Cloud uses bearer authentication; local Ollama can use no authentication. The same contract is supported by REST architect/deployment requests, MCP architect tools and deployment manifests, all four SDKs, and the dashboard. See [the endpoint contract, examples, validation, and compatibility rules](PROVIDER_API.md).

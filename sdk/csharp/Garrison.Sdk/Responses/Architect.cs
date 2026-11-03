@@ -100,6 +100,10 @@ namespace Garrison.Sdk.Responses
         /// </summary>
         public string? Model { get; set; } = null;
 
+        /// <summary>Explicit inference wire protocol, base URL, and secret-backed authentication.</summary>
+        public Garrison.Sdk.Models.InferenceEndpoint? InferenceEndpoint { get; set; } = null;
+
+
         /// <summary>
         /// Configured Mux endpoint name, or null for legacy or non-Mux architects.
         /// Its model and authentication come from the endpoint configuration on the execution worker.

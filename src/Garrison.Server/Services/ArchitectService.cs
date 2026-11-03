@@ -253,12 +253,13 @@ namespace Garrison.Server.Services
             deployment.AgentId = agent!.Id;
             deployment.HarnessProfileId = request.HarnessProfileId;
             deployment.Model = String.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim();
+            deployment.InferenceEndpoint = request.InferenceEndpoint;
             deployment.Active = request.Active;
             deployment.ManagementAccess = ManagementAccessEnum.Drafts;
             deployment.ArchitectPromptTemplateId = String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId) ? null : request.ArchitectPromptTemplateId;
             deployment.ArchitectPromptVersion = request.ArchitectPromptVersion;
             bool namedMux = await ApplyEndpointAsync(tenantId, deployment, request.EndpointName, token).ConfigureAwait(false);
-            if (!namedMux && !String.IsNullOrWhiteSpace(request.CredentialSecretId)) BindCredential(deployment, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
+            if (!namedMux && request.InferenceEndpoint == null && !String.IsNullOrWhiteSpace(request.CredentialSecretId)) BindCredential(deployment, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
             Deployment created = await new TenantConfigurationService(_Server).CreateDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
             return await ToArchitectAsync(created, agent, new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal), token).ConfigureAwait(false);
         }
@@ -287,13 +288,17 @@ namespace Garrison.Server.Services
             changed.HarnessProfileId = request.HarnessProfileId;
             changed.Model = String.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim();
             changed.Active = request.Active;
+            if (request.InferenceEndpoint != null) changed.InferenceEndpoint = request.InferenceEndpoint;
+            HarnessProfile? changedProfile = await _Server.Database.HarnessProfiles.ReadAsync(tenantId, changed.HarnessProfileId, token).ConfigureAwait(false);
+            if (changedProfile?.HarnessType != HarnessTypeEnum.ProviderApi) changed.InferenceEndpoint = null;
+            if (changed.InferenceEndpoint != null) changed.ResourceBindings.RemoveAll(b => b.Kind == ResourceBindingKindEnum.Secret && b.Alias == CredentialAlias);
             if (!String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId))
             {
                 PromptTemplate template = await ResolvePromptAsync(tenantId, request.ArchitectPromptTemplateId, request.ArchitectPromptVersion, token).ConfigureAwait(false);
                 Bind(changed, template, request.ArchitectPromptVersion);
             }
             bool namedMux = await ApplyEndpointAsync(tenantId, changed, request.EndpointName, token).ConfigureAwait(false);
-            if (!namedMux && request.CredentialSecretId != null)
+            if (!namedMux && changed.InferenceEndpoint == null && request.CredentialSecretId != null)
             {
                 if (request.CredentialSecretId.Trim().Length == 0) changed.ResourceBindings.RemoveAll(b => b.Kind == ResourceBindingKindEnum.Secret && String.Equals(b.Alias, CredentialAlias, StringComparison.OrdinalIgnoreCase));
                 else BindCredential(changed, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
@@ -532,6 +537,7 @@ namespace Garrison.Server.Services
             architect.AgentName = agent?.Name;
             architect.HarnessProfileId = deployment.HarnessProfileId;
             architect.Model = deployment.Model;
+            architect.InferenceEndpoint = deployment.InferenceEndpoint;
             string? endpointName = deployment.Parameters.FirstOrDefault(p => p.Name == "endpoint")?.Value;
             if (endpointName != null && (await _Server.Database.HarnessProfiles.ReadAsync(deployment.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false))?.HarnessType == HarnessTypeEnum.Mux) architect.EndpointName = endpointName;
             architect.Active = deployment.Active;
@@ -548,6 +554,13 @@ namespace Garrison.Server.Services
                 architect.CredentialSecretId = credential.ResourceId;
                 architect.CredentialSecretName = secret?.Name;
                 architect.CredentialSecretKind = secret?.Kind.ToString();
+            }
+            if (architect.InferenceEndpoint == null && deployment.Parameters.Any(p => p.Name == "baseUrl") && (await _Server.Database.HarnessProfiles.ReadAsync(deployment.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false))?.HarnessType == HarnessTypeEnum.ProviderApi)
+            {
+                bool anonymous = deployment.Parameters.Any(p => p.Name == "allowAnonymous" && p.Value == "true");
+                architect.InferenceEndpoint = new InferenceEndpoint { Protocol = deployment.Parameters.Any(p => p.Name == "provider" && p.Value == "Ollama") ? InferenceProtocolEnum.Ollama : InferenceProtocolEnum.OpenAiCompatible,
+                    BaseUrl = deployment.Parameters.First(p => p.Name == "baseUrl").Value, AuthenticationType = anonymous ? InferenceAuthenticationTypeEnum.None : InferenceAuthenticationTypeEnum.BearerToken };
+                if (!anonymous) architect.InferenceEndpoint.Credentials.Add(new InferenceCredential { SecretId = architect.CredentialSecretId ?? String.Empty });
             }
             architect.ConfigVersion = deployment.ConfigVersion;
             architect.IsProtected = deployment.IsProtected;

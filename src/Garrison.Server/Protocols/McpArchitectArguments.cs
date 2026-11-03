@@ -21,6 +21,9 @@ namespace Garrison.Server.Protocols
         /// <summary>Model, for create and update; null keeps the harness profile's default.</summary>
         public string? Model { get; set; } = null;
 
+        /// <summary>Explicit HTTP inference endpoint and authentication.</summary>
+        public Garrison.Core.Models.InferenceEndpoint? InferenceEndpoint { get; set; } = null;
+
         /// <summary>Configured Mux endpoint name, for create/update; null preserves the selection.</summary>
         public string? EndpointName { get; set; } = null;
 

@@ -4971,3 +4971,33 @@ Object.assign(ja.views.agentWizard.design, {
   "firstMessageMux": "作成したいもの: {{goal}}\n\n設定済みの Mux エンドポイント {{endpoint}} を使用してください。モデルと認証には Mux の設定を使用します。必要な質問をしてから、このドラフトでエージェントを設計してください。"
 });
 Object.assign(ja.views.agentWizard.access, {"intro": "ハーネスと接続設定を選択してください。エージェント設計者も同じ設定で設計を進めます。"});
+
+// Typed inference protocol and authentication editor.
+Object.assign(ja, {
+  "inference": {
+    "modelHint": "このエンドポイントで提供されるモデルを選択します。",
+    "title": "推論エンドポイント",
+    "protocol": "API プロトコル",
+    "baseUrl": "ベース URL",
+    "authentication": "認証方式",
+    "name": "ヘッダー名 / パラメーター名",
+    "location": "認証情報の配置",
+    "header": "ヘッダー",
+    "query": "クエリ文字列",
+    "secret": "認証情報のシークレット",
+    "addValue": "認証情報の値を追加",
+    "username": "ユーザー名のシークレット",
+    "password": "パスワードのシークレット",
+    "hint": "プロトコルと認証を別々に選択します。Ollama Cloud はベアラー認証を使用し、ローカル Ollama は通常認証不要です。値は暗号化されたシークレットとして保存されます。",
+    "invalid": "有効な URL と必要な認証情報の名前およびシークレットを指定してください。",
+    "value": "認証情報の値",
+    "auth": {
+      "None": "なし",
+      "BearerToken": "ベアラートークン",
+      "ApiKey": "API キー",
+      "Headers": "ヘッダー値",
+      "QueryString": "クエリパラメーター",
+      "Basic": "基本認証"
+    }
+  }
+});

@@ -581,7 +581,8 @@ namespace Test.Shared.Suites
                 Assert.True(dryReads <= oneProfile * 2, "Dry run reads the shared profile once, not per document: " + dryReads + " statements, one read is " + oneProfile);
                 Assert.True(applyReads <= oneProfile * 2, "Apply reads the shared profile once, not per document: " + applyReads + " statements, one read is " + oneProfile);
                 Assert.True(reapplyReads <= oneProfile * 2, "Re-apply reads the shared profile once, not per document: " + reapplyReads + " statements, one read is " + oneProfile);
-                Assert.True(reapplyStatements < documents * 12, "Re-apply statements per document stay small: " + reapplyStatements + " for " + documents + " documents (apply made " + firstStatements + ")");
+                // The typed inference endpoint child adds one lookup per deployment (schema 44).
+                Assert.True(reapplyStatements < documents * 13, "Re-apply statements per document stay small: " + reapplyStatements + " for " + documents + " documents (apply made " + firstStatements + ")");
 
                 // References to documents created or updated earlier in the same apply resolve against the new values: the
                 // template changes, a deployment changes, a tenant profile is updated to support resume, and a new

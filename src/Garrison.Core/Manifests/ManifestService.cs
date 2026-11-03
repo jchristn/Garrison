@@ -972,6 +972,10 @@ namespace Garrison.Core.Manifests
             if (spec.AgentRevision.HasValue) await PlanRevisionPinAsync(tenantId, deployment, spec.AgentRevision.Value, planned, token).ConfigureAwait(false);
             deployment.HarnessProfileId = await resolver.RequireAsync("HarnessProfile", spec.HarnessProfile, "harnessProfile", token).ConfigureAwait(false);
             deployment.Model = spec.Model;
+            deployment.InferenceEndpoint = spec.InferenceEndpoint;
+            if (deployment.InferenceEndpoint != null)
+                foreach (InferenceCredential credential in deployment.InferenceEndpoint.Credentials)
+                    credential.SecretId = await resolver.RequireAsync("Secret", credential.SecretId, "inferenceEndpoint.credentials.secretId", token).ConfigureAwait(false);
             deployment.FallbackModel = spec.FallbackModel;
             deployment.Effort = spec.Effort;
             deployment.MaxTurns = spec.MaxTurns;
@@ -2071,6 +2075,10 @@ namespace Garrison.Core.Manifests
             spec.HarnessProfile = await resolver.NameAsync("HarnessProfile", deployment.HarnessProfileId, token).ConfigureAwait(false) ?? deployment.HarnessProfileId;
             spec.Description = deployment.Description;
             spec.Model = deployment.Model;
+            spec.InferenceEndpoint = deployment.InferenceEndpoint == null ? null : Serializer.Copy<InferenceEndpoint>(deployment.InferenceEndpoint);
+            if (spec.InferenceEndpoint != null)
+                foreach (InferenceCredential credential in spec.InferenceEndpoint.Credentials)
+                    credential.SecretId = await resolver.NameAsync("Secret", credential.SecretId, token).ConfigureAwait(false) ?? credential.SecretId;
             spec.FallbackModel = deployment.FallbackModel;
             spec.Effort = deployment.Effort;
             spec.MaxTurns = deployment.MaxTurns;

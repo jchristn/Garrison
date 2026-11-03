@@ -386,6 +386,8 @@ export interface ArchitectListQuery { maxResults?: number; skip?: number; orderi
  * template's current version (architectPromptCurrentVersion).
  */
 export interface Architect {
+  /** Explicit provider HTTP configuration; credentials are secret references. */
+  inferenceEndpoint?: InferenceEndpoint | null;
   id: string;
   tenantId: string;
   name: string;
@@ -419,6 +421,8 @@ export interface Architect {
  * and keeps the current prompt on update; architectPromptVersion pins a version (1 or more), null follows the current one.
  */
 export interface ArchitectRequest {
+  /** Explicit provider HTTP configuration; credentials are secret references. */
+  inferenceEndpoint?: InferenceEndpoint | null;
   name: string;
   description?: string | null;
   harnessProfileId: string;
@@ -665,6 +669,8 @@ export interface Artifact extends Json {
 export interface ArtifactDownload { url: string; expiresUtc: string; }
 
 export interface Deployment extends Json, WithWarnings {
+  /** Explicit provider HTTP configuration; credentials are secret references. */
+  inferenceEndpoint?: InferenceEndpoint | null;
   /** Workspace-relative directory where the conversation file space is mounted for runs. Default "files". */
   fileSpaceMountPath?: string;
   /** Opt in to durable suspension on resumable harnesses. */
@@ -2536,3 +2542,12 @@ export class GarrisonClient {
 }
 
 export default GarrisonClient;
+
+/** Wire protocol and authentication are independent; values are referenced through encrypted tenant secrets. */
+export interface InferenceCredential { name: string; location: 'Header' | 'QueryString'; secretId: string; }
+export interface InferenceEndpoint {
+  protocol: 'OpenAiCompatible' | 'Ollama';
+  baseUrl: string;
+  authenticationType: 'None' | 'BearerToken' | 'ApiKey' | 'Headers' | 'QueryString' | 'Basic';
+  credentials: InferenceCredential[];
+}

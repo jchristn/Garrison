@@ -422,6 +422,7 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 MapEgressRules,
                 token).ConfigureAwait(false);
+            obj.InferenceEndpoint = await AdoInferenceEndpoint.ReadAsync(_Driver, obj, token).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -517,6 +518,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertChildrenAsync(DbConnection connection, DbTransaction transaction, Deployment obj, CancellationToken token)
         {
+            await AdoInferenceEndpoint.InsertAsync(_Driver, connection, transaction, obj, token).ConfigureAwait(false);
             string batch = IdGenerator.NewChildRowId() + "_";
             for (int i = 0; i < obj.PromptBindings.Count; i++)
             {
@@ -726,6 +728,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
         {
+            await AdoInferenceEndpoint.DeleteAsync(_Driver, connection, transaction, parentId, token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ArtifactGlobsTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _PromptBindingsTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ResourceBindingsTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);

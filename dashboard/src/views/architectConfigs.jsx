@@ -1,6 +1,8 @@
 // ResourceView configuration for agent architects: Agents > Architects. Re-exported by resourceConfigs.jsx so the
 // configuration-wide tests (tooltips, i18n keys, enum labels) cover it.
 
+import InferenceEndpointFields from '../components/InferenceEndpointFields';
+import { blankInferenceEndpoint, inferenceEndpointErrors } from '../utils/inferenceEndpoints';
 import { Suspense, lazy } from 'react';
 import CopyableId from '../components/CopyableId';
 import Modal from '../components/Modal';
@@ -53,6 +55,7 @@ export function architectToForm(r) {
     harnessProfileId: r.harnessProfileId || '',
     model: r.model || '',
     endpointName: r.endpointName || '',
+    inferenceEndpoint: r.inferenceEndpoint || null,
     credentialSecretId: r.credentialSecretId || '',
     active: r.active !== false,
     architectPromptTemplateId: r.architectPromptTemplateId || '',
@@ -65,6 +68,7 @@ export function architectToRequest(d) {
   const body = { name: String(d.name || '').trim(), description: d.description ? d.description : null, harnessProfileId: d.harnessProfileId, active: d.active !== false };
   const model = String(d.model || '').trim();
   body.model = model || null;
+  if (d.inferenceEndpoint) body.inferenceEndpoint = d.inferenceEndpoint;
   if (d.endpointName?.trim()) body.endpointName = d.endpointName.trim();
   // Always sent: an empty value binds nothing on create and removes the credential on update.
   body.credentialSecretId = d.credentialSecretId || '';
@@ -145,8 +149,11 @@ export const architectsConfig = {
   blank: () => blankArchitect(),
   toForm: (r) => architectToForm(r),
   toDuplicate: (r) => ({ ...architectToForm(r), id: undefined, name: `${r.name}-copy` }),
-  toBody: (d) => architectToRequest(d),
-  validate: (d, t, { options = {} } = {}) => architectErrors(d, t, options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType === 'Mux'),
+  toBody: (d, _mode, { options = {} } = {}) => architectToRequest({ ...d, inferenceEndpoint: options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType === 'ProviderApi' ? d.inferenceEndpoint || blankInferenceEndpoint() : null }),
+  validate: (d, t, { options = {} } = {}) => {
+    const type = options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType;
+    return { ...architectErrors(d, t, type === 'Mux'), ...(type === 'ProviderApi' ? inferenceEndpointErrors(d.inferenceEndpoint, d.model, t) : {}) };
+  },
   deniedReason: (action, row, { t, lookups }) => {
     const operation = { create: 'Create', update: 'Update', delete: 'Delete' }[action];
     return operation ? denied(t, lookups?.permissions, operation, row?.id || null) : '';
@@ -212,12 +219,12 @@ export const architectsConfig = {
       field(t, 'name', 'text', { required: true, placeholder: 'architect' }),
       field(t, 'description', 'textarea', { rows: 2 }),
       field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t) }),
-      ...(profile?.harnessType === 'Mux' ? [{ name: 'endpointName', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, tip: t('views.agentWizard.access.muxHint'), hint: t('views.agentWizard.access.muxHint') }] : [field(t, 'credentialSecretId', 'select', {
+      ...(profile?.harnessType === 'Mux' ? [{ name: 'endpointName', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, tip: t('views.agentWizard.access.muxHint'), hint: t('views.agentWizard.access.muxHint') }] : [...(profile?.harnessType === 'ProviderApi' ? [{ name: 'inferenceEndpoint', type: 'custom', label: t('inference.title'), tip: t('inference.hint'), render: (data, { disabled, onChange, errors }) => <InferenceEndpointFields value={data.inferenceEndpoint || blankInferenceEndpoint()} onChange={(inferenceEndpoint) => onChange({ ...data, inferenceEndpoint })} disabled={disabled} errors={errors} idPrefix="architects-inference" /> }] : [field(t, 'credentialSecretId', 'select', {
         noneLabel: t('components.studio.architect.noCredential'),
         options: keep(secrets, d?.credentialSecretId),
         hint: credentialHint(t, { profile, secretCount: secrets.length, chosen: d?.credentialSecretId, onRefresh: reloadOptions, lng: i18n?.language })
-      }),
-      field(t, 'model', 'text', { placeholder: 'sonnet' })]),
+      })]),
+      field(t, 'model', 'text', { placeholder: profile?.harnessType === 'ProviderApi' ? '' : 'sonnet' })]),
       field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, '', mode === 'edit') }),
       field(t, 'architectPromptVersion', 'number', { min: 1 }),
       field(t, 'active', 'checkbox')

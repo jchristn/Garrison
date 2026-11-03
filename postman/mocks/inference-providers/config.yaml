@@ -1,0 +1,10 @@
+version: 1
+id: bc73cbcb-3e06-4506-b9ea-8f9d84a61f11
+name: inference-providers
+slug: inference-providers
+protocol: http
+port: 19590
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

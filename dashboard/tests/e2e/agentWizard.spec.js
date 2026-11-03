@@ -356,11 +356,9 @@ for (const harness of [
 test('provider-api requires an explicit URL and model and supports an explicitly anonymous endpoint', async ({ page }) => {
   const flow = await installStudioFlow(page);
   await installWizardRoutes(page, { ...PROFILE, name: 'builtin/provider-api', harnessType: 'ProviderApi' });
-  let deployment;
   await page.route(/\/deployments\/dep_arch$/, (route) => {
     if (route.request().method() === 'PUT') {
-      deployment = route.request().postDataJSON();
-      return route.fulfill(json(200, deployment));
+      return route.fulfill(json(200, route.request().postDataJSON()));
     }
     return route.fulfill(json(200, { ...ARCHITECT_DEPLOYMENT, resourceBindings: [], parameters: [] }));
   });
@@ -372,11 +370,57 @@ test('provider-api requires an explicit URL and model and supports an explicitly
   await page.getByTestId('wizard-next').click();
   await page.getByTestId('wizard-next').click({ force: true });
   await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
-  await page.locator('#wizard-provider-endpoint').fill('http://provider:8080/v1');
+  await page.locator('#wizard-inference-base-url').fill('http://provider:8080/v1');
   await page.locator('#wizard-model').fill('local-model');
-  await page.locator('#wizard-provider-anonymous').check();
+  await page.locator('#wizard-inference-authentication').selectOption('None');
   await page.getByTestId('wizard-next').click();
   await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
   expect(flow.architectBodies[0].credentialSecretId).toBe('');
-  expect(deployment.parameters).toEqual([{ name: 'provider', value: 'OpenAiCompatible' }, { name: 'baseUrl', value: 'http://provider:8080/v1' }, { name: 'allowAnonymous', value: 'true' }]);
+  expect(flow.architectBodies[0].inferenceEndpoint).toEqual({ protocol: 'OpenAiCompatible', baseUrl: 'http://provider:8080/v1', authenticationType: 'None', credentials: [] });
 });
+
+for (const authenticationType of ['BearerToken', 'ApiKey', 'Headers', 'QueryString', 'Basic']) {
+  test(`Ollama API collects ${authenticationType} credentials independently of secret kind`, async ({ page }, testInfo) => {
+    const flow = await installStudioFlow(page);
+    const wizard = await installWizardRoutes(page, { ...PROFILE, name: 'builtin/provider-api', harnessType: 'ProviderApi' });
+    await login(page);
+    await skipSetup(page);
+    await page.goto('/dashboard/agent-wizard/new');
+    await page.locator('#wizard-title').fill('Native Ollama');
+    await page.locator('#wizard-goal').fill('Design an agent using native Ollama.');
+    await page.getByTestId('wizard-next').click();
+    await page.locator('#wizard-inference-protocol').selectOption({ value: 'Ollama' });
+    await page.locator('#wizard-inference-base-url').fill('https://ollama.com');
+    await page.locator('#wizard-model').fill('fixture-model');
+    await page.locator('#wizard-inference-authentication').selectOption({ value: authenticationType });
+    if (['ApiKey', 'Headers', 'QueryString'].includes(authenticationType)) await page.locator('#wizard-inference-name-0').fill('X-Provider-Token');
+    if (authenticationType === 'ApiKey') await page.locator('#wizard-inference-location-0').selectOption({ value: 'QueryString' });
+    const count = authenticationType === 'Basic' ? 2 : 1;
+    for (let i = 0; i < count; i++) {
+      await page.getByTestId(`wizard-inference-credential-${i}`).getByRole('button', { name: 'Add credential value' }).click();
+      await page.locator('#wizard-inference-value-name').fill(`ollama-${i}`);
+      await page.locator('#wizard-inference-value').fill(`fixture-value-${i}`);
+      await page.getByTestId('wizard-inference-save-value').click();
+      await expect(page.getByTestId('wizard-inference-new-value')).toHaveCount(0);
+    }
+    await expect(page.getByTestId('wizard-next')).toBeEnabled();
+    if (authenticationType === 'BearerToken') {
+      await page.screenshot({ path: testInfo.outputPath('ollama-endpoint-desktop.png'), fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.locator('.dashboard-sidebar')).not.toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      await page.screenshot({ path: testInfo.outputPath('ollama-endpoint-mobile.png'), fullPage: true });
+    }
+    await page.getByTestId('wizard-next').click();
+    await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+    const endpoint = flow.architectBodies[0].inferenceEndpoint;
+    expect(endpoint.protocol).toBe('Ollama');
+    expect(endpoint.authenticationType).toBe(authenticationType);
+    expect(endpoint.credentials).toHaveLength(count);
+    expect(endpoint.credentials.every((c) => c.secretId === 'sec_0100')).toBe(true);
+    expect(JSON.stringify(flow.architectBodies)).not.toContain('fixture-value');
+    expect(wizard.secretBodies[0].kind).toBe(authenticationType === 'BearerToken' ? 'BearerToken' : 'GenericEnv');
+    if (authenticationType === 'ApiKey') expect(endpoint.credentials[0].location).toBe('QueryString');
+    if (authenticationType === 'Basic') expect(endpoint.credentials.map((c) => c.name)).toEqual(['username', 'password']);
+  });
+}

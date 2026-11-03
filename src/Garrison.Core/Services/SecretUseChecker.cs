@@ -237,7 +237,7 @@ namespace Garrison.Core.Services
 
         private static IEnumerable<string?> SecretBindings(Deployment deployment)
         {
-            return deployment.ResourceBindings.Where(b => b.Kind == ResourceBindingKindEnum.Secret).Select(b => (string?)b.ResourceId);
+            return InferenceEndpointRules.Bindings(deployment).Where(b => b.Kind == ResourceBindingKindEnum.Secret).Select(b => (string?)b.ResourceId);
         }
 
         #endregion

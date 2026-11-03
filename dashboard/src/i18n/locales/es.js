@@ -5024,3 +5024,33 @@ Object.assign(es.views.agentWizard.design, {
   "firstMessageMux": "Quiero crear esto: {{goal}}\n\nUsa el endpoint de Mux configurado llamado {{endpoint}}. El modelo y la autenticación proceden de Mux. Hazme las preguntas necesarias y diseña los agentes en este borrador."
 });
 Object.assign(es.views.agentWizard.access, {"intro": "Elige el harness y su configuración de conexión. El arquitecto de agentes usa la misma configuración al diseñar contigo."});
+
+// Typed inference protocol and authentication editor.
+Object.assign(es, {
+  "inference": {
+    "modelHint": "Elige un modelo disponible en este endpoint.",
+    "title": "Endpoint de inferencia",
+    "protocol": "Protocolo API",
+    "baseUrl": "URL base",
+    "authentication": "Tipo de autenticación",
+    "name": "Nombre de cabecera / parámetro",
+    "location": "Ubicación de la credencial",
+    "header": "Cabecera",
+    "query": "Cadena de consulta",
+    "secret": "Secreto de credencial",
+    "addValue": "Añadir valor de credencial",
+    "username": "Secreto de usuario",
+    "password": "Secreto de contraseña",
+    "hint": "Elige protocolo y autenticación por separado. Ollama Cloud usa autenticación de portador; Ollama local normalmente no requiere ninguna. Los valores se guardan como secretos cifrados.",
+    "invalid": "Introduce una URL válida y selecciona todos los nombres y secretos necesarios.",
+    "value": "Valor de credencial",
+    "auth": {
+      "None": "Ninguna",
+      "BearerToken": "Token de portador",
+      "ApiKey": "Clave API",
+      "Headers": "Valores de cabecera",
+      "QueryString": "Parámetros de consulta",
+      "Basic": "Autenticación básica"
+    }
+  }
+});

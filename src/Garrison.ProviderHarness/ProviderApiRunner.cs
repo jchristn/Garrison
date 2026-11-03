@@ -2,12 +2,15 @@ namespace Garrison.ProviderHarness
 {
     using System;
     using System.IO;
+    using System.Collections.Generic;
+    using System.Net.Http;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enums;
     using Garrison.Core.Serialization;
     using Garrison.Harnesses.Provider;
+    using Garrison.Harnesses.Execution;
     using PolyPrompt.Clients;
     using PolyPrompt.Models;
     using SyslogLogging;
@@ -18,6 +21,7 @@ namespace Garrison.ProviderHarness
         private readonly ProviderApiConfig _Config;
         private readonly TextWriter _Output;
         private readonly string? _SessionHome;
+        private SecretScrubber _Scrubber = new SecretScrubber(Array.Empty<string>());
         /// <summary>Construct a runner. Each instance executes one run.</summary>
         /// <param name="config">Resolved configuration.</param>
         /// <param name="output">Protocol output.</param>
@@ -38,12 +42,25 @@ namespace Garrison.ProviderHarness
             _Config.Validate();
             token.ThrowIfCancellationRequested();
             if (String.IsNullOrWhiteSpace(prompt)) throw new ArgumentException("A provider task prompt is required.", nameof(prompt));
-            string? apiKey = Environment.GetEnvironmentVariable(_Config.ApiKeyVariable);
-            if (!_Config.AllowAnonymous && String.IsNullOrEmpty(apiKey)) return Fail("NotCredentialed", "The configured provider API credential is missing.");
+            string? legacyKey = Environment.GetEnvironmentVariable(_Config.ApiKeyVariable);
+            if (_Config.Authentication == null && !_Config.AllowAnonymous && String.IsNullOrEmpty(legacyKey)) return Fail("NotCredentialed", "The configured provider API credential is missing.");
+            ProviderAuthentication authentication = _Config.Authentication ?? new ProviderAuthentication { Type = String.IsNullOrEmpty(legacyKey) ? InferenceAuthenticationTypeEnum.None : InferenceAuthenticationTypeEnum.BearerToken,
+                Bindings = String.IsNullOrEmpty(legacyKey) ? new List<ProviderAuthenticationBinding>() : new List<ProviderAuthenticationBinding> { new ProviderAuthenticationBinding { ValueVariable = _Config.ApiKeyVariable } } };
+            Dictionary<string, string> values = new Dictionary<string, string>();
+            foreach (ProviderAuthenticationBinding binding in authentication.Bindings)
+            {
+                string? value = Environment.GetEnvironmentVariable(binding.ValueVariable);
+                if (String.IsNullOrEmpty(value)) return Fail("NotCredentialed", "An inference authentication credential is missing.");
+                values[binding.ValueVariable] = value;
+            }
+            _Scrubber = new SecretScrubber(values.Values);
             LoggingModule logging = new LoggingModule();
             logging.Settings.EnableConsole = false;
+            string endpoint = _Config.Endpoint.TrimEnd('/');
+            if (_Config.Provider == "Ollama" && endpoint.EndsWith("/api", StringComparison.OrdinalIgnoreCase)) endpoint = endpoint.Substring(0, endpoint.Length - 4);
             using (ProviderMcpBridge tools = new ProviderMcpBridge(_Config))
-            using (CompletionClientBase client = new OpenAiClient(_Config.Endpoint, apiKey, logging))
+            using (HttpClient http = new HttpClient(new ProviderAuthenticationHandler(authentication, values)))
+            using (CompletionClientBase client = _Config.Provider == "Ollama" ? new OllamaClient(endpoint, null, logging, http) : new OpenAiClient(endpoint, null, logging, http))
             {
                 client.Model = _Config.Model;
                 client.MaxTokens = _Config.MaxTokens;
@@ -145,7 +162,7 @@ namespace Garrison.ProviderHarness
             string home = _SessionHome ?? Environment.GetEnvironmentVariable("HOME") ?? Environment.GetEnvironmentVariable("USERPROFILE") ?? throw new InvalidOperationException("Provider execution requires an isolated HOME.");
             return Path.Combine(home, ".garrison-provider-api", "sessions", _Config.SessionId + ".json");
         }
-        private void Emit(ProviderApiEvent item) { _Output.WriteLine(Serializer.Serialize(item)); _Output.Flush(); }
+        private void Emit(ProviderApiEvent item) { item.Text = _Scrubber.Scrub(item.Text); _Output.WriteLine(Serializer.Serialize(item)); _Output.Flush(); }
         private int Fail(string code, string text) { Emit(new ProviderApiEvent { EventType = RunEventTypeEnum.Error, Code = code, Text = text }); return 1; }
     }
 }

@@ -1482,3 +1482,22 @@ CREATE TABLE IF NOT EXISTS "notification_cursors" (
     cursorid VARCHAR(64),
     lastupdateutc TEXT NOT NULL
 );
+
+-- Migration 44: Typed inference endpoint configuration (supplement to the reference baseline).
+CREATE TABLE IF NOT EXISTS deployment_inference_endpoints (
+    deploymentid VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    protocol VARCHAR(32) NOT NULL,
+    baseurl TEXT NOT NULL,
+    authenticationtype VARCHAR(32) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS deployment_inference_credentials (
+    deploymentid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(256) NOT NULL,
+    location VARCHAR(32) NOT NULL,
+    secretid VARCHAR(64) NOT NULL,
+    PRIMARY KEY (deploymentid, position)
+);
+CREATE INDEX IF NOT EXISTS idx_deployment_inference_credentials_secret ON deployment_inference_credentials (tenantid, secretid);

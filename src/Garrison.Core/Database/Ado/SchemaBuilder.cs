@@ -358,6 +358,12 @@ namespace Garrison.Core.Database.Ado
             v43.BuildVersion43();
             migrations.Add(new SchemaMigration(43, "App branding colors for the conversation list, message input, and file list", v43._Statements, v43._Columns));
 
+            SchemaBuilder v44 = new SchemaBuilder(catalog, dialect);
+            v44.Table("deployment_inference_endpoints", "deploymentid " + dialect.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + dialect.TypeId + " NOT NULL", "protocol VARCHAR(32) NOT NULL", "baseurl " + dialect.TypeText + " NOT NULL", "authenticationtype VARCHAR(32) NOT NULL");
+            v44.Table("deployment_inference_credentials", "deploymentid " + dialect.TypeId + " NOT NULL", "tenantid " + dialect.TypeId + " NOT NULL", "position " + dialect.TypeInt + " NOT NULL", "name VARCHAR(256) NOT NULL", "location VARCHAR(32) NOT NULL", "secretid " + dialect.TypeId + " NOT NULL", "PRIMARY KEY (deploymentid, position)");
+            v44.Index("deployment_inference_credentials", "secret", false, "tenantid", "secretid");
+            migrations.Add(new SchemaMigration(44, "Typed inference protocols and secret-backed authentication", v44._Statements, v44._Columns));
+
             return migrations;
         }
 

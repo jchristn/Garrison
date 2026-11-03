@@ -93,7 +93,7 @@ export function deploymentPlan(agents, deployments, credentialSecretId, state = 
     const bound = dev.find((d) => !credentialSecretId || (d.resourceBindings || []).some((b) => b.kind === 'Secret' && b.resourceId === credentialSecretId));
     if (bound) {
       const settings = wizardParameters(state);
-      const changed = Object.keys(settings).length > 0 && (bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v));
+      const changed = (state.inferenceEndpoint && (JSON.stringify(bound.inferenceEndpoint) !== JSON.stringify(state.inferenceEndpoint) || bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || ''))) || (Object.keys(settings).length > 0 && (bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v)));
       return { agent, action: changed ? 'configure' : 'ready', deployment: bound };
     }
     return { agent, action: 'bind', deployment: dev[0] };
@@ -132,6 +132,7 @@ export function wizardParameters(state) {
 
 /** Apply wizard settings while retaining unrelated deployment parameters and bindings. */
 export function withWizardSettings(deployment, state) {
+  if (state.inferenceEndpoint) return { ...deployment, harnessProfileId: state.harnessProfileId, model: state.model || null, inferenceEndpoint: state.inferenceEndpoint, resourceBindings: (deployment.resourceBindings || []).filter((b) => !(b.kind === 'Secret' && b.alias === 'credential')) };
   const settings = wizardParameters(state);
   if (!Object.keys(settings).length) return deployment;
   const parameters = (deployment.parameters || []).filter((p) => !Object.hasOwn(settings, p.name) && !(state.muxEndpoint && ['baseUrl', 'adapterType'].includes(p.name)));

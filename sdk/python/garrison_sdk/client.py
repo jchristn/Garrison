@@ -749,6 +749,21 @@ class ArchitectPromptSelection(TypedDict, total=False):
     currentVersion: int
 
 
+class InferenceCredential(TypedDict):
+    """A named HTTP credential whose value is held in an encrypted tenant secret."""
+    name: str
+    location: Literal["Header", "QueryString"]
+    secretId: str
+
+
+class InferenceEndpoint(TypedDict):
+    """Inference wire protocol and explicit authentication configuration."""
+    protocol: Literal["OpenAiCompatible", "Ollama"]
+    baseUrl: str
+    authenticationType: Literal["None", "BearerToken", "ApiKey", "Headers", "QueryString", "Basic"]
+    credentials: List[InferenceCredential]
+
+
 class Architect(TypedDict, total=False):
     """An agent architect: a tenant deployment that may edit studio drafts for the person it works for. id is the
     deployment identifier; agentId is normally the built-in agent-architect. architectPromptVersion is the pinned version,
@@ -761,6 +776,7 @@ class Architect(TypedDict, total=False):
     agentName: Optional[str]
     harnessProfileId: str
     model: Optional[str]
+    inferenceEndpoint: Optional[InferenceEndpoint]
     endpointName: Optional[str]  # Named worker-configured Mux endpoint; model/authentication come from Mux.
     active: bool
     architectPromptTemplateId: str
@@ -785,6 +801,7 @@ class ArchitectRequest(TypedDict, total=False):
     description: Optional[str]
     harnessProfileId: str
     model: Optional[str]
+    inferenceEndpoint: Optional[InferenceEndpoint]
     endpointName: Optional[str]  # Named worker-configured Mux endpoint; model/authentication come from Mux.
     active: bool
     architectPromptTemplateId: Optional[str]

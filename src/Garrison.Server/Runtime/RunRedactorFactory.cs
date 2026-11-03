@@ -11,6 +11,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Services;
     using Garrison.Core.Security;
 
     /// <summary>
@@ -57,7 +58,7 @@ namespace Garrison.Server.Runtime
             List<string> values = new List<string>();
             if (deployment != null)
             {
-                foreach (DeploymentResourceBinding binding in deployment.ResourceBindings.Where(b => b.Kind == ResourceBindingKindEnum.Secret))
+                foreach (DeploymentResourceBinding binding in InferenceEndpointRules.Bindings(deployment).Where(b => b.Kind == ResourceBindingKindEnum.Secret))
                 {
                     token.ThrowIfCancellationRequested();
                     Secret? secret = await _Database.Secrets.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false);

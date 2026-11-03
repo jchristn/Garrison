@@ -3,13 +3,18 @@ namespace Garrison.ProviderHarness
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Models;
+    using Garrison.Core.Services;
     using System.Text.Json.Serialization;
 
     /// <summary>Resolved per-run configuration. No API key is persisted here; the worker provides it in the environment.</summary>
     public class ProviderApiConfig
     {
-        /// <summary>Adapter name. Initially OpenAiCompatible.</summary>
+        /// <summary>Adapter name: OpenAiCompatible or Ollama.</summary>
         public string Provider { get; set; } = "OpenAiCompatible";
+        /// <summary>Explicit authentication scheme; null retains legacy API-key/AllowAnonymous behavior.</summary>
+        public ProviderAuthentication? Authentication { get; set; } = null;
         /// <summary>Operator-selected provider base URL. Required.</summary>
         public string Endpoint { get; set; } = String.Empty;
         /// <summary>Operator-selected model. Required.</summary>
@@ -75,10 +80,16 @@ namespace Garrison.ProviderHarness
         /// <exception cref="ArgumentException">Thrown when a setting is invalid.</exception>
         public void Validate()
         {
-            if (Provider != "OpenAiCompatible") throw new ArgumentException("The selected provider adapter is unsupported.");
+            if (Provider != "OpenAiCompatible" && Provider != "Ollama") throw new ArgumentException("The selected provider adapter is unsupported.");
             if (!Uri.TryCreate(Endpoint, UriKind.Absolute, out Uri? uri) || (uri.Scheme != "http" && uri.Scheme != "https") || uri.UserInfo.Length > 0 || uri.Query.Length > 0 || uri.Fragment.Length > 0)
                 throw new ArgumentException("Configure a provider HTTP endpoint without embedded credentials or query parameters.");
             if (String.IsNullOrWhiteSpace(ApiKeyVariable)) throw new ArgumentException("Configure a provider API credential environment variable.");
+            if (Authentication != null)
+            {
+                InferenceEndpoint validation = new InferenceEndpoint { Protocol = Provider == "Ollama" ? InferenceProtocolEnum.Ollama : InferenceProtocolEnum.OpenAiCompatible, BaseUrl = Endpoint, AuthenticationType = Authentication.Type,
+                    Credentials = Authentication.Bindings.Select(b => new InferenceCredential { Name = b.Name, Location = b.Location, SecretId = b.ValueVariable }).ToList() };
+                if (InferenceEndpointRules.Validate(validation).Any()) throw new ArgumentException("The inference authentication configuration is invalid.");
+            }
             if (String.IsNullOrWhiteSpace(Model)) throw new ArgumentException("Configure a provider model.");
             if (MaxTurns < 1 || MaxTurns > 1000 || MaxTokens < 1 || MaxTokens > 1048576 || MaxRetries < 0 || MaxRetries > 10 || TimeoutMs < 1000 || TimeoutMs > 86400000
                 || MaxSessionBytes < 1024 || MaxSessionBytes > 67108864 || MaxToolResultChars < 1024 || MaxToolResultChars > 1048576) throw new ArgumentException("A provider execution limit is outside its supported range.");

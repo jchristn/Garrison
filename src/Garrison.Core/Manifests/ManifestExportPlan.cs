@@ -9,6 +9,7 @@ namespace Garrison.Core.Manifests
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Services;
 
     /// <summary>
     /// Works out what a manifest bundle export contains (P12.21): the tenant's records, the selection, the references
@@ -273,7 +274,7 @@ namespace Garrison.Core.Manifests
                         Secret(workspace.GitCredentialSecretId, secrets);
                         break;
                     case Deployment deployment:
-                        foreach (DeploymentResourceBinding binding in deployment.ResourceBindings.Where(b => b.Kind == ResourceBindingKindEnum.Secret)) Secret(binding.ResourceId, secrets);
+                        foreach (DeploymentResourceBinding binding in InferenceEndpointRules.Bindings(deployment).Where(b => b.Kind == ResourceBindingKindEnum.Secret)) Secret(binding.ResourceId, secrets);
                         if (!String.IsNullOrEmpty(deployment.ArtifactStoreId) && _Stores.TryGetValue(deployment.ArtifactStoreId, out ArtifactStore? store)) stores.Add(store.Name);
                         if (!_Profiles.ContainsKey(deployment.HarnessProfileId))
                         {

@@ -22179,6 +22179,49 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Inference endpoint examples (v0.2.0)",
+      "description": "Explicit protocol and secret-backed HTTP authentication for architects. Configure variables before sending. See docs/PROVIDER_API.md.",
+      "item": [
+        {
+          "name": "Create native Ollama bearer architect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "Native Ollama architect. Create an encrypted BearerToken secret first and set inferenceSecretId to its ID. This configures an endpoint without making a model request. Ollama Cloud uses BearerToken; for local Ollama select None with credentials: [].",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ollama-architect-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_provider_api\",\n  \"model\": \"{{inferenceModel}}\",\n  \"inferenceEndpoint\": {\n    \"protocol\": \"Ollama\",\n    \"baseUrl\": \"{{inferenceBaseUrl}}\",\n    \"authenticationType\": \"BearerToken\",\n    \"credentials\": [\n      {\n        \"name\": \"\",\n        \"location\": \"Header\",\n        \"secretId\": \"{{inferenceSecretId}}\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -22670,6 +22713,18 @@
     {
       "key": "credentialArchitectId",
       "value": ""
+    },
+    {
+      "key": "inferenceModel",
+      "value": "your-model"
+    },
+    {
+      "key": "inferenceBaseUrl",
+      "value": "https://ollama.com"
+    },
+    {
+      "key": "inferenceSecretId",
+      "value": "sec_replace_with_saved_token"
     }
   ]
 }

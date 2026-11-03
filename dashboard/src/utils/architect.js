@@ -1,3 +1,5 @@
+import { blankInferenceEndpoint, inferenceEndpointErrors } from './inferenceEndpoints';
+
 // Agent architect form helpers (AD7.10, AD9.5, AD9.9), shared by the studio's New architect dialog and the setup
 // wizard's Agent Studio step. Plain functions (no JSX), outside the studio chunk so the wizard loads without it.
 
@@ -14,12 +16,12 @@ export const CREDENTIAL_KINDS = {
   Mux: [],
   OpenCode: ['AnthropicApiKey', 'OpenAiApiKey', 'GeminiApiKey'],
   Pi: ['AnthropicApiKey', 'OpenAiApiKey', 'GeminiApiKey'],
-  ProviderApi: ['OpenAiApiKey']
+  ProviderApi: []
 };
 
 /** Whether a harness type needs a credential secret. Mux uses worker-owned endpoint credentials; Pi and OpenCode authentication depends on their selected provider. */
 export function needsCredential(harnessType) {
-  return ['ClaudeCode', 'Codex', 'GeminiCli', 'ProviderApi'].includes(harnessType);
+  return ['ClaudeCode', 'Codex', 'GeminiCli'].includes(harnessType);
 }
 
 /**
@@ -47,7 +49,8 @@ export function architectBody(form) {
   const model = String(form.model || '').trim();
   if (model && !form.isMux) body.model = model;
   if (form.isMux || form.endpointName) body.endpointName = String(form.endpointName || '').trim();
-  if (form.credentialSecretId && !form.isMux) body.credentialSecretId = form.credentialSecretId;
+  if (form.isProviderApi) body.inferenceEndpoint = form.inferenceEndpoint || blankInferenceEndpoint();
+  if (form.credentialSecretId && !form.isMux && !form.isProviderApi) body.credentialSecretId = form.credentialSecretId;
   if (form.promptId) body.architectPromptTemplateId = form.promptId;
   return body;
 }
@@ -58,5 +61,6 @@ export function architectFormErrors(form, t) {
   if (!String(form.name || '').trim()) errors.name = t('common.errors.required');
   if (!form.harnessProfileId) errors.harnessProfileId = t('common.errors.required');
   if (form.isMux && (!form.endpointName?.trim() || form.endpointName.includes('://'))) errors.endpointName = t('views.agentWizard.access.needEndpoint');
+  if (form.isProviderApi) Object.assign(errors, inferenceEndpointErrors(form.inferenceEndpoint, form.model, t));
   return errors;
 }

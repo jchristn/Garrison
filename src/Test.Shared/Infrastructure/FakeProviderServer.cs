@@ -37,6 +37,16 @@ namespace Test.Shared.Infrastructure
         public List<string> Answers { get; set; } = new List<string> { "fixture answer" };
         /// <summary>Use length instead of stop to simulate incomplete generation.</summary>
         public bool Truncated { get; set; } = false;
+        /// <summary>Last HTTP path, used to distinguish native Ollama from compatibility mode.</summary>
+        public string LastPath { get; private set; } = String.Empty;
+        /// <summary>Last Authorization header.</summary>
+        public string? LastAuthorization { get; private set; }
+        /// <summary>Credential field names captured by the fixture.</summary>
+        public List<string> CaptureNames { get; set; } = new List<string>();
+        /// <summary>Last configured header values.</summary>
+        public Dictionary<string, string?> CapturedHeaders { get; } = new Dictionary<string, string?>();
+        /// <summary>Last configured query values.</summary>
+        public Dictionary<string, string?> CapturedQuery { get; } = new Dictionary<string, string?>();
         /// <summary>Start an isolated fixture endpoint.</summary>
         public FakeProviderServer()
         {
@@ -44,6 +54,7 @@ namespace Test.Shared.Infrastructure
             Endpoint = "http://127.0.0.1:" + port;
             _Server = new Webserver(new WebserverSettings { Hostname = "127.0.0.1", Port = port }, NotFoundAsync);
             _Server.Routes.PreAuthentication.Static.Add(HttpMethod.POST, "/v1/chat/completions", CompleteAsync);
+            _Server.Routes.PreAuthentication.Static.Add(HttpMethod.POST, "/api/chat", CompleteAsync);
             _Server.Start();
         }
         /// <inheritdoc />
@@ -60,12 +71,34 @@ namespace Test.Shared.Infrastructure
         {
             int request = Interlocked.Increment(ref _Requests);
             LastRequest = Serializer.Deserialize<FakeProviderRequest>(http.Request.DataAsString);
+            LastPath = http.Request.Url.RawWithoutQuery;
+            LastAuthorization = http.Request.Headers["Authorization"];
+            foreach (string name in CaptureNames) { CapturedHeaders[name] = http.Request.Headers[name]; CapturedQuery[name] = http.Request.Query?.Elements[name] is string queryValue ? Uri.UnescapeDataString(queryValue) : null; }
             if (DelayMs > 0) await Task.Delay(DelayMs, http.Token).ConfigureAwait(false);
             if (HttpStatus != 200 || request <= RetryResponses)
             {
                 http.Response.StatusCode = request <= RetryResponses ? 429 : HttpStatus;
                 http.Response.ContentType = "application/json";
                 await http.Response.Send("{\"error\":{\"message\":\"fixture failure\"}}").ConfigureAwait(false);
+                return;
+            }
+            if (LastPath == "/api/chat")
+            {
+                string native;
+                if (UseTool && LastRequest?.Messages.Any(m => m.Role == "tool") != true)
+                {
+                    FakeProviderTool? tool = LastRequest?.Tools.FirstOrDefault(t => t.Function.Description.Contains(ToolDescription, StringComparison.Ordinal));
+                    native = Serializer.Serialize(new { model = "served-fixture-model", message = new { role = "assistant", content = "", tool_calls = new[] { new { function = new { name = tool?.Function.Name ?? "unknown-function", arguments = Serializer.Deserialize<object>(ToolArguments) } } } }, done = false }) + "\n";
+                }
+                else
+                {
+                    string answer = Answers[Math.Min(request - 1, Answers.Count - 1)];
+                    native = Serializer.Serialize(new { model = "served-fixture-model", message = new { role = "assistant", content = answer, thinking = "fixture reasoning" }, done = false }) + "\n";
+                }
+                native += Serializer.Serialize(new { model = "served-fixture-model", message = new { role = "assistant", content = "" }, done = true, done_reason = Truncated ? "length" : "stop", prompt_eval_count = 11, eval_count = 7 }) + "\n";
+                http.Response.StatusCode = 200;
+                http.Response.ContentType = "application/x-ndjson";
+                await http.Response.Send(native).ConfigureAwait(false);
                 return;
             }
             string body;

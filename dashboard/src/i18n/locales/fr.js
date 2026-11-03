@@ -5020,3 +5020,33 @@ Object.assign(fr.views.agentWizard.design, {
   "firstMessageMux": "Je souhaite créer ceci : {{goal}}\n\nUtilise le point de terminaison Mux configuré nommé {{endpoint}}. Son modèle et son authentification viennent de Mux. Pose-moi les questions nécessaires, puis conçois les agents dans ce brouillon."
 });
 Object.assign(fr.views.agentWizard.access, {"intro": "Choisissez le harness et ses paramètres de connexion. L’architecte d’agents utilise la même configuration pendant la conception."});
+
+// Typed inference protocol and authentication editor.
+Object.assign(fr, {
+  "inference": {
+    "modelHint": "Choisissez un modèle proposé par ce point de terminaison.",
+    "title": "Point de terminaison d’inférence",
+    "protocol": "Protocole API",
+    "baseUrl": "URL de base",
+    "authentication": "Type d’authentification",
+    "name": "Nom d’en-tête / paramètre",
+    "location": "Emplacement de l’identifiant",
+    "header": "En-tête",
+    "query": "Chaîne de requête",
+    "secret": "Secret d’authentification",
+    "addValue": "Ajouter une valeur d’identifiant",
+    "username": "Secret du nom d’utilisateur",
+    "password": "Secret du mot de passe",
+    "hint": "Choisissez séparément le protocole et l’authentification. Ollama Cloud utilise un jeton porteur ; Ollama local n’en demande généralement pas. Les valeurs sont enregistrées comme secrets chiffrés.",
+    "invalid": "Saisissez une URL valide et choisissez tous les noms et secrets requis.",
+    "value": "Valeur d’identifiant",
+    "auth": {
+      "None": "Aucune",
+      "BearerToken": "Jeton porteur",
+      "ApiKey": "Clé API",
+      "Headers": "Valeurs d’en-tête",
+      "QueryString": "Paramètres de requête",
+      "Basic": "Authentification basique"
+    }
+  }
+});

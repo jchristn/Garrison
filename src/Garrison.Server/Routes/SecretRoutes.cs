@@ -138,7 +138,7 @@ namespace Garrison.Server.Routes
             string tenantId = RouteHelpers.Tenant(http);
             Secret secret = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(secret.TenantId, false, secret.IsProtected, tenantId, "Secret " + secret.Name);
-            await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ResourceBindings.Any(b => b.Kind == ResourceBindingKindEnum.Secret && b.ResourceId == secret.Id), "Secret " + secret.Name, http.Token).ConfigureAwait(false);
+            await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => InferenceEndpointRules.Bindings(d).Any(b => b.Kind == ResourceBindingKindEnum.Secret && b.ResourceId == secret.Id), "Secret " + secret.Name, http.Token).ConfigureAwait(false);
             if (await _Server.Database.ArtifactStores.UsesSecretAsync(tenantId, secret.Id, http.Token).ConfigureAwait(false)) throw new ConflictException("ResourceInUse", "The secret is used by an artifact store.");
             await _Server.Database.Secrets.DeleteAsync(secret.Id, http.Token).ConfigureAwait(false);
             await CodexCredentialService.DeleteLeaseAsync(_Server.Database, secret.Id, http.Token).ConfigureAwait(false);

@@ -4,6 +4,7 @@ namespace Test.Shared.Suites
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core;
@@ -11,6 +12,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Enums;
     using Garrison.Core.Requests;
     using Garrison.Core.Models;
+    using Garrison.Core.Manifests;
     using Garrison.Core.Helpers;
     using Garrison.Core.Protocol;
     using Garrison.Core.Serialization;
@@ -34,6 +36,7 @@ namespace Test.Shared.Suites
         {
             List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>
             {
+                new TestCaseDescriptor("provider-api", "protocol-authentication", "Native Ollama and OpenAI-compatible HTTP honor every explicit authentication placement without leaking values", AuthenticationAsync),
                 new TestCaseDescriptor("provider-api", "process", "The bundled harness runs through the normal worker process executor with usage and cleanup", ProcessAsync),
                 new TestCaseDescriptor("provider-api", "stream-history", "Provider chunks normalize text/usage and a private conversation resumes its history", StreamAsync),
                 new TestCaseDescriptor("provider-api", "failures", "Missing/rejected credentials, bounded retries, incomplete output, cancellation, and limits fail safely", FailuresAsync)
@@ -45,12 +48,97 @@ namespace Test.Shared.Suites
                 suites.Add(new TestSuiteDescriptor(id, "Provider configuration and tool mediation", new List<TestCaseDescriptor>
                 {
                     new TestCaseDescriptor(id, "lifecycle", "Provider execution through the real node protocol repairs schema output and resumes a conversation", ct => LifecycleAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "endpoint-contract", "Typed inference endpoints persist, compile secret references, and enforce SecretUse and deletion references", ct => EndpointContractAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "ollama-mcp-approvals", "Native Ollama tool calls participate in the same MCP and approval loop", ct => McpAsync(provider, ct, true)),
                     new TestCaseDescriptor(id, "compile", "The opt-in provider profile compiles typed secret configuration and templated prompts", ct => CompileAsync(provider, ct)),
                     new TestCaseDescriptor(id, "mcp-approvals", "A provider MCP tool round trip obeys Garrison allow/deny rules and validates model arguments", ct => McpAsync(provider, ct))
                 }));
             }
             return suites;
         }
+        private static async Task AuthenticationAsync(CancellationToken token)
+        {
+            foreach (string protocol in new string[] { "OpenAiCompatible", "Ollama" })
+            foreach (InferenceAuthenticationTypeEnum type in Enum.GetValues<InferenceAuthenticationTypeEnum>())
+            foreach (InferenceCredentialLocationEnum placement in type == InferenceAuthenticationTypeEnum.ApiKey ? Enum.GetValues<InferenceCredentialLocationEnum>() : new InferenceCredentialLocationEnum[] { InferenceCredentialLocationEnum.Header })
+            {
+                using (FakeProviderServer endpoint = new FakeProviderServer())
+                using (StringWriter output = new StringWriter())
+                {
+                    string variable = "GARRISON_TEST_INFERENCE_" + Guid.NewGuid().ToString("N");
+                    string second = variable + "_SECOND";
+                    string value = type == InferenceAuthenticationTypeEnum.Basic ? "fixture-user" : "fixture-token+/=?&";
+                    Environment.SetEnvironmentVariable(variable, value);
+                    Environment.SetEnvironmentVariable(second, "fixture-password:with spaces");
+                    try
+                    {
+                        ProviderAuthentication authentication = new ProviderAuthentication { Type = type };
+                        if (type != InferenceAuthenticationTypeEnum.None)
+                            authentication.Bindings.Add(new ProviderAuthenticationBinding { Name = type == InferenceAuthenticationTypeEnum.Basic ? "username" : type == InferenceAuthenticationTypeEnum.BearerToken ? "" : "X-API-Key", Location = placement, ValueVariable = variable });
+                        if (type == InferenceAuthenticationTypeEnum.Basic || type == InferenceAuthenticationTypeEnum.Headers || type == InferenceAuthenticationTypeEnum.QueryString)
+                            authentication.Bindings.Add(new ProviderAuthenticationBinding { Name = type == InferenceAuthenticationTypeEnum.Basic ? "password" : "X-Second", ValueVariable = second });
+                        endpoint.CaptureNames = new List<string> { "X-API-Key", "X-Second" };
+                        ProviderApiConfig config = Config(endpoint);
+                        config.Provider = protocol;
+                        if (protocol == "Ollama") config.Endpoint += "/api";
+                        config.Authentication = authentication;
+                        Assert.Equal(0, await new ProviderApiRunner(config, output).RunAsync("authentication fixture", token).ConfigureAwait(false), protocol + " " + type + " " + placement + ": " + output);
+                        Assert.Equal(protocol == "Ollama" ? "/api/chat" : "/v1/chat/completions", endpoint.LastPath, "Correct native protocol path");
+                        if (type == InferenceAuthenticationTypeEnum.BearerToken) Assert.Equal("Bearer " + value, endpoint.LastAuthorization ?? "", "Bearer uses Authorization rather than an API-key header");
+                        else if (type == InferenceAuthenticationTypeEnum.Basic) Assert.Equal("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("fixture-user:fixture-password:with spaces")), endpoint.LastAuthorization ?? "", "Basic transport");
+                        else Assert.True(String.IsNullOrEmpty(endpoint.LastAuthorization), "Other schemes do not acquire an implicit bearer token");
+                        if (type == InferenceAuthenticationTypeEnum.ApiKey || type == InferenceAuthenticationTypeEnum.Headers) {
+                            string? captured = type == InferenceAuthenticationTypeEnum.ApiKey && placement == InferenceCredentialLocationEnum.QueryString ? endpoint.CapturedQuery["X-API-Key"] : endpoint.CapturedHeaders["X-API-Key"];
+                            Assert.Equal(value, captured ?? "", "Exact configured API-key/header value");
+                        }
+                        if (type == InferenceAuthenticationTypeEnum.QueryString) Assert.Equal(value, endpoint.CapturedQuery["X-API-Key"] ?? "", "Query values are correctly encoded and decoded");
+                        Assert.True(!output.ToString().Contains(value, StringComparison.Ordinal), "Credentials are absent from lifecycle, result, and usage events");
+                    }
+                    finally { Environment.SetEnvironmentVariable(variable, null); Environment.SetEnvironmentVariable(second, null); }
+                }
+            }
+        }
+
+        private static async Task EndpointContractAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                Deployment deployment = await fixture.DeploymentAsync("provider-api", false, token).ConfigureAwait(false);
+                string secretId = deployment.ResourceBindings.Single(b => b.Kind == ResourceBindingKindEnum.Secret).ResourceId;
+                deployment.ResourceBindings.Clear();
+                deployment.InferenceEndpoint = new InferenceEndpoint { Protocol = InferenceProtocolEnum.Ollama, BaseUrl = "https://ollama.com", AuthenticationType = InferenceAuthenticationTypeEnum.BearerToken,
+                    Credentials = new List<InferenceCredential> { new InferenceCredential { SecretId = secretId } } };
+                await ConfigurationValidator.DeploymentAsync(fixture.Database, CompilerFixture.TenantId, deployment, token).ConfigureAwait(false);
+                await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                Deployment read = Assert.NotNull(await fixture.Database.Deployments.ReadAsync(CompilerFixture.TenantId, deployment.Id, token).ConfigureAwait(false), "Endpoint deployment");
+                Assert.Equal(secretId, read.InferenceEndpoint!.Credentials.Single().SecretId, "Structured authentication rows round trip");
+                CompilationResult result = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(read, false), null, token).ConfigureAwait(false);
+                ProviderApiConfig compiled = Assert.NotNull(Serializer.Deserialize<ProviderApiConfig>(result.Spec.Files.Single(f => f.Path == "provider-api.json").Content), "Typed provider config");
+                Assert.Equal("Ollama", compiled.Provider, "Native protocol is compiled");
+                Assert.Equal(InferenceAuthenticationTypeEnum.BearerToken, compiled.Authentication!.Type, "Bearer authentication is compiled independently of secret kind");
+                string variable = compiled.Authentication.Bindings.Single().ValueVariable;
+                Assert.True(result.Spec.Environment.Any(e => e.Name == variable && e.IsSecret), "Credential resolves only into secret environment");
+                Assert.True(!result.Spec.Files.Single(f => f.Path == "provider-api.json").Content.Contains("credential-provider_api", StringComparison.Ordinal), "Credential plaintext is not embedded in config");
+                ManifestService manifests = new ManifestService(fixture.Database, fixture.Cipher);
+                ManifestExportResult exported = await manifests.ExportAsync(CompilerFixture.TenantId, new ManifestExportOptions { Resources = new List<ManifestResourceReference> { new ManifestResourceReference("Deployment", deployment.Name) } }, token).ConfigureAwait(false);
+                Secret authenticationSecret = Assert.NotNull(await fixture.Database.Secrets.ReadAsync(CompilerFixture.TenantId, secretId, token).ConfigureAwait(false), "Credential metadata");
+                Assert.True(exported.Bundle.RequiredSecrets.Any(s => s.Name == authenticationSecret.Name), "Bundle lists inference-only secrets as requirements");
+                Assert.True(exported.Yaml.Contains(authenticationSecret.Name, StringComparison.Ordinal) && !exported.Yaml.Contains("credential-provider_api", StringComparison.Ordinal), "Export uses secret names and excludes values");
+                ManifestApply applied = await manifests.ApplyAsync(CompilerFixture.TenantId, exported.Yaml, new ManifestApplyOptions { DryRun = true }, token).ConfigureAwait(false);
+                Assert.True(applied.FailedCount == 0, "Endpoint export can be applied with resolved secret names");
+                bool denied = false;
+                try { await new SecretUseChecker(fixture.Database, (id, ct) => Task.FromResult(false)).RequireForDeploymentAsync(CompilerFixture.TenantId, read, token).ConfigureAwait(false); }
+                catch (ValidationException e) { denied = e.Describe().Contains("SecretUseDenied", StringComparison.Ordinal) || e.Codes.Values.Contains("SecretUseDenied"); }
+                Assert.True(denied, "Inference credentials require SecretUse permission even without resource bindings");
+                deployment.InferenceEndpoint.AuthenticationType = InferenceAuthenticationTypeEnum.None;
+                deployment.InferenceEndpoint.Credentials.Clear();
+                await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                read = Assert.NotNull(await fixture.Database.Deployments.ReadAsync(CompilerFixture.TenantId, deployment.Id, token).ConfigureAwait(false), "Anonymous endpoint");
+                Assert.Equal(0, read.InferenceEndpoint!.Credentials.Count, "Replacing auth deletes old credential rows");
+                Assert.True(await fixture.Database.Deployments.ReadAsync("another-tenant", deployment.Id, token).ConfigureAwait(false) == null, "Endpoint configuration is tenant scoped");
+            }
+        }
+
         private static async Task ProcessAsync(CancellationToken token)
         {
             string work = Path.Combine(Path.GetTempPath(), "garrison-provider-process-" + Guid.NewGuid().ToString("N"));
@@ -218,7 +306,7 @@ namespace Test.Shared.Suites
                 Assert.True(second.CostUsd == null, "Absent configured prices remain unknown, not a fabricated zero");
             }
         }
-        private static async Task McpAsync(DatabaseTypeEnum provider, CancellationToken token)
+        private static async Task McpAsync(DatabaseTypeEnum provider, CancellationToken token, bool native = false)
         {
             await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
             using (FakeProviderServer endpoint = new FakeProviderServer { UseTool = true })
@@ -231,6 +319,7 @@ namespace Test.Shared.Suites
                 Run run = await host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = agent.Id, DeploymentId = deployment.Id, CallerType = PrincipalTypeEnum.Administrator, Status = RunStatusEnum.Running, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5) }, token).ConfigureAwait(false);
                 string bearer = await host.Server.Context.Authentication.IssueForRunAsync(run, run.LeaseEpoch, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
                 ProviderApiConfig config = Config(endpoint);
+                if (native) config.Provider = "Ollama";
                 config.ApprovalsEnabled = true;
                 config.Servers.Add(new ProviderMcpSpec { Name = Constants.McpServerName, Url = "http://127.0.0.1:" + host.Settings.Mcp.Port, Headers = new List<ExecutionEnvironmentVariable> { new ExecutionEnvironmentVariable { Name = "Authorization", Value = "Bearer " + bearer } }, RequiredTools = new List<string> { "garrison_permission_prompt", "garrison_list_agents" } });
                 Assert.Equal(0, await new ProviderApiRunner(config, output).RunAsync("use a tool", token).ConfigureAwait(false), "Allowed tool loop finishes");
