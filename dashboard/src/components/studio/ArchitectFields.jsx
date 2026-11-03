@@ -1,3 +1,4 @@
+import { isConnection } from '../../utils/runtimeProfiles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HarnessRuntimeSummary } from '../HarnessRuntimeFields';
@@ -66,7 +67,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
     apiClient
       .listHarnessProfiles(tenantId, { ...page, includeBuiltIn: true })
       .then((r) => {
-        const list = (r.items || []).filter((p) => p.runtimeConfiguration && p.active !== false);
+        const list = (r.items || []).filter((p) => isConnection(p) && p.active !== false);
         setProfiles(list);
         if (!formRef.current.harnessProfileId && list.length) changeRef.current({ harnessProfileId: list[0].id });
       })
@@ -104,7 +105,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
 
   const profile = useMemo(() => profiles.find((p) => p.id === form.harnessProfileId) || null, [profiles, form.harnessProfileId]);
   useEffect(() => {
-    if (profile && (formRef.current.usesSavedRuntime !== !!profile.runtimeConfiguration)) changeRef.current({ isMux: false, isProviderApi: false, usesSavedRuntime: !!profile.runtimeConfiguration });
+    if (profile && (formRef.current.usesSavedRuntime !== isConnection(profile))) changeRef.current({ isMux: false, isProviderApi: false, usesSavedRuntime: isConnection(profile) });
   }, [profile]);
   const chosen = useMemo(() => prompts.find((p) => p.id === form.promptId) || null, [prompts, form.promptId]);
   const set = (key) => (e) => onChange({ [key]: e.target.value });
@@ -139,6 +140,9 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
           harnessProfileHint(t)
         )}
         <HarnessRuntimeSummary profile={profile} />
+      </div>
+      <details className="connection-advanced"><summary>{t('runtime.advancedArchitect')}</summary>
+      <div className="form-grid">
         {field(
           'promptId',
           t('components.studio.architect.prompt'),
@@ -165,6 +169,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
         </div>
         {previewError ? <div className="error-banner">{previewError}</div> : <CodeBlock value={preview || ''} emptyText={t('components.studio.architect.previewEmpty')} />}
       </div>
+      </details>
     </>
   );
 }

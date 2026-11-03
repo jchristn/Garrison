@@ -5081,3 +5081,21 @@ Object.assign(fr.runtime, {"add": "Ajouter une connexion", "create": "Créer une
 
 fr.explainers.harnessProfiles.p2 = fr.runtime.sharedHint;
 fr.explainers.secrets.p2 = fr.runtime.sharedHint;
+
+// One connection registry; configuration sections use a menu.
+Object.assign(fr.runtime, {"title": "Connexions", "sharedHint": "Harnesses et points de terminaison réutilisables. Configurez une fois, puis sélectionnez une connexion pour vos agents.", "harness": "Type de connexion", "chooseHarness": "Choisir un harness ou type d’API", "customHarness": "Harness personnalisé", "advancedLaunch": "Paramètres de lancement avancés", "advancedArchitect": "Options de l’architecte (facultatif)", "pickConnection": "Choisissez une connexion. Son modèle, son adresse et ses identifiants sont déjà configurés."});
+fr.nav.hubs.connections = {"label": "Connexions", "tip": "Harnesses et points de terminaison réutilisables. Configurez une fois, puis sélectionnez une connexion pour vos agents."};
+fr.nav.hubs.configuration = {"label": "Configuration", "tip": "Gérer les prompts, ressources, serveurs d’outils, identifiants, stockage et règles."};
+fr.nav.items.harnessProfiles.label = "Connexions";
+fr.resources.harnessProfiles.title = "Connexions";
+fr.components.studio.architect.harnessProfile = fr.runtime.connection;
+
+Object.assign(fr.runtime, {"emptyTitle": "Aucune connexion pour le moment", "apiType": "API HTTP (Ollama / compatible OpenAI)"});
+
+fr.nav.items.manifests.label = fr.runtime.importExport;
+
+fr.runtime.manage = "Gérer les connexions";
+fr.components.architectHints.harnessLink = fr.runtime.manage;
+fr.explainers.secrets.p2 = "Les connexions utilisent ces secrets pour l’authentification. Modifiez une valeur ici sans reconfigurer chaque architecte ou déploiement.";
+
+fr.runtime.launchDefaults = "Cette connexion utilise sa configuration de lancement existante. Modifiez-la si nécessaire dans les paramètres avancés.";

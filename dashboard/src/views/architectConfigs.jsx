@@ -1,3 +1,5 @@
+import { isConnection } from '../utils/runtimeProfiles';
+import FormFields from '../components/FormFields';
 import { HarnessRuntimeSummary } from '../components/HarnessRuntimeFields';
 // ResourceView configuration for agent architects: Agents > Architects. Re-exported by resourceConfigs.jsx so the
 // configuration-wide tests (tooltips, i18n keys, enum labels) cover it.
@@ -6,7 +8,7 @@ import { Suspense, lazy } from 'react';
 import CopyableId from '../components/CopyableId';
 import Modal from '../components/Modal';
 import NamedId from '../components/NamedId';
-import { architectPromptHint, harnessProfileHint } from '../components/ArchitectHints';
+import { architectPromptHint } from '../components/ArchitectHints';
 import { ActiveBadge, Badge } from '../components/StatusBadge';
 import { tip } from '../components/Tooltip';
 import { pathFor } from '../config/navConfig';
@@ -131,7 +133,7 @@ export const architectsConfig = {
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
       safeList(apiClient.listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 }))
     ]);
-    return { profiles: profiles.filter((p) => p.runtimeConfiguration && p.active !== false), prompts };
+    return { profiles: profiles.filter((p) => isConnection(p) && p.active !== false), prompts };
   },
   // A new architect starts on the first harness profile, the secret that harness signs in with, and the default prompt.
   withOptions: (d, options) => {
@@ -209,12 +211,15 @@ export const architectsConfig = {
     const keep = (list, value, label) => (value && !list.some((o) => o.value === value) ? [...list, { value, label: label || value }] : list);
     return [
       field(t, 'name', 'text', { required: true, placeholder: 'architect' }),
-      field(t, 'description', 'textarea', { rows: 2 }),
-      field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t) }),
-      { name: 'runtimeSummary', type: 'custom', label: t('runtime.connection'), tip: t('runtime.sharedHint'), render: () => <HarnessRuntimeSummary profile={profile} /> },
-      field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, '', mode === 'edit') }),
-      field(t, 'architectPromptVersion', 'number', { min: 1 }),
-      field(t, 'active', 'checkbox')
+      field(t, 'harnessProfileId', 'select', { label: t('runtime.connection'), required: true, options: keep(profiles, d?.harnessProfileId), hint: t('runtime.pickConnection') }),
+      { name: 'runtimeSummary', type: 'custom', label: t('runtime.connection'), tip: t('runtime.pickConnection'), render: () => <HarnessRuntimeSummary profile={profile} /> },
+      { name: 'architectOptions', type: 'custom', label: t('runtime.advancedArchitect'), tip: t('tips.studio.architect.promptId'), render: (data, { onChange, disabled, errors }) => <details className="connection-advanced" open={mode !== 'create'}><summary>{t('runtime.advancedArchitect')}</summary><FormFields fields={[
+        field(t, 'description', 'textarea', { rows: 2 }),
+        field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, data.architectPromptTemplateId), hint: architectPromptHint(t, '', mode === 'edit') }),
+        field(t, 'architectPromptVersion', 'number', { min: 1 }),
+        field(t, 'active', 'checkbox')
+      ]} data={data} onChange={onChange} disabled={disabled} errors={errors} idPrefix="architects" /></details> }
+
     ];
   },
   rowActions: (r, ctx) => {

@@ -9,3 +9,8 @@ export async function listRuntimeProfiles(client, tenantId, filters = {}) {
     pageNumber += 1;
   }
 }
+
+/** Configured connections and existing tenant/custom harness records share one registry. Built-ins are creation choices. */
+export function isConnection(profile) {
+  return Boolean(profile?.runtimeConfiguration) || profile?.isBuiltIn === false;
+}

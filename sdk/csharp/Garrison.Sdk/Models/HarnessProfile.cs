@@ -12,7 +12,7 @@ namespace Garrison.Sdk.Models
     {
         #region Public-Members
 
-        /// <summary>Reusable runtime connection settings; null for harness adapter templates.</summary>
+        /// <summary>Reusable runtime connection settings; null uses the harness launch definition and defaults.</summary>
         public HarnessRuntimeConfiguration? RuntimeConfiguration { get; set; } = null;
 
         /// <summary>Pinned session format used to validate durable continuation compatibility.</summary>

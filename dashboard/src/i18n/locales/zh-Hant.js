@@ -5033,3 +5033,21 @@ Object.assign(zhHant.runtime, {"add": "新增連線", "create": "建立連線", 
 
 zhHant.explainers.harnessProfiles.p2 = zhHant.runtime.sharedHint;
 zhHant.explainers.secrets.p2 = zhHant.runtime.sharedHint;
+
+// One connection registry; configuration sections use a menu.
+Object.assign(zhHant.runtime, {"title": "連線", "sharedHint": "可重用的執行框架與API端點。設定一次，即可在各代理中選用。", "harness": "連線類型", "chooseHarness": "選擇執行框架或API類型", "customHarness": "自訂執行框架", "advancedLaunch": "進階啟動設定", "advancedArchitect": "架構師選項（選填）", "pickConnection": "選擇連線即可，其模型、端點與憑證均已設定。"});
+zhHant.nav.hubs.connections = {"label": "連線", "tip": "可重用的執行框架與API端點。設定一次，即可在各代理中選用。"};
+zhHant.nav.hubs.configuration = {"label": "設定", "tip": "管理提示詞、資源、工具伺服器、憑證、儲存和原則。"};
+zhHant.nav.items.harnessProfiles.label = "連線";
+zhHant.resources.harnessProfiles.title = "連線";
+zhHant.components.studio.architect.harnessProfile = zhHant.runtime.connection;
+
+Object.assign(zhHant.runtime, {"emptyTitle": "尚無連線", "apiType": "HTTP API（Ollama / OpenAI相容）"});
+
+zhHant.nav.items.manifests.label = zhHant.runtime.importExport;
+
+zhHant.runtime.manage = "管理連線";
+zhHant.components.architectHints.harnessLink = zhHant.runtime.manage;
+zhHant.explainers.secrets.p2 = "連線參照這些機密進行驗證。在此更新值，無須重新設定各架構師或部署。";
+
+zhHant.runtime.launchDefaults = "此連線使用現有的啟動設定。如有需要，可在進階啟動設定中編輯。";

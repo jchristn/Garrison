@@ -3591,3 +3591,6 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 });
 
 tips.nav.hubs.platformConfiguration = "Gérer les identifiants partagés, le stockage, les tarifs des modèles, les quotas et les notifications.";
+
+tips.nav.hubs.connections = "Harnesses et points de terminaison réutilisables. Configurez une fois, puis sélectionnez une connexion pour vos agents.";
+tips.nav.hubs.configuration = "Gérer les prompts, ressources, serveurs d’outils, identifiants, stockage et règles.";

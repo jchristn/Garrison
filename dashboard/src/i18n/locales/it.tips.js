@@ -3591,3 +3591,6 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 });
 
 tips.nav.hubs.platformConfiguration = "Gestisci credenziali condivise, archiviazione, prezzi dei modelli, quote e notifiche.";
+
+tips.nav.hubs.connections = "Harness ed endpoint API riutilizzabili. Configura una volta, poi seleziona la connessione per gli agenti.";
+tips.nav.hubs.configuration = "Gestisci prompt, risorse, server strumenti, credenziali, archiviazione e criteri.";

@@ -14,7 +14,7 @@ namespace Garrison.Core.Models
     {
         #region Public-Members
 
-        /// <summary>Named reusable connection settings. Null identifies an unconfigured harness template.</summary>
+        /// <summary>Named reusable connection settings. Null uses the harness launch definition and defaults.</summary>
         public HarnessRuntimeConfiguration? RuntimeConfiguration { get; set; } = null;
 
         /// <summary>

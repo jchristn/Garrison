@@ -5032,3 +5032,21 @@ Object.assign(ja.runtime, {"add": "接続を追加", "create": "接続を作成"
 
 ja.explainers.harnessProfiles.p2 = ja.runtime.sharedHint;
 ja.explainers.secrets.p2 = ja.runtime.sharedHint;
+
+// One connection registry; configuration sections use a menu.
+Object.assign(ja.runtime, {"title": "接続", "sharedHint": "再利用可能なハーネスとAPIエンドポイント。一度設定すれば、各エージェントから選択できます。", "harness": "接続の種類", "chooseHarness": "ハーネスまたはAPIの種類を選択", "customHarness": "カスタムハーネス", "advancedLaunch": "高度な起動設定", "advancedArchitect": "アーキテクトのオプション（任意）", "pickConnection": "接続を選択してください。モデル、エンドポイント、認証情報は設定済みです。"});
+ja.nav.hubs.connections = {"label": "接続", "tip": "再利用可能なハーネスとAPIエンドポイント。一度設定すれば、各エージェントから選択できます。"};
+ja.nav.hubs.configuration = {"label": "設定", "tip": "プロンプト、アセット、ツールサーバー、認証情報、ストレージ、ポリシーを管理します。"};
+ja.nav.items.harnessProfiles.label = "接続";
+ja.resources.harnessProfiles.title = "接続";
+ja.components.studio.architect.harnessProfile = ja.runtime.connection;
+
+Object.assign(ja.runtime, {"emptyTitle": "接続はまだありません", "apiType": "HTTP API（Ollama / OpenAI互換）"});
+
+ja.nav.items.manifests.label = ja.runtime.importExport;
+
+ja.runtime.manage = "接続を管理";
+ja.components.architectHints.harnessLink = ja.runtime.manage;
+ja.explainers.secrets.p2 = "接続はこれらのシークレットを認証に使用します。ここで値を更新すれば、各アーキテクトやデプロイを再設定する必要はありません。";
+
+ja.runtime.launchDefaults = "この接続は既存の起動設定を使用します。必要に応じて高度な起動設定で編集できます。";

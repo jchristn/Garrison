@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { findHub, hubBySlug, detailPageBySlug, pageBySlug, DASHBOARD_BASE } from '../config/navConfig';
@@ -22,11 +22,12 @@ import { PAGE_VIEWS, DETAIL_VIEWS } from '../views/hubs/hubPanels';
  * Resolve /dashboard/:section[/:id] to what the main area renders: a hub (tabbed or standalone),
  * a detail view, a redirect for a pre-hub URL, or a redirect home for anything unknown.
  */
-function resolveRoute(section, id) {
+function resolveRoute(section, id, requestedTab) {
   if (id) {
     const page = detailPageBySlug(section);
     if (page && DETAIL_VIEWS[page.id]) return { kind: 'detail', page, View: DETAIL_VIEWS[page.id] };
   }
+  if (section === 'platform-configuration') return { kind: 'redirect', to: `${DASHBOARD_BASE}/configuration`, tab: requestedTab };
   const hub = hubBySlug(section);
   if (hub && !id) {
     if (hub.tabs) return { kind: 'hub', hub };
@@ -42,6 +43,7 @@ function resolveRoute(section, id) {
 export default function Dashboard() {
   const { t } = useTranslation();
   const { section = 'home', id } = useParams();
+  const [routeParams] = useSearchParams();
   const { apiClient, principal } = useAuth();
   const { sidebarCollapsed, toggleSidebar, tenantId, setWizardOpen } = useApp();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -51,7 +53,7 @@ export default function Dashboard() {
   const [pendingReviews, setPendingReviews] = useState(null);
   const approvalsReadable = useRef(true);
   const reviewsReadable = useRef(true);
-  const route = resolveRoute(section, id);
+  const route = resolveRoute(section, id, routeParams.get('tab'));
 
   // Pending approvals (P12.3) and pipeline stage reviews (P12.9) for the one sidebar badge: polled, and pushed over the
   // WebSocket approvals channel (approvals.changed carries both counts) when the live connection is up. A 403 or 404

@@ -291,7 +291,7 @@ describe('Capabilities page configuration', () => {
     expect(mcp).toContain('<code');
     expect(mcp).toContain('search</code>');
     const builtIn = html(cols.source.render(capability(4)));
-    expect(builtIn).toContain('href="/dashboard/configuration?search=builtin%2Fclaude-code"');
+    expect(builtIn).toContain('href="/dashboard/connections?search=builtin%2Fclaude-code"');
     expect(builtIn).toContain('garrison.io/tool-pandoc=true');
     expect(html(cols.source.render(capability(6)))).toContain('Manual entry');
     expect(html(cols.hints.render(capability(1)))).toMatch(/Median 4\.2 s, p90 9\.1 s, \$0\.0123 per run/);

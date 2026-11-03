@@ -3589,3 +3589,6 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 });
 
 tips.nav.hubs.platformConfiguration = "共有認証情報、ストレージ、モデル料金、使用量制限、通知を管理します。";
+
+tips.nav.hubs.connections = "再利用可能なハーネスとAPIエンドポイント。一度設定すれば、各エージェントから選択できます。";
+tips.nav.hubs.configuration = "プロンプト、アセット、ツールサーバー、認証情報、ストレージ、ポリシーを管理します。";

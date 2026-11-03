@@ -5067,3 +5067,21 @@ Object.assign(de.runtime, {"add": "Verbindung hinzufügen", "create": "Verbindun
 
 de.explainers.harnessProfiles.p2 = de.runtime.sharedHint;
 de.explainers.secrets.p2 = de.runtime.sharedHint;
+
+// One connection registry; configuration sections use a menu.
+Object.assign(de.runtime, {"title": "Verbindungen", "sharedHint": "Wiederverwendbare Harnesses und API-Endpunkte. Einmal konfigurieren, dann überall auswählen.", "harness": "Verbindungstyp", "chooseHarness": "Harness oder API-Typ auswählen", "customHarness": "Benutzerdefinierter Harness", "advancedLaunch": "Erweiterte Starteinstellungen", "advancedArchitect": "Architektenoptionen (optional)", "pickConnection": "Wähle eine Verbindung. Modell, Endpunkt und Zugangsdaten sind bereits konfiguriert."});
+de.nav.hubs.connections = {"label": "Verbindungen", "tip": "Wiederverwendbare Harnesses und API-Endpunkte. Einmal konfigurieren, dann überall auswählen."};
+de.nav.hubs.configuration = {"label": "Konfiguration", "tip": "Verwalte Prompts, Assets, Toolserver, Zugangsdaten, Speicher und Richtlinien."};
+de.nav.items.harnessProfiles.label = "Verbindungen";
+de.resources.harnessProfiles.title = "Verbindungen";
+de.components.studio.architect.harnessProfile = de.runtime.connection;
+
+Object.assign(de.runtime, {"emptyTitle": "Noch keine Verbindungen", "apiType": "HTTP-API (Ollama / OpenAI-kompatibel)"});
+
+de.nav.items.manifests.label = de.runtime.importExport;
+
+de.runtime.manage = "Verbindungen verwalten";
+de.components.architectHints.harnessLink = de.runtime.manage;
+de.explainers.secrets.p2 = "Verbindungen verweisen zur Authentifizierung auf diese Geheimnisse. Aktualisiere den Wert hier, ohne jeden Architekten oder jedes Deployment neu zu konfigurieren.";
+
+de.runtime.launchDefaults = "Diese Verbindung verwendet ihre vorhandene Startkonfiguration. Bei Bedarf unter Erweiterte Starteinstellungen bearbeiten.";

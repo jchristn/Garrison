@@ -5032,3 +5032,21 @@ Object.assign(yueHant.runtime, {"add": "新增連線", "create": "建立連線",
 
 yueHant.explainers.harnessProfiles.p2 = yueHant.runtime.sharedHint;
 yueHant.explainers.secrets.p2 = yueHant.runtime.sharedHint;
+
+// One connection registry; configuration sections use a menu.
+Object.assign(yueHant.runtime, {"title": "連線", "sharedHint": "可重用嘅執行框架同API端點。設定一次，就可以喺各代理選用。", "harness": "連線類型", "chooseHarness": "揀執行框架或API類型", "customHarness": "自訂執行框架", "advancedLaunch": "進階啟動設定", "advancedArchitect": "架構師選項（選填）", "pickConnection": "揀連線就得，模型、端點同憑證已經設定好。"});
+yueHant.nav.hubs.connections = {"label": "連線", "tip": "可重用嘅執行框架同API端點。設定一次，就可以喺各代理選用。"};
+yueHant.nav.hubs.configuration = {"label": "設定", "tip": "管理提示詞、資源、工具伺服器、憑證、儲存同原則。"};
+yueHant.nav.items.harnessProfiles.label = "連線";
+yueHant.resources.harnessProfiles.title = "連線";
+yueHant.components.studio.architect.harnessProfile = yueHant.runtime.connection;
+
+Object.assign(yueHant.runtime, {"emptyTitle": "暫時未有連線", "apiType": "HTTP API（Ollama / OpenAI相容）"});
+
+yueHant.nav.items.manifests.label = yueHant.runtime.importExport;
+
+yueHant.runtime.manage = "管理連線";
+yueHant.components.architectHints.harnessLink = yueHant.runtime.manage;
+yueHant.explainers.secrets.p2 = "連線會引用呢啲機密做驗證。喺呢度更新值，唔使重新設定每個架構師或者部署。";
+
+yueHant.runtime.launchDefaults = "呢個連線使用現有嘅啟動設定。有需要可以喺進階啟動設定入面修改。";

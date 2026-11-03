@@ -3589,3 +3589,6 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 });
 
 tips.nav.hubs.platformConfiguration = "管理共用憑證、儲存、模型價格、用量配額同通知。";
+
+tips.nav.hubs.connections = "可重用嘅執行框架同API端點。設定一次，就可以喺各代理選用。";
+tips.nav.hubs.configuration = "管理提示詞、資源、工具伺服器、憑證、儲存同原則。";

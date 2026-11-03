@@ -81,28 +81,20 @@ export const NAV_SECTIONS = [
   {
     key: 'platform',
     items: [
+      { key: 'connections', slug: 'connections', icon: 'FileCodeIcon', page: { id: 'harnessProfiles', slug: 'harness-profiles' } },
       {
-        key: 'configuration',
-        slug: 'configuration',
-        icon: 'FileCodeIcon',
-        tabs: [
-          { id: 'harnessProfiles', slug: 'harness-profiles' },
-          { id: 'promptTemplates', slug: 'prompt-templates', detail: true },
-          // AD2.8: versioned system prompts, skills, reference files, and document templates that agent revisions pin.
-          { id: 'agentAssets', slug: 'agent-assets' },
-          { id: 'mcpServers', slug: 'mcp-servers' },
-          { id: 'manifests', slug: 'manifests', hidden: true }
-        ]
-      },
-      {
-        key: 'platformConfiguration', slug: 'platform-configuration', icon: 'SettingsIcon',
+        key: 'configuration', slug: 'configuration', icon: 'SettingsIcon',
         tabs: [
           { id: 'secrets', slug: 'secrets' },
+          { id: 'promptTemplates', slug: 'prompt-templates', detail: true },
+          { id: 'agentAssets', slug: 'agent-assets' },
+          { id: 'mcpServers', slug: 'mcp-servers' },
           { id: 'workspaces', slug: 'workspaces' },
           { id: 'artifactStores', slug: 'artifact-stores' },
           { id: 'modelPrices', slug: 'model-prices' },
           { id: 'usageQuotas', slug: 'usage-quotas' },
-          { id: 'notifications', slug: 'notifications' }
+          { id: 'notifications', slug: 'notifications' },
+          { id: 'manifests', slug: 'manifests' }
         ]
       },
       {
@@ -214,7 +206,7 @@ export function pathFor(id, recordId, query) {
 }
 
 /** Pre-hub routes that redirect to a hub and tab. A tab whose slug is its hub's slug needs none. */
-export const LEGACY_REDIRECTS = PAGES.filter((page) => page.tab && page.slug !== findHub(page.hub).slug).map((page) => ({
+export const LEGACY_REDIRECTS = PAGES.filter((page) => page.slug !== findHub(page.hub).slug).map((page) => ({
   from: page.slug,
   to: `${DASHBOARD_BASE}/${findHub(page.hub).slug}`,
   tab: page.tab

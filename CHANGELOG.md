@@ -8,6 +8,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Simplified connection management to one Connections page. Built-in types are creation choices, and custom launch settings live inside the connection editor. Configuration uses a section menu instead of nested tab bars. Architect creation selects a connection, with prompt customization optional. Added spacing between the model field and endpoint card and retained connection IDs when changing harness type.
+
 - Architects is the second tab on the Agents page, immediately after Agents.
 
 - Added the Mux endpoint-name field to Architects Add/Edit, Studio New architect, and the shared setup form. It replaces Model and Credential for Mux and round-trips through the architect API and SDKs as `endpointName`.

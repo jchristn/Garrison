@@ -3589,3 +3589,6 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 });
 
 tips.nav.hubs.platformConfiguration = "Verwalte gemeinsame Zugangsdaten, Speicher, Modellpreise, Nutzungskontingente und Benachrichtigungen.";
+
+tips.nav.hubs.connections = "Wiederverwendbare Harnesses und API-Endpunkte. Einmal konfigurieren, dann überall auswählen.";
+tips.nav.hubs.configuration = "Verwalte Prompts, Assets, Toolserver, Zugangsdaten, Speicher und Richtlinien.";

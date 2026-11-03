@@ -6,7 +6,7 @@ Patterns are case-sensitive, relative to the workspace, and support `*`, `**`, a
 
 ## Configure a store
 
-Use Platform Configuration > Artifact Stores or the tenant `artifact-stores` API:
+Use Configuration > Artifact Stores or the tenant `artifact-stores` API:
 
 - `Database` stores content alongside metadata. Suitable for small local installations.
 - `Filesystem` stores content under `Artifacts.RootDirectory` (default `data/artifacts`). `pathPrefix` is an optional relative subdirectory; otherwise the store ID is used. Multiple server replicas must mount the same directory. Docker Compose already persists the default root in the server data volume.

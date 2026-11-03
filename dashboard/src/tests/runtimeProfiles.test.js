@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listRuntimeProfiles } from '../utils/runtimeProfiles';
+import { isConnection, listRuntimeProfiles } from '../utils/runtimeProfiles';
 import { withWizardSettings } from '../utils/agentWizard';
 import { findHub, findPage, pathFor } from '../config/navConfig';
 
@@ -17,10 +17,17 @@ describe('shared runtime references', () => {
     expect(body.inferenceEndpoint).toBeNull();
     expect(body.resourceBindings).toEqual([{ kind: 'McpServer', alias: 'tools', resourceId: 'mcp' }]);
   });
-  it('keeps resources and platform settings navigable with four and six visible tabs', () => {
-    expect(findHub('configuration').tabs.filter((p) => !p.hidden)).toHaveLength(4);
-    expect(findHub('platformConfiguration').tabs).toHaveLength(6);
-    expect(findPage('secrets').hub).toBe('platformConfiguration');
-    expect(pathFor('secrets')).toBe('/dashboard/platform-configuration');
+  it('includes previously configured custom harnesses without exposing built-in recipes as connections', () => {
+    expect(isConnection({ isBuiltIn: false, executable: 'custom-agent' })).toBe(true);
+    expect(isConnection({ isBuiltIn: true, executable: 'claude' })).toBe(false);
+    expect(isConnection({ runtimeConfiguration: { model: 'local-model' } })).toBe(true);
+  });
+  it('has one standalone Connections page and a separate configuration section menu', () => {
+    expect(findHub('connections').page.id).toBe('harnessProfiles');
+    expect(findHub('connections').tabs).toBeUndefined();
+    expect(findHub('configuration').tabs).toHaveLength(10);
+    expect(findPage('secrets').hub).toBe('configuration');
+    expect(pathFor('harnessProfiles')).toBe('/dashboard/connections');
+    expect(pathFor('secrets')).toBe('/dashboard/configuration');
   });
 });

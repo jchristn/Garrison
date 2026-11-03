@@ -19,7 +19,7 @@ const EMBEDDED = { embedded: true };
 export default function HubView({ hubKey, apiClient }) {
   const { t } = useTranslation();
   const { principal } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const hub = findHub(hubKey);
   const title = hub ? t(`nav.hubs.${hub.key}.label`) : '';
@@ -65,9 +65,12 @@ export default function HubView({ hubKey, apiClient }) {
           <h1 className="page-header-title">{title}</h1>
           <div className="page-header-subtitle">{t(`nav.hubs.${hub.key}.tip`)}</div>
         </div>
-        {['configuration', 'platformConfiguration'].includes(hub.key) && <Link className="button button-secondary" to={pathFor('manifests')}>{t('runtime.importExport')}</Link>}
       </header>
-      {tabs.length > 0 ? <UrlTabs tabs={tabs} label={title} /> : <EmptyState title={t('common.states.forbiddenTitle')} body={t('common.states.forbiddenBody')} />}
+      {hub.key === 'configuration' && active ? <div className="configuration-layout">
+        <select className="configuration-section-select" aria-label={title} value={active.id} onChange={(e) => setSearchParams({ tab: e.target.value })}>{tabs.map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}</select>
+        <nav className="configuration-sections" aria-label={title}>{tabs.map((tab) => <Link key={tab.id} to={pathFor(pageBySlug(tab.id).id)} aria-current={active.id === tab.id ? 'page' : undefined}>{tab.label}</Link>)}</nav>
+        <section className="configuration-content" aria-label={active.label}>{active.render()}</section>
+      </div> : tabs.length > 0 ? <UrlTabs tabs={tabs} label={title} /> : <EmptyState title={t('common.states.forbiddenTitle')} body={t('common.states.forbiddenBody')} />}
     </div>
   );
 }

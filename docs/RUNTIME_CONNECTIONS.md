@@ -1,6 +1,6 @@
 # Shared harnesses and endpoints
 
-Configure runtime access once in **Agent Resources > Harnesses & Endpoints > Saved connections**. A saved connection is a tenant harness profile with `runtimeConfiguration`. It combines a harness adapter with a model or Mux endpoint name, and any authentication references. **Advanced harness templates** contains the built-in and custom adapter definitions used to create connections.
+Configure runtime access once in **Connections**. A connection is a tenant harness profile. Reusable model, endpoint, and authentication settings live in `runtimeConfiguration`; existing custom harness records also remain selectable using their launch definitions and defaults. It combines a harness adapter with a model or Mux endpoint name, and any authentication references. Choose the harness or API type when adding a connection. Custom executable, arguments, files, and parser settings are available under **Advanced launch settings** in that same editor. There is one connection list.
 
 Architects and agent deployments reference the saved profile through `harnessProfileId`. Agent Wizard step 2 lists existing active architects first and saved connections second. Choosing an existing architect uses it immediately without updating its model, endpoint, credentials, or prompt. Choosing a saved connection creates a guided architect referencing it. The same reference is used when configuring the draft's dev deployments.
 
@@ -8,7 +8,10 @@ To change a connection, edit its saved profile. The next run of every consumer r
 
 ## Dashboard navigation
 
-**Agent Resources** contains Harnesses & Endpoints, Prompt Templates, Agent Assets, and MCP Servers. **Platform Configuration** contains Secrets, Workspaces, Artifact Stores, Model Prices, Usage Quotas, and Notifications. Both pages expose **Import / Export**. On small screens a selector replaces the horizontal tab strip. Existing page URLs and `configuration?tab=...` links redirect to the appropriate page while preserving filters.
+**Connections** is a standalone page for harnesses and API endpoints. **Configuration** uses a section menu for Secrets, Prompt Templates, Assets, MCP Servers, Workspaces, Artifact Stores, Model Prices, Usage Quotas, Notifications, and Import / Export. On small screens a section selector replaces the menu. Existing configuration and harness-profile URLs redirect while preserving filters and anchors.
+
+**Agents > Architects > Add Architect** asks for a name and a connection from the registry. The selected endpoint, model, and authentication appear as a read-only summary. Optional description, prompt customization, pinned prompt version, and availability are under **Architect options**. No endpoint or credential values are entered again.
+
 
 ## REST and SDK contract
 
@@ -32,7 +35,7 @@ The existing tenant `/harness-profiles` REST API owns connections. No second con
 
 This object supplements the normal harness profile fields; use the `builtin/provider-api` adapter for HTTP inference. The dashboard copies the adapter fields when a template is selected. For local Ollama, select `None` and an empty credentials array. OpenAI-compatible services use `protocol: OpenAiCompatible`. See [HTTP protocols and authentication](PROVIDER_API.md) for all supported schemes.
 
-For Mux, use `runtimeConfiguration.endpointName` with the worker-configured endpoint name. Mux supplies its own model and authentication. For CLI harnesses, use optional `runtimeConfiguration.model` and `runtimeConfiguration.credentialSecretId`; compatible CLI sign-in files remain supported. `runtimeConfiguration: null` identifies an adapter template rather than a saved connection.
+For Mux, use `runtimeConfiguration.endpointName` with the worker-configured endpoint name. Mux supplies its own model and authentication. For CLI harnesses, use optional `runtimeConfiguration.model` and `runtimeConfiguration.credentialSecretId`; compatible CLI sign-in files remain supported. Built-in records with `runtimeConfiguration: null` are harness choices when creating a connection. Existing tenant custom harness records with a null configuration remain usable connections with harness defaults; they do not need to be recreated.
 
 An architect request needs only its name, the saved profile ID, and optional architect prompt settings:
 

@@ -5033,3 +5033,21 @@ Object.assign(zhHans.runtime, {"add": "添加连接", "create": "创建连接", 
 
 zhHans.explainers.harnessProfiles.p2 = zhHans.runtime.sharedHint;
 zhHans.explainers.secrets.p2 = zhHans.runtime.sharedHint;
+
+// One connection registry; configuration sections use a menu.
+Object.assign(zhHans.runtime, {"title": "连接", "sharedHint": "可复用的运行框架与API端点。配置一次，即可在各代理中选择使用。", "harness": "连接类型", "chooseHarness": "选择运行框架或API类型", "customHarness": "自定义运行框架", "advancedLaunch": "高级启动设置", "advancedArchitect": "架构师选项（可选）", "pickConnection": "选择连接即可，其模型、端点和凭据均已配置。"});
+zhHans.nav.hubs.connections = {"label": "连接", "tip": "可复用的运行框架与API端点。配置一次，即可在各代理中选择使用。"};
+zhHans.nav.hubs.configuration = {"label": "配置", "tip": "管理提示词、资源、工具服务器、凭据、存储和策略。"};
+zhHans.nav.items.harnessProfiles.label = "连接";
+zhHans.resources.harnessProfiles.title = "连接";
+zhHans.components.studio.architect.harnessProfile = zhHans.runtime.connection;
+
+Object.assign(zhHans.runtime, {"emptyTitle": "暂无连接", "apiType": "HTTP API（Ollama / OpenAI兼容）"});
+
+zhHans.nav.items.manifests.label = zhHans.runtime.importExport;
+
+zhHans.runtime.manage = "管理连接";
+zhHans.components.architectHints.harnessLink = zhHans.runtime.manage;
+zhHans.explainers.secrets.p2 = "连接引用这些密钥进行身份验证。在此更新值，无需重新配置各架构师或部署。";
+
+zhHans.runtime.launchDefaults = "此连接使用现有的启动配置。如有需要，可在高级启动设置中编辑。";

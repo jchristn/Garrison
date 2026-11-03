@@ -1,3 +1,4 @@
+import { isConnection } from '../utils/runtimeProfiles';
 import { HarnessRuntimeSummary } from '../components/HarnessRuntimeFields';
 // Declarative configurations for record pages rendered by ResourceView.
 // Field labels come from resources.<id>.fields.<name>; hints from resources.<id>.hints.<name>.
@@ -1380,7 +1381,7 @@ export const deploymentsConfig = {
       // The tenant's ordered environments (AD1.9); empty falls back to dev, staging, prod.
       loadEnvironments(apiClient, tenantId)
     ]);
-    return { agents, profiles: profiles.filter((p) => p.runtimeConfiguration && p.active !== false), templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments };
+    return { agents, profiles: profiles.filter((p) => isConnection(p) && p.active !== false), templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments };
   },
   // Names for the Agent and Harness profile columns (M1-20), the environment filter, and pinned revision numbers (AD1.9).
   loadLookups: async ({ apiClient, tenantId }) => {

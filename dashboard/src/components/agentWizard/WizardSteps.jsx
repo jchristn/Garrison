@@ -1,4 +1,4 @@
-import { listRuntimeProfiles } from '../../utils/runtimeProfiles';
+import { isConnection, listRuntimeProfiles } from '../../utils/runtimeProfiles';
 import { HarnessRuntimeSummary } from '../HarnessRuntimeFields';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -154,7 +154,7 @@ export function AccessStep({ state, update, go }) {
   const load = useCallback(async () => {
     try {
       const [connections, existing] = await Promise.all([listRuntimeProfiles(apiClient, tenantId), apiClient.listArchitects(tenantId, { ...page, activeOnly: true })]);
-      const configured = connections.filter((p) => p.active !== false && p.runtimeConfiguration);
+      const configured = connections.filter((p) => p.active !== false && isConnection(p));
       const available = (existing.items || []).filter((a) => a.active !== false);
       setProfiles(configured);
       setArchitects(available);

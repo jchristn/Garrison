@@ -4,7 +4,7 @@
 
 ## Configure a deployment
 
-Open **Agent Resources > Harnesses & Endpoints > Saved connections** and add a connection based on `builtin/provider-api`. Choose the model, protocol, URL, authentication type, and encrypted credential references there. Architects, agent deployments, and Agent Wizard then select that connection instead of copying its settings. Agent Wizard can also select an existing architect directly.
+Open **Connections** and add a connection based on `builtin/provider-api`. Choose the model, protocol, URL, authentication type, and encrypted credential references there. Architects, agent deployments, and Agent Wizard then select that connection instead of copying its settings. Agent Wizard can also select an existing architect directly.
 
 The profile's `runtimeConfiguration.inferenceEndpoint.protocol` is `OpenAiCompatible` or `Ollama`; `runtimeConfiguration.model` identifies the served model. Native Ollama uses `/api/chat`; compatibility mode uses `/v1/chat/completions`. URLs may end in `/api` for Ollama or `/v1` for compatibility mode. Ollama Cloud uses bearer authentication; local unauthenticated Ollama uses `None`. Bind the normal System and Task prompt templates to deployments as before.
 
@@ -65,4 +65,4 @@ Local validation also exercised an approved delegation from the Docker provider 
 
 ## Saved runtime connections (v0.2.0)
 
-Configure harness access once in Agent Resources > Harnesses & Endpoints. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](RUNTIME_CONNECTIONS.md).
+Configure harness access once in Connections. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](RUNTIME_CONNECTIONS.md).

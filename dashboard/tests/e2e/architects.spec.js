@@ -78,7 +78,7 @@ test('lists architects with their harness profile, model, prompt, and status, on
   expect(requests.some((r) => r.query.search === 'guided')).toBe(true);
 });
 
-test('creates an architect on the default prompt and shows a taken name on its field', async ({ page }) => {
+test('creates an architect from a connection and shows a taken name on its field', async ({ page }, testInfo) => {
   await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ id: 'hp_0001', name: 'Saved Claude', harnessType: 'ClaudeCode', runtimeConfiguration: { model: 'opus', credentialSecretId: 'sec_saved' } }], totalRecords: 1 })));
   await withArchitects(page, []);
   const bodies = [];
@@ -98,6 +98,10 @@ test('creates an architect on the default prompt and shows a taken name on its f
   await expect(page.locator('#architects-architectPromptTemplateId')).toHaveValue('pt_builtin_agent_architect');
   await expect(page.locator('#architects-architectPromptTemplateId option').first()).toHaveText('builtin/agent-architect (default)');
   await expect(page.locator('#architects-model')).toHaveCount(0);
+  await expect(page.locator('#architects-credentialSecretId')).toHaveCount(0);
+  await expect(page.locator('#architects-inference-base-url')).toHaveCount(0);
+  await expect(page.locator('#architects-description')).toBeHidden();
+  await page.locator('.modal').screenshot({ path: testInfo.outputPath('architect-pick-connection.png') });
   await page.getByTestId('save-button').click();
   await expect(fieldOf(page, '#architects-name').locator('.field-error')).toHaveText('Another deployment in this tenant already uses this name.');
   await page.locator('#architects-name').fill('architect-2');
@@ -186,7 +190,7 @@ test('the studio warns before the first turn when the architect has no credentia
   const banner = page.getByTestId('studio-not-credentialed');
   await expect(banner).toContainText('This architect has no credential');
   await expect(page.getByTestId('studio-fix-credential')).toHaveAttribute('href', '/dashboard/agents?tab=architects&search=architect');
-  await expect(page.getByTestId('studio-open-secrets')).toHaveAttribute('href', '/dashboard/platform-configuration');
+  await expect(page.getByTestId('studio-open-secrets')).toHaveAttribute('href', '/dashboard/configuration');
 
   // With a credential the warning goes away; a turn the harness could not sign in for brings it back.
   rows = [keyed];
@@ -381,4 +385,22 @@ test('New architect references a saved Ollama connection without asking for endp
   expect(bodies[0].harnessProfileId).toBe('hp_cloud');
   expect(bodies[0].inferenceEndpoint).toBeUndefined();
   expect(bodies[0].credentialSecretId).toBeUndefined();
+});
+
+test('an existing custom harness is selectable as a connection without being recreated', async ({ page }) => {
+  const custom = { id: 'hp_legacy', name: 'Existing custom harness', harnessType: 'Generic', executable: 'custom-agent', isBuiltIn: false, active: true };
+  const bodies = [];
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [custom], endOfResults: true })));
+  await page.route(/\/studio\/architects$/, (route) => { if (route.request().method() !== 'POST') return route.fallback(); bodies.push(route.request().postDataJSON()); return route.fulfill(json(201, { ...ARCHITECT, ...bodies[0] })); });
+  await login(page);
+  await page.goto(ARCHITECTS);
+  await page.getByTestId('add-button').click();
+  await expect(page.locator('#architects-harnessProfileId')).toHaveValue(custom.id);
+  await expect(page.locator('.modal')).toContainText(custom.name);
+  await expect(page.locator('#architects-model')).toHaveCount(0);
+  await page.getByTestId('save-button').click();
+  await expect(page.locator('.modal')).toHaveCount(0);
+  expect(bodies[0].harnessProfileId).toBe(custom.id);
+  expect(bodies[0].model).toBeUndefined();
+  expect(bodies[0].inferenceEndpoint).toBeUndefined();
 });

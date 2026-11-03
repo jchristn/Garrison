@@ -506,4 +506,4 @@ Architects and agent deployments can use `hrn_builtin_provider_api` with a model
 
 ## Saved runtime connections (v0.2.0)
 
-Configure harness access once in Agent Resources > Harnesses & Endpoints. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](docs/RUNTIME_CONNECTIONS.md).
+Configure harness access once in Connections. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](docs/RUNTIME_CONNECTIONS.md).
