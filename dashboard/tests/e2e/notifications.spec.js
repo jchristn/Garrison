@@ -1,4 +1,4 @@
-// Notification endpoints (P12.14) against mocked APIs: the tab under Configuration, creating an endpoint (the signing
+// Notification endpoints (P12.14) against mocked APIs: the tab under Operations, creating an endpoint (the signing
 // secret shown once), a destination refused by the server (400 DestinationBlocked), Send test, the delivery log, and
 // the new cluster settings.
 
@@ -21,10 +21,10 @@ test.beforeEach(async ({ page }) => {
   await installMocks(page);
 });
 
-test('lists notification endpoints under Configuration', async ({ page }) => {
+test('lists notification endpoints under Operations', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/notifications');
-  await expect(page).toHaveURL(/\/dashboard\/configuration\?tab=notifications$/);
+  await expect(page).toHaveURL(/\/dashboard\/operations\?tab=notifications$/);
   await expect(page.locator('.data-table tbody tr')).toHaveCount(2);
   await expect(page.locator('.data-table tbody tr', { hasText: 'ops-alerts' })).toContainText('4 events');
   await expect(page.locator('.data-table tbody tr', { hasText: 'agent-1-results' })).toContainText('Agent:');
@@ -38,7 +38,7 @@ test('creates an endpoint with chosen events and shows its signing secret once',
     return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ ...notificationEndpoint(1), ...body, id: 'nep_0099', signingSecret: SIGNING_SECRET }) });
   });
   await login(page);
-  await page.goto('/dashboard/configuration?tab=notifications');
+  await page.goto('/dashboard/operations?tab=notifications');
   await page.getByTestId('add-button').click();
   const modal = page.locator('.modal');
   await modal.locator('#notifications-name').fill('pager');
@@ -61,7 +61,7 @@ test('shows the server refusing a private destination on the URL field', async (
     });
   });
   await login(page);
-  await page.goto('/dashboard/configuration?tab=notifications');
+  await page.goto('/dashboard/operations?tab=notifications');
   await page.getByTestId('add-button').click();
   const modal = page.locator('.modal');
   await modal.locator('#notifications-name').fill('local');
@@ -72,7 +72,7 @@ test('shows the server refusing a private destination on the URL field', async (
 
 test('sends a test notification and opens the delivery log with a payload', async ({ page }) => {
   await login(page);
-  await page.goto('/dashboard/configuration?tab=notifications');
+  await page.goto('/dashboard/operations?tab=notifications');
   await page.locator('.data-table tbody tr', { hasText: 'ops-alerts' }).locator('.action-menu-trigger').click();
   await page.locator('.action-menu-dropdown [role="menuitem"]', { hasText: 'Send test' }).click();
   await expect(page.getByTestId('notification-test-result')).toHaveAttribute('data-outcome', 'succeeded');

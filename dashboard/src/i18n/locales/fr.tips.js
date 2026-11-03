@@ -3594,3 +3594,6 @@ tips.nav.hubs.platformConfiguration = "Gérer les identifiants partagés, le sto
 
 tips.nav.hubs.connections = "Harnesses et points de terminaison réutilisables. Configurez une fois, puis sélectionnez une connexion pour vos agents.";
 tips.nav.hubs.configuration = "Gérer les prompts, ressources, serveurs d’outils, identifiants, stockage et règles.";
+
+tips.nav.hubs.operations = "Gérer les résultats stockés, les tarifs des modèles, les limites et les notifications.";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

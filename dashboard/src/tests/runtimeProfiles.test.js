@@ -22,10 +22,13 @@ describe('shared runtime references', () => {
     expect(isConnection({ isBuiltIn: true, executable: 'claude' })).toBe(false);
     expect(isConnection({ runtimeConfiguration: { model: 'local-model' } })).toBe(true);
   });
-  it('has one standalone Connections page and a separate configuration section menu', () => {
+  it('keeps one Connections page and small configuration and operations hubs', () => {
     expect(findHub('connections').page.id).toBe('harnessProfiles');
     expect(findHub('connections').tabs).toBeUndefined();
-    expect(findHub('configuration').tabs).toHaveLength(10);
+    expect(findHub('configuration').tabs).toHaveLength(5);
+    expect(findHub('operations').tabs).toHaveLength(4);
+    expect(findHub('manifests').page.id).toBe('manifests');
+    expect(findHub('manifests').hidden).toBe(true);
     expect(findPage('secrets').hub).toBe('configuration');
     expect(pathFor('harnessProfiles')).toBe('/dashboard/connections');
     expect(pathFor('secrets')).toBe('/dashboard/configuration');

@@ -5050,3 +5050,13 @@ ja.components.architectHints.harnessLink = ja.runtime.manage;
 ja.explainers.secrets.p2 = "接続はこれらのシークレットを認証に使用します。ここで値を更新すれば、各アーキテクトやデプロイを再設定する必要はありません。";
 
 ja.runtime.launchDefaults = "この接続は既存の起動設定を使用します。必要に応じて高度な起動設定で編集できます。";
+
+// One horizontal workspace navigation level; the wizard selects connections only.
+ja.nav.hubs.operations = {"label": "運用", "tip": "保存された出力、モデル料金、使用量制限、通知を管理します。"};
+ja.nav.hubs.configuration.tip = "エージェントのプロンプト、アセット、ツール、認証情報、ワークスペース。";
+ja.nav.hubs.manifests = { label: ja.runtime.importExport, tip: ja.tips.nav.tabs.manifests };
+ja.runtime.choose = "接続を選択";
+ja.runtime.reuseHint = "エージェントの設計と実行に使う接続を選択します。設計アシスタントはウィザードが自動的に準備します。";
+ja.views.agentWizard.access.intro = ja.runtime.reuseHint;
+
+ja.views.manifests.title = ja.runtime.importExport;

@@ -138,9 +138,7 @@ export function GoalStep({ draft, state, update, go, onCreated }) {
 }
 
 /**
- * Step 2: the harness the agents run on, its model, and the credential it signs in with. A credential can be added
- * here, with the instructions for getting one. Continuing sets up the wizard's architect on the same harness and
- * credential (one per harness profile, reused).
+ * Step 2 selects one reusable connection. The wizard resolves its design assistant automatically.
  */
 export function AccessStep({ state, update, go }) {
   const { t } = useTranslation();
@@ -148,7 +146,7 @@ export function AccessStep({ state, update, go }) {
   const { tenantId } = useApp();
   const [profiles, setProfiles] = useState(null);
   const [architects, setArchitects] = useState([]);
-  const [selection, setSelection] = useState(state.architectId ? `architect:${state.architectId}` : state.harnessProfileId ? `profile:${state.harnessProfileId}` : '');
+  const [selection, setSelection] = useState(state.harnessProfileId || '');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
@@ -158,24 +156,26 @@ export function AccessStep({ state, update, go }) {
       const available = (existing.items || []).filter((a) => a.active !== false);
       setProfiles(configured);
       setArchitects(available);
-      setSelection((current) => available.some((a) => current === `architect:${a.id}`) || configured.some((p) => current === `profile:${p.id}`) ? current : available[0] ? `architect:${available[0].id}` : configured[0] ? `profile:${configured[0].id}` : '');
+      setSelection((current) => {
+        if (configured.some((p) => p.id === current)) return current;
+        const previous = available.find((a) => a.id === state.architectId);
+        return configured.find((p) => p.id === previous?.harnessProfileId)?.id || configured[0]?.id || '';
+      });
       setError(null);
     } catch (e) { setError(e); setProfiles([]); }
-  }, [apiClient, tenantId]);
+  }, [apiClient, tenantId, state.architectId]);
   useEffect(() => { load(); window.addEventListener('focus', load); return () => window.removeEventListener('focus', load); }, [load]);
-  const architect = architects.find((a) => selection === `architect:${a.id}`);
-  const profile = profiles?.find((p) => p.id === (architect?.harnessProfileId || selection.replace('profile:', '')));
+  const profile = profiles?.find((p) => p.id === selection);
   const next = async () => {
     setBusy(true);
     try {
-      let chosen = architect;
-      if (!chosen && profile) {
-        const name = wizardArchitectName(profile);
-        const existing = architects.find((a) => a.name === name && a.harnessProfileId === profile.id);
-        chosen = existing || await apiClient.createArchitect(tenantId, { name, harnessProfileId: profile.id, architectPromptTemplateId: 'builtin/agent-architect-guided', active: true });
-      }
+      if (!profile) return;
+      const name = wizardArchitectName(profile);
+      const matches = architects.filter((a) => a.harnessProfileId === profile.id);
+      const chosen = matches.find((a) => a.id === state.architectId) || matches.find((a) => a.name === name) || matches[0]
+        || await apiClient.createArchitect(tenantId, { name, harnessProfileId: profile.id, architectPromptTemplateId: 'builtin/agent-architect-guided', active: true });
       if (!chosen) return;
-      update({ architectId: chosen.id, harnessProfileId: chosen.harnessProfileId, profileName: profile?.name || chosen.name, usesSavedRuntime: true, model: '', credentialSecretId: '', muxEndpoint: '', inferenceEndpoint: null, providerApiBaseUrl: '', providerApiAnonymous: false });
+      update({ architectId: chosen.id, harnessProfileId: profile.id, profileName: profile.name, usesSavedRuntime: true, model: '', credentialSecretId: '', muxEndpoint: '', inferenceEndpoint: null, providerApiBaseUrl: '', providerApiAnonymous: false });
       go('design');
     } catch (e) { setError(e); }
     finally { setBusy(false); }
@@ -184,11 +184,10 @@ export function AccessStep({ state, update, go }) {
   return <>
     <StepIntro name="access" />
     {error && <ErrorBanner message={errorMessage(t, error)} />}
-    <FormField id="wizard-runtime" field={{ type: 'select', label: t('runtime.choose'), required: true, tip: t('runtime.sharedHint'), options: [...architects.map((a) => ({ value: `architect:${a.id}`, label: `${t('runtime.architect')}: ${a.name}` })), ...profiles.map((p) => ({ value: `profile:${p.id}`, label: `${t('runtime.connection')}: ${p.name}` }))] }} value={selection} onChange={setSelection} />
-    {profile && <HarnessRuntimeSummary profile={profile} />}
-    <p>{t('runtime.reuseHint')}</p>
+    <FormField id="wizard-runtime" field={{ type: 'select', label: t('runtime.choose'), required: true, tip: t('runtime.sharedHint'), options: profiles.map((p) => ({ value: p.id, label: p.name })) }} value={selection} onChange={setSelection} />
+    {profile && <HarnessRuntimeSummary profile={profile} showManage={false} />}
     <div className="flex gap-sm"><Link className="button button-secondary" to={pathFor('harnessProfiles')}>{t('runtime.manage')}</Link><button type="button" className="button button-secondary" onClick={load}>{t('components.files.refresh')}</button></div>
-    <StepNav back={() => go('goal')} next={next} nextLabel={t('views.agentWizard.access.next')} nextDisabled={!selection ? t('runtime.configureFirst') : ''} busy={busy} />
+    <StepNav back={() => go('goal')} next={next} nextLabel={t('views.agentWizard.access.next')} nextDisabled={!profile ? t('runtime.configureFirst') : ''} busy={busy} />
   </>;
 }
 

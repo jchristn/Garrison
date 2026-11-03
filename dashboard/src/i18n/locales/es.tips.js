@@ -3594,3 +3594,6 @@ tips.nav.hubs.platformConfiguration = "Gestionar credenciales, almacenamiento, p
 
 tips.nav.hubs.connections = "Harnesses y endpoints API reutilizables. Configura una vez y selecciona la conexión donde se ejecute un agente.";
 tips.nav.hubs.configuration = "Gestiona prompts, recursos, servidores de herramientas, credenciales, almacenamiento y políticas.";
+
+tips.nav.hubs.operations = "Gestiona resultados almacenados, precios de modelos, límites de uso y notificaciones.";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

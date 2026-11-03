@@ -139,7 +139,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
           </select>,
           harnessProfileHint(t)
         )}
-        <HarnessRuntimeSummary profile={profile} />
+        <HarnessRuntimeSummary profile={profile} showManage={false} />
       </div>
       <details className="connection-advanced"><summary>{t('runtime.advancedArchitect')}</summary>
       <div className="form-grid">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TAB_PARAM } from '../config/navConfig';
 import { tip } from './Tooltip';
@@ -74,22 +74,6 @@ export function UrlTabs({ tabs, label, idPrefix = 'hub' }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get(TAB_PARAM);
   const activeKey = tabs.some((tab) => tab.id === requested) ? requested : tabs[0]?.id;
-  const overflowRef = useRef(null);
-  const [compact, setCompact] = useState(false);
-  useEffect(() => {
-    const viewport = overflowRef.current;
-    if (!viewport) return undefined;
-    const strip = viewport.querySelector('.hub-tab-strip');
-    const measure = () => setCompact(Boolean(strip && strip.scrollWidth > viewport.clientWidth + 1));
-    measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    observer?.observe(viewport);
-    if (strip) observer?.observe(strip);
-    window.addEventListener('resize', measure);
-    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
-  }, [tabs]);
-
-
   const select = useCallback(
     (key) => {
       if (key === activeKey) return;
@@ -101,9 +85,8 @@ export function UrlTabs({ tabs, label, idPrefix = 'hub' }) {
   const activeTab = tabs.find((tab) => tab.id === activeKey);
 
   return (
-    <div className={`hub-tabs${compact ? ' is-compact' : ''}`}>
-      <select className="hub-tab-select" aria-label={label} value={activeKey} onChange={(e) => select(e.target.value)}>{tabs.map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}</select>
-      <div className="hub-tab-overflow" ref={overflowRef} aria-hidden={compact || undefined}><TabStrip tabs={tabs} activeKey={activeKey} onSelect={select} label={label} idPrefix={idPrefix} className="hub-tab-strip" /></div>
+    <div className="hub-tabs">
+      <TabStrip tabs={tabs} activeKey={activeKey} onSelect={select} label={label} idPrefix={idPrefix} className="hub-tab-strip" />
       {activeTab && (
         <div role="tabpanel" id={`${idPrefix}-panel-${activeTab.id}`} aria-labelledby={`${idPrefix}-tab-${activeTab.id}`} className="hub-tab-panel">
           {activeTab.render()}

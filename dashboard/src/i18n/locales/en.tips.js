@@ -3592,3 +3592,6 @@ tips.nav.hubs.platformConfiguration = "Manage shared credentials, storage, model
 
 tips.nav.hubs.connections = "Reusable harnesses and API endpoints. Configure once, then select a connection wherever an agent runs.";
 tips.nav.hubs.configuration = "Manage prompts, assets, tool servers, credentials, storage, and policies.";
+
+tips.nav.hubs.operations = "Manage stored outputs, model prices, usage limits, and notifications.";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

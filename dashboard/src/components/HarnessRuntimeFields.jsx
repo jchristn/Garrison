@@ -22,9 +22,9 @@ export default function HarnessRuntimeFields({ profile, value, onChange, disable
 }
 
 /** Referencing forms link to the central editor instead of copying endpoint settings. */
-export function HarnessRuntimeSummary({ profile }) {
+export function HarnessRuntimeSummary({ profile, showManage = true }) {
   const { t } = useTranslation();
-  if (!profile) return <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles')}>{t('runtime.configureFirst')}</Link>;
+  if (!profile) return showManage ? <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles')}>{t('runtime.configureFirst')}</Link> : <p className="field-hint">{t('runtime.configureFirst')}</p>;
   const runtime = profile.runtimeConfiguration || {};
-  return <div className="info-banner span-full"><strong>{profile.name}</strong><p>{runtime.inferenceEndpoint ? `${runtime.inferenceEndpoint.protocol} · ${runtime.inferenceEndpoint.baseUrl} · ${runtime.model} · ${runtime.inferenceEndpoint.authenticationType}` : runtime.endpointName || runtime.model || profile.harnessType}</p><Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles', null, { search: profile.name })}>{t('runtime.manage')}</Link></div>;
+  return <div className="info-banner span-full"><strong>{profile.name}</strong><p>{runtime.inferenceEndpoint ? `${runtime.inferenceEndpoint.protocol} · ${runtime.inferenceEndpoint.baseUrl} · ${runtime.model} · ${t(`inference.auth.${runtime.inferenceEndpoint.authenticationType}`)}` : runtime.endpointName || runtime.model || profile.harnessType}</p>{showManage && <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles', null, { search: profile.name })}>{t('runtime.manage')}</Link>}</div>;
 }

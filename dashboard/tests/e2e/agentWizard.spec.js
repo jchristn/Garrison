@@ -113,7 +113,7 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   await expect(page).toHaveURL(new RegExp(`/dashboard/agent-wizard/${FLOW_DRAFT_ID}\\?step=access$`));
 
   // 2. Choose a saved connection; the endpoint and credentials are not copied into this wizard.
-  await expect(page.locator('#wizard-runtime')).toHaveValue('profile:hp_saved');
+  await expect(page.locator('#wizard-runtime')).toHaveValue('hp_saved');
   await expect(page.locator('#wizard-model')).toHaveCount(0);
   await page.getByTestId('wizard-next').click();
   await expect(page).toHaveURL(/step=design$/);
@@ -241,9 +241,9 @@ test('a draft that could not be applied says why and sends the problem back to t
 });
 
 
-test('Model access reuses an existing Ollama architect without rewriting it or requesting secrets', async ({ page }) => {
+test('Model access selects only a connection and automatically reuses its existing design assistant', async ({ page }, testInfo) => {
   const flow = await installStudioFlow(page);
-  await installWizardRoutes(page, { ...PROFILE, harnessType: 'ProviderApi', runtimeConfiguration: { model: 'cloud-model', inferenceEndpoint: { protocol: 'Ollama', baseUrl: 'https://ollama.com', authenticationType: 'BearerToken', credentials: [{ name: '', location: 'Header', secretId: 'sec_saved' }] } } });
+  await installWizardRoutes(page, { ...PROFILE, name: 'Ollama Cloud', harnessType: 'ProviderApi', runtimeConfiguration: { model: 'cloud-model', inferenceEndpoint: { protocol: 'Ollama', baseUrl: 'https://ollama.com', authenticationType: 'BearerToken', credentials: [{ name: '', location: 'Header', secretId: 'sec_saved' }] } } });
   await page.route(/\/studio\/architects(\?.*)?$/, (route) => route.request().method() === 'GET' ? route.fulfill(json(200, { objects: [{ id: 'dep_arch', name: 'Ollama architect', harnessProfileId: 'hp_0001', active: true }], endOfResults: true })) : route.fallback());
   await login(page);
   await skipSetup(page);
@@ -251,11 +251,39 @@ test('Model access reuses an existing Ollama architect without rewriting it or r
   await page.locator('#wizard-title').fill('Reuse Ollama');
   await page.locator('#wizard-goal').fill('Use my saved Ollama architect.');
   await page.getByTestId('wizard-next').click();
-  await expect(page.locator('#wizard-runtime')).toHaveValue('architect:dep_arch');
+  await expect(page.locator('#wizard-runtime')).toHaveValue('hp_0001');
+  await expect(page.locator('#wizard-runtime option')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Manage connections', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('combobox', { name: 'Select a connection', exact: true })).toBeVisible();
+  await expect(page.locator('#wizard-runtime')).not.toContainText('Ollama architect');
   await expect(page.getByText('https://ollama.com', { exact: false })).toBeVisible();
   await expect(page.locator('#wizard-inference-base-url')).toHaveCount(0);
   await expect(page.locator('#wizard-secret-value')).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('wizard-connection-only.png'), fullPage: true });
   await page.getByTestId('wizard-next').click();
   await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
   expect(flow.architectBodies).toHaveLength(0);
+});
+
+test('choosing another connection never reuses a design assistant attached to a different connection', async ({ page }) => {
+  const flow = await installStudioFlow(page);
+  await installWizardRoutes(page);
+  const second = { ...PROFILE, id: 'hp_second', name: 'Ollama local', harnessType: 'ProviderApi', runtimeConfiguration: { model: 'local-model', inferenceEndpoint: { protocol: 'Ollama', baseUrl: 'http://ollama:11434', authenticationType: 'None', credentials: [] } } };
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [PROFILE, second], endOfResults: true })));
+  await page.route(/\/studio\/architects(\?.*)?$/, (route) => route.request().method() === 'GET' ? route.fulfill(json(200, { objects: [{ id: 'dep_old_arch', name: 'Existing design assistant', harnessProfileId: PROFILE.id, active: true }], endOfResults: true })) : route.fallback());
+  await login(page);
+  await skipSetup(page);
+  await page.goto('/dashboard/agent-wizard/new');
+  await page.locator('#wizard-title').fill('Choose local Ollama');
+  await page.locator('#wizard-goal').fill('Build an agent with my local connection.');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.locator('#wizard-runtime option')).toHaveCount(2);
+  await expect(page.locator('#wizard-runtime')).not.toContainText('Existing design assistant');
+  await page.locator('#wizard-runtime').selectOption(second.id);
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
+  expect(flow.architectBodies).toHaveLength(1);
+  expect(flow.architectBodies[0].harnessProfileId).toBe(second.id);
+  expect(flow.architectBodies[0].model).toBeUndefined();
+  expect(flow.architectBodies[0].inferenceEndpoint).toBeUndefined();
 });

@@ -3591,3 +3591,6 @@ tips.nav.hubs.platformConfiguration = "管理共享凭据、存储、模型价�
 
 tips.nav.hubs.connections = "可复用的运行框架与API端点。配置一次，即可在各代理中选择使用。";
 tips.nav.hubs.configuration = "管理提示词、资源、工具服务器、凭据、存储和策略。";
+
+tips.nav.hubs.operations = "管理已存储的输出、模型价格、使用限制和通知。";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

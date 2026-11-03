@@ -177,8 +177,8 @@ describe('principal and routes', () => {
   });
   it('keeps the sidebar small and redirects every pre-hub route', () => {
     expect(HUBS.length).toBeGreaterThanOrEqual(7);
-    // Ten consolidated hubs plus the Approvals inbox (P12.3), which needs its own item for the pending badge.
-    expect(HUBS.length).toBeLessThanOrEqual(12);
+    // Count visible TOC entries; import/export is opened by an action rather than another sidebar entry.
+    expect(HUBS.filter((hub) => !hub.hidden).length).toBeLessThanOrEqual(13);
     const hubSlugs = new Set(HUBS.map((h) => h.slug));
     for (const p of PAGES) {
       const covered = hubSlugs.has(p.slug) || LEGACY_REDIRECTS.some((r) => r.from === p.slug);

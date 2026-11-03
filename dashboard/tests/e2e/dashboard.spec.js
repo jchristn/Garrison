@@ -44,7 +44,7 @@ test('navigates every hub and tab without errors', async ({ page }) => {
   for (const p of PAGES.filter((page) => page.id !== 'agentWizard')) {
     await page.goto(pathFor(p.id));
     await expect(page.locator('.page-header-title').first(), p.id).toBeVisible();
-    await expect(page.locator(`.sidebar-item[data-nav="${p.hub}"]`), p.id).toHaveAttribute('aria-current', 'page');
+    if (!HUBS.find((hub) => hub.key === p.hub)?.hidden) await expect(page.locator(`.sidebar-item[data-nav="${p.hub}"]`), p.id).toHaveAttribute('aria-current', 'page');
     if (p.tab) await expect(page.locator(`.hub-tab-strip [data-tab-key="${p.tab}"]`), p.id).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.state-block', { hasText: 'permission' })).toHaveCount(0);
   }
@@ -54,10 +54,10 @@ test('navigates every hub and tab without errors', async ({ page }) => {
 test('sidebar shows the consolidated hubs', async ({ page }) => {
   await login(page);
   const items = page.locator('.sidebar-item');
-  await expect(items).toHaveCount(HUBS.length);
+  await expect(items).toHaveCount(HUBS.filter((hub) => !hub.hidden).length);
   // Ten consolidated hubs plus the Approvals inbox (P12.3), which needs its own item for the pending badge. Pipelines
   // (P12.9) add tabs to Agents, Runs, and Approvals, not sidebar items (D-048).
-  expect(HUBS.length).toBeLessThanOrEqual(11);
+  expect(HUBS.filter((hub) => !hub.hidden).length).toBeLessThanOrEqual(13);
   await expect(page.locator('.sidebar-group-label')).toHaveText(['Operate', 'Platform', 'Administration']);
 });
 
@@ -65,7 +65,7 @@ test('every pre-hub route redirects to its hub and tab, keeping the query string
   await login(page);
   for (const r of LEGACY_REDIRECTS) {
     await page.goto(`/dashboard/${r.from}`);
-    await expect(page, r.from).toHaveURL(new RegExp(`${r.to}\\?tab=${r.tab}$`));
+    await expect(page, r.from).toHaveURL(r.tab ? `${r.to}?tab=${r.tab}` : r.to);
   }
   await page.goto('/dashboard/requests?fromUtc=2026-01-01T00%3A00%3A00Z');
   await expect(page).toHaveURL(/\/dashboard\/monitoring\?tab=requests&fromUtc=2026-01-01T00%3A00%3A00Z$/);
@@ -78,13 +78,13 @@ test('hub tabs are URL-synced and keyboard accessible', async ({ page }) => {
   await page.locator('.sidebar-item[data-nav="configuration"]').click();
   await expect(page).toHaveURL(/\/dashboard\/configuration$/);
   await expect(page.locator('.page-header-title')).toHaveText('Configuration');
-  await expect(page).toHaveTitle('Harness Profiles | Configuration | Garrison Agent Studio');
+  await expect(page).toHaveTitle('Secrets | Configuration | Garrison Agent Studio');
   await page.getByRole('tab', { name: 'MCP Servers' }).click();
   await expect(page).toHaveURL(/\/dashboard\/configuration\?tab=mcp-servers$/);
   await expect(page).toHaveTitle('MCP Servers | Configuration | Garrison Agent Studio');
   await page.getByRole('tab', { name: 'MCP Servers' }).press('ArrowRight');
-  await expect(page).toHaveURL(/tab=secrets$/);
-  await expect(page.getByRole('tab', { name: 'Secrets' })).toBeFocused();
+  await expect(page).toHaveURL(/tab=workspaces$/);
+  await expect(page.getByRole('tab', { name: 'Workspaces' })).toBeFocused();
   await page.goBack();
   await expect(page.getByRole('tab', { name: 'MCP Servers' })).toHaveAttribute('aria-selected', 'true');
 });

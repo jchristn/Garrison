@@ -11,32 +11,44 @@ async function login(page) {
 }
 test.beforeEach(async ({ page }) => { await installMocks(page); });
 
-test('Connections is one page and Configuration uses a section menu with working legacy links', async ({ page }, testInfo) => {
+async function horizontalTabs(page, count) {
+  await expect(page.getByRole('tablist')).toHaveCount(1);
+  await expect(page.getByRole('tab')).toHaveCount(count);
+  const rows = await page.getByRole('tab').evaluateAll((tabs) => [...new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().top)))]);
+  expect(rows).toHaveLength(1);
+  await expect(page.locator('.configuration-sections')).toHaveCount(0);
+}
+
+test('Configuration and Operations each use one horizontal tab row with legacy links preserved', async ({ page }, testInfo) => {
   await login(page);
   await page.goto('/dashboard/connections');
   await expect(page.getByRole('heading', { level: 1, name: 'Connections', exact: true })).toBeVisible();
-  await expect(page.locator('[role="tablist"]')).toHaveCount(0);
-  await expect(page.getByText('Saved connections', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Advanced harness templates', { exact: true })).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath('connections-navigation.png'), fullPage: true });
+  await expect(page.getByRole('tablist')).toHaveCount(0);
   await page.goto('/dashboard/configuration?tab=harness-profiles');
   await expect(page).toHaveURL('/dashboard/connections');
   await page.goto('/dashboard/harness-profiles');
   await expect(page).toHaveURL('/dashboard/connections');
   await page.goto('/dashboard/platform-configuration');
   await expect(page).toHaveURL('/dashboard/configuration');
-  await expect(page.getByRole('heading', { name: 'Configuration', exact: true })).toBeVisible();
-  await expect(page.locator('[role="tablist"]')).toHaveCount(0);
-  await expect(page.locator('.configuration-sections a')).toHaveCount(10);
-  await page.screenshot({ path: testInfo.outputPath('configuration-menu.png'), fullPage: true });
+  await horizontalTabs(page, 5);
+  await page.screenshot({ path: testInfo.outputPath('configuration-horizontal.png'), fullPage: true });
+  await page.goto('/dashboard/configuration?tab=model-prices');
+  await expect(page).toHaveURL('/dashboard/operations?tab=model-prices');
+  await horizontalTabs(page, 4);
+  await page.screenshot({ path: testInfo.outputPath('operations-horizontal.png'), fullPage: true });
+  await page.getByRole('link', { name: 'Import / Export', exact: true }).click();
+  await expect(page).toHaveURL('/dashboard/manifests');
+  await horizontalTabs(page, 3);
+  await page.goto('/dashboard/configuration?tab=manifests');
+  await expect(page).toHaveURL('/dashboard/manifests');
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dashboard/configuration');
+  await horizontalTabs(page, 5);
   await expect(page.locator('.dashboard-sidebar')).not.toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  await page.locator('.configuration-section-select').selectOption('model-prices');
-  await expect(page).toHaveURL(/configuration\?tab=model-prices$/);
-  await page.screenshot({ path: testInfo.outputPath('configuration-mobile.png'), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('configuration-horizontal-mobile.png'), fullPage: true });
   await page.goto('/dashboard/platform-configuration?tab=notifications&search=alert#history');
-  await expect(page).toHaveURL('/dashboard/configuration?tab=notifications&search=alert#history');
+  await expect(page).toHaveURL('/dashboard/operations?tab=notifications&search=alert#history');
 });
 
 for (const auth of ['None', 'BearerToken', 'ApiKey', 'Headers', 'QueryString', 'Basic']) {
@@ -119,13 +131,13 @@ test('changing a connection type retains its ID and updates the referenced conne
   expect(updated.runtimeConfiguration.model).toBe('new-model');
 });
 
-test('other hub tab bars switch to a picker when space runs out instead of adding a second row', async ({ page }) => {
+test('narrow workspaces retain one horizontal tab row without a picker or vertical navigation', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/agents');
   await page.locator('.hub').evaluate((el) => { el.style.width = '430px'; });
-  await expect(page.locator('.hub-tab-select')).toBeVisible();
-  await expect(page.locator('.hub-tab-overflow')).toBeHidden();
-  await page.locator('.hub-tab-select').selectOption('architects');
+  await horizontalTabs(page, 7);
+  await expect(page.locator('.hub-tab-select')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Architects', exact: true }).click();
   await expect(page).toHaveURL(/agents\?tab=architects$/);
 });
 

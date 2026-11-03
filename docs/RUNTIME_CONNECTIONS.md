@@ -2,13 +2,15 @@
 
 Configure runtime access once in **Connections**. A connection is a tenant harness profile. Reusable model, endpoint, and authentication settings live in `runtimeConfiguration`; existing custom harness records also remain selectable using their launch definitions and defaults. It combines a harness adapter with a model or Mux endpoint name, and any authentication references. Choose the harness or API type when adding a connection. Custom executable, arguments, files, and parser settings are available under **Advanced launch settings** in that same editor. There is one connection list.
 
-Architects and agent deployments reference the saved profile through `harnessProfileId`. Agent Wizard step 2 lists existing active architects first and saved connections second. Choosing an existing architect uses it immediately without updating its model, endpoint, credentials, or prompt. Choosing a saved connection creates a guided architect referencing it. The same reference is used when configuring the draft's dev deployments.
+Architects and agent deployments reference the saved profile through `harnessProfileId`. Agent Wizard step 2 lists connections only. The wizard automatically reuses an active architect on the selected connection or creates a guided architect referencing it. Resuming a draft preserves its existing architect when it uses that connection. No architect is offered as a second kind of connection choice. The same reference is used when configuring the draft's dev deployments.
 
 To change a connection, edit its saved profile. The next run of every consumer resolves the current configuration. Runs already executing retain their compiled specification. A shared edit therefore affects every referencing architect and deployment; create another saved connection when consumers need different models or access settings.
 
 ## Dashboard navigation
 
-**Connections** is a standalone page for harnesses and API endpoints. **Configuration** uses a section menu for Secrets, Prompt Templates, Assets, MCP Servers, Workspaces, Artifact Stores, Model Prices, Usage Quotas, Notifications, and Import / Export. On small screens a section selector replaces the menu. Existing configuration and harness-profile URLs redirect while preserving filters and anchors.
+**Connections** is a standalone page for harnesses and API endpoints. **Configuration** has one horizontal tab row for Secrets, Prompt Templates, Assets, MCP Servers, and Workspaces. **Operations** has one horizontal tab row for Artifact Stores, Model Prices, Usage Quotas, and Notifications. Neither workspace has vertical section navigation or nested tab rows. On narrow screens, the single row scrolls horizontally.
+
+Both workspaces link to a dedicated **Import / Export** workspace. Its Apply, Export, and History tabs are its only tab row. Existing URLs redirect to the correct workspace while preserving filters and anchors.
 
 **Agents > Architects > Add Architect** asks for a name and a connection from the registry. The selected endpoint, model, and authentication appear as a read-only summary. Optional description, prompt customization, pinned prompt version, and availability are under **Architect options**. No endpoint or credential values are entered again.
 
@@ -64,3 +66,7 @@ Manifest export includes a connection's configuration in its `HarnessProfile` do
 ## Validation
 
 The shared provider suite tests migration, idempotency, persistence, propagation to multiple consumers, secret-use denial, and portable manifests. Studio tests cover REST and MCP architect creation by saved profile ID, projected settings, and blocked secret/profile deletion. Browser tests cover navigation redirects and mobile selection, all HTTP authentication choices in the central editor, existing Ollama architect reuse, and wizard design, approval, and deployment reference behavior.
+
+## Connections and architects
+
+A connection defines access to a harness or model endpoint. An architect is an agent that uses a connection together with design instructions and permission to work on Studio drafts. Wizard step 2 asks only for the connection; choosing and preparing the architect is the wizard's responsibility. Users who need to customize an architect's instructions can still do so under Agents > Architects.

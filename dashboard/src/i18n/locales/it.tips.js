@@ -3594,3 +3594,6 @@ tips.nav.hubs.platformConfiguration = "Gestisci credenziali condivise, archiviaz
 
 tips.nav.hubs.connections = "Harness ed endpoint API riutilizzabili. Configura una volta, poi seleziona la connessione per gli agenti.";
 tips.nav.hubs.configuration = "Gestisci prompt, risorse, server strumenti, credenziali, archiviazione e criteri.";
+
+tips.nav.hubs.operations = "Gestisci risultati archiviati, prezzi dei modelli, limiti di utilizzo e notifiche.";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

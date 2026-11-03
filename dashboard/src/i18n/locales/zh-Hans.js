@@ -5051,3 +5051,13 @@ zhHans.components.architectHints.harnessLink = zhHans.runtime.manage;
 zhHans.explainers.secrets.p2 = "连接引用这些密钥进行身份验证。在此更新值，无需重新配置各架构师或部署。";
 
 zhHans.runtime.launchDefaults = "此连接使用现有的启动配置。如有需要，可在高级启动设置中编辑。";
+
+// One horizontal workspace navigation level; the wizard selects connections only.
+zhHans.nav.hubs.operations = {"label": "运行管理", "tip": "管理已存储的输出、模型价格、使用限制和通知。"};
+zhHans.nav.hubs.configuration.tip = "代理的提示词、资源、工具、凭据和工作区。";
+zhHans.nav.hubs.manifests = { label: zhHans.runtime.importExport, tip: zhHans.tips.nav.tabs.manifests };
+zhHans.runtime.choose = "选择连接";
+zhHans.runtime.reuseHint = "选择用于设计和运行代理的连接。向导将自动准备设计助手。";
+zhHans.views.agentWizard.access.intro = zhHans.runtime.reuseHint;
+
+zhHans.views.manifests.title = zhHans.runtime.importExport;

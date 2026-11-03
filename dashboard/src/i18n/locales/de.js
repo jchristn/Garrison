@@ -5085,3 +5085,13 @@ de.components.architectHints.harnessLink = de.runtime.manage;
 de.explainers.secrets.p2 = "Verbindungen verweisen zur Authentifizierung auf diese Geheimnisse. Aktualisiere den Wert hier, ohne jeden Architekten oder jedes Deployment neu zu konfigurieren.";
 
 de.runtime.launchDefaults = "Diese Verbindung verwendet ihre vorhandene Startkonfiguration. Bei Bedarf unter Erweiterte Starteinstellungen bearbeiten.";
+
+// One horizontal workspace navigation level; the wizard selects connections only.
+de.nav.hubs.operations = {"label": "Betrieb", "tip": "Verwalte gespeicherte Ergebnisse, Modellpreise, Nutzungslimits und Benachrichtigungen."};
+de.nav.hubs.configuration.tip = "Prompts, Assets, Werkzeuge, Zugangsdaten und Arbeitsbereiche für deine Agenten.";
+de.nav.hubs.manifests = { label: de.runtime.importExport, tip: de.tips.nav.tabs.manifests };
+de.runtime.choose = "Verbindung auswählen";
+de.runtime.reuseHint = "Wähle die Verbindung zum Entwerfen und Ausführen deiner Agenten. Der Assistent richtet seinen Entwurfshelfer automatisch ein.";
+de.views.agentWizard.access.intro = de.runtime.reuseHint;
+
+de.views.manifests.title = de.runtime.importExport;

@@ -3592,3 +3592,6 @@ tips.nav.hubs.platformConfiguration = "Verwalte gemeinsame Zugangsdaten, Speiche
 
 tips.nav.hubs.connections = "Wiederverwendbare Harnesses und API-Endpunkte. Einmal konfigurieren, dann überall auswählen.";
 tips.nav.hubs.configuration = "Verwalte Prompts, Assets, Toolserver, Zugangsdaten, Speicher und Richtlinien.";
+
+tips.nav.hubs.operations = "Verwalte gespeicherte Ergebnisse, Modellpreise, Nutzungslimits und Benachrichtigungen.";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

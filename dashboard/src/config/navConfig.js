@@ -10,6 +10,7 @@
 //   section: { key (i18n nav.sections.<key>), items }
 //   hub:     { key (i18n nav.hubs.<key>.label/.tip, data-nav), slug, icon (name in components/Icons),
 //              page? (standalone page id), tabs? (array of pages) }
+//   A hub with hidden: true is a route-only workspace opened by an action, omitted from the sidebar.
 //   page:    { id (view id and i18n nav.items.<id>), slug (URL segment and tab key), requires?, detail?, hidden? }
 //   A standalone page with `detail: true` also owns `/dashboard/<slug>/<id>` (for example an approval).
 //   A tab with `hidden: true` is left out of its hub's tab bar unless the URL asks for it (?tab=<slug>).
@@ -90,13 +91,19 @@ export const NAV_SECTIONS = [
           { id: 'agentAssets', slug: 'agent-assets' },
           { id: 'mcpServers', slug: 'mcp-servers' },
           { id: 'workspaces', slug: 'workspaces' },
+        ]
+      },
+      {
+        key: 'operations', slug: 'operations', icon: 'ActivityIcon',
+        tabs: [
           { id: 'artifactStores', slug: 'artifact-stores' },
           { id: 'modelPrices', slug: 'model-prices' },
           { id: 'usageQuotas', slug: 'usage-quotas' },
-          { id: 'notifications', slug: 'notifications' },
-          { id: 'manifests', slug: 'manifests' }
+          { id: 'notifications', slug: 'notifications' }
         ]
       },
+      // Import/export has its own workspace so its local tabs never nest beneath hub tabs.
+      { key: 'manifests', slug: 'manifests', icon: 'FileCodeIcon', hidden: true, page: { id: 'manifests', slug: 'manifests' } },
       {
         key: 'fleet',
         slug: 'fleet',
@@ -147,7 +154,7 @@ export const NAV_SECTIONS = [
   }
 ];
 
-/** Every hub (sidebar item), in sidebar order. */
+/** Every workspace in navigation order, including route-only workspaces hidden from the sidebar. */
 export const HUBS = NAV_SECTIONS.flatMap((section) => section.items.map((hub) => ({ ...hub, section: section.key })));
 
 /** Every page (standalone page or hub tab) with its hub key and, for tabs, its tab key. */

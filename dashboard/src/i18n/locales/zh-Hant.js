@@ -5051,3 +5051,13 @@ zhHant.components.architectHints.harnessLink = zhHant.runtime.manage;
 zhHant.explainers.secrets.p2 = "連線參照這些機密進行驗證。在此更新值，無須重新設定各架構師或部署。";
 
 zhHant.runtime.launchDefaults = "此連線使用現有的啟動設定。如有需要，可在進階啟動設定中編輯。";
+
+// One horizontal workspace navigation level; the wizard selects connections only.
+zhHant.nav.hubs.operations = {"label": "執行管理", "tip": "管理已儲存的輸出、模型價格、用量限制和通知。"};
+zhHant.nav.hubs.configuration.tip = "代理的提示詞、資源、工具、憑證和工作區。";
+zhHant.nav.hubs.manifests = { label: zhHant.runtime.importExport, tip: zhHant.tips.nav.tabs.manifests };
+zhHant.runtime.choose = "選擇連線";
+zhHant.runtime.reuseHint = "選擇用於設計及執行代理的連線。精靈將自動準備設計助手。";
+zhHant.views.agentWizard.access.intro = zhHant.runtime.reuseHint;
+
+zhHant.views.manifests.title = zhHant.runtime.importExport;

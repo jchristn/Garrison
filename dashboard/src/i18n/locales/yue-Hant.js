@@ -5050,3 +5050,13 @@ yueHant.components.architectHints.harnessLink = yueHant.runtime.manage;
 yueHant.explainers.secrets.p2 = "連線會引用呢啲機密做驗證。喺呢度更新值，唔使重新設定每個架構師或者部署。";
 
 yueHant.runtime.launchDefaults = "呢個連線使用現有嘅啟動設定。有需要可以喺進階啟動設定入面修改。";
+
+// One horizontal workspace navigation level; the wizard selects connections only.
+yueHant.nav.hubs.operations = {"label": "執行管理", "tip": "管理已儲存嘅輸出、模型價格、用量限制同通知。"};
+yueHant.nav.hubs.configuration.tip = "代理嘅提示詞、資源、工具、憑證同工作區。";
+yueHant.nav.hubs.manifests = { label: yueHant.runtime.importExport, tip: yueHant.tips.nav.tabs.manifests };
+yueHant.runtime.choose = "選擇連線";
+yueHant.runtime.reuseHint = "揀用嚟設計同執行代理嘅連線。精靈會自動準備設計助手。";
+yueHant.views.agentWizard.access.intro = yueHant.runtime.reuseHint;
+
+yueHant.views.manifests.title = yueHant.runtime.importExport;

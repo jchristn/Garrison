@@ -3592,3 +3592,6 @@ tips.nav.hubs.platformConfiguration = "共有認証情報、ストレージ、�
 
 tips.nav.hubs.connections = "再利用可能なハーネスとAPIエンドポイント。一度設定すれば、各エージェントから選択できます。";
 tips.nav.hubs.configuration = "プロンプト、アセット、ツールサーバー、認証情報、ストレージ、ポリシーを管理します。";
+
+tips.nav.hubs.operations = "保存された出力、モデル料金、使用量制限、通知を管理します。";
+tips.nav.hubs.manifests = tips.nav.tabs.manifests;

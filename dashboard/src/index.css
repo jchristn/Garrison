@@ -1580,36 +1580,10 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
   .agent-wizard .form-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-.hub-tab-select { display: none; }
-@media (max-width: 640px) {
-  .hub-tab-select { display: block; width: 100%; margin-bottom: var(--spacing-md); }
-  .hub-tab-strip { display: none; }
-}
-
-.hub-tab-strip, .runtime-profile-manager > .tabs { flex-wrap: wrap; overflow-x: visible; }
-
 .harness-runtime-fields { display: flex; flex-direction: column; gap: var(--spacing-md); }
 .harness-runtime-fields > .field-hint { margin: 0; }
 .connection-advanced { width: 100%; min-width: 0; }
 .connection-advanced summary { cursor: pointer; padding: var(--spacing-sm) 0; color: var(--color-text-muted); font-weight: 600; }
 .connection-advanced[open] > .form-grid { margin-top: var(--spacing-md); }
-.configuration-layout { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: var(--spacing-lg); }
-.configuration-sections { display: flex; flex-direction: column; gap: var(--spacing-xs); align-self: start; }
-.configuration-sections a { padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-md); color: var(--color-text); text-decoration: none; }
-.configuration-sections a[aria-current="page"] { background: var(--color-surface-alt); font-weight: 600; }
-.configuration-content { min-width: 0; }
-@media (max-width: 800px) {
-  .configuration-layout { grid-template-columns: minmax(0, 1fr); }
-  .configuration-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-.configuration-section-select { display: none; }
-@media (max-width: 800px) {
-  .configuration-section-select { display: block; width: 100%; }
-  .configuration-sections { display: none; }
-}
-
-.hub-tab-overflow { width: 100%; overflow: hidden; }
-.hub-tab-overflow .hub-tab-strip { flex-wrap: nowrap; min-width: max-content; overflow: visible; }
-.hub-tabs.is-compact > .hub-tab-select { display: block; }
-.hub-tabs.is-compact > .hub-tab-overflow { height: 0; visibility: hidden; }
+/* Workspaces use one horizontal tab row at every size. */
+.hub-tab-strip { display: flex; flex-wrap: nowrap; overflow-x: auto; }

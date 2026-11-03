@@ -12,6 +12,7 @@ import { tip } from './Tooltip';
 
 /** A hub is visible when its standalone page, or at least one of its tabs, is allowed. */
 function hubVisible(hub, principal) {
+  if (hub.hidden) return false;
   if (hub.page) return allowed(hub.page.requires, principal);
   return hub.tabs.some((tab) => allowed(tab.requires, principal));
 }
