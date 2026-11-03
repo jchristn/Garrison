@@ -16,6 +16,10 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Show one Codex choice in Create Connection, preferring the streaming app-server profile while retaining existing connection settings.
+
+- Added tenant-scoped Studio capability discovery so API-backed architects can find design candidates beyond their own executable bindings. Corrected built-in architect guidance about empty catalogs and preserved runtime execution restrictions. Resumed provider conversations now use the current compiled system prompt while retaining chat and tool history.
+
 - Expanded the wizard design chat, removed nested panel padding and repetitive guidance, enlarged the answer composer, and show draft contents only after the architect adds something.
 
 - Replaced vertical Configuration navigation with small Configuration and Operations workspaces, each using one horizontal tab row. Import / Export opens separately to avoid nested tab bars. Wizard step two selects only a connection; the design assistant is reused or created automatically for that connection.

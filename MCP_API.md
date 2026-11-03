@@ -40,7 +40,7 @@ HTTP/1.1 200 OK
 MCP-Session-Id: mcs_mv2u...
 Content-Type: application/json
 
-{"jsonrpc":"2.0","result":{"protocolVersion":"2025-06-18","capabilities":{...},"serverInfo":{"name":"Garrison","version":"1.3.0"}},"id":1}
+{"jsonrpc":"2.0","result":{"protocolVersion":"2025-06-18","capabilities":{...},"serverInfo":{"name":"Garrison","version":"0.2.0"}},"id":1}
 ```
 
 Send the returned `MCP-Session-Id` header on later requests. Session identifiers start with `mcs_` and are valid on every control-plane replica, so MCP needs no sticky sessions behind a load balancer: a replica that has not seen a session yet checks it in the database, confirms it belongs to the same principal, and takes it over. A session expires after `Mcp.SessionIdleTimeoutSeconds` (3600) without use, and `DELETE /mcp` with the header ends it everywhere. Another principal presenting the identifier gets 404. Server-sent event streams are resumable with `Last-Event-ID` on the replica that started them; after moving to another replica a client opens a new stream. Most clients handle all of this for you. With Claude Code, for example:
@@ -387,6 +387,8 @@ Tools for building studio drafts (AD7). Users and credentials can call them with
 
 | Tool | Permission | Arguments |
 |---|---|---|
+| `garrison_studio_list_capabilities` | StudioDraft.Read | optional `kind` (`Agent`, `McpTool`, `HarnessBuiltIn`), `tag`, `search` |
+| `garrison_studio_describe_capability` | StudioDraft.Read | `capability` (identifier or name) |
 | `garrison_studio_list_drafts` | StudioDraft.Read | optional `search` |
 | `garrison_studio_create_draft` | StudioDraft.Create | optional `title`, `fromApp` |
 | `garrison_studio_get_draft` | StudioDraft.Read | `draftId` |
@@ -398,6 +400,8 @@ Tools for building studio drafts (AD7). Users and credentials can call them with
 | `garrison_studio_validate` | StudioDraft.Read | `draftId` |
 | `garrison_studio_request_apply` | StudioDraft.Update | `draftId`, `version` |
 | `garrison_studio_playground_invoke` | StudioDraft.Update and AgentRevision.Update | `draftId`, `input`, optional `agent`, `conversationId`, `waitSeconds` |
+
+The two Studio capability tools expose the tenant catalog for design, including candidates that are not executable by the architect’s own deployment. They do not grant tool execution, delegation, or access across tenants. Ordinary runs cannot discover or call them. The runtime tools `garrison_list_capabilities` and `garrison_describe_capability` keep their deployment-specific filtering. An empty catalog does not establish that no MCP servers are configured; refresh the capability catalog when needed.
 
 Every change names the draft version the caller read and fails with `DraftVersionConflict` when the draft moved on. No tool applies a draft. A person decides the `DraftApply` approval that `garrison_studio_request_apply` creates.
 

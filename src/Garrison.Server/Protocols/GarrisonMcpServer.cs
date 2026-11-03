@@ -845,6 +845,8 @@ namespace Garrison.Server.Protocols
                         break;
                     case "garrison_list_capabilities":
                     case "garrison_describe_capability":
+                    case "garrison_studio_list_capabilities":
+                    case "garrison_studio_describe_capability":
                         result = await CapabilityToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_memory_read":
@@ -1862,8 +1864,16 @@ namespace Garrison.Server.Protocols
         {
             McpCapabilityArguments arguments = ManagementArguments<McpCapabilityArguments>(args);
             CapabilityService capabilities = _Context.Get<CapabilityService>();
+            bool designCatalog = tool.ResourceType == ResourceTypeEnum.StudioDraft;
+            bool listing = tool.Name == "garrison_list_capabilities" || tool.Name == "garrison_studio_list_capabilities";
             Run? caller = null;
-            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            if (designCatalog)
+            {
+                if (ctx.PrincipalType == PrincipalTypeEnum.Run && !await DraftGrantAsync(ctx, token).ConfigureAwait(false))
+                    throw ToolError("Forbidden", "Design capability discovery requires managementAccess Drafts.");
+                await Require(ctx, tenantId, ResourceTypeEnum.StudioDraft, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            }
+            else if (ctx.PrincipalType == PrincipalTypeEnum.Run)
             {
                 // Run tokens see only what they may use (AD4.6): the discovery permission they already hold decides access.
                 await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
@@ -1879,9 +1889,9 @@ namespace Garrison.Server.Protocols
                 if (!Enum.TryParse(arguments.Kind, true, out CapabilityKindEnum parsed)) throw ToolError("ValidationFailed", "kind is Agent, McpTool, or HarnessBuiltIn.");
                 kind = parsed;
             }
-            List<CapabilityDescriptor> list = await capabilities.ListAsync(tenantId, tool.Name == "garrison_list_capabilities" ? kind : null, arguments.Tag, arguments.Search, token).ConfigureAwait(false);
+            List<CapabilityDescriptor> list = await capabilities.ListAsync(tenantId, listing ? kind : null, arguments.Tag, arguments.Search, token).ConfigureAwait(false);
             if (caller != null) list = await capabilities.VisibleToRunAsync(caller, list, token).ConfigureAwait(false);
-            if (tool.Name == "garrison_list_capabilities") return new McpCapabilityList { Capabilities = list, TotalRecords = list.Count };
+            if (listing) return new McpCapabilityList { Capabilities = list, TotalRecords = list.Count };
             if (String.IsNullOrWhiteSpace(arguments.Capability)) throw ToolError("ValidationFailed", "capability is required.");
             CapabilityDescriptor? match = list.FirstOrDefault(d => d.Id == arguments.Capability)
                 ?? list.Where(d => d.Name == arguments.Capability).OrderBy(d => d.Kind).ThenBy(d => d.TenantId == null ? 1 : 0).FirstOrDefault();

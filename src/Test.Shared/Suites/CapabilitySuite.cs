@@ -11,6 +11,8 @@ namespace Test.Shared.Suites
     using Garrison.Core.Models;
     using Garrison.Core.Protocol;
     using Garrison.Core.Requests;
+    using Garrison.Core.Serialization;
+    using Garrison.Server.Protocols;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
     using Test.Shared.Infrastructure;
@@ -44,7 +46,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "agent-derivation", "Publishing a revision updates the agent's descriptor; a draft never shows; hints follow seeded runs (" + provider + ")", ct => AgentDerivationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-tools", "A stdio MCP server's tools appear with description and schema, a removed tool disappears, and a failed refresh keeps the last good list with a warning (" + provider + ")", ct => McpToolsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "probes-placement", "A worker reports a probed tool as a node label; a run needing a missing tool queues with NoToolWorker; one needing a present tool runs (" + provider + ")", ct => ProbesAsync(provider, ct)));
-                cases.Add(new TestCaseDescriptor(id, "catalog-tools", "garrison_list_capabilities for a run token shows only allowed agents, bound MCP tools, and its harness's built-ins; users see the tenant catalog (" + provider + ")", ct => CatalogToolsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "catalog-tools", "garrison_list_capabilities for a run token shows only allowed agents, bound MCP tools, and its harness's built-ins; Studio designers discover tenant candidates without execution rights; users see the tenant catalog (" + provider + ")", ct => CatalogToolsAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Capability catalog (" + provider + ")", cases));
             }
             return suites;
@@ -348,6 +350,8 @@ namespace Test.Shared.Suites
                 using (TestMcpClient runClient = new TestMcpClient())
                 {
                     await runClient.ConnectAsync(host, await host.Server.Context.Authentication.IssueForRunAsync(run, 1, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false), token).ConfigureAwait(false);
+                    Assert.True((await runClient.ToolsAsync(token).ConfigureAwait(false)).Tools.All(t => t.Name != "garrison_studio_list_capabilities"), "Runtime runs do not discover the design catalog tool");
+                    await runClient.ExpectErrorAsync("garrison_studio_list_capabilities", new { }, "Forbidden", token).ConfigureAwait(false);
                     string listed = await runClient.CallAsync("garrison_list_capabilities", new { }, token).ConfigureAwait(false);
                     Assert.True(listed.Contains("cap-helper", StringComparison.Ordinal), "Allowed agent visible: " + listed);
                     Assert.True(!listed.Contains("cap-hidden", StringComparison.Ordinal), "Agent off the allow list hidden");
@@ -359,6 +363,36 @@ namespace Test.Shared.Suites
                     await runClient.ExpectErrorAsync("garrison_describe_capability", new { capability = "cap-hidden" }, "NotFound", token).ConfigureAwait(false);
                     string agents = await runClient.CallAsync("garrison_list_agents", new { }, token).ConfigureAwait(false);
                     Assert.True(agents.Contains("\"hints\"", StringComparison.Ordinal) && agents.Contains("Unknown", StringComparison.Ordinal), "garrison_list_agents carries hints: " + agents);
+                }
+                Tenant other = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Design catalog other" }, 201, token).ConfigureAwait(false);
+                await host.Server.Context.Database.Capabilities.CreateAsync(new CapabilityDescriptor { TenantId = other.Id, Name = "foreign-catalog-tool", Kind = CapabilityKindEnum.McpTool, Origin = CapabilityOriginEnum.Manual, SourceKey = "manual:foreign" }, token).ConfigureAwait(false);
+                Agent designerAgent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "cap-designer", DelegationMode = DelegationModeEnum.None }, 201, token).ConfigureAwait(false);
+                Deployment architect = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment
+                {
+                    TenantId = host.TenantId, Name = "api-architect-catalog", AgentId = designerAgent.Id, HarnessProfileId = "hrn_builtin_provider_api", ManagementAccess = ManagementAccessEnum.Drafts
+                }, token).ConfigureAwait(false);
+                Run designRun = await host.Server.Context.Database.Runs.CreateAsync(new Run
+                {
+                    TenantId = host.TenantId, AgentId = designerAgent.Id, AgentName = designerAgent.Name, DeploymentId = architect.Id, AgentRevisionId = designerAgent.LatestPublishedRevisionId,
+                    HarnessType = HarnessTypeEnum.ProviderApi, Status = RunStatusEnum.Running, CallerType = PrincipalTypeEnum.Administrator, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5)
+                }, token).ConfigureAwait(false);
+                using (TestMcpClient designer = new TestMcpClient())
+                {
+                    await designer.ConnectAsync(host, await host.Server.Context.Authentication.IssueForRunAsync(designRun, 1, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false), token).ConfigureAwait(false);
+                    Assert.True((await designer.ToolsAsync(token).ConfigureAwait(false)).Tools.Any(t => t.Name == "garrison_studio_list_capabilities"), "API architects discover the design catalog tool");
+                    string catalog = await designer.CallAsync("garrison_studio_list_capabilities", new { }, token).ConfigureAwait(false);
+                    Assert.True(catalog.Contains("cap-hidden", StringComparison.Ordinal) && catalog.Contains("unbound/search", StringComparison.Ordinal) && catalog.Contains("pandoc", StringComparison.Ordinal), "Design catalog includes candidates not executable by the architect: " + catalog);
+                    Assert.True(!catalog.Contains("foreign-catalog-tool", StringComparison.Ordinal), "Design catalog stays within the tenant");
+                    string mcpOnly = await designer.CallAsync("garrison_studio_list_capabilities", new { kind = "McpTool", search = "unbound" }, token).ConfigureAwait(false);
+                    Assert.True(mcpOnly.Contains("unbound/search", StringComparison.Ordinal) && !mcpOnly.Contains("\"name\":\"bound/search\"", StringComparison.Ordinal), "Design filters apply");
+                    string candidate = await designer.CallAsync("garrison_studio_describe_capability", new { capability = "cap-hidden" }, token).ConfigureAwait(false);
+                    Assert.True(candidate.Contains("cap-hidden", StringComparison.Ordinal), "Describe a design candidate");
+                    await designer.ExpectErrorAsync("garrison_studio_describe_capability", new { capability = "foreign-catalog-tool" }, "NotFound", token).ConfigureAwait(false);
+                    string executable = await designer.CallAsync("garrison_list_capabilities", new { }, token).ConfigureAwait(false);
+                    McpCapabilityList runtimeCatalog = Assert.NotNull(Serializer.Deserialize<McpCapabilityList>(executable), "Runtime catalog response");
+                    Assert.Equal(0, runtimeCatalog.TotalRecords, "An API architect without executable bindings has an empty runtime catalog while retaining Studio tools");
+                    Assert.True(!executable.Contains("unbound/search", StringComparison.Ordinal) && !executable.Contains("pandoc", StringComparison.Ordinal) && !executable.Contains("cap-hidden", StringComparison.Ordinal), "Design discovery does not widen executable capabilities");
+                    await designer.ExpectErrorAsync("garrison_describe_capability", new { capability = "cap-hidden" }, "NotFound", token).ConfigureAwait(false);
                 }
                 using (TestMcpClient user = new TestMcpClient())
                 {

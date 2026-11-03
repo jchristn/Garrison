@@ -66,3 +66,7 @@ Local validation also exercised an approved delegation from the Docker provider 
 ## Saved runtime connections (v0.2.0)
 
 Configure harness access once in Connections. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](RUNTIME_CONNECTIONS.md).
+
+## Updated instructions on resumed turns
+
+Every provider turn uses its newly compiled system prompt, replacing the previous system message while preserving user, assistant, and tool history. This applies to native Ollama and OpenAI-compatible endpoints, including architect conversations. Built-in architect guidance separates Studio design discovery from the current deployment’s executable capabilities. Provider connections do not supply browser, shell, or MCP tools on their own; tools come from Garrison’s configured MCP bindings and Studio management access.

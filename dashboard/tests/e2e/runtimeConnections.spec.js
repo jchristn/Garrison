@@ -158,3 +158,20 @@ test('existing custom API launch configurations can be edited without re-enterin
   expect(body.runtimeConfiguration).toBeNull();
   expect(body.files[0].contentTemplate).toBe(legacy.files[0].contentTemplate);
 });
+
+test('Create Connection offers Codex once and uses its streaming driver', async ({ page }) => {
+  const base = { harnessType: 'Codex', executable: 'codex', active: true, isBuiltIn: true, arguments: [], files: [], environment: [], successExitCodes: [0] };
+  const profiles = [
+    { ...base, id: 'codex-exec', name: 'builtin/codex', promptDelivery: 'Stdin', outputParser: 'CodexJsonl' },
+    { ...base, id: 'codex-streaming', name: 'builtin/codex-app-server', promptDelivery: 'CodexAppServer', outputParser: 'CodexAppServer' }
+  ];
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json({ objects: profiles, totalRecords: profiles.length, endOfResults: true })));
+  await login(page);
+  await page.goto('/dashboard/connections');
+  await page.getByTestId('add-button').click();
+  const picker = page.locator('#runtime-template');
+  await expect(picker.getByRole('option', { name: 'Codex', exact: true })).toHaveCount(1);
+  await picker.selectOption({ label: 'Codex' });
+  await expect(picker).toHaveValue('codex-streaming');
+  await expect(picker.getByRole('option', { name: 'Codex', exact: true })).toHaveCount(1);
+});

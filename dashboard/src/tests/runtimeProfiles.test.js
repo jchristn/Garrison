@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { isConnection, listRuntimeProfiles } from '../utils/runtimeProfiles';
+import { connectionTemplates, isConnection, listRuntimeProfiles } from '../utils/runtimeProfiles';
 import { withWizardSettings } from '../utils/agentWizard';
 import { findHub, findPage, pathFor } from '../config/navConfig';
 
 describe('shared runtime references', () => {
+  it('offers one Codex choice using the streaming driver regardless of catalog ordering', () => {
+    const exec = { id: 'exec', isBuiltIn: true, harnessType: 'Codex', promptDelivery: 'Stdin' };
+    const streaming = { id: 'streaming', isBuiltIn: true, harnessType: 'Codex', promptDelivery: 'CodexAppServer' };
+    const claude = { id: 'claude', isBuiltIn: true, harnessType: 'ClaudeCode' };
+    for (const profiles of [[exec, streaming, claude], [streaming, exec, claude]]) {
+      expect(connectionTemplates(profiles)).toEqual([streaming, claude]);
+    }
+    expect(connectionTemplates([exec, { ...streaming, active: false }, { id: 'saved', harnessType: 'Codex', isBuiltIn: false }])).toEqual([exec]);
+  });
   it('discovers connections beyond the first catalog page', async () => {
     const seen = [];
     const client = { listHarnessProfiles: async (_tenant, query) => { seen.push(query.pageNumber); return query.pageNumber === 1 ? { items: [{ id: 'template' }], endOfResults: false } : { items: [{ id: 'saved', runtimeConfiguration: { model: 'local-model' } }], endOfResults: true }; } };

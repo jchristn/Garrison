@@ -38,7 +38,7 @@ namespace Test.Shared.Suites
             {
                 new TestCaseDescriptor("provider-api", "protocol-authentication", "Native Ollama and OpenAI-compatible HTTP honor every explicit authentication placement without leaking values", AuthenticationAsync),
                 new TestCaseDescriptor("provider-api", "process", "The bundled harness runs through the normal worker process executor with usage and cleanup", ProcessAsync),
-                new TestCaseDescriptor("provider-api", "stream-history", "Provider chunks normalize text/usage and a private conversation resumes its history", StreamAsync),
+                new TestCaseDescriptor("provider-api", "stream-history", "Both provider protocols retain private conversation history while refreshing the compiled system prompt", StreamAsync),
                 new TestCaseDescriptor("provider-api", "failures", "Missing/rejected credentials, bounded retries, incomplete output, cancellation, and limits fail safely", FailuresAsync)
             };
             List<TestSuiteDescriptor> suites = new List<TestSuiteDescriptor> { new TestSuiteDescriptor("provider-api", "Optional provider execution", cases) };
@@ -218,28 +218,41 @@ namespace Test.Shared.Suites
             string home = Path.Combine(Path.GetTempPath(), "garrison-provider-test-" + Guid.NewGuid().ToString("N"));
             try
             {
+                foreach (string protocol in new string[] { "OpenAiCompatible", "Ollama" })
                 using (FakeProviderServer endpoint = new FakeProviderServer())
                 using (StringWriter output = new StringWriter())
                 {
+                    string sessionHome = Path.Combine(home, protocol);
                     ProviderApiConfig config = Config(endpoint);
-                    config.SessionId = "session_fixture";
+                    config.Provider = protocol;
+                    config.SessionId = "session_fixture_" + protocol;
                     config.SystemPrompt = "fixture system";
-                    Assert.Equal(0, await new ProviderApiRunner(config, output, home).RunAsync("first task", token).ConfigureAwait(false), "First provider turn");
+                    Assert.Equal(0, await new ProviderApiRunner(config, output, sessionHome).RunAsync("first task", token).ConfigureAwait(false), "First provider turn");
                     HarnessRunState state = Parse(output.ToString());
                     Assert.Equal("fixture answer", state.FinalText, "Final text");
                     Assert.Equal("fixture answer", state.AssistantText.ToString(), "Streaming text");
                     Assert.Equal("served-fixture-model", state.ServedModel, "Served model");
                     Assert.Equal(11L, state.InputTokens, "Input usage");
                     Assert.Equal(7L, state.OutputTokens, "Output usage");
-                    Assert.Equal(3L, state.CachedTokens, "Cache usage");
-                    Assert.Equal(2L, state.ReasoningTokens, "Reasoning usage");
+                    if (protocol == "OpenAiCompatible")
+                    {
+                        Assert.Equal(3L, state.CachedTokens, "Cache usage");
+                        Assert.Equal(2L, state.ReasoningTokens, "Reasoning usage");
+                    }
                     Assert.True(state.SawSuccess && state.SessionId == config.SessionId, "Session and success");
                     config.Resume = true;
+                    config.SystemPrompt = "updated design catalog guidance";
                     output.GetStringBuilder().Clear();
-                    Assert.Equal(0, await new ProviderApiRunner(config, output, home).RunAsync("second task", token).ConfigureAwait(false), "Resumed provider turn");
+                    Assert.Equal(0, await new ProviderApiRunner(config, output, sessionHome).RunAsync("second task", token).ConfigureAwait(false), "Resumed provider turn");
                     Assert.True(endpoint.LastRequest!.Messages.Any(m => m.Role == "user" && m.Content == "first task"), "Earlier user turn retained");
                     Assert.True(endpoint.LastRequest.Messages.Any(m => m.Role == "assistant" && m.Content == "fixture answer"), "Earlier answer retained");
-                    string session = Directory.GetFiles(home, "*.json", SearchOption.AllDirectories).Single();
+                    Assert.Equal(1, endpoint.LastRequest.Messages.Count(m => m.Role == "system"), "Exactly one compiled system prompt");
+                    Assert.Equal(config.SystemPrompt, endpoint.LastRequest.Messages.First(m => m.Role == "system").Content, "Resumed turn uses the current compiled system prompt");
+                    config.SystemPrompt = null;
+                    output.GetStringBuilder().Clear();
+                    Assert.Equal(0, await new ProviderApiRunner(config, output, sessionHome).RunAsync("third task", token).ConfigureAwait(false), "Resume without a system prompt");
+                    Assert.True(endpoint.LastRequest.Messages.All(m => m.Role != "system"), "Removed system prompts do not persist in the conversation");
+                    string session = Directory.GetFiles(sessionHome, "*.json", SearchOption.AllDirectories).Single();
                     if (!OperatingSystem.IsWindows()) Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(session), "Private session mode");
                 }
             }

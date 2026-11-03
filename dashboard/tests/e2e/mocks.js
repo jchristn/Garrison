@@ -490,7 +490,7 @@ const FACTORIES = {
     return record('node', i, {
       name: `garrison-worker-${i - 1}`,
       address: `garrison-worker-${i - 1}.garrison`,
-      nodeVersion: '1.3.0',
+      nodeVersion: '0.2.0',
       status: i === 3 ? 'Cordoned' : 'Ready',
       maxConcurrentRuns: 4,
       // P12.38: the child reserve and resident waiter cap the worker reported (0 means MaxConcurrentRuns).
@@ -1888,7 +1888,7 @@ const SETTINGS = {
 
 const OPENAPI = {
   openapi: '3.0.1',
-  info: { title: 'Garrison', version: '1.3.0', description: 'Garrison control plane REST API.' },
+  info: { title: 'Garrison', version: '0.2.0', description: 'Garrison control plane REST API.' },
   paths: {
     '/v1.0/api/health': { get: { tags: ['Health'], summary: 'Health check', operationId: 'health' } },
     '/v1.0/api/tenants/{tenantId}/agents': {
@@ -2085,7 +2085,7 @@ const PERMISSIONS = (principalType, principalId) => ({
 const AGENT_CARD = {
   name: 'Agent 1',
   description: 'Sample agent',
-  version: '1.3.0',
+  version: '0.2.0',
   supportedInterfaces: [{ url: `http://127.0.0.1:8700/v1.0/a2a/${TENANT}/echo-agent`, protocolBinding: 'JSONRPC', protocolVersion: '1.0' }],
   provider: { organization: 'Garrison', url: 'https://github.com/jchristn/Garrison' },
   capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false },
@@ -2098,7 +2098,7 @@ const AGENT_CARD = {
 
 const SERVER_INFO = {
   product: 'Garrison',
-  version: '1.3.0',
+  version: '0.2.0',
   nodeId: 'garrison-server-a',
   restUrl: 'http://127.0.0.1:8700',
   mcpUrl: 'http://127.0.0.1:8701/mcp',
@@ -2157,7 +2157,7 @@ export function controlNode(name, extra = {}) {
     name,
     hostname: name,
     address: extra.address || '10.42.0.17:8700',
-    version: '1.3.0',
+    version: '0.2.0',
     schemaVersion: 7,
     backplane: 'PostgresNotify',
     status: 'Ready',
@@ -2192,7 +2192,7 @@ export function respond(method, url) {
   if (p === '/v1.0/token' && method === 'GET') return { valid: true };
   if (p === '/v1.0/token/details') return PRINCIPAL;
   if (p.startsWith('/v1.0/token')) return {};
-  if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-server-a', version: '1.3.0', database: 'ok', schemaVersion: 6, expectedSchemaVersion: 6, backplane: 'PostgresNotify', utc: iso(0) };
+  if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-server-a', version: '0.2.0', database: 'ok', schemaVersion: 6, expectedSchemaVersion: 6, backplane: 'PostgresNotify', utc: iso(0) };
   if (p === '/v1.0/api/server-info') return SERVER_INFO;
   if (p === '/v1.0/api/observability/status') return observabilityStatus();
   if (p === '/v1.0/api/control-nodes') return controlNodeList();

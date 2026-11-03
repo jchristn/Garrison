@@ -176,7 +176,7 @@ Retention is 3 days (or 1 GB) for metrics, 72 hours for logs, and 24 hours for t
 | `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, including the observability data, generates any keys and passwords missing from `.env`, then rebuilds and starts a fresh stack (including the observability services). `--no-start` only removes | Deleted |
 | `docker compose --profile observability down -v` | Removes containers and volumes, including the observability ones, without rebuilding | Deleted |
 
-Deleting the volumes removes the database (agents, runs, secrets, users) and the worker workspaces. The next start seeds tenant `default`, `admin@garrison`, and the sample agents again from your `.env`. To also reclaim the image space, `docker image rm jchristn77/garrison-server:v1.3.0 jchristn77/garrison-worker:v1.3.0 jchristn77/garrison-dashboard:v1.3.0`.
+Deleting the volumes removes the database (agents, runs, secrets, users) and the worker workspaces. The next start seeds tenant `default`, `admin@garrison`, and the sample agents again from your `.env`. To also reclaim the image space, `docker image rm jchristn77/garrison-server:v0.2.0 jchristn77/garrison-worker:v0.2.0 jchristn77/garrison-dashboard:v0.2.0`.
 
 ## Notes
 

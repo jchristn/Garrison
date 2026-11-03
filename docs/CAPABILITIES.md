@@ -130,3 +130,9 @@ Agents > Capabilities lists the catalog with each entry's kind, origin, source, 
 | `Capabilities.HintWindowDays` | 14 | 1 to 365 | `GARRISON_CAPABILITIES_HINT_WINDOW_DAYS` |
 | `Capabilities.HintMinimumSamples` | 5 | 1 to 1000 | `GARRISON_CAPABILITIES_HINT_MINIMUM_SAMPLES` |
 | `Capabilities.HintMaxSamples` | 1000 | 10 to 100000 | `GARRISON_CAPABILITIES_HINT_MAX_SAMPLES` |
+
+## Studio design discovery
+
+Architects use `garrison_studio_list_capabilities` and `garrison_studio_describe_capability` to inspect the tenant catalog while designing a draft. These tools require StudioDraft.Read; hosted runs additionally require a deployment with `managementAccess: Drafts`. They include candidates from other agents, unbound MCP servers, and other harness profiles. Seeing a descriptor does not allow the architect to execute it. The eventual agent still needs the appropriate deployment binding, delegation permissions, and worker tools.
+
+`garrison_list_capabilities` describes what the current run can execute. An API-backed architect can have no host tools or delegation bindings and still have Studio MCP tools. Its runtime catalog may therefore be empty. An empty design catalog can also reflect missing discovery data; it does not prove the tenant has no configured MCP servers. Refresh the catalog under Agents > Capabilities before concluding that a required capability needs a new integration.

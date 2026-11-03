@@ -150,7 +150,7 @@ namespace Garrison.Core
         /// <summary>
         /// Product version. Mirrors src/Directory.Build.props; never change without explicit approval.
         /// </summary>
-        public const string ProductVersion = "1.3.0";
+        public const string ProductVersion = "0.2.0";
 
         /// <summary>
         /// Repository URL.

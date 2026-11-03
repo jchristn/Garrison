@@ -15,5 +15,6 @@ scenarios:
 validation:
   - Real garrison-provider-api process returned fixture answer for both protocols through the simulation route; 401 mapped to NotCredentialed and 429 with no retries mapped to ProviderRequestFailed.
   - Shared ProviderApiSuite separately validates all authentication schemes, retries, rejected credentials, native tools and approvals, stream truncation, cancellation, compilation and persistence.
+  - On 2026-11-03, two turns of the real provider process per protocol passed through this simulation (four logged POST requests). The second turn replaced the system prompt with the new compiled instructions and retained the first user turn in persisted history. This validates local session refresh behavior, not live model adherence to the instructions.
 limitations:
   - This fixture does not establish live Ollama Cloud availability or model-specific behavior.

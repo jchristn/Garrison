@@ -68,7 +68,10 @@ namespace Garrison.ProviderHarness
                 client.MaxCallDetails = 0;
                 await tools.ConnectAsync(token).ConfigureAwait(false);
                 ProviderSession session = await LoadSessionAsync(token).ConfigureAwait(false);
-                if (session.Messages.Count == 0 && !String.IsNullOrEmpty(_Config.SystemPrompt)) session.Messages.Add(ChatMessage.System(_Config.SystemPrompt));
+                // Each turn uses the prompt compiled for this run, including current Studio discovery guidance.
+                ChatMessage system = ChatMessage.System(_Config.SystemPrompt ?? String.Empty);
+                session.Messages.RemoveAll(message => message.Role == system.Role);
+                if (!String.IsNullOrEmpty(_Config.SystemPrompt)) session.Messages.Insert(0, system);
                 session.Messages.Add(ChatMessage.User(prompt));
                 ToolChatRequest chat = new ToolChatRequest { Messages = session.Messages, Tools = tools.Definitions };
                 Emit(new ProviderApiEvent { EventType = RunEventTypeEnum.Lifecycle, SessionId = _Config.SessionId, Model = _Config.Model });

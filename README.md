@@ -4,7 +4,7 @@
 
 # Garrison
 
-> **Release (v1.3.0).** A 0.x version means alpha: the REST API, MCP tools, A2A surface, database schema, settings, manifests, and SDKs can all change without notice. Do not run it against data you cannot afford to lose.
+> **Alpha (v0.2.0).** A 0.x version means alpha: the REST API, MCP tools, A2A surface, database schema, settings, manifests, and SDKs can all change without notice. Do not run it against data you cannot afford to lose.
 
 **Build, deploy, and run agentic apps on the agent harnesses you already use.** Garrison is a self-hosted, multi-tenant platform for agentic applications. Underneath is a horizontally elastic runtime that turns Claude Code, Codex, Gemini CLI, Mux, opencode, pi, provider APIs, and any command-line agent into managed services on workers you operate. On top of it, Garrison Agent Studio is where those agents become apps: an architect agent drafts them with you, you review the diff and try the draft in a playground, a person approves the change, and the app goes live at its own URL with its own chat UI.
 

@@ -14,3 +14,14 @@ export async function listRuntimeProfiles(client, tenantId, filters = {}) {
 export function isConnection(profile) {
   return Boolean(profile?.runtimeConfiguration) || profile?.isBuiltIn === false;
 }
+
+/** One creation choice per harness type. New Codex connections prefer its streaming app-server driver. */
+export function connectionTemplates(profiles) {
+  const choices = new Map();
+  for (const profile of profiles) {
+    if (!profile.isBuiltIn || profile.active === false) continue;
+    const existing = choices.get(profile.harnessType);
+    if (!existing || (profile.harnessType === 'Codex' && profile.promptDelivery === 'CodexAppServer')) choices.set(profile.harnessType, profile);
+  }
+  return [...choices.values()];
+}

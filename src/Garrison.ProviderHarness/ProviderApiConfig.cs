@@ -24,7 +24,7 @@ namespace Garrison.ProviderHarness
         /// <summary>Explicitly permit an endpoint that needs no API key. Default false.</summary>
         [JsonConverter(typeof(ProviderBooleanConverter))]
         public bool AllowAnonymous { get; set; } = false;
-        /// <summary>Rendered system prompt from Garrison prompt templates.</summary>
+        /// <summary>Rendered system prompt from Garrison prompt templates, refreshed on every turn including resumed sessions.</summary>
         public string? SystemPrompt { get; set; } = null;
         /// <summary>Persisted session identifier, or null for a one-off run.</summary>
         public string? SessionId { get; set; } = null;

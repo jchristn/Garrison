@@ -1,7 +1,7 @@
 @echo off
 rem Builds and pushes the multi-arch jchristn77/garrison-dashboard image (operator console plus the app UI at /apps/) with
 rem Docker Build Cloud, then pulls it back locally. The build context is the repository root.
-rem Usage: build-dashboard.bat ^<tag^>   (for example v1.3.0)
+rem Usage: build-dashboard.bat ^<tag^>   (for example v0.2.0)
 setlocal
 if "%~1"=="" (
   echo usage: %~nx0 ^<tag^>
