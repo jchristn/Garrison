@@ -3589,3 +3589,5 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+tips.nav.hubs.platformConfiguration = "Gérer les identifiants partagés, le stockage, les tarifs des modèles, les quotas et les notifications.";

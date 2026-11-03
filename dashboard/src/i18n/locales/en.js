@@ -4504,15 +4504,15 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   },
   "architectHints": {
    "harness": "The built-in profiles (Claude Code, Codex, and others) are ready to use.",
-   "harnessLink": "Open Configuration > Harness Profiles",
+   "harnessLink": "Open Agent Resources > Harnesses & Endpoints",
    "credentialNotNeeded": "{{profile}} needs no credential.",
-   "credentialLink": "Open Configuration > Secrets",
+   "credentialLink": "Open Platform Configuration > Secrets",
    "prompt": "A change applies on the architect's next turn.",
-   "promptLink": "Open Configuration > Prompt Templates",
+   "promptLink": "Open Agent Resources > Prompt Templates",
    "credentialNoProfile": "The secret the harness signs in with.",
    "credentialChosen": "The secret {{profile}} signs in with.",
    "credentialPick": "{{profile}} signs in with a secret of kind {{kinds}}. Choose one, or every turn fails with Not logged in.",
-   "credentialAdd": "{{profile}} signs in with a secret of kind {{kinds}}, and this tenant has none yet. Add one on Configuration > Secrets, then choose it here. Without it, every turn fails with Not logged in."
+   "credentialAdd": "{{profile}} signs in with a secret of kind {{kinds}}, and this tenant has none yet. Add one on Platform Configuration > Secrets, then choose it here. Without it, every turn fails with Not logged in."
   }
  }
 });
@@ -5029,3 +5029,34 @@ Object.assign(en, {
     }
   }
 });
+
+// Shared runtime connections and the configuration navigation split.
+en.runtime = {
+  "title": "Harnesses & Endpoints",
+  "connections": "Saved connections",
+  "templates": "Advanced harness templates",
+  "connection": "Connection",
+  "architect": "Architect",
+  "choose": "Choose an architect or connection",
+  "harness": "Harness template",
+  "chooseHarness": "Choose a harness template",
+  "manage": "Manage harnesses and endpoints",
+  "configureFirst": "Configure a saved connection first.",
+  "sharedHint": "Configure once here. Architects and deployments reference this connection; changes apply to every consumer on its next run.",
+  "reuseHint": "Use an existing architect immediately, or choose a saved connection to create one. No credentials or endpoint details need to be entered again.",
+  "importExport": "Import / Export"
+};
+en.nav.hubs.configuration = {"label": "Agent Resources", "tip": "Connection settings for agents and architects."};
+en.nav.hubs.platformConfiguration = {"label": "Platform Configuration", "tip": "Credentials, storage, pricing, quotas, and notifications."};
+en.nav.items.harnessProfiles.label = "Harnesses & Endpoints";
+en.views.agentWizard.access.intro = "Use an existing architect immediately, or choose a saved connection to create one. No credentials or endpoint details need to be entered again.";
+
+en.resources.harnessProfiles.title = en.runtime.title;
+en.resources.harnessProfiles.subtitle = en.runtime.sharedHint;
+en.components.architectHints.harness = en.runtime.sharedHint;
+en.components.architectHints.harnessLink = en.runtime.manage;
+
+Object.assign(en.runtime, {"add": "Add connection", "create": "Create connection", "edit": "Edit connection", "view": "Connection details"});
+
+en.explainers.harnessProfiles.p2 = en.runtime.sharedHint;
+en.explainers.secrets.p2 = en.runtime.sharedHint;

@@ -5001,3 +5001,34 @@ Object.assign(yueHant, {
     }
   }
 });
+
+// Shared runtime connections and the configuration navigation split.
+yueHant.runtime = {
+  "title": "執行框架同端點",
+  "connections": "已儲存嘅連線",
+  "templates": "進階執行框架範本",
+  "connection": "連線",
+  "architect": "架構師",
+  "choose": "揀架構師或連線",
+  "harness": "執行框架範本",
+  "chooseHarness": "揀執行框架範本",
+  "manage": "管理執行框架同端點",
+  "configureFirst": "請先設定同儲存連線。",
+  "sharedHint": "喺呢度設定一次。架構師同部署會引用呢個連線，改動會喺下次執行時生效。",
+  "reuseHint": "直接用現有架構師，或者用已儲存連線建立。唔使再輸入憑證同端點資料。",
+  "importExport": "匯入 / 匯出"
+};
+yueHant.nav.hubs.configuration = {"label": "代理資源", "tip": "代理同架構師嘅連線設定。"};
+yueHant.nav.hubs.platformConfiguration = {"label": "平台設定", "tip": "憑證、儲存、價格、配額同通知。"};
+yueHant.nav.items.harnessProfiles.label = "執行框架同端點";
+yueHant.views.agentWizard.access.intro = "直接用現有架構師，或者用已儲存連線建立。唔使再輸入憑證同端點資料。";
+
+yueHant.resources.harnessProfiles.title = yueHant.runtime.title;
+yueHant.resources.harnessProfiles.subtitle = yueHant.runtime.sharedHint;
+yueHant.components.architectHints.harness = yueHant.runtime.sharedHint;
+yueHant.components.architectHints.harnessLink = yueHant.runtime.manage;
+
+Object.assign(yueHant.runtime, {"add": "新增連線", "create": "建立連線", "edit": "編輯連線", "view": "連線詳情"});
+
+yueHant.explainers.harnessProfiles.p2 = yueHant.runtime.sharedHint;
+yueHant.explainers.secrets.p2 = yueHant.runtime.sharedHint;

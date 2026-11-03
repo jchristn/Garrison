@@ -82,6 +82,8 @@ namespace Garrison.Server.Routes
             profile.IsBuiltIn = false;
             profile.IsProtected = false;
             ConfigurationValidator.HarnessProfile(profile);
+            await HarnessRuntimeRules.ValidateAsync(_Server.Database, tenantId, profile, http.Token).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForHarnessProfileAsync(tenantId, profile, http.Token).ConfigureAwait(false);
             HarnessProfile? existing = await _Server.Database.HarnessProfiles.ReadByNameAsync(tenantId, profile.Name, http.Token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing?.TenantId == tenantId ? existing : null, existing?.Id, null, profile.Name);
             HarnessProfile created = await _Server.Database.HarnessProfiles.CreateAsync(profile, http.Token).ConfigureAwait(false);
@@ -111,6 +113,7 @@ namespace Garrison.Server.Routes
             profile.BuiltInKey = existing.BuiltInKey;
             profile.CreatedUtc = existing.CreatedUtc;
             ConfigurationValidator.HarnessProfile(profile);
+            await HarnessRuntimeRules.ValidateAsync(_Server.Database, tenantId, profile, http.Token).ConfigureAwait(false);
             await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForHarnessProfileAsync(tenantId, profile, http.Token).ConfigureAwait(false);
             HarnessProfile? named = await _Server.Database.HarnessProfiles.ReadByNameAsync(tenantId, profile.Name, http.Token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named?.TenantId == tenantId ? named : null, named?.Id, id, profile.Name);
@@ -150,6 +153,8 @@ namespace Garrison.Server.Routes
             ConfigurationValidator.HarnessProfile(copy);
             HarnessProfile? existing = await _Server.Database.HarnessProfiles.ReadByNameAsync(tenantId, copy.Name, http.Token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing?.TenantId == tenantId ? existing : null, existing?.Id, null, copy.Name);
+            await HarnessRuntimeRules.ValidateAsync(_Server.Database, tenantId, copy, http.Token).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForHarnessProfileAsync(tenantId, copy, http.Token).ConfigureAwait(false);
             HarnessProfile created = await _Server.Database.HarnessProfiles.CreateAsync(copy, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "HarnessProfile", created.Id, "Cloned harness profile " + source.Name + " to " + created.Name + ".").ConfigureAwait(false);
             _Server.TryGet<Garrison.Server.Runtime.ToolProbeCatalog>()?.Invalidate();

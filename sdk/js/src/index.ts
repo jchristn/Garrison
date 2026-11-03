@@ -1142,7 +1142,7 @@ export type HarnessToolProbeArgument = typeof HARNESS_TOOL_PROBE_ARGUMENTS[numbe
 export interface HarnessToolProbe { name: string; executable: string; arguments?: HarnessToolProbeArgument[]; description?: string | null; }
 
 /** A harness profile. toolProbes holds at most 32 probes with unique names. */
-export interface HarnessProfile extends Json, WithWarnings { id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; toolProbes?: HarnessToolProbe[]; }
+export interface HarnessProfile extends Json, WithWarnings { runtimeConfiguration?: HarnessRuntimeConfiguration | null; id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; toolProbes?: HarnessToolProbe[]; }
 
 /** An MCP server definition. */
 export interface McpServer extends Json, WithWarnings {
@@ -2551,3 +2551,6 @@ export interface InferenceEndpoint {
   authenticationType: 'None' | 'BearerToken' | 'ApiKey' | 'Headers' | 'QueryString' | 'Basic';
   credentials: InferenceCredential[];
 }
+
+/** Reusable connection settings owned by a saved harness profile. */
+export interface HarnessRuntimeConfiguration { model?: string | null; endpointName?: string | null; credentialSecretId?: string | null; inferenceEndpoint?: InferenceEndpoint | null; }

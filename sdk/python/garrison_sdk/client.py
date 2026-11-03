@@ -764,6 +764,14 @@ class InferenceEndpoint(TypedDict):
     credentials: List[InferenceCredential]
 
 
+class HarnessRuntimeConfiguration(TypedDict, total=False):
+    """Reusable connection settings owned by a named tenant harness profile."""
+    model: Optional[str]
+    endpointName: Optional[str]
+    credentialSecretId: Optional[str]
+    inferenceEndpoint: Optional[InferenceEndpoint]
+
+
 class Architect(TypedDict, total=False):
     """An agent architect: a tenant deployment that may edit studio drafts for the person it works for. id is the
     deployment identifier; agentId is normally the built-in agent-architect. architectPromptVersion is the pinned version,

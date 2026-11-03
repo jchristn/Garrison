@@ -246,7 +246,7 @@ export default function AgentDetailView({ recordId }) {
                             <RevisionPinBadge deployment={d} numbers={numbers} t={t} />
                           </td>
                           <td>{profile ? <span {...tip(d.harnessProfileId)}>{profile.name}</span> : <CopyableId value={d.harnessProfileId} />}</td>
-                          <td>{d.model || na}</td>
+                          <td>{profile?.runtimeConfiguration?.model || d.model || na}</td>
                           <td className="right" data-cell="weight">{formatNumber(d.weight ?? 0)}</td>
                           <td data-cell="share">
                             <span className="weight-bar" aria-hidden="true">

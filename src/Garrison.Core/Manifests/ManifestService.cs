@@ -312,7 +312,7 @@ namespace Garrison.Core.Manifests
             Resolver resolver = new Resolver(_Database, tenantId);
             List<Dictionary<string, object?>> documents = new List<Dictionary<string, object?>>();
             foreach (PromptTemplate template in plan.Selected<PromptTemplate>()) documents.Add(Wrap("PromptTemplate", template.Name, PromptTree(template)));
-            foreach (HarnessProfile profile in plan.Selected<HarnessProfile>()) documents.Add(Wrap("HarnessProfile", profile.Name, Tree(profile)));
+            foreach (HarnessProfile profile in plan.Selected<HarnessProfile>()) documents.Add(Wrap("HarnessProfile", profile.Name, await RuntimeProfileTreeAsync(profile, resolver, token).ConfigureAwait(false)));
             foreach (McpServer server in plan.Selected<McpServer>()) documents.Add(Wrap("McpServer", server.Name, Tree(server)));
             foreach (WorkspaceTemplate workspace in plan.Selected<WorkspaceTemplate>()) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
             foreach (AgentAsset asset in plan.Selected<AgentAsset>()) documents.Add(Wrap("AgentAsset", asset.Name, await AgentAssetTreeAsync(asset, resolver, true, token).ConfigureAwait(false)));
@@ -598,6 +598,13 @@ namespace Garrison.Core.Manifests
                 profile.CreatedUtc = existing.CreatedUtc;
                 profile.IsProtected = existing.IsProtected;
                 profile.BuiltInKey = existing.BuiltInKey;
+            }
+            if (profile.RuntimeConfiguration != null)
+            {
+                if (!String.IsNullOrEmpty(profile.RuntimeConfiguration.CredentialSecretId)) profile.RuntimeConfiguration.CredentialSecretId = await resolver.RequireAsync("Secret", profile.RuntimeConfiguration.CredentialSecretId, "runtimeConfiguration.credentialSecretId", token).ConfigureAwait(false);
+                if (profile.RuntimeConfiguration.InferenceEndpoint != null)
+                    foreach (InferenceCredential credential in profile.RuntimeConfiguration.InferenceEndpoint.Credentials)
+                        credential.SecretId = await resolver.RequireAsync("Secret", credential.SecretId, "runtimeConfiguration.inferenceEndpoint.credentials.secretId", token).ConfigureAwait(false);
             }
             ConfigurationValidator.HarnessProfile(profile);
             planned.Model = profile;
@@ -1580,7 +1587,12 @@ namespace Garrison.Core.Manifests
                 {
                     switch (planned.Model)
                     {
+                        case HarnessProfile profile:
+                            await HarnessRuntimeRules.ValidateAsync(_Database, tenantId, profile, token, cache).ConfigureAwait(false);
+                            break;
                         case Deployment deployment:
+                            HarnessProfile? selectedProfile = await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false);
+                            if (selectedProfile != null) HarnessRuntimeRules.ClearOverrides(deployment, selectedProfile);
                             await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, cache, token).ConfigureAwait(false);
                             break;
                         case AgenticApp app:
@@ -2066,6 +2078,20 @@ namespace Garrison.Core.Manifests
             if (!String.IsNullOrEmpty(agent.ToolDescriptionTemplateId)) tree["toolDescriptionTemplate"] = await resolver.NameAsync("PromptTemplate", agent.ToolDescriptionTemplateId, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(agent.SkillDescriptionTemplateId)) tree["skillDescriptionTemplate"] = await resolver.NameAsync("PromptTemplate", agent.SkillDescriptionTemplateId, token).ConfigureAwait(false);
             return tree;
+        }
+
+        private async Task<Dictionary<string, object?>> RuntimeProfileTreeAsync(HarnessProfile profile, Resolver resolver, CancellationToken token)
+        {
+            HarnessProfile copy = Serializer.Copy<HarnessProfile>(profile)!;
+            HarnessRuntimeConfiguration? runtime = copy.RuntimeConfiguration;
+            if (runtime != null)
+            {
+                if (!String.IsNullOrEmpty(runtime.CredentialSecretId)) runtime.CredentialSecretId = await resolver.NameAsync("Secret", runtime.CredentialSecretId, token).ConfigureAwait(false) ?? runtime.CredentialSecretId;
+                if (runtime.InferenceEndpoint != null)
+                    foreach (InferenceCredential credential in runtime.InferenceEndpoint.Credentials)
+                        credential.SecretId = await resolver.NameAsync("Secret", credential.SecretId, token).ConfigureAwait(false) ?? credential.SecretId;
+            }
+            return Tree(copy);
         }
 
         private async Task<Dictionary<string, object?>> DeploymentTreeAsync(Deployment deployment, Resolver resolver, CancellationToken token)

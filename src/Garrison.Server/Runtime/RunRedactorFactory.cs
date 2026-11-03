@@ -58,6 +58,8 @@ namespace Garrison.Server.Runtime
             List<string> values = new List<string>();
             if (deployment != null)
             {
+                HarnessProfile? profile = await _Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+                if (profile != null) deployment = HarnessRuntimeRules.Effective(deployment, profile);
                 foreach (DeploymentResourceBinding binding in InferenceEndpointRules.Bindings(deployment).Where(b => b.Kind == ResourceBindingKindEnum.Secret))
                 {
                     token.ThrowIfCancellationRequested();

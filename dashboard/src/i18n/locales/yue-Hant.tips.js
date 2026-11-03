@@ -3587,3 +3587,5 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+tips.nav.hubs.platformConfiguration = "管理共用憑證、儲存、模型價格、用量配額同通知。";

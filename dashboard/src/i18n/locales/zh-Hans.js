@@ -5002,3 +5002,34 @@ Object.assign(zhHans, {
     }
   }
 });
+
+// Shared runtime connections and the configuration navigation split.
+zhHans.runtime = {
+  "title": "运行框架与端点",
+  "connections": "已保存的连接",
+  "templates": "高级运行框架模板",
+  "connection": "连接",
+  "architect": "架构师",
+  "choose": "选择架构师或连接",
+  "harness": "运行框架模板",
+  "chooseHarness": "选择运行框架模板",
+  "manage": "管理运行框架与端点",
+  "configureFirst": "请先配置并保存连接。",
+  "sharedHint": "在此配置一次。架构师和部署引用此连接，更改将在下次运行时应用。",
+  "reuseHint": "直接使用现有架构师，或从已保存的连接创建。无需重新输入凭据和端点信息。",
+  "importExport": "导入 / 导出"
+};
+zhHans.nav.hubs.configuration = {"label": "代理资源", "tip": "代理与架构师的连接配置。"};
+zhHans.nav.hubs.platformConfiguration = {"label": "平台配置", "tip": "凭据、存储、价格、配额与通知。"};
+zhHans.nav.items.harnessProfiles.label = "运行框架与端点";
+zhHans.views.agentWizard.access.intro = "直接使用现有架构师，或从已保存的连接创建。无需重新输入凭据和端点信息。";
+
+zhHans.resources.harnessProfiles.title = zhHans.runtime.title;
+zhHans.resources.harnessProfiles.subtitle = zhHans.runtime.sharedHint;
+zhHans.components.architectHints.harness = zhHans.runtime.sharedHint;
+zhHans.components.architectHints.harnessLink = zhHans.runtime.manage;
+
+Object.assign(zhHans.runtime, {"add": "添加连接", "create": "创建连接", "edit": "编辑连接", "view": "连接详情"});
+
+zhHans.explainers.harnessProfiles.p2 = zhHans.runtime.sharedHint;
+zhHans.explainers.secrets.p2 = zhHans.runtime.sharedHint;

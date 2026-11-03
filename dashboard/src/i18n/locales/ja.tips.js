@@ -3587,3 +3587,5 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+tips.nav.hubs.platformConfiguration = "共有認証情報、ストレージ、モデル料金、使用量制限、通知を管理します。";

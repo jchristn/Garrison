@@ -5002,3 +5002,34 @@ Object.assign(zhHant, {
     }
   }
 });
+
+// Shared runtime connections and the configuration navigation split.
+zhHant.runtime = {
+  "title": "執行框架與端點",
+  "connections": "已儲存的連線",
+  "templates": "進階執行框架範本",
+  "connection": "連線",
+  "architect": "架構師",
+  "choose": "選擇架構師或連線",
+  "harness": "執行框架範本",
+  "chooseHarness": "選擇執行框架範本",
+  "manage": "管理執行框架與端點",
+  "configureFirst": "請先設定並儲存連線。",
+  "sharedHint": "在此設定一次。架構師和部署參照此連線，變更將於下次執行時套用。",
+  "reuseHint": "直接使用現有架構師，或從已儲存的連線建立。無須重新輸入憑證和端點資訊。",
+  "importExport": "匯入 / 匯出"
+};
+zhHant.nav.hubs.configuration = {"label": "代理資源", "tip": "代理與架構師的連線設定。"};
+zhHant.nav.hubs.platformConfiguration = {"label": "平台設定", "tip": "憑證、儲存、價格、配額與通知。"};
+zhHant.nav.items.harnessProfiles.label = "執行框架與端點";
+zhHant.views.agentWizard.access.intro = "直接使用現有架構師，或從已儲存的連線建立。無須重新輸入憑證和端點資訊。";
+
+zhHant.resources.harnessProfiles.title = zhHant.runtime.title;
+zhHant.resources.harnessProfiles.subtitle = zhHant.runtime.sharedHint;
+zhHant.components.architectHints.harness = zhHant.runtime.sharedHint;
+zhHant.components.architectHints.harnessLink = zhHant.runtime.manage;
+
+Object.assign(zhHant.runtime, {"add": "新增連線", "create": "建立連線", "edit": "編輯連線", "view": "連線詳情"});
+
+zhHant.explainers.harnessProfiles.p2 = zhHant.runtime.sharedHint;
+zhHant.explainers.secrets.p2 = zhHant.runtime.sharedHint;

@@ -89,9 +89,9 @@ const page = (objects) => ({ items: objects, totalCount: objects.length, pageNum
 describe('navigation', () => {
   it('puts triggers under Agents and notifications under Configuration, with no new sidebar item', () => {
     expect(findPage('triggers')).toMatchObject({ hub: 'agents', tab: 'triggers' });
-    expect(findPage('notifications')).toMatchObject({ hub: 'configuration', tab: 'notifications' });
+    expect(findPage('notifications')).toMatchObject({ hub: 'platformConfiguration', tab: 'notifications' });
     expect(pathFor('triggers')).toBe('/dashboard/agents?tab=triggers');
-    expect(pathFor('notifications')).toBe('/dashboard/configuration?tab=notifications');
+    expect(pathFor('notifications')).toBe('/dashboard/platform-configuration?tab=notifications');
     expect(findHub('agents').tabs.map((p) => p.id)).toEqual(['agents', 'architects', 'deployments', 'pipelines', 'triggers', 'capabilities', 'apps', 'studio', 'agentWizard']);
     expect(PAGE_VIEWS.triggers).toBeTruthy();
     expect(PAGE_VIEWS.notifications).toBeTruthy();

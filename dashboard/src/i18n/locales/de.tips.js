@@ -3587,3 +3587,5 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+tips.nav.hubs.platformConfiguration = "Verwalte gemeinsame Zugangsdaten, Speicher, Modellpreise, Nutzungskontingente und Benachrichtigungen.";

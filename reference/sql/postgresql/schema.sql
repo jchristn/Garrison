@@ -1501,3 +1501,25 @@ CREATE TABLE IF NOT EXISTS deployment_inference_credentials (
     PRIMARY KEY (deploymentid, position)
 );
 CREATE INDEX IF NOT EXISTS idx_deployment_inference_credentials_secret ON deployment_inference_credentials (tenantid, secretid);
+
+-- Migration 45: Reusable harness runtime connections.
+CREATE TABLE IF NOT EXISTS harness_runtime_settings (
+    profileid VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    model VARCHAR(512),
+    endpointname VARCHAR(256),
+    credentialsecretid VARCHAR(64),
+    protocol VARCHAR(32),
+    baseurl TEXT,
+    authenticationtype VARCHAR(32)
+);
+CREATE TABLE IF NOT EXISTS harness_runtime_credentials (
+    profileid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(256) NOT NULL,
+    location VARCHAR(32) NOT NULL,
+    secretid VARCHAR(64) NOT NULL,
+    PRIMARY KEY (profileid, position)
+);
+CREATE INDEX IF NOT EXISTS idx_harness_runtime_credentials_secret ON harness_runtime_credentials (tenantid, secretid);

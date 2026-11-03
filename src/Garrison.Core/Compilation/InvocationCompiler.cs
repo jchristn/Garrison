@@ -425,6 +425,8 @@ namespace Garrison.Core.Compilation
             inputs.Profile = await _Database.HarnessProfiles.ReadAsync(tenantId, inputs.Deployment.HarnessProfileId, token).ConfigureAwait(false)
                 ?? throw new CompilationException("ReferenceNotFound", "Harness profile " + inputs.Deployment.HarnessProfileId + " referenced by deployment " + inputs.Deployment.Name + " was not found.");
 
+            inputs.Deployment = HarnessRuntimeRules.Effective(inputs.Deployment, inputs.Profile);
+
             foreach (DeploymentPromptBinding binding in inputs.Deployment.PromptBindings)
             {
                 PromptTemplate template = await _Database.PromptTemplates.ReadAsync(tenantId, binding.TemplateId, token).ConfigureAwait(false)

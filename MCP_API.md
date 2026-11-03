@@ -502,3 +502,8 @@ When enabled, `garrison_memory_read`, `garrison_memory_write` and `garrison_memo
 ## HTTP inference endpoints (v0.2.0)
 
 Architects and agent deployments can use `hrn_builtin_provider_api` with a model and a typed `inferenceEndpoint`. Supported protocols are `OpenAiCompatible` and native `Ollama`. Select authentication explicitly: `None`, `BearerToken`, `ApiKey` (header or query parameter), `Headers`, `QueryString`, or `Basic`. Each credential contains `name`, `location` (`Header` or `QueryString`), and a tenant `secretId`; responses contain references rather than secret values. Ollama Cloud uses bearer authentication; local Ollama can use no authentication. The same contract is supported by REST architect/deployment requests, MCP architect tools and deployment manifests, all four SDKs, and the dashboard. See [the endpoint contract, examples, validation, and compatibility rules](docs/PROVIDER_API.md).
+
+
+## Saved runtime connections (v0.2.0)
+
+Configure harness access once in Agent Resources > Harnesses & Endpoints. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](docs/RUNTIME_CONNECTIONS.md).

@@ -14,3 +14,11 @@ type InferenceEndpoint struct {
 	AuthenticationType string                `json:"authenticationType"` // None, BearerToken, ApiKey, Headers, QueryString, Basic.
 	Credentials        []InferenceCredential `json:"credentials"`
 }
+
+// HarnessRuntimeConfiguration holds reusable connection settings on a named tenant harness profile.
+type HarnessRuntimeConfiguration struct {
+	Model              *string            `json:"model,omitempty"`
+	EndpointName       *string            `json:"endpointName,omitempty"`
+	CredentialSecretID *string            `json:"credentialSecretId,omitempty"`
+	InferenceEndpoint  *InferenceEndpoint `json:"inferenceEndpoint,omitempty"`
+}

@@ -48,6 +48,7 @@ namespace Test.Shared.Suites
                 suites.Add(new TestSuiteDescriptor(id, "Provider configuration and tool mediation", new List<TestCaseDescriptor>
                 {
                     new TestCaseDescriptor(id, "lifecycle", "Provider execution through the real node protocol repairs schema output and resumes a conversation", ct => LifecycleAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "runtime-profile-reference", "Reusable runtime profiles migrate legacy endpoints, propagate edits to all consumers, preserve secrets and export portable references", ct => RuntimeProfileAsync(provider, ct)),
                     new TestCaseDescriptor(id, "endpoint-contract", "Typed inference endpoints persist, compile secret references, and enforce SecretUse and deletion references", ct => EndpointContractAsync(provider, ct)),
                     new TestCaseDescriptor(id, "ollama-mcp-approvals", "Native Ollama tool calls participate in the same MCP and approval loop", ct => McpAsync(provider, ct, true)),
                     new TestCaseDescriptor(id, "compile", "The opt-in provider profile compiles typed secret configuration and templated prompts", ct => CompileAsync(provider, ct)),
@@ -96,6 +97,53 @@ namespace Test.Shared.Suites
                     }
                     finally { Environment.SetEnvironmentVariable(variable, null); Environment.SetEnvironmentVariable(second, null); }
                 }
+            }
+        }
+
+        private static async Task RuntimeProfileAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                Deployment deployment = await fixture.DeploymentAsync("provider-api", false, token).ConfigureAwait(false);
+                string secretId = deployment.ResourceBindings.Single(b => b.Kind == ResourceBindingKindEnum.Secret).ResourceId;
+                deployment.InferenceEndpoint = new InferenceEndpoint { Protocol = InferenceProtocolEnum.Ollama, BaseUrl = "https://ollama.com", AuthenticationType = InferenceAuthenticationTypeEnum.BearerToken, Credentials = new List<InferenceCredential> { new InferenceCredential { SecretId = secretId } } };
+                deployment.Model = "native-model";
+                await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                await HarnessRuntimeMigration.TenantAsync(fixture.Database, CompilerFixture.TenantId, token).ConfigureAwait(false);
+                Deployment migrated = Assert.NotNull(await fixture.Database.Deployments.ReadAsync(CompilerFixture.TenantId, deployment.Id, token).ConfigureAwait(false), "Migrated deployment");
+                Assert.True(migrated.Model == null && migrated.InferenceEndpoint == null && !migrated.ResourceBindings.Any(b => b.Alias == "credential"), "Consumers persist only the shared profile reference");
+                HarnessProfile profile = Assert.NotNull(await fixture.Database.HarnessProfiles.ReadAsync(CompilerFixture.TenantId, migrated.HarnessProfileId, token).ConfigureAwait(false), "Saved runtime profile");
+                Assert.Equal(secretId, profile.RuntimeConfiguration!.InferenceEndpoint!.Credentials.Single().SecretId, "Migration retains encrypted secret references");
+                await HarnessRuntimeMigration.TenantAsync(fixture.Database, CompilerFixture.TenantId, token).ConfigureAwait(false);
+                Assert.Equal(profile.Id, (await fixture.Database.Deployments.ReadAsync(CompilerFixture.TenantId, deployment.Id, token).ConfigureAwait(false))!.HarnessProfileId, "Migration is idempotent");
+                Deployment second = Serializer.Copy<Deployment>(migrated)!;
+                second.Id = String.Empty;
+                second.Name = "second-runtime-consumer";
+                second = await fixture.Database.Deployments.CreateAsync(second, token).ConfigureAwait(false);
+                profile.RuntimeConfiguration.Model = "updated-model";
+                profile.RuntimeConfiguration.InferenceEndpoint.BaseUrl = "https://ollama.example";
+                await fixture.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
+                foreach (Deployment consumer in new Deployment[] { migrated, second })
+                {
+                    CompilationResult result = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(consumer, false), null, token).ConfigureAwait(false);
+                    ProviderApiConfig config = Serializer.Deserialize<ProviderApiConfig>(result.Spec.Files.Single(f => f.Path == "provider-api.json").Content)!;
+                    Assert.Equal("updated-model", config.Model, "Central model edit propagates");
+                    Assert.Equal("https://ollama.example", config.Endpoint, "Central endpoint edit propagates");
+                    Assert.Equal("Ollama", config.Provider, "Native protocol is retained");
+                }
+                bool denied = false;
+                try { await new SecretUseChecker(fixture.Database, (id, ct) => Task.FromResult(false)).RequireForDeploymentAsync(CompilerFixture.TenantId, migrated, token).ConfigureAwait(false); }
+                catch (ValidationException e) { denied = e.Codes.Values.Contains("SecretUseDenied"); }
+                Assert.True(denied, "Selecting a runtime reference cannot bypass SecretUse");
+                denied = false;
+                try { await new SecretUseChecker(fixture.Database, (id, ct) => Task.FromResult(false)).RequireForHarnessProfileAsync(CompilerFixture.TenantId, profile, token).ConfigureAwait(false); }
+                catch (ValidationException e) { denied = e.Codes.Values.Contains("SecretUseDenied"); }
+                Assert.True(denied, "Connection editing requires SecretUse even without secret templates");
+                ManifestService manifests = new ManifestService(fixture.Database, fixture.Cipher);
+                ManifestExportResult export = await manifests.ExportAsync(CompilerFixture.TenantId, new ManifestExportOptions { Resources = new List<ManifestResourceReference> { new ManifestResourceReference("HarnessProfile", profile.Name) } }, token).ConfigureAwait(false);
+                Assert.True(export.Bundle.RequiredSecrets.Any(), "Bundles declare connection credential requirements");
+                ManifestApply reapplied = await manifests.ApplyAsync(CompilerFixture.TenantId, export.Yaml, new ManifestApplyOptions { DryRun = true }, token).ConfigureAwait(false);
+                Assert.True(reapplied.FailedCount == 0, "Runtime profiles round-trip secret names through manifests: " + String.Join("; ", reapplied.Items.Select(i => i.Message)));
             }
         }
 

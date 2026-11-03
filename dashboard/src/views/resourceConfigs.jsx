@@ -1,5 +1,4 @@
-import InferenceEndpointFields from '../components/InferenceEndpointFields';
-import { deploymentInferenceEndpoint, inferenceEndpointErrors } from '../utils/inferenceEndpoints';
+import { HarnessRuntimeSummary } from '../components/HarnessRuntimeFields';
 // Declarative configurations for record pages rendered by ResourceView.
 // Field labels come from resources.<id>.fields.<name>; hints from resources.<id>.hints.<name>.
 
@@ -1381,7 +1380,7 @@ export const deploymentsConfig = {
       // The tenant's ordered environments (AD1.9); empty falls back to dev, staging, prod.
       loadEnvironments(apiClient, tenantId)
     ]);
-    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments };
+    return { agents, profiles: profiles.filter((p) => p.runtimeConfiguration && p.active !== false), templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments };
   },
   // Names for the Agent and Harness profile columns (M1-20), the environment filter, and pinned revision numbers (AD1.9).
   loadLookups: async ({ apiClient, tenantId }) => {
@@ -1392,7 +1391,7 @@ export const deploymentsConfig = {
       loadEnvironments(apiClient, tenantId),
       loadPinnedRevisions(apiClient, tenantId)
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant, environments, revisionNumbers: revisionNumbers(revisions) };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profileModels: Object.fromEntries(profiles.map((p) => [p.id, p.runtimeConfiguration?.model])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant, environments, revisionNumbers: revisionNumbers(revisions) };
   },
   // The environment filter (AD1.9) runs on the loaded page: the deployments list has no environment query.
   filters: [
@@ -1460,7 +1459,7 @@ export const deploymentsConfig = {
     col('deployments', t, 'environment', (r) => <EnvironmentBadge deployment={r} t={t} />, { csv: (r) => environmentOf(r) }),
     col('deployments', t, 'agentRevisionId', (r) => <RevisionPinBadge deployment={r} numbers={lookups?.revisionNumbers} t={t} />, { csv: (r) => (r.agentRevisionId ? String(lookups?.revisionNumbers?.[r.agentRevisionId] ?? r.agentRevisionId) : 'latest') }),
     col('deployments', t, 'harnessProfileId', (r) => <NamedId id={r.harnessProfileId} name={lookups?.profiles?.[r.harnessProfileId]} />, { csv: (r) => lookups?.profiles?.[r.harnessProfileId] || r.harnessProfileId }),
-    col('deployments', t, 'model', (r) => r.model || '-'),
+    col('deployments', t, 'model', (r) => lookups?.profileModels?.[r.harnessProfileId] || r.model || '-'),
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
     col('deployments', t, 'trustLevel', (r) => trustBadge(t, r, lookups?.tenant), { csv: (r) => r.trustLevel || 'Trusted' }),
     col('deployments', t, 'egressRules', (r) => egressBadge(t, r), { csv: (r) => (r.egressRules || []).map((x) => egressRuleText(x)).join(' ') }),
@@ -1497,8 +1496,7 @@ export const deploymentsConfig = {
       field(id, t, 'weight', 'number', { min: 0, max: 1000, step: 0 }),
       field(id, t, 'active', 'checkbox', { step: 0 }),
       field(id, t, 'harnessProfileId', 'select', { required: true, options: sel(options.profiles), step: 1 }),
-      ...((options.profiles || []).find((p) => p.id === d.harnessProfileId)?.harnessType === 'ProviderApi' ? [{ name: 'inferenceEndpoint', type: 'custom', step: 1, label: t('inference.title'), tip: t('inference.hint'), render: (data, { disabled, onChange, errors }) => <InferenceEndpointFields value={deploymentInferenceEndpoint(data)} onChange={(inferenceEndpoint) => onChange({ ...data, inferenceEndpoint })} disabled={disabled} errors={errors} idPrefix="deployment-inference" /> }] : []),
-      field(id, t, 'model', 'text', { step: 1 }),
+      { name: 'runtimeSummary', type: 'custom', step: 1, label: t('runtime.connection'), tip: t('runtime.sharedHint'), render: () => <HarnessRuntimeSummary profile={(options.profiles || []).find((p) => p.id === d.harnessProfileId)} /> },
       field(id, t, 'fallbackModel', 'text', { step: 1 }),
       field(id, t, 'effort', 'text', { step: 1 }),
       field(id, t, 'maxTurns', 'number', { min: 1, step: 1 }),
@@ -1695,10 +1693,10 @@ export const deploymentsConfig = {
     body.agentRevisionId = d.agentRevisionId || null;
     body.fileSpaceMountPath = String(d.fileSpaceMountPath || '').trim() || 'files';
     const profile = options.profiles?.find((p) => p.id === d.harnessProfileId);
-    if (profile) body.inferenceEndpoint = profile.harnessType === 'ProviderApi' ? deploymentInferenceEndpoint(d) : null;
+    if (profile?.runtimeConfiguration) { body.model = null; body.inferenceEndpoint = null; body.resourceBindings = (body.resourceBindings || []).filter((b) => !(b.kind === 'Secret' && b.alias === 'credential')); body.parameters = (body.parameters || []).filter((p) => !['endpoint', 'baseUrl', 'provider', 'allowAnonymous'].includes(p.name)); }
     return body;
   },
-  validate: (d, t, { options = {} } = {}) => {
+  validate: (d, t) => {
     const e = {};
     if (!d.name) e.name = t('common.errors.required');
     if (!d.agentId) e.agentId = t('common.errors.required');
@@ -1709,7 +1707,7 @@ export const deploymentsConfig = {
     const egress = egressErrors(d, t);
     if (egress.executor && e.executor) delete egress.executor;
     Object.assign(e, egress);
-    if (options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType === 'ProviderApi') Object.assign(e, inferenceEndpointErrors(deploymentInferenceEndpoint(d), d.model, t));
+
     return e;
   },
   rowActions: (r, ctx) => [

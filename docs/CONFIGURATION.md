@@ -291,13 +291,13 @@ The dashboard image reads three variables at startup: `GARRISON_API_UPSTREAM`, w
 
 ## Operator model prices
 
-Use Configuration > Model Prices or the tenant `/model-prices` API to supply USD rates per million tokens. The table starts empty. Entries match a harness and exact, case-sensitive served model; no provider aliases or prices are supplied automatically. Reported cost, including zero, takes precedence. Unknown or inactive prices keep missing cost unknown.
+Use Platform Configuration > Model Prices or the tenant `/model-prices` API to supply USD rates per million tokens. The table starts empty. Entries match a harness and exact, case-sensitive served model; no provider aliases or prices are supplied automatically. Reported cost, including zero, takes precedence. Unknown or inactive prices keep missing cost unknown.
 
 Both token inclusion flags default to true. Disable input inclusion for Claude Code because its parser reports cache reads separately. Empty cache/reasoning rates use input/output rates; zero is free. Included subtotals are deducted before applying their own rates. Completion stores the estimate once; later edits do not change historical run costs. See [REST API](../REST_API.md#model-prices) for fields and permissions.
 
 ## Daily usage quotas
 
-Configuration > Usage Quotas sets run, token, known-cost, and active-concurrency limits for a tenant, agent, or deployment. Each scope/target has one entry. Limits start unlimited; zero disallows usage. Administrators manage limits, and read roles can inspect Daily usage.
+Platform Configuration > Usage Quotas sets run, token, known-cost, and active-concurrency limits for a tenant, agent, or deployment. Each scope/target has one entry. Limits start unlimited; zero disallows usage. Administrators manage limits, and read roles can inspect Daily usage.
 
 Windows reset at midnight UTC. Run counts use admission day; tokens and cost use completion day. Active concurrency spans days. Deleted and archived runs remain in the accounting ledger. Missing cost leaves admissions open and appears as incomplete accounting; known cost still enforces the configured limit.
 
@@ -387,3 +387,8 @@ Totals count current, undeleted files. A write over a limit answers 413 naming t
 ### Artifact and continuation byte limits
 
 `Artifacts.MaxFileBytes` defaults to 16777216 (16 MiB) and accepts 1024 through 268435456 (256 MiB). Environment: `GARRISON_ARTIFACT_MAX_FILE_BYTES`. This node-local setting is copied into new execution assignments at startup; restart control-plane replicas after changing it. The cap applies to compressed continuation archives and ordinary artifact files. For a 96 MiB archive allowance set 100663296, with REST/proxy body ceilings at least that high. The default REST ceiling is 128 MiB; it does not automatically increase when the artifact cap increases. Normal collection has an additional MaxTotalBytes aggregate limit; snapshot extraction separately enforces 256 MiB uncompressed and 100000 entries. See [continuation size policy](CONTINUATION.md#archive-size-policy) for retention, fidelity and buffering implications.
+
+
+## Saved runtime connections (v0.2.0)
+
+Configure harness access once in Agent Resources > Harnesses & Endpoints. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](RUNTIME_CONNECTIONS.md).

@@ -46,6 +46,7 @@ export function suggestedCredential(secrets, harnessType) {
  */
 export function architectBody(form) {
   const body = { name: String(form.name || '').trim(), harnessProfileId: form.harnessProfileId };
+  if (form.usesSavedRuntime) { if (form.promptId) body.architectPromptTemplateId = form.promptId; return body; }
   const model = String(form.model || '').trim();
   if (model && !form.isMux) body.model = model;
   if (form.isMux || form.endpointName) body.endpointName = String(form.endpointName || '').trim();
@@ -60,7 +61,7 @@ export function architectFormErrors(form, t) {
   const errors = {};
   if (!String(form.name || '').trim()) errors.name = t('common.errors.required');
   if (!form.harnessProfileId) errors.harnessProfileId = t('common.errors.required');
-  if (form.isMux && (!form.endpointName?.trim() || form.endpointName.includes('://'))) errors.endpointName = t('views.agentWizard.access.needEndpoint');
-  if (form.isProviderApi) Object.assign(errors, inferenceEndpointErrors(form.inferenceEndpoint, form.model, t));
+  if (!form.usesSavedRuntime && form.isMux && (!form.endpointName?.trim() || form.endpointName.includes('://'))) errors.endpointName = t('views.agentWizard.access.needEndpoint');
+  if (!form.usesSavedRuntime && form.isProviderApi) Object.assign(errors, inferenceEndpointErrors(form.inferenceEndpoint, form.model, t));
   return errors;
 }

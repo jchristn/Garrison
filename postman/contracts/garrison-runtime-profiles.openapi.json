@@ -1,0 +1,17 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Garrison shared runtime profile contract", "version": "0.2.0" },
+  "servers": [{ "url": "http://127.0.0.1:8700/v1.0/api/tenants/{tenantId}", "variables": { "tenantId": { "default": "default" } } }],
+  "paths": {
+    "/harness-profiles/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": { "summary": "Read a permitted harness template or saved runtime connection", "responses": { "200": { "description": "Profile with optional runtimeConfiguration", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HarnessProfile" } } } }, "404": { "description": "Missing or belongs to another tenant" } } }
+    }
+  },
+  "components": { "schemas": {
+    "HarnessProfile": { "type": "object", "description": "Existing execution adapter fields plus the optional reusable connection configuration.", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "harnessType": { "type": "string" }, "runtimeConfiguration": { "$ref": "#/components/schemas/RuntimeConfiguration" } } },
+    "RuntimeConfiguration": { "type": "object", "nullable": true, "properties": { "model": { "type": "string", "nullable": true }, "endpointName": { "type": "string", "nullable": true }, "credentialSecretId": { "type": "string", "nullable": true }, "inferenceEndpoint": { "$ref": "#/components/schemas/InferenceEndpoint" } } },
+    "InferenceEndpoint": { "type": "object", "required": ["protocol", "baseUrl", "authenticationType", "credentials"], "properties": { "protocol": { "type": "string", "enum": ["OpenAiCompatible", "Ollama"] }, "baseUrl": { "type": "string", "format": "uri" }, "authenticationType": { "type": "string", "enum": ["None", "BearerToken", "ApiKey", "Headers", "QueryString", "Basic"] }, "credentials": { "type": "array", "items": { "$ref": "#/components/schemas/Credential" } } } },
+    "Credential": { "type": "object", "required": ["secretId"], "properties": { "name": { "type": "string" }, "location": { "type": "string", "enum": ["Header", "QueryString"] }, "secretId": { "type": "string", "description": "Active tenant secret reference; never a plaintext value." } } }
+  } }
+}

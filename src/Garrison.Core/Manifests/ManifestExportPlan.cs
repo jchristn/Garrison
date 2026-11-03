@@ -265,6 +265,9 @@ namespace Garrison.Core.Manifests
                 token.ThrowIfCancellationRequested();
                 switch (item)
                 {
+                    case HarnessProfile profile:
+                        foreach (DeploymentResourceBinding binding in InferenceEndpointRules.Bindings(HarnessRuntimeRules.Effective(new Deployment(), profile)).Where(b => b.Kind == ResourceBindingKindEnum.Secret)) Secret(binding.ResourceId, secrets);
+                        break;
                     case Agent agent:
                         Secret(agent.RemoteCredentialSecretId, secrets);
                         await BuiltInTemplateAsync(agent.ToolDescriptionTemplateId, builtIns, token).ConfigureAwait(false);

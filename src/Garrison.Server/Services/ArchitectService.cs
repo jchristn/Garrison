@@ -528,6 +528,8 @@ namespace Garrison.Server.Services
                 template = await _Server.Database.PromptTemplates.ReadAsync(templateId, token).ConfigureAwait(false);
                 prompts[templateId] = template;
             }
+            HarnessProfile? runtimeProfile = await _Server.Database.HarnessProfiles.ReadAsync(deployment.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (runtimeProfile != null) deployment = HarnessRuntimeRules.Effective(deployment, runtimeProfile);
             Architect architect = new Architect();
             architect.Id = deployment.Id;
             architect.TenantId = deployment.TenantId;

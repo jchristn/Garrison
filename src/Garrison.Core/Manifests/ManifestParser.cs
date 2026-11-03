@@ -88,7 +88,7 @@ namespace Garrison.Core.Manifests
         /// <returns>YAML text.</returns>
         public static string ToYaml(IEnumerable<Dictionary<string, object?>> documents)
         {
-            ISerializer serializer = new SerializerBuilder().DisableAliases().Build();
+            ISerializer serializer = new SerializerBuilder().DisableAliases().WithQuotingNecessaryStrings(true).Build();
             List<string> parts = new List<string>();
             foreach (Dictionary<string, object?> document in documents) parts.Add(serializer.Serialize(document).TrimEnd());
             return String.Join(Environment.NewLine + "---" + Environment.NewLine, parts) + Environment.NewLine;

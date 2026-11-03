@@ -91,14 +91,18 @@ export const NAV_SECTIONS = [
           // AD2.8: versioned system prompts, skills, reference files, and document templates that agent revisions pin.
           { id: 'agentAssets', slug: 'agent-assets' },
           { id: 'mcpServers', slug: 'mcp-servers' },
+          { id: 'manifests', slug: 'manifests', hidden: true }
+        ]
+      },
+      {
+        key: 'platformConfiguration', slug: 'platform-configuration', icon: 'SettingsIcon',
+        tabs: [
           { id: 'secrets', slug: 'secrets' },
           { id: 'workspaces', slug: 'workspaces' },
           { id: 'artifactStores', slug: 'artifact-stores' },
           { id: 'modelPrices', slug: 'model-prices' },
           { id: 'usageQuotas', slug: 'usage-quotas' },
-          // P12.14: outbound signed webhooks about runs, pipeline runs, and approvals.
-          { id: 'notifications', slug: 'notifications' },
-          { id: 'manifests', slug: 'manifests' }
+          { id: 'notifications', slug: 'notifications' }
         ]
       },
       {

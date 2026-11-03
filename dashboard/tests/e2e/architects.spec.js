@@ -79,6 +79,7 @@ test('lists architects with their harness profile, model, prompt, and status, on
 });
 
 test('creates an architect on the default prompt and shows a taken name on its field', async ({ page }) => {
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [{ id: 'hp_0001', name: 'Saved Claude', harnessType: 'ClaudeCode', runtimeConfiguration: { model: 'opus', credentialSecretId: 'sec_saved' } }], totalRecords: 1 })));
   await withArchitects(page, []);
   const bodies = [];
   await page.route(/\/tenants\/[^/]+\/studio\/architects$/, (route) => {
@@ -96,13 +97,13 @@ test('creates an architect on the default prompt and shows a taken name on its f
   await expect(page.locator('#architects-harnessProfileId')).toHaveValue('hp_0001');
   await expect(page.locator('#architects-architectPromptTemplateId')).toHaveValue('pt_builtin_agent_architect');
   await expect(page.locator('#architects-architectPromptTemplateId option').first()).toHaveText('builtin/agent-architect (default)');
-  await page.locator('#architects-model').fill('opus');
+  await expect(page.locator('#architects-model')).toHaveCount(0);
   await page.getByTestId('save-button').click();
   await expect(fieldOf(page, '#architects-name').locator('.field-error')).toHaveText('Another deployment in this tenant already uses this name.');
   await page.locator('#architects-name').fill('architect-2');
   await page.getByTestId('save-button').click();
   await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies[1]).toEqual({ name: 'architect-2', description: null, harnessProfileId: 'hp_0001', active: true, model: 'opus', credentialSecretId: '', architectPromptTemplateId: 'pt_builtin_agent_architect' });
+  expect(bodies[1]).toEqual({ name: 'architect-2', description: null, harnessProfileId: 'hp_0001', active: true, architectPromptVersion: null, architectPromptTemplateId: 'pt_builtin_agent_architect' });
 });
 
 test('edits an architect: rename, pin the guided prompt, and turn it off', async ({ page }) => {
@@ -129,7 +130,7 @@ test('edits an architect: rename, pin the guided prompt, and turn it off', async
   await page.locator('#architects-active').uncheck();
   await page.getByTestId('save-button').click();
   await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies).toEqual([{ name: 'research-architect', description: 'Designs our research apps.', harnessProfileId: 'hp_0001', active: false, model: 'sonnet', credentialSecretId: '', architectPromptTemplateId: 'pt_builtin_agent_architect_guided', architectPromptVersion: 1 }]);
+  expect(bodies).toEqual([{ name: 'research-architect', description: 'Designs our research apps.', harnessProfileId: 'hp_0001', active: false, architectPromptTemplateId: 'pt_builtin_agent_architect_guided', architectPromptVersion: 1 }]);
 });
 
 test('deletes an architect after confirming', async ({ page }) => {
@@ -185,7 +186,7 @@ test('the studio warns before the first turn when the architect has no credentia
   const banner = page.getByTestId('studio-not-credentialed');
   await expect(banner).toContainText('This architect has no credential');
   await expect(page.getByTestId('studio-fix-credential')).toHaveAttribute('href', '/dashboard/agents?tab=architects&search=architect');
-  await expect(page.getByTestId('studio-open-secrets')).toHaveAttribute('href', '/dashboard/configuration?tab=secrets');
+  await expect(page.getByTestId('studio-open-secrets')).toHaveAttribute('href', '/dashboard/platform-configuration');
 
   // With a credential the warning goes away; a turn the harness could not sign in for brings it back.
   rows = [keyed];
@@ -206,82 +207,6 @@ test('the studio warns before the first turn when the architect has no credentia
   await expect(banner).toContainText('The architect could not sign in to its model provider');
   await page.getByTestId('studio-fix-credential').click();
   await expect(page).toHaveURL(/\/dashboard\/agents\?tab=architects&search=architect$/);
-});
-
-test('architect forms suggest the secret the harness signs in with and warn when there is none', async ({ page }) => {
-  await withArchitects(page, [ARCHITECT, { ...GUIDED, credentialSecretId: 'sec_0001', credentialSecretName: 'secret-1', credentialSecretKind: 'AnthropicApiKey' }]);
-  await login(page);
-  await page.goto(ARCHITECTS);
-  await expect(row(page, 'architect')).toContainText('None');
-  await expect(row(page, 'guided-architect')).toContainText('secret-1');
-
-  // The studio dialog: a Claude Code profile gets the tenant's Anthropic key; a Codex profile whose only login needs
-  // reauthentication gets none and a warning with a link to Secrets.
-  await page.goto('/dashboard/studio/drf_0001');
-  await page.getByTestId('studio-new-architect').click();
-  await page.getByTestId('architect-profile').selectOption('hp_0004');
-  await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0001');
-  await expect(page.getByTestId('architect-credential-hint')).toHaveText(/^The secret profile-4 signs in with\./);
-  await page.getByTestId('architect-profile').selectOption('hp_0001');
-  await expect(page.getByTestId('architect-credential')).toHaveValue('');
-  await expect(page.getByTestId('architect-credential-hint')).toContainText('every turn fails with Not logged in');
-  // A choice the person makes is kept when the profile changes.
-  await page.getByTestId('architect-credential').selectOption('sec_0003');
-  await page.getByTestId('architect-profile').selectOption('hp_0004');
-  await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0003');
-});
-
-test('the architect form says where harness profiles, secrets, and prompts come from, and refreshes the secrets', async ({ page }) => {
-  await withArchitects(page);
-  let added = false;
-  await page.route(/\/tenants\/[^/]+\/secrets(\?.*)?$/, (route) => {
-    if (route.request().method() !== 'GET') return route.fallback();
-    const rows = added ? [{ id: 'sec_0099', tenantId: 'default', name: 'new-openai-key', kind: 'OpenAiApiKey', active: true, status: 'Ok' }] : [];
-    return route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true }));
-  });
-  await login(page);
-  await page.goto(ARCHITECTS);
-  await row(page, 'architect').locator('.action-menu-trigger').click();
-  await menuItem(page, 'Edit').click();
-  // hp_0001 is a Codex profile and the tenant has no secrets: the hint says what to add and where.
-  const hint = page.getByTestId('architect-credential-hint');
-  // One message: what to add, where, and what happens without it.
-  await expect(hint.locator('.field-warning')).toHaveText('builtin/claude-code signs in with a secret of kind OpenAiApiKey or CodexAuthJson, and this tenant has none yet. Add one on Configuration > Secrets, then choose it here. Without it, every turn fails with Not logged in.');
-  await expect(hint.locator(':scope > span:not(.field-warning):not(.dependency-hint-actions)')).toHaveCount(0);
-  await expect(page.locator('.modal .field-hint', { hasText: 'Refresh list' })).toHaveCount(1);
-  await expect(page.getByTestId('architect-open-secrets')).toHaveAttribute('href', '/dashboard/configuration?tab=secrets');
-  await expect(page.getByTestId('architect-open-secrets')).toHaveAttribute('target', '_blank');
-  await expect(page.getByTestId('architect-harness-hint')).toContainText('Configuration > Harness Profiles');
-  await expect(page.getByTestId('architect-prompt-hint')).toContainText('Configuration > Prompt Templates');
-  // After adding the secret on the other page, Refresh list offers it without closing the form.
-  added = true;
-  await page.getByTestId('architect-credential-hint-refresh').click();
-  await expect(page.locator('#architects-credentialSecretId option', { hasText: 'new-openai-key' })).toHaveCount(1);
-  await page.locator('#architects-credentialSecretId').selectOption('sec_0099');
-  await expect(hint.locator('.field-warning')).toHaveCount(0);
-  await expect(hint).toContainText('The secret builtin/claude-code signs in with.');
-});
-
-test('the New architect dialog names Configuration > Secrets and picks up a secret added in another tab', async ({ page }) => {
-  await withArchitects(page, []);
-  let added = false;
-  await page.route(/\/tenants\/[^/]+\/secrets(\?.*)?$/, (route) => {
-    if (route.request().method() !== 'GET') return route.fallback();
-    const rows = added ? [{ id: 'sec_0098', tenantId: 'default', name: 'my-anthropic-key', kind: 'AnthropicApiKey', active: true, status: 'Ok' }] : [];
-    return route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true }));
-  });
-  await login(page);
-  await page.goto('/dashboard/studio/drf_0001');
-  await page.getByTestId('studio-new-architect').click();
-  await page.getByTestId('architect-profile').selectOption('hp_0004');
-  const hint = page.getByTestId('architect-credential-hint');
-  await expect(hint).toContainText('signs in with a secret of kind AnthropicApiKey or ClaudeCodeOAuthToken, and this tenant has none yet');
-  await expect(page.getByTestId('architect-open-secrets')).toHaveAttribute('href', '/dashboard/configuration?tab=secrets');
-  // Coming back to the tab reads the secrets again; the new key is suggested for the Claude Code profile.
-  added = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect(page.getByTestId('architect-credential')).toHaveValue('sec_0098');
-  await expect(hint.locator('.field-warning')).toHaveCount(0);
 });
 
 test('the studio chat streams the answer in bubbles, waits with a phrase and a timer, then shows telemetry and copies', async ({ page }) => {
@@ -437,99 +362,23 @@ test('the studio chat sends on Enter, adds lines on Ctrl+Enter, links mentioned 
   await expect(page).toHaveURL(/\/dashboard\/approvals\/apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa$/);
 });
 
-test('Architects add and edit show the Mux endpoint name instead of Model and Credential', async ({ page }, testInfo) => {
-  const mux = { id: 'hp_mux', name: 'builtin/mux', harnessType: 'Mux', active: true };
-  const architect = { ...ARCHITECT, name: 'mux-architect', harnessProfileId: mux.id, endpointName: 'local', model: null, credentialSecretId: null };
-  const bodies = [];
-  await withArchitects(page, [architect]);
-  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [mux], totalRecords: 1 })));
-  await page.route(/\/studio\/architects(\/dep_arch)?$/, (route) => {
-    if (['POST', 'PUT'].includes(route.request().method())) {
-      const body = route.request().postDataJSON();
-      bodies.push(body);
-      return route.fulfill(json(route.request().method() === 'POST' ? 201 : 200, { ...architect, ...body }));
-    }
-    return route.fallback();
-  });
-  await login(page);
-  await page.goto(ARCHITECTS);
-  await page.getByTestId('add-button').click();
-  await expect(page.locator('#architects-endpointName')).toBeVisible();
-  await expect(page.locator('#architects-model')).toHaveCount(0);
-  await expect(page.locator('#architects-credentialSecretId')).toHaveCount(0);
-  await page.locator('#architects-endpointName').fill('local');
-  await page.locator('.modal').screenshot({ path: testInfo.outputPath('architect-mux-endpoint.png') });
-  await page.locator('#architects-endpointName').fill('');
-  await page.getByTestId('save-button').click();
-  await expect(fieldOf(page, '#architects-endpointName').locator('.field-error')).toBeVisible();
-  await page.locator('#architects-endpointName').fill('local');
-  await page.getByTestId('save-button').click();
-  await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies[0].endpointName).toBe('local');
-  await openMenu(page, architect.name);
-  await menuItem(page, 'Edit').click();
-  await expect(page.locator('#architects-endpointName')).toHaveValue('local');
-  await page.locator('#architects-endpointName').fill('production');
-  await page.getByTestId('save-button').click();
-  await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies[1].endpointName).toBe('production');
-});
 
-test('Studio New architect exposes the named Mux endpoint field', async ({ page }) => {
+test('New architect references a saved Ollama connection without asking for endpoint or credentials', async ({ page }) => {
+  const profile = { id: 'hp_cloud', name: 'Ollama Cloud', harnessType: 'ProviderApi', active: true, runtimeConfiguration: { model: 'cloud-model', inferenceEndpoint: { protocol: 'Ollama', baseUrl: 'https://ollama.com', authenticationType: 'BearerToken', credentials: [{ name: '', location: 'Header', secretId: 'sec_cloud' }] } } };
   await page.route(/\/tenants\/[^/]+\/agents(\?.*)?$/, (route) => new URL(route.request().url()).searchParams.get('search') ? route.fulfill(json(200, { objects: [ARCHITECT_AGENT], totalRecords: 1 })) : route.fallback());
-  const mux = { id: 'hp_mux', name: 'builtin/mux', harnessType: 'Mux', active: true };
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [profile], totalRecords: 1 })));
   const bodies = [];
-  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [mux], totalRecords: 1 })));
-  await page.route(/\/studio\/architects$/, (route) => {
-    if (route.request().method() !== 'POST') return route.fallback();
-    bodies.push(route.request().postDataJSON());
-    return route.fulfill(json(201, { ...ARCHITECT, ...bodies[0] }));
-  });
+  await page.route(/\/studio\/architects$/, (route) => { if (route.request().method() !== 'POST') return route.fallback(); bodies.push(route.request().postDataJSON()); return route.fulfill(json(201, { ...ARCHITECT, ...bodies[0] })); });
   await login(page);
   await page.goto('/dashboard/studio/drf_0001');
   await page.getByTestId('studio-new-architect').click();
-  await expect(page.getByTestId('architect-endpoint-name')).toBeVisible();
+  await expect(page.getByTestId('architect-profile')).toHaveValue('hp_cloud');
+  await expect(page.getByTestId('new-architect')).toContainText('https://ollama.com');
   await expect(page.getByTestId('architect-model')).toHaveCount(0);
   await expect(page.getByTestId('architect-credential')).toHaveCount(0);
-  await page.getByTestId('architect-endpoint-name').fill('local');
   await page.getByTestId('architect-create').click();
   await expect(page.getByTestId('new-architect')).toHaveCount(0);
-  expect(bodies[0].endpointName).toBe('local');
-  expect(bodies[0].model).toBeUndefined();
+  expect(bodies[0].harnessProfileId).toBe('hp_cloud');
+  expect(bodies[0].inferenceEndpoint).toBeUndefined();
   expect(bodies[0].credentialSecretId).toBeUndefined();
-});
-
-test('Architects create and edit native Ollama authentication through the shared endpoint editor', async ({ page }) => {
-  const profile = { id: 'hp_api', name: 'builtin/provider-api', harnessType: 'ProviderApi', active: true };
-  const endpoint = { protocol: 'Ollama', baseUrl: 'http://ollama:11434', authenticationType: 'None', credentials: [] };
-  const architect = { ...ARCHITECT, harnessProfileId: profile.id, model: 'local-model', inferenceEndpoint: endpoint, credentialSecretId: null };
-  const bodies = [];
-  await withArchitects(page, [architect]);
-  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [profile], totalRecords: 1 })));
-  await page.route(/\/studio\/architects(\/dep_arch)?$/, (route) => {
-    if (!['POST', 'PUT'].includes(route.request().method())) return route.fallback();
-    bodies.push(route.request().postDataJSON());
-    return route.fulfill(json(route.request().method() === 'POST' ? 201 : 200, { ...architect, ...bodies.at(-1) }));
-  });
-  await login(page);
-  await page.goto(ARCHITECTS);
-  await page.getByTestId('add-button').click();
-  await page.locator('#architects-inference-protocol').selectOption({ value: 'Ollama' });
-  await page.locator('#architects-inference-base-url').fill(endpoint.baseUrl);
-  await page.locator('#architects-inference-authentication').selectOption({ value: 'None' });
-  await page.locator('#architects-model').fill('local-model');
-  await page.getByTestId('save-button').click();
-  await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies[0].inferenceEndpoint).toEqual(endpoint);
-  await openMenu(page, architect.name);
-  await menuItem(page, 'Edit').click();
-  await expect(page.locator('#architects-inference-protocol')).toHaveValue('Ollama');
-  await expect(page.locator('#architects-inference-base-url')).toHaveValue(endpoint.baseUrl);
-  await page.locator('#architects-inference-authentication').selectOption({ value: 'ApiKey' });
-  await page.locator('#architects-inference-location-0').selectOption({ value: 'QueryString' });
-  await page.locator('#architects-inference-name-0').fill('token');
-  await page.locator('#architects-inference-secret-0').selectOption('sec_0001');
-  await page.getByTestId('save-button').click();
-  await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies[1].inferenceEndpoint.credentials[0]).toEqual({ name: 'token', location: 'QueryString', secretId: 'sec_0001' });
 });

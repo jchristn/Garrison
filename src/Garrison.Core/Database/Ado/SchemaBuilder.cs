@@ -364,6 +364,12 @@ namespace Garrison.Core.Database.Ado
             v44.Index("deployment_inference_credentials", "secret", false, "tenantid", "secretid");
             migrations.Add(new SchemaMigration(44, "Typed inference protocols and secret-backed authentication", v44._Statements, v44._Columns));
 
+            SchemaBuilder v45 = new SchemaBuilder(catalog, dialect);
+            v45.Table("harness_runtime_settings", "profileid " + dialect.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + dialect.TypeId + " NOT NULL", "model VARCHAR(512)", "endpointname VARCHAR(256)", "credentialsecretid " + dialect.TypeId, "protocol VARCHAR(32)", "baseurl " + dialect.TypeText, "authenticationtype VARCHAR(32)");
+            v45.Table("harness_runtime_credentials", "profileid " + dialect.TypeId + " NOT NULL", "tenantid " + dialect.TypeId + " NOT NULL", "position " + dialect.TypeInt + " NOT NULL", "name VARCHAR(256) NOT NULL", "location VARCHAR(32) NOT NULL", "secretid " + dialect.TypeId + " NOT NULL", "PRIMARY KEY (profileid, position)");
+            v45.Index("harness_runtime_credentials", "secret", false, "tenantid", "secretid");
+            migrations.Add(new SchemaMigration(45, "Reusable harness runtime connections", v45._Statements, v45._Columns));
+
             return migrations;
         }
 

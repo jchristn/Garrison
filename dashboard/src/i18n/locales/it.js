@@ -5050,3 +5050,34 @@ Object.assign(it, {
     }
   }
 });
+
+// Shared runtime connections and the configuration navigation split.
+it.runtime = {
+  "title": "Harness ed endpoint",
+  "connections": "Connessioni salvate",
+  "templates": "Modelli harness avanzati",
+  "connection": "Connessione",
+  "architect": "Architetto",
+  "choose": "Scegli un architetto o una connessione",
+  "harness": "Modello harness",
+  "chooseHarness": "Scegli un modello harness",
+  "manage": "Gestisci harness ed endpoint",
+  "configureFirst": "Configura prima una connessione salvata.",
+  "sharedHint": "Configura qui una sola volta. Architetti e deployment usano questa connessione; le modifiche valgono dalla prossima esecuzione.",
+  "reuseHint": "Usa un architetto esistente o crea un architetto da una connessione salvata. Non occorre reinserire credenziali o dettagli endpoint.",
+  "importExport": "Importa / Esporta"
+};
+it.nav.hubs.configuration = {"label": "Risorse degli agenti", "tip": "Connessioni per agenti e architetti."};
+it.nav.hubs.platformConfiguration = {"label": "Configurazione della piattaforma", "tip": "Credenziali, archiviazione, prezzi, quote e notifiche."};
+it.nav.items.harnessProfiles.label = "Harness ed endpoint";
+it.views.agentWizard.access.intro = "Usa un architetto esistente o crea un architetto da una connessione salvata. Non occorre reinserire credenziali o dettagli endpoint.";
+
+it.resources.harnessProfiles.title = it.runtime.title;
+it.resources.harnessProfiles.subtitle = it.runtime.sharedHint;
+it.components.architectHints.harness = it.runtime.sharedHint;
+it.components.architectHints.harnessLink = it.runtime.manage;
+
+Object.assign(it.runtime, {"add": "Aggiungi connessione", "create": "Crea connessione", "edit": "Modifica connessione", "view": "Dettagli connessione"});
+
+it.explainers.harnessProfiles.p2 = it.runtime.sharedHint;
+it.explainers.secrets.p2 = it.runtime.sharedHint;

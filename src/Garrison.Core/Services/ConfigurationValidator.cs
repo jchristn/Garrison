@@ -87,6 +87,7 @@ namespace Garrison.Core.Services
         {
             if (profile == null) throw new ValidationException("A harness profile is required.");
             Dictionary<string, string> errors = new Dictionary<string, string>();
+            foreach (KeyValuePair<string, string> error in HarnessRuntimeRules.Validate(profile)) errors[error.Key] = error.Value;
             Name(profile.Name, errors);
             if (String.IsNullOrWhiteSpace(profile.Executable)) errors["executable"] = "An executable is required.";
             Template(profile.Executable, false, errors, "executable");
@@ -840,6 +841,7 @@ namespace Garrison.Core.Services
             HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null
                 : cache != null ? await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false)
                 : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (profile != null) deployment = HarnessRuntimeRules.Effective(deployment, profile);
             if (deployment.InferenceEndpoint != null)
             {
                 foreach (KeyValuePair<string, string> error in InferenceEndpointRules.Validate(deployment.InferenceEndpoint)) errors[error.Key] = error.Value;

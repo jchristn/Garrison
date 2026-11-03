@@ -6,13 +6,13 @@
 // the problem back to the architect.
 
 import { test, expect } from '@playwright/test';
-import { ARCHITECT, ARCHITECT_DEPLOYMENT, installMocks, studioRun } from './mocks.js';
+import { installMocks, studioRun } from './mocks.js';
 import { installStudioFlow, FLOW_DRAFT_ID } from './studioFlowMocks.js';
 
 const json = (status, body) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 const PLANNER = { id: 'agt_0011', tenantId: 'default', name: 'planner', active: true, isProtected: false };
 const WRITER = { id: 'agt_0012', tenantId: 'default', name: 'writer', active: true, isProtected: false };
-const PROFILE = { id: 'hp_0001', tenantId: null, name: 'builtin/claude-code', harnessType: 'ClaudeCode', active: true };
+const PROFILE = { id: 'hp_0001', tenantId: null, name: 'builtin/claude-code', harnessType: 'ClaudeCode', active: true, runtimeConfiguration: { model: 'opus', credentialSecretId: 'sec_saved' } };
 
 async function login(page) {
   await page.goto('/');
@@ -101,7 +101,7 @@ test('the Agents page opens the wizard, and Studio is no longer a tab', async ({
 
 test('end to end: goal, credential, architect, design, review, approve with dev deployments, and a first conversation', async ({ page }) => {
   const flow = await installStudioFlow(page);
-  const wizard = await installWizardRoutes(page);
+  const wizard = await installWizardRoutes(page, { ...PROFILE, id: 'hp_saved' });
   await login(page);
   await skipSetup(page);
   await page.goto('/dashboard/agent-wizard/new');
@@ -112,21 +112,14 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   await page.getByTestId('wizard-next').click();
   await expect(page).toHaveURL(new RegExp(`/dashboard/agent-wizard/${FLOW_DRAFT_ID}\\?step=access$`));
 
-  // 2. Model access: no fitting secret yet, so add one here with its instructions, then set up the architect.
-  await expect(page.getByTestId('wizard-credential')).toContainText('You have no saved secret');
-  await page.getByTestId('wizard-next').click({ force: true });
-  await expect(page).toHaveURL(/step=access$/);
-  await page.getByTestId('wizard-add-secret').click();
-  await expect(page.getByTestId('wizard-new-secret')).toContainText('Anthropic Console');
-  await page.locator('#wizard-secret-value').fill('sk-ant-test');
-  await page.getByTestId('wizard-save-secret').click();
-  await expect(page.getByTestId('wizard-secret-claude-code-key')).toBeChecked();
-  expect(wizard.secretBodies).toEqual([{ name: 'claude-code-key', kind: 'AnthropicApiKey', value: 'sk-ant-test', active: true }]);
-  await page.locator('#wizard-model').fill('opus');
+  // 2. Choose a saved connection; the endpoint and credentials are not copied into this wizard.
+  await expect(page.locator('#wizard-runtime')).toHaveValue('profile:hp_saved');
+  await expect(page.locator('#wizard-model')).toHaveCount(0);
   await page.getByTestId('wizard-next').click();
   await expect(page).toHaveURL(/step=design$/);
   expect(flow.architectBodies).toHaveLength(1);
-  expect(flow.architectBodies[0]).toMatchObject({ name: 'architect-claude-code', harnessProfileId: 'hp_0001', model: 'opus', credentialSecretId: 'sec_0100', architectPromptTemplateId: 'builtin/agent-architect-guided' });
+  expect(flow.architectBodies[0]).toMatchObject({ harnessProfileId: 'hp_saved', architectPromptTemplateId: 'builtin/agent-architect-guided' });
+  expect(flow.architectBodies[0].credentialSecretId).toBeUndefined();
 
   // Back must reach each preceding step, and completed steps must open directly without redirect loops.
   await page.getByTestId('wizard-back').click();
@@ -191,10 +184,8 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   await expect(page.getByTestId('wizard-approved')).toContainText('Approved and published');
   expect(flow.applyRequests).toEqual([{ version: 3 }]);
   expect(flow.decisions[0]).toMatchObject({ decision: 'Allow' });
-  expect(wizard.deploymentUpdates.map((d) => [d.name, d.resourceBindings])).toEqual([
-    ['planner-dev', [{ kind: 'Secret', alias: 'credential', resourceId: 'sec_0100' }]],
-    ['writer-dev', [{ kind: 'Secret', alias: 'credential', resourceId: 'sec_0100' }]]
-  ]);
+  expect(wizard.deploymentUpdates).toHaveLength(2);
+  expect(wizard.deploymentUpdates.every((d) => d.harnessProfileId === 'hp_saved' && d.model == null && !d.inferenceEndpoint && !d.resourceBindings.some((b) => b.alias === 'credential'))).toBe(true);
   await expect(page.getByTestId('wizard-approved').locator('tbody tr')).toHaveCount(2);
   await page.getByTestId('wizard-next').click();
 
@@ -234,9 +225,6 @@ test('a draft that could not be applied says why and sends the problem back to t
   await page.locator('#wizard-title').fill('Docs app');
   await page.locator('#wizard-goal').fill('Plan and write short documents.');
   await page.getByTestId('wizard-next').click();
-  await page.getByTestId('wizard-add-secret').click();
-  await page.locator('#wizard-secret-value').fill('sk-ant-test');
-  await page.getByTestId('wizard-save-secret').click();
   await page.getByTestId('wizard-next').click();
   await page.getByTestId('studio-chat-send').click();
   await expect(page.getByTestId('wizard-contents')).toContainText('planner');
@@ -252,175 +240,22 @@ test('a draft that could not be applied says why and sends the problem back to t
   await expect(page.getByTestId('studio-chat-message')).toHaveValue(/Artifact globs require an artifact store\./);
 });
 
-test('Mux needs only a configured endpoint name and carries it into the architect and dev deployments without secrets', async ({ page }, testInfo) => {
+
+test('Model access reuses an existing Ollama architect without rewriting it or requesting secrets', async ({ page }) => {
   const flow = await installStudioFlow(page);
-  const wizard = await installWizardRoutes(page);
-  const mux = { ...PROFILE, name: 'builtin/mux', harnessType: 'Mux' };
-  const updates = [];
-  await page.route(/\/tenants\/[^/]+\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [mux], totalRecords: 1 })));
-  await page.route(/\/tenants\/[^/]+\/harness-profiles\/hp_0001$/, (route) => route.fulfill(json(200, mux)));
-  await page.route(/\/studio\/architects\/dep_arch$/, (route) => route.fulfill(json(200, { ...ARCHITECT, credentialSecretId: null })));
-  await page.route(/\/deployments\/dep_arch$/, (route) => {
-    if (route.request().method() === 'PUT') {
-      const body = route.request().postDataJSON();
-      updates.push(body);
-      return route.fulfill(json(200, body));
-    }
-    return route.fulfill(json(200, { ...ARCHITECT_DEPLOYMENT, parameters: [{ name: 'timeoutMs', value: '300000' }], resourceBindings: [] }));
-  });
+  await installWizardRoutes(page, { ...PROFILE, harnessType: 'ProviderApi', runtimeConfiguration: { model: 'cloud-model', inferenceEndpoint: { protocol: 'Ollama', baseUrl: 'https://ollama.com', authenticationType: 'BearerToken', credentials: [{ name: '', location: 'Header', secretId: 'sec_saved' }] } } });
+  await page.route(/\/studio\/architects(\?.*)?$/, (route) => route.request().method() === 'GET' ? route.fulfill(json(200, { objects: [{ id: 'dep_arch', name: 'Ollama architect', harnessProfileId: 'hp_0001', active: true }], endOfResults: true })) : route.fallback());
   await login(page);
   await skipSetup(page);
   await page.goto('/dashboard/agent-wizard/new');
-  await page.locator('#wizard-title').fill('Local Mux agents');
-  await page.locator('#wizard-goal').fill('Plan documents using my local endpoint.');
+  await page.locator('#wizard-title').fill('Reuse Ollama');
+  await page.locator('#wizard-goal').fill('Use my saved Ollama architect.');
   await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('wizard-mux')).toBeVisible();
-  await expect(page.getByTestId('wizard-add-secret')).toHaveCount(0);
-  await page.getByTestId('wizard-next').click({ force: true });
-  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
-  await page.locator('#wizard-mux-endpoint').fill('http://ollama:11434');
-  await page.getByTestId('wizard-next').click({ force: true });
-  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
-  await page.locator('#wizard-mux-endpoint').fill('local');
-  await page.getByTestId('wizard-panel-access').screenshot({ path: testInfo.outputPath('mux-endpoint-name.png') });
-  await expect(page.locator('#wizard-mux-adapter')).toHaveCount(0);
-  await expect(page.locator('#wizard-mux-credential')).toHaveCount(0);
-  await expect(page.locator('#wizard-model')).toHaveCount(0);
+  await expect(page.locator('#wizard-runtime')).toHaveValue('architect:dep_arch');
+  await expect(page.getByText('https://ollama.com', { exact: false })).toBeVisible();
+  await expect(page.locator('#wizard-inference-base-url')).toHaveCount(0);
+  await expect(page.locator('#wizard-secret-value')).toHaveCount(0);
   await page.getByTestId('wizard-next').click();
   await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
-  expect(flow.architectBodies[0].credentialSecretId).toBe('');
-  expect(updates[0]).toMatchObject({ model: null, resourceBindings: [], parameters: [{ name: 'timeoutMs', value: '300000' }, { name: 'endpoint', value: 'local' }] });
-  await expect(page.getByTestId('studio-not-credentialed')).toHaveCount(0);
-  await expect(page.getByTestId('studio-chat-message')).toHaveValue(/local/);
-  await page.getByTestId('studio-chat-send').click();
-  await expect(page.getByTestId('wizard-contents')).toContainText('planner');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('wizard-valid')).toBeVisible();
-  await page.getByTestId('wizard-next').click();
-  await page.getByTestId('wizard-approve-button').click();
-  await expect(page.getByTestId('wizard-approved')).toBeVisible();
-  expect(wizard.secretBodies).toEqual([]);
-  expect(wizard.deploymentUpdates).toHaveLength(2);
-  for (const deployment of wizard.deploymentUpdates) {
-    expect(deployment.parameters).toEqual(expect.arrayContaining([{ name: 'endpoint', value: 'local' }]));
-    expect(deployment.resourceBindings).not.toEqual(expect.arrayContaining([expect.objectContaining({ alias: 'credential' })]));
-  }
+  expect(flow.architectBodies).toHaveLength(0);
 });
-
-for (const harness of [
-  { harnessType: 'Pi', name: 'builtin/pi', model: 'anthropic/claude-sonnet-4-5' },
-  { harnessType: 'OpenCode', name: 'builtin/opencode', model: 'opencode/free-model' },
-  { harnessType: 'Generic', name: 'builtin/generic-jsonl', model: '' },
-  { harnessType: 'Fake', name: 'builtin/fake', model: '' }
-]) {
-  test(`${harness.name} accepts its CLI model without forcing a provider secret`, async ({ page }) => {
-    const flow = await installStudioFlow(page);
-    await installWizardRoutes(page, { ...PROFILE, ...harness });
-    await login(page);
-    await skipSetup(page);
-    await page.goto('/dashboard/agent-wizard/new');
-    await page.locator('#wizard-title').fill('Harness audit');
-    await page.locator('#wizard-goal').fill('Design an agent.');
-    await page.getByTestId('wizard-next').click();
-    await expect(page.getByTestId('wizard-mux')).toHaveCount(0);
-    await expect(page.getByTestId('wizard-credential').locator('.warning-banner')).toHaveCount(0);
-    if (harness.model) await page.locator('#wizard-model').fill(harness.model);
-    await page.getByTestId('wizard-next').click();
-    await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
-    expect(flow.architectBodies[0]).toMatchObject({ credentialSecretId: '', model: harness.model || null });
-  });
-}
-
-for (const harness of [
-  { harnessType: 'Codex', name: 'builtin/codex', kind: 'OpenAiApiKey' },
-  { harnessType: 'Codex', name: 'builtin/codex-app-server', kind: 'OpenAiApiKey' },
-  { harnessType: 'GeminiCli', name: 'builtin/gemini-cli', kind: 'GeminiApiKey' }
-]) {
-  test(`${harness.name} requires a compatible isolated-run credential`, async ({ page }) => {
-    await installStudioFlow(page);
-    await installWizardRoutes(page, { ...PROFILE, ...harness });
-    await login(page);
-    await skipSetup(page);
-    await page.goto('/dashboard/agent-wizard/new');
-    await page.locator('#wizard-title').fill('Credential audit');
-    await page.locator('#wizard-goal').fill('Design an agent.');
-    await page.getByTestId('wizard-next').click();
-    await expect(page.getByTestId('wizard-credential')).toContainText(harness.kind);
-    await page.getByTestId('wizard-next').click({ force: true });
-    await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
-    await page.getByTestId('wizard-add-secret').click();
-    await expect(page.locator('#wizard-secret-kind')).toHaveValue(harness.kind);
-  });
-}
-
-test('provider-api requires an explicit URL and model and supports an explicitly anonymous endpoint', async ({ page }) => {
-  const flow = await installStudioFlow(page);
-  await installWizardRoutes(page, { ...PROFILE, name: 'builtin/provider-api', harnessType: 'ProviderApi' });
-  await page.route(/\/deployments\/dep_arch$/, (route) => {
-    if (route.request().method() === 'PUT') {
-      return route.fulfill(json(200, route.request().postDataJSON()));
-    }
-    return route.fulfill(json(200, { ...ARCHITECT_DEPLOYMENT, resourceBindings: [], parameters: [] }));
-  });
-  await login(page);
-  await skipSetup(page);
-  await page.goto('/dashboard/agent-wizard/new');
-  await page.locator('#wizard-title').fill('Provider audit');
-  await page.locator('#wizard-goal').fill('Design an agent.');
-  await page.getByTestId('wizard-next').click();
-  await page.getByTestId('wizard-next').click({ force: true });
-  await expect(page.getByTestId('wizard-panel-access')).toBeVisible();
-  await page.locator('#wizard-inference-base-url').fill('http://provider:8080/v1');
-  await page.locator('#wizard-model').fill('local-model');
-  await page.locator('#wizard-inference-authentication').selectOption('None');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
-  expect(flow.architectBodies[0].credentialSecretId).toBe('');
-  expect(flow.architectBodies[0].inferenceEndpoint).toEqual({ protocol: 'OpenAiCompatible', baseUrl: 'http://provider:8080/v1', authenticationType: 'None', credentials: [] });
-});
-
-for (const authenticationType of ['BearerToken', 'ApiKey', 'Headers', 'QueryString', 'Basic']) {
-  test(`Ollama API collects ${authenticationType} credentials independently of secret kind`, async ({ page }, testInfo) => {
-    const flow = await installStudioFlow(page);
-    const wizard = await installWizardRoutes(page, { ...PROFILE, name: 'builtin/provider-api', harnessType: 'ProviderApi' });
-    await login(page);
-    await skipSetup(page);
-    await page.goto('/dashboard/agent-wizard/new');
-    await page.locator('#wizard-title').fill('Native Ollama');
-    await page.locator('#wizard-goal').fill('Design an agent using native Ollama.');
-    await page.getByTestId('wizard-next').click();
-    await page.locator('#wizard-inference-protocol').selectOption({ value: 'Ollama' });
-    await page.locator('#wizard-inference-base-url').fill('https://ollama.com');
-    await page.locator('#wizard-model').fill('fixture-model');
-    await page.locator('#wizard-inference-authentication').selectOption({ value: authenticationType });
-    if (['ApiKey', 'Headers', 'QueryString'].includes(authenticationType)) await page.locator('#wizard-inference-name-0').fill('X-Provider-Token');
-    if (authenticationType === 'ApiKey') await page.locator('#wizard-inference-location-0').selectOption({ value: 'QueryString' });
-    const count = authenticationType === 'Basic' ? 2 : 1;
-    for (let i = 0; i < count; i++) {
-      await page.getByTestId(`wizard-inference-credential-${i}`).getByRole('button', { name: 'Add credential value' }).click();
-      await page.locator('#wizard-inference-value-name').fill(`ollama-${i}`);
-      await page.locator('#wizard-inference-value').fill(`fixture-value-${i}`);
-      await page.getByTestId('wizard-inference-save-value').click();
-      await expect(page.getByTestId('wizard-inference-new-value')).toHaveCount(0);
-    }
-    await expect(page.getByTestId('wizard-next')).toBeEnabled();
-    if (authenticationType === 'BearerToken') {
-      await page.screenshot({ path: testInfo.outputPath('ollama-endpoint-desktop.png'), fullPage: true });
-      await page.setViewportSize({ width: 390, height: 844 });
-      await expect(page.locator('.dashboard-sidebar')).not.toBeInViewport();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-      await page.screenshot({ path: testInfo.outputPath('ollama-endpoint-mobile.png'), fullPage: true });
-    }
-    await page.getByTestId('wizard-next').click();
-    await expect(page.getByTestId('wizard-panel-design')).toBeVisible();
-    const endpoint = flow.architectBodies[0].inferenceEndpoint;
-    expect(endpoint.protocol).toBe('Ollama');
-    expect(endpoint.authenticationType).toBe(authenticationType);
-    expect(endpoint.credentials).toHaveLength(count);
-    expect(endpoint.credentials.every((c) => c.secretId === 'sec_0100')).toBe(true);
-    expect(JSON.stringify(flow.architectBodies)).not.toContain('fixture-value');
-    expect(wizard.secretBodies[0].kind).toBe(authenticationType === 'BearerToken' ? 'BearerToken' : 'GenericEnv');
-    if (authenticationType === 'ApiKey') expect(endpoint.credentials[0].location).toBe('QueryString');
-    if (authenticationType === 'Basic') expect(endpoint.credentials.map((c) => c.name)).toEqual(['username', 'password']);
-  });
-}

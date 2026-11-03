@@ -350,6 +350,7 @@ export default function ResourceView({ config }) {
   ];
 
   const prefix = `resources.${config.id}`;
+  const recordLabel = (key) => t(config.labels?.[key] || `${prefix}.${key}`);
   const intro = config.intro ? config.intro({ ...ctx, listInfo }) : null;
   const allFields = editing ? config.fields(editing.data, { ...ctx, mode: editing.mode, options, reloadOptions }) : [];
   const steps = config.steps || null;
@@ -424,14 +425,14 @@ export default function ResourceView({ config }) {
   return (
     <div>
       <PageHeader
-        title={t(`${prefix}.title`)}
-        subtitle={t(`${prefix}.subtitle`)}
+        title={recordLabel('title')}
+        subtitle={recordLabel('subtitle')}
         actions={
           <>
             {config.headerActions && config.headerActions({ ...ctx, reload: () => load(page.pageNumber), setExtraModal })}
             {config.api.create && canManage && (
               <button type="button" className="button-primary" onClick={openCreate} data-testid="add-button" {...addProps} {...tip(addTip)}>
-                <PlusIcon /> {t(`${prefix}.add`)}
+                <PlusIcon /> {recordLabel('add')}
               </button>
             )}
           </>
@@ -452,8 +453,8 @@ export default function ResourceView({ config }) {
       ) : noData ? (
         <div className="table-frame">
           <EmptyState
-            title={t(`${prefix}.emptyTitle`)}
-            body={config.studioEmptyState ? `${t(`${prefix}.emptyBody`)} ${t('common.states.studioHint')}` : t(`${prefix}.emptyBody`)}
+            title={recordLabel('emptyTitle')}
+            body={config.studioEmptyState ? `${t(`${prefix}.emptyBody`)} ${t('common.states.studioHint')}` : recordLabel('emptyBody')}
             action={
               (config.studioEmptyState || (config.api.create && canManage)) && (
                 <div className="flex gap-sm state-actions">
@@ -464,7 +465,7 @@ export default function ResourceView({ config }) {
                   )}
                   {config.api.create && canManage && (
                     <button type="button" className="button-primary" onClick={openCreate} {...addProps} {...tip(addTip)}>
-                      <PlusIcon /> {t(`${prefix}.add`)}
+                      <PlusIcon /> {recordLabel('add')}
                     </button>
                   )}
                 </div>
@@ -512,7 +513,7 @@ export default function ResourceView({ config }) {
         open={!!editing}
         onClose={() => !busy && setEditing(null)}
         size={config.formSize || 'large'}
-        title={editing ? t(`${prefix}.${editing.mode === 'create' ? 'create' : editing.mode === 'edit' ? 'edit' : 'view'}`) : ''}
+        title={editing ? recordLabel(editing.mode === 'create' ? 'create' : editing.mode === 'edit' ? 'edit' : 'view') : ''}
         headerMeta={editing?.data?.id ? <code className="cell-id">{editing.data.id}</code> : null}
         footer={
           editing?.mode === 'view' ? (

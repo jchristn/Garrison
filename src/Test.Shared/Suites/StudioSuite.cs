@@ -42,6 +42,7 @@ namespace Test.Shared.Suites
             {
                 string id = "studio-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
+                cases.Add(new TestCaseDescriptor(id, "shared-runtime-connection", "Architect REST and MCP reuse saved runtime profiles and protect their credential references (" + provider + ")", ct => SharedRuntimeAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-inference-endpoint", "Architect REST and MCP accept native Ollama and explicit authentication without legacy API-key assumptions (" + provider + ")", ct => InferenceArchitectEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "architect-mux-endpoint", "Architect create/read/update retains the named Mux endpoint without model or credential overrides (" + provider + ")", ct => MuxArchitectEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "drafts", "Drafts hold one document per kind and name; a stale version is 409 DraftVersionConflict; documents must match their path (" + provider + ")", ct => DraftsAsync(provider, ct)));
@@ -908,6 +909,39 @@ spec:
                     }
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Nope" }, token).ConfigureAwait(false)).StatusCode, "No permission: create a draft");
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/nope", new StudioDraftItemRequest { Version = draft.Version, Document = AgentYaml("nope", "No.") }, token).ConfigureAwait(false)).StatusCode, "No permission: edit a draft");
+                }
+            }
+        }
+
+        private static async Task SharedRuntimeAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string profiles = T(host) + "/harness-profiles";
+                HarnessProfile profile = await HttpTestHelpers.SendAsync<HarnessProfile>(host.AdminClient, HttpMethod.Get, profiles + "/hrn_builtin_provider_api", null, 200, token).ConfigureAwait(false);
+                Secret secret = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, T(host) + "/secrets", new SecretRequest { Name = "central-bearer", Kind = SecretKindEnum.BearerToken, Value = "fixture-central-value" }, 201, token).ConfigureAwait(false);
+                profile.Name = "Saved Ollama Cloud";
+                profile.RuntimeConfiguration = new HarnessRuntimeConfiguration { Model = "cloud-model", InferenceEndpoint = new InferenceEndpoint { Protocol = InferenceProtocolEnum.Ollama, BaseUrl = "https://ollama.com", AuthenticationType = InferenceAuthenticationTypeEnum.BearerToken, Credentials = new List<InferenceCredential> { new InferenceCredential { SecretId = secret.Id } } } };
+                profile = await HttpTestHelpers.SendAsync<HarnessProfile>(host.AdminClient, HttpMethod.Post, profiles, profile, 201, token).ConfigureAwait(false);
+                HarnessProfile persisted = await HttpTestHelpers.SendAsync<HarnessProfile>(host.AdminClient, HttpMethod.Get, profiles + "/" + profile.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(secret.Id, persisted.RuntimeConfiguration!.InferenceEndpoint!.Credentials.Single().SecretId, "Shared configuration persists references only");
+                Architect architect = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Post, T(host) + "/studio/architects", new ArchitectRequest { Name = "shared-architect", HarnessProfileId = profile.Id }, 201, token).ConfigureAwait(false);
+                Assert.Equal("cloud-model", architect.Model ?? "", "Architect resolves the saved model");
+                Assert.Equal("https://ollama.com", architect.InferenceEndpoint!.BaseUrl, "Architect resolves its saved endpoint");
+                Deployment deployment = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + architect.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(deployment.Model == null && deployment.InferenceEndpoint == null && !deployment.ResourceBindings.Any(b => b.Alias == "credential"), "Architect stores a shared profile reference");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/secrets/" + secret.Id, null, token).ConfigureAwait(false), 409, profile.Name, "Secret deletion identifies its saved connection");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, profiles + "/" + profile.Id, null, token).ConfigureAwait(false), 409, architect.Name, "Profile deletion identifies its consumer");
+                profile.RuntimeConfiguration!.InferenceEndpoint!.Credentials[0].SecretId = "sec_unknown";
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, profiles + "/" + profile.Id, profile, token).ConfigureAwait(false), 400, "runtimeConfiguration", "Invalid secret references are rejected on the central API");
+                profile.RuntimeConfiguration.InferenceEndpoint.Credentials[0].SecretId = secret.Id;
+                profile.RuntimeConfiguration.Model = "updated-cloud-model";
+                await HttpTestHelpers.SendAsync<HarnessProfile>(host.AdminClient, HttpMethod.Put, profiles + "/" + profile.Id, profile, 200, token).ConfigureAwait(false);
+                using (TestMcpClient client = new TestMcpClient())
+                {
+                    await client.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    Architect mcp = await client.CallAsync<Architect>("garrison_studio_create_architect", new { name = "shared-mcp", harnessProfileId = profile.Id }, token).ConfigureAwait(false);
+                    Assert.Equal("updated-cloud-model", mcp.Model ?? "", "MCP references the same saved connection");
                 }
             }
         }

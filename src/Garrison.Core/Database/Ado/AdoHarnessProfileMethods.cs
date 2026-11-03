@@ -293,6 +293,7 @@ namespace Garrison.Core.Database.Ado
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
 
+            await AdoHarnessRuntimeConfiguration.ReadAsync(_Driver, obj, token).ConfigureAwait(false);
             obj.Arguments = await _Driver.QueryAsync(
                 "SELECT * FROM " + _ArgumentsTable + " WHERE harnessprofileid = @parentid ORDER BY position ASC;",
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
@@ -403,6 +404,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertChildrenAsync(DbConnection connection, DbTransaction transaction, HarnessProfile obj, CancellationToken token)
         {
+            await AdoHarnessRuntimeConfiguration.InsertAsync(_Driver, connection, transaction, obj, token).ConfigureAwait(false);
             string batch = IdGenerator.NewChildRowId() + "_";
             for (int i = 0; i < obj.Arguments.Count; i++)
             {
@@ -575,6 +577,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
         {
+            await AdoHarnessRuntimeConfiguration.DeleteAsync(_Driver, connection, transaction, parentId, token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ArgumentsTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _EnvironmentTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _FilesTable + " WHERE harnessprofileid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);

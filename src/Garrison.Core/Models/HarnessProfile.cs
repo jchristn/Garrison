@@ -14,6 +14,9 @@ namespace Garrison.Core.Models
     {
         #region Public-Members
 
+        /// <summary>Named reusable connection settings. Null identifies an unconfigured harness template.</summary>
+        public HarnessRuntimeConfiguration? RuntimeConfiguration { get; set; } = null;
+
         /// <summary>
         /// Warnings about values in the request that created or updated this record and were not stored as given (I-08),
         /// for example a number outside its range that was clamped (code ValueClamped). Present only on create and

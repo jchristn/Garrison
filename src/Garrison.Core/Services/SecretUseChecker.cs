@@ -90,10 +90,12 @@ namespace Garrison.Core.Services
         /// <returns>Task.</returns>
         /// <exception cref="ArgumentNullException">Thrown when deployment is null.</exception>
         /// <exception cref="ValidationException">Thrown with field code SecretUseDenied when a secret may not be used.</exception>
-        public Task RequireForDeploymentAsync(string tenantId, Deployment deployment, CancellationToken token = default)
+        public async Task RequireForDeploymentAsync(string tenantId, Deployment deployment, CancellationToken token = default)
         {
             if (deployment == null) throw new ArgumentNullException(nameof(deployment));
-            return RequireAsync(tenantId, SecretBindings(deployment), "resourceBindings", "Deployment " + deployment.Name, token);
+            HarnessProfile? profile = await _Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (profile != null) deployment = HarnessRuntimeRules.Effective(deployment, profile);
+            await RequireAsync(tenantId, SecretBindings(deployment), "resourceBindings", "Deployment " + deployment.Name, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -114,6 +116,11 @@ namespace Garrison.Core.Services
             List<Deployment> users = (await _Database.Deployments.ListByTenantAsync(tenantId, token).ConfigureAwait(false))
                 .Where(d => d.ResourceBindings.Any(b => b.Kind == ResourceBindingKindEnum.McpServer && b.ResourceId == server.Id))
                 .ToList();
+            for (int i = 0; i < users.Count; i++)
+            {
+                HarnessProfile? profile = await _Database.HarnessProfiles.ReadAsync(tenantId, users[i].HarnessProfileId, token).ConfigureAwait(false);
+                if (profile != null) users[i] = HarnessRuntimeRules.Effective(users[i], profile);
+            }
             await RequireAsync(tenantId, users.SelectMany(SecretBindings), "headers", "MCP server " + server.Name + " renders the secrets of deployment" + (users.Count == 1 ? " " : "s ") + String.Join(", ", users.Select(d => d.Name)) + ", so it", token).ConfigureAwait(false);
         }
 
@@ -134,12 +141,13 @@ namespace Garrison.Core.Services
                 .Concat(profile.Files.Select(f => (string?)f.ContentTemplate))
                 .Concat(profile.Files.Select(f => (string?)f.PathTemplate))
                 .ToList();
+            await RequireAsync(tenantId, SecretBindings(HarnessRuntimeRules.Effective(new Deployment(), profile)), "runtimeConfiguration", "Runtime connection " + profile.Name, token).ConfigureAwait(false);
             if (!ReferencesSecrets(templates)) return;
             if (String.IsNullOrEmpty(profile.Id)) return;
             List<Deployment> users = (await _Database.Deployments.ListByTenantAsync(tenantId, token).ConfigureAwait(false))
                 .Where(d => d.HarnessProfileId == profile.Id)
                 .ToList();
-            await RequireAsync(tenantId, users.SelectMany(SecretBindings), "environment", "Harness profile " + profile.Name + " renders the secrets of deployment" + (users.Count == 1 ? " " : "s ") + String.Join(", ", users.Select(d => d.Name)) + ", so it", token).ConfigureAwait(false);
+            await RequireAsync(tenantId, users.Select(d => HarnessRuntimeRules.Effective(d, profile)).SelectMany(SecretBindings), "environment", "Harness profile " + profile.Name + " renders the secrets of deployment" + (users.Count == 1 ? " " : "s ") + String.Join(", ", users.Select(d => d.Name)) + ", so it", token).ConfigureAwait(false);
         }
 
         /// <summary>

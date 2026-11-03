@@ -138,6 +138,14 @@ namespace Garrison.Server.Routes
             string tenantId = RouteHelpers.Tenant(http);
             Secret secret = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(secret.TenantId, false, secret.IsProtected, tenantId, "Secret " + secret.Name);
+            EnumerationResult<HarnessProfile> connections = await _Server.Database.HarnessProfiles.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1000 }, http.Token).ConfigureAwait(false);
+            while (true)
+            {
+                HarnessProfile? reference = connections.Objects.FirstOrDefault(p => InferenceEndpointRules.Bindings(HarnessRuntimeRules.Effective(new Deployment(), p)).Any(b => b.Kind == ResourceBindingKindEnum.Secret && b.ResourceId == secret.Id));
+                if (reference != null) throw new ConflictException("InUse", "Secret " + secret.Name + " is used by runtime connection " + reference.Name + ". Update that connection before deleting the secret.");
+                if (connections.EndOfResults) break;
+                connections = await _Server.Database.HarnessProfiles.EnumerateAsync(tenantId, new EnumerationQuery { Skip = connections.Skip + connections.Objects.Count, MaxResults = 1000 }, http.Token).ConfigureAwait(false);
+            }
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => InferenceEndpointRules.Bindings(d).Any(b => b.Kind == ResourceBindingKindEnum.Secret && b.ResourceId == secret.Id), "Secret " + secret.Name, http.Token).ConfigureAwait(false);
             if (await _Server.Database.ArtifactStores.UsesSecretAsync(tenantId, secret.Id, http.Token).ConfigureAwait(false)) throw new ConflictException("ResourceInUse", "The secret is used by an artifact store.");
             await _Server.Database.Secrets.DeleteAsync(secret.Id, http.Token).ConfigureAwait(false);

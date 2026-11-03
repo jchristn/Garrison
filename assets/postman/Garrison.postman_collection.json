@@ -22182,8 +22182,64 @@
     },
     {
       "name": "Inference endpoint examples (v0.2.0)",
-      "description": "Explicit protocol and secret-backed HTTP authentication for architects. Configure variables before sending. See docs/PROVIDER_API.md.",
+      "description": "Configure inferenceSecretId with a saved encrypted bearer token ID, then create one shared profile and an architect referencing it. No model request is made.",
       "item": [
+        {
+          "name": "Read provider adapter for saved connection",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles/hrn_builtin_provider_api"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Provider template is readable\", () => pm.response.to.have.status(200));",
+                  "const profile = pm.response.json();",
+                  "profile.name = \"ollama-connection-\" + pm.variables.get(\"suffix\");",
+                  "profile.runtimeConfiguration = { model: pm.variables.get(\"inferenceModel\"), inferenceEndpoint: { protocol: \"Ollama\", baseUrl: pm.variables.get(\"inferenceBaseUrl\"), authenticationType: \"BearerToken\", credentials: [{ name: \"\", location: \"Header\", secretId: pm.variables.get(\"inferenceSecretId\") }] } };",
+                  "pm.collectionVariables.set(\"savedRuntimeProfileBody\", JSON.stringify(profile));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save reusable Ollama runtime profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles",
+            "body": {
+              "mode": "raw",
+              "raw": "{{savedRuntimeProfileBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Connection created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"runtimeProfileId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Create native Ollama bearer architect",
           "request": {
@@ -22208,10 +22264,10 @@
                 "architects"
               ]
             },
-            "description": "Native Ollama architect. Create an encrypted BearerToken secret first and set inferenceSecretId to its ID. This configures an endpoint without making a model request. Ollama Cloud uses BearerToken; for local Ollama select None with credentials: [].",
+            "description": "Reference the saved Ollama connection created by the preceding requests. Endpoint and authentication settings remain on the shared profile.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"ollama-architect-{{suffix}}\",\n  \"harnessProfileId\": \"hrn_builtin_provider_api\",\n  \"model\": \"{{inferenceModel}}\",\n  \"inferenceEndpoint\": {\n    \"protocol\": \"Ollama\",\n    \"baseUrl\": \"{{inferenceBaseUrl}}\",\n    \"authenticationType\": \"BearerToken\",\n    \"credentials\": [\n      {\n        \"name\": \"\",\n        \"location\": \"Header\",\n        \"secretId\": \"{{inferenceSecretId}}\"\n      }\n    ]\n  }\n}",
+              "raw": "{\n  \"name\": \"ollama-architect-{{suffix}}\",\n  \"harnessProfileId\": \"{{runtimeProfileId}}\",\n  \"architectPromptTemplateId\": \"builtin/agent-architect-guided\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -22725,6 +22781,10 @@
     {
       "key": "inferenceSecretId",
       "value": "sec_replace_with_saved_token"
+    },
+    {
+      "key": "runtimeProfileId",
+      "value": "hrn_saved_connection"
     }
   ]
 }

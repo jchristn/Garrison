@@ -4,17 +4,15 @@
 
 ## Configure a deployment
 
-Use the dashboard or the existing deployment API:
+Open **Agent Resources > Harnesses & Endpoints > Saved connections** and add a connection based on `builtin/provider-api`. Choose the model, protocol, URL, authentication type, and encrypted credential references there. Architects, agent deployments, and Agent Wizard then select that connection instead of copying its settings. Agent Wizard can also select an existing architect directly.
 
-- Set `harnessProfileId` to `hrn_builtin_provider_api` and select a model supported by your endpoint.
-- Set `inferenceEndpoint.protocol` to `OpenAiCompatible` or `Ollama`, and `baseUrl` to the service URL. Native Ollama uses `/api/chat`; compatibility mode uses `/v1/chat/completions`. Ollama URLs may end in `/api`; OpenAI-compatible URLs may end in `/v1`.
-- Choose `authenticationType` explicitly. Authentication belongs to the endpoint configuration, independently of protocol and secret kind. Ollama Cloud uses `BearerToken`; a local unauthenticated Ollama server uses `None`.
-- Store each authentication value in a tenant secret and reference its `secretId` in `credentials`. The dashboard can create these encrypted secrets inline. No credential values belong in URLs, deployment parameters, manifests, or endpoint responses.
-- Bind the normal System and Task prompt templates. Structured-output instructions and repairs use Garrison's existing templates and validator.
+The profile's `runtimeConfiguration.inferenceEndpoint.protocol` is `OpenAiCompatible` or `Ollama`; `runtimeConfiguration.model` identifies the served model. Native Ollama uses `/api/chat`; compatibility mode uses `/v1/chat/completions`. URLs may end in `/api` for Ollama or `/v1` for compatibility mode. Ollama Cloud uses bearer authentication; local unauthenticated Ollama uses `None`. Bind the normal System and Task prompt templates to deployments as before.
+
+See [shared runtime connections](RUNTIME_CONNECTIONS.md) for profile creation, consumer references, permissions, and migration. Existing inline deployment and architect fields remain a compatibility path for older clients using unconfigured adapter templates; startup migrates those settings into reusable profiles.
 
 ### Endpoint contract
 
-Architect create/update requests and responses, deployment create/update/read, MCP architect tools, SDK models, and manifest deployment specs share this object:
+The central profile stores this object under `runtimeConfiguration.inferenceEndpoint`. SDK and manifest profile models expose the same contract. The legacy inline deployment and architect contract also accepts it:
 
 ```json
 {
@@ -25,7 +23,7 @@ Architect create/update requests and responses, deployment create/update/read, M
 }
 ```
 
-Keep the model in the existing `model` field. Select `hrn_builtin_provider_api` as the harness profile. This works for architects as well as ordinary agent deployments. The dashboard exposes the same endpoint editor in Architects, setup, Agent wizard, and deployment configuration.
+Keep the model in the profile's `runtimeConfiguration.model` field. Configure the saved connection with the `builtin/provider-api` adapter, then reference its tenant profile ID from architects and ordinary deployments. The dashboard endpoint editor lives in the central registry; referring forms show a summary and a management link.
 
 | Authentication type | Credential entries |
 | --- | --- |
@@ -63,3 +61,8 @@ Cost estimation uses existing operator-configured rates. Daily quota enforcement
 Run `dotnet run --project src/Test.Automated -f net10.0 -- --suites provider-api` for fixture-backed execution, streaming/history, failure, compilation, and real Garrison MCP approval checks. Tests use temporary endpoints and spend no provider tokens.
 
 Local validation also exercised an approved delegation from the Docker provider process to `smoke-echo`, then a real model call using the already configured Mux-compatible endpoint and encrypted API secret. Temporary test agents/deployments/runs were removed. Provider-specific features outside the compatible Chat Completions contract have not been validated.
+
+
+## Saved runtime connections (v0.2.0)
+
+Configure harness access once in Agent Resources > Harnesses & Endpoints. Tenant harness profiles own `runtimeConfiguration` (model, Mux endpoint name, CLI credential reference, or typed HTTP inference configuration). Architects, deployments, and Agent Wizard reference the saved `harnessProfileId`; the wizard can also reuse an existing architect directly. Shared edits take effect on each consumer's next run. See [shared connections, API contracts, migration, permissions, and manifests](RUNTIME_CONNECTIONS.md).

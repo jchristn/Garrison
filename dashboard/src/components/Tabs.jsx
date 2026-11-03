@@ -87,6 +87,7 @@ export function UrlTabs({ tabs, label, idPrefix = 'hub' }) {
 
   return (
     <div className="hub-tabs">
+      <select className="hub-tab-select" aria-label={label} value={activeKey} onChange={(e) => select(e.target.value)}>{tabs.map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}</select>
       <TabStrip tabs={tabs} activeKey={activeKey} onSelect={select} label={label} idPrefix={idPrefix} className="hub-tab-strip" />
       {activeTab && (
         <div role="tabpanel" id={`${idPrefix}-panel-${activeTab.id}`} aria-labelledby={`${idPrefix}-tab-${activeTab.id}`} className="hub-tab-panel">

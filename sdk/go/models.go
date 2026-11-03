@@ -566,6 +566,7 @@ type ApprovalCheckResponse struct {
 
 // HarnessProfile describes how to run a harness CLI.
 type HarnessProfile struct {
+	RuntimeConfiguration *HarnessRuntimeConfiguration `json:"runtimeConfiguration,omitempty"`
 	// SessionFormat pins the durable continuation format.
 	SessionFormat *string `json:"sessionFormat,omitempty"`
 	ID            string  `json:"id"`

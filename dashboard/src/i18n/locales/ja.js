@@ -5001,3 +5001,34 @@ Object.assign(ja, {
     }
   }
 });
+
+// Shared runtime connections and the configuration navigation split.
+ja.runtime = {
+  "title": "ハーネスとエンドポイント",
+  "connections": "保存済み接続",
+  "templates": "高度なハーネステンプレート",
+  "connection": "接続",
+  "architect": "アーキテクト",
+  "choose": "アーキテクトまたは接続を選択",
+  "harness": "ハーネステンプレート",
+  "chooseHarness": "ハーネステンプレートを選択",
+  "manage": "ハーネスと接続を管理",
+  "configureFirst": "まず接続を保存してください。",
+  "sharedHint": "ここで一度設定します。アーキテクトとデプロイはこの接続を参照し、変更は次の実行時に適用されます。",
+  "reuseHint": "既存のアーキテクトを使うか、保存済み接続から作成します。認証情報や接続情報の再入力は不要です。",
+  "importExport": "インポート / エクスポート"
+};
+ja.nav.hubs.configuration = {"label": "エージェントリソース", "tip": "エージェントとアーキテクトの接続設定。"};
+ja.nav.hubs.platformConfiguration = {"label": "プラットフォーム設定", "tip": "認証情報、ストレージ、料金、使用量制限、通知。"};
+ja.nav.items.harnessProfiles.label = "ハーネスとエンドポイント";
+ja.views.agentWizard.access.intro = "既存のアーキテクトを使うか、保存済み接続から作成します。認証情報や接続情報の再入力は不要です。";
+
+ja.resources.harnessProfiles.title = ja.runtime.title;
+ja.resources.harnessProfiles.subtitle = ja.runtime.sharedHint;
+ja.components.architectHints.harness = ja.runtime.sharedHint;
+ja.components.architectHints.harnessLink = ja.runtime.manage;
+
+Object.assign(ja.runtime, {"add": "接続を追加", "create": "接続を作成", "edit": "接続を編集", "view": "接続の詳細"});
+
+ja.explainers.harnessProfiles.p2 = ja.runtime.sharedHint;
+ja.explainers.secrets.p2 = ja.runtime.sharedHint;

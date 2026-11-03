@@ -1,13 +1,12 @@
+import { HarnessRuntimeSummary } from '../components/HarnessRuntimeFields';
 // ResourceView configuration for agent architects: Agents > Architects. Re-exported by resourceConfigs.jsx so the
 // configuration-wide tests (tooltips, i18n keys, enum labels) cover it.
 
-import InferenceEndpointFields from '../components/InferenceEndpointFields';
-import { blankInferenceEndpoint, inferenceEndpointErrors } from '../utils/inferenceEndpoints';
 import { Suspense, lazy } from 'react';
 import CopyableId from '../components/CopyableId';
 import Modal from '../components/Modal';
 import NamedId from '../components/NamedId';
-import { architectPromptHint, credentialHint, harnessProfileHint } from '../components/ArchitectHints';
+import { architectPromptHint, harnessProfileHint } from '../components/ArchitectHints';
 import { ActiveBadge, Badge } from '../components/StatusBadge';
 import { tip } from '../components/Tooltip';
 import { pathFor } from '../config/navConfig';
@@ -15,7 +14,7 @@ import { formatDateTime, formatRelativeTime, truncate } from '../i18n/formatters
 import { resourceTip, optionalText } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
 import { holds, loadCallerPermissions } from '../utils/apps';
-import { studioPermissions, suggestedCredential } from '../utils/studio';
+import { studioPermissions } from '../utils/studio';
 
 // The prompt manager comes with the studio chunk, loaded only when someone opens it.
 const ArchitectPromptPanel = lazy(() => import('../components/studio/ArchitectPromptPanel'));
@@ -128,32 +127,26 @@ export const architectsConfig = {
     return { profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), permissions };
   },
   loadOptions: async ({ apiClient, tenantId }) => {
-    const [profiles, prompts, secrets] = await Promise.all([
+    const [profiles, prompts] = await Promise.all([
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
-      safeList(apiClient.listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 })),
-      safeList(apiClient.listSecrets(tenantId, { pageNumber: 1, pageSize: 1000 }))
+      safeList(apiClient.listArchitectPrompts(tenantId, { pageNumber: 1, pageSize: 1000 }))
     ]);
-    return { profiles, prompts, secrets: secrets.filter((x) => x.active !== false) };
+    return { profiles: profiles.filter((p) => p.runtimeConfiguration && p.active !== false), prompts };
   },
   // A new architect starts on the first harness profile, the secret that harness signs in with, and the default prompt.
   withOptions: (d, options) => {
     const harnessProfileId = d.harnessProfileId || options.profiles?.[0]?.id || '';
-    const profile = (options.profiles || []).find((p) => p.id === harnessProfileId);
     return {
       ...d,
       harnessProfileId,
-      credentialSecretId: d.credentialSecretId || suggestedCredential(options.secrets, profile?.harnessType)?.id || '',
       architectPromptTemplateId: d.architectPromptTemplateId || (options.prompts || []).find((p) => p.isDefault || p.name === DEFAULT_PROMPT)?.id || ''
     };
   },
   blank: () => blankArchitect(),
   toForm: (r) => architectToForm(r),
   toDuplicate: (r) => ({ ...architectToForm(r), id: undefined, name: `${r.name}-copy` }),
-  toBody: (d, _mode, { options = {} } = {}) => architectToRequest({ ...d, inferenceEndpoint: options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType === 'ProviderApi' ? d.inferenceEndpoint || blankInferenceEndpoint() : null }),
-  validate: (d, t, { options = {} } = {}) => {
-    const type = options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType;
-    return { ...architectErrors(d, t, type === 'Mux'), ...(type === 'ProviderApi' ? inferenceEndpointErrors(d.inferenceEndpoint, d.model, t) : {}) };
-  },
+  toBody: (d) => ({ name: d.name, description: d.description || null, harnessProfileId: d.harnessProfileId, architectPromptTemplateId: d.architectPromptTemplateId || null, architectPromptVersion: d.architectPromptVersion ? Number(d.architectPromptVersion) : null, active: d.active !== false }),
+  validate: (d, t) => architectErrors(d, t),
   deniedReason: (action, row, { t, lookups }) => {
     const operation = { create: 'Create', update: 'Update', delete: 'Delete' }[action];
     return operation ? denied(t, lookups?.permissions, operation, row?.id || null) : '';
@@ -209,22 +202,16 @@ export const architectsConfig = {
       col(t, 'createdUtc', (r) => when(r.createdUtc, lng), { sortable: true, cellClass: 'nowrap', csv: (r) => r.createdUtc || '' })
     ];
   },
-  fields: (d, { t, i18n, mode, options = {}, reloadOptions }) => {
+  fields: (d, { t, mode, options = {} }) => {
     const profiles = (options.profiles || []).map((p) => ({ value: p.id, label: p.name }));
     const prompts = (options.prompts || []).map((p) => ({ value: p.id, label: p.isDefault ? t('components.studio.architect.defaultPrompt', { name: p.name }) : p.name }));
-    const secrets = (options.secrets || []).map((x) => ({ value: x.id, label: t('components.studio.architect.credentialOption', { name: x.name, kind: x.kind }) }));
     const profile = (options.profiles || []).find((p) => p.id === d?.harnessProfileId) || null;
     const keep = (list, value, label) => (value && !list.some((o) => o.value === value) ? [...list, { value, label: label || value }] : list);
     return [
       field(t, 'name', 'text', { required: true, placeholder: 'architect' }),
       field(t, 'description', 'textarea', { rows: 2 }),
       field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t) }),
-      ...(profile?.harnessType === 'Mux' ? [{ name: 'endpointName', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, tip: t('views.agentWizard.access.muxHint'), hint: t('views.agentWizard.access.muxHint') }] : [...(profile?.harnessType === 'ProviderApi' ? [{ name: 'inferenceEndpoint', type: 'custom', label: t('inference.title'), tip: t('inference.hint'), render: (data, { disabled, onChange, errors }) => <InferenceEndpointFields value={data.inferenceEndpoint || blankInferenceEndpoint()} onChange={(inferenceEndpoint) => onChange({ ...data, inferenceEndpoint })} disabled={disabled} errors={errors} idPrefix="architects-inference" /> }] : [field(t, 'credentialSecretId', 'select', {
-        noneLabel: t('components.studio.architect.noCredential'),
-        options: keep(secrets, d?.credentialSecretId),
-        hint: credentialHint(t, { profile, secretCount: secrets.length, chosen: d?.credentialSecretId, onRefresh: reloadOptions, lng: i18n?.language })
-      })]),
-      field(t, 'model', 'text', { placeholder: profile?.harnessType === 'ProviderApi' ? '' : 'sonnet' })]),
+      { name: 'runtimeSummary', type: 'custom', label: t('runtime.connection'), tip: t('runtime.sharedHint'), render: () => <HarnessRuntimeSummary profile={profile} /> },
       field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, '', mode === 'edit') }),
       field(t, 'architectPromptVersion', 'number', { min: 1 }),
       field(t, 'active', 'checkbox')

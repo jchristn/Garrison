@@ -1,14 +1,13 @@
-import InferenceEndpointFields from '../InferenceEndpointFields';
-import { blankInferenceEndpoint, inferenceEndpointErrors, deploymentInferenceEndpoint } from '../../utils/inferenceEndpoints';
+import { listRuntimeProfiles } from '../../utils/runtimeProfiles';
+import { HarnessRuntimeSummary } from '../HarnessRuntimeFields';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FormField } from '../FormFields';
 import { ErrorBanner, LoadingState } from '../States';
 import { Badge } from '../StatusBadge';
 import { SendIcon, ChevronRightIcon } from '../Icons';
 import { tip } from '../Tooltip';
-import SecretKindGuide from '../SecretKindGuide';
 import StudioChatPanel from '../studio/StudioChatPanel';
 import ChatTurn from '../studio/ChatTurn';
 import StudioLink from '../studio/StudioLink';
@@ -18,13 +17,11 @@ import { useApp } from '../../context/AppContext';
 import { pathFor } from '../../config/navConfig';
 import useChatTranscript from '../../hooks/useChatTranscript';
 import { errorMessage, errorMessageWithDetail } from '../../utils/errors';
-import { enumLabel, enumOptions } from '../../utils/enums';
+import { enumLabel } from '../../utils/enums';
 import { composerKeyDown } from '../../utils/composerKeys';
-import { CREDENTIAL_KINDS, needsCredential, suggestedCredential } from '../../utils/architect';
 import { conversationStorageKey, readStored } from '../../utils/studio';
-import { MULTILINE_SECRET_KINDS } from '../../utils/secretGuides';
 import { appUrl, effectiveSlug } from '../../utils/apps';
-import { modelExample, withWizardSettings, defaultSecretKind, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, slug, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
+import { withWizardSettings, deploymentPlan, devDeploymentBody, diffProblems, draftAgentNames, draftCounts, testTarget, withCredential, wizardArchitectName } from '../../utils/agentWizard';
 
 const page = { pageNumber: 1, pageSize: 1000 };
 
@@ -146,211 +143,56 @@ export function GoalStep({ draft, state, update, go, onCreated }) {
  * credential (one per harness profile, reused).
  */
 export function AccessStep({ state, update, go }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const [profiles, setProfiles] = useState(null);
-  const [secrets, setSecrets] = useState([]);
-  const [profileId, setProfileId] = useState(state.harnessProfileId || '');
-  const [model, setModel] = useState(state.model || '');
-  const [muxEndpoint, setMuxEndpoint] = useState(state.muxEndpoint || '');
-  const [inferenceEndpoint, setInferenceEndpoint] = useState(() => state.inferenceEndpoint || (state.providerApiBaseUrl ? deploymentInferenceEndpoint({ parameters: [{ name: 'baseUrl', value: state.providerApiBaseUrl }, { name: 'allowAnonymous', value: String(!!state.providerApiAnonymous) }], resourceBindings: state.credentialSecretId ? [{ kind: 'Secret', alias: 'credential', resourceId: state.credentialSecretId }] : [] }) : blankInferenceEndpoint()));
-  const [secretId, setSecretId] = useState(state.credentialSecretId || '');
-  const [adding, setAdding] = useState(false);
-  const [newSecret, setNewSecret] = useState({ name: '', kind: '', value: '' });
-  const [busy, setBusy] = useState(false);
+  const [architects, setArchitects] = useState([]);
+  const [selection, setSelection] = useState(state.architectId ? `architect:${state.architectId}` : state.harnessProfileId ? `profile:${state.harnessProfileId}` : '');
   const [error, setError] = useState(null);
-
-  const loadSecrets = useCallback(
-    () =>
-      apiClient
-        .listSecrets(tenantId, page)
-        .then((r) => {
-          const list = (r.items || []).filter((s) => s.active !== false);
-          setSecrets(list);
-          return list;
-        })
-        .catch(() => []),
-    [apiClient, tenantId]
-  );
-
-  useEffect(() => {
-    if (!apiClient) return;
-    apiClient
-      .listHarnessProfiles(tenantId, { ...page, includeBuiltIn: true })
-      .then((r) => {
-        const list = r.items || [];
-        setProfiles(list);
-        if (!state.harnessProfileId && list.length) setProfileId((list.find((p) => p.harnessType === 'ClaudeCode') || list[0]).id);
-      })
-      .catch(() => setProfiles([]));
-    loadSecrets();
-  }, [apiClient, tenantId, loadSecrets, state.harnessProfileId]);
-
-  const profile = (profiles || []).find((p) => p.id === profileId) || null;
-  const kinds = profile ? CREDENTIAL_KINDS[profile.harnessType] || [] : [];
-  const isMux = profile?.harnessType === 'Mux';
-  const isProviderApi = profile?.harnessType === 'ProviderApi';
-  const needs = !!profile && needsCredential(profile.harnessType) && !isProviderApi;
-  const fitting = secrets.filter((s) => kinds.includes(s.kind));
-  const credentialId = fitting.some((s) => s.id === secretId) ? secretId : '';
-
-  // Suggest a credential that fits the harness when none is chosen yet.
-  useEffect(() => {
-    if (!profile || secretId) return;
-    const suggested = suggestedCredential(secrets, profile.harnessType);
-    if (suggested) setSecretId(suggested.id);
-  }, [profile, secrets, secretId]);
-
-  const startAdding = () => {
-    setAdding(true);
-    setNewSecret({ name: `${slug(profile?.name)}-key`, kind: defaultSecretKind(profile?.harnessType), value: '' });
-  };
-
-  const saveSecret = async () => {
-    setBusy(true);
-    setError(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
     try {
-      const created = await apiClient.createSecret(tenantId, { name: newSecret.name.trim(), kind: newSecret.kind, value: newSecret.value, active: true });
-      await loadSecrets();
-      setSecretId(created.id);
-      setAdding(false);
-    } catch (e) {
-      setError(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const endpointErrors = isProviderApi ? inferenceEndpointErrors(inferenceEndpoint, model, t) : {};
-  const missing = !profile ? t('tips.views.agentWizard.access.needProfile')
-    : isMux && (!muxEndpoint.trim() || muxEndpoint.includes('://')) ? t('views.agentWizard.access.needEndpoint')
-      : isProviderApi && Object.keys(endpointErrors).length ? t('inference.invalid')
-        : needs && !credentialId ? t('tips.views.agentWizard.access.needCredential') : '';
-  const harnessSettings = { muxEndpoint: isMux ? muxEndpoint.trim() : '', inferenceEndpoint: isProviderApi ? inferenceEndpoint : null, providerApiBaseUrl: '', providerApiAnonymous: false, harnessProfileId: profile?.id, model: isMux ? '' : model.trim() };
-
-  // Set up the wizard's architect: same harness, model, and credential; the guided architect prompt.
+      const [connections, existing] = await Promise.all([listRuntimeProfiles(apiClient, tenantId), apiClient.listArchitects(tenantId, { ...page, activeOnly: true })]);
+      const configured = connections.filter((p) => p.active !== false && p.runtimeConfiguration);
+      const available = (existing.items || []).filter((a) => a.active !== false);
+      setProfiles(configured);
+      setArchitects(available);
+      setSelection((current) => available.some((a) => current === `architect:${a.id}`) || configured.some((p) => current === `profile:${p.id}`) ? current : available[0] ? `architect:${available[0].id}` : configured[0] ? `profile:${configured[0].id}` : '');
+      setError(null);
+    } catch (e) { setError(e); setProfiles([]); }
+  }, [apiClient, tenantId]);
+  useEffect(() => { load(); window.addEventListener('focus', load); return () => window.removeEventListener('focus', load); }, [load]);
+  const architect = architects.find((a) => selection === `architect:${a.id}`);
+  const profile = profiles?.find((p) => p.id === (architect?.harnessProfileId || selection.replace('profile:', '')));
   const next = async () => {
     setBusy(true);
-    setError(null);
     try {
-      const name = wizardArchitectName(profile);
-      const found = await apiClient.listArchitects(tenantId, { pageNumber: 1, pageSize: 50, search: name });
-      const existing = (found.items || []).find((a) => a.name === name);
-      const body = { name, harnessProfileId: profile.id, model: isMux ? null : model.trim() || null, active: true, credentialSecretId: isMux || isProviderApi ? '' : credentialId };
-      if (isProviderApi) body.inferenceEndpoint = inferenceEndpoint;
-      const architect = existing
-        ? await apiClient.updateArchitect(tenantId, existing.id, body)
-        : await apiClient.createArchitect(tenantId, { ...body, description: t('views.agentWizard.access.architectDescription'), architectPromptTemplateId: 'builtin/agent-architect-guided' });
-      if (isMux) {
-        const deployment = await apiClient.getDeployment(tenantId, architect.id);
-        await apiClient.updateDeployment(tenantId, architect.id, withWizardSettings(deployment, harnessSettings));
+      let chosen = architect;
+      if (!chosen && profile) {
+        const name = wizardArchitectName(profile);
+        const existing = architects.find((a) => a.name === name && a.harnessProfileId === profile.id);
+        chosen = existing || await apiClient.createArchitect(tenantId, { name, harnessProfileId: profile.id, architectPromptTemplateId: 'builtin/agent-architect-guided', active: true });
       }
-      const secret = fitting.find((s) => s.id === credentialId);
-      update({ ...harnessSettings, profileName: profile.name, credentialSecretId: body.credentialSecretId, secretName: secret?.name || '', architectId: architect.id });
+      if (!chosen) return;
+      update({ architectId: chosen.id, harnessProfileId: chosen.harnessProfileId, profileName: profile?.name || chosen.name, usesSavedRuntime: true, model: '', credentialSecretId: '', muxEndpoint: '', inferenceEndpoint: null, providerApiBaseUrl: '', providerApiAnonymous: false });
       go('design');
-    } catch (e) {
-      setError(e);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e); }
+    finally { setBusy(false); }
   };
-
-  if (!profiles) return <LoadingState />;
-  const list = (k) => new Intl.ListFormat(i18n.language, { type: 'disjunction' }).format(k);
-
-  return (
-    <>
-      <StepIntro name="access" />
-      <div className="form-grid">
-        <FormField
-          id="wizard-profile"
-          field={{ name: 'harnessProfileId', type: 'select', label: t('views.agentWizard.access.harness'), required: true, options: profiles.map((p) => ({ value: p.id, label: p.harnessType === 'ProviderApi' ? `${p.name} (Ollama / OpenAI)` : p.name })), tip: t('tips.views.agentWizard.access.harness'), hint: isProviderApi ? t('inference.hint') : t('views.agentWizard.access.harnessHint') }}
-          value={profileId}
-          onChange={(v) => {
-            setProfileId(v);
-            setSecretId('');
-            setAdding(false);
-          }}
-        />
-        {!isMux && <FormField id="wizard-model" field={{ name: 'model', type: 'text', label: t('views.agentWizard.access.model'), placeholder: modelExample(profile?.harnessType), tip: t('tips.views.agentWizard.access.model'), required: isProviderApi, hint: isProviderApi ? t('inference.modelHint') : ['Pi', 'OpenCode'].includes(profile?.harnessType) ? t('views.agentWizard.access.providerModelHint') : t('views.agentWizard.access.modelHint') }} value={model} onChange={setModel} />}
-      </div>
-      {isMux && (
-        <div className="form-grid wizard-mux" data-testid="wizard-mux">
-          <FormField id="wizard-mux-endpoint" field={{ name: 'muxEndpoint', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, placeholder: 'local', hint: t('views.agentWizard.access.muxHint'), tip: t('views.agentWizard.access.muxHint') }} value={muxEndpoint} onChange={setMuxEndpoint} />
-        </div>
-      )}
-      {isProviderApi && <InferenceEndpointFields value={inferenceEndpoint} onChange={setInferenceEndpoint} idPrefix="wizard-inference" />}
-      {profile && !isMux && !isProviderApi && (
-        <div className="wizard-credential" data-testid="wizard-credential">
-          <div className="form-section-title">{t('views.agentWizard.access.credential')}</div>
-          {!kinds.length ? (
-            <p className="text-muted">{t('views.agentWizard.access.noCredentialNeeded', { profile: profile.name })}</p>
-          ) : (
-            <>
-              <p className="text-muted">{t(needs ? 'views.agentWizard.access.credentialIntro' : 'views.agentWizard.access.optionalCredentialIntro', { profile: profile.name, kinds: list(kinds) })}</p>
-              {(fitting.length > 0 || !needs) && (
-                <div className="wizard-choices" role="radiogroup" aria-label={t('views.agentWizard.access.credential')}>
-                  {!needs && (
-                    <label className={`checkbox-chip${!secretId ? ' selected' : ''}`}>
-                      <input type="radio" name="wizard-secret" value="" checked={!secretId} onChange={() => setSecretId('')} />
-                      <span>{t('components.studio.architect.noCredential')}</span>
-                    </label>
-                  )}
-                  {fitting.map((s) => (
-                    <label key={s.id} className={`checkbox-chip${secretId === s.id ? ' selected' : ''}`} {...tip(t('tips.views.agentWizard.access.useSecret', { name: s.name }))}>
-                      <input type="radio" name="wizard-secret" value={s.id} checked={secretId === s.id} onChange={() => setSecretId(s.id)} data-testid={`wizard-secret-${s.name}`} />
-                      <span>
-                        {s.name} <span className="text-muted">({s.kind})</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
-              {needs && !fitting.length && !adding && <div className="warning-banner" role="note">{t('views.agentWizard.access.noFittingSecret', { kinds: list(kinds) })}</div>}
-              {!adding ? (
-                <button type="button" className="button-secondary" onClick={startAdding} data-testid="wizard-add-secret" {...tip(t('tips.views.agentWizard.access.addSecret'))}>
-                  {t('views.agentWizard.access.addSecret')}
-                </button>
-              ) : (
-                <div className="wizard-new-secret" data-testid="wizard-new-secret">
-                  <SecretKindGuide kind={newSecret.kind} />
-                  <div className="form-grid">
-                    <FormField id="wizard-secret-name" field={{ name: 'name', type: 'text', label: t('resources.secrets.fields.name'), required: true, tip: t('tips.views.agentWizard.access.secretName') }} value={newSecret.name} onChange={(v) => setNewSecret({ ...newSecret, name: v })} />
-                    <FormField
-                      id="wizard-secret-kind"
-                      field={{ name: 'kind', type: 'select', label: t('resources.secrets.fields.kind'), required: true, options: enumOptions(t, 'secretKind').filter((o) => kinds.includes(o.value)), tip: t('tips.resources.secrets.kind') }}
-                      value={newSecret.kind}
-                      onChange={(v) => setNewSecret({ ...newSecret, kind: v })}
-                    />
-                    <FormField
-                      id="wizard-secret-value"
-                      field={{ name: 'value', type: MULTILINE_SECRET_KINDS.includes(newSecret.kind) ? 'code' : 'password', rows: 8, span: 'full', label: t('resources.secrets.fields.value'), required: true, tip: t('tips.resources.secrets.value') }}
-                      value={newSecret.value}
-                      onChange={(v) => setNewSecret({ ...newSecret, value: v })}
-                    />
-                  </div>
-                  <div className="flex gap-sm">
-                    <button type="button" className="button-primary" onClick={() => newSecret.name.trim() && newSecret.value && !busy && saveSecret()} aria-disabled={!newSecret.name.trim() || !newSecret.value || busy ? 'true' : undefined} data-testid="wizard-save-secret" {...tip(t('tips.views.agentWizard.access.saveSecret'))}>
-                      {t('views.agentWizard.access.saveSecret')}
-                    </button>
-                    <button type="button" className="button-secondary" onClick={() => setAdding(false)} {...tip(t('tips.modal.cancelForm'))}>
-                      {t('common.actions.cancel')}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-      {error && <ErrorBanner message={errorMessageWithDetail(t, error)} />}
-      <StepNav back={() => go('goal')} next={next} nextLabel={t('views.agentWizard.access.next')} nextDisabled={missing || (adding ? t('tips.views.agentWizard.access.finishSecret') : '')} busy={busy} />
-    </>
-  );
+  if (profiles === null) return <LoadingState />;
+  return <>
+    <StepIntro name="access" />
+    {error && <ErrorBanner message={errorMessage(t, error)} />}
+    <FormField id="wizard-runtime" field={{ type: 'select', label: t('runtime.choose'), required: true, tip: t('runtime.sharedHint'), options: [...architects.map((a) => ({ value: `architect:${a.id}`, label: `${t('runtime.architect')}: ${a.name}` })), ...profiles.map((p) => ({ value: `profile:${p.id}`, label: `${t('runtime.connection')}: ${p.name}` }))] }} value={selection} onChange={setSelection} />
+    {profile && <HarnessRuntimeSummary profile={profile} />}
+    <p>{t('runtime.reuseHint')}</p>
+    <div className="flex gap-sm"><Link className="button button-secondary" to={pathFor('harnessProfiles')}>{t('runtime.manage')}</Link><button type="button" className="button button-secondary" onClick={load}>{t('components.files.refresh')}</button></div>
+    <StepNav back={() => go('goal')} next={next} nextLabel={t('views.agentWizard.access.next')} nextDisabled={!selection ? t('runtime.configureFirst') : ''} busy={busy} />
+  </>;
 }
 
-/** What the draft holds so far, beside the chat. */
+/** Resources currently in the draft. */
 function DraftContents({ draft }) {
   const { t } = useTranslation();
   const counts = draftCounts(draft);

@@ -3586,3 +3586,5 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   }
  }
 });
+
+tips.nav.hubs.platformConfiguration = "管理共享凭据、存储、模型价格、用量配额与通知。";

@@ -4,7 +4,7 @@ All notable changes to Garrison are recorded here. The format follows [Keep a Ch
 
 ## [0.2.0] - 2026-10-29
 
-The Agent Studio release. Garrison stays a horizontally elastic runtime for headless agent harnesses, and gains a studio on top of it for building, testing, deploying, operating, and observing agentic applications (AD-027). The work is tracked in `archive/AGENT_DESIGN_DEPLOY_PLAN.md`; task IDs below refer to it. The database schema moves from version 34 to 44, and both Sqlite and PostgreSQL migrate on startup.
+The Agent Studio release. Garrison stays a horizontally elastic runtime for headless agent harnesses, and gains a studio on top of it for building, testing, deploying, operating, and observing agentic applications (AD-027). The work is tracked in `archive/AGENT_DESIGN_DEPLOY_PLAN.md`; task IDs below refer to it. The database schema moves from version 34 to 45, and both Sqlite and PostgreSQL migrate on startup.
 
 ### Fixed
 
@@ -20,6 +20,9 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 - Delete refusals throughout the dashboard retain the server's resource names and recovery steps for app membership, upstream references, active resources, and protected built-ins. REST and MCP explain that the protected `agent-architect` cannot be deleted.
 
 ### Added
+
+- Reusable tenant runtime connections on harness profiles, shared by architects, deployments, and Agent Wizard. Existing inline settings migrate to named profiles (schema 45). Wizard model access reuses existing architects or saved connections. Central editing supports CLI credentials, Mux endpoint names, and native Ollama/OpenAI-compatible authentication; SDKs, manifests, REST/MCP behavior, and regression tests cover references.
+- Dashboard Configuration splits into Agent Resources and Platform Configuration, with shared Import / Export actions, legacy-link redirects, and mobile tab selection.
 
 - Native Ollama API and OpenAI-compatible inference endpoints for architects and deployments, with explicit anonymous, bearer, API-key, header, query-string, and Basic authentication. Secret-backed credential values, shared dashboard editing, REST/MCP and four SDK contracts, manifest support, schema migration 44, and protocol/authentication regression fixtures.
 

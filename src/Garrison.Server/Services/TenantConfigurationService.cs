@@ -83,6 +83,8 @@ namespace Garrison.Server.Services
             ArchitectService? architect = _Server.TryGet<ArchitectService>();
             if (architect != null) await architect.PrepareCreateAsync(tenantId, deployment, token).ConfigureAwait(false);
             DefaultPromptBindings.Apply(deployment);
+            HarnessProfile? runtimeProfile = await _Server.Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (runtimeProfile != null) HarnessRuntimeRules.ClearOverrides(deployment, runtimeProfile);
             await ConfigurationValidator.DeploymentAsync(_Server.Database, tenantId, deployment, token).ConfigureAwait(false);
             await _Server.Authorization.SecretUse(ctx, tenantId).RequireForDeploymentAsync(tenantId, deployment, token).ConfigureAwait(false);
             Deployment? existing = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
@@ -107,6 +109,8 @@ namespace Garrison.Server.Services
             deployment.CreatedUtc = existing.CreatedUtc;
             deployment.ConfigVersion = existing.ConfigVersion + 1;
             DefaultPromptBindings.Apply(deployment);
+            HarnessProfile? runtimeProfile = await _Server.Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (runtimeProfile != null) HarnessRuntimeRules.ClearOverrides(deployment, runtimeProfile);
             await ConfigurationValidator.DeploymentAsync(_Server.Database, tenantId, deployment, token).ConfigureAwait(false);
             await _Server.Authorization.SecretUse(ctx, tenantId).RequireForDeploymentAsync(tenantId, deployment, token).ConfigureAwait(false);
             Deployment? named = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);

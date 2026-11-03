@@ -97,10 +97,10 @@ export async function installStudioFlow(page) {
       const body = route.request().postDataJSON();
       state.architectBodies.push(body);
       state.architectCreated = true;
-      return route.fulfill(json(201, { ...ARCHITECT, name: body.name, model: body.model, architectPromptTemplateId: body.architectPromptTemplateId }));
+      return route.fulfill(json(201, { ...ARCHITECT, ...body }));
     }
     if (method !== 'GET') return route.fallback();
-    const rows = state.architectCreated ? [ARCHITECT] : [];
+    const rows = state.architectCreated ? [{ ...ARCHITECT, ...state.architectBodies.at(-1) }] : [];
     return route.fulfill(json(200, { objects: rows, totalRecords: rows.length, skip: 0, maxResults: 1000, endOfResults: true }));
   });
 

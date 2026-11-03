@@ -46,6 +46,8 @@ namespace Garrison.Server.Modules
 
             await new BuiltInSeeder(context.Database, message => context.Logging.Info("[Garrison] " + message)).SeedAsync(token).ConfigureAwait(false);
 
+            await HarnessRuntimeMigration.AllAsync(context.Database, token).ConfigureAwait(false);
+
             CompilerOptions options = new CompilerOptions();
             options.McpBaseUrl = String.IsNullOrWhiteSpace(context.Settings.Mcp.PublicUrl) ? "http://127.0.0.1:" + context.Settings.Mcp.Port : context.Settings.Mcp.PublicUrl!.TrimEnd('/');
             options.McpPath = context.Settings.Mcp.Path;
