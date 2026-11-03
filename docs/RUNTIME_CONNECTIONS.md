@@ -67,6 +67,10 @@ Manifest export includes a connection's configuration in its `HarnessProfile` do
 
 The shared provider suite tests migration, idempotency, persistence, propagation to multiple consumers, secret-use denial, and portable manifests. Studio tests cover REST and MCP architect creation by saved profile ID, projected settings, and blocked secret/profile deletion. Browser tests cover navigation redirects and mobile selection, all HTTP authentication choices in the central editor, existing Ollama architect reuse, and wizard design, approval, and deployment reference behavior.
 
+## Wizard design conversation
+
+Step 3 gives the conversation the full width until the architect adds draft items. The draft summary then appears alongside the chat on wide screens and below it on narrow screens. A larger, resizable message box supports detailed answers, and the Send button keeps its normal height. Keyboard guidance and the AI notice share one footer row where space allows.
+
 ## Connections and architects
 
 A connection defines access to a harness or model endpoint. An architect is an agent that uses a connection together with design instructions and permission to work on Studio drafts. Wizard step 2 asks only for the connection; choosing and preparing the architect is the wizard's responsibility. Users who need to customize an architect's instructions can still do so under Agents > Architects.

@@ -5061,3 +5061,5 @@ zhHans.runtime.reuseHint = "选择用于设计和运行代理的连接。向导�
 zhHans.views.agentWizard.access.intro = zhHans.runtime.reuseHint;
 
 zhHans.views.manifests.title = zhHans.runtime.importExport;
+
+zhHans.views.agentWizard.design.intro = "回答架构师的问题，设计你的智能体。";

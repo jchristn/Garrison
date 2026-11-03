@@ -5060,3 +5060,5 @@ ja.runtime.reuseHint = "エージェントの設計と実行に使う接続を�
 ja.views.agentWizard.access.intro = ja.runtime.reuseHint;
 
 ja.views.manifests.title = ja.runtime.importExport;
+
+ja.views.agentWizard.design.intro = "アーキテクトの質問に答えて、エージェントを設計します。";

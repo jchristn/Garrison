@@ -5061,3 +5061,5 @@ zhHant.runtime.reuseHint = "選擇用於設計及執行代理的連線。精靈�
 zhHant.views.agentWizard.access.intro = zhHant.runtime.reuseHint;
 
 zhHant.views.manifests.title = zhHant.runtime.importExport;
+
+zhHant.views.agentWizard.design.intro = "回答架構師的問題，設計你的智慧體。";

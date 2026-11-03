@@ -5060,3 +5060,5 @@ yueHant.runtime.reuseHint = "揀用嚟設計同執行代理嘅連線。精靈會
 yueHant.views.agentWizard.access.intro = yueHant.runtime.reuseHint;
 
 yueHant.views.manifests.title = yueHant.runtime.importExport;
+
+yueHant.views.agentWizard.design.intro = "回答架構師嘅問題，設計你嘅智能體。";

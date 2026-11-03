@@ -99,7 +99,7 @@ test('the Agents page opens the wizard, and Studio is no longer a tab', async ({
   await page.getByTestId('wizard-resume').screenshot({ path: testInfo.outputPath('draft-picker-mobile.png') });
 });
 
-test('end to end: goal, credential, architect, design, review, approve with dev deployments, and a first conversation', async ({ page }) => {
+test('end to end: goal, credential, architect, design, review, approve with dev deployments, and a first conversation', async ({ page }, testInfo) => {
   const flow = await installStudioFlow(page);
   const wizard = await installWizardRoutes(page, { ...PROFILE, id: 'hp_saved' });
   await login(page);
@@ -137,10 +137,27 @@ test('end to end: goal, credential, architect, design, review, approve with dev 
   // 3. Design: the composer starts with the goal; two turns build the agents and the app.
   await expect(page.getByTestId('studio-architect')).toHaveCount(0);
   await expect(page.getByTestId('studio-chat-message')).toHaveValue(/Plan and write short documents\./);
-  await expect(page.getByTestId('wizard-contents')).toContainText('Nothing yet');
+  await expect(page.getByTestId('wizard-contents')).toHaveCount(0);
+  const emptyChat = await page.getByTestId('studio-chat').boundingBox();
+  const designPanel = await page.getByTestId('wizard-panel-design').boundingBox();
+  expect(emptyChat.width).toBeGreaterThan(designPanel.width - 40);
+  expect((await page.getByTestId('studio-chat-message').boundingBox()).height).toBeGreaterThan(100);
+  await expect(page.getByTestId('wizard-panel-design')).not.toContainText('Continues the conversation');
+  const intro = page.locator('.wizard-intro p');
+  expect(await intro.evaluate((el) => el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight))).toBeLessThan(1.5);
+  await page.screenshot({ path: testInfo.outputPath('wizard-design-empty.png') });
+  expect((await page.getByTestId('studio-chat-turns').boundingBox()).height).toBeGreaterThan(200);
+  const desktopViewport = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.dashboard-sidebar')).not.toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  expect((await page.getByTestId('studio-chat-message').boundingBox()).height).toBeGreaterThan(100);
+  await page.screenshot({ path: testInfo.outputPath('wizard-design-mobile.png'), fullPage: true });
+  await page.setViewportSize(desktopViewport);
   await page.getByTestId('studio-chat-send').click();
   await expect(page.getByTestId('studio-chat-answer').first()).toContainText('I added a planner and a writer');
   await expect(page.getByTestId('wizard-contents')).toContainText('planner');
+  await page.screenshot({ path: testInfo.outputPath('wizard-design-populated.png') });
   expect(flow.invokes[0]).toMatchObject({ deploymentId: 'dep_arch', startConversation: true, studioDraftId: FLOW_DRAFT_ID });
   // Only the conversation scrolls: a long transcript scrolls inside itself and never the page. Send sits to the right
   // of the message box, keeping its normal height when the box is resized.

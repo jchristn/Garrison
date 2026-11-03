@@ -196,6 +196,7 @@ function DraftContents({ draft }) {
   const { t } = useTranslation();
   const counts = draftCounts(draft);
   const agents = draftAgentNames(draft);
+  if (Object.keys(counts).length === 0) return null;
   return (
     <aside className="wizard-contents" data-testid="wizard-contents" aria-label={t('views.agentWizard.design.contents')}>
       <div className="form-section-title">{t('views.agentWizard.design.contents')}</div>
@@ -263,9 +264,8 @@ export function DesignStep({ draft, state, update, go, reload }) {
   if (!architect) return <LoadingState />;
   return (
     <>
-      <StepIntro name="design" />
-      <div className="wizard-design">
-        <StudioChatPanel draft={draft} architects={[architect]} architectId={architect.id} onArchitectChange={() => {}} hideArchitectControls initialMessage={first} title={t('views.agentWizard.design.chatTitle', { architect: architect.name })} onTurnFinished={onTurnFinished} />
+      <div className={`wizard-design${Object.keys(draftCounts(draft)).length ? ' has-contents' : ''}`}>
+        <StudioChatPanel draft={draft} architects={[architect]} architectId={architect.id} onArchitectChange={() => {}} hideArchitectControls initialMessage={first} heading={<StepIntro name="design" />} onTurnFinished={onTurnFinished} />
         <DraftContents draft={draft} />
       </div>
       <StepNav back={() => go('access')} next={() => go('review')} nextLabel={t('views.agentWizard.design.next')} nextDisabled={agents.length ? '' : t('tips.views.agentWizard.design.needAgent')} />

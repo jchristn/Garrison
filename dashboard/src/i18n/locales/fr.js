@@ -5109,3 +5109,5 @@ fr.runtime.reuseHint = "Choisissez la connexion pour concevoir et exécuter vos 
 fr.views.agentWizard.access.intro = fr.runtime.reuseHint;
 
 fr.views.manifests.title = fr.runtime.importExport;
+
+fr.views.agentWizard.design.intro = "Répondez aux questions de l’architecte pour concevoir votre agent.";

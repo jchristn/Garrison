@@ -8,6 +8,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Expanded the wizard design chat, removed nested panel padding and repetitive guidance, enlarged the answer composer, and show draft contents only after the architect adds something.
+
 - Replaced vertical Configuration navigation with small Configuration and Operations workspaces, each using one horizontal tab row. Import / Export opens separately to avoid nested tab bars. Wizard step two selects only a connection; the design assistant is reused or created automatically for that connection.
 
 - Simplified connection management to one Connections page. Built-in types are creation choices, and custom launch settings live inside the connection editor. Architect creation selects a connection, with prompt customization optional. Added spacing between the model field and endpoint card and retained connection IDs when changing harness type.

@@ -24,9 +24,9 @@ export { TurnStatus } from './ChatTurn';
  * are polled until the turn ends, like a conversation's page; then `onTurnFinished` lets the workspace reload the draft
  * the architect changed. The conversation of a draft is remembered in this browser (the draft's own conversationId
  * when it has one). The agent wizard embeds it with `hideArchitectControls` (it chose the architect itself), an
- * `initialMessage` to start from, and its own `title`.
+ * `initialMessage` to start from, and its own `heading`.
  */
-export default function StudioChatPanel({ draft, architects, architectId, onArchitectChange, onArchitectCreated, deniedArchitect = '', onTurnFinished, hideArchitectControls = false, initialMessage = '', title = '' }) {
+export default function StudioChatPanel({ draft, architects, architectId, onArchitectChange, onArchitectCreated, deniedArchitect = '', onTurnFinished, hideArchitectControls = false, initialMessage = '', title = '', heading = null }) {
   const { t } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
@@ -101,9 +101,9 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
   return (
     <section className="panel studio-chat" aria-label={t('components.studio.chat.title')} data-testid="studio-chat">
       <div className="studio-row-between">
-        <h3 className="section-title" {...tip(t('tips.studio.chat.title'))}>
+        {heading || <h3 className="section-title" {...tip(t('tips.studio.chat.title'))}>
           {title || t('components.studio.chat.title')}
-        </h3>
+        </h3>}
         <div className="flex gap-sm items-center">
           {!hideArchitectControls && (
             <>
@@ -188,7 +188,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         <div className="chat-composer">
           <textarea
             id="studio-chat-message"
-            rows={3}
+            rows={hideArchitectControls ? 5 : 3}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('components.studio.chat.placeholder')}
@@ -207,14 +207,14 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
             <SendIcon size={14} /> {sending ? t('views.invoke.sending') : t('components.studio.chat.send')}
           </button>
         </div>
-        <div className="field-hint">
-          {t(conversationId ? 'components.studio.chat.continueHint' : 'components.studio.chat.firstHint')} {t('components.studio.chat.keysHint')}
+        <div className="chat-composer-notes">
+          <span className="field-hint">{t('components.studio.chat.keysHint')}</span>
+          <p className="chat-disclaimer" data-testid="studio-chat-disclaimer" {...tip(t('tips.studio.chat.disclaimer'))}>
+            {t('components.studio.chat.disclaimer')}
+          </p>
         </div>
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} />}
-      <p className="chat-disclaimer" data-testid="studio-chat-disclaimer" {...tip(t('tips.studio.chat.disclaimer'))}>
-        {t('components.studio.chat.disclaimer')}
-      </p>
       {creating && (
         <NewArchitectModal
           onClose={() => setCreating(false)}
