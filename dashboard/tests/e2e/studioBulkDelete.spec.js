@@ -46,6 +46,7 @@ test('selects drafts, clears filtered selections, and confirms deleting all sele
   await expect(button).toHaveCount(0);
   await first.check();
   await expect(button).toHaveText('Delete Multiple');
+  await expect(page.getByTestId('studio-view').getByRole('status')).toContainText('1 selected');
   await expect(page.getByRole('checkbox', { name: 'Select all rows on this page' })).toHaveJSProperty('indeterminate', true);
   await first.uncheck();
   await expect(button).toHaveCount(0);
@@ -56,6 +57,8 @@ test('selects drafts, clears filtered selections, and confirms deleting all sele
   await page.getByTestId('studio-scope-all').click();
   await expect(page.locator('[data-testid="studio-drafts"] tbody tr')).toHaveCount(4);
   await page.getByRole('checkbox', { name: 'Select all rows on this page' }).check();
+  await expect(page.getByTestId('studio-view').getByRole('status')).toContainText('4 selected');
+  await expect(page.getByTestId('studio-view').getByRole('status')).not.toContainText('{');
   await page.screenshot({ path: testInfo.outputPath('studio-drafts-selected.png') });
   await button.click();
   const dialog = page.getByRole('dialog');

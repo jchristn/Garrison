@@ -186,7 +186,7 @@ export default function StudioView() {
         </div>
         {selected.length > 0 && (
           <div className="table-filter-row" role="status">
-            <span>{t('components.table.selected', { count: selected.length })}</span>
+            <span>{t('components.table.selected', { count: selected.length, formattedCount: formatNumber(selected.length, {}, lng) })}</span>
             <button type="button" className="button-danger button-sm" disabled={deleting || !!denied.discard} onClick={() => setBulkDrafts(shown.filter((draft) => selected.includes(draft.id)))} data-testid="studio-delete-multiple" {...tip(denied.discard || t('tips.table.bulkDelete'))}>
               <TrashIcon size={14} /> {t('views.studio.deleteMultiple')}
             </button>

@@ -76,11 +76,12 @@ test.beforeEach(async ({ page }) => {
   await installMocks(page);
 });
 
-test('the Agents page opens the wizard, and Studio is no longer a tab', async ({ page }, testInfo) => {
+test('the Agents tabs stay consistent before and after opening all drafts through the wizard', async ({ page }, testInfo) => {
   await login(page);
   await page.goto('/dashboard/agents');
   await expect(page.getByRole('tab', { name: 'Agents', exact: true })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Studio' })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Agent Studio', exact: true })).toBeVisible();
+  const agentTabs = await page.getByRole('tab').allTextContents();
   await page.getByTestId('open-agent-wizard').click();
   await expect(page).toHaveURL(/\/dashboard\/agent-wizard\/new$/);
   await expect(page.getByTestId('wizard-panel-goal')).toBeVisible();
@@ -97,6 +98,17 @@ test('the Agents page opens the wizard, and Studio is no longer a tab', async ({
   await page.screenshot({ path: testInfo.outputPath('draft-picker-mobile-page.png') });
   expect(await cards.first().evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await page.getByTestId('wizard-resume').screenshot({ path: testInfo.outputPath('draft-picker-mobile.png') });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByTestId('wizard-all-drafts').click();
+  await expect(page).toHaveURL('/dashboard/agents?tab=studio');
+  await expect(page.getByRole('tab', { name: 'Agent Studio', exact: true })).toHaveAttribute('aria-selected', 'true');
+  expect(await page.getByRole('tab').allTextContents()).toEqual(agentTabs);
+  for (const name of agentTabs) {
+    await page.getByRole('tab', { name, exact: true }).click();
+    await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
+    expect(await page.getByRole('tab').allTextContents()).toEqual(agentTabs);
+  }
+  await page.screenshot({ path: testInfo.outputPath('agents-consistent-tabs.png') });
 });
 
 test('end to end: goal, credential, architect, design, review, approve with dev deployments, and a first conversation', async ({ page }, testInfo) => {

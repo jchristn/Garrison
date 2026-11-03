@@ -70,9 +70,8 @@ export const NAV_SECTIONS = [
           { id: 'capabilities', slug: 'capabilities' },
           // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
           { id: 'apps', slug: 'apps' },
-          // AD7.10: the agent studio. Not a tab: the agent wizard is the way in, and its Advanced link opens a draft's
-          // workspace at /dashboard/studio/<id>.
-          { id: 'studio', slug: 'studio', detail: true, hidden: true },
+          // Agent Studio is always in the Agents tab bar; individual drafts open their own workspace.
+          { id: 'studio', slug: 'studio', detail: true },
           // The agent wizard: /dashboard/agent-wizard/new starts one, /dashboard/agent-wizard/<draftId> continues it.
           { id: 'agentWizard', slug: 'agent-wizard', detail: true, hidden: true }
         ]

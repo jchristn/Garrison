@@ -171,3 +171,15 @@ describe('formatters in the new locales', () => {
     match(formatList(['a', 'b', 'c'], code), list);
   });
 });
+
+describe('selected record counts', () => {
+  it.each(SUPPORTED_CODES.filter((code) => code !== 'zz'))('%s renders a localized count without placeholders', (lng) => {
+    for (const count of [1, 2, 1234]) {
+      const formattedCount = formatNumber(count, {}, lng);
+      const text = i18n.t('components.table.selected', { lng, count, formattedCount });
+      expect(text).toContain(formattedCount);
+      expect(text).not.toMatch(/[{}]/);
+      if (lng === 'en') expect(text).toBe(`${formattedCount} selected`);
+    }
+  });
+});

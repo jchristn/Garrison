@@ -143,12 +143,12 @@ describe('agent wizard state', () => {
 });
 
 describe('agent wizard navigation', () => {
-  it('is a hidden detail page under Agents, and the studio tab is hidden', () => {
+  it('keeps the wizard as a detail route and Studio visible in the Agents tab bar', () => {
     expect(findPage('agentWizard')).toMatchObject({ hub: 'agents', detail: true, hidden: true });
     expect(pathFor('agentWizard', 'new')).toBe('/dashboard/agent-wizard/new');
     expect(pathFor('agentWizard', 'sdr_1', { step: 'access' })).toBe('/dashboard/agent-wizard/sdr_1?step=access');
     expect(DETAIL_VIEWS.agentWizard).toBeTruthy();
-    expect(findHub('agents').tabs.filter((p) => !p.hidden).map((p) => p.id)).not.toContain('studio');
+    expect(findHub('agents').tabs.filter((p) => !p.hidden).map((p) => p.id)).toContain('studio');
   });
 
   it('puts an Agent wizard button on the Agents page', () => {

@@ -28,7 +28,7 @@ export default function HubView({ hubKey, apiClient }) {
   const tabs = useMemo(
     () =>
       (hub?.tabs || [])
-        // A hidden tab (the studio's drafts list) is left out of the tab bar unless a link asks for it by ?tab=.
+        // Route-only pages stay out of the tab bar unless a link explicitly selects them.
         .filter((page) => (!page.hidden || page.slug === requested) && allowed(page.requires, principal) && PAGE_VIEWS[page.id])
         .map((page) => {
           const View = PAGE_VIEWS[page.id];

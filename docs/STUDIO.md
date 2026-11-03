@@ -223,3 +223,7 @@ In Agents > Agent Studio, select drafts using their row checkboxes or select all
 ## Architect chat workspace
 
 Draft metadata appears in a compact row above the workspace tabs. The architect selector and conversation actions share a toolbar. Incoming messages scroll inside the conversation; the page stays at its current height. Drag the chat’s bottom-right handle downward to enlarge it and allow page scrolling. Focus the handle and use Up or Down for keyboard resizing, or Home to reset the chat to the available workspace height.
+
+## Finding drafts
+
+Agent Studio is a permanent tab under Agents. The same tab bar appears across the Agents workspace, including when arriving through Agent Wizard > All drafts. Individual draft workspaces remain available through their existing links.

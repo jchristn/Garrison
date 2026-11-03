@@ -16,6 +16,10 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Format selected draft and table counts with locale-aware numbers, preserving plural labels and preventing raw count placeholders.
+
+- Keep Agent Studio visible in the Agents tab bar across every tab, including navigation through Agent Wizard and All drafts.
+
 - Show one Codex choice in Create Connection, preferring the streaming app-server profile while retaining existing connection settings.
 
 - Added tenant-scoped Studio capability discovery so API-backed architects can find design candidates beyond their own executable bindings. Corrected built-in architect guidance about empty catalogs and preserved runtime execution restrictions. Resumed provider conversations now use the current compiled system prompt while retaining chat and tool history.

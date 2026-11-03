@@ -3,6 +3,7 @@ import TablePagination from './TablePagination';
 import DataTable from './DataTable';
 import ColumnPicker from './ColumnPicker';
 import useColumnPrefs from '../hooks/useColumnPrefs';
+import { formatNumber } from '../i18n/formatters';
 import { tip } from './Tooltip';
 import ExportMenu from './ExportMenu';
 import { exportFileName, tableCsv } from '../utils/exporters';
@@ -38,7 +39,7 @@ export default function TableFrame({
   onSelectChange,
   bulkActions = null
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { hidden, toggle, visibleColumns } = useColumnPrefs(tableId || 'default', columns);
 
   return (
@@ -69,7 +70,7 @@ export default function TableFrame({
       {filterSlot && <div className="table-filter-row">{filterSlot}</div>}
       {selectable && selected.length > 0 && (
         <div className="bulk-bar" role="region" aria-label={t('components.table.bulkActions')}>
-          <span>{t('components.table.selected', { count: selected.length })}</span>
+          <span>{t('components.table.selected', { count: selected.length, formattedCount: formatNumber(selected.length, {}, i18n.language) })}</span>
           <button type="button" className="button-secondary button-sm" onClick={() => onSelectChange?.([])} {...tip(t('tips.table.clearSelection'))}>
             {t('components.table.clearSelection')}
           </button>

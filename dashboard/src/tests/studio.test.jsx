@@ -255,8 +255,9 @@ describe('API client', () => {
 });
 
 describe('studio page', () => {
-  it('is a hidden page under Agents with a draft workspace at /dashboard/studio/{id}', () => {
-    expect(findPage('studio')).toMatchObject({ hub: 'agents', tab: 'studio', detail: true, hidden: true });
+  it('is a visible tab under Agents with a draft workspace at /dashboard/studio/{id}', () => {
+    expect(findPage('studio')).toMatchObject({ hub: 'agents', tab: 'studio', detail: true });
+    expect(findPage('studio').hidden).not.toBe(true);
     expect(pathFor('studio')).toBe('/dashboard/agents?tab=studio');
     expect(pathFor('studio', 'drf_0001')).toBe('/dashboard/studio/drf_0001');
     expect(PAGE_VIEWS.studio).toBeTruthy();
