@@ -761,6 +761,7 @@ class Architect(TypedDict, total=False):
     agentName: Optional[str]
     harnessProfileId: str
     model: Optional[str]
+    endpointName: Optional[str]  # Named worker-configured Mux endpoint; model/authentication come from Mux.
     active: bool
     architectPromptTemplateId: str
     architectPromptName: str
@@ -784,6 +785,7 @@ class ArchitectRequest(TypedDict, total=False):
     description: Optional[str]
     harnessProfileId: str
     model: Optional[str]
+    endpointName: Optional[str]  # Named worker-configured Mux endpoint; model/authentication come from Mux.
     active: bool
     architectPromptTemplateId: Optional[str]
     architectPromptVersion: Optional[int]

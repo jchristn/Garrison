@@ -420,6 +420,8 @@ Architect, architect prompt, and prompt template tools, for users and credential
 
 An architect is a deployment that may edit studio drafts, and its ID is the deployment ID (`dep_...`). `garrison_studio_list_architects` and `garrison_studio_list_architect_prompts` return an `EnumerationResult` (`success`, `maxResults`, `skip`, `totalRecords`, `recordsRemaining`, `endOfResults`, `timestampUtc`, `objects`); the get, create, and update tools return an `Architect`, and `garrison_studio_delete_architect` returns `{"id": "dep_...", "deleted": true}`. The architect prompt list keeps its fixed order (built-ins, then clones, then other `System` templates) on every page. `garrison_studio_update_architect` changes only the fields you pass and leaves the deployment's other settings alone; a new prompt takes effect on the architect's next turn. Errors use the REST codes: `ValidationFailed`, `InvalidArchitectPrompt`, `InvalidCredentialSecret`, `NameConflict`, `ArchitectAgentMissing`, and `NotFound` for a deployment that is not an architect. See [docs/ARCHITECT.md](docs/ARCHITECT.md#architects).
 
+Architect create/update tools also accept `endpointName` for Mux: the configured endpoint name on execution workers, not a URL or model. Returned `Architect` records include the selection. Mux uses its own model/authentication; omitting the field on update preserves it. See [architect REST contract](REST_API.md#studio-drafts).
+
 The prompt template tools behave like the REST prompt template routes ([docs/PROMPTS.md](docs/PROMPTS.md)): an update with new content adds a version, built-ins cannot be updated, and reset adds a version only when the content differs.
 
 ## Capability catalog

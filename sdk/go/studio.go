@@ -202,6 +202,7 @@ type Architect struct {
 	AgentName                     *string `json:"agentName,omitempty"`
 	HarnessProfileID              string  `json:"harnessProfileId"`
 	Model                         *string `json:"model,omitempty"`
+	EndpointName                  *string `json:"endpointName,omitempty"` // Named worker-configured Mux endpoint.
 	Active                        bool    `json:"active"`
 	ArchitectPromptTemplateID     string  `json:"architectPromptTemplateId"`
 	ArchitectPromptName           string  `json:"architectPromptName"`
@@ -227,6 +228,7 @@ type ArchitectRequest struct {
 	Description               *string `json:"description,omitempty"`
 	HarnessProfileID          string  `json:"harnessProfileId"`
 	Model                     *string `json:"model,omitempty"`
+	EndpointName              *string `json:"endpointName,omitempty"` // Named worker-configured Mux endpoint.
 	Active                    *bool   `json:"active,omitempty"`
 	ArchitectPromptTemplateID *string `json:"architectPromptTemplateId,omitempty"`
 	ArchitectPromptVersion    *int    `json:"architectPromptVersion,omitempty"`

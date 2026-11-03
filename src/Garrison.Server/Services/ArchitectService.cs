@@ -257,7 +257,8 @@ namespace Garrison.Server.Services
             deployment.ManagementAccess = ManagementAccessEnum.Drafts;
             deployment.ArchitectPromptTemplateId = String.IsNullOrWhiteSpace(request.ArchitectPromptTemplateId) ? null : request.ArchitectPromptTemplateId;
             deployment.ArchitectPromptVersion = request.ArchitectPromptVersion;
-            if (!String.IsNullOrWhiteSpace(request.CredentialSecretId)) BindCredential(deployment, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
+            bool namedMux = await ApplyEndpointAsync(tenantId, deployment, request.EndpointName, token).ConfigureAwait(false);
+            if (!namedMux && !String.IsNullOrWhiteSpace(request.CredentialSecretId)) BindCredential(deployment, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
             Deployment created = await new TenantConfigurationService(_Server).CreateDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
             return await ToArchitectAsync(created, agent, new Dictionary<string, PromptTemplate?>(StringComparer.Ordinal), token).ConfigureAwait(false);
         }
@@ -291,7 +292,8 @@ namespace Garrison.Server.Services
                 PromptTemplate template = await ResolvePromptAsync(tenantId, request.ArchitectPromptTemplateId, request.ArchitectPromptVersion, token).ConfigureAwait(false);
                 Bind(changed, template, request.ArchitectPromptVersion);
             }
-            if (request.CredentialSecretId != null)
+            bool namedMux = await ApplyEndpointAsync(tenantId, changed, request.EndpointName, token).ConfigureAwait(false);
+            if (!namedMux && request.CredentialSecretId != null)
             {
                 if (request.CredentialSecretId.Trim().Length == 0) changed.ResourceBindings.RemoveAll(b => b.Kind == ResourceBindingKindEnum.Secret && String.Equals(b.Alias, CredentialAlias, StringComparison.OrdinalIgnoreCase));
                 else BindCredential(changed, await ResolveCredentialAsync(tenantId, request.CredentialSecretId, token).ConfigureAwait(false));
@@ -484,6 +486,24 @@ namespace Garrison.Server.Services
             binding.ResourceId = secret.Id;
         }
 
+        private async Task<bool> ApplyEndpointAsync(string tenantId, Deployment deployment, string? endpointName, CancellationToken token)
+        {
+            HarnessProfile? profile = await _Server.Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            if (profile?.HarnessType != HarnessTypeEnum.Mux) return false;
+            if (endpointName != null)
+            {
+                string name = endpointName.Trim();
+                if (name.Length == 0 || name.Contains("://", StringComparison.Ordinal) || name.Any(Char.IsControl))
+                    throw new ValidationException("Choose a configured Mux endpoint name, not a model or URL.", new Dictionary<string, string> { ["endpointName"] = "Enter the endpoint name configured in Mux on the execution workers." });
+                deployment.Parameters.RemoveAll(p => p.Name == "endpoint" || p.Name == "baseUrl" || p.Name == "adapterType");
+                deployment.Parameters.Add(new DeploymentParameter { Name = "endpoint", Value = name });
+            }
+            if (!deployment.Parameters.Any(p => p.Name == "endpoint" && !String.IsNullOrWhiteSpace(p.Value))) return false;
+            deployment.Model = null;
+            deployment.ResourceBindings.RemoveAll(b => b.Kind == ResourceBindingKindEnum.Secret && String.Equals(b.Alias, CredentialAlias, StringComparison.OrdinalIgnoreCase));
+            return true;
+        }
+
         private static void ValidateRequest(ArchitectRequest request)
         {
             Dictionary<string, string> fields = new Dictionary<string, string>();
@@ -512,6 +532,8 @@ namespace Garrison.Server.Services
             architect.AgentName = agent?.Name;
             architect.HarnessProfileId = deployment.HarnessProfileId;
             architect.Model = deployment.Model;
+            string? endpointName = deployment.Parameters.FirstOrDefault(p => p.Name == "endpoint")?.Value;
+            if (endpointName != null && (await _Server.Database.HarnessProfiles.ReadAsync(deployment.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false))?.HarnessType == HarnessTypeEnum.Mux) architect.EndpointName = endpointName;
             architect.Active = deployment.Active;
             architect.ArchitectPromptTemplateId = templateId;
             architect.ArchitectPromptName = template?.Name ?? templateId;

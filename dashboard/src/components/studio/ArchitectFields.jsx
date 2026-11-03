@@ -108,6 +108,10 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
   }, [apiClient, tenantId, form.promptId, t]);
 
   const profile = useMemo(() => profiles.find((p) => p.id === form.harnessProfileId) || null, [profiles, form.harnessProfileId]);
+  const isMux = profile?.harnessType === 'Mux';
+  useEffect(() => {
+    if (profile && formRef.current.isMux !== isMux) changeRef.current({ isMux });
+  }, [profile, isMux]);
   // Suggest the secret the chosen harness signs in with (an AnthropicApiKey for Claude Code, and so on).
   useEffect(() => {
     if (credentialTouched.current || !profile) return;
@@ -148,7 +152,7 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
           </select>,
           harnessProfileHint(t)
         )}
-        {field(
+        {!isMux && field(
           'credentialSecretId',
           t('components.studio.architect.credential'),
           <select
@@ -170,7 +174,8 @@ export default function ArchitectFields({ form, onChange, fieldErrors = {}, onAg
           </select>,
           credentialHint(t, { profile, secretCount: secrets.length, chosen: form.credentialSecretId, onRefresh: loadLists, lng: i18n.language })
         )}
-        {field('model', t('components.studio.architect.model'), <input id={id('model')} value={form.model} placeholder="sonnet" onChange={set('model')} data-testid="architect-model" {...tip(t('tips.studio.architect.model'))} />, t('components.studio.architect.modelHint'))}
+        {isMux && field('endpointName', t('views.agentWizard.access.muxEndpoint'), <input id={id('endpointName')} value={form.endpointName || ''} onChange={set('endpointName')} data-testid="architect-endpoint-name" {...tip(t('views.agentWizard.access.muxHint'))} />, t('views.agentWizard.access.muxHint'))}
+        {!isMux && field('model', t('components.studio.architect.model'), <input id={id('model')} value={form.model} placeholder="sonnet" onChange={set('model')} data-testid="architect-model" {...tip(t('tips.studio.architect.model'))} />, t('components.studio.architect.modelHint'))}
         {field(
           'promptId',
           t('components.studio.architect.prompt'),

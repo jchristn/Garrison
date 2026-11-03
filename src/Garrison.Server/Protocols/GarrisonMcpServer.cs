@@ -1723,7 +1723,7 @@ namespace Garrison.Server.Protocols
                     {
                         Name = arguments.Name ?? String.Empty, Description = arguments.Description, HarnessProfileId = arguments.HarnessProfileId ?? String.Empty, Model = arguments.Model,
                         Active = arguments.Active ?? true, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion,
-                        CredentialSecretId = arguments.CredentialSecretId
+                        CredentialSecretId = arguments.CredentialSecretId, EndpointName = arguments.EndpointName
                     };
                     return await architects.CreateAsync(ctx, tenantId, create, token).ConfigureAwait(false);
                 }
@@ -1743,7 +1743,7 @@ namespace Garrison.Server.Protocols
                     {
                         Name = arguments.Name ?? current.Name, Description = arguments.Description ?? current.Description, HarnessProfileId = arguments.HarnessProfileId ?? current.HarnessProfileId,
                         Model = arguments.Model ?? current.Model, Active = arguments.Active ?? current.Active, ArchitectPromptTemplateId = arguments.ArchitectPromptTemplateId, ArchitectPromptVersion = arguments.ArchitectPromptVersion,
-                        CredentialSecretId = arguments.CredentialSecretId
+                        CredentialSecretId = arguments.CredentialSecretId, EndpointName = arguments.EndpointName
                     };
                     return await architects.UpdateAsync(ctx, tenantId, existing, update, token).ConfigureAwait(false);
                 }

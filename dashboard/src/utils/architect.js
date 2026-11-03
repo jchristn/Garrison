@@ -3,7 +3,7 @@
 
 /** A blank architect form: the name, harness profile, model, credential, and architect prompt (filled in as the lists load). */
 export function blankArchitectForm() {
-  return { name: 'architect', harnessProfileId: '', model: '', credentialSecretId: '', promptId: '' };
+  return { name: 'architect', harnessProfileId: '', model: '', credentialSecretId: '', promptId: '', endpointName: '', isMux: false };
 }
 
 /** Secret kinds each harness type can sign in with, best first. A harness type not listed takes none. */
@@ -45,8 +45,9 @@ export function suggestedCredential(secrets, harnessType) {
 export function architectBody(form) {
   const body = { name: String(form.name || '').trim(), harnessProfileId: form.harnessProfileId };
   const model = String(form.model || '').trim();
-  if (model) body.model = model;
-  if (form.credentialSecretId) body.credentialSecretId = form.credentialSecretId;
+  if (model && !form.isMux) body.model = model;
+  if (form.isMux || form.endpointName) body.endpointName = String(form.endpointName || '').trim();
+  if (form.credentialSecretId && !form.isMux) body.credentialSecretId = form.credentialSecretId;
   if (form.promptId) body.architectPromptTemplateId = form.promptId;
   return body;
 }
@@ -56,5 +57,6 @@ export function architectFormErrors(form, t) {
   const errors = {};
   if (!String(form.name || '').trim()) errors.name = t('common.errors.required');
   if (!form.harnessProfileId) errors.harnessProfileId = t('common.errors.required');
+  if (form.isMux && (!form.endpointName?.trim() || form.endpointName.includes('://'))) errors.endpointName = t('views.agentWizard.access.needEndpoint');
   return errors;
 }

@@ -4,7 +4,7 @@
 // architect prompt manager and the underlying deployment from the row, and the studio links to the page.
 
 import { test, expect } from '@playwright/test';
-import { installMocks, installControlledStream, pushRunEvent, ARCHITECT } from './mocks.js';
+import { ARCHITECT_AGENT, installMocks, installControlledStream, pushRunEvent, ARCHITECT } from './mocks.js';
 
 async function login(page) {
   await page.goto('/');
@@ -435,4 +435,66 @@ test('the studio chat sends on Enter, adds lines on Ctrl+Enter, links mentioned 
   await expect(page.getByTestId('studio-chat-ref-apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa')).toContainText('Open approval');
   await inline.click();
   await expect(page).toHaveURL(/\/dashboard\/approvals\/apr_mvuk3imh_MXlT6bgr2oWCSn8SpQa$/);
+});
+
+test('Architects add and edit show the Mux endpoint name instead of Model and Credential', async ({ page }, testInfo) => {
+  const mux = { id: 'hp_mux', name: 'builtin/mux', harnessType: 'Mux', active: true };
+  const architect = { ...ARCHITECT, name: 'mux-architect', harnessProfileId: mux.id, endpointName: 'local', model: null, credentialSecretId: null };
+  const bodies = [];
+  await withArchitects(page, [architect]);
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [mux], totalRecords: 1 })));
+  await page.route(/\/studio\/architects(\/dep_arch)?$/, (route) => {
+    if (['POST', 'PUT'].includes(route.request().method())) {
+      const body = route.request().postDataJSON();
+      bodies.push(body);
+      return route.fulfill(json(route.request().method() === 'POST' ? 201 : 200, { ...architect, ...body }));
+    }
+    return route.fallback();
+  });
+  await login(page);
+  await page.goto(ARCHITECTS);
+  await page.getByTestId('add-button').click();
+  await expect(page.locator('#architects-endpointName')).toBeVisible();
+  await expect(page.locator('#architects-model')).toHaveCount(0);
+  await expect(page.locator('#architects-credentialSecretId')).toHaveCount(0);
+  await page.locator('#architects-endpointName').fill('local');
+  await page.locator('.modal').screenshot({ path: testInfo.outputPath('architect-mux-endpoint.png') });
+  await page.locator('#architects-endpointName').fill('');
+  await page.getByTestId('save-button').click();
+  await expect(fieldOf(page, '#architects-endpointName').locator('.field-error')).toBeVisible();
+  await page.locator('#architects-endpointName').fill('local');
+  await page.getByTestId('save-button').click();
+  await expect(page.locator('.modal')).toHaveCount(0);
+  expect(bodies[0].endpointName).toBe('local');
+  await openMenu(page, architect.name);
+  await menuItem(page, 'Edit').click();
+  await expect(page.locator('#architects-endpointName')).toHaveValue('local');
+  await page.locator('#architects-endpointName').fill('production');
+  await page.getByTestId('save-button').click();
+  await expect(page.locator('.modal')).toHaveCount(0);
+  expect(bodies[1].endpointName).toBe('production');
+});
+
+test('Studio New architect exposes the named Mux endpoint field', async ({ page }) => {
+  await page.route(/\/tenants\/[^/]+\/agents(\?.*)?$/, (route) => new URL(route.request().url()).searchParams.get('search') ? route.fulfill(json(200, { objects: [ARCHITECT_AGENT], totalRecords: 1 })) : route.fallback());
+  const mux = { id: 'hp_mux', name: 'builtin/mux', harnessType: 'Mux', active: true };
+  const bodies = [];
+  await page.route(/\/harness-profiles(\?.*)?$/, (route) => route.fulfill(json(200, { objects: [mux], totalRecords: 1 })));
+  await page.route(/\/studio\/architects$/, (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    bodies.push(route.request().postDataJSON());
+    return route.fulfill(json(201, { ...ARCHITECT, ...bodies[0] }));
+  });
+  await login(page);
+  await page.goto('/dashboard/studio/drf_0001');
+  await page.getByTestId('studio-new-architect').click();
+  await expect(page.getByTestId('architect-endpoint-name')).toBeVisible();
+  await expect(page.getByTestId('architect-model')).toHaveCount(0);
+  await expect(page.getByTestId('architect-credential')).toHaveCount(0);
+  await page.getByTestId('architect-endpoint-name').fill('local');
+  await page.getByTestId('architect-create').click();
+  await expect(page.getByTestId('new-architect')).toHaveCount(0);
+  expect(bodies[0].endpointName).toBe('local');
+  expect(bodies[0].model).toBeUndefined();
+  expect(bodies[0].credentialSecretId).toBeUndefined();
 });

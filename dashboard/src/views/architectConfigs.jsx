@@ -41,7 +41,7 @@ export function architectPromptLabel(t, r) {
 
 /** A blank architect form: the default name, active, and the default prompt (chosen once the prompts load). */
 export function blankArchitect() {
-  return { name: 'architect', description: '', harnessProfileId: '', model: '', credentialSecretId: '', active: true, architectPromptTemplateId: '', architectPromptVersion: '' };
+  return { name: 'architect', description: '', harnessProfileId: '', model: '', endpointName: '', credentialSecretId: '', active: true, architectPromptTemplateId: '', architectPromptVersion: '' };
 }
 
 /** Form values from an architect. */
@@ -52,6 +52,7 @@ export function architectToForm(r) {
     description: r.description || '',
     harnessProfileId: r.harnessProfileId || '',
     model: r.model || '',
+    endpointName: r.endpointName || '',
     credentialSecretId: r.credentialSecretId || '',
     active: r.active !== false,
     architectPromptTemplateId: r.architectPromptTemplateId || '',
@@ -64,6 +65,7 @@ export function architectToRequest(d) {
   const body = { name: String(d.name || '').trim(), description: d.description ? d.description : null, harnessProfileId: d.harnessProfileId, active: d.active !== false };
   const model = String(d.model || '').trim();
   body.model = model || null;
+  if (d.endpointName?.trim()) body.endpointName = d.endpointName.trim();
   // Always sent: an empty value binds nothing on create and removes the credential on update.
   body.credentialSecretId = d.credentialSecretId || '';
   if (d.architectPromptTemplateId) body.architectPromptTemplateId = d.architectPromptTemplateId;
@@ -73,10 +75,11 @@ export function architectToRequest(d) {
 }
 
 /** Client-side checks: name and harness profile are required; a pinned version is a whole number from 1. */
-export function architectErrors(d, t) {
+export function architectErrors(d, t, isMux = false) {
   const errors = {};
   if (!String(d.name || '').trim()) errors.name = t('common.errors.required');
   if (!d.harnessProfileId) errors.harnessProfileId = t('common.errors.required');
+  if (isMux && (!d.endpointName?.trim() || d.endpointName.includes('://'))) errors.endpointName = t('views.agentWizard.access.needEndpoint');
   const v = d.architectPromptVersion;
   if (v !== '' && v != null && (!Number.isInteger(Number(v)) || Number(v) < 1)) errors.architectPromptVersion = t('resources.architects.errors.version');
   return Object.keys(errors).length ? errors : null;
@@ -143,7 +146,7 @@ export const architectsConfig = {
   toForm: (r) => architectToForm(r),
   toDuplicate: (r) => ({ ...architectToForm(r), id: undefined, name: `${r.name}-copy` }),
   toBody: (d) => architectToRequest(d),
-  validate: (d, t) => architectErrors(d, t),
+  validate: (d, t, { options = {} } = {}) => architectErrors(d, t, options.profiles?.find((p) => p.id === d.harnessProfileId)?.harnessType === 'Mux'),
   deniedReason: (action, row, { t, lookups }) => {
     const operation = { create: 'Create', update: 'Update', delete: 'Delete' }[action];
     return operation ? denied(t, lookups?.permissions, operation, row?.id || null) : '';
@@ -163,7 +166,7 @@ export const architectsConfig = {
         t,
         'credentialSecretId',
         (r) =>
-          r.credentialSecretId ? (
+          r.endpointName ? <span className="text-muted" {...tip(t('views.agentWizard.access.muxHint'))}>-</span> : r.credentialSecretId ? (
             <span {...tip(t('tips.resources.architects.credentialCell', { kind: r.credentialSecretKind || '-' }))}>{r.credentialSecretName || r.credentialSecretId}</span>
           ) : (
             <Badge tone="warning" tip={t('tips.resources.architects.noCredential')}>
@@ -172,7 +175,8 @@ export const architectsConfig = {
           ),
         { csv: (r) => r.credentialSecretName || r.credentialSecretId || '' }
       ),
-      col(t, 'model', (r) => r.model || <span className="text-muted" {...tip(t('tips.resources.architects.defaultModel'))}>{t('resources.architects.defaultModel')}</span>, { csv: (r) => r.model || '' }),
+      { key: 'endpointName', label: t('views.agentWizard.access.muxEndpoint'), tip: t('views.agentWizard.access.muxHint'), render: (r) => r.endpointName || '-', csv: (r) => r.endpointName || '' },
+      col(t, 'model', (r) => r.endpointName ? '-' : r.model || <span className="text-muted" {...tip(t('tips.resources.architects.defaultModel'))}>{t('resources.architects.defaultModel')}</span>, { csv: (r) => r.model || '' }),
       col(
         t,
         'architectPromptTemplateId',
@@ -208,12 +212,12 @@ export const architectsConfig = {
       field(t, 'name', 'text', { required: true, placeholder: 'architect' }),
       field(t, 'description', 'textarea', { rows: 2 }),
       field(t, 'harnessProfileId', 'select', { required: true, noneLabel: t('components.studio.architect.chooseProfile'), options: keep(profiles, d?.harnessProfileId), hint: harnessProfileHint(t) }),
-      field(t, 'credentialSecretId', 'select', {
+      ...(profile?.harnessType === 'Mux' ? [{ name: 'endpointName', type: 'text', label: t('views.agentWizard.access.muxEndpoint'), required: true, tip: t('views.agentWizard.access.muxHint'), hint: t('views.agentWizard.access.muxHint') }] : [field(t, 'credentialSecretId', 'select', {
         noneLabel: t('components.studio.architect.noCredential'),
         options: keep(secrets, d?.credentialSecretId),
         hint: credentialHint(t, { profile, secretCount: secrets.length, chosen: d?.credentialSecretId, onRefresh: reloadOptions, lng: i18n?.language })
       }),
-      field(t, 'model', 'text', { placeholder: 'sonnet' }),
+      field(t, 'model', 'text', { placeholder: 'sonnet' })]),
       field(t, 'architectPromptTemplateId', 'select', { required: true, options: keep(prompts, d?.architectPromptTemplateId), hint: architectPromptHint(t, '', mode === 'edit') }),
       field(t, 'architectPromptVersion', 'number', { min: 1 }),
       field(t, 'active', 'checkbox')

@@ -8,6 +8,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Added the Mux endpoint-name field to Architects Add/Edit, Studio New architect, and the shared setup form. It replaces Model and Credential for Mux and round-trips through the architect API and SDKs as `endpointName`.
+
 - Mux in Agent wizard now asks only for a configured endpoint name. It passes that name through to `mux --print -e`, using the endpoint's own URL, adapter, model, and authentication. The execution worker loads only the selected endpoint from its Mux configuration into the private run configuration, with local credentials redacted from output. Existing URL-based deployments remain compatible.
 - Harness setup reflects each CLI: Pi and OpenCode use provider/model identifiers and do not universally require one of three API keys; their authentication depends on the provider and private profile configuration. Claude Code, Codex, and Gemini retain the credentials their isolated built-in profiles support. The direct provider-API harness now requests its required URL/model and supports explicit anonymous access, with OpenAiApiKey as its supported credential kind.
 

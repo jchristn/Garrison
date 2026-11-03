@@ -21,6 +21,9 @@ namespace Garrison.Server.Protocols
         /// <summary>Model, for create and update; null keeps the harness profile's default.</summary>
         public string? Model { get; set; } = null;
 
+        /// <summary>Configured Mux endpoint name, for create/update; null preserves the selection.</summary>
+        public string? EndpointName { get; set; } = null;
+
         /// <summary>Whether the architect accepts new turns, for create and update.</summary>
         public bool? Active { get; set; } = null;
 

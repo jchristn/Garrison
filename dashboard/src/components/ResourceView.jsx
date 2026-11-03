@@ -239,7 +239,7 @@ export default function ResourceView({ config }) {
     setFieldErrors({});
     try {
       const d = editing.data;
-      const validation = config.validate ? config.validate(d, t) : null;
+      const validation = config.validate ? config.validate(d, t, { ...ctx, options }) : null;
       if (validation && Object.keys(validation).length > 0) {
         setFieldErrors(validation);
         showErrorStep(validation);

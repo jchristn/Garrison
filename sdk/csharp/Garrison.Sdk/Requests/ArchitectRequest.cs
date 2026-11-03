@@ -51,6 +51,13 @@ namespace Garrison.Sdk.Requests
         public string? Model { get; set; } = null;
 
         /// <summary>
+        /// Named Mux endpoint from execution-worker configuration. Null preserves an existing selection on update.
+        /// Supplying a name uses the endpoint's model and authentication instead of a model override or credential.
+        /// </summary>
+        public string? EndpointName { get; set; } = null;
+
+
+        /// <summary>
         /// True when the architect accepts runs. Default true.
         /// </summary>
         public bool Active { get; set; } = true;

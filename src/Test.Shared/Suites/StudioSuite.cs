@@ -42,6 +42,7 @@ namespace Test.Shared.Suites
             {
                 string id = "studio-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
+                cases.Add(new TestCaseDescriptor(id, "architect-mux-endpoint", "Architect create/read/update retains the named Mux endpoint without model or credential overrides (" + provider + ")", ct => MuxArchitectEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "drafts", "Drafts hold one document per kind and name; a stale version is 409 DraftVersionConflict; documents must match their path (" + provider + ")", ct => DraftsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "diff-validate", "A draft from a 3-agent app diffs Unchanged; edits show Create and Update with field changes; validation matches manifests/apply?dryRun=true per document (" + provider + ")", ct => DiffAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "graph", "Graph operations add members, connect, set the entry, disconnect, remove, and move nodes on the draft's app (" + provider + ")", ct => GraphAsync(provider, ct)));
@@ -907,6 +908,34 @@ spec:
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Post, D(host), new StudioDraftCreateRequest { Title = "Nope" }, token).ConfigureAwait(false)).StatusCode, "No permission: create a draft");
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(nobody, HttpMethod.Put, D(host) + "/" + draft.Id + "/items/Agent/nope", new StudioDraftItemRequest { Version = draft.Version, Document = AgentYaml("nope", "No.") }, token).ConfigureAwait(false)).StatusCode, "No permission: edit a draft");
                 }
+            }
+        }
+
+        private static async Task MuxArchitectEndpointAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string path = T(host) + "/studio/architects";
+                Architect created = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Post, path, new ArchitectRequest { Name = "mux-architect", HarnessProfileId = "hrn_builtin_mux", EndpointName = "local", Model = "ignored-override" }, 201, token).ConfigureAwait(false);
+                Assert.Equal("local", created.EndpointName ?? String.Empty, "Create returns the endpoint name");
+                Assert.True(created.Model == null && created.CredentialSecretId == null, "Mux supplies the model and authentication");
+                Deployment deployment = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + created.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal("local", deployment.Parameters.Single(p => p.Name == "endpoint").Value, "The endpoint is persisted in deployment parameters");
+                Architect updated = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Put, path + "/" + created.Id, new ArchitectRequest { Name = created.Name, HarnessProfileId = "hrn_builtin_mux", EndpointName = "production" }, 200, token).ConfigureAwait(false);
+                Assert.Equal("production", updated.EndpointName ?? String.Empty, "Edit changes the endpoint");
+                Architect kept = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Put, path + "/" + created.Id, new ArchitectRequest { Name = created.Name, HarnessProfileId = "hrn_builtin_mux" }, 200, token).ConfigureAwait(false);
+                Assert.Equal("production", kept.EndpointName ?? String.Empty, "An omitted endpoint preserves the selection");
+                using (TestMcpClient client = new TestMcpClient())
+                {
+                    await client.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    Architect mcp = await client.CallAsync<Architect>("garrison_studio_create_architect", new { name = "mux-mcp", harnessProfileId = "hrn_builtin_mux", endpointName = "local" }, token).ConfigureAwait(false);
+                    Assert.Equal("local", mcp.EndpointName ?? String.Empty, "MCP create accepts the endpoint name");
+                    Architect changed = await client.CallAsync<Architect>("garrison_studio_update_architect", new { architect = mcp.Id, endpointName = "production" }, token).ConfigureAwait(false);
+                    Assert.Equal("production", changed.EndpointName ?? String.Empty, "MCP update accepts the endpoint name");
+                }
+                Architect switched = await HttpTestHelpers.SendAsync<Architect>(host.AdminClient, HttpMethod.Put, path + "/" + created.Id, new ArchitectRequest { Name = created.Name, HarnessProfileId = "hrn_builtin_fake", Model = "fake-model", EndpointName = "production" }, 200, token).ConfigureAwait(false);
+                Assert.True(switched.EndpointName == null && switched.Model == "fake-model", "Other harnesses use their model instead of a stale Mux endpoint");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, path, new ArchitectRequest { Name = "bad-mux", HarnessProfileId = "hrn_builtin_mux", EndpointName = "http://invalid:1234" }, token).ConfigureAwait(false), 400, "endpointName", "A URL is refused on the endpoint name field");
             }
         }
 

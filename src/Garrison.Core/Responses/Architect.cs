@@ -50,6 +50,13 @@ namespace Garrison.Core.Responses
         public string? Model { get; set; } = null;
 
         /// <summary>
+        /// Configured Mux endpoint name, or null for legacy or non-Mux architects.
+        /// Its model and authentication come from the endpoint configuration on the execution worker.
+        /// </summary>
+        public string? EndpointName { get; set; } = null;
+
+
+        /// <summary>
         /// Whether the architect accepts new turns.
         /// </summary>
         public bool Active { get; set; } = true;

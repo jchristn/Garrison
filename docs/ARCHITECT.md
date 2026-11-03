@@ -229,3 +229,9 @@ The same deployment is a valid target for `PUT .../studio/architects/{id}/prompt
 ## Status
 
 The architect, its prompts, selection, the next-turn rule, and the delete protection are built and tested on Sqlite and PostgreSQL. The architect resource (`/studio/architects`) and its MCP tools are covered by the Touchstone case `studio-*: architects`. In the dashboard, the setup wizard's Agent Studio step creates the first architect with a chosen prompt, Agents > Architects lists, creates, edits, and deletes architects and chooses their prompts, a draft's Architect tab picks which architect to use, and the Architect prompt tab in a draft lists, clones, edits, resets, and selects architect prompts. The REST routes, MCP tools, and SDKs shown here do the same.
+
+### Named Mux endpoints in architect forms
+
+In **Agents → Architects**, choose `builtin/mux` in Add or Edit. **Mux endpoint name** replaces Model and Credential. Studio’s **New architect** dialog and the setup wizard use the same field. Enter the endpoint name configured in Mux on the execution workers, such as `local`; its model and authentication come from Mux. The selection is returned as `endpointName` and is preserved when editing.
+
+![Mux endpoint name in the Architects form](images/architect-mux-endpoint.png)

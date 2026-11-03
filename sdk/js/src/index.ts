@@ -394,6 +394,8 @@ export interface Architect {
   agentName?: string | null;
   harnessProfileId: string;
   model?: string | null;
+  /** Configured Mux endpoint name; uses the endpoint model and authentication. */
+  endpointName?: string | null;
   active: boolean;
   architectPromptTemplateId: string;
   architectPromptName: string;
@@ -421,6 +423,8 @@ export interface ArchitectRequest {
   description?: string | null;
   harnessProfileId: string;
   model?: string | null;
+  /** Configured Mux endpoint name; uses the endpoint model and authentication. */
+  endpointName?: string | null;
   active?: boolean;
   architectPromptTemplateId?: string | null;
   architectPromptVersion?: number | null;
