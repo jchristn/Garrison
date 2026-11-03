@@ -3595,3 +3595,6 @@ tips.nav.hubs.configuration = "Manage prompts, assets, tool servers, credentials
 
 tips.nav.hubs.operations = "Manage stored outputs, model prices, usage limits, and notifications.";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "Permanently delete this draft after confirmation. Published agents and deployments are not affected.";
+tips.views.studio.discardPending = "Permanently delete this draft after confirmation and cancel its pending apply approval.";

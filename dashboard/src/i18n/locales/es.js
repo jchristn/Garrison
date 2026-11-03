@@ -5115,3 +5115,15 @@ es.views.agentWizard.access.intro = es.runtime.reuseHint;
 es.views.manifests.title = es.runtime.importExport;
 
 es.views.agentWizard.design.intro = "Responde las preguntas del arquitecto para diseñar tu agente.";
+
+es.views.studio.deleteMultiple = "Eliminar varios";
+es.views.studio.deleteMultipleMessage = "¿Eliminar permanentemente los {{count}} borradores seleccionados? Se cancelarán las aprobaciones pendientes. Los agentes y despliegues publicados no se verán afectados.";
+
+es.views.studio.discard = es.common.actions.delete;
+es.views.studio.discardTitle = "Eliminar borrador";
+es.views.studio.discardMessage = "¿Eliminar {{title}} permanentemente? Los agentes y despliegues publicados no se verán afectados.";
+es.views.studio.discardPendingMessage = "¿Eliminar {{title}} permanentemente? Se cancelará su aprobación pendiente. Los agentes y despliegues publicados no se verán afectados.";
+es.views.studio.discarded = "Se eliminó {{title}}.";
+
+es.components.studio.chat.resize = "Cambiar tamaño del chat";
+es.components.studio.chat.resizeHint = "Arrastra para cambiar el tamaño. Usa las flechas arriba o abajo para ajustar la altura, o Inicio para restablecerla.";

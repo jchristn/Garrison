@@ -3597,3 +3597,6 @@ tips.nav.hubs.configuration = "Gestisci prompt, risorse, server strumenti, crede
 
 tips.nav.hubs.operations = "Gestisci risultati archiviati, prezzi dei modelli, limiti di utilizzo e notifiche.";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "Elimina definitivamente questa bozza dopo la conferma. Gli agenti e le distribuzioni pubblicati non saranno modificati.";
+tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la conferma e annulla la sua approvazione in sospeso.";

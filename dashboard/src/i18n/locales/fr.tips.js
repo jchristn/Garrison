@@ -3597,3 +3597,6 @@ tips.nav.hubs.configuration = "Gérer les prompts, ressources, serveurs d’outi
 
 tips.nav.hubs.operations = "Gérer les résultats stockés, les tarifs des modèles, les limites et les notifications.";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "Supprime définitivement ce brouillon après confirmation. Les agents et déploiements publiés ne seront pas affectés.";
+tips.views.studio.discardPending = "Supprime définitivement ce brouillon après confirmation et annule son approbation en attente.";

@@ -216,7 +216,7 @@ export default function StudioDraftView({ recordId }) {
   const tabs = TAB_KEYS.map((id) => ({ id, label: t(`views.studioDraft.tabs.${id}`), tip: t(`tips.views.studioDraft.tabs.${id}`) }));
 
   return (
-    <div data-testid="studio-draft">
+    <div className={`studio-draft-workspace${activeTab === 'architect' ? ' is-chat' : ''}`} data-testid="studio-draft">
       <PageHeader
         title={draft.title || t('views.studio.untitled')}
         subtitle={
@@ -256,7 +256,7 @@ export default function StudioDraftView({ recordId }) {
           </>
         }
       />
-      <div className="panel detail-grid studio-summary">
+      <div className="studio-summary">
         <div className="detail-item">
           <div className="detail-item-label" {...tip(t('tips.views.studio.columns.owner'))}>
             {t('views.studio.columns.owner')}
@@ -303,7 +303,9 @@ export default function StudioDraftView({ recordId }) {
       )}
       <Tabs label={t('views.studioDraft.tabsLabel')} active={activeTab} onChange={selectTab} tabs={tabs} />
       {activeTab === 'architect' && (
+        <div className="studio-chat-space">
         <StudioChatPanel
+          resizable
           key={draft.id}
           draft={draft}
           architects={architects}
@@ -318,6 +320,7 @@ export default function StudioDraftView({ recordId }) {
           deniedArchitect={denied.architect}
           onTurnFinished={load}
         />
+        </div>
       )}
       {activeTab === 'items' && <StudioItemsPanel draft={draft} diff={diff} blocked={editBlocked} onDraft={acceptDraft} />}
       {activeTab === 'graph' && <StudioGraphPanel draft={draft} graph={graph} diff={diff} blocked={editBlocked} deployments={deployments} onGraph={onGraphResult} onDraft={acceptDraft} />}

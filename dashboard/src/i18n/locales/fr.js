@@ -5111,3 +5111,15 @@ fr.views.agentWizard.access.intro = fr.runtime.reuseHint;
 fr.views.manifests.title = fr.runtime.importExport;
 
 fr.views.agentWizard.design.intro = "Répondez aux questions de l’architecte pour concevoir votre agent.";
+
+fr.views.studio.deleteMultiple = "Supprimer plusieurs";
+fr.views.studio.deleteMultipleMessage = "Supprimer définitivement les {{count}} brouillons sélectionnés ? Les approbations en attente seront annulées. Les agents et déploiements publiés ne seront pas affectés.";
+
+fr.views.studio.discard = fr.common.actions.delete;
+fr.views.studio.discardTitle = "Supprimer le brouillon";
+fr.views.studio.discardMessage = "Supprimer définitivement {{title}} ? Les agents et déploiements publiés ne seront pas affectés.";
+fr.views.studio.discardPendingMessage = "Supprimer définitivement {{title}} ? Son approbation en attente sera annulée. Les agents et déploiements publiés ne seront pas affectés.";
+fr.views.studio.discarded = "{{title}} supprimé.";
+
+fr.components.studio.chat.resize = "Redimensionner le chat";
+fr.components.studio.chat.resizeHint = "Faites glisser pour redimensionner. Utilisez les flèches haut ou bas pour régler la hauteur, ou Début pour la réinitialiser.";

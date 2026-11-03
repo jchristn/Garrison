@@ -3597,3 +3597,6 @@ tips.nav.hubs.configuration = "Gestiona prompts, recursos, servidores de herrami
 
 tips.nav.hubs.operations = "Gestiona resultados almacenados, precios de modelos, límites de uso y notificaciones.";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "Elimina permanentemente este borrador tras confirmar. Los agentes y despliegues publicados no se verán afectados.";
+tips.views.studio.discardPending = "Elimina permanentemente este borrador tras confirmar y cancela su aprobación pendiente.";

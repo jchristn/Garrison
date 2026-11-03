@@ -66,8 +66,8 @@ sdk/python/garrison_sdk/__init__.py|__version__ = "@V@"
 
 # Postman and documentation
 assets/postman/Garrison.postman_collection.json|MCP APIs \(v@V@\)
-README.md|Alpha \(v@V@\)
-DOCKERHUB_README.md|Alpha \(v@V@\)
+README.md|(Alpha|Release) \(v@V@\)
+DOCKERHUB_README.md|(Alpha|Release) \(v@V@\)
 DOCKERHUB_README.md|tags such as `v@V@`
 REST_API.md|^      "version": "@V@"
 MCP_API.md|"name":"Garrison","version":"@V@"

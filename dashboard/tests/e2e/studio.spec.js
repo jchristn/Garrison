@@ -29,10 +29,10 @@ async function login(page) {
 }
 
 /** Add the architect to the architect list and its deployment to the deployment list. */
-async function withArchitect(page) {
+async function withArchitect(page, overrides = {}) {
   await page.route(/\/tenants\/[^/]+\/studio\/architects(\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
-    return route.fulfill(json(200, { objects: [ARCHITECT], totalRecords: 1, skip: 0, maxResults: 1000, endOfResults: true }));
+    return route.fulfill(json(200, { objects: [{ ...ARCHITECT, ...overrides }], totalRecords: 1, skip: 0, maxResults: 1000, endOfResults: true }));
   });
   await page.route(/\/tenants\/[^/]+\/deployments(\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
@@ -232,10 +232,10 @@ test('a change pushed on the studio-draft channel refreshes the items, graph, an
   await expect(page.locator('tr[data-item="Agent/editor"]')).toBeVisible();
 });
 
-test('the architect chat starts a conversation that names the draft and shows the reply', async ({ page }) => {
+test('the architect chat starts a conversation that names the draft and shows the reply', async ({ page }, testInfo) => {
   const invokes = [];
   let finished = false;
-  await withArchitect(page);
+  await withArchitect(page, { credentialSecretId: 'sec_0001' });
   await page.route(/\/agents\/agt_arch\/invoke(\?.*)?$/, (route) => {
     invokes.push(route.request().postDataJSON());
     return route.fulfill(json(200, studioRun('run_arch_1', { kind: 'Invoke', conversationId: 'cnv_arch', inputText: invokes[0].input })));
@@ -257,6 +257,43 @@ test('the architect chat starts a conversation that names the draft and shows th
   // The prefix is not shown back to the person.
   await expect(page.locator('.studio-turn-text').first()).toHaveText('Add a writer that turns notes into a report.');
   await expect(page.getByTestId('studio-chat-conversation')).toHaveAttribute('href', '/dashboard/conversations/cnv_arch');
+  await expect(page.locator('.studio-summary')).not.toHaveClass(/panel/);
+  const controls = await Promise.all(['studio-architect', 'studio-new-architect', 'studio-manage-architects', 'studio-chat-conversation', 'studio-chat-new-conversation'].map((id) => page.getByTestId(id).boundingBox()));
+  expect(Math.max(...controls.map((box) => box.y + box.height / 2)) - Math.min(...controls.map((box) => box.y + box.height / 2))).toBeLessThan(2);
+  await page.getByTestId('studio-chat-turns').evaluate((el) => {
+    const filler = document.createElement('div');
+    filler.style.height = '3000px';
+    filler.style.flexShrink = '0';
+    el.appendChild(filler);
+  });
+  const scrollSizes = () => page.evaluate(() => {
+    const outer = document.querySelector('.dashboard-content');
+    const inner = document.querySelector('[data-testid="studio-chat-turns"]');
+    return { outer: outer.scrollHeight - outer.clientHeight, inner: inner.scrollHeight - inner.clientHeight };
+  });
+  expect((await scrollSizes()).outer).toBeLessThanOrEqual(1);
+  expect((await scrollSizes()).inner).toBeGreaterThan(1000);
+  await page.getByTestId('studio-chat-turns').evaluate((el) => el.lastElementChild.remove());
+  await page.screenshot({ path: testInfo.outputPath('studio-chat-workspace.png') });
+  const chat = await page.getByTestId('studio-chat').boundingBox();
+  const handle = page.getByTestId('studio-chat-resize');
+  const grip = await handle.boundingBox();
+  await page.mouse.move(grip.x + grip.width - 4, grip.y + grip.height - 4);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width - 4, grip.y + grip.height + 196, { steps: 5 });
+  await page.mouse.up();
+  expect((await page.getByTestId('studio-chat').boundingBox()).height).toBeGreaterThan(chat.height + 190);
+  expect((await scrollSizes()).outer).toBeGreaterThan(150);
+  await handle.focus();
+  await page.keyboard.press('ArrowDown');
+  expect((await page.getByTestId('studio-chat').boundingBox()).height).toBeGreaterThan(chat.height + 220);
+  await page.keyboard.press('Home');
+  expect((await scrollSizes()).outer).toBeLessThanOrEqual(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.dashboard-sidebar')).not.toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  expect((await scrollSizes()).outer).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath('studio-chat-workspace-mobile.png') });
 });
 
 test('New architect creates an architect with the chosen architect prompt', async ({ page }) => {
@@ -276,6 +313,7 @@ test('New architect creates an architect with the chosen architect prompt', asyn
   await expect(page.getByTestId('studio-no-architect')).toBeVisible();
   await page.getByTestId('studio-new-architect').click();
   const dialog = page.getByTestId('new-architect');
+  await dialog.locator('.connection-advanced > summary').click();
   // Built-ins come first and the default is preselected; its rendered text shows.
   await expect(page.getByTestId('architect-prompt')).toHaveValue('pt_builtin_agent_architect');
   await expect(page.getByTestId('architect-prompt').locator('option').first()).toHaveText('builtin/agent-architect (default)');
@@ -283,10 +321,9 @@ test('New architect creates an architect with the chosen architect prompt', asyn
   await expect(page.getByTestId('architect-clone-link')).toHaveAttribute('href', '/dashboard/prompt-templates/pt_builtin_agent_architect');
   await page.getByTestId('architect-prompt').selectOption('pt_builtin_agent_architect_guided');
   await page.locator('#architect-name').fill('architect-2');
-  await page.locator('#architect-model').fill('opus');
   await page.getByTestId('architect-create').click();
   await expect(page.locator('.modal')).toHaveCount(0);
-  expect(bodies).toEqual([{ name: 'architect-2', harnessProfileId: 'hp_0001', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
+  expect(bodies).toEqual([{ name: 'architect-2', harnessProfileId: 'hp_0002', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
 });
 
 test('runs a two-turn playground conversation and downloads the transcript', async ({ page }) => {
@@ -429,13 +466,14 @@ test('the setup wizard creates the architect with the default prompt when the se
   await page.getByRole('button', { name: 'Start' }).click();
   await page.getByRole('button', { name: 'Skip this step' }).click();
   await expect(page.locator('.wizard-steps li.active')).toHaveText('Agent Studio');
+  await page.getByTestId('wizard-studio').locator('.connection-advanced > summary').click();
   await expect(page.getByTestId('architect-prompt')).toHaveValue('pt_builtin_agent_architect');
   await expect(page.getByTestId('architect-prompt').locator('option').first()).toHaveText('builtin/agent-architect (default)');
   await expect(page.getByTestId('wizard-studio').locator('pre, code').first()).toContainText('You are echo-agent');
   await expect(page.getByTestId('architect-clone-link')).toHaveAttribute('href', '/dashboard/prompt-templates/pt_builtin_agent_architect');
   await page.getByTestId('wizard-create-architect').click();
   await expect(page.locator('.wizard-steps li.active')).toHaveText('Sample agent');
-  expect(state.architectBodies).toEqual([{ name: 'architect', harnessProfileId: 'hp_0001', architectPromptTemplateId: 'pt_builtin_agent_architect' }]);
+  expect(state.architectBodies).toEqual([{ name: 'architect', harnessProfileId: 'hp_0002', architectPromptTemplateId: 'pt_builtin_agent_architect' }]);
   // Going back shows the architect as created; Continue does not create a second one.
   await page.getByRole('button', { name: 'Back' }).click();
   await expect(page.getByTestId('wizard-architect-created')).toContainText('architect is ready');
@@ -465,12 +503,12 @@ test('end to end: wizard architect, two-agent app built by the architect, apply,
   await expect(page.locator('.wizard-steps')).toBeVisible();
   await page.getByRole('button', { name: 'Start' }).click();
   await page.getByRole('button', { name: 'Skip this step' }).click();
+  await page.getByTestId('wizard-studio').locator('.connection-advanced > summary').click();
   await page.getByTestId('architect-prompt').selectOption('pt_builtin_agent_architect_guided');
   await expect(page.getByTestId('wizard-studio')).toContainText('One question at a time for first-time builders');
-  await page.getByTestId('architect-model').fill('opus');
   await page.getByTestId('wizard-create-architect').click();
   await expect(page.locator('.toast').filter({ hasText: 'Agent architect architect created.' })).toBeVisible();
-  expect(state.architectBodies).toEqual([{ name: 'architect', harnessProfileId: 'hp_0001', model: 'opus', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
+  expect(state.architectBodies).toEqual([{ name: 'architect', harnessProfileId: 'hp_0002', architectPromptTemplateId: 'pt_builtin_agent_architect_guided' }]);
   await page.getByRole('button', { name: 'Skip setup' }).click();
   await expect(page.locator('.modal')).toHaveCount(0);
 

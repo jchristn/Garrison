@@ -6,7 +6,7 @@ import ActionMenu from '../components/ActionMenu';
 import ConfirmModal from '../components/ConfirmModal';
 import { LoadingState, EmptyState, ErrorBanner } from '../components/States';
 import { Badge } from '../components/StatusBadge';
-import { PlusIcon, RefreshIcon } from '../components/Icons';
+import { PlusIcon, RefreshIcon, TrashIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import StudioNewDraftModal from '../components/studio/StudioNewDraftModal';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +45,10 @@ export default function StudioView() {
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
   const [discard, setDiscard] = useState(null);
+  const [selected, setSelected] = useState([]);
+  const [bulkDrafts, setBulkDrafts] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteFailures, setDeleteFailures] = useState([]);
   const query = useDebounce(search, 300);
 
   const load = useCallback(() => {
@@ -64,6 +68,34 @@ export default function StudioView() {
   useEffect(load, [load]);
 
   const shown = useMemo(() => filterDrafts(rows, statuses), [rows, statuses]);
+  useEffect(() => {
+    setSelected((current) => current.filter((id) => shown.some((draft) => draft.id === id)));
+  }, [shown]);
+  useEffect(() => { setSelected([]); setBulkDrafts(null); setDeleteFailures([]); }, [tenantId]);
+  const allSelected = shown.length > 0 && shown.every((draft) => selected.includes(draft.id));
+  const toggleSelected = (id) => setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  const confirmBulkDelete = async () => {
+    if (denied.discard || deleting) return;
+    setDeleting(true);
+    setDeleteFailures([]);
+    const failed = [];
+    const deleted = [];
+    for (const draft of bulkDrafts) {
+      try {
+        await apiClient.deleteStudioDraft(tenantId, draft.id);
+        deleted.push(draft.id);
+      } catch (e) {
+        failed.push({ id: draft.id, title: draft.title || draft.id, message: errorMessage(t, e) });
+      }
+    }
+    setRows((current) => current.filter((draft) => !deleted.includes(draft.id)));
+    setSelected(failed.map((draft) => draft.id));
+    setDeleteFailures(failed);
+    setBulkDrafts(null);
+    setDeleting(false);
+    addToast({ type: failed.length ? 'warning' : 'success', message: t('common.toasts.bulkDeleted', { count: deleted.length, failed: failed.length }) });
+    load();
+  };
   const toggleStatus = (s) =>
     setStatuses((current) => {
       const next = new Set(current);
@@ -152,6 +184,15 @@ export default function StudioView() {
             ))}
           </div>
         </div>
+        {selected.length > 0 && (
+          <div className="table-filter-row" role="status">
+            <span>{t('components.table.selected', { count: selected.length })}</span>
+            <button type="button" className="button-danger button-sm" disabled={deleting || !!denied.discard} onClick={() => setBulkDrafts(shown.filter((draft) => selected.includes(draft.id)))} data-testid="studio-delete-multiple" {...tip(denied.discard || t('tips.table.bulkDelete'))}>
+              <TrashIcon size={14} /> {t('views.studio.deleteMultiple')}
+            </button>
+          </div>
+        )}
+        {deleteFailures.map((draft) => <ErrorBanner key={draft.id} message={`${draft.title}: ${draft.message}`} />)}
         {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
         {rows === null ? (
           <LoadingState />
@@ -162,6 +203,9 @@ export default function StudioView() {
             <table className="data-table" data-testid="studio-drafts">
               <thead>
                 <tr>
+                  <th scope="col" className="select-cell">
+                    <input type="checkbox" checked={allSelected} ref={(input) => { if (input) input.indeterminate = selected.length > 0 && !allSelected; }} disabled={deleting || !!denied.discard} onChange={() => setSelected(allSelected ? [] : shown.map((draft) => draft.id))} aria-label={t('components.table.selectAll')} {...tip(denied.discard || t('tips.table.selectAll'))} />
+                  </th>
                   {COLUMNS.map((c) => (
                     <th key={c} scope="col" className={['items', 'version'].includes(c) ? 'right' : undefined} {...tip(t(`tips.views.studio.columns.${c}`))}>
                       {t(`views.studio.columns.${c}`)}
@@ -175,6 +219,9 @@ export default function StudioView() {
               <tbody>
                 {shown.map((d) => (
                   <tr key={d.id} data-draft={d.id}>
+                    <td className="select-cell">
+                      <input type="checkbox" checked={selected.includes(d.id)} disabled={deleting || !!denied.discard} onChange={() => toggleSelected(d.id)} aria-label={`${t('components.table.selectRow')}: ${d.title || d.id}`} {...tip(denied.discard || t('tips.table.selectRow'))} />
+                    </td>
                     <td>
                       <a
                         href={pathFor('studio', d.id)}
@@ -231,6 +278,17 @@ export default function StudioView() {
           }}
         />
       )}
+      <ConfirmModal
+        open={!!bulkDrafts}
+        danger
+        title={t('views.studio.deleteMultiple')}
+        message={t('views.studio.deleteMultipleMessage', { count: bulkDrafts?.length || 0 })}
+        details={<ul>{bulkDrafts?.map((draft) => <li key={draft.id}>{draft.title || draft.id}</li>)}</ul>}
+        confirmLabel={t('views.studio.deleteMultiple')}
+        confirmTip={t('tips.confirm.bulkDelete')}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => { if (!deleting) setBulkDrafts(null); }}
+      />
       <ConfirmModal
         open={!!discard}
         danger

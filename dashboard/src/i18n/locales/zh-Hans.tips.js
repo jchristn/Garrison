@@ -3594,3 +3594,6 @@ tips.nav.hubs.configuration = "管理提示词、资源、工具服务器、凭�
 
 tips.nav.hubs.operations = "管理已存储的输出、模型价格、使用限制和通知。";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "确认后永久删除此草稿。已发布的智能体和部署不受影响。";
+tips.views.studio.discardPending = "确认后永久删除此草稿，并取消其待处理的应用审批。";

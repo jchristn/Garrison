@@ -168,7 +168,7 @@ The rules in `CLAUDE.md` are not optional. The ones that most often catch a firs
 - Workers never touch the database.
 - Loopback is `127.0.0.1`, never `localhost`.
 - No em-dashes anywhere, including comments, docs, and commit messages.
-- Do not change version numbers (`0.2.0` in `src/Directory.Build.props` and its mirrors) unless asked. Versions and tags are `v0.x.y` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
+- Do not change version numbers (`1.3.0` in `src/Directory.Build.props` and its mirrors) unless asked. Versions and tags are `v0.x.y` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
 
 ### Adding a route
 
@@ -187,7 +187,7 @@ Most new CLIs need only a harness profile (see `docs/HARNESSES.md`). A new outpu
 ## Images
 
 ```bash
-./build-server.sh v0.2.0     # and build-worker.sh, build-dashboard.sh, or build-all.sh
+./build-server.sh v1.3.0     # and build-worker.sh, build-dashboard.sh, or build-all.sh
 ```
 
 These legacy `build-*.sh` scripts publish immediately through Docker Build Cloud and update both the supplied tag and `latest`; they are publishing commands, not local build commands. For local images use `docker build` with the relevant Dockerfile or `docker/update.sh`. For reviewable multi-architecture OCI archives without publishing, use `k8s/scripts/publish-images.sh`; publishing requires its explicit `--push` flag. See the [Kubernetes image workflow](KUBERNETES.md#build-and-publish-multi-architecture-images).

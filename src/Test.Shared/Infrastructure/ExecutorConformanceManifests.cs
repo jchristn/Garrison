@@ -56,7 +56,7 @@ namespace Test.Shared.Infrastructure
                     Assignment = assignment,
                     NodeName = "conformance-worker",
                     Namespace = "garrison-conformance",
-                    Image = "jchristn77/garrison-worker:v0.2.0",
+                    Image = "jchristn77/garrison-worker:v1.3.0",
                     ImagePullPolicy = "Never",
                     EnvelopeJson = Serializer.Serialize(envelope)
                 };

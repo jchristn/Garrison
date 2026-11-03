@@ -5063,3 +5063,15 @@ zhHant.views.agentWizard.access.intro = zhHant.runtime.reuseHint;
 zhHant.views.manifests.title = zhHant.runtime.importExport;
 
 zhHant.views.agentWizard.design.intro = "回答架構師的問題，設計你的智慧體。";
+
+zhHant.views.studio.deleteMultiple = "批次刪除";
+zhHant.views.studio.deleteMultipleMessage = "永久刪除所選的 {{count}} 個草稿？待處理的套用核准將被取消。已發佈的智慧體和部署不受影響。";
+
+zhHant.views.studio.discard = zhHant.common.actions.delete;
+zhHant.views.studio.discardTitle = "刪除草稿";
+zhHant.views.studio.discardMessage = "永久刪除 {{title}}？已發佈的智慧體和部署不受影響。";
+zhHant.views.studio.discardPendingMessage = "永久刪除 {{title}}？其待處理的套用核准將被取消。已發佈的智慧體和部署不受影響。";
+zhHant.views.studio.discarded = "已刪除 {{title}}。";
+
+zhHant.components.studio.chat.resize = "調整聊天大小";
+zhHant.components.studio.chat.resizeHint = "拖曳以調整聊天大小。使用上下方向鍵調整高度，或按 Home 重設。";

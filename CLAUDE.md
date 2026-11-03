@@ -94,7 +94,7 @@ These come from `~/Code/Agents/requirements` and apply to every change.
 
 ### Versioning
 
-- The product version is `0.2.0`, defined once in `src/Directory.Build.props` and mirrored in the dashboard, SDK manifests, Helm chart, and image tags (`v0.2.0`). Versions and tags are `v0.x.y` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
+- The product version is `1.3.0`, defined once in `src/Directory.Build.props` and mirrored in the dashboard, SDK manifests, Helm chart, and image tags (`v1.3.0`). Versions and tags use `vX.Y.Z` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
 - Never change a version number unless the user explicitly asks for that change.
 
 ### Git

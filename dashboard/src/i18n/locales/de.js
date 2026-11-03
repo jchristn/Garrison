@@ -5097,3 +5097,15 @@ de.views.agentWizard.access.intro = de.runtime.reuseHint;
 de.views.manifests.title = de.runtime.importExport;
 
 de.views.agentWizard.design.intro = "Beantworten Sie die Fragen des Architekten, um Ihren Agenten zu entwerfen.";
+
+de.views.studio.deleteMultiple = "Mehrere löschen";
+de.views.studio.deleteMultipleMessage = "Die {{count}} ausgewählten Entwürfe dauerhaft löschen? Ausstehende Genehmigungen werden abgebrochen. Veröffentlichte Agenten und Bereitstellungen bleiben erhalten.";
+
+de.views.studio.discard = de.common.actions.delete;
+de.views.studio.discardTitle = "Entwurf löschen";
+de.views.studio.discardMessage = "{{title}} dauerhaft löschen? Veröffentlichte Agenten und Bereitstellungen bleiben erhalten.";
+de.views.studio.discardPendingMessage = "{{title}} dauerhaft löschen? Die ausstehende Genehmigung wird abgebrochen. Veröffentlichte Agenten und Bereitstellungen bleiben erhalten.";
+de.views.studio.discarded = "{{title}} gelöscht.";
+
+de.components.studio.chat.resize = "Chatgröße ändern";
+de.components.studio.chat.resizeHint = "Ziehen Sie, um die Chatgröße zu ändern. Pfeil nach oben oder unten ändert die Höhe, Pos1 setzt sie zurück.";

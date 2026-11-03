@@ -215,3 +215,11 @@ Architects and architect prompts, under `/v1.0/api/tenants/{tenantId}/studio`. `
 Errors: 400 `ValidationFailed` with codes `UnsupportedKind`, `InvalidDocument`, `DocumentMismatch`, `DeleteNotSupported`, `NotAMember`, `SelfEdge`, `NoSuchEdge`, `AppDeleted`, and 400 `DraftStale`, `DraftInvalid`, `DraftEmpty` on request-apply; 409 `DraftVersionConflict`, `DraftNotOpen`; on decide, 403 `ApproverLacksPermission`, 409 `DraftStale`, `DraftInvalid`.
 
 The MCP tools are in [MCP_API.md](../MCP_API.md#studio-drafts).
+
+## Delete several drafts
+
+In Agents > Agent Studio, select drafts using their row checkboxes or select all drafts in the current filtered list. **Delete Multiple** appears when at least one draft is selected. Confirmation lists the selected drafts and explains that pending apply approvals are cancelled; published agents and deployments remain intact. Draft records are permanently deleted. Changing filters clears selections that are no longer visible. Successful deletions are removed from the list; failed drafts stay selected with their individual errors so they can be retried. Selection and deletion require Delete permission on StudioDraft.
+
+## Architect chat workspace
+
+Draft metadata appears in a compact row above the workspace tabs. The architect selector and conversation actions share a toolbar. Incoming messages scroll inside the conversation; the page stays at its current height. Drag the chat’s bottom-right handle downward to enlarge it and allow page scrolling. Focus the handle and use Up or Down for keyboard resizing, or Home to reset the chat to the available workspace height.

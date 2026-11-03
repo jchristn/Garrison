@@ -3595,3 +3595,6 @@ tips.nav.hubs.configuration = "プロンプト、アセット、ツールサー�
 
 tips.nav.hubs.operations = "保存された出力、モデル料金、使用量制限、通知を管理します。";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "確認後、この下書きを完全に削除します。公開済みのエージェントとデプロイには影響しません。";
+tips.views.studio.discardPending = "確認後、この下書きを完全に削除し、保留中の適用承認をキャンセルします。";

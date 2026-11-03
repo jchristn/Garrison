@@ -2,6 +2,14 @@
 
 All notable changes to Garrison are recorded here. The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org). Versions below 1.0 are alpha and may break compatibility in any release.
 
+## [1.3.0] - 2026-11-03
+
+### Fixed
+
+- Compacted Agent Studio draft metadata and aligned architect selection with chat actions. The conversation fills the workspace without scrolling the whole page; a bottom-right handle lets users expand the chat, with keyboard adjustment and reset.
+- Replaced Discard action wording with Delete throughout Agent Studio.
+- Added multi-selection and Delete Multiple to the Agent Studio draft list, with confirmation, permission checks, and per-draft failure messages that preserve failed selections for retry.
+
 ## [0.2.0] - 2026-10-29
 
 The Agent Studio release. Garrison stays a horizontally elastic runtime for headless agent harnesses, and gains a studio on top of it for building, testing, deploying, operating, and observing agentic applications (AD-027). The work is tracked in `archive/AGENT_DESIGN_DEPLOY_PLAN.md`; task IDs below refer to it. The database schema moves from version 34 to 45, and both Sqlite and PostgreSQL migrate on startup.

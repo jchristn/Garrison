@@ -1,6 +1,6 @@
 // Application-wide constants for the Garrison dashboard.
 
-export const APP_VERSION = '0.2.0';
+export const APP_VERSION = '1.3.0';
 
 export const STORAGE_KEYS = {
   serverUrl: 'garrison_server_url',

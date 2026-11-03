@@ -3595,3 +3595,6 @@ tips.nav.hubs.configuration = "Verwalte Prompts, Assets, Toolserver, Zugangsdate
 
 tips.nav.hubs.operations = "Verwalte gespeicherte Ergebnisse, Modellpreise, Nutzungslimits und Benachrichtigungen.";
 tips.nav.hubs.manifests = tips.nav.tabs.manifests;
+
+tips.views.studio.discard = "Diesen Entwurf nach Bestätigung dauerhaft löschen. Veröffentlichte Agenten und Bereitstellungen bleiben erhalten.";
+tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft löschen und die ausstehende Genehmigung abbrechen.";

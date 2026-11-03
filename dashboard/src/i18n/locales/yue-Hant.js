@@ -5062,3 +5062,15 @@ yueHant.views.agentWizard.access.intro = yueHant.runtime.reuseHint;
 yueHant.views.manifests.title = yueHant.runtime.importExport;
 
 yueHant.views.agentWizard.design.intro = "回答架構師嘅問題，設計你嘅智能體。";
+
+yueHant.views.studio.deleteMultiple = "批量刪除";
+yueHant.views.studio.deleteMultipleMessage = "永久刪除揀咗嘅 {{count}} 個草稿？等緊處理嘅套用審批會取消。已發佈嘅智能體同部署唔受影響。";
+
+yueHant.views.studio.discard = yueHant.common.actions.delete;
+yueHant.views.studio.discardTitle = "刪除草稿";
+yueHant.views.studio.discardMessage = "永久刪除 {{title}}？已發佈嘅智能體同部署唔受影響。";
+yueHant.views.studio.discardPendingMessage = "永久刪除 {{title}}？等緊處理嘅套用審批會取消。已發佈嘅智能體同部署唔受影響。";
+yueHant.views.studio.discarded = "已刪除 {{title}}。";
+
+yueHant.components.studio.chat.resize = "調整聊天大小";
+yueHant.components.studio.chat.resizeHint = "拖動調整聊天大小。用上下方向鍵調整高度，或者撳 Home 重設。";

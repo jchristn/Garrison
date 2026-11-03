@@ -5062,3 +5062,15 @@ ja.views.agentWizard.access.intro = ja.runtime.reuseHint;
 ja.views.manifests.title = ja.runtime.importExport;
 
 ja.views.agentWizard.design.intro = "アーキテクトの質問に答えて、エージェントを設計します。";
+
+ja.views.studio.deleteMultiple = "複数削除";
+ja.views.studio.deleteMultipleMessage = "選択した {{count}} 件の下書きを完全に削除しますか？保留中の適用承認はキャンセルされます。公開済みのエージェントとデプロイには影響しません。";
+
+ja.views.studio.discard = ja.common.actions.delete;
+ja.views.studio.discardTitle = "下書きを削除";
+ja.views.studio.discardMessage = "{{title}} を完全に削除しますか？公開済みのエージェントとデプロイには影響しません。";
+ja.views.studio.discardPendingMessage = "{{title}} を完全に削除しますか？保留中の適用承認はキャンセルされます。公開済みのエージェントとデプロイには影響しません。";
+ja.views.studio.discarded = "{{title}} を削除しました。";
+
+ja.components.studio.chat.resize = "チャットのサイズを変更";
+ja.components.studio.chat.resizeHint = "ドラッグしてサイズを変更します。上下キーで高さを調整し、Home キーで元に戻します。";

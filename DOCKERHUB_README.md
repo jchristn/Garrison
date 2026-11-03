@@ -4,7 +4,7 @@
 
 # Garrison
 
-> **Alpha (v0.2.0).** A 0.x version means alpha: APIs, schema, settings, and image layout can change without notice.
+> **Release (v1.3.0).** A 0.x version means alpha: APIs, schema, settings, and image layout can change without notice.
 
 **Build, deploy, and run agentic apps on the agent harnesses you already use.** Garrison is a self-hosted, multi-tenant platform for agentic applications. Its runtime turns Claude Code, Codex, Gemini CLI, Mux, opencode, pi, provider APIs, and any command-line agent into managed services on pull-based workers, reachable over REST, MCP, and A2A. Garrison Agent Studio, new in 0.2.0, sits on top: an architect agent drafts apps with you, you review the diff and try the draft in a playground, a person approves it, and the app goes live at its own URL with a branded chat UI for its end users.
 
@@ -21,7 +21,7 @@ The release covers the whole loop. **Build** with the agent architect, versioned
 | `jchristn77/garrison-worker` | Worker node with Claude Code, Codex, Mux, the provider API harness, and the fake test harness installed | 8710 (health), 9465 (Prometheus) |
 | `jchristn77/garrison-dashboard` | nginx serving the React operator console at `/` and the end-user app UI at `/apps/{slug}/`, proxying `/v1.0` to the server | 80 |
 
-Each image is published under version tags such as `v0.2.0` and under `latest`:
+Each image is published under version tags such as `v1.3.0` and under `latest`:
 
 | Tag | Meaning |
 |---|---|

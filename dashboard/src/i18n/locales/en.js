@@ -5090,3 +5090,15 @@ en.views.agentWizard.access.intro = en.runtime.reuseHint;
 en.views.manifests.title = en.runtime.importExport;
 
 en.views.agentWizard.design.intro = "Answer the architect’s questions to design your agent.";
+
+en.views.studio.deleteMultiple = "Delete Multiple";
+en.views.studio.deleteMultipleMessage = "Permanently delete the {{count}} selected drafts? Pending apply approvals will be cancelled. Published agents and deployments are not affected.";
+
+en.views.studio.discard = en.common.actions.delete;
+en.views.studio.discardTitle = "Delete draft";
+en.views.studio.discardMessage = "Permanently delete {{title}}? Published agents and deployments are not affected.";
+en.views.studio.discardPendingMessage = "Permanently delete {{title}}? Its pending apply approval will be cancelled. Published agents and deployments are not affected.";
+en.views.studio.discarded = "Deleted {{title}}.";
+
+en.components.studio.chat.resize = "Resize chat";
+en.components.studio.chat.resizeHint = "Drag to resize the chat. Use Up or Down to adjust its height, or Home to reset.";

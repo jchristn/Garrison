@@ -26,8 +26,29 @@ export { TurnStatus } from './ChatTurn';
  * when it has one). The agent wizard embeds it with `hideArchitectControls` (it chose the architect itself), an
  * `initialMessage` to start from, and its own `heading`.
  */
-export default function StudioChatPanel({ draft, architects, architectId, onArchitectChange, onArchitectCreated, deniedArchitect = '', onTurnFinished, hideArchitectControls = false, initialMessage = '', title = '', heading = null }) {
+export default function StudioChatPanel({ draft, architects, architectId, onArchitectChange, onArchitectCreated, deniedArchitect = '', onTurnFinished, hideArchitectControls = false, initialMessage = '', title = '', heading = null, resizable = false }) {
   const { t } = useTranslation();
+  const chatRef = useRef(null);
+  const resizeStart = useRef(null);
+  const [chatHeight, setChatHeight] = useState(null);
+  const resizeChat = (height) => setChatHeight(Math.max(240, Math.round(height)));
+  const startResize = (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    resizeStart.current = { y: event.clientY, height: chatRef.current.getBoundingClientRect().height };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveResize = (event) => {
+    if (resizeStart.current) resizeChat(resizeStart.current.height + event.clientY - resizeStart.current.y);
+  };
+  const endResize = () => { resizeStart.current = null; };
+  const resizeKey = (event) => {
+    if (event.key === 'Home') { event.preventDefault(); setChatHeight(null); }
+    else if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      resizeChat(chatRef.current.getBoundingClientRect().height + (event.key === 'ArrowDown' ? 32 : -32));
+    }
+  };
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const stored = readStored(conversationStorageKey(draft.id));
@@ -99,12 +120,12 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
   const fixArchitect = architect ? pathFor('architects', null, { search: architect.name }) : pathFor('architects');
 
   return (
-    <section className="panel studio-chat" aria-label={t('components.studio.chat.title')} data-testid="studio-chat">
+    <section ref={chatRef} className={`panel studio-chat${resizable ? ' studio-chat-resizable' : ''}`} style={resizable && chatHeight !== null ? { height: chatHeight } : undefined} aria-label={t('components.studio.chat.title')} data-testid="studio-chat">
       <div className="studio-row-between">
-        {heading || <h3 className="section-title" {...tip(t('tips.studio.chat.title'))}>
+        {heading || (!resizable && <h3 className="section-title" {...tip(t('tips.studio.chat.title'))}>
           {title || t('components.studio.chat.title')}
-        </h3>}
-        <div className="flex gap-sm items-center">
+        </h3>)}
+        <div className="flex gap-sm items-center studio-chat-controls">
           {!hideArchitectControls && (
             <>
             <label htmlFor="studio-architect" className="sr-only" {...tip(t('tips.studio.chat.architect'))}>
@@ -215,6 +236,19 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
         </div>
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} />}
+      {resizable && <button
+        type="button"
+        className="studio-chat-resize"
+        aria-label={t('components.studio.chat.resize')}
+        data-testid="studio-chat-resize"
+        onPointerDown={startResize}
+        onPointerMove={moveResize}
+        onPointerUp={endResize}
+        onPointerCancel={endResize}
+        onLostPointerCapture={endResize}
+        onKeyDown={resizeKey}
+        {...tip(t('components.studio.chat.resizeHint'))}
+      />}
       {creating && (
         <NewArchitectModal
           onClose={() => setCreating(false)}
