@@ -8,6 +8,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Architects is the second tab on the Agents page, immediately after Agents.
+
 - Added the Mux endpoint-name field to Architects Add/Edit, Studio New architect, and the shared setup form. It replaces Model and Credential for Mux and round-trips through the architect API and SDKs as `endpointName`.
 
 - Mux in Agent wizard now asks only for a configured endpoint name. It passes that name through to `mux --print -e`, using the endpoint's own URL, adapter, model, and authentication. The execution worker loads only the selected endpoint from its Mux configuration into the private run configuration, with local credentials redacted from output. Existing URL-based deployments remain compatible.

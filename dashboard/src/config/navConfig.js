@@ -58,6 +58,8 @@ export const NAV_SECTIONS = [
         icon: 'BotIcon',
         tabs: [
           { id: 'agents', slug: 'agents', detail: true },
+          // Agent architects: reusable deployments of agent-architect that any studio draft can use.
+          { id: 'architects', slug: 'architects' },
           { id: 'deployments', slug: 'deployments' },
           // P12.9: ordered agent stages with optional review gates.
           { id: 'pipelines', slug: 'pipelines' },
@@ -67,8 +69,6 @@ export const NAV_SECTIONS = [
           { id: 'capabilities', slug: 'capabilities' },
           // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
           { id: 'apps', slug: 'apps' },
-          // Agent architects: reusable deployments of agent-architect that any studio draft can use.
-          { id: 'architects', slug: 'architects' },
           // AD7.10: the agent studio. Not a tab: the agent wizard is the way in, and its Advanced link opens a draft's
           // workspace at /dashboard/studio/<id>.
           { id: 'studio', slug: 'studio', detail: true, hidden: true },
