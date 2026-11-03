@@ -182,11 +182,16 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>The secret to compile with.</returns>
         /// <exception cref="ArgumentNullException">Thrown when secret is null.</exception>
-        /// <exception cref="CredentialUnavailableException">Thrown when the login needs reauthentication, or is expired and could not be refreshed.</exception>
+        /// <exception cref="CredentialUnavailableException">Thrown when the login is malformed, needs reauthentication, or is expired and could not be refreshed.</exception>
         public async Task<Secret> PrepareAsync(Secret secret, CancellationToken token = default)
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             if (secret.Kind != SecretKindEnum.CodexAuthJson) return secret;
+
+            string? error = CodexAuthDocument.ValidationError(DecryptOrNull(secret));
+            if (error != null)
+                throw new CredentialUnavailableException("InvalidCodexAuthJson", secret.Id, secret.Name,
+                    "Secret " + secret.Name + " cannot be used by Codex. " + error + " Update this secret's value and retry. The run was not started.");
 
             CodexRefreshResult result = await RefreshIfDueAsync(secret, true, token).ConfigureAwait(false);
             switch (result.Outcome)

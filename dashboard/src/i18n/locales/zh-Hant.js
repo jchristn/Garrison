@@ -4439,7 +4439,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    },
    "chat": {
     "notCredentialedTitle": "架構師無法登入其模型供應商",
-    "notCredentialedBody": "它的 Harness 沒有可用的憑證（Claude Code 會顯示 Not logged in）。請在架構師頁面為 {{architect}} 指定憑證祕密，或確認祕密的值是否正確。",
+    "notCredentialedBody": "{{architect}} 驗證失敗。請檢查其已儲存連線的憑證；下方的執行錯誤說明了原因。",
     "noCredentialTitle": "這位架構師沒有憑證",
     "noCredentialBody": "{{architect}} 在 {{profile}} 上執行，需要祕密才能登入。沒有祕密時，它的每一輪都會以 Not logged in 失敗。請在架構師頁面為它選擇憑證。",
     "fixCredential": "修正架構師的憑證",
@@ -4560,8 +4560,9 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "CodexAuthJson": {
     "s1": "安裝 Codex CLI（如尚未安裝）：",
     "s2": "在一個新的空 Codex 目錄下用你的 ChatGPT 帳戶登入，讓這個登入只屬於 Garrison：",
-    "s3": "輸出登入檔案，並把全部內容貼到「值」：",
-    "s4": "刪除該資料夾，且不要在其他地方使用這個登入。之後由 Garrison 負責更新：",
+    "s3": "在同一個終端機中驗證檔案。只有顯示 Valid JSON 時才繼續：",
+    "copy": "在 macOS 上，使用以下指令將檔案直接複製到剪貼簿，再貼上到值中。在其他系統上，用文字編輯器開啟 auth.json 並複製整個檔案。請勿複製自動換行的終端機輸出或命令提示字元。",
+    "s4": "密鑰成功儲存後，刪除該資料夾，並且不要在其他地方使用此登入。此後由 Garrison 負責更新：",
     "note": "同一登入的兩份複本共用一個重新整理權杖，後更新的一方會使另一方失效。用個人 ChatGPT 方案為他人提供服務可能違反 OpenAI 的條款；共用部署使用 OpenAI API 金鑰比較簡單。"
    },
    "GeminiApiKey": {

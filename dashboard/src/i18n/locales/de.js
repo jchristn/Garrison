@@ -4473,7 +4473,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    },
    "chat": {
     "notCredentialedTitle": "Der Architekt konnte sich nicht bei seinem Modellanbieter anmelden",
-    "notCredentialedBody": "Sein Harness hat keine funktionierenden Zugangsdaten (Claude Code meldet das als Not logged in). Geben Sie {{architect}} auf der Seite Architekten ein Zugangsdaten-Geheimnis, oder prüfen Sie den Wert des Geheimnisses.",
+    "notCredentialedBody": "Die Authentifizierung für {{architect}} ist fehlgeschlagen. Prüfen Sie die Zugangsdaten der gespeicherten Verbindung; der Ausführungsfehler unten erklärt die Ursache.",
     "noCredentialTitle": "Dieser Architekt hat keine Zugangsdaten",
     "noCredentialBody": "{{architect}} läuft auf {{profile}}, das zum Anmelden ein Geheimnis braucht. Ohne eines scheitern seine Züge mit Not logged in. Wählen Sie auf der Seite Architekten Zugangsdaten für ihn.",
     "fixCredential": "Zugangsdaten des Architekten korrigieren",
@@ -4594,8 +4594,9 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "CodexAuthJson": {
     "s1": "Installieren Sie die Codex CLI, falls noch nicht vorhanden:",
     "s2": "Melden Sie sich mit Ihrem ChatGPT-Konto in einem neuen, leeren Codex-Verzeichnis an, damit diese Anmeldung nur Garrison gehört:",
-    "s3": "Geben Sie die Anmeldedatei aus und fügen Sie sie vollständig in Wert ein:",
-    "s4": "Löschen Sie das Verzeichnis und verwenden Sie diese Anmeldung nirgendwo sonst. Garrison erneuert sie ab jetzt selbst:",
+    "s3": "Prüfen Sie die Datei im selben Terminal. Fahren Sie nur fort, wenn Valid JSON erscheint:",
+    "copy": "Unter macOS kopieren Sie die Datei mit dem folgenden Befehl direkt in die Zwischenablage und fügen sie in Wert ein. Öffnen Sie auf anderen Systemen auth.json in einem Texteditor und kopieren Sie die gesamte Datei. Kopieren Sie keine umgebrochene Terminalausgabe oder Eingabeaufforderung.",
+    "s4": "Löschen Sie nach dem erfolgreichen Speichern des Geheimnisses diesen Ordner und verwenden Sie diese Anmeldung nirgendwo sonst. Garrison übernimmt ab jetzt die Erneuerung:",
     "note": "Zwei Kopien einer Anmeldung teilen ein Refresh-Token, und wer zuerst erneuert, macht die andere ungültig. Einen persönlichen ChatGPT-Tarif für andere zu nutzen kann gegen die Bedingungen von OpenAI verstoßen; für gemeinsame Bereitstellungen ist ein OpenAI-API-Schlüssel einfacher."
    },
    "GeminiApiKey": {

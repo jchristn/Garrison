@@ -19,8 +19,9 @@ export const SECRET_GUIDES = {
   CodexAuthJson: {
     steps: [
       { key: 's1', code: 'npm install -g @openai/codex' },
-      { key: 's2', code: 'export CODEX_HOME="$(mktemp -d)"\ncodex login' },
-      { key: 's3', code: 'cat "$CODEX_HOME/auth.json"' },
+      { key: 's2', code: 'export CODEX_HOME="$(mktemp -d)"\ncodex login -c \'cli_auth_credentials_store="file"\'' },
+      { key: 's3', code: `node -e 'try { JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log("Valid JSON"); } catch { console.error("Cannot read valid JSON from auth.json. Check the file before copying."); process.exitCode = 1; }' "$CODEX_HOME/auth.json"` },
+      { key: 'copy', code: 'pbcopy < "$CODEX_HOME/auth.json"' },
       { key: 's4', code: 'rm -rf "$CODEX_HOME"' }
     ],
     note: true

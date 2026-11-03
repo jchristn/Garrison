@@ -4,12 +4,14 @@ namespace Test.Shared.Suites
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Http;
+    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Codex;
     using Garrison.Core.Compilation;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Manifests;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Security;
@@ -44,12 +46,15 @@ namespace Test.Shared.Suites
             List<TestSuiteDescriptor> suites = new List<TestSuiteDescriptor>();
             List<TestCaseDescriptor> unit = new List<TestCaseDescriptor>();
             unit.Add(new TestCaseDescriptor("codex-credentials", "auth-document", "auth.json parsing keeps unknown fields, reads JWT expiry, and the run copy drops the refresh token", ct => AuthDocumentAsync(ct)));
+            unit.Add(new TestCaseDescriptor("codex-credentials", "auth-validation", "Malformed terminal copies are rejected without exposing credentials; both login formats are accepted", ct => AuthValidationAsync(ct)));
             suites.Add(new TestSuiteDescriptor("codex-credentials", "Codex credentials", unit));
 
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
             {
                 string id = "codex-credentials-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
+                cases.Add(new TestCaseDescriptor(id, "invalid-stored-login", "A malformed saved credential fails before refresh or execution (" + provider + ")", ct => InvalidStoredLoginAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "invalid-login-api", "Secret writes reject malformed Codex JSON and preserve the previous credential (" + provider + ")", ct => InvalidLoginApiAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "fresh-no-refresh", "A login far from expiry is not refreshed; short-lived tokens use half their lifetime (" + provider + ")", ct => FreshNoRefreshAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "near-expiry-refresh", "A login near expiry is refreshed once and written back encrypted with every field kept (" + provider + ")", ct => NearExpiryRefreshAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "concurrent-one-refresh", "Concurrent runs on two replicas cause exactly one refresh (" + provider + ")", ct => ConcurrentOneRefreshAsync(provider, ct)));
@@ -95,6 +100,89 @@ namespace Test.Shared.Suites
             Assert.True(!Assert.NotNull(CodexAuthDocument.TryParse(apiKeyOnly), "api key auth.json").IsRefreshable(), "an API key login is not refreshable");
             Assert.Equal(apiKeyOnly, CodexAuthDocument.ForRun(apiKeyOnly), "API key logins pass through");
             return Task.CompletedTask;
+        }
+
+        private static Task AuthValidationAsync(CancellationToken token)
+        {
+            string[] invalid = { "", " ", "sk-private-test", "/tmp/auth.json", "null", "[]", "{}", "{\"tokens\":{\"access_token\":\"private\nwrapped\"}}", "{\"OPENAI_API_KEY\":\"private-test\"", "{\"OPENAI_API_KEY\":123}", "{\"OPENAI_API_KEY\":\"private-test\",}", "{/* comment */\"OPENAI_API_KEY\":\"private-test\"}", "{\"tokens\":{\"access_token\":\" \"}}", "```json\n{}\n```" };
+            foreach (string value in invalid)
+            {
+                string error = Assert.NotNull(CodexAuthDocument.ValidationError(value), "invalid auth.json rejected");
+                Assert.True(!error.Contains("private", StringComparison.Ordinal), "error never echoes credentials");
+            }
+            Assert.True(CodexAuthDocument.ValidationError(null) != null, "missing login rejected for execution");
+            string login = FakeTokenEndpoint.AuthJson(DateTime.UtcNow.AddDays(5), "rt-valid");
+            Assert.True(CodexAuthDocument.ValidationError(login) == null, "ChatGPT login accepted");
+            Assert.True(CodexAuthDocument.ValidationError(CodexAuthDocument.ForRun(login)) == null, "run copy needs no refresh token");
+            Assert.True(CodexAuthDocument.ValidationError("{\"OPENAI_API_KEY\":\"sk-test\"}") == null, "API key login accepted");
+            return Task.CompletedTask;
+        }
+
+        private static async Task InvalidStoredLoginAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (FakeTokenEndpoint endpoint = new FakeTokenEndpoint())
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            using (CodexCredentialService service = NewService(db, endpoint, "node-invalid"))
+            {
+                Secret secret = await CreateSecretAsync(db, "broken-codex-login", "{\"tokens\":{\"access_token\":\"private\nwrapped\"}}", token).ConfigureAwait(false);
+                CredentialUnavailableException error = await ExpectUnavailableAsync(() => service.PrepareAsync(secret, token)).ConfigureAwait(false);
+                Assert.Equal("InvalidCodexAuthJson", error.Code, "actionable error code");
+                Assert.Equal(secret.Id, error.SecretId, "identifies the secret to replace");
+                Assert.True(error.Message.Contains(secret.Name, StringComparison.Ordinal) && error.Message.Contains("auth.json", StringComparison.Ordinal), "names the credential and expected file");
+                Assert.True(!error.Message.Contains("private", StringComparison.Ordinal), "no credential contents in error");
+                Assert.Equal(0, endpoint.Requests, "invalid logins never reach the provider");
+            }
+        }
+
+        private static async Task InvalidLoginApiAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string path = "/v1.0/api/tenants/" + host.TenantId + "/secrets";
+                SecretRequest request = new SecretRequest { Name = "validated-codex", Kind = SecretKindEnum.CodexAuthJson, Value = "{\"OPENAI_API_KEY\":\"private-test\"" };
+                TestResponse rejected = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, path, request, token).ConfigureAwait(false);
+                AssertInvalidLogin(rejected);
+
+                // The same name remains available, and a metadata-only placeholder remains supported.
+                request.Value = null;
+                Secret placeholder = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, path, request, 201, token).ConfigureAwait(false);
+                SecretValueRequest valid = new SecretValueRequest { Value = "{\"OPENAI_API_KEY\":\"sk-valid-test\"}" };
+                Secret saved = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Put, path + "/" + placeholder.Id + "/value", valid, 200, token).ConfigureAwait(false);
+                SecretValueRequest invalid = new SecretValueRequest { Value = "{\"OPENAI_API_KEY\":\"private-test\"" };
+                AssertInvalidLogin(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, path + "/" + saved.Id + "/value", invalid, token).ConfigureAwait(false));
+                AssertInvalidLogin(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, path + "/" + saved.Id + "/rotate", invalid, token).ConfigureAwait(false));
+                request.Value = invalid.Value;
+                AssertInvalidLogin(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, path + "/" + saved.Id, request, token).ConfigureAwait(false));
+                Secret unchanged = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Get, path + "/" + saved.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(saved.Fingerprint, unchanged.Fingerprint, "invalid updates preserve the existing credential");
+                Assert.Equal(saved.RotatedUtc, unchanged.RotatedUtc, "invalid updates do not rotate the secret");
+
+                string yaml = "apiVersion: garrison/v1\nkind: Secret\nmetadata: { name: invalid-manifest-login }\nspec:\n  kind: CodexAuthJson\n  value: '{\"OPENAI_API_KEY\":\"private-test\"'\n";
+                using (HttpRequestMessage import = new HttpRequestMessage(HttpMethod.Post, "/v1.0/api/tenants/" + host.TenantId + "/manifests/apply?allowSecretValues=true"))
+                {
+                    import.Content = new StringContent(yaml, Encoding.UTF8, "application/yaml");
+                    using (HttpResponseMessage response = await host.AdminClient.SendAsync(import, token).ConfigureAwait(false))
+                    {
+                        Assert.Equal(400, (int)response.StatusCode, "manifest rejects malformed login");
+                        string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.True(body.Contains("InvalidCodexAuthJson", StringComparison.Ordinal) && !body.Contains("private-test", StringComparison.Ordinal), "manifest reports safe validation error");
+                        ManifestApply applied = Assert.NotNull(Serializer.Deserialize<ManifestApply>(body), "manifest result");
+                        Assert.Equal(1, applied.FailedCount, "manifest validation failed");
+                        Assert.Equal(0, applied.CreatedCount, "invalid manifest writes nothing");
+                    }
+                }
+
+                valid.Value = FakeTokenEndpoint.AuthJson(DateTime.UtcNow.AddDays(5), "rt-replacement");
+                Secret replacement = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Put, path + "/" + saved.Id + "/value", valid, 200, token).ConfigureAwait(false);
+                Assert.True(replacement.AccessTokenExpiresUtc.HasValue, "complete ChatGPT login accepted");
+            }
+        }
+
+        private static void AssertInvalidLogin(TestResponse response)
+        {
+            Assert.Equal(400, response.StatusCode, "invalid login rejected");
+            Assert.True(response.Body.Contains("InvalidCodexAuthJson", StringComparison.Ordinal) && response.Body.Contains("value", StringComparison.Ordinal), "field error identifies invalid Codex JSON");
+            Assert.True(!response.Body.Contains("private-test", StringComparison.Ordinal), "response does not disclose credential contents");
         }
 
         private static async Task FreshNoRefreshAsync(DatabaseTypeEnum provider, CancellationToken token)

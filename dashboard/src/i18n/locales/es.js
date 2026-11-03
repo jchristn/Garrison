@@ -4491,7 +4491,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    },
    "chat": {
     "notCredentialedTitle": "El arquitecto no pudo iniciar sesión en su proveedor de modelos",
-    "notCredentialedBody": "Su harness no tiene una credencial válida (Claude Code lo indica como Not logged in). Asigna a {{architect}} un secreto de credencial en la página Arquitectos, o comprueba que el valor del secreto sea correcto.",
+    "notCredentialedBody": "Falló la autenticación de {{architect}}. Revisa la credencial de su conexión guardada; el error de ejecución que aparece abajo explica la causa.",
     "noCredentialTitle": "Este arquitecto no tiene credencial",
     "noCredentialBody": "{{architect}} se ejecuta en {{profile}}, que necesita un secreto para iniciar sesión. Sin él, sus turnos fallan con Not logged in. Elige una credencial en la página Arquitectos.",
     "fixCredential": "Corregir la credencial del arquitecto",
@@ -4612,8 +4612,9 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "CodexAuthJson": {
     "s1": "Instala la CLI de Codex si aún no está:",
     "s2": "Inicia sesión con tu cuenta de ChatGPT en un directorio de Codex nuevo y vacío, para que este inicio de sesión sea solo de Garrison:",
-    "s3": "Muestra el archivo de inicio de sesión y pégalo entero en Valor:",
-    "s4": "Borra esa carpeta y no uses este inicio de sesión en ningún otro sitio. Desde ahora lo renueva Garrison:",
+    "s3": "Valida el archivo en la misma terminal. Continúa solo si aparece Valid JSON:",
+    "copy": "En macOS, copia el archivo directamente al portapapeles con el siguiente comando y pégalo en Valor. En otros sistemas, abre auth.json en un editor de texto y copia todo el archivo. No copies la salida ajustada de la terminal ni el indicador de comandos.",
+    "s4": "Después de guardar el secreto correctamente, elimina esa carpeta y no uses este inicio de sesión en otro lugar. Garrison lo renovará a partir de ahora:",
     "note": "Dos copias de un inicio de sesión comparten un token de renovación, y la que renueva en segundo lugar rompe la otra. Usar un plan personal de ChatGPT para dar servicio a otros puede incumplir los términos de OpenAI; una clave de API de OpenAI es más sencilla para despliegues compartidos."
    },
    "GeminiApiKey": {

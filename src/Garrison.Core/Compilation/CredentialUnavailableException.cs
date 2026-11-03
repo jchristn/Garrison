@@ -5,7 +5,8 @@ namespace Garrison.Core.Compilation
     /// <summary>
     /// Raised while compiling a run when a bound credential cannot be used: a CodexAuthJson login that needs
     /// reauthentication (code <c>SecretNeedsReauthentication</c>), or one that is expired and could not be refreshed
-    /// right now (code <c>SecretRefreshFailed</c>). The run fails with outcome NotCredentialed (G-22).
+    /// right now (code <c>SecretRefreshFailed</c>), or malformed auth.json (code <c>InvalidCodexAuthJson</c>).
+    /// The run fails with outcome NotCredentialed (G-22).
     /// </summary>
     public class CredentialUnavailableException : CompilationException
     {
@@ -28,7 +29,7 @@ namespace Garrison.Core.Compilation
         /// <summary>
         /// Instantiate.
         /// </summary>
-        /// <param name="code">Stable error code: SecretNeedsReauthentication or SecretRefreshFailed.</param>
+        /// <param name="code">Stable error code: SecretNeedsReauthentication, SecretRefreshFailed, or InvalidCodexAuthJson.</param>
         /// <param name="secretId">Secret identifier.</param>
         /// <param name="secretName">Secret name.</param>
         /// <param name="message">Message for the operator, saying what to do.</param>
@@ -41,7 +42,7 @@ namespace Garrison.Core.Compilation
         /// <summary>
         /// Instantiate with an inner exception.
         /// </summary>
-        /// <param name="code">Stable error code: SecretNeedsReauthentication or SecretRefreshFailed.</param>
+        /// <param name="code">Stable error code: SecretNeedsReauthentication, SecretRefreshFailed, or InvalidCodexAuthJson.</param>
         /// <param name="secretId">Secret identifier.</param>
         /// <param name="secretName">Secret name.</param>
         /// <param name="message">Message for the operator, saying what to do.</param>

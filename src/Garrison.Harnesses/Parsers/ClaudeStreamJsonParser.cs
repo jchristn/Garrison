@@ -204,9 +204,13 @@ namespace Garrison.Harnesses.Parsers
 
             if (!state.SawSuccess)
             {
-                string reason = "Harness reported " + (subtype ?? "an error") + (isError ? " (is_error)." : ".");
+                string? resultError = JsonPath.Str(root, "result");
+                string reason = !String.IsNullOrWhiteSpace(resultError) ? resultError
+                    : subtype == "success" ? "Harness reported an error (is_error)."
+                    : "Harness reported " + (subtype ?? "an error") + (isError ? " (is_error)." : ".");
                 string? apiError = JsonPath.Str(root, "api_error_status");
                 if (apiError != null) reason += " API error status " + apiError + ".";
+                if (CredentialErrorText.IsCredentialFailure(resultError) || apiError == "401") state.CredentialFailure = reason;
                 state.DetectedFailure ??= reason;
                 state.Emit(Event(RunEventTypeEnum.Error, reason, raw));
             }

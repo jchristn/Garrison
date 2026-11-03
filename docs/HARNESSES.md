@@ -379,6 +379,18 @@ Secrets are stored encrypted and bound to a deployment with an alias. A profile 
 
 The dashboard's Create secret form shows how to get the value for each kind: where to create an API key, `claude setup-token` for a `ClaudeCodeOAuthToken`, and `codex login` under a fresh `CODEX_HOME` for a `CodexAuthJson`.
 
+For Codex, generate a dedicated login with file storage, then validate the file in the same terminal:
+
+```sh
+export CODEX_HOME="$(mktemp -d)"
+codex login -c 'cli_auth_credentials_store="file"'
+node -e 'try { JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log("Valid JSON"); } catch { console.error("Cannot read valid JSON from auth.json. Check the file before copying."); process.exitCode = 1; }' "$CODEX_HOME/auth.json"
+```
+
+Only continue if validation prints `Valid JSON`. On macOS, run `pbcopy < "$CODEX_HOME/auth.json"` and paste directly into the secret's Value field. On other systems, open the file in a text editor and copy its complete contents. Copying `cat` output from a terminal can introduce line breaks inside tokens or omit the closing brace. After saving the secret successfully, remove the temporary folder and do not reuse that login elsewhere. See [OpenAI's credential storage documentation](https://learn.chatgpt.com/docs/auth#credential-storage).
+
+Secret create, update, set-value, and rotate requests reject malformed `CodexAuthJson` values with HTTP 400 and field code `InvalidCodexAuthJson` on `value`, without replacing the previous credential. Manifest imports also validate supplied values before writing. The value must be a strict JSON object containing a nonblank `tokens.access_token` or `OPENAI_API_KEY`; a standalone API key belongs in an `OpenAiApiKey` secret. Validation checks structure, not whether OpenAI accepts the token. Metadata-only secrets remain supported. Existing malformed credentials fail before execution with `NotCredentialed` and an error naming the secret to repair; credential contents are never included in validation errors.
+
 Every decrypted value is added to the run's scrub list. The worker replaces scrubbed values in events, results, and the stderr tail before anything leaves the node. An environment variable whose value renders empty is not set, so a profile can list both `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` and only the bound one appears.
 
 The worker starts each harness with an empty environment plus a short allowlist (`PATH`, `LANG`, proxy and certificate settings, and a few others; see `docs/CONFIGURATION.md`). Keys sitting in the worker's own environment do not leak into harnesses.

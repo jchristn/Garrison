@@ -4487,7 +4487,7 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
    },
    "chat": {
     "notCredentialedTitle": "L'architetto non è riuscito ad accedere al suo fornitore di modelli",
-    "notCredentialedBody": "Il suo harness non ha una credenziale valida (Claude Code lo segnala come Not logged in). Assegna a {{architect}} un segreto di credenziale nella pagina Architetti, oppure verifica il valore del segreto.",
+    "notCredentialedBody": "Autenticazione non riuscita per {{architect}}. Controlla la credenziale della connessione salvata; l’errore di esecuzione riportato sotto spiega la causa.",
     "noCredentialTitle": "Questo architetto non ha una credenziale",
     "noCredentialBody": "{{architect}} viene eseguito su {{profile}}, che ha bisogno di un segreto per accedere. Senza, i suoi turni falliscono con Not logged in. Scegli una credenziale nella pagina Architetti.",
     "fixCredential": "Correggi la credenziale dell'architetto",
@@ -4608,8 +4608,9 @@ it.tips.enums.auditEventType.QueueFull = "Ammissione rifiutata perché è stato 
    "CodexAuthJson": {
     "s1": "Installa la CLI di Codex se non c'è ancora:",
     "s2": "Accedi con il tuo account ChatGPT in una nuova directory Codex vuota, così questo accesso appartiene solo a Garrison:",
-    "s3": "Mostra il file di accesso e incollalo tutto in Valore:",
-    "s4": "Elimina quella cartella e non usare questo accesso da nessun'altra parte. Da ora lo rinnova Garrison:",
+    "s3": "Valida il file nello stesso terminale. Continua solo se compare Valid JSON:",
+    "copy": "Su macOS, copia il file direttamente negli appunti con il comando seguente, quindi incollalo in Valore. Su altri sistemi, apri auth.json in un editor di testo e copia tutto il file. Non copiare l’output del terminale con righe spezzate o il prompt.",
+    "s4": "Dopo aver salvato correttamente il segreto, elimina la cartella e non usare questo accesso altrove. Da questo momento Garrison lo rinnova:",
     "note": "Due copie dello stesso accesso condividono un token di aggiornamento, e quella che aggiorna per seconda rompe l'altra. Usare un piano ChatGPT personale per servire altre persone può violare i termini di OpenAI; una chiave API OpenAI è più semplice per le distribuzioni condivise."
    },
    "GeminiApiKey": {

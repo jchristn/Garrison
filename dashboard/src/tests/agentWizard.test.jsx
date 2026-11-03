@@ -100,6 +100,18 @@ describe('agent wizard helpers', () => {
     expect(devDeploymentBody({ id: 'agt_1', name: 'a' }, { harnessProfileId: 'hp_1' }).resourceBindings).toEqual([]);
   });
 
+  it('replaces an unconfigured drafted harness with the selected connection even for older wizard state', () => {
+    const agent = { id: 'agt_1', name: 'researcher' };
+    const deployment = { id: 'dep_1', agentId: agent.id, harnessProfileId: 'hrn_builtin_claude_code', model: 'claude', environment: 'dev', resourceBindings: [{ kind: 'McpServer', alias: 'search', resourceId: 'mcp_1' }] };
+    const state = { harnessProfileId: 'saved-codex', credentialSecretId: '' };
+    expect(deploymentPlan([agent], [deployment], '', state)[0].action).toBe('configure');
+    const configured = withWizardSettings(deployment, state);
+    expect(configured.harnessProfileId).toBe('saved-codex');
+    expect(configured.model).toBeNull();
+    expect(configured.resourceBindings).toEqual(deployment.resourceBindings);
+    expect(deploymentPlan([agent], [configured], '', state)[0].action).toBe('ready');
+  });
+
   it('replaces only the credential binding', () => {
     const deployment = { id: 'dep_1', resourceBindings: [{ kind: 'Secret', alias: 'credential', resourceId: 'sec_old' }, { kind: 'Secret', alias: 'github', resourceId: 'sec_gh' }] };
     expect(withCredential(deployment, 'sec_new').resourceBindings).toEqual([

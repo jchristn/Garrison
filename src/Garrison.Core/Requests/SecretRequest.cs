@@ -30,7 +30,8 @@ namespace Garrison.Core.Requests
         public SecretKindEnum Kind { get; set; } = SecretKindEnum.GenericEnv;
 
         /// <summary>
-        /// Secret value; omit on update to keep the current value.
+        /// Secret value; omit on update to keep the current value. CodexAuthJson requires a complete, valid auth.json
+        /// object containing tokens.access_token or OPENAI_API_KEY; invalid values return InvalidCodexAuthJson on value.
         /// </summary>
         public string? Value { get; set; } = null;
 

@@ -10,7 +10,8 @@ namespace Garrison.Core.Requests
     public class SecretValueRequest
     {
         /// <summary>
-        /// New value.
+        /// New value. CodexAuthJson requires complete, valid auth.json contents; invalid values return
+        /// InvalidCodexAuthJson on value and leave the previous credential unchanged.
         /// </summary>
         public string Value { get; set; } = String.Empty;
     }

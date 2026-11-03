@@ -4466,7 +4466,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    },
    "chat": {
     "notCredentialedTitle": "The architect could not sign in to its model provider",
-    "notCredentialedBody": "Its harness has no working credential (Claude Code reports this as Not logged in). Give {{architect}} a credential secret on the Architects page, or check that the secret's value is right.",
+    "notCredentialedBody": "Authentication failed for {{architect}}. Check the credential on its saved connection; the run error below explains the cause.",
     "noCredentialTitle": "This architect has no credential",
     "noCredentialBody": "{{architect}} runs on {{profile}}, which needs a secret to sign in. Without one, its turns fail with Not logged in. Choose a credential for it on the Architects page.",
     "fixCredential": "Fix the architect's credential",
@@ -4587,8 +4587,9 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "CodexAuthJson": {
     "s1": "Install the Codex CLI if it is not there yet:",
     "s2": "Sign in with your ChatGPT account under a new, empty Codex home, so this login belongs to Garrison alone:",
-    "s3": "Print the login file and paste all of it into Value:",
-    "s4": "Delete that folder, and do not use this login anywhere else. Garrison refreshes it from now on:",
+    "s3": "Validate the file in the same terminal. Continue only if this prints Valid JSON:",
+    "copy": "On macOS, copy the file directly to the clipboard with the command below, then paste into Value. On other systems, open auth.json in a text editor and copy the entire file. Do not copy wrapped terminal output or the shell prompt.",
+    "s4": "After the secret is saved successfully, delete that folder and do not use this login anywhere else. Garrison refreshes it from now on:",
     "note": "Two copies of one login share a refresh token, and whichever refreshes second breaks the other. Using a personal ChatGPT plan to serve other people may break OpenAI's terms; an OpenAI API key is simpler for shared deployments."
    },
    "GeminiApiKey": {

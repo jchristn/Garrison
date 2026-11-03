@@ -93,7 +93,7 @@ export function deploymentPlan(agents, deployments, credentialSecretId, state = 
     const bound = dev.find((d) => !credentialSecretId || (d.resourceBindings || []).some((b) => b.kind === 'Secret' && b.resourceId === credentialSecretId));
     if (bound) {
       const settings = wizardParameters(state);
-      const changed = (state.usesSavedRuntime && bound.harnessProfileId !== state.harnessProfileId) || (state.inferenceEndpoint && (JSON.stringify(bound.inferenceEndpoint) !== JSON.stringify(state.inferenceEndpoint) || bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || ''))) || (Object.keys(settings).length > 0 && (bound.harnessProfileId !== state.harnessProfileId || (bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v)));
+      const changed = (state.harnessProfileId && bound.harnessProfileId !== state.harnessProfileId) || (state.inferenceEndpoint && (JSON.stringify(bound.inferenceEndpoint) !== JSON.stringify(state.inferenceEndpoint) || (bound.model || '') !== (state.model || ''))) || (Object.keys(settings).length > 0 && ((bound.model || '') !== (state.model || '') || Object.entries(settings).some(([k, v]) => (bound.parameters || []).find((p) => p.name === k)?.value !== v)));
       return { agent, action: changed ? 'configure' : 'ready', deployment: bound };
     }
     return { agent, action: 'bind', deployment: dev[0] };
@@ -135,7 +135,7 @@ export function withWizardSettings(deployment, state) {
   if (state.usesSavedRuntime) return { ...deployment, harnessProfileId: state.harnessProfileId, model: null, inferenceEndpoint: null, resourceBindings: (deployment.resourceBindings || []).filter((b) => !(b.kind === 'Secret' && b.alias === 'credential')), parameters: (deployment.parameters || []).filter((p) => !['endpoint', 'baseUrl', 'provider', 'allowAnonymous'].includes(p.name)) };
   if (state.inferenceEndpoint) return { ...deployment, harnessProfileId: state.harnessProfileId, model: state.model || null, inferenceEndpoint: state.inferenceEndpoint, resourceBindings: (deployment.resourceBindings || []).filter((b) => !(b.kind === 'Secret' && b.alias === 'credential')) };
   const settings = wizardParameters(state);
-  if (!Object.keys(settings).length) return deployment;
+  if (!Object.keys(settings).length) return state.harnessProfileId ? { ...deployment, harnessProfileId: state.harnessProfileId, model: state.model || null } : deployment;
   const parameters = (deployment.parameters || []).filter((p) => !Object.hasOwn(settings, p.name) && !(state.muxEndpoint && ['baseUrl', 'adapterType'].includes(p.name)));
   parameters.push(...Object.entries(settings).map(([name, value]) => ({ name, value })));
   const resourceBindings = state.muxEndpoint || state.providerApiAnonymous ? (deployment.resourceBindings || []).filter((b) => !(b.kind === 'Secret' && b.alias === 'credential')) : deployment.resourceBindings;

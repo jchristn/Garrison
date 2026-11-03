@@ -4487,7 +4487,7 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
    },
    "chat": {
     "notCredentialedTitle": "L'architecte n'a pas pu se connecter à son fournisseur de modèles",
-    "notCredentialedBody": "Son harness n'a pas d'identifiants valides (Claude Code l'indique par Not logged in). Donnez à {{architect}} un secret d'identifiants sur la page Architectes, ou vérifiez la valeur du secret.",
+    "notCredentialedBody": "L’authentification de {{architect}} a échoué. Vérifiez les identifiants de sa connexion enregistrée ; l’erreur d’exécution ci-dessous en explique la cause.",
     "noCredentialTitle": "Cet architecte n'a pas d'identifiants",
     "noCredentialBody": "{{architect}} s'exécute sur {{profile}}, qui a besoin d'un secret pour se connecter. Sans lui, ses tours échouent avec Not logged in. Choisissez des identifiants sur la page Architectes.",
     "fixCredential": "Corriger les identifiants de l'architecte",
@@ -4608,8 +4608,9 @@ fr.tips.enums.auditEventType.QueueFull = "L’admission est refusée car une lim
    "CodexAuthJson": {
     "s1": "Installez la CLI Codex si elle n'y est pas encore :",
     "s2": "Connectez-vous avec votre compte ChatGPT dans un nouveau répertoire Codex vide, pour que cette connexion n'appartienne qu'à Garrison :",
-    "s3": "Affichez le fichier de connexion et collez-le en entier dans Valeur :",
-    "s4": "Supprimez ce dossier et n'utilisez cette connexion nulle part ailleurs. Garrison la renouvelle désormais :",
+    "s3": "Validez le fichier dans le même terminal. Continuez uniquement si Valid JSON apparaît :",
+    "copy": "Sur macOS, copiez le fichier directement dans le presse-papiers avec la commande ci-dessous, puis collez-le dans Valeur. Sur les autres systèmes, ouvrez auth.json dans un éditeur de texte et copiez tout le fichier. Ne copiez pas la sortie du terminal avec ses retours à la ligne ni son invite.",
+    "s4": "Une fois le secret enregistré, supprimez ce dossier et ne réutilisez pas cette connexion ailleurs. Garrison se charge désormais de la renouveler :",
     "note": "Deux copies d'une connexion partagent un jeton de rafraîchissement, et celle qui rafraîchit en second casse l'autre. Utiliser un forfait ChatGPT personnel pour servir d'autres personnes peut enfreindre les conditions d'OpenAI ; une clé d'API OpenAI est plus simple pour les déploiements partagés."
    },
    "GeminiApiKey": {

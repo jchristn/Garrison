@@ -175,7 +175,7 @@ export function AccessStep({ state, update, go }) {
       const chosen = matches.find((a) => a.id === state.architectId) || matches.find((a) => a.name === name) || matches[0]
         || await apiClient.createArchitect(tenantId, { name, harnessProfileId: profile.id, architectPromptTemplateId: 'builtin/agent-architect-guided', active: true });
       if (!chosen) return;
-      update({ architectId: chosen.id, harnessProfileId: profile.id, profileName: profile.name, usesSavedRuntime: true, model: '', credentialSecretId: '', muxEndpoint: '', inferenceEndpoint: null, providerApiBaseUrl: '', providerApiAnonymous: false });
+      update({ architectId: chosen.id, harnessProfileId: profile.id, profileName: profile.name, usesSavedRuntime: true, model: '', credentialSecretId: '', muxEndpoint: '', inferenceEndpoint: null, providerApiBaseUrl: '', providerApiAnonymous: false, deploymentsReady: false, deployments: [] });
       go('design');
     } catch (e) { setError(e); }
     finally { setBusy(false); }
@@ -380,11 +380,7 @@ export function ReviewStep({ draft, update, go }) {
 async function prepareDeployments(apiClient, tenantId, draft, state) {
   const agents = [];
   for (const name of draftAgentNames(draft)) {
-    try {
-      agents.push(await apiClient.getAgent(tenantId, name));
-    } catch {
-      /* an agent the draft deletes or renamed */
-    }
+    agents.push(await apiClient.getAgent(tenantId, name));
   }
   const all = (await apiClient.listDeployments(tenantId, page)).items || [];
   const plan = deploymentPlan(agents, all, state.credentialSecretId, state);

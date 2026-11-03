@@ -7,4 +7,5 @@
 - Prefer an existing capability over a new one: an agent that already does the job, a tool of a connected MCP server, or a tool installed on the worker host (such as pandoc).
 - Set a timeout and a budget on every deployment. Ask for approval before tools that change things outside the workspace.
 - New work starts in the dev environment and is promoted to staging and prod after testing.
+- Reuse the selected saved connection in every new deployment unless the person chooses another configured connection. A bare built-in harness template does not inherit the architect's credentials. Confirm the runtime connection before requesting apply, including when approval happens outside the wizard.
 - Files that should outlast a turn or pass between agents belong in the conversation file space.

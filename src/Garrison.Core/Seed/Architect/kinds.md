@@ -21,14 +21,15 @@ spec:
 
 How and where an agent runs.
 
+Use the exact name of an existing saved connection for `harnessProfile`; replace `my-saved-connection` below with that name. The connection supplies the model, endpoint, and credentials. A bare built-in harness profile needs its own authentication bindings and must not be substituted for a configured connection.
+
 ```yaml
 kind: Deployment
 metadata: { name: researcher-dev }
 spec:
   agent: researcher
-  harnessProfile: builtin/claude-code   # or another profile name, such as builtin/codex-app-server or builtin/fake
+  harnessProfile: my-saved-connection
   environment: dev
-  model: claude-sonnet-5-5
   effort: medium
   timeoutSeconds: 900
   maxTurns: 40
@@ -39,8 +40,6 @@ spec:
   approvalRules:
     - { action: Ask, pattern: "Bash(git push:*)" }
   resources:
-    secrets:
-      - { alias: anthropic, secret: claude-credential }
     mcpServers:
       - { alias: search, server: web-search }
   artifactGlobs: ["out/**"]

@@ -33,6 +33,7 @@ namespace Test.Shared.Suites
                 Case("parsers", "claude-success", "Claude stream-json: recorded success", ClaudeSuccess),
                 Case("parsers", "claude-mcp-failed", "Claude stream-json: failed MCP server fails the run despite exit 0", ClaudeMcpFailed),
                 Case("parsers", "claude-max-turns", "Claude stream-json: error result with tool use", ClaudeMaxTurns),
+                Case("parsers", "claude-login-error", "Claude stream-json: success subtype with is_error reports the actual authentication failure", ClaudeLoginError),
                 Case("parsers", "codex-session-model", "Codex: served model read from the session file under CODEX_HOME", CodexSessionModel),
                 Case("parsers", "tool-result-content", "Tool results unwrap MCP content blocks: Claude and Codex record the tool's own output, not JSON inside a string inside a content array", ToolResultContent),
                 Case("parsers", "claude-partial", "Claude stream-json: partial messages stream text once and keep tool input", ClaudePartialMessages),
@@ -136,6 +137,24 @@ namespace Test.Shared.Suites
             });
             RunEventReport mcp = Assert.NotNull(codex.Drain().FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult), "Codex MCP result");
             Assert.Equal(draft, mcp.Text, "Codex: the tool's JSON as it answered it");
+        }
+
+        private static void ClaudeLoginError()
+        {
+            HarnessRunState failed = ParseLines(OutputParserEnum.ClaudeStreamJson, new[] { "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"result\":\"Not logged in · Please run /login\"}" });
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, failed, null);
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, outcome.Outcome, "login failure classified despite zero exit and success subtype");
+            Assert.True((outcome.ErrorMessage ?? String.Empty).Contains("Not logged in", StringComparison.Ordinal), "actual error preserved");
+            Assert.True(!(outcome.ErrorMessage ?? String.Empty).Contains("reported success", StringComparison.Ordinal), "no contradictory success message");
+
+            HarnessRunState successful = ParseLines(OutputParserEnum.ClaudeStreamJson, new[] { "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"The example error is Not logged in.\"}" });
+            Assert.True(successful.CredentialFailure == null, "ordinary assistant text is not an authentication failure");
+            Assert.Equal(RunOutcomeEnum.Succeeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, successful, null).Outcome, "successful explanation remains successful");
+
+            HarnessRunState other = ParseLines(OutputParserEnum.ClaudeStreamJson, new[] { "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"result\":\"Request exceeded the limit\"}" });
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, other, null).Outcome, "other errors remain harness failures");
+            Assert.Equal("Request exceeded the limit", other.DetectedFailure, "non-auth error detail preserved");
         }
 
         private static void ClaudeSuccess()

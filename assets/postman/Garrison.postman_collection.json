@@ -3079,7 +3079,7 @@
                 "secrets"
               ]
             },
-            "description": "Creates a secret with a value.",
+            "description": "Creates a secret with a value. CodexAuthJson values must be complete, valid auth.json objects containing tokens.access_token or OPENAI_API_KEY. Malformed values return HTTP 400 with field code InvalidCodexAuthJson on value, without replacing an existing credential.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"postman-secret-{{suffix}}\",\n  \"kind\": \"GenericEnv\",\n  \"value\": \"postman-value-1234\",\n  \"description\": \"Created by Postman\"\n}",
@@ -3208,7 +3208,7 @@
                 "{{secretId}}"
               ]
             },
-            "description": "Updates metadata without touching the value.",
+            "description": "Updates metadata without touching the value. CodexAuthJson values must be complete, valid auth.json objects containing tokens.access_token or OPENAI_API_KEY. Malformed values return HTTP 400 with field code InvalidCodexAuthJson on value, without replacing an existing credential.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"postman-secret-{{suffix}}\",\n  \"kind\": \"GenericEnv\",\n  \"description\": \"Updated by Postman\"\n}",
@@ -3256,7 +3256,7 @@
                 "value"
               ]
             },
-            "description": "Replaces the value.",
+            "description": "Replaces the value. CodexAuthJson values must be complete, valid auth.json objects containing tokens.access_token or OPENAI_API_KEY. Malformed values return HTTP 400 with field code InvalidCodexAuthJson on value, without replacing an existing credential.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"value\": \"postman-value-5678\"\n}",
@@ -3304,7 +3304,7 @@
                 "rotate"
               ]
             },
-            "description": "Replaces the value and records a rotation.",
+            "description": "Replaces the value and records a rotation. CodexAuthJson values must be complete, valid auth.json objects containing tokens.access_token or OPENAI_API_KEY. Malformed values return HTTP 400 with field code InvalidCodexAuthJson on value, without replacing an existing credential.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"value\": \"postman-value-9012\"\n}",

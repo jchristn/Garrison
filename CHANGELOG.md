@@ -16,6 +16,10 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- Preserve the wizard's selected connection when preparing drafted deployments, invalidate deployment readiness when the connection is reselected, and surface agent lookup failures. Architect guidance now reuses saved connections instead of suggesting an unconfigured Claude template. Claude login failures are classified as NotCredentialed with their actual error text, including results marked with both success and is_error.
+
+- Reject malformed Codex auth.json secrets before saving or launching a run, with specific recovery messages. Updated the credential guide to validate the file and copy it directly instead of copying wrapped terminal output; architect sign-in errors now refer to the saved connection without naming an unrelated harness.
+
 - Format selected draft and table counts with locale-aware numbers, preserving plural labels and preventing raw count placeholders.
 
 - Keep Agent Studio visible in the Agents tab bar across every tab, including navigation through Agent Wizard and All drafts.
