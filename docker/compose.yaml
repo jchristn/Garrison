@@ -3,7 +3,7 @@
 #   cd docker
 #   ./update.sh                 # first run: writes random keys and passwords to .env, then builds and starts
 #
-# Dashboard http://127.0.0.1:8080 (tenant default, admin@garrison, the GARRISON_ADMIN_PASSWORD from .env), REST
+# Dashboard http://127.0.0.1:8080 (tenant default, admin@garrison / password unless GARRISON_ADMIN_PASSWORD in .env says otherwise), REST
 # http://127.0.0.1:8700, MCP http://127.0.0.1:8701/mcp. Every port is overridable in .env.
 #
 # Each Garrison service names its image (jchristn77/garrison-*:v0.2.0) AND has a build stanza, so

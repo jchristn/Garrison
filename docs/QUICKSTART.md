@@ -26,13 +26,13 @@ You need a running stack and its URLs:
 
 If you moved the ports (in `docker/.env`, or with `REST_PORT` and friends on `port-forward.sh`), use yours everywhere below. The commands also need `curl` and `jq`.
 
-Everything below runs from the repository root. Garrison has no default administrator password: Docker Compose generates one into `docker/.env` (`GARRISON_ADMIN_PASSWORD`), `k8s/scripts/generate-secrets.sh` prints the one it generated (or uses `GARRISON_ADMIN_PASSWORD` if you set it), and a source build in development mode uses `password` (`docs/DEVELOPMENT.md`). Set the URLs and the password once, and sign in to get a session token:
+Everything below runs from the repository root. The administrator is `admin@garrison` with the password `password` in tenant `default`, on Docker Compose, Kubernetes, and source builds alike, unless you set `GARRISON_ADMIN_PASSWORD` before the first start (Compose keeps it in `docker/.env`). Change it after your first sign-in on any server other people can reach. Set the URLs and the password once, and sign in to get a session token:
 
 ```bash
 export GARRISON_URL=http://127.0.0.1:8700
 export GARRISON_MCP_URL=http://127.0.0.1:8701/mcp
 API=$GARRISON_URL/v1.0/api/tenants/default
-# Docker Compose; on Kubernetes paste the password generate-secrets.sh printed
+# Docker Compose; elsewhere use password, or the value you set
 GARRISON_ADMIN_PASSWORD=$(grep -E '^GARRISON_ADMIN_PASSWORD=' docker/.env | cut -d= -f2-)
 
 TOKEN=$(jq -n --arg p "$GARRISON_ADMIN_PASSWORD" '{email:"admin@garrison",password:$p,tenantId:"default"}' |
@@ -40,7 +40,7 @@ TOKEN=$(jq -n --arg p "$GARRISON_ADMIN_PASSWORD" '{email:"admin@garrison",passwo
 echo ${TOKEN:0:12}
 ```
 
-If that prints `null`, inspect the HTTP response and token error before continuing. A common cause is an incorrect password: on Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` was when you ran `generate-secrets.sh`, or the random one it printed. A session token lasts eight hours. Sign in to the dashboard with the same email and password, tenant `default`.
+If that prints `null`, inspect the HTTP response and token error before continuing. A common cause is an incorrect password: it is `password` unless `GARRISON_ADMIN_PASSWORD` was set before the first start, or someone changed it in the dashboard. A session token lasts eight hours. Sign in to the dashboard with the same email and password, tenant `default`.
 
 On Docker and Kubernetes bootstrap creates three sample agent records (`claude-helper`, `codex-coder`, `mux-helper`), and creates their deployments only when the required credentials or endpoint were supplied. They are fine to keep. This guide builds its own set so that you see every step.
 

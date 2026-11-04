@@ -7,10 +7,10 @@ It talks only to the app gateway (`/v1.0/apps/{slug}/...`, described in [APPS.md
 ## What a user sees
 
 1. **Sign-in.** The app's logo and name, an email and password form, and, when the app allows anonymous use, a "Continue without signing in" button. Which accounts may sign in depends on the app's `authMode`: any user of the tenant for `TenantUsers`, users holding the `AppUser` role on the app for `AppUsers`. An `Anonymous` app with `anonymousEnabled` adds the guest button.
-2. **Chat.** A list of the user's conversations on the side, a "New conversation" button, and the conversation itself. Before the first message the page shows the app's welcome text (Markdown). Answers stream in as the agent writes them.
-3. **Files.** A panel listing the files the agent wrote in the conversation's [file space](FILE_SPACES.md), with each file's version, size, and last change. Files can be downloaded, and every earlier version is one click away. The list updates while the agent works.
+2. **Chat.** A list of the user's conversations on the side, a "New conversation" button, and the conversation itself. Before the first message the page shows the app's welcome text (Markdown). Answers stream in as the agent writes them, and a "working" line with animated dots stays under the turn until it ends, including between tool calls. While a turn runs, Send becomes **Stop**, which cancels the turn (`POST .../conversations/{id}/stop`); the agent's text so far stays in the conversation.
+3. **Files.** A panel listing the files the agent wrote in the conversation's [file space](FILE_SPACES.md), with each file's version, size, and last change. Each file can be viewed in the panel, downloaded, or opened in its version history. The list updates while the agent works.
 
-The conversation list has a filter box that matches conversation names, and a sort menu: most recent, oldest, or name. Each conversation can be renamed in place. Deleting one asks for an inline confirmation first, and the delete button is disabled while the agent is still answering in that conversation.
+The conversation list has a filter box that matches conversation names, and a sort menu: most recent, oldest, or name. Each conversation can be renamed in place. Deleting one asks for confirmation in a dialog first (Delete "title"? This cannot be undone.), and the delete button is disabled while a turn in that conversation is still running; stop the turn to delete it. A conversation is busy only while its latest turn has not finished, so failed and finished conversations can always be deleted.
 
 The file list uses compact rows and sorts by newest, oldest, largest, smallest, or name.
 
@@ -100,6 +100,14 @@ The gateway sends `Thinking`, `ToolCall`, `ToolResult`, `Progress`, and `Warning
 With `showOperatorDetail` on, the turn view also carries `telemetry` (`AppTurnTelemetry`: served model, timings, tokens, tool calls, cost). The chat shows it behind an (i) beside each answer, with tool time summed from the tool call and result times in the activity log.
 
 Every message has a copy button in its top right corner. It works on http and https (it falls back when the Clipboard API is not available) and turns into a green check once the text is copied.
+
+### Viewing files
+
+View shows a file inside the files panel, so it can be read without downloading it. Markdown is rendered (with the same sanitizing as answers), JSON is indented (each line of JSON Lines on its own), other text files are shown as they are, and images are displayed. PDF, Office documents, archives, other binary files, and files over 5 MiB show a short note and the download button instead, because the image's Content-Security-Policy does not allow embedding documents. The viewer has a back button to the list and a download button, and it reloads when the agent writes a new version. Links in a viewed Markdown file to other files of the conversation open those files in the viewer.
+
+### File links in answers
+
+Harnesses link the files they write in forms a browser cannot open: Codex writes `sandbox:/workspaces/.../work/files/report.pdf`, others write `file://` URLs, absolute worker paths, or paths relative to the working directory. The chat turns these into file links that open the file in the files panel's viewer instead of navigating. A link resolves to the longest listed path it ends with; failing that, to the one listed file with the same name (agents sometimes name the wrong folder, such as `output/` for a file saved under `reports/`). A `sandbox:` or `file:` link that matches nothing falls back to the part after the last `/files/` segment. A relative link whose last segment has a file extension is always treated as a file link, because inside the app a relative link would only reach the app's own sign-in page; other links (`https:` and `mailto:`) open in a new tab as before.
 
 ### Downloads
 

@@ -85,7 +85,8 @@ namespace Test.Shared.Suites
         {
             ServerSettings defaults = new ServerSettings();
             List<string> found = defaults.InsecureDefaults();
-            Assert.Equal(6, found.Count, "Six public defaults: " + String.Join(", ", found));
+            Assert.Equal(5, found.Count, "Five public defaults: " + String.Join(", ", found));
+            Assert.True(!found.Any(f => f.Contains("AdminPassword", StringComparison.Ordinal)), "The default administrator password (admin@garrison / password) is allowed.");
             bool refused = false;
             try
             {
@@ -100,6 +101,10 @@ namespace Test.Shared.Suites
             ServerSettings empty = Real();
             empty.Auth.AdminApiKey = String.Empty;
             Assert.True(empty.InsecureDefaults().Count == 1, "An empty administrator API key counts as insecure.");
+
+            ServerSettings noPassword = Real();
+            noPassword.Security.AdminPassword = " ";
+            Assert.True(noPassword.InsecureDefaults().Count == 1, "An empty administrator password counts as insecure.");
 
             ServerSettings development = new ServerSettings();
             development.Security.AllowInsecureDefaults = true;

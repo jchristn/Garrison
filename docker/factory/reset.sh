@@ -71,4 +71,4 @@ echo "[3/3] Container status:"
 docker compose ps -a
 
 echo
-echo "Factory reset complete. Dashboard: http://127.0.0.1:${GARRISON_DASHBOARD_PORT:-8080}  (tenant default, admin@garrison, GARRISON_ADMIN_PASSWORD from docker/.env)"
+echo "Factory reset complete. Dashboard: http://127.0.0.1:${GARRISON_DASHBOARD_PORT:-8080}  (tenant default, admin@garrison / password unless GARRISON_ADMIN_PASSWORD in docker/.env says otherwise)"

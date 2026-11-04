@@ -105,7 +105,7 @@ echo [4/4] Container status:
 popd
 echo.
 echo Update complete.
-echo   Dashboard  http://127.0.0.1:%DASHBOARD_PORT%  ^(tenant default, admin@garrison, GARRISON_ADMIN_PASSWORD from .env^)
+echo   Dashboard  http://127.0.0.1:%DASHBOARD_PORT%  ^(tenant default, admin@garrison / password unless GARRISON_ADMIN_PASSWORD in .env says otherwise^)
 echo   REST, A2A  http://127.0.0.1:%REST_PORT%
 echo   MCP        http://127.0.0.1:%MCP_PORT%/mcp
 if "%OBSERVABILITY%"=="1" echo   Grafana    http://127.0.0.1:%GRAFANA_PORT%  ^(admin, GARRISON_GRAFANA_PASSWORD from .env^)

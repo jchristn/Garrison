@@ -82,7 +82,8 @@ function Confirm-Value([string]$name, [string]$value, [bool]$bound, [string]$hin
 
 Confirm-Value 'GARRISON_DB_PASSWORD' (New-RandomText 32) $databaseBound 'the password the Postgres volume was created with (stacks created before keys were required used: garrison)'
 Confirm-Value 'GARRISON_MASTER_KEY' (New-MasterKey) $databaseBound 'the value the database was created with; a different key makes stored secrets unreadable'
-Confirm-Value 'GARRISON_ADMIN_PASSWORD' (New-RandomText 20) $databaseBound 'the administrator password the database was seeded with'
+# The administrator signs in as admin@garrison / password until they change it in the dashboard.
+Confirm-Value 'GARRISON_ADMIN_PASSWORD' 'password' $databaseBound 'the administrator password the database was seeded with'
 Confirm-Value 'GARRISON_DEFAULT_ACCESS_KEY' ('access_' + (New-RandomText 32)) $databaseBound "the seeded default credential's access key"
 Confirm-Value 'GARRISON_DEFAULT_SECRET_KEY' ('secret_' + (New-RandomText 48)) $databaseBound "the seeded default credential's secret key"
 Confirm-Value 'GARRISON_NODE_ACCESS_KEY' ('access_' + (New-RandomText 32)) $databaseBound "the seeded worker node credential's access key"
@@ -96,7 +97,6 @@ $publicDefaults = [ordered]@{
     'GARRISON_MASTER_KEY' = 'garrison-default-master-key-override-me'
     'GARRISON_AUTH_SIGNING_KEY' = 'garrison-default-signing-key-override-me'
     'GARRISON_ADMIN_API_KEY' = 'garrisonadmin'
-    'GARRISON_ADMIN_PASSWORD' = 'password'
     'GARRISON_DEFAULT_SECRET_KEY' = 'secret_garrison_default_change_me'
     'GARRISON_NODE_SECRET_KEY' = 'secret_garrison_node_change_me'
 }
@@ -106,7 +106,7 @@ foreach ($entry in $publicDefaults.GetEnumerator()) {
 }
 
 if ($generated.Count -gt 0) { Write-Host ("Generated random values in $envFile for: " + ($generated -join ' ')) }
-if ($adminPassword) { Write-Host "  Dashboard sign-in: tenant default, admin@garrison, password $adminPassword (also in .env as GARRISON_ADMIN_PASSWORD)" }
+if ($adminPassword) { Write-Host "  Dashboard sign-in: tenant default, admin@garrison, password $adminPassword (GARRISON_ADMIN_PASSWORD in .env). Change it after signing in." }
 if ($missing.Count -gt 0) {
     Write-Host "These values are missing from $envFile, and existing data depends on them, so they were not generated:"
     $missing | ForEach-Object { Write-Host $_ }

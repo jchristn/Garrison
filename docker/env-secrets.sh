@@ -86,7 +86,8 @@ ensure() {
 DB_HINT="the value the database was created with"
 ensure GARRISON_DB_PASSWORD "$(rand 32)" "${DATABASE_BOUND}" "the password the Postgres volume was created with (stacks created before keys were required used: garrison)"
 ensure GARRISON_MASTER_KEY "$(openssl rand -base64 32)" "${DATABASE_BOUND}" "${DB_HINT}; a different key makes stored secrets unreadable"
-ensure GARRISON_ADMIN_PASSWORD "$(rand 20)" "${DATABASE_BOUND}" "the administrator password the database was seeded with"
+# The administrator signs in as admin@garrison / password until they change it in the dashboard.
+ensure GARRISON_ADMIN_PASSWORD "password" "${DATABASE_BOUND}" "the administrator password the database was seeded with"
 ensure GARRISON_DEFAULT_ACCESS_KEY "access_$(rand 32)" "${DATABASE_BOUND}" "the seeded default credential's access key"
 ensure GARRISON_DEFAULT_SECRET_KEY "secret_$(rand 48)" "${DATABASE_BOUND}" "the seeded default credential's secret key"
 ensure GARRISON_NODE_ACCESS_KEY "access_$(rand 32)" "${DATABASE_BOUND}" "the seeded worker node credential's access key"
@@ -105,7 +106,6 @@ public_default() {
 public_default GARRISON_MASTER_KEY garrison-default-master-key-override-me
 public_default GARRISON_AUTH_SIGNING_KEY garrison-default-signing-key-override-me
 public_default GARRISON_ADMIN_API_KEY garrisonadmin
-public_default GARRISON_ADMIN_PASSWORD password
 public_default GARRISON_DEFAULT_SECRET_KEY secret_garrison_default_change_me
 public_default GARRISON_NODE_SECRET_KEY secret_garrison_node_change_me
 
@@ -113,7 +113,7 @@ if [ -n "${GENERATED}" ]; then
   echo "Generated random values in ${ENV_FILE} for:${GENERATED}"
 fi
 if [ -n "${ADMIN_PASSWORD_GENERATED}" ]; then
-  echo "  Dashboard sign-in: tenant default, admin@garrison, password ${ADMIN_PASSWORD_GENERATED} (also in .env as GARRISON_ADMIN_PASSWORD)"
+  echo "  Dashboard sign-in: tenant default, admin@garrison, password ${ADMIN_PASSWORD_GENERATED} (GARRISON_ADMIN_PASSWORD in .env). Change it after signing in."
 fi
 if [ -n "${MISSING}" ]; then
   printf 'These values are missing from %s, and existing data depends on them, so they were not generated:\n%b' "${ENV_FILE}" "${MISSING}"

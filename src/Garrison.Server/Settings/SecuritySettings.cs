@@ -44,8 +44,9 @@ namespace Garrison.Server.Settings
         public string AdminEmail { get; set; } = "admin@garrison";
 
         /// <summary>
-        /// Password for the seeded administrator (first boot only). Default password, which is public, so the server
-        /// refuses to start with it unless <see cref="AllowInsecureDefaults"/> is true. Override with GARRISON_ADMIN_PASSWORD.
+        /// Password for the seeded administrator (first boot only). Default password, so a new install signs in as
+        /// admin@garrison / password; change it after the first sign-in on any server others can reach. An empty value
+        /// is refused at startup unless <see cref="AllowInsecureDefaults"/> is true. Override with GARRISON_ADMIN_PASSWORD.
         /// </summary>
         public string AdminPassword { get; set; } = "password";
 

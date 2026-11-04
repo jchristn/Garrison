@@ -32,7 +32,7 @@ cd src/Garrison.Server && GARRISON_ALLOW_INSECURE_DEFAULTS=true dotnet run -f ne
 cd src/Garrison.Worker && dotnet run -f net10.0
 ```
 
-`GARRISON_ALLOW_INSECURE_DEFAULTS=true` (`Security.AllowInsecureDefaults`) is the explicit development mode. Without it, the server refuses to start while the master key, signing key, administrator API key, administrator password, or the seeded default or node secret key is empty or still its public built-in default, and the log names each one (SR-08). In development mode it starts and logs a warning instead. Never set it on anything another person can reach; set real values instead (`docs/SECURITY.md`).
+`GARRISON_ALLOW_INSECURE_DEFAULTS=true` (`Security.AllowInsecureDefaults`) is the explicit development mode. Without it, the server refuses to start while the master key, signing key, administrator API key, or the seeded default or node secret key is empty or still its public built-in default (an empty administrator password is refused too; the default `password` is allowed), and the log names each one (SR-08). In development mode it starts and logs a warning instead. Never set it on anything another person can reach; set real values instead (`docs/SECURITY.md`).
 
 The server writes `garrison.json` and `data/garrison.db` in its working directory on first start and seeds the default tenant, the `admin@garrison` user (password `password` in development mode), the administrator credential (`access_garrison_default`, `secret_garrison_default_change_me`), and the worker credential that a worker uses by default. The administrator API key is `garrisonadmin`. Delete the database file to start over.
 

@@ -137,7 +137,7 @@ namespace Test.Shared.Suites
                 Assert.True(compose.Contains("${" + variable + ":?", StringComparison.Ordinal), "compose.yaml does not require " + variable + ".");
             }
             string example = Read("docker/.env.example");
-            foreach (string assignment in new[] { "GARRISON_ADMIN_PASSWORD=password", "GARRISON_ADMIN_API_KEY=garrisonadmin", "GARRISON_GRAFANA_PASSWORD=password" })
+            foreach (string assignment in new[] { "GARRISON_ADMIN_API_KEY=garrisonadmin", "GARRISON_GRAFANA_PASSWORD=password" })
             {
                 Assert.True(!Regex.IsMatch(example, "^" + Regex.Escape(assignment) + "\\s*$", RegexOptions.Multiline), ".env.example sets " + assignment + ".");
             }
@@ -147,10 +147,10 @@ namespace Test.Shared.Suites
         private static Task SecretScriptsAsync()
         {
             string shell = Read("k8s/scripts/generate-secrets.sh");
-            Assert.True(!shell.Contains("GARRISON_ADMIN_PASSWORD:-password", StringComparison.Ordinal), "generate-secrets.sh falls back to the default administrator password.");
+            Assert.True(shell.Contains("GARRISON_ADMIN_PASSWORD:-password", StringComparison.Ordinal), "generate-secrets.sh seeds the default administrator password (admin@garrison / password).");
             Assert.True(!shell.Contains("GARRISON_GRAFANA_PASSWORD:-password", StringComparison.Ordinal), "generate-secrets.sh falls back to the default Grafana password.");
             string batch = Read("k8s/scripts/generate-secrets.bat");
-            Assert.True(!batch.Contains("set ADMIN_PASSWORD=password", StringComparison.Ordinal), "generate-secrets.bat falls back to the default administrator password.");
+            Assert.True(batch.Contains("set ADMIN_PASSWORD=password", StringComparison.Ordinal), "generate-secrets.bat seeds the default administrator password (admin@garrison / password).");
             Assert.True(!batch.Contains("set GRAFANA_PASSWORD=password", StringComparison.Ordinal), "generate-secrets.bat falls back to the default Grafana password.");
 
             foreach (string file in new[] { "docker/env-secrets.sh", "docker/env-secrets.ps1" })

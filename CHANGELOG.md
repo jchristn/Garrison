@@ -18,6 +18,10 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 - App chat conversations whose turn failed or finished could not be deleted: the gateway marked every conversation with a recorded run as busy. Busy now follows the turn's real status. A running turn can be stopped: Send becomes Stop while the agent answers, backed by `POST /v1.0/apps/{slug}/conversations/{id}/stop` and `stopConversation` in every SDK.
 
+- The default administrator sign-in is `admin@garrison` / `password` on every install, matching the dashboard sign-in card. Docker Compose (`env-secrets.sh`, `env-secrets.ps1`) and the Kubernetes scripts (`generate-secrets.sh`, `.bat`) seed `password` unless `GARRISON_ADMIN_PASSWORD` is set, and the server no longer refuses it at startup (only an empty password is refused). The keys and seeded credentials are still generated, and their public defaults still refused outside development mode. Change the password after the first sign-in on any server other people can reach. README, quickstart, Docker, Kubernetes, configuration, security, and SDK docs say so.
+
+- `docs/APP_UI.md` covers the file viewer, file links in answers, Stop, the working indicator, and the delete dialog.
+
 - The app chat files panel has a View action that shows a file in the panel without downloading it: Markdown rendered, JSON indented, other text as it is, and images. PDF, Office documents, archives, and files over 5 MiB are offered as a download. File links in answers open the viewer, including links that name the wrong folder (resolved by the file's unique name), instead of opening the app's sign-in page in a new tab.
 
 - Deleting a conversation in the app chat now asks in a confirmation dialog with Delete and Cancel, instead of an inline prompt in the list.

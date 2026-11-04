@@ -37,7 +37,7 @@ Every finding is fixed. The last open part, redirects and DNS rebinding for Garr
 | SR-05 | Medium | Run tokens could start runs outside the delegation policy through retry | Fixed |
 | SR-06 | Medium | Request history stored passwords and secret values; debug log wrote WebSocket tokens | Fixed |
 | SR-07 | Medium | MCP server test and S3 endpoints could target cloud metadata and link-local addresses | Fixed: connect-time checks and no redirects for S3 (P15.22) and for the Voltaic MCP clients (P15.24) |
-| SR-08 | High | Public default keys and credentials accepted at startup | Fixed: refused unless `GARRISON_ALLOW_INSECURE_DEFAULTS`; Compose and Kubernetes generate or require real values |
+| SR-08 | High | Public default keys and credentials accepted at startup | Fixed: refused unless `GARRISON_ALLOW_INSECURE_DEFAULTS`; Compose and Kubernetes generate or require real values. The administrator password `password` is allowed by operator decision (2026-11-04) |
 | SR-09 | High (conditional) | PersistentVolume workspaces can mount any claim in the run namespace | Fixed: the claim needs label `garrison.io/tenant` equal to the run's tenant |
 | SR-10 | Medium | Anyone who configures MCP servers or deployments can use any tenant secret | Fixed: separate use permission (`Execute` on `Secret`, role `SecretUser`) |
 | SR-11 | Medium | Restart resets rotated seeded credentials to the configured secret | Fixed: seeded secrets are set only at creation |
@@ -233,6 +233,8 @@ Each finding keeps its original description and recommendation, followed by what
 - `k8s/scripts/generate-secrets.sh` now also generates random administrator and Grafana passwords.
 
 **Tests:** `security-hardening-unit/insecure-defaults`, `security-assets/compose-no-default-secrets`, `security-assets/secret-scripts-no-default-password`, `security-assets/dev-mode-explicit`.
+
+**Changed 2026-11-04 (operator decision):** the administrator password is exempt. Every install seeds `admin@garrison` / `password` unless `GARRISON_ADMIN_PASSWORD` is set, the dashboard sign-in card shows it, and only an empty password is refused. Change it after the first sign-in on any server other people can reach. The keys and the seeded credentials are still refused at their public defaults. The test names above are unchanged; `secret-scripts-no-default-password` now checks that the scripts seed `password`.
 
 ### SR-09 High (conditional): any PersistentVolumeClaim can be mounted as a workspace
 

@@ -5,8 +5,7 @@ rem ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, OPENAI_API_KEY, MUX_BASE_URL, MU
 rem and CODEX_AUTH_JSON_FILE (path to a Codex auth.json)
 rem garrison-grafana (Grafana admin for the observability overlays: user admin, password GARRISON_GRAFANA_PASSWORD,
 rem or a random one) is always created and kept unless --force is given. The administrator password is
-rem GARRISON_ADMIN_PASSWORD when set, otherwise random; there is no default password (SR-08). A generated password is
-rem shown once.
+rem GARRISON_ADMIN_PASSWORD when set, otherwise password (sign in as admin@garrison / password and change it).
 setlocal enabledelayedexpansion
 if "%GARRISON_NAMESPACE%"=="" set GARRISON_NAMESPACE=garrison
 set FORCE=0
@@ -22,7 +21,7 @@ kubectl -n %GARRISON_NAMESPACE% get secret garrison-secrets >nul 2>&1 && set CRE
 if "%FORCE%"=="1" set CREATE=1
 if "%CREATE%"=="1" (
   set ADMIN_PASSWORD=%GARRISON_ADMIN_PASSWORD%
-  if "!ADMIN_PASSWORD!"=="" for /f %%v in ('%RAND%20)"') do set ADMIN_PASSWORD=%%v
+  if "!ADMIN_PASSWORD!"=="" set ADMIN_PASSWORD=password
   for /f %%v in ('%KEY32%') do set MASTER_KEY=%%v
   for /f %%v in ('%RAND%48)"') do set SIGNING_KEY=%%v
   for /f %%v in ('%RAND%40)"') do set ADMIN_API_KEY=%%v
@@ -32,7 +31,7 @@ if "%CREATE%"=="1" (
   kubectl -n %GARRISON_NAMESPACE% create secret generic garrison-secrets --from-literal=master-key=!MASTER_KEY! --from-literal=signing-key=!SIGNING_KEY! --from-literal=admin-api-key=!ADMIN_API_KEY! --from-literal=admin-password=!ADMIN_PASSWORD! --from-literal=db-password=!DB_PASSWORD! --from-literal=default-access-key=access_!DEFAULT_ACCESS! --from-literal=default-secret-key=secret_!DEFAULT_SECRET! --dry-run=client -o yaml | kubectl apply -f - >nul
   echo [garrison] created secret garrison-secrets
   if "%GARRISON_ADMIN_PASSWORD%"=="" (
-    echo [garrison]   tenant: default   admin user: admin@garrison   admin password ^(generated, shown once^): !ADMIN_PASSWORD!
+    echo [garrison]   tenant: default   admin user: admin@garrison   admin password: password ^(change it after signing in^)
   ) else (
     echo [garrison]   tenant: default   admin user: admin@garrison   admin password: GARRISON_ADMIN_PASSWORD
   )

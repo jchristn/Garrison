@@ -103,7 +103,7 @@ All database settings need a restart. Size the pool so that `max_connections >= 
 
 These seed the first boot and protect stored secrets.
 
-The defaults below are public. The server refuses to start while `Security.MasterKey`, `Auth.SigningKey`, `Auth.AdminApiKey`, `Security.AdminPassword`, `Security.DefaultSecretKey`, or `Security.NodeSecretKey` is empty or equal to its default, and names the environment variables to set. Docker Compose and Kubernetes generate real values (`docker/update.sh`, `k8s/scripts/generate-secrets.sh`). For local development only, set `GARRISON_ALLOW_INSECURE_DEFAULTS=true`.
+The defaults below are public. The server refuses to start while `Security.MasterKey`, `Auth.SigningKey`, `Auth.AdminApiKey`, `Security.DefaultSecretKey`, or `Security.NodeSecretKey` is empty or equal to its default, or `Security.AdminPassword` is empty, and names the environment variables to set. The administrator password `password` is allowed: every install signs in as `admin@garrison` / `password` until someone changes it. Docker Compose and Kubernetes generate real values for the keys (`docker/update.sh`, `k8s/scripts/generate-secrets.sh`). For local development only, set `GARRISON_ALLOW_INSECURE_DEFAULTS=true`.
 
 | Path | Default | Meaning |
 |---|---|---|
@@ -111,7 +111,7 @@ The defaults below are public. The server refuses to start while `Security.Maste
 | `Security.MasterKey` | public placeholder | Key that encrypts stored secrets: base64 of 32 random bytes (`openssl rand -base64 32`). Any other value is hashed with SHA-256 and logged as weak. Losing it makes every secret unreadable. Environment: `GARRISON_MASTER_KEY` |
 | `Security.MasterKeyVersion` | `1` | Version written with each encrypted value, 1 to 255. A value written under another version is refused with a clear error |
 | `Security.AdminEmail` | `admin@garrison` | Email of the seeded administrator (first start only). Environment: `GARRISON_ADMIN_EMAIL` |
-| `Security.AdminPassword` | `password` | Password of the seeded `admin@garrison`. Environment: `GARRISON_ADMIN_PASSWORD` |
+| `Security.AdminPassword` | `password` | Password of the seeded `admin@garrison` (first start only; change it after signing in). Environment: `GARRISON_ADMIN_PASSWORD` |
 | `Security.DefaultAccessKey`, `Security.DefaultSecretKey` | `access_garrison_default`, `secret_garrison_default_change_me` | Seeded administrator credential. Environment: `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` |
 | `Security.NodeAccessKey`, `Security.NodeSecretKey` | `access_garrison_node`, `secret_garrison_node_change_me` | Seeded worker credential. Environment: `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` |
 

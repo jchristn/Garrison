@@ -17,7 +17,7 @@ cd docker
 ./update.sh                   # Windows: update.bat
 ```
 
-`update.sh` first makes sure `docker/.env` holds every key and password the stack needs. It creates `.env` from `.env.example` when there is none, then appends a random value for each of these that is missing: `GARRISON_MASTER_KEY`, `GARRISON_AUTH_SIGNING_KEY`, `GARRISON_ADMIN_PASSWORD`, `GARRISON_ADMIN_API_KEY`, `GARRISON_DB_PASSWORD`, the default and node access and secret keys, and `GARRISON_GRAFANA_PASSWORD`. Values already in `.env` (or in your shell environment) are kept. It prints a generated administrator password once; afterwards it is in `.env` as `GARRISON_ADMIN_PASSWORD`. The script that does this is `env-secrets.sh` (`env-secrets.ps1` on Windows), and you can run it on its own.
+`update.sh` first makes sure `docker/.env` holds every key and password the stack needs. It creates `.env` from `.env.example` when there is none, then appends a random value for each of these that is missing: `GARRISON_MASTER_KEY`, `GARRISON_AUTH_SIGNING_KEY`, `GARRISON_ADMIN_API_KEY`, `GARRISON_DB_PASSWORD`, the default and node access and secret keys, and `GARRISON_GRAFANA_PASSWORD`. A missing `GARRISON_ADMIN_PASSWORD` is set to `password`, so you sign in as `admin@garrison` / `password`; change it in the dashboard after signing in. Values already in `.env` (or in your shell environment) are kept. The script that does this is `env-secrets.sh` (`env-secrets.ps1` on Windows), and you can run it on its own.
 
 Then it checks that the host ports are free, builds the three Garrison images from this repository, recreates the stack, and prints the container status and the URLs:
 
@@ -27,13 +27,13 @@ Then it checks that the host ports are free, builds the three Garrison images fr
 | Agentic app UIs | http://127.0.0.1:8080/apps/{slug}/ |
 | REST and A2A | http://127.0.0.1:8700 |
 | MCP | http://127.0.0.1:8701/mcp |
-| Sign-in | tenant `default`, email `admin@garrison`, password `GARRISON_ADMIN_PASSWORD` from `.env` |
+| Sign-in | tenant `default`, email `admin@garrison`, password `password` (or `GARRISON_ADMIN_PASSWORD` from `.env` if you set another) |
 | Administrator API key (`x-api-key`) | `GARRISON_ADMIN_API_KEY` from `.env` |
 | Postgres | 127.0.0.1:5433, database and user `garrison`, password `GARRISON_DB_PASSWORD` from `.env` |
 
-Compose has no defaults for these keys and passwords. A plain `docker compose up` without them stops with `required variable GARRISON_MASTER_KEY is missing a value`, and the server refuses to start with the public built-in defaults (`garrisonadmin`, `password`, and the `*_change_me` and `*-override-me` keys) unless `GARRISON_ALLOW_INSECURE_DEFAULTS=true` is set, which is for local development only (see `docs/SECURITY.md`).
+Compose has no defaults for these keys and passwords. A plain `docker compose up` without them stops with `required variable GARRISON_MASTER_KEY is missing a value`, and the server refuses to start with the public built-in keys (`garrisonadmin` and the `*_change_me` and `*-override-me` keys) unless `GARRISON_ALLOW_INSECURE_DEFAULTS=true` is set, which is for local development only (see `docs/SECURITY.md`).
 
-Read the values with `grep -E '^GARRISON_(ADMIN_PASSWORD|ADMIN_API_KEY)=' docker/.env`. The examples in these documents use `garrisonadmin` and `password` as placeholders; substitute yours.
+Read the values with `grep -E '^GARRISON_(ADMIN_PASSWORD|ADMIN_API_KEY)=' docker/.env`. The examples in these documents use `garrisonadmin` as a placeholder for the API key; substitute yours. They use the default administrator password `password`; substitute yours if you changed it.
 
 ### Stacks created before keys were required
 
@@ -41,7 +41,7 @@ Read the values with `grep -E '^GARRISON_(ADMIN_PASSWORD|ADMIN_API_KEY)=' docker
 
 ### Keeping the built-in defaults on a local machine
 
-For a development stack that only you can reach, you can keep the public defaults (for example the `password` administrator password) instead of rotating them. Add this line to `docker/.env`:
+For a development stack that only you can reach, you can keep the public default keys (for example the `garrisonadmin` API key) instead of rotating them. Add this line to `docker/.env`:
 
 ```bash
 GARRISON_ALLOW_INSECURE_DEFAULTS=true

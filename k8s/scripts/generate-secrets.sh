@@ -7,9 +7,9 @@
 # Optional harness credentials are read from the caller's environment and always refreshed:
 #   ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, OPENAI_API_KEY, MUX_BASE_URL, MUX_MODEL, MUX_API_KEY, MUX_ADAPTER_TYPE,
 #   and CODEX_AUTH_JSON_FILE (path to a Codex auth.json, for example ~/.codex/auth.json)
-# The administrator and Grafana passwords are GARRISON_ADMIN_PASSWORD and GARRISON_GRAFANA_PASSWORD when set, otherwise
-# random; there is no default password (SR-08). Secret values are never printed, except a generated administrator or
-# Grafana password, once.
+# The administrator password is GARRISON_ADMIN_PASSWORD when set, otherwise password (sign in as admin@garrison /
+# password and change it). The Grafana password is GARRISON_GRAFANA_PASSWORD when set, otherwise random. Secret values
+# are never printed, except a generated Grafana password, once.
 source "$(dirname "$0")/common.sh"
 need kubectl
 need openssl
@@ -22,7 +22,7 @@ rand() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "$1"; }
 kubectl get namespace "${GARRISON_NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${GARRISON_NAMESPACE}" >/dev/null
 
 if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garrison-secrets >/dev/null 2>&1; then
-  ADMIN_PASSWORD="${GARRISON_ADMIN_PASSWORD:-$(rand 20)}"
+  ADMIN_PASSWORD="${GARRISON_ADMIN_PASSWORD:-password}"
   kubectl -n "${GARRISON_NAMESPACE}" create secret generic garrison-secrets \
     --from-literal=master-key="$(openssl rand -base64 32)" \
     --from-literal=signing-key="$(rand 48)" \
@@ -34,7 +34,7 @@ if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garri
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   log "created secret garrison-secrets"
   if [ -z "${GARRISON_ADMIN_PASSWORD:-}" ]; then
-    log "  tenant: default   admin user: admin@garrison   admin password (generated, shown once): ${ADMIN_PASSWORD}"
+    log "  tenant: default   admin user: admin@garrison   admin password: password (change it after signing in)"
   else
     log "  tenant: default   admin user: admin@garrison   admin password: GARRISON_ADMIN_PASSWORD"
   fi

@@ -11,11 +11,11 @@ Every one of these defaults is public, so change them all:
 | `Auth.AdminApiKey` (`GARRISON_ADMIN_API_KEY`) | `garrisonadmin` | A long random value, kept out of day-to-day use |
 | `Auth.SigningKey` (`GARRISON_AUTH_SIGNING_KEY`) | placeholder | A random value; it protects every session token |
 | `Security.MasterKey` (`GARRISON_MASTER_KEY`) | placeholder | Base64 of 32 random bytes; back it up, because losing it makes every secret unreadable |
-| `Security.AdminPassword` | `password` | A strong password, before first start (it only seeds) |
+| `Security.AdminPassword` | `password` | Allowed, so a new install signs in as `admin@garrison` / `password`. Change it after the first sign-in, or set a strong one before first start (it only seeds). Only an empty value is refused |
 | `Security.DefaultAccessKey` / `DefaultSecretKey` | `access_garrison_default` / `secret_garrison_default_change_me` | Random values before first start, or rotate the credential afterwards |
 | `Security.NodeAccessKey` / `NodeSecretKey` | `access_garrison_node` / `secret_garrison_node_change_me` | Random values, set identically on the server and every worker |
 
-`k8s/scripts/generate-secrets.sh` generates all of these for Kubernetes, including a random administrator password unless you set `GARRISON_ADMIN_PASSWORD`. For Docker Compose, `docker/update.sh` and `docker/factory/reset.sh` generate any that are missing into `docker/.env`, and `compose.yaml` has no defaults for them. Terminate TLS at the ingress (or set `Rest.Ssl`); credentials and tokens otherwise cross the network in the clear.
+`k8s/scripts/generate-secrets.sh` generates all of these for Kubernetes except the administrator password, which is `GARRISON_ADMIN_PASSWORD` when set and otherwise `password`. For Docker Compose, `docker/update.sh` and `docker/factory/reset.sh` generate any that are missing into `docker/.env` (again with `password` for the administrator), and `compose.yaml` has no defaults for them. Terminate TLS at the ingress (or set `Rest.Ssl`); credentials and tokens otherwise cross the network in the clear.
 
 ## Identities
 

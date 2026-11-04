@@ -30,7 +30,7 @@ To sign in with an access key pair instead, call `client.login_with_keys(access_
 
 ## Where the credentials come from
 
-Email and password sign-in works the same on every runtime: tenant `default`, user `admin@garrison`, and the administrator password. There is no default: on Docker Compose it is `GARRISON_ADMIN_PASSWORD` in `docker/.env`, which `update.sh` generates when it is missing. On Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` held when `k8s/scripts/generate-secrets.sh` ran, or the random one it printed, stored in Secret `garrison-secrets`. A source build in development mode (`GARRISON_ALLOW_INSECURE_DEFAULTS=true`) uses `password`.
+Email and password sign-in works the same on every runtime: tenant `default`, user `admin@garrison`, and the administrator password. It is `password` unless `GARRISON_ADMIN_PASSWORD` was set before the first start (Docker Compose keeps it in `docker/.env`; Kubernetes in Secret `garrison-secrets`), or someone changed it after signing in.
 
 The seeded administrator access and secret keys depend on the runtime:
 

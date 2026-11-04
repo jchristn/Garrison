@@ -366,7 +366,9 @@ namespace Garrison.Server.Settings
             AddIfDefault(found, Security.MasterKey, securityDefaults.MasterKey, "Security.MasterKey (GARRISON_MASTER_KEY)");
             AddIfDefault(found, Auth.SigningKey, authDefaults.SigningKey, "Auth.SigningKey (GARRISON_AUTH_SIGNING_KEY)");
             AddIfDefault(found, Auth.AdminApiKey, authDefaults.AdminApiKey, "Auth.AdminApiKey (GARRISON_ADMIN_API_KEY)");
-            AddIfDefault(found, Security.AdminPassword, securityDefaults.AdminPassword, "Security.AdminPassword (GARRISON_ADMIN_PASSWORD)");
+            // The administrator password defaults to the documented admin@garrison / password sign-in, so only an empty
+            // value is refused; change it after the first sign-in on any server others can reach.
+            if (String.IsNullOrWhiteSpace(Security.AdminPassword)) found.Add("Security.AdminPassword (GARRISON_ADMIN_PASSWORD)");
             AddIfDefault(found, Security.DefaultSecretKey, securityDefaults.DefaultSecretKey, "Security.DefaultSecretKey (GARRISON_DEFAULT_SECRET_KEY)");
             AddIfDefault(found, Security.NodeSecretKey, securityDefaults.NodeSecretKey, "Security.NodeSecretKey (GARRISON_NODE_SECRET_KEY)");
             return found;
