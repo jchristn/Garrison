@@ -32,8 +32,8 @@ npm run test:e2e   # Playwright against vite preview and a mock gateway (tests/e
 | --- | --- |
 | `src/api/` | `gateway.js`: creates the SDK's `AppGatewayClient` with the app UI's settings (API origin from `/apps/config.js`, session in `sessionStorage` under `garrison.app.session.{slug}`, `onUnauthorized`) and re-exports the SDK's `openTurnStream` and `openFileStream` (`EventSource` streams that reconnect without limit and resume). The client code itself lives in `sdk/js` |
 | `src/hooks/` | `useConversation.js` (turns and streaming) and `useFiles.js` (file listing with live refresh) |
-| `src/components/` | Sign-in, chat, conversation list, file panel, versions dialog, tooltips |
-| `src/utils/` | Branding colors, theme, URL parsing, turn folding, Markdown, downloads, storage |
+| `src/components/` | Sign-in, chat, conversation list, file panel with its file viewer (Markdown, JSON, text, and images; other files download), versions dialog, tooltips |
+| `src/utils/` | Branding colors, theme, URL parsing, turn folding, Markdown, file links in answers, file previews, downloads, storage |
 | `src/i18n/` | Locale registry and catalogs for the dashboard's nine locales plus the `zz` pseudo-locale |
 | `src/tests/` | Unit tests |
 | `tests/e2e/` | Browser tests and the mock gateway; `studioApp.spec.js` is the app UI half of the studio end-to-end flow (a two-turn conversation that writes a file, then its download) |

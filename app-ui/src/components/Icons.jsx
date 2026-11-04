@@ -149,3 +149,20 @@ export function StopIcon() {
     </Svg>
   );
 }
+
+export function EyeIcon() {
+  return (
+    <Svg>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </Svg>
+  );
+}
+
+export function BackIcon() {
+  return (
+    <Svg>
+      <path d="M15 18l-6-6 6-6" />
+    </Svg>
+  );
+}

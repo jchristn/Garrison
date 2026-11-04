@@ -8,8 +8,8 @@ import { errorText } from '../utils/errors.js';
 
 // The conversation: the welcome text before the first message, then every turn, then the message box. Errors from
 // sending (busy, rate limited, and others) show above the box until dismissed or the next send. Links in an answer
-// that point at files the agent wrote download them (onFile); a download that cannot start shows its error here too.
-export default function ChatPane({ info, conversation, conversationMissing, filePaths, onFile, fileError, onDismissFileError }) {
+// that point at files the agent wrote open them in the files panel (onFile).
+export default function ChatPane({ info, conversation, conversationMissing, filePaths, onFile }) {
   const { t } = useTranslation();
   const [sendError, setSendError] = useState(null);
   const end = useRef(null);
@@ -73,18 +73,6 @@ export default function ChatPane({ info, conversation, conversationMissing, file
           <button type="button" className="link-button" onClick={() => setSendError(null)} {...tip(t('tips.dismiss'))}>
             {t('chat.dismiss')}
           </button>
-        </div>
-      ) : null}
-      {fileError ? (
-        <div className="notice notice-error send-error" role="alert" data-testid="file-link-error">
-          <span>
-            {t('files.downloadFailed')} {errorText(t, fileError)}
-          </span>
-          {onDismissFileError ? (
-            <button type="button" className="link-button" onClick={onDismissFileError} {...tip(t('tips.dismiss'))}>
-              {t('chat.dismiss')}
-            </button>
-          ) : null}
         </div>
       ) : null}
       <Composer onSend={onSend} onStop={stop ? onStop : null} busy={busy} sending={sending} stopping={stopping} disabled={loading} autoFocus />

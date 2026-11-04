@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
-import { act } from 'react';
+import { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import i18n from '../i18n';
 import App from '../App.jsx';
@@ -240,7 +240,7 @@ describe('TurnView', () => {
     expect(qa('[data-testid="turn-state"]').map((el) => el.textContent)).toEqual(['The agent is working on it', 'The agent is working on it']);
   });
 
-  it('turns links to files the agent wrote into downloads', async () => {
+  it('turns links to files the agent wrote into file links', async () => {
     const opened = [];
     const answer = [
       '- [Download PDF](sandbox:/workspaces/conversations/cnv_1/work/files/research/report.pdf)',
@@ -290,6 +290,47 @@ describe('FilePanel', () => {
     expect(items[0].querySelector('.badge-new')).toBeNull();
     expect(items[1].textContent).toContain('Version 2');
     expect(q('.file-summary').textContent).toBe('Files: 2 (2 KB)');
+  });
+
+  it('views a file in the panel: Markdown rendered, JSON indented, binary offered as a download', async () => {
+    const contents = { 'out/report.md': '# Draft\n\nSee [notes](notes.json).', 'notes.json': '{"a":1}', 'out/report.pdf': '%PDF' };
+    const reads = [];
+    const client = {
+      readFileBlob: async (_c, path) => {
+        reads.push(path);
+        return new Blob([contents[path]], { type: 'application/octet-stream' });
+      }
+    };
+    const files = {
+      loading: false,
+      error: null,
+      fresh: [],
+      listing: {
+        totalBytes: 30,
+        files: Object.keys(contents).map((path) => ({ path, currentVersion: 1, sizeBytes: contents[path].length, deleted: false, lastUpdateUtc: '2026-10-28T12:00:00Z' }))
+      }
+    };
+    function Harness() {
+      const [viewing, setViewing] = useState(null);
+      return <FilePanel client={client} conversationId="cnv_1" files={files} viewing={viewing} onView={setViewing} onClose={() => {}} />;
+    }
+    await render(<Harness />);
+    const row = qa('[data-testid="file-item"]').find((i) => i.getAttribute('data-path') === 'out/report.md');
+    await click(row.querySelector('[data-testid="file-view"]'));
+    expect(q('[data-testid="file-viewer"]').getAttribute('data-path')).toBe('out/report.md');
+    expect(q('[data-testid="file-viewer-markdown"] h1').textContent).toBe('Draft');
+    expect(q('.file-list').hidden).toBe(true);
+
+    await click(q('[data-testid="file-viewer-markdown"] a'));
+    expect(q('[data-testid="file-viewer"]').getAttribute('data-path')).toBe('notes.json');
+    expect(q('[data-testid="file-viewer-text"]').textContent).toBe('{\n  "a": 1\n}');
+
+    await click(q('[data-testid="file-viewer-back"]'));
+    expect(q('[data-testid="file-viewer"]')).toBeNull();
+    const pdf = qa('[data-testid="file-item"]').find((i) => i.getAttribute('data-path') === 'out/report.pdf');
+    await click(pdf.querySelector('[data-testid="file-view"]'));
+    expect(q('[data-testid="file-viewer-unavailable"]').textContent).toContain('Download it');
+    expect(reads).toEqual(['out/report.md', 'notes.json']);
   });
 });
 

@@ -18,6 +18,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 - App chat conversations whose turn failed or finished could not be deleted: the gateway marked every conversation with a recorded run as busy. Busy now follows the turn's real status. A running turn can be stopped: Send becomes Stop while the agent answers, backed by `POST /v1.0/apps/{slug}/conversations/{id}/stop` and `stopConversation` in every SDK.
 
+- The app chat files panel has a View action that shows a file in the panel without downloading it: Markdown rendered, JSON indented, other text as it is, and images. PDF, Office documents, archives, and files over 5 MiB are offered as a download. File links in answers open the viewer, including links that name the wrong folder (resolved by the file's unique name), instead of opening the app's sign-in page in a new tab.
+
 - Deleting a conversation in the app chat now asks in a confirmation dialog with Delete and Cancel, instead of an inline prompt in the list.
 
 - The app chat message box uses a smaller font on wider screens (phones keep 16px so the browser does not zoom), and resizing the box no longer stretches the Send and Stop button.

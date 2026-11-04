@@ -19,11 +19,19 @@ describe('fileLinkPath', () => {
   it('treats plain paths as file links only when the listing has them', () => {
     expect(fileLinkPath('./report.md', listed)).toBe('report.md');
     expect(fileLinkPath('/workspace/files/research/report.md', listed)).toBe('research/report.md');
-    expect(fileLinkPath('docs/guide.md', listed)).toBeNull();
+    expect(fileLinkPath('docs/guide', listed)).toBeNull();
+    expect(fileLinkPath('docs/guide.md', listed)).toBe('docs/guide.md');
     expect(fileLinkPath('https://example.com/report.md', listed)).toBeNull();
     expect(fileLinkPath('#section', listed)).toBeNull();
     expect(fileLinkPath('mailto:a@example.com', listed)).toBeNull();
     expect(fileLinkPath('', listed)).toBeNull();
+  });
+
+  it('resolves a link to the wrong folder by its unique file name', () => {
+    const files = ['reports/draft.md', 'reports/audit.md', 'a/same.txt', 'b/same.txt'];
+    expect(fileLinkPath('output/draft.md', files)).toBe('reports/draft.md');
+    expect(fileLinkPath('sandbox:/w/work/output/audit.md', files)).toBe('reports/audit.md');
+    expect(fileLinkPath('output/same.txt', files)).toBe('output/same.txt');
   });
 
   it('round-trips through the rendered href', () => {

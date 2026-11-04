@@ -7,7 +7,7 @@ const NO_FILES = [];
 
 // An agent answer rendered as sanitized Markdown. Links open in a new tab and carry a tooltip with their target.
 // When filePaths and onFile are given, links to files the agent wrote (sandbox:, file:, or a path in the file
-// listing) download the file from the conversation's file space instead.
+// listing) call onFile with the file's path (the app opens it in the files panel) instead of navigating.
 export default function Markdown({ text, filePaths, onFile }) {
   const { t } = useTranslation();
   const fileLinks = onFile ? filePaths || NO_FILES : null;

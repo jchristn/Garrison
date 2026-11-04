@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tip } from './Tooltip.jsx';
-import { CloseIcon, DownloadIcon, HistoryIcon } from './Icons.jsx';
+import { CloseIcon, DownloadIcon, EyeIcon, HistoryIcon } from './Icons.jsx';
+import FileViewer from './FileViewer.jsx';
 import FileVersionsDialog from './FileVersionsDialog.jsx';
 import { formatBytes, formatRelativeTime } from '../i18n/formatters.js';
 import { downloadFile } from '../utils/download.js';
@@ -9,10 +10,11 @@ import { errorText } from '../utils/errors.js';
 import { FILE_SORTS, sortFiles } from '../utils/lists.js';
 import { STORAGE_KEYS, readStorage, writeStorage } from '../utils/storage.js';
 
-// The conversation's file space (AD6.9): every file the agent wrote, live as files change, with download and
+// The conversation's file space (AD6.9): every file the agent wrote, live as files change, with view, download, and
 // version history, in compact rows sorted by age, size, or name. Files that changed while the panel was open carry a
-// "New" badge.
-export default function FilePanel({ client, conversationId, files, onClose }) {
+// "New" badge. View (or a file link in the conversation) shows the file in the panel itself; `viewing` is the path
+// shown and `onView(path | null)` changes it.
+export default function FilePanel({ client, conversationId, files, onClose, viewing, onView }) {
   const { t } = useTranslation();
   const [versionsOf, setVersionsOf] = useState(null);
   const [downloadError, setDownloadError] = useState(null);
@@ -36,6 +38,8 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
     }
   };
 
+  const listedPaths = list.map((f) => f.path);
+
   return (
     <aside className="file-panel" aria-labelledby="file-panel-title" data-testid="file-panel">
       <div className="file-panel-header">
@@ -45,7 +49,10 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
         </button>
       </div>
       {!conversationId ? <p className="empty-text">{t('files.noConversation')}</p> : null}
-      {conversationId && files.loading ? <div className="spinner" role="status" aria-label={t('common.loading')} /> : null}
+      {conversationId && viewing ? (
+        <FileViewer client={client} conversationId={conversationId} path={viewing} file={list.find((f) => f.path === viewing) || null} filePaths={listedPaths} onOpen={onView} onBack={() => onView(null)} onDownload={(path) => download(path)} />
+      ) : null}
+      {conversationId && !viewing && files.loading ? <div className="spinner" role="status" aria-label={t('common.loading')} /> : null}
       {files.error ? (
         <p className="notice notice-error" role="alert">
           {t('files.loadError')} {errorText(t, files.error)}
@@ -56,7 +63,7 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
           {t('files.downloadFailed')} {errorText(t, downloadError)}
         </p>
       ) : null}
-      {conversationId && files.listing ? (
+      {conversationId && !viewing && files.listing ? (
         <div className="file-toolbar">
           <p className="file-summary">{t('files.summary', { count: sorted.length, size: formatBytes(files.listing.totalBytes || 0) })}</p>
           {sorted.length > 1 ? (
@@ -70,8 +77,8 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
           ) : null}
         </div>
       ) : null}
-      {conversationId && files.listing && !sorted.length ? <p className="empty-text">{t('files.empty')}</p> : null}
-      <ul className="file-list" aria-live="polite">
+      {conversationId && !viewing && files.listing && !sorted.length ? <p className="empty-text">{t('files.empty')}</p> : null}
+      <ul className="file-list" aria-live="polite" hidden={!!viewing}>
         {sorted.map((f) => (
           <li key={f.path} className="file-item" data-testid="file-item" data-path={f.path}>
             <div className="file-info">
@@ -86,6 +93,9 @@ export default function FilePanel({ client, conversationId, files, onClose }) {
               </span>
             </div>
             <div className="file-actions">
+              <button type="button" className="icon-button small" onClick={() => onView(f.path)} aria-label={`${t('files.view')}: ${f.path}`} {...tip(t('tips.view'))} data-testid="file-view">
+                <EyeIcon />
+              </button>
               <button type="button" className="icon-button small" onClick={() => setVersionsOf(f)} aria-label={`${t('files.versions')}: ${f.path}`} {...tip(t('tips.versions'))} data-testid="file-versions">
                 <HistoryIcon />
               </button>
