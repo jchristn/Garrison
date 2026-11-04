@@ -224,6 +224,45 @@ describe('TurnView', () => {
     expect(q('[data-testid="turn-state"]').textContent).toBe('The agent is working on it');
     expect(qa('[data-testid="activity"]')).toHaveLength(0);
   });
+
+  it('keeps showing that the agent works between tool calls and while text streams', async () => {
+    const details = [
+      { sequence: 1, eventType: 'ToolCall', toolName: 'Bash', toolCallId: 'c1', text: '{"command":"ls"}' },
+      { sequence: 2, eventType: 'ToolResult', toolName: 'Bash', toolCallId: 'c1', success: true, text: 'a.txt' }
+    ];
+    await render(
+      <ol>
+        <TurnView turn={{ ...newTurnState({ ...TURN, status: 'Running' }), details, streamed: 'Looking at the files.' }} agentName="Desk" showDetail />
+        <TurnView turn={{ ...newTurnState({ ...TURN, runId: 'run_2', status: 'Running' }), streamed: 'Partial answer' }} agentName="Desk" showDetail={false} />
+      </ol>
+    );
+    expect(qa('[data-testid="turn-state"]').map((el) => el.textContent)).toEqual(['The agent is working on it', 'The agent is working on it']);
+  });
+
+  it('turns links to files the agent wrote into downloads', async () => {
+    const opened = [];
+    const answer = [
+      '- [Download PDF](sandbox:/workspaces/conversations/cnv_1/work/files/research/report.pdf)',
+      '- [Notes](notes.md)',
+      '- [Site](https://example.com/a)',
+      '- [Missing](sandbox:/workspaces/conversations/cnv_1/work/files/other/new.txt)'
+    ].join('\n');
+    await render(
+      <ol>
+        <TurnView turn={{ ...newTurnState({ ...TURN, status: 'Succeeded' }), answer }} agentName="Desk" showDetail={false} filePaths={['research/report.pdf', 'notes.md']} onFile={(p) => opened.push(p)} />
+      </ol>
+    );
+    const links = qa('[data-testid="answer"] a');
+    expect(links.map((a) => [a.textContent, a.getAttribute('href'), a.className, a.getAttribute('target')])).toEqual([
+      ['Download PDF', '#file:research%2Freport.pdf', 'file-link', null],
+      ['Notes', '#file:notes.md', 'file-link', null],
+      ['Site', 'https://example.com/a', '', '_blank'],
+      ['Missing', '#file:other%2Fnew.txt', 'file-link', null]
+    ]);
+    await click(links[0]);
+    await click(links[1]);
+    expect(opened).toEqual(['research/report.pdf', 'notes.md']);
+  });
 });
 
 describe('FilePanel', () => {

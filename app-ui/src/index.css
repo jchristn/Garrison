@@ -394,6 +394,8 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 { margin: var(--spacing-md) 0 var(--spacing-xs); font-size: var(--font-size-lg); }
 .markdown-body blockquote { border-inline-start: 3px solid var(--color-border); padding-inline-start: var(--spacing-sm); color: var(--color-text-muted); }
 .markdown-body img { max-width: 100%; }
+.markdown-body a.file-link { cursor: pointer; }
+.markdown-body a.file-link::before { content: "\2913\00a0"; text-decoration: none; display: inline-block; }
 .code-block { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-x: auto; }
 .code-block pre { margin: 0; padding: var(--spacing-sm); }
 .markdown-table { overflow-x: auto; }

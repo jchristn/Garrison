@@ -190,9 +190,9 @@ namespace Garrison.Core.Manifests
         public bool ApprovalsEnabled { get; set; } = false;
 
         /// <summary>
-        /// Action for requests no approval rule matches: Allow, Deny, or Ask. Default Ask.
+        /// Action for requests no approval rule matches: Allow, Deny, or Ask. Default Allow.
         /// </summary>
-        public Garrison.Core.Enums.ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = Garrison.Core.Enums.ApprovalRuleActionEnum.Ask;
+        public Garrison.Core.Enums.ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = Garrison.Core.Enums.ApprovalRuleActionEnum.Allow;
 
         /// <summary>
         /// Seconds a pending approval waits for a person (10 to 3600). Default 300.
@@ -200,9 +200,10 @@ namespace Garrison.Core.Manifests
         public int ApprovalTimeoutSeconds { get; set; } = 300;
 
         /// <summary>
-        /// Decision applied when a pending approval expires. Default Deny.
+        /// Decision applied when a pending approval expires: Allow approves it automatically, Deny blocks the call.
+        /// Default Allow.
         /// </summary>
-        public Garrison.Core.Enums.ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = Garrison.Core.Enums.ApprovalDecisionEnum.Deny;
+        public Garrison.Core.Enums.ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = Garrison.Core.Enums.ApprovalDecisionEnum.Allow;
 
         /// <summary>
         /// Permission approval rules in order (action, pattern, optional inputPattern and description).

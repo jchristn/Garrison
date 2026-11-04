@@ -343,10 +343,17 @@ namespace Garrison.Server.Runtime
             if (request.Remember && pattern != null)
             {
                 Deployment? deployment = await _Database.Deployments.ReadAsync(approval.TenantId, approval.DeploymentId, token).ConfigureAwait(false);
-                if (deployment != null)
+                ApprovalRuleActionEnum rememberedAction = allow ? ApprovalRuleActionEnum.Allow : ApprovalRuleActionEnum.Deny;
+                DeploymentApprovalRule? existing = deployment?.ApprovalRules.FirstOrDefault(r => r.Action == rememberedAction && String.Equals(r.Pattern, pattern, StringComparison.Ordinal) && String.IsNullOrEmpty(r.InputPattern));
+                if (existing != null)
+                {
+                    // The same rule is already on the deployment: link it instead of adding a duplicate.
+                    await _Database.Approvals.SetRememberedRuleAsync(approval.Id, existing.Id, token).ConfigureAwait(false);
+                }
+                else if (deployment != null)
                 {
                     DeploymentApprovalRule rule = new DeploymentApprovalRule();
-                    rule.Action = allow ? ApprovalRuleActionEnum.Allow : ApprovalRuleActionEnum.Deny;
+                    rule.Action = rememberedAction;
                     rule.Pattern = pattern;
                     rule.Description = "Remembered from approval " + approval.Id + " by " + resolution.DecidedBy + " on " + DateTime.UtcNow.ToString("yyyy-MM-dd") + ".";
                     deployment.ApprovalRules.Add(rule);

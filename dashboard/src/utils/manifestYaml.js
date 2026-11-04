@@ -240,7 +240,7 @@ export function readDeploymentFields(document) {
     systemTemplate: system.template,
     systemVersion: system.version,
     approvalsEnabled: spec.approvalsEnabled === true,
-    approvalDefaultAction: text(spec.approvalDefaultAction) || 'Ask',
+    approvalDefaultAction: text(spec.approvalDefaultAction) || 'Allow',
     approvalRules: Array.isArray(spec.approvalRules)
       ? spec.approvalRules.map((r) => ({ action: text(r?.action) || 'Ask', pattern: text(r?.pattern), inputPattern: text(r?.inputPattern), description: text(r?.description) }))
       : []
@@ -282,7 +282,7 @@ export function writeDeploymentFields(document, fields) {
   const prompts = doc.getIn(['spec', 'prompts'], true);
   if (isMap(prompts) && !prompts.items.length) doc.deleteIn(['spec', 'prompts']);
   if (fields.approvalsEnabled || doc.hasIn(['spec', 'approvalsEnabled'])) put(doc, ['spec', 'approvalsEnabled'], !!fields.approvalsEnabled);
-  if (fields.approvalsEnabled || doc.hasIn(['spec', 'approvalDefaultAction'])) put(doc, ['spec', 'approvalDefaultAction'], text(fields.approvalDefaultAction) || 'Ask');
+  if (fields.approvalsEnabled || doc.hasIn(['spec', 'approvalDefaultAction'])) put(doc, ['spec', 'approvalDefaultAction'], text(fields.approvalDefaultAction) || 'Allow');
   const rules = (fields.approvalRules || [])
     .filter((r) => text(r.pattern).trim())
     .map((r) => {

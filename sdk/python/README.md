@@ -71,7 +71,7 @@ Control-plane replicas are read-only: `client.control_nodes.list(max_results, sk
 
 ## Permission approvals
 
-When a deployment has `approvalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `approvalRules` (each with `action`, a `pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, an optional `inputPattern`, and a `description`) decide each request, and `approvalDefaultAction` (`Allow`, `Deny`, or `Ask`) covers requests no rule matches. `Ask` sends the request to a person, who has `approvalTimeoutSeconds` (10 to 3600, default 300) before `approvalTimeoutDecision` applies.
+When a deployment has `approvalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `approvalRules` (each with `action`, a `pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, an optional `inputPattern`, and a `description`) decide each request, and `approvalDefaultAction` (`Allow`, `Deny`, or `Ask`) covers requests no rule matches (default `Allow`). `Ask` sends the request to a person, who has `approvalTimeoutSeconds` (10 to 3600, default 300) before `approvalTimeoutDecision` applies; its default, `Allow`, approves an undecided request automatically.
 
 ```python
 pending = client.approvals.list(status="Pending")

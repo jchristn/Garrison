@@ -483,9 +483,9 @@ def t_approvals():
 def t_approval_check():
     deployment = client.deployments.get(state["deployment"])
     require(deployment.get("approvalsEnabled") is False, f"approvalsEnabled {deployment.get('approvalsEnabled')}")
-    require(deployment.get("approvalDefaultAction") == "Ask", f"approvalDefaultAction {deployment.get('approvalDefaultAction')}")
+    require(deployment.get("approvalDefaultAction") == "Allow", f"approvalDefaultAction {deployment.get('approvalDefaultAction')}")
     require(deployment.get("approvalTimeoutSeconds") == 300, f"approvalTimeoutSeconds {deployment.get('approvalTimeoutSeconds')}")
-    require(deployment.get("approvalTimeoutDecision") == "Deny", f"approvalTimeoutDecision {deployment.get('approvalTimeoutDecision')}")
+    require(deployment.get("approvalTimeoutDecision") == "Allow", f"approvalTimeoutDecision {deployment.get('approvalTimeoutDecision')}")
     deployment["approvalRules"] = [{"action": "Allow", "pattern": "Bash(git status:*)"},
                                    {"action": "Deny", "pattern": "Bash(rm:*)", "description": "Python SDK harness rule."}]
     deployment["approvalDefaultAction"] = "Deny"

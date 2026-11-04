@@ -811,7 +811,7 @@ const tips = {
       approvalsEnabled: 'Faire demander le harness avant les appels d\'outil. Les règles ci-dessous décident la plupart des appels ; les autres attendent une personne dans la boîte de réception Approbations. Profils Claude Code et app-server Codex uniquement.',
       approvalDefaultAction: 'Ce qui se passe quand aucune règle ne correspond à un appel d\'outil : l\'autoriser, le refuser ou demander à une personne.',
       approvalTimeoutSeconds: 'Combien de temps un appel attend une personne avant que la décision d\'expiration s\'applique, de 10 à 3 600 secondes.',
-      approvalTimeoutDecision: 'La décision appliquée quand personne ne répond à temps. Refuser est le choix sûr.',
+      approvalTimeoutDecision: 'La décision appliquée quand personne ne répond à temps. Autoriser (par défaut) approuve l’appel automatiquement après le délai ; Refuser le bloque.',
       approvalRules: 'Règles ordonnées dans la syntaxe Claude Code. Refuser l\'emporte sur Demander et Demander sur Autoriser ; pour une même action, la première correspondance est signalée.',
       approvalRulesItems: {
         action: 'Ce que reçoit un appel correspondant : Autoriser, Refuser ou Demander à une personne.',

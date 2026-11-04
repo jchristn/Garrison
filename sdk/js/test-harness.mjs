@@ -422,9 +422,9 @@ await check("approvals list and read", async () => {
 await check("approval rules and approval check", async () => {
   let deployment = await client.deployments.get(state.deployment);
   require(deployment.approvalsEnabled === false, `approvalsEnabled ${deployment.approvalsEnabled}`);
-  require(deployment.approvalDefaultAction === "Ask", `approvalDefaultAction ${deployment.approvalDefaultAction}`);
+  require(deployment.approvalDefaultAction === "Allow", `approvalDefaultAction ${deployment.approvalDefaultAction}`);
   require(deployment.approvalTimeoutSeconds === 300, `approvalTimeoutSeconds ${deployment.approvalTimeoutSeconds}`);
-  require(deployment.approvalTimeoutDecision === "Deny", `approvalTimeoutDecision ${deployment.approvalTimeoutDecision}`);
+  require(deployment.approvalTimeoutDecision === "Allow", `approvalTimeoutDecision ${deployment.approvalTimeoutDecision}`);
   deployment.approvalRules = [
     { action: "Allow", pattern: "Bash(git status:*)" },
     { action: "Deny", pattern: "Bash(rm:*)", description: "JavaScript SDK harness rule." },

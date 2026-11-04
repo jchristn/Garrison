@@ -186,6 +186,7 @@ const ja = {
     closeFiles: 'ファイルのパネルを閉じて、元の会話の画面にそのまま戻ります。',
     details: 'エージェントが回答中に行った手順 (ツール呼び出し、進行状況、警告) を表示します。',
     answerLink: '回答内のリンクを新しいタブで開きます: {{href}}',
+    fileLink: 'エージェントがこの会話で書いたファイルをダウンロードします: {{path}}',
     tableHeader: '回答に含まれる表の列見出しです: {{text}}',
     poweredBy: 'usegarrison.ai を新しいタブで開き、このアプリが動いているプラットフォーム Garrison Agent Studio について確認します。',
     skipToChat: 'ヘッダーと会話一覧を飛ばして、メッセージの入力欄へ直接移動します。',

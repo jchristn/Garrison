@@ -66,9 +66,9 @@ export function approvalFormDefaults(record) {
   const r = record || {};
   return {
     approvalsEnabled: !!r.approvalsEnabled,
-    approvalDefaultAction: r.approvalDefaultAction || 'Ask',
+    approvalDefaultAction: r.approvalDefaultAction || 'Allow',
     approvalTimeoutSeconds: r.approvalTimeoutSeconds ?? APPROVAL_TIMEOUT.default,
-    approvalTimeoutDecision: r.approvalTimeoutDecision || 'Deny',
+    approvalTimeoutDecision: r.approvalTimeoutDecision || 'Allow',
     approvalRules: Array.isArray(r.approvalRules) ? r.approvalRules.map((rule) => ({ ...rule })) : []
   };
 }

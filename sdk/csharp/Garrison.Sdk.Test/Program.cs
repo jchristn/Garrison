@@ -735,9 +735,9 @@ namespace Garrison.Sdk.Test
                     string id = deploymentId ?? throw new InvalidOperationException("no deployment");
                     Deployment deployment = await client.Deployments.GetAsync(id, token).ConfigureAwait(false);
                     Require(!deployment.ApprovalsEnabled, "approvalsEnabled defaulted to true");
-                    Require(deployment.ApprovalDefaultAction == ApprovalRuleActionEnum.Ask, "approvalDefaultAction " + deployment.ApprovalDefaultAction);
+                    Require(deployment.ApprovalDefaultAction == ApprovalRuleActionEnum.Allow, "approvalDefaultAction " + deployment.ApprovalDefaultAction);
                     Require(deployment.ApprovalTimeoutSeconds == 300, "approvalTimeoutSeconds " + deployment.ApprovalTimeoutSeconds);
-                    Require(deployment.ApprovalTimeoutDecision == ApprovalDecisionEnum.Deny, "approvalTimeoutDecision " + deployment.ApprovalTimeoutDecision);
+                    Require(deployment.ApprovalTimeoutDecision == ApprovalDecisionEnum.Allow, "approvalTimeoutDecision " + deployment.ApprovalTimeoutDecision);
 
                     DeploymentApprovalRule allowGit = new DeploymentApprovalRule();
                     allowGit.Action = ApprovalRuleActionEnum.Allow;

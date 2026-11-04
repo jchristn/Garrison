@@ -350,6 +350,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("approve-rules", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.ApprovalDefaultAction = ApprovalRuleActionEnum.Deny;
                     d.ApprovalRules.Add(Rule(ApprovalRuleActionEnum.Allow, "Bash(git status:*)"));
                     d.ApprovalRules.Add(Rule(ApprovalRuleActionEnum.Deny, "Bash(rm:*)"));
@@ -398,6 +400,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("conversation-approval", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"git status\"}" });
                 }).ConfigureAwait(false);
                 string path = "/v1.0/api/tenants/" + host.TenantId;
@@ -638,6 +642,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("durable-approval", profile.Name, null, token, deployment =>
                 {
                     deployment.ApprovalsEnabled = true;
+                    deployment.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    deployment.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     deployment.SuspensionEnabled = true;
                     deployment.ArtifactStoreId = store.Id;
                     deployment.Parameters.Add(new DeploymentParameter { Name = codex ? "approvalCommand" : "permissionRequest1", Value = codex ? "git push origin main" : "Bash={\"command\":\"git push origin main\"}" });
@@ -705,6 +711,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("durable-approval", profile.Name, null, token, deployment =>
                 {
                     deployment.ApprovalsEnabled = true;
+                    deployment.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    deployment.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     deployment.ApprovalTimeoutSeconds = 3600;
                     deployment.SuspensionEnabled = true;
                     deployment.ArtifactStoreId = store.Id;
@@ -772,6 +780,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("approve-ask", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"git push origin main\"}" });
                 }).ConfigureAwait(false);
 
@@ -813,6 +823,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("approve-remember", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"curl https://example.com\"}" });
                 }).ConfigureAwait(false);
 
@@ -849,12 +861,16 @@ namespace Test.Shared.Suites
                 Agent denyAgent = await cluster.CreateAgentAsync("approve-timeout-deny", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.ApprovalTimeoutSeconds = 10;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"make deploy\"}" });
                 }).ConfigureAwait(false);
                 Agent allowAgent = await cluster.CreateAgentAsync("approve-timeout-allow", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.ApprovalTimeoutSeconds = 10;
                     d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Allow;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"make test\"}" });
@@ -887,6 +903,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("approve-cancel", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"terraform apply\"}" });
                 }).ConfigureAwait(false);
 
@@ -912,6 +930,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("approve-codex", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.ApprovalRules.Add(Rule(ApprovalRuleActionEnum.Allow, "Bash(git status:*)"));
                     d.Parameters.Add(new DeploymentParameter { Name = "approvalCommand", Value = "git status" });
                     d.Parameters.Add(new DeploymentParameter { Name = "fileApproval", Value = "src/app.cs" });
@@ -947,6 +967,8 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("approve-rbac", profile.Name, null, token, d =>
                 {
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"kubectl delete ns prod\"}" });
                 }).ConfigureAwait(false);
                 Run started = await InvokeAsync(host, agent, token).ConfigureAwait(false);
@@ -1035,7 +1057,16 @@ namespace Test.Shared.Suites
                 Assert.True((swept.Reason ?? String.Empty).Contains("finished", StringComparison.Ordinal), "Reason: " + swept.Reason);
 
                 Assert.True(await db.Runs.PurgeAsync(finished.Id, token).ConfigureAwait(false), "Run purged");
-                Assert.True(await db.Approvals.ReadAsync(orphan.Id, token).ConfigureAwait(false) == null, "Purging a run removes its approvals");
+                Approval kept = Assert.NotNull(await db.Approvals.ReadAsync(orphan.Id, token).ConfigureAwait(false), "Purging a run keeps its approvals for review");
+                Assert.Equal(ApprovalStatusEnum.Cancelled, kept.Status, "The kept approval stays decided");
+
+                Run deleted = new Run { TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = good.Id, Status = RunStatusEnum.Succeeded };
+                await db.Runs.CreateAsync(deleted, token).ConfigureAwait(false);
+                Approval open = new Approval { TenantId = host.TenantId, RunId = deleted.Id, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = good.Id, ToolName = "Bash", Status = ApprovalStatusEnum.Pending, ExpiresUtc = DateTime.UtcNow.AddMinutes(5) };
+                await db.Approvals.CreateAsync(open, token).ConfigureAwait(false);
+                Assert.True(await db.Runs.DeleteAsync(deleted.Id, token).ConfigureAwait(false), "Run deleted");
+                Approval closed = Assert.NotNull(await db.Approvals.ReadAsync(open.Id, token).ConfigureAwait(false), "Deleting a run keeps its approvals for review");
+                Assert.True(closed.Status == ApprovalStatusEnum.Cancelled && closed.Decision == ApprovalDecisionEnum.Deny && closed.DecisionSource == ApprovalSourceEnum.Cancelled, "A pending approval of a deleted run is closed as Cancelled");
             }
         }
 
@@ -1054,6 +1085,8 @@ namespace Test.Shared.Suites
                 {
                     d.HarnessProfileId = profile.Id;
                     d.ApprovalsEnabled = true;
+                    d.ApprovalDefaultAction = ApprovalRuleActionEnum.Ask;
+                    d.ApprovalTimeoutDecision = ApprovalDecisionEnum.Deny;
                     d.Parameters.Add(new DeploymentParameter { Name = "permissionRequest1", Value = "Bash={\"command\":\"helm upgrade app\"}" });
                 }, token).ConfigureAwait(false);
 

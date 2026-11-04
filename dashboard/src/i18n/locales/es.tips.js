@@ -811,7 +811,7 @@ const tips = {
       approvalsEnabled: 'Hace que el harness pregunte antes de las llamadas a herramientas. Las reglas de abajo deciden la mayoría de las llamadas; el resto espera a una persona en la bandeja de Aprobaciones. Solo perfiles de Claude Code y del app-server de Codex.',
       approvalDefaultAction: 'Qué ocurre cuando ninguna regla coincide con una llamada a herramienta: permitirla, denegarla o preguntar a una persona.',
       approvalTimeoutSeconds: 'Cuánto espera una llamada a una persona antes de que se aplique la decisión por tiempo de espera, de 10 a 3.600 segundos.',
-      approvalTimeoutDecision: 'La decisión que se aplica cuando nadie responde a tiempo. Denegar es la opción segura.',
+      approvalTimeoutDecision: 'La decisión que se aplica cuando nadie responde a tiempo. Permitir (el valor predeterminado) aprueba la llamada automáticamente tras el tiempo de espera; Denegar la bloquea.',
       approvalRules: 'Reglas ordenadas con la sintaxis de Claude Code. Denegar prevalece sobre Preguntar y Preguntar sobre Permitir; dentro de una misma acción se informa de la primera coincidencia.',
       approvalRulesItems: {
         action: 'Lo que recibe una llamada coincidente: Permitir, Denegar o Preguntar a una persona.',

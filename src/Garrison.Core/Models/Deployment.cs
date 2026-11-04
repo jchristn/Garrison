@@ -373,9 +373,11 @@ namespace Garrison.Core.Models
         public bool ApprovalsEnabled { get; set; } = false;
 
         /// <summary>
-        /// What happens to a permission request no rule matches: Allow, Deny, or Ask (a person decides). Default Ask.
+        /// What happens to a permission request no rule matches: Allow, Deny, or Ask (a person decides). Default Allow:
+        /// new deployments are permissive, every request is still recorded as an approval for later review, and Ask or
+        /// Deny rules narrow what needs a person.
         /// </summary>
-        public ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = ApprovalRuleActionEnum.Ask;
+        public ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = ApprovalRuleActionEnum.Allow;
 
         /// <summary>
         /// Seconds a pending approval waits for a person before the timeout decision applies. The wait never outlasts
@@ -394,9 +396,11 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
-        /// Decision applied when a pending approval expires. Default Deny.
+        /// Decision applied when a pending approval expires after <see cref="ApprovalTimeoutSeconds"/>. Default Allow:
+        /// a request nobody decides in time is approved automatically (recorded as Expired with source Timeout). Deny
+        /// blocks the call instead.
         /// </summary>
-        public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Deny;
+        public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Allow;
 
         /// <summary>Opt into durable suspension at supported permission checkpoints. Default false.</summary>
         public bool SuspensionEnabled { get; set; } = false;

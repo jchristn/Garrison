@@ -186,6 +186,7 @@ const it = {
     closeFiles: 'Nasconde il pannello dei file e torna alla conversazione.',
     details: "Mostra i passaggi seguiti dall'agente per rispondere: chiamate a strumenti, avanzamento e avvisi.",
     answerLink: 'Apre un link della risposta in una nuova scheda: {{href}}',
+    fileLink: 'Scarica questo file che l’agente ha scritto nella conversazione: {{path}}',
     tableHeader: 'Colonna di una tabella nella risposta: {{text}}',
     poweredBy: 'Apre usegarrison.ai in una nuova scheda per scoprire Garrison Agent Studio, la piattaforma su cui funziona questa app.',
     skipToChat: "Salta l'intestazione e la lista delle conversazioni e passa alla casella del messaggio.",

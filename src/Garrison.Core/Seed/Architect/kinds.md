@@ -36,7 +36,9 @@ spec:
   maxBudgetUsd: 2
   prompts:
     System: builtin/default-system      # prompt role to template name
-  approvalsEnabled: true
+  approvalsEnabled: true               # records every tool call for review
+  approvalDefaultAction: Allow         # default; Ask or Deny only when the person wants a gate
+  approvalTimeoutDecision: Allow       # default; undecided requests are approved after approvalTimeoutSeconds
   approvalRules:
     - { action: Ask, pattern: "Bash(git push:*)" }
   resources:

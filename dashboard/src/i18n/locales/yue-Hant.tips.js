@@ -809,7 +809,7 @@ const tips = {
       approvalsEnabled: '令 Harness 喺工具呼叫之前先問。下面啲規則會決定大部分呼叫；其餘嘅會喺批核收件匣度等人處理。只適用於 Claude Code 同 Codex app-server 設定檔。',
       approvalDefaultAction: '冇規則符合某個工具呼叫嘅時候會點：允許、拒絕，定係問人。',
       approvalTimeoutSeconds: '一個呼叫等人處理幾耐之後就套用逾時決定，由 10 至 3,600 秒。',
-      approvalTimeoutDecision: '冇人及時回應嘅時候套用嘅決定。「拒絕」係安全嘅選擇。',
+      approvalTimeoutDecision: '冇人及時回應嘅時候套用嘅決定。「允許」(預設)會喺逾時之後自動批准呼叫；「拒絕」會阻止呼叫。',
       approvalRules: '用 Claude Code 語法、有次序嘅規則。「拒絕」凌駕「問人」，「問人」凌駕「允許」；同一個動作入面會報告第一個符合嘅規則。',
       approvalRulesItems: {
         action: '符合呢條規則嘅工具呼叫會得到咩結果：允許、拒絕，或者問人。',

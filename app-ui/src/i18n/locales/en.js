@@ -187,6 +187,7 @@ const en = {
     closeFiles: 'Hide the files panel and return to the conversation.',
     details: 'Show the steps the agent took while answering: tool calls, progress, and warnings.',
     answerLink: 'Opens a link from the answer in a new tab: {{href}}',
+    fileLink: 'Downloads this file the agent wrote in the conversation: {{path}}',
     tableHeader: 'Column of a table in the answer: {{text}}',
     poweredBy: 'Open usegarrison.ai in a new tab to learn about Garrison Agent Studio, the platform this app runs on.',
     skipToChat: 'Jump past the header and conversation list to the message box.',

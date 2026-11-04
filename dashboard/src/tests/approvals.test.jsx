@@ -278,7 +278,7 @@ describe('deployment editor approvals', () => {
   });
 
   it('fills server defaults for new and older deployments', () => {
-    expect(approvalFormDefaults(null)).toEqual({ approvalsEnabled: false, approvalDefaultAction: 'Ask', approvalTimeoutSeconds: 300, approvalTimeoutDecision: 'Deny', approvalRules: [] });
+    expect(approvalFormDefaults(null)).toEqual({ approvalsEnabled: false, approvalDefaultAction: 'Allow', approvalTimeoutSeconds: 300, approvalTimeoutDecision: 'Allow', approvalRules: [] });
     expect(deploymentsConfig.blank()).toMatchObject({ approvalsEnabled: false, approvalRules: [] });
   });
 

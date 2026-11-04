@@ -293,9 +293,9 @@ namespace Garrison.Sdk.Models
         public bool ApprovalsEnabled { get; set; } = false;
 
         /// <summary>
-        /// What happens to a permission request no rule matches: Allow, Deny, or Ask (a person decides). Default Ask.
+        /// What happens to a permission request no rule matches: Allow, Deny, or Ask (a person decides). Default Allow.
         /// </summary>
-        public ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = ApprovalRuleActionEnum.Ask;
+        public ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = ApprovalRuleActionEnum.Allow;
 
         /// <summary>
         /// Seconds a pending approval waits for a person before the timeout decision applies. The wait never outlasts
@@ -314,9 +314,10 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
-        /// Decision applied when a pending approval expires. Default Deny.
+        /// Decision applied when a pending approval expires: Allow approves it automatically, Deny blocks the call.
+        /// Default Allow.
         /// </summary>
-        public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Deny;
+        public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Allow;
 
         /// <summary>
         /// Workspace-relative directory where the conversation file space is mounted for runs. Default "files". Null resets to the default.

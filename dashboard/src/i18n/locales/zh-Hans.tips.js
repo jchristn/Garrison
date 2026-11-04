@@ -808,7 +808,7 @@ const tips = {
       approvalsEnabled: '让 Harness 在工具调用前询问。下方规则决定大部分调用；其余调用在审批收件箱中等待人员处理。仅适用于 Claude Code 和 Codex app-server 配置文件。',
       approvalDefaultAction: '没有规则匹配工具调用时的处理方式：允许、拒绝或询问人员。',
       approvalTimeoutSeconds: '调用等待人员处理多长时间后采用超时决定，范围为 10 到 3,600 秒。',
-      approvalTimeoutDecision: '在规定时间内无人响应时所采用的决定。拒绝是更安全的选择。',
+      approvalTimeoutDecision: '在规定时间内无人响应时所采用的决定。允许(默认)会在超时后自动批准调用；拒绝会阻止调用。',
       approvalRules: '使用 Claude Code 语法的有序规则。拒绝优先于询问，询问优先于允许；同一操作内报告第一个匹配项。',
       approvalRulesItems: {
         action: '与此规则匹配的调用会得到什么结果：允许、拒绝或询问人员。',

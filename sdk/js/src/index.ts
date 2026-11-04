@@ -702,11 +702,11 @@ export interface Deployment extends Json, WithWarnings {
   podResources?: RunPodResources;
   /** Permission approvals. Only Claude Code profiles and Codex profiles with CodexAppServer delivery accept true. Default false. */
   approvalsEnabled?: boolean;
-  /** What happens to a request no rule matches. Default Ask. */
+  /** What happens to a request no rule matches. Default Allow. */
   approvalDefaultAction?: ApprovalRuleAction;
   /** Seconds a pending approval waits for a person (10 to 3600, default 300). */
   approvalTimeoutSeconds?: number;
-  /** Decision applied when a pending approval expires. Default Deny. */
+  /** Decision applied when a pending approval expires: Allow approves it automatically, Deny blocks it. Default Allow. */
   approvalTimeoutDecision?: ApprovalDecision;
   /** Approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow. */
   approvalRules?: DeploymentApprovalRule[];

@@ -101,7 +101,7 @@ A `RunEvent` carries the harness line (or Garrison notice) as `RawEvent`, a JSON
 
 ## Permission approvals
 
-When a deployment has `ApprovalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `ApprovalRules` (a list of `DeploymentApprovalRule` with `Action`, `Pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, optional `InputPattern`, and `Description`) decide each request, and `ApprovalDefaultAction` (`ApprovalRuleActionEnum`: `Allow`, `Deny`, `Ask`) covers requests no rule matches. `Ask` sends the request to a person, who has `ApprovalTimeoutSeconds` (10 to 3600, default 300) before `ApprovalTimeoutDecision` applies.
+When a deployment has `ApprovalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `ApprovalRules` (a list of `DeploymentApprovalRule` with `Action`, `Pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, optional `InputPattern`, and `Description`) decide each request, and `ApprovalDefaultAction` (`ApprovalRuleActionEnum`: `Allow`, `Deny`, `Ask`) covers requests no rule matches (default `Allow`). `Ask` sends the request to a person, who has `ApprovalTimeoutSeconds` (10 to 3600, default 300) before `ApprovalTimeoutDecision` applies; its default, `Allow`, approves an undecided request automatically.
 
 ```csharp
 ApprovalFilter filter = new ApprovalFilter();

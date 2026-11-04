@@ -186,6 +186,7 @@ const zhHant = {
     closeFiles: '隱藏右側的檔案面板，然後回到你剛才正在進行的那段對話畫面。',
     details: '顯示代理程式在回覆過程中執行的步驟，包括工具呼叫、進度和警告。',
     answerLink: '在新分頁中開啟回覆裡的這個連結，網址為：{{href}}',
+    fileLink: '下載代理程式在這個對話中寫入的檔案：{{path}}',
     tableHeader: '這是回覆中某個表格的欄位標題，內容為：{{text}}',
     poweredBy: '在新分頁中開啟 usegarrison.ai，進一步了解執行此應用程式的平台 Garrison Agent Studio。',
     skipToChat: '略過頁首和對話清單，直接把焦點移到下方的訊息輸入框裡。',

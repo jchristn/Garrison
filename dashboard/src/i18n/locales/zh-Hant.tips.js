@@ -808,7 +808,7 @@ const tips = {
       approvalsEnabled: '讓 Harness 在工具呼叫前先詢問。下方規則會決定大部分呼叫；其餘的會在核准收件匣中等候人員處理。僅適用於 Claude Code 與 Codex app-server 設定檔。',
       approvalDefaultAction: '沒有規則符合某個工具呼叫時會發生什麼：允許、拒絕或詢問人員。',
       approvalTimeoutSeconds: '呼叫等候人員處理多久後套用逾時決定，範圍為 10 至 3,600 秒。',
-      approvalTimeoutDecision: '沒有人及時回應時套用的決定。「拒絕」是安全的選擇。',
+      approvalTimeoutDecision: '沒有人及時回應時套用的決定。「允許」(預設)會在逾時後自動核准呼叫；「拒絕」會阻止呼叫。',
       approvalRules: '使用 Claude Code 語法的有序規則。「拒絕」優先於「詢問」，「詢問」優先於「允許」；同一動作中會回報第一個符合的規則。',
       approvalRulesItems: {
         action: '符合此規則的工具呼叫會得到什麼結果：允許、拒絕或詢問人員。',

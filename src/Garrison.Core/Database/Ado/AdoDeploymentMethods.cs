@@ -334,9 +334,9 @@ namespace Garrison.Core.Database.Ado
             obj.WorkspaceTemplateId = AdoConverters.NullableStr(reader, "workspacetemplateid");
             obj.ArtifactStoreId = AdoConverters.NullableStr(reader, "artifactstoreid");
             obj.ApprovalsEnabled = AdoConverters.NullableBool(reader, "approvalsenabled") ?? false;
-            obj.ApprovalDefaultAction = AdoConverters.Enum<ApprovalRuleActionEnum>(reader, "approvaldefaultaction", ApprovalRuleActionEnum.Ask);
+            obj.ApprovalDefaultAction = AdoConverters.Enum<ApprovalRuleActionEnum>(reader, "approvaldefaultaction", ApprovalRuleActionEnum.Allow);
             obj.ApprovalTimeoutSeconds = AdoConverters.NullableInt(reader, "approvaltimeoutseconds") ?? 300;
-            obj.ApprovalTimeoutDecision = AdoConverters.Enum<ApprovalDecisionEnum>(reader, "approvaltimeoutdecision", ApprovalDecisionEnum.Deny);
+            obj.ApprovalTimeoutDecision = AdoConverters.Enum<ApprovalDecisionEnum>(reader, "approvaltimeoutdecision", ApprovalDecisionEnum.Allow);
             obj.ConfigVersion = AdoConverters.Int(reader, "configversion");
             obj.SuspensionEnabled = AdoConverters.Bool(reader, "suspensionenabled");
             obj.Active = AdoConverters.Bool(reader, "active");

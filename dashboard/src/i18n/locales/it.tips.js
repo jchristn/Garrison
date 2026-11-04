@@ -811,7 +811,7 @@ const tips = {
       approvalsEnabled: 'Fa chiedere all\'harness prima delle chiamate a strumenti. Le regole qui sotto decidono la maggior parte delle chiamate; le altre attendono una persona nella casella Approvazioni. Solo profili Claude Code e app-server di Codex.',
       approvalDefaultAction: 'Cosa succede quando nessuna regola corrisponde a una chiamata a strumento: consentirla, negarla o chiedere a una persona.',
       approvalTimeoutSeconds: 'Quanto una chiamata attende una persona prima che si applichi la decisione di timeout, da 10 a 3.600 secondi.',
-      approvalTimeoutDecision: 'La decisione applicata quando nessuno risponde in tempo. Nega è la scelta sicura.',
+      approvalTimeoutDecision: 'La decisione applicata quando nessuno risponde in tempo. Consenti (predefinito) approva la chiamata automaticamente dopo il timeout; Nega la blocca.',
       approvalRules: 'Regole ordinate nella sintassi di Claude Code. Nega prevale su Chiedi e Chiedi prevale su Consenti; all\'interno di una stessa azione viene riportata la prima corrispondenza.',
       approvalRulesItems: {
         action: 'Cosa ottiene una chiamata corrispondente: Consenti, Nega o Chiedi a una persona.',

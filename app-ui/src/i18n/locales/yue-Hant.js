@@ -186,6 +186,7 @@ const yueHant = {
     closeFiles: '收埋右邊嘅檔案面板，然後返去你啱啱做緊嗰段對話嘅畫面。',
     details: '顯示代理程式回覆嗰陣做過嘅步驟，包括工具調用、進度同警告。',
     answerLink: '喺新分頁打開回覆入面嘅呢條連結，網址係：{{href}}',
+    fileLink: '下載代理喺呢個對話入面寫低咗嘅檔案，路徑係：{{path}}',
     tableHeader: '呢個係回覆入面某個表格嘅欄位標題，內容係：{{text}}',
     poweredBy: '喺新分頁打開 usegarrison.ai，睇吓運行呢個應用程式嘅平台 Garrison Agent Studio 係乜。',
     skipToChat: '跳過頁首同對話清單，直接將焦點移去下面嘅訊息輸入框度。',

@@ -809,7 +809,7 @@ const tips = {
       approvalsEnabled: 'Die Harness fragt vor Werkzeugaufrufen nach. Die Regeln unten entscheiden die meisten Aufrufe; der Rest wartet unter Freigaben auf eine Person. Nur für Claude Code- und Codex app-server-Profile.',
       approvalDefaultAction: 'Was passiert, wenn keine Regel auf einen Werkzeugaufruf zutrifft: erlauben, verweigern oder eine Person fragen.',
       approvalTimeoutSeconds: 'Wie lange ein Aufruf auf eine Person wartet, bevor die Zeitlimit-Entscheidung greift, von 10 bis 3.600 Sekunden.',
-      approvalTimeoutDecision: 'Die Entscheidung, die gilt, wenn niemand rechtzeitig antwortet. Verweigern ist die sichere Wahl.',
+      approvalTimeoutDecision: 'Die Entscheidung, die gilt, wenn niemand rechtzeitig antwortet. Erlauben (Standard) genehmigt den Aufruf nach Ablauf der Zeit automatisch; Verweigern blockiert ihn.',
       approvalRules: 'Geordnete Regeln in Claude Code-Syntax. Verweigern geht vor Fragen und Fragen vor Erlauben; innerhalb einer Aktion wird der erste Treffer gemeldet.',
       approvalRulesItems: {
         action: 'Was ein passender Aufruf erhält: Erlauben, Verweigern oder Person fragen.',

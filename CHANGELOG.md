@@ -16,6 +16,14 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- App chat answers that link files the agent wrote (Codex `sandbox:` links, `file:` URLs, and paths in the conversation's file listing) now download the file from the conversation file space instead of rendering as dead text.
+
+- The app chat keeps showing that the agent is working between tool calls and while an answer streams, with or without operator detail.
+
+- Approvals are permissive by default. New deployments use `approvalDefaultAction: Allow` and `approvalTimeoutDecision: Allow`, so a request nobody decides within `approvalTimeoutSeconds` (300 by default, 10 to 3,600) is approved automatically; set the timeout decision to Deny for a hard gate. The architect no longer adds catch-all Ask rules such as `Bash(*)` and `WebFetch(*)`, which stopped agents on every command and outranked remembered Allow rules.
+
+- Approvals are kept when their run is deleted or purged by retention, so decisions stay available for review; a still-pending approval is closed as Cancelled. Remembering a decision whose rule already exists links the existing rule instead of adding a duplicate.
+
 - Preserve the wizard's selected connection when preparing drafted deployments, invalidate deployment readiness when the connection is reselected, and surface agent lookup failures. Architect guidance now reuses saved connections instead of suggesting an unconfigured Claude template. Claude login failures are classified as NotCredentialed with their actual error text, including results marked with both success and is_error.
 
 - Reject malformed Codex auth.json secrets before saving or launching a run, with specific recovery messages. Updated the credential guide to validate the file and copy it directly instead of copying wrapped terminal output; architect sign-in errors now refer to the saved connection without naming an unrelated harness.

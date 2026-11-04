@@ -394,11 +394,11 @@ type Deployment struct {
 	// ApprovalsEnabled turns on permission approvals. Only Claude Code profiles and Codex profiles with
 	// CodexAppServer delivery accept true. Default false.
 	ApprovalsEnabled bool `json:"approvalsEnabled,omitempty"`
-	// ApprovalDefaultAction (an ApprovalRuleAction* constant) applies when no rule matches; empty means Ask.
+	// ApprovalDefaultAction (an ApprovalRuleAction* constant) applies when no rule matches; empty means Allow.
 	ApprovalDefaultAction string `json:"approvalDefaultAction,omitempty"`
 	// ApprovalTimeoutSeconds is how long a pending approval waits for a person (10 to 3600); 0 means 300.
 	ApprovalTimeoutSeconds int `json:"approvalTimeoutSeconds,omitempty"`
-	// ApprovalTimeoutDecision (an ApprovalDecision* constant) applies when a pending approval expires; empty means Deny.
+	// ApprovalTimeoutDecision (an ApprovalDecision* constant) applies when a pending approval expires (Allow approves it automatically); empty means Allow.
 	ApprovalTimeoutDecision string `json:"approvalTimeoutDecision,omitempty"`
 	// ApprovalRules are the approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow.
 	ApprovalRules []DeploymentApprovalRule `json:"approvalRules,omitempty"`

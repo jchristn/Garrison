@@ -148,7 +148,7 @@ describe('manifest YAML: apps', () => {
 describe('manifest YAML: deployments', () => {
   it('reads runtime fields with the System prompt split from its pinned version', () => {
     const f = readDeploymentFields(DEPLOYMENT_YAML);
-    expect(f).toMatchObject({ name: 'writer-staging', agent: 'writer', environment: 'staging', model: 'sonnet', timeoutSeconds: '300', maxTurns: '', systemTemplate: 'writer-system', systemVersion: '2', approvalsEnabled: false, approvalDefaultAction: 'Ask', approvalRules: [] });
+    expect(f).toMatchObject({ name: 'writer-staging', agent: 'writer', environment: 'staging', model: 'sonnet', timeoutSeconds: '300', maxTurns: '', systemTemplate: 'writer-system', systemVersion: '2', approvalsEnabled: false, approvalDefaultAction: 'Allow', approvalRules: [] });
     expect(readDeploymentFields('kind: Deployment\nmetadata:\n  name: d\nspec:\n  agent: a\n').environment).toBe('dev');
   });
 

@@ -809,7 +809,7 @@ const tips = {
       approvalsEnabled: 'ハーネスがツール呼び出しの前に確認を求めるようにします。ほとんどの呼び出しは下のルールで決定され、残りは承認の受信トレイで人の判断を待ちます。Claude Code と Codex app-server のプロファイルのみ対象です。',
       approvalDefaultAction: 'どのルールにもツール呼び出しが一致しない場合の動作です: 許可、拒否、または人に確認。',
       approvalTimeoutSeconds: 'タイムアウト時の決定が適用されるまで、呼び出しが人を待つ時間です。10 から 3,600 秒まで指定できます。',
-      approvalTimeoutDecision: '期限内に誰も応答しない場合に適用される決定です。拒否が安全な選択です。',
+      approvalTimeoutDecision: '期限内に誰も応答しない場合に適用される決定です。許可(既定)はタイムアウト後に呼び出しを自動で承認し、拒否は呼び出しをブロックします。',
       approvalRules: 'Claude Code の構文による順序付きルールです。拒否は確認より、確認は許可より優先されます。同じアクション内では最初に一致したものが報告されます。',
       approvalRulesItems: {
         action: '一致した呼び出しの扱いです: 許可、拒否、または人に確認。',

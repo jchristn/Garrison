@@ -186,6 +186,7 @@ const zhHans = {
     closeFiles: '隐藏右侧的文件面板，然后回到你刚才正在进行的那个对话页面。',
     details: '显示智能体在回复过程中执行的步骤，包括工具调用、进度和警告。',
     answerLink: '在新标签页中打开回复里的这个链接，地址为：{{href}}',
+    fileLink: '下载智能体在这个对话中写入的文件：{{path}}',
     tableHeader: '这是回复中某个表格的列标题，内容为：{{text}}',
     poweredBy: '在新标签页中打开 usegarrison.ai，了解运行此应用的平台 Garrison Agent Studio 的更多信息。',
     skipToChat: '跳过页眉和对话列表，直接把焦点移动到下方的消息输入框里。',

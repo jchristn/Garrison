@@ -914,7 +914,7 @@ func main() {
 		if err := client.Deployments.Get(ctx, deploymentID, &typed); err != nil {
 			return err
 		}
-		if typed.ApprovalsEnabled || typed.ApprovalDefaultAction != garrison.ApprovalRuleActionAsk || typed.ApprovalTimeoutSeconds != 300 || typed.ApprovalTimeoutDecision != garrison.ApprovalDecisionDeny {
+		if typed.ApprovalsEnabled || typed.ApprovalDefaultAction != garrison.ApprovalRuleActionAllow || typed.ApprovalTimeoutSeconds != 300 || typed.ApprovalTimeoutDecision != garrison.ApprovalDecisionAllow {
 			return fmt.Errorf("defaults enabled=%v default=%s timeout=%d timeoutDecision=%s", typed.ApprovalsEnabled, typed.ApprovalDefaultAction, typed.ApprovalTimeoutSeconds, typed.ApprovalTimeoutDecision)
 		}
 		var raw map[string]any

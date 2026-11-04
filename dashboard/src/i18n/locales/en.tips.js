@@ -809,7 +809,7 @@ const tips = {
       approvalsEnabled: 'Make the harness ask before tool calls. Rules below decide most calls; the rest wait for a person in the Approvals inbox. Claude Code and Codex app-server profiles only.',
       approvalDefaultAction: 'What happens when no rule matches a tool call: allow it, deny it, or ask a person.',
       approvalTimeoutSeconds: 'How long a call waits for a person before the timeout decision applies, from 10 to 3,600 seconds.',
-      approvalTimeoutDecision: 'The decision applied when nobody answers in time. Deny is the safe choice.',
+      approvalTimeoutDecision: 'The decision applied when nobody answers in time. Allow (the default) approves the call automatically after the timeout; Deny blocks it.',
       approvalRules: 'Ordered rules in Claude Code syntax. Deny beats Ask and Ask beats Allow; within one action the first match is reported.',
       approvalRulesItems: {
         action: 'What a matching call gets: Allow, Deny, or Ask a person.',

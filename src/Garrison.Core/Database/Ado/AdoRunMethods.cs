@@ -251,7 +251,12 @@ namespace Garrison.Core.Database.Ado
             {
                 await QuotaAccountingSql.SnapshotBeforeDeleteAsync(_Driver, connection, transaction, id, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
-                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                // Approvals outlive their run so decisions stay available for review; one still pending is closed.
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "UPDATE " + _Driver.Table("approvals") + " SET status = 'Cancelled', decision = 'Deny', decisionsource = 'Cancelled', decidedby = 'garrison', reason = 'The run was deleted.', decidedutc = @now, lastupdateutc = @now WHERE runid = @id AND status = 'Pending';", command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", id);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                }, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_operations") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("run_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
@@ -635,7 +640,12 @@ namespace Garrison.Core.Database.Ado
             {
                 await QuotaAccountingSql.SnapshotBeforeDeleteAsync(_Driver, connection, transaction, id, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
-                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                // Approvals outlive their run so decisions stay available for review; one still pending is closed.
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "UPDATE " + _Driver.Table("approvals") + " SET status = 'Cancelled', decision = 'Deny', decisionsource = 'Cancelled', decidedby = 'garrison', reason = 'The run was deleted.', decidedutc = @now, lastupdateutc = @now WHERE runid = @id AND status = 'Pending';", command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", id);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                }, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_operations") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("run_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("effect_checkpoints") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);

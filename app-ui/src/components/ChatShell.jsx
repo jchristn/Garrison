@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tip } from './Tooltip.jsx';
 import { FilesIcon, MenuIcon, SignOutIcon } from './Icons.jsx';
@@ -11,6 +11,7 @@ import useConversation from '../hooks/useConversation.js';
 import useFiles from '../hooks/useFiles.js';
 import Splitter from './Splitter.jsx';
 import { STORAGE_KEYS, readStorage, writeStorage } from '../utils/storage.js';
+import { downloadFile } from '../utils/download.js';
 
 const WIDE = '(min-width: 1100px)';
 const NARROW = '(max-width: 760px)';
@@ -84,7 +85,22 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
     onMissing: () => setMissing(true)
   });
   const files = useFiles(client, conversationId);
-  const fileCount = files.listing && Array.isArray(files.listing.files) ? files.listing.files.filter((f) => !f.deleted).length : 0;
+  const filePaths = useMemo(() => (files.listing && Array.isArray(files.listing.files) ? files.listing.files.filter((f) => !f.deleted).map((f) => f.path) : []), [files.listing]);
+  const fileCount = filePaths.length;
+  const [fileError, setFileError] = useState(null);
+  useEffect(() => setFileError(null), [conversationId]);
+  const openFile = useCallback(
+    async (path) => {
+      if (!conversationId) return;
+      setFileError(null);
+      try {
+        await downloadFile(client, conversationId, path);
+      } catch (err) {
+        setFileError(err);
+      }
+    },
+    [client, conversationId]
+  );
 
   const select = (id) => {
     onNavigate(id);
@@ -153,7 +169,7 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
           <ConversationList conversations={conversations} error={listError} selectedId={conversationId} onSelect={select} onNew={() => select(null)} onRename={rename} onDelete={remove} />
         </div>
         {listOpen ? <Splitter edge="start" width={listWidth} min={LIST_MIN} max={LIST_MAX} onChange={resizeList} label={t('layout.resizeConversations')} tipText={t('tips.resizeConversations')} testId="resize-conversations" /> : null}
-        <ChatPane key={conversationId || 'new'} info={info} conversation={conversation} conversationMissing={missing} />
+        <ChatPane key={conversationId || 'new'} info={info} conversation={conversation} conversationMissing={missing} filePaths={filePaths} onFile={openFile} fileError={fileError} onDismissFileError={() => setFileError(null)} />
         {filesOpen ? <Splitter edge="end" width={filesWidth} min={FILES_MIN} max={FILES_MAX} onChange={resizeFiles} label={t('layout.resizeFiles')} tipText={t('tips.resizeFiles')} testId="resize-files" /> : null}
         <div id="file-sidebar" className="files-sidebar" hidden={!filesOpen}>
           <FilePanel client={client} conversationId={conversationId} files={files} onClose={() => setFilesOpen(false)} />

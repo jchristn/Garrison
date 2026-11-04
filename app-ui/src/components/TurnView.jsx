@@ -7,11 +7,12 @@ import CopyButton from './CopyButton.jsx';
 import TurnTelemetry from './TurnTelemetry.jsx';
 
 // One exchange: the user's message and the agent's answer, which grows as text streams in. Shows what the agent is
-// doing while it works (waiting for a worker, thinking, asking another agent, using a tool), the approval notice while
+// doing while it works (waiting for a worker, thinking, asking another agent, using a tool, or just working between
+// steps, so the turn never looks idle while it runs), the approval notice while
 // an operator must approve a step, a reconnecting note while the stream is down, and the error when the turn failed.
 // When the app shows operator detail, the activity log lists every step as it happens and the (i) beside the answer
 // shows how the turn ran. Every message has a copy button in its top right corner.
-export default function TurnView({ turn, agentName, showDetail }) {
+export default function TurnView({ turn, agentName, showDetail, filePaths, onFile }) {
   const { t } = useTranslation();
   const phase = turnPhase(turn);
   const answer = visibleAnswer(turn);
@@ -40,10 +41,10 @@ export default function TurnView({ turn, agentName, showDetail }) {
         </div>
         {answer ? (
           <div className="message-answer" data-testid="answer">
-            <Markdown text={answer} />
+            <Markdown text={answer} filePaths={filePaths} onFile={onFile} />
           </div>
         ) : null}
-        {phase === 'waiting' || (phase === 'streaming' && now) ? (
+        {phase === 'waiting' || phase === 'streaming' ? (
           <p className="turn-state" role="status" data-testid="turn-state">
             <span className="dots" aria-hidden="true" />
             {doing}
