@@ -220,6 +220,7 @@ const yueHant = {
     "cancel": "取消",
     "rename": "改 {{title}} 個名",
     "delete": "刪除 {{title}}",
+    "deleteTitle": "刪除對話",
     "confirmDelete": "刪除「{{title}}」？刪咗就救唔返。",
     "deleteConfirm": "刪除",
     "sorts": {

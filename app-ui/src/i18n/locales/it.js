@@ -220,6 +220,7 @@ const it = {
     "cancel": "Annulla",
     "rename": "Rinomina {{title}}",
     "delete": "Elimina {{title}}",
+    "deleteTitle": "Elimina conversazione",
     "confirmDelete": "Eliminare «{{title}}»? Non si può annullare.",
     "deleteConfirm": "Elimina",
     "sorts": {

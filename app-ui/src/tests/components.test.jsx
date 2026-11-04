@@ -373,9 +373,11 @@ describe('conversation list actions', () => {
     expect(apples.querySelector('[data-testid="conversation-delete"]').disabled).toBe(true);
     const row = qa('[data-testid="conversation-row"]').find((r) => r.textContent.includes('Tides'));
     await act(async () => row.querySelector('[data-testid="conversation-delete"]').click());
-    expect(q('[data-testid="conversation-confirm"]').textContent).toContain('Tides');
+    expect(q('[role="dialog"] .modal-title').textContent).toBe('Delete conversation');
+    expect(q('[data-testid="conversation-confirm"]').textContent).toContain('This cannot be undone.');
     await act(async () => q('[data-testid="conversation-delete-confirm"]').click());
     expect(deleted).toEqual(['cnv_1']);
+    expect(q('[role="dialog"]')).toBeNull();
   });
 
   it('resizes a pane from the keyboard within its limits', async () => {

@@ -220,6 +220,7 @@ const de = {
     "cancel": "Abbrechen",
     "rename": "{{title}} umbenennen",
     "delete": "{{title}} löschen",
+    "deleteTitle": "Unterhaltung löschen",
     "confirmDelete": "„{{title}}“ löschen? Das lässt sich nicht rückgängig machen.",
     "deleteConfirm": "Löschen",
     "sorts": {

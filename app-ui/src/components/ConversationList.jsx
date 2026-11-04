@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tip } from './Tooltip.jsx';
 import { PencilIcon, PlusIcon, TrashIcon } from './Icons.jsx';
+import Modal from './Modal.jsx';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters.js';
 import { errorText } from '../utils/errors.js';
 import { CONVERSATION_SORTS, conversationTitle, filterConversations, sortConversations } from '../utils/lists.js';
 import { STORAGE_KEYS, readStorage, writeStorage } from '../utils/storage.js';
 
 // The signed-in user's conversations in this app, plus "New conversation". The list filters by name and sorts by
-// latest activity, oldest first, or name; each conversation can be renamed in place or deleted after a confirmation.
+// latest activity, oldest first, or name; each conversation can be renamed in place or deleted after confirming in a
+// dialog.
 // `onRename(id, title)` and `onDelete(id)` return promises; their errors show on the conversation.
 export default function ConversationList({ conversations, error, selectedId, onSelect, onNew, onRename, onDelete }) {
   const { t } = useTranslation();
@@ -104,7 +106,7 @@ export default function ConversationList({ conversations, error, selectedId, onS
         {shown.map((c) => {
           const title = conversationTitle(c, untitled);
           const selected = c.id === selectedId;
-          const failure = itemError && itemError.id === c.id ? itemError.err : null;
+          const failure = itemError && itemError.id === c.id && !(confirming && confirming.id === c.id) ? itemError.err : null;
           return (
             <li key={c.id} className="conversation-row" data-testid="conversation-row">
               {editing === c.id ? (
@@ -154,7 +156,7 @@ export default function ConversationList({ conversations, error, selectedId, onS
                       type="button"
                       className="icon-button small"
                       onClick={() => {
-                        setConfirming(c.id);
+                        setConfirming(c);
                         setEditing(null);
                         setItemError(null);
                       }}
@@ -168,19 +170,6 @@ export default function ConversationList({ conversations, error, selectedId, onS
                   </span>
                 </div>
               )}
-              {confirming === c.id ? (
-                <div className="conversation-confirm" role="alert" data-testid="conversation-confirm">
-                  <span>{t('conversations.confirmDelete', { title })}</span>
-                  <span className="conversation-confirm-actions">
-                    <button type="button" className="button danger small" onClick={() => remove(c)} disabled={busy === c.id} data-testid="conversation-delete-confirm" {...tip(t('tips.conversationDeleteConfirm'))}>
-                      {t('conversations.deleteConfirm')}
-                    </button>
-                    <button type="button" className="button ghost small" onClick={() => setConfirming(null)} {...tip(t('tips.conversationDeleteCancel'))}>
-                      {t('conversations.cancel')}
-                    </button>
-                  </span>
-                </div>
-              ) : null}
               {failure ? (
                 <p className="notice notice-error small" role="alert">
                   {errorText(t, failure)}
@@ -190,6 +179,26 @@ export default function ConversationList({ conversations, error, selectedId, onS
           );
         })}
       </ul>
+      {confirming ? (
+        <Modal title={t('conversations.deleteTitle')} onClose={() => busy !== confirming.id && setConfirming(null)}>
+          <div data-testid="conversation-confirm">
+            <p className="modal-text">{t('conversations.confirmDelete', { title: conversationTitle(confirming, untitled) })}</p>
+            {itemError && itemError.id === confirming.id ? (
+              <p className="notice notice-error small" role="alert">
+                {errorText(t, itemError.err)}
+              </p>
+            ) : null}
+            <div className="modal-actions">
+              <button type="button" className="button ghost" onClick={() => setConfirming(null)} disabled={busy === confirming.id} {...tip(t('tips.conversationDeleteCancel'))}>
+                {t('conversations.cancel')}
+              </button>
+              <button type="button" className="button danger" onClick={() => remove(confirming)} disabled={busy === confirming.id} data-testid="conversation-delete-confirm" {...tip(t('tips.conversationDeleteConfirm'))}>
+                {t('conversations.deleteConfirm')}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </nav>
   );
 }

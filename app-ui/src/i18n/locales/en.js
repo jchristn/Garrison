@@ -221,6 +221,7 @@ const en = {
     "cancel": "Cancel",
     "rename": "Rename {{title}}",
     "delete": "Delete {{title}}",
+    "deleteTitle": "Delete conversation",
     "confirmDelete": "Delete \"{{title}}\"? This cannot be undone.",
     "deleteConfirm": "Delete",
     "sorts": {

@@ -220,6 +220,7 @@ const fr = {
     "cancel": "Annuler",
     "rename": "Renommer {{title}}",
     "delete": "Supprimer {{title}}",
+    "deleteTitle": "Supprimer la conversation",
     "confirmDelete": "Supprimer « {{title}} » ? Cette action est définitive.",
     "deleteConfirm": "Supprimer",
     "sorts": {

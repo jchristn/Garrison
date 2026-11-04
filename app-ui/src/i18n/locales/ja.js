@@ -220,6 +220,7 @@ const ja = {
     "cancel": "キャンセル",
     "rename": "{{title}} の名前を変更",
     "delete": "{{title}} を削除",
+    "deleteTitle": "会話を削除",
     "confirmDelete": "「{{title}}」を削除しますか? 元に戻せません。",
     "deleteConfirm": "削除",
     "sorts": {

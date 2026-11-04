@@ -220,6 +220,7 @@ const zhHans = {
     "cancel": "取消",
     "rename": "重命名 {{title}}",
     "delete": "删除 {{title}}",
+    "deleteTitle": "删除对话",
     "confirmDelete": "删除“{{title}}”？此操作无法撤销。",
     "deleteConfirm": "删除",
     "sorts": {

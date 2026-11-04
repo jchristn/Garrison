@@ -220,6 +220,7 @@ const zhHant = {
     "cancel": "取消",
     "rename": "重新命名 {{title}}",
     "delete": "刪除 {{title}}",
+    "deleteTitle": "刪除對話",
     "confirmDelete": "刪除「{{title}}」？此動作無法復原。",
     "deleteConfirm": "刪除",
     "sorts": {

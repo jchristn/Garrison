@@ -220,6 +220,7 @@ const es = {
     "cancel": "Cancelar",
     "rename": "Cambiar el nombre de {{title}}",
     "delete": "Eliminar {{title}}",
+    "deleteTitle": "Eliminar conversación",
     "confirmDelete": "¿Eliminar «{{title}}»? No se puede deshacer.",
     "deleteConfirm": "Eliminar",
     "sorts": {
