@@ -515,7 +515,11 @@ button[aria-disabled="true"]:hover { filter: none; }
 .copy-btn:hover { background: var(--color-surface-alt); color: var(--color-text); }
 .copy-btn.is-copied { color: var(--color-success); }
 .copy-btn.is-failed { color: var(--color-danger); }
-.copyable-id { display: inline-flex; align-items: center; gap: 0.25rem; }
+.copyable-id { display: inline-flex; align-items: center; gap: 0.25rem; max-width: 100%; min-width: 0; }
+/* An ID wider than its cell is cut with an ellipsis instead of pushing the page sideways; the tooltip and the copy
+   button still give the whole value. */
+.copyable-id > code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copyable-id > .copy-btn { flex: 0 0 auto; }
 .copyable-id code { color: var(--color-text-secondary); }
 
 /* ================= Modal ================= */
@@ -800,7 +804,10 @@ button[aria-disabled="true"]:hover { filter: none; }
 .column-picker-pinned { margin-inline-start: auto; font-size: var(--font-size-xs); }
 
 /* Tabs */
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--color-border); margin-bottom: var(--spacing-md); overflow-x: auto; }
+/* The strip's bottom line is an inset shadow, so the active tab's border paints over it without a negative margin;
+   a negative margin makes the strip overflow vertically, and overflow-x: auto then shows a scrollbar. The strip
+   scrolls sideways only when its tabs do not fit. */
+.tabs { display: flex; gap: 2px; box-shadow: inset 0 -1px 0 var(--color-border); margin-bottom: var(--spacing-md); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .tab { background: none; border: none; border-bottom: 2px solid transparent; padding: var(--spacing-sm) var(--spacing-md); color: var(--color-text-secondary); font: inherit; font-size: var(--font-size-sm); cursor: pointer; white-space: nowrap; }
 .tab:hover { color: var(--color-text); }
 .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
@@ -809,7 +816,7 @@ button[aria-disabled="true"]:hover { filter: none; }
 /* Tabbed hubs (config/navConfig.js): hub title, URL-synced tab strip, compact embedded view headers. */
 .hub-header { margin-bottom: var(--spacing-sm); }
 .hub-tab-strip { margin-bottom: var(--spacing-lg); }
-.hub-tab-strip .tab { padding: 0.6rem var(--spacing-md); font-weight: 500; margin-bottom: -1px; }
+.hub-tab-strip .tab { padding: 0.6rem var(--spacing-md); font-weight: 500; }
 .hub-tab-strip .tab.active { font-weight: 600; }
 .hub-tab-panel { min-width: 0; }
 .page-header.embedded { align-items: center; margin-bottom: var(--spacing-md); }
@@ -1612,4 +1619,4 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .connection-advanced summary { cursor: pointer; padding: var(--spacing-sm) 0; color: var(--color-text-muted); font-weight: 600; }
 .connection-advanced[open] > .form-grid { margin-top: var(--spacing-md); }
 /* Workspaces use one horizontal tab row at every size. */
-.hub-tab-strip { display: flex; flex-wrap: nowrap; overflow-x: auto; }
+.hub-tab-strip { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }

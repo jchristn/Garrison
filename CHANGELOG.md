@@ -16,6 +16,12 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Fixed
 
+- App chat conversations whose turn failed or finished could not be deleted: the gateway marked every conversation with a recorded run as busy. Busy now follows the turn's real status. A running turn can be stopped: Send becomes Stop while the agent answers, backed by `POST /v1.0/apps/{slug}/conversations/{id}/stop` and `stopConversation` in every SDK.
+
+- The app chat message box uses a smaller font on wider screens (phones keep 16px so the browser does not zoom), and resizing the box no longer stretches the Send and Stop button.
+
+- Dashboard tab strips no longer show a scrollbar when every tab fits, and long IDs in detail grids are cut with an ellipsis instead of widening the page.
+
 - App chat answers that link files the agent wrote (Codex `sandbox:` links, `file:` URLs, and paths in the conversation's file listing) now download the file from the conversation file space instead of rendering as dead text.
 
 - The app chat keeps showing that the agent is working between tool calls and while an answer streams, with or without operator detail.

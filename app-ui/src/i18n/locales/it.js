@@ -64,7 +64,9 @@ const it = {
     details: "Attività dell'agente",
     loadError: 'Non è stato possibile caricare questa conversazione.',
     missing: "Conversazione non trovata. Potrebbe appartenere a un'altra sessione.",
-    busyComposer: "L'agente sta ancora rispondendo. Potrai inviare il prossimo messaggio quando avrà finito.",
+    busyComposer: 'L’agente sta ancora rispondendo. Invia il prossimo messaggio quando avrà finito, oppure usa Interrompi per chiudere questa risposta.',
+    stop: 'Interrompi',
+    stopping: 'Interruzione',
     dismiss: 'Chiudi avviso'
   },
   statuses: {
@@ -177,6 +179,7 @@ const it = {
     conversation: 'Apre questa conversazione per riprendere da dove avevi lasciato.',
     composer: "Scrivi il tuo messaggio per l'agente. Invio lo manda; Maiusc e Invio vanno a capo.",
     send: "Invia il messaggio all'agente. La risposta compare qui sotto mentre viene scritta.",
+    stop: 'Interrompe la risposta in corso dell’agente. Quello che ha già scritto resta nella conversazione e puoi inviare un nuovo messaggio.',
     dismiss: 'Nasconde questo messaggio dalla schermata.',
     retry: "Carica di nuovo l'app da capo.",
     download: 'Salva la versione attuale di questo file sul tuo dispositivo.',

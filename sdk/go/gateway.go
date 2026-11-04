@@ -283,6 +283,16 @@ func (g *AppGatewayClient) DeleteConversation(ctx context.Context, id string) er
 	return g.c.Do(ctx, http.MethodDelete, g.conversation(id, ""), nil, nil, nil)
 }
 
+// StopConversation stops the turn running in one of the owner's conversations (its run is cancelled) and returns the
+// conversation with its turns. A finished turn is left alone.
+func (g *AppGatewayClient) StopConversation(ctx context.Context, id string) (*AppConversationView, error) {
+	var out AppConversationView
+	if err := g.c.Do(ctx, http.MethodPost, g.conversation(id, "/stop"), nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // Send sends the next message in a conversation; 409 ConversationBusy while the previous turn runs.
 func (g *AppGatewayClient) Send(ctx context.Context, id, message string) (*AppTurnView, error) {
 	var out AppTurnView

@@ -269,6 +269,21 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Stop the turn running in one of the owner's conversations: its run, and the runs it delegated to, are
+        /// cancelled. A conversation whose turn already finished is returned unchanged.
+        /// </summary>
+        /// <param name="id">Conversation identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The conversation with its turns.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when id is null or empty.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success status, including 404 for another owner's conversation.</exception>
+        public async Task<AppConversationView> StopConversationAsync(string id, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            return await Transport.SendAsync<AppConversationView>(HttpMethod.Post, ConversationPath(id, "/stop"), token: token).ConfigureAwait(false) ?? new AppConversationView();
+        }
+
+        /// <summary>
         /// Send the next message in a conversation.
         /// </summary>
         /// <param name="id">Conversation identifier.</param>

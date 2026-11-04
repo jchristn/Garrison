@@ -401,6 +401,10 @@ export class AppGatewayClient {
   async deleteConversation(id: string, options?: AppRequestOptions): Promise<void> {
     await this.sendRequest("DELETE", this.conversationPath(id), { signal: options?.signal });
   }
+  /** Stop the turn running in one of the owner's conversations (its run is cancelled); answers the conversation with its turns. A finished turn is left alone. */
+  stopConversation(id: string, options?: AppRequestOptions): Promise<AppConversationView> {
+    return this.json("POST", this.conversationPath(id, "/stop"), { signal: options?.signal });
+  }
   /** Send the next message; rejects with 409 ConversationBusy while the previous turn runs, or 409 AppRateLimited. */
   send(id: string, message: string, options?: AppRequestOptions): Promise<AppTurnView> {
     return this.json("POST", this.conversationPath(id, "/messages"), { body: { message }, signal: options?.signal });

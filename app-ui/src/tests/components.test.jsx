@@ -7,6 +7,7 @@ import FilePanel from '../components/FilePanel.jsx';
 import TurnView from '../components/TurnView.jsx';
 import ConversationList from '../components/ConversationList.jsx';
 import Splitter from '../components/Splitter.jsx';
+import Composer from '../components/Composer.jsx';
 import { createGatewayClient } from '../api/gateway.js';
 import { newTurnState } from '../utils/turns.js';
 import { FakeEventSource, mockFetch } from './fakes.js';
@@ -388,5 +389,20 @@ describe('conversation list actions', () => {
     await act(async () => press('End'));
     await act(async () => press('Home'));
     expect(widths).toEqual([296, 264, 520, 200]);
+  });
+});
+
+describe('Composer', () => {
+  it('turns Send into Stop while the agent answers', async () => {
+    let stops = 0;
+    await render(<Composer onSend={async () => true} onStop={() => stops++} busy sending={false} stopping={false} />);
+    expect(q('[data-testid="send-button"]')).toBeNull();
+    await click(q('[data-testid="stop-button"]'));
+    expect(stops).toBe(1);
+    act(() => root.unmount());
+    container.remove();
+    await render(<Composer onSend={async () => true} onStop={() => stops++} busy={false} sending={false} stopping={false} />);
+    expect(q('[data-testid="stop-button"]')).toBeNull();
+    expect(q('[data-testid="send-button"]')).not.toBeNull();
   });
 });

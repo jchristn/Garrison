@@ -64,7 +64,9 @@ const fr = {
     details: "Activité de l'agent",
     loadError: "Cette conversation n'a pas pu être chargée.",
     missing: "Cette conversation est introuvable. Elle appartient peut-être à une autre session.",
-    busyComposer: "L'agent répond encore. Vous pourrez envoyer votre prochain message quand il aura terminé.",
+    busyComposer: 'L’agent répond encore. Envoyez votre prochain message quand il aura terminé, ou utilisez Arrêter pour mettre fin à cette réponse.',
+    stop: 'Arrêter',
+    stopping: 'Arrêt en cours',
     dismiss: 'Masquer'
   },
   statuses: {
@@ -177,6 +179,7 @@ const fr = {
     conversation: 'Ouvre cette conversation pour reprendre là où vous vous étiez arrêté.',
     composer: "Écrivez votre message à l'agent. Entrée l'envoie ; Maj et Entrée ajoutent une nouvelle ligne.",
     send: "Envoie votre message à l'agent. La réponse s'affiche en dessous au fur et à mesure.",
+    stop: 'Arrête la réponse en cours de l’agent. Ce qu’il a déjà écrit reste dans la conversation, et vous pouvez envoyer un nouveau message.',
     dismiss: 'Masque ce message de l\'écran.',
     retry: "Recharge l'application depuis le début.",
     download: 'Enregistre la version actuelle de ce fichier sur votre appareil.',

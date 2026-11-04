@@ -64,7 +64,9 @@ const de = {
     details: 'Aktivität des Agenten',
     loadError: 'Diese Unterhaltung konnte nicht geladen werden.',
     missing: 'Diese Unterhaltung wurde nicht gefunden. Sie gehört eventuell zu einer anderen Sitzung.',
-    busyComposer: 'Der Agent antwortet noch. Sie können Ihre nächste Nachricht senden, sobald er fertig ist.',
+    busyComposer: 'Der Agent antwortet noch. Senden Sie Ihre nächste Nachricht, sobald er fertig ist, oder beenden Sie die Antwort mit Stoppen.',
+    stop: 'Stoppen',
+    stopping: 'Wird gestoppt',
     dismiss: 'Ausblenden'
   },
   statuses: {
@@ -177,6 +179,7 @@ const de = {
     conversation: 'Öffnet diese Unterhaltung, damit Sie dort weitermachen können, wo Sie aufgehört haben.',
     composer: 'Schreiben Sie Ihre Nachricht an den Agenten. Enter sendet sie, Umschalt und Enter beginnen eine neue Zeile.',
     send: 'Sendet Ihre Nachricht an den Agenten. Die Antwort erscheint darunter, während sie entsteht.',
+    stop: 'Beendet die aktuelle Antwort des Agenten. Bereits Geschriebenes bleibt in der Unterhaltung, und Sie können eine neue Nachricht senden.',
     dismiss: 'Blendet diesen Hinweis aus.',
     retry: 'Lädt die App noch einmal.',
     download: 'Speichert die aktuelle Version dieser Datei auf Ihrem Gerät.',

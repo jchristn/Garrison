@@ -377,13 +377,14 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 }
 .composer textarea {
   width: 100%;
-  min-height: 32px;
+  min-height: 36px;
   max-height: 40vh;
   resize: vertical;
   padding: 4px var(--spacing-sm);
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }
-.send-button { align-self: stretch; min-height: 0; height: auto; }
+.send-button { align-self: end; min-height: 36px; height: 36px; }
 .composer-hint { grid-column: 1 / -1; margin: 0; font-size: var(--font-size-xs); color: var(--color-text-muted); }
 
 /* ---------------------------------------------------------------- markdown */
@@ -507,6 +508,8 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
   .send-label { display: none; }
   .chat-scroll { padding: var(--spacing-sm); }
   .composer { padding: var(--spacing-sm); }
+  /* Phones zoom into inputs under 16px, so the box keeps the base size there. */
+  .composer textarea { font-size: var(--font-size-base); }
 }
 
 @media (max-width: 420px) {

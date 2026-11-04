@@ -1892,6 +1892,11 @@ class AppGateway:
         turn is still running."""
         self.transport.request("DELETE", self._c(id))
 
+    def stop_conversation(self, id: str) -> AppConversationView:
+        """Stop the turn running in one of the owner's conversations (its run is cancelled). Returns the conversation
+        with its turns; a finished turn is left alone."""
+        return self.transport.request("POST", self._c(id, "/stop"))
+
     def send(self, id: str, message: str) -> AppTurnView:
         """Send the next message; raises GarrisonError 409 ConversationBusy while the previous turn runs."""
         return self.transport.request("POST", self._c(id, "/messages"), body={"message": message})

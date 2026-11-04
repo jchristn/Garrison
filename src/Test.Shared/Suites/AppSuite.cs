@@ -375,6 +375,35 @@ namespace Test.Shared.Suites
                     {
                         Assert.Equal(400, (int)refused.StatusCode, "A blank title is refused");
                     }
+                    // A finished conversation is not busy, so it can be deleted; stopping it changes nothing.
+                    List<AppConversationView> listed = Assert.NotNull(Serializer.Deserialize<List<AppConversationView>>(await client.GetStringAsync("/v1.0/apps/gateway/conversations", token).ConfigureAwait(false)), "List");
+                    Assert.True(listed.Single(c => c.Id == conversationId).Busy == false, "A conversation whose turns finished is not busy in the list");
+                    using (HttpResponseMessage idleStop = await client.PostAsync("/v1.0/apps/gateway/conversations/" + conversationId + "/stop", null, token).ConfigureAwait(false))
+                    {
+                        string body = await idleStop.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(200, (int)idleStop.StatusCode, "Stop when idle: " + body);
+                        Assert.True(Assert.NotNull(Serializer.Deserialize<AppConversationView>(body), "Idle stop").Turns.All(t => t.Status == RunStatusEnum.Succeeded), "Stopping an idle conversation changes no turn");
+                    }
+
+                    // A turn that never finishes keeps the conversation busy until it is stopped.
+                    Conversation stored = Assert.NotNull(await host.Server.Context.Database.Conversations.ReadAsync(host.TenantId, conversationId, token).ConfigureAwait(false), "Stored conversation");
+                    Run answered = Assert.NotNull(await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, second.Turns[1].RunId, token).ConfigureAwait(false), "Second turn run");
+                    Run hung = new Run { TenantId = host.TenantId, AgentId = entry.Id, AgentName = entry.Name, DeploymentId = answered.DeploymentId, ConversationId = conversationId, ConversationTurn = 3, InputText = "Third question", Status = RunStatusEnum.Suspended, CallerType = PrincipalTypeEnum.User };
+                    await host.Server.Context.Database.Runs.CreateAsync(hung, token).ConfigureAwait(false);
+                    stored.ActiveRunId = hung.Id;
+                    await host.Server.Context.Database.Conversations.UpdateAsync(stored, token).ConfigureAwait(false);
+                    listed = Assert.NotNull(Serializer.Deserialize<List<AppConversationView>>(await client.GetStringAsync("/v1.0/apps/gateway/conversations", token).ConfigureAwait(false)), "List while busy");
+                    Assert.True(listed.Single(c => c.Id == conversationId).Busy, "An unfinished turn makes the conversation busy");
+                    Assert.Equal(409, (int)(await client.DeleteAsync("/v1.0/apps/gateway/conversations/" + conversationId, token).ConfigureAwait(false)).StatusCode, "A busy conversation cannot be deleted");
+                    using (HttpResponseMessage stopped = await client.PostAsync("/v1.0/apps/gateway/conversations/" + conversationId + "/stop", null, token).ConfigureAwait(false))
+                    {
+                        string body = await stopped.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(200, (int)stopped.StatusCode, "Stop: " + body);
+                        AppConversationView after = Assert.NotNull(Serializer.Deserialize<AppConversationView>(body), "Stopped");
+                        Assert.Equal(RunStatusEnum.Cancelled, after.Turns.Single(t => t.RunId == hung.Id).Status, "Stop cancels the running turn");
+                        Assert.True(!after.Busy, "The stopped conversation is idle");
+                    }
+
                     using (HttpResponseMessage deleted = await client.DeleteAsync("/v1.0/apps/gateway/conversations/" + conversationId, token).ConfigureAwait(false))
                     {
                         Assert.Equal(204, (int)deleted.StatusCode, "Delete: " + await deleted.Content.ReadAsStringAsync(token).ConfigureAwait(false));

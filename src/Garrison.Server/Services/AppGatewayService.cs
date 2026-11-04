@@ -187,7 +187,14 @@ namespace Garrison.Server.Services
         {
             ConversationFilter filter = new ConversationFilter { TenantId = app.TenantId, AppId = app.Id, CallerId = session.OwnerId, MaxResults = 100 };
             EnumerationResult<Conversation> page = await _Server.Database.Conversations.EnumerateAsync(filter, token).ConfigureAwait(false);
-            return page.Objects.Select(c => View(c)).ToList();
+            ConversationService conversations = _Server.Get<ConversationService>();
+            List<AppConversationView> views = new List<AppConversationView>();
+            foreach (Conversation conversation in page.Objects)
+            {
+                token.ThrowIfCancellationRequested();
+                views.Add(View(await conversations.AnnotateAsync(conversation, token).ConfigureAwait(false)));
+            }
+            return views;
         }
 
         /// <summary>
@@ -202,7 +209,7 @@ namespace Garrison.Server.Services
         public async Task<AppConversationView> ConversationAsync(AgenticApp app, AppSession session, string? conversationId, CancellationToken token)
         {
             Conversation conversation = await OwnedAsync(app, session, conversationId, token).ConfigureAwait(false);
-            AppConversationView view = View(conversation);
+            AppConversationView view = View(await _Server.Get<ConversationService>().AnnotateAsync(conversation, token).ConfigureAwait(false));
             RunFilter filter = new RunFilter { TenantId = app.TenantId, ConversationId = conversation.Id, MaxResults = 1000, Ordering = EnumerationOrderEnum.CreatedAscending };
             EnumerationResult<Run> runs = await _Server.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
             foreach (Run run in runs.Objects) view.Turns.Add(Turn(run, app.ShowOperatorDetail));
@@ -319,7 +326,38 @@ namespace Garrison.Server.Services
             conversation.Title = title;
             conversation.LastUpdateUtc = DateTime.UtcNow;
             Conversation updated = await _Server.Database.Conversations.UpdateAsync(conversation, token).ConfigureAwait(false);
-            return View(updated);
+            return View(await _Server.Get<ConversationService>().AnnotateAsync(updated, token).ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Stop the turn running in one of the session owner's conversations: the turn's run (and the runs it delegated
+        /// to) is cancelled, so the conversation can take a new message or be deleted. Stopping a conversation whose
+        /// turn already finished changes nothing.
+        /// </summary>
+        /// <param name="app">App.</param>
+        /// <param name="session">Session.</param>
+        /// <param name="conversationId">Conversation identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The conversation with its turns, after the stop was requested.</returns>
+        /// <exception cref="NotFoundException">Thrown when the conversation is not the session owner's in this app.</exception>
+        public async Task<AppConversationView> StopAsync(AgenticApp app, AppSession session, string? conversationId, CancellationToken token)
+        {
+            Conversation conversation = await OwnedAsync(app, session, conversationId, token).ConfigureAwait(false);
+            Run? run = String.IsNullOrEmpty(conversation.ActiveRunId) ? null : await _Server.Database.Runs.ReadAsync(app.TenantId, conversation.ActiveRunId, token).ConfigureAwait(false);
+            if (run != null && run.ConversationId == conversation.Id && !RunService.IsTerminal(run.Status) && run.Status != RunStatusEnum.Cancelling)
+            {
+                try
+                {
+                    await _Server.Get<RunService>().CancelAsync(run, token).ConfigureAwait(false);
+                }
+                catch (ConflictException)
+                {
+                    // The turn finished while the stop was on its way; nothing is left to stop.
+                }
+                RequestContext ctx = new RequestContext { IsAuthenticated = true, PrincipalType = PrincipalTypeEnum.User, TenantId = app.TenantId, UserId = session.OwnerId, PrincipalName = "app " + app.Name + " for " + session.PrincipalName };
+                await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.RunCancelled, "Run", run.Id, "Stopped turn " + run.ConversationTurn + " of conversation " + conversation.Id + " of app " + app.Name + " from the app UI.", app.TenantId, token).ConfigureAwait(false);
+            }
+            return await ConversationAsync(app, session, conversation.Id, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -441,7 +479,7 @@ namespace Garrison.Server.Services
         {
             return new AppConversationView
             {
-                Id = conversation.Id, Title = conversation.Title, TurnCount = conversation.TurnCount, Busy = conversation.Busy || !String.IsNullOrEmpty(conversation.ActiveRunId),
+                Id = conversation.Id, Title = conversation.Title, TurnCount = conversation.TurnCount, Busy = conversation.Busy,
                 LastRunId = conversation.LastRunId, CreatedUtc = conversation.CreatedUtc, LastActivityUtc = conversation.LastActivityUtc
             };
         }

@@ -64,7 +64,9 @@ const es = {
     details: 'Actividad del agente',
     loadError: 'No se pudo cargar esta conversación.',
     missing: 'No se encontró esa conversación. Puede que pertenezca a otra sesión.',
-    busyComposer: 'El agente sigue respondiendo. Podrás enviar tu siguiente mensaje cuando termine.',
+    busyComposer: 'El agente sigue respondiendo. Envía tu siguiente mensaje cuando termine, o usa Detener para terminar esta respuesta.',
+    stop: 'Detener',
+    stopping: 'Deteniendo',
     dismiss: 'Descartar'
   },
   statuses: {
@@ -177,6 +179,7 @@ const es = {
     conversation: 'Abre esta conversación y sigue donde la dejaste.',
     composer: 'Escribe tu mensaje para el agente. Intro lo envía; Mayús e Intro crean una línea nueva.',
     send: 'Envía tu mensaje al agente. La respuesta aparece debajo a medida que se escribe.',
+    stop: 'Detiene la respuesta actual del agente. Lo que ya escribió se queda en la conversación y puedes enviar un mensaje nuevo.',
     dismiss: 'Oculta este mensaje de la pantalla.',
     retry: 'Vuelve a cargar la app desde el principio.',
     download: 'Guarda la versión actual de este archivo en tu dispositivo.',

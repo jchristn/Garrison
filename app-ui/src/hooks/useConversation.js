@@ -11,6 +11,7 @@ import { applyEvent, applyView, isTerminal, newTurnState } from '../utils/turns.
 export default function useConversation(client, conversationId, { onStarted, onTurnFinished, onMissing } = {}) {
   const [state, setState] = useState({ loading: !!conversationId, turns: [], error: null });
   const [sending, setSending] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const streams = useRef(new Map());
   const adopted = useRef(null);
   const callbacks = useRef({ onStarted, onTurnFinished, onMissing });
@@ -110,7 +111,20 @@ export default function useConversation(client, conversationId, { onStarted, onT
     [client, conversationId, follow]
   );
 
+  /** Stop the running turn. The server cancels its run; the turn's stream then reports the final status. */
+  const stop = useCallback(async () => {
+    if (!conversationId) return;
+    setStopping(true);
+    try {
+      const view = await client.stopConversation(conversationId);
+      const byRun = new Map((view && view.turns ? view.turns : []).map((t) => [t.runId, t]));
+      setState((s) => ({ ...s, turns: s.turns.map((turn) => (byRun.has(turn.runId) ? applyView(turn, byRun.get(turn.runId)) : turn)) }));
+    } finally {
+      setStopping(false);
+    }
+  }, [client, conversationId]);
+
   const last = state.turns[state.turns.length - 1];
   const busy = !!last && !isTerminal(last.status);
-  return { ...state, sending, busy, send };
+  return { ...state, sending, stopping, busy, send, stop };
 }

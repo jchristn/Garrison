@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tip } from './Tooltip.jsx';
-import { SendIcon } from './Icons.jsx';
+import { SendIcon, StopIcon } from './Icons.jsx';
 
 // The message box. Enter sends; Shift+Enter adds a line. While the agent is still answering, the box stays
-// editable but Send is off. A message the server refused stays in the box so it can be sent again.
-export default function Composer({ onSend, disabled, busy, sending, autoFocus }) {
+// editable and Send becomes Stop, which cancels the running turn. A message the server refused stays in the box so
+// it can be sent again.
+export default function Composer({ onSend, onStop, disabled, busy, sending, stopping, autoFocus }) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const box = useRef(null);
@@ -50,10 +51,17 @@ export default function Composer({ onSend, disabled, busy, sending, autoFocus })
         {...tip(t('tips.composer'))}
         data-testid="composer-input"
       />
-      <button type="submit" className="button primary send-button" disabled={!canSend} aria-label={t('chat.send')} {...tip(t('tips.send'))} data-testid="send-button">
-        <SendIcon />
-        <span className="send-label">{sending ? t('chat.sending') : t('chat.send')}</span>
-      </button>
+      {busy && onStop ? (
+        <button type="button" className="button danger send-button" onClick={onStop} disabled={stopping} aria-label={t('chat.stop')} {...tip(t('tips.stop'))} data-testid="stop-button">
+          <StopIcon />
+          <span className="send-label">{stopping ? t('chat.stopping') : t('chat.stop')}</span>
+        </button>
+      ) : (
+        <button type="submit" className="button primary send-button" disabled={!canSend} aria-label={t('chat.send')} {...tip(t('tips.send'))} data-testid="send-button">
+          <SendIcon />
+          <span className="send-label">{sending ? t('chat.sending') : t('chat.send')}</span>
+        </button>
+      )}
       <p id="composer-hint" className="composer-hint">
         {busy ? t('chat.busyComposer') : t('chat.composerHint')}
       </p>

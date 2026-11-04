@@ -13,7 +13,7 @@ export default function ChatPane({ info, conversation, conversationMissing, file
   const { t } = useTranslation();
   const [sendError, setSendError] = useState(null);
   const end = useRef(null);
-  const { turns, loading, error, busy, sending, send } = conversation;
+  const { turns, loading, error, busy, sending, stopping, send, stop } = conversation;
   const agentName = info.displayName || info.slug;
   const lastLength = turns.length ? turns[turns.length - 1].streamed.length : 0;
 
@@ -28,6 +28,15 @@ export default function ChatPane({ info, conversation, conversationMissing, file
     } catch (err) {
       setSendError(err);
       return false;
+    }
+  };
+
+  const onStop = async () => {
+    setSendError(null);
+    try {
+      await stop();
+    } catch (err) {
+      setSendError(err);
     }
   };
 
@@ -78,7 +87,7 @@ export default function ChatPane({ info, conversation, conversationMissing, file
           ) : null}
         </div>
       ) : null}
-      <Composer onSend={onSend} busy={busy} sending={sending} disabled={loading} autoFocus />
+      <Composer onSend={onSend} onStop={stop ? onStop : null} busy={busy} sending={sending} stopping={stopping} disabled={loading} autoFocus />
     </section>
   );
 }

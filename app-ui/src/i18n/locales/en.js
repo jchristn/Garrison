@@ -65,7 +65,9 @@ const en = {
     details: 'Agent activity',
     loadError: 'This conversation could not be loaded.',
     missing: 'That conversation was not found. It may belong to another session.',
-    busyComposer: 'The agent is still answering. You can send your next message when it finishes.',
+    busyComposer: 'The agent is still answering. Send your next message when it finishes, or use Stop to end this turn.',
+    stop: 'Stop',
+    stopping: 'Stopping',
     dismiss: 'Dismiss'
   },
   statuses: {
@@ -178,6 +180,7 @@ const en = {
     conversation: 'Open this conversation and continue where you left off.',
     composer: 'Type your message to the agent. Enter sends it; Shift and Enter start a new line.',
     send: 'Send your message to the agent. The answer appears below as it is written.',
+    stop: 'Stop the agent\'s current turn. Anything it already wrote stays in the conversation, and you can send a new message.',
     dismiss: 'Hide this error message. You can still send again.',
     retry: 'Ask the server for the app again and reload this page.',
     download: 'Save the current version of this file to your device.',
