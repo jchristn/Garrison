@@ -18,7 +18,7 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 - App chat conversations whose turn failed or finished could not be deleted: the gateway marked every conversation with a recorded run as busy. Busy now follows the turn's real status. A running turn can be stopped: Send becomes Stop while the agent answers, backed by `POST /v1.0/apps/{slug}/conversations/{id}/stop` and `stopConversation` in every SDK.
 
-- Deleting a conversation in the app chat asks in a dialog ("Delete \"title\"? This cannot be undone." with Delete and Cancel) instead of an inline prompt in the list.
+- Deleting a conversation in the app chat now asks in a confirmation dialog with Delete and Cancel, instead of an inline prompt in the list.
 
 - The app chat message box uses a smaller font on wider screens (phones keep 16px so the browser does not zoom), and resizing the box no longer stretches the Send and Stop button.
 
