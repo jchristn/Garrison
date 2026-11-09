@@ -917,10 +917,11 @@ a.button { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .tour-highlight { transition: none; } }
 
 /* Shell */
-.sidebar-utility { display: flex; align-items: center; gap: var(--spacing-sm); width: 100%; background: none; border: none; color: var(--color-text-secondary); font: inherit; font-size: var(--font-size-sm); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-md); cursor: pointer; text-align: start; }
+.sidebar-utility { display: flex; align-items: center; justify-content: flex-start; gap: var(--spacing-sm); width: 100%; background: none; border: none; color: var(--color-text-secondary); font: inherit; font-size: var(--font-size-sm); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-md); cursor: pointer; text-align: start; }
 .sidebar-utility:hover { background: var(--color-surface-alt); color: var(--color-text); }
 .sidebar-version { font-size: var(--font-size-xs); color: var(--color-text-muted); padding: var(--spacing-xs) var(--spacing-sm); }
 .sidebar-collapsed .sidebar-utility span, .sidebar-collapsed .sidebar-version { display: none; }
+.sidebar-collapsed .sidebar-utility { justify-content: center; }
 .topbar-tenant { width: auto; max-width: 220px; font-size: var(--font-size-sm); }
 .topbar-tenant select { flex-shrink: 1; height: 100%; line-height: 1; border: none; background: transparent; color: var(--color-text); padding: 0 var(--spacing-xs); font-size: var(--font-size-xs); width: auto; min-width: 0; max-width: 140px; }
 .topbar-truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

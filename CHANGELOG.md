@@ -26,6 +26,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 - Deleting a conversation in the app chat now asks in a confirmation dialog with Delete and Cancel, instead of an inline prompt in the list.
 
+- The Setup wizard and Guided tour links at the bottom of the dashboard navigation are left aligned with the rest of the menu instead of centered.
+
 - The app chat message box uses a smaller font on wider screens (phones keep 16px so the browser does not zoom), and resizing the box no longer stretches the Send and Stop button.
 
 - Dashboard tab strips no longer show a scrollbar when every tab fits, and long IDs in detail grids are cut with an ellipsis instead of widening the page.
