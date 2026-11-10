@@ -5128,3 +5128,17 @@ es.views.studio.discarded = "Se eliminó {{title}}.";
 
 es.components.studio.chat.resize = "Cambiar tamaño del chat";
 es.components.studio.chat.resizeHint = "Arrastra para cambiar el tamaño. Usa las flechas arriba o abajo para ajustar la altura, o Inicio para restablecerla.";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+es.components.secretReveal = { title: "Mostrar el valor del secreto", warning: "Al mostrarlo, el valor almacenado aparece en texto plano. Cada vez que se muestra queda registrado en el registro de auditoría con su nombre. Cierre este cuadro cuando termine; el valor no se conserva.", value: "Valor", reveal: "Mostrar", hide: "Ocultar" };
+es.tips.secretReveal = { reveal: "Descifrar y mostrar el valor almacenado. El servidor escribe un registro de auditoría SecretRevealed.", hide: "Ocultar de nuevo el valor. Mostrarlo otra vez escribe otro registro de auditoría.", close: "Cerrar el cuadro y descartar el valor mostrado.", value: "El valor descifrado, tal como está almacenado. Trátelo como una contraseña.", copy: "Copiar el valor al portapapeles." };
+es.resources.secrets.actions.reveal = "Mostrar";
+es.tips.resources.secrets.actions.reveal = "Mostrar el valor almacenado en texto plano. Requiere Admin sobre Secret (SecretManager o TenantAdmin) y queda registrado en la auditoría.";
+es.tips.resources.secrets.revealNoValue = "Este secreto aún no tiene un valor almacenado. Use primero Establecer valor.";
+es.enums.auditEventType.SecretRevealed = "Secreto mostrado";
+es.tips.enums.auditEventType.SecretRevealed = "Alguien con Admin sobre Secret leyó el valor descifrado de un secreto.";
+es.resources.secrets.subtitle = "Credenciales cifradas para harnesses e integraciones. Los administradores de secretos pueden mostrar los valores; cada consulta queda auditada.";
+es.tips.nav.tabs.secrets = "Claves de API y tokens cifrados. Los despliegues los vinculan por alias; solo los administradores de secretos pueden mostrar los valores, y cada consulta queda auditada.";
+es.tips.resources.secrets.add = "Guardar una nueva credencial, como una clave de API o un token, cifrada en reposo. Los despliegues la referencian por alias; después de guardarla, solo quien tenga Admin sobre Secret puede mostrarla.";
+es.tips.resources.secrets.value = "El valor del secreto. Se cifra al guardarlo. Quien tenga Admin sobre Secret puede mostrarlo, y cada consulta queda auditada.";
+es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de API o un token. Después de guardarlo puede reemplazarlo o rotarlo. Leerlo de nuevo está limitado a quien tenga Admin sobre Secret (los roles SecretManager y TenantAdmin), y cada consulta queda en el registro de auditoría.";

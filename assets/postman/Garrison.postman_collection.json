@@ -3022,7 +3022,7 @@
     },
     {
       "name": "Secrets",
-      "description": "Secrets are encrypted at rest and write-only: responses show only the last four characters and a fingerprint.",
+      "description": "Secrets are encrypted at rest. Metadata responses show only the last four characters and a fingerprint; the Reveal request returns the decrypted value to callers with Admin on Secret and writes a SecretRevealed audit record.",
       "item": [
         {
           "name": "List secrets",
@@ -3322,6 +3322,47 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reveal secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets/{{secretId}}/reveal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets",
+                "{{secretId}}",
+                "reveal"
+              ]
+            },
+            "description": "Returns the decrypted value with `Cache-Control: no-store`. Requires Admin on Secret (SecretManager, TenantAdmin, ResourceAdmin); SecretUser answers 403. Each call writes a `SecretRevealed` audit record. A LeaseBroker secret answers 409 `NotRevealable`, a secret with no value 409 `NoValue`, and a value the configured master keys cannot decrypt 409 `ValueUnreadable`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('response is not cacheable', function () { pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });",
+                  "pm.test('returns the rotated value', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.eql(pm.environment.get('secretId') || pm.collectionVariables.get('secretId'));",
+                  "  pm.expect(body.value).to.eql('postman-value-9012');",
+                  "  pm.expect(body.valueLast4).to.eql('9012');",
+                  "});"
                 ]
               }
             }

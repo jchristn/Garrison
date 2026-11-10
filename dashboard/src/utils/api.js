@@ -543,9 +543,14 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `secrets/${enc(id)}`));
   }
 
-  /** Set a secret value (write-only). */
+  /** Set a secret value. */
   setSecretValue(tenantId, id, value) {
     return this._request('PUT', this._t(tenantId, `secrets/${enc(id)}/value`), { body: { value } });
+  }
+
+  /** Reveal a secret's stored value (Admin on Secret). Every call writes a SecretRevealed audit record. */
+  revealSecret(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `secrets/${enc(id)}/reveal`));
   }
 
   rotateSecret(tenantId, id, value) {

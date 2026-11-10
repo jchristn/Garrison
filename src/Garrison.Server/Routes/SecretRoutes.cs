@@ -15,7 +15,8 @@ namespace Garrison.Server.Routes
     using WatsonWebserver.Core;
 
     /// <summary>
-    /// Secret routes. Values are write-only: responses carry metadata (kind, last four characters, fingerprint) only.
+    /// Secret routes. Responses carry metadata (kind, last four characters, fingerprint) only, except the reveal route,
+    /// which returns the decrypted value to callers holding Admin on Secret and writes a SecretRevealed audit record.
     /// </summary>
     public class SecretRoutes
     {
@@ -54,6 +55,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Secret, OperationTypeEnum.Update, UpdateAsync, "Update secret metadata (and value when supplied)", "Secrets", typeof(SecretRequest), typeof(Secret));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}/value", ResourceTypeEnum.Secret, OperationTypeEnum.Update, SetValueAsync, "Set a secret value", "Secrets", typeof(SecretValueRequest), typeof(Secret));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/rotate", ResourceTypeEnum.Secret, OperationTypeEnum.Update, SetValueAsync, "Rotate a secret value", "Secrets", typeof(SecretValueRequest), typeof(Secret));
+            routes.Scoped(HttpMethod.POST, _Base + "/{id}/reveal", ResourceTypeEnum.Secret, OperationTypeEnum.Admin, RevealAsync, "Reveal a secret value", "Secrets", null, typeof(SecretRevealResponse));
             routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Secret, OperationTypeEnum.Delete, DeleteAsync, "Delete a secret", "Secrets");
         }
 
@@ -131,6 +133,34 @@ namespace Garrison.Server.Routes
             Secret updated = await _Server.Database.Secrets.UpdateAsync(secret, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretChanged, "Secret", updated.Id, "Set the value of secret " + updated.Name + ".").ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
+        }
+
+        private async Task RevealAsync(HttpContextBase http)
+        {
+            Secret secret = await LoadAsync(http).ConfigureAwait(false);
+            if (secret.Kind == SecretKindEnum.LeaseBroker) throw new ConflictException("NotRevealable", "Secret " + secret.Name + " is a LeaseBroker secret. It stores provider metadata only, so there is no value to reveal.");
+            if (String.IsNullOrEmpty(secret.ValueEncrypted)) throw new ConflictException("NoValue", "Secret " + secret.Name + " has no stored value. Set a value before revealing it.");
+            string value;
+            try
+            {
+                value = _Server.Cipher.Decrypt(secret.ValueEncrypted, secret.Id);
+            }
+            catch (Exception e) when (e is System.Security.Cryptography.CryptographicException || e is FormatException)
+            {
+                throw new ConflictException("ValueUnreadable", "The value of secret " + secret.Name + " could not be decrypted with the configured master keys. Set a new value.");
+            }
+
+            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretRevealed, "Secret", secret.Id, "Revealed the value of secret " + secret.Name + ".").ConfigureAwait(false);
+            SecretRevealResponse response = new SecretRevealResponse();
+            response.Id = secret.Id;
+            response.Name = secret.Name;
+            response.Kind = secret.Kind;
+            response.Value = value;
+            response.ValueLast4 = secret.ValueLast4;
+            response.RevealedUtc = DateTime.UtcNow;
+            http.Response.Headers["Cache-Control"] = "no-store";
+            http.Response.Headers["Pragma"] = "no-cache";
+            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
         }
 
         private async Task DeleteAsync(HttpContextBase http)

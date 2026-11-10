@@ -41,7 +41,8 @@ namespace Test.Shared.Suites
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "builtin-profiles", "Every built-in harness profile is immutable and can be cloned and updated (" + provider + ")", ct => BuiltInProfilesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "prompt-versions", "Prompt templates version on update, restore, clone, reset, and render (" + provider + ")", ct => PromptVersionsAsync(provider, ct)));
-                cases.Add(new TestCaseDescriptor(id, "secrets", "Secret values are write-only and in-use secrets cannot be deleted (" + provider + ")", ct => SecretsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "secrets", "Secret metadata responses never carry the value and in-use secrets cannot be deleted (" + provider + ")", ct => SecretsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "secret-reveal", "Revealing a secret returns its value with no-store, is audited, refuses LeaseBroker and empty secrets, and needs Admin on Secret (" + provider + ")", ct => SecretRevealAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "deployments", "Deployments validate references, default prompt bindings, version on update, and preview (" + provider + ")", ct => DeploymentsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifests dry-run, apply, re-apply unchanged, export, and reject bad references (" + provider + ")", ct => ManifestsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifest-reference-cache", "I-06: one apply reads each referenced record once (harness profile reads do not grow with documents) for dry run, apply, and re-apply, and references to documents created or updated in the same apply still resolve (" + provider + ")", ct => ManifestReferenceCacheAsync(provider, ct)));
@@ -137,6 +138,69 @@ namespace Test.Shared.Suites
                 TestResponse deleted = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/secrets/" + secret.Id, null, token).ConfigureAwait(false);
                 Assert.Equal(204, deleted.StatusCode, "delete after unbinding");
                 Assert.True(String.IsNullOrEmpty(deleted.Body), "204 has no body: " + deleted.Body);
+            }
+        }
+
+        private static async Task SecretRevealAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string b = T(host) + "/secrets";
+                Secret secret = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, b, new SecretRequest { Name = "reveal-me", Kind = SecretKindEnum.AnthropicApiKey, Value = "sk-ant-reveal-5678" }, 201, token).ConfigureAwait(false);
+
+                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, b + "/" + secret.Id + "/reveal"))
+                {
+                    using (HttpResponseMessage response = await host.AdminClient.SendAsync(request, token).ConfigureAwait(false))
+                    {
+                        string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.Equal(200, (int)response.StatusCode, "reveal: " + body);
+                        Assert.True(response.Headers.CacheControl != null && response.Headers.CacheControl.NoStore, "reveal answers Cache-Control no-store");
+                        SecretRevealResponse revealed = Serializer.Deserialize<SecretRevealResponse>(body)!;
+                        Assert.Equal("sk-ant-reveal-5678", revealed.Value, "revealed value");
+                        Assert.Equal(secret.Id, revealed.Id, "revealed id");
+                        Assert.Equal("reveal-me", revealed.Name, "revealed name");
+                        Assert.Equal(SecretKindEnum.AnthropicApiKey, revealed.Kind, "revealed kind");
+                        Assert.Equal("5678", revealed.ValueLast4, "revealed last four");
+                    }
+                }
+
+                await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, b + "/" + secret.Id + "/rotate", new SecretValueRequest { Value = "sk-ant-rotated-4321" }, 200, token).ConfigureAwait(false);
+                SecretRevealResponse afterRotate = await HttpTestHelpers.SendAsync<SecretRevealResponse>(host.AdminClient, HttpMethod.Post, b + "/" + secret.Id + "/reveal", null, 200, token).ConfigureAwait(false);
+                Assert.Equal("sk-ant-rotated-4321", afterRotate.Value, "reveal follows rotation");
+
+                AuditPage audit = await HttpTestHelpers.SendAsync<AuditPage>(host.AdminClient, HttpMethod.Get, T(host) + "/audit?eventType=SecretRevealed&maxResults=100", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(2, audit.Objects.Count(r => r.EventType == AuditEventTypeEnum.SecretRevealed && r.ResourceId == secret.Id), "each reveal writes a SecretRevealed audit record");
+                Assert.True(audit.Objects.All(r => r.Description == null || !r.Description.Contains("sk-ant", StringComparison.Ordinal)), "audit records never carry the value");
+
+                Secret empty = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, b, new SecretRequest { Name = "no-value", Kind = SecretKindEnum.GenericEnv }, 201, token).ConfigureAwait(false);
+                TestResponse noValue = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, b + "/" + empty.Id + "/reveal", null, token).ConfigureAwait(false);
+                Assert.Equal(409, noValue.StatusCode, "a secret without a value: " + noValue.Body);
+                Assert.True(noValue.Body.Contains("NoValue", StringComparison.Ordinal), "code NoValue: " + noValue.Body);
+
+                Secret broker = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, b, new SecretRequest { Name = "broker", Kind = SecretKindEnum.LeaseBroker, BrokerResource = "arn:aws:iam::123456789012:role/agents" }, 201, token).ConfigureAwait(false);
+                TestResponse brokered = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, b + "/" + broker.Id + "/reveal", null, token).ConfigureAwait(false);
+                Assert.Equal(409, brokered.StatusCode, "a LeaseBroker secret: " + brokered.Body);
+                Assert.True(brokered.Body.Contains("NotRevealable", StringComparison.Ordinal), "code NotRevealable: " + brokered.Body);
+
+                TestResponse unknown = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, b + "/sec_doesnotexist/reveal", null, token).ConfigureAwait(false);
+                Assert.Equal(404, unknown.StatusCode, "unknown secret");
+
+                User user = await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, T(host) + "/users", new UserRequest { Email = "secret-user@example.com", Password = "password123" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<UserRoleAssignment>(host.AdminClient, HttpMethod.Post, T(host) + "/user-role-assignments", new AssignmentRequest { UserId = user.Id, RoleName = BuiltInRoles.SecretUser }, 201, token).ConfigureAwait(false);
+                User manager = await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, T(host) + "/users", new UserRequest { Email = "secret-manager@example.com", Password = "password123" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<UserRoleAssignment>(host.AdminClient, HttpMethod.Post, T(host) + "/user-role-assignments", new AssignmentRequest { UserId = manager.Id, RoleName = BuiltInRoles.SecretManager }, 201, token).ConfigureAwait(false);
+                using (HttpClient userClient = await host.UserClientAsync(user.Email, "password123", host.TenantId, token).ConfigureAwait(false))
+                {
+                    await HttpTestHelpers.SendAsync<Secret>(userClient, HttpMethod.Get, b + "/" + secret.Id, null, 200, token).ConfigureAwait(false);
+                    TestResponse denied = await HttpTestHelpers.SendAsync(userClient, HttpMethod.Post, b + "/" + secret.Id + "/reveal", null, token).ConfigureAwait(false);
+                    Assert.Equal(403, denied.StatusCode, "SecretUser holds Read and Execute but not Admin: " + denied.Body);
+                    Assert.True(!denied.Body.Contains("sk-ant", StringComparison.Ordinal), "a denied reveal carries no value");
+                }
+                using (HttpClient managerClient = await host.UserClientAsync(manager.Email, "password123", host.TenantId, token).ConfigureAwait(false))
+                {
+                    SecretRevealResponse allowed = await HttpTestHelpers.SendAsync<SecretRevealResponse>(managerClient, HttpMethod.Post, b + "/" + secret.Id + "/reveal", null, 200, token).ConfigureAwait(false);
+                    Assert.Equal("sk-ant-rotated-4321", allowed.Value, "SecretManager may reveal");
+                }
             }
         }
 

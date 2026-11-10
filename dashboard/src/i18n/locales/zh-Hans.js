@@ -5076,3 +5076,17 @@ zhHans.views.studio.discarded = "已删除 {{title}}。";
 
 zhHans.components.studio.chat.resize = "调整聊天大小";
 zhHans.components.studio.chat.resizeHint = "拖动以调整聊天大小。使用上下方向键调整高度，或按 Home 重置。";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+zhHans.components.secretReveal = { title: "显示密钥值", warning: "显示后，存储的值将以明文呈现。每次显示都会以你的名字记录在审计日志中。完成后请关闭此对话框；该值不会被保留。", value: "值", reveal: "显示", hide: "隐藏" };
+zhHans.tips.secretReveal = { reveal: "解密并显示存储的值。服务器会写入一条 SecretRevealed 审计记录。", hide: "再次隐藏该值。再次显示会写入另一条审计记录。", close: "关闭对话框并丢弃显示的值。", value: "解密后的值，与存储的完全一致。请像对待密码一样对待它。", copy: "将该值复制到剪贴板。" };
+zhHans.resources.secrets.actions.reveal = "显示";
+zhHans.tips.resources.secrets.actions.reveal = "以明文显示存储的值。需要 Secret 的 Admin 权限 (SecretManager 或 TenantAdmin)，并会记录在审计日志中。";
+zhHans.tips.resources.secrets.revealNoValue = "此密钥尚未存储值。请先使用“设置值”。";
+zhHans.enums.auditEventType.SecretRevealed = "密钥已显示";
+zhHans.tips.enums.auditEventType.SecretRevealed = "拥有 Secret Admin 权限的人读取了某个密钥解密后的值。";
+zhHans.resources.secrets.subtitle = "供 harness 和集成使用的加密凭据。密钥管理员可以显示值；每次显示都会被审计。";
+zhHans.tips.nav.tabs.secrets = "加密的 API 密钥和令牌。部署通过别名绑定它们；只有密钥管理员可以显示值，每次显示都会被审计。";
+zhHans.tips.resources.secrets.add = "存储新的凭据，例如 API 密钥或令牌，静态加密。部署通过别名引用它；保存后，只有拥有 Secret Admin 权限的人可以显示它。";
+zhHans.tips.resources.secrets.value = "密钥值。保存时会加密。拥有 Secret Admin 权限的人可以显示它，每次显示都会被审计。";
+zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥或令牌。保存后你可以替换或轮换它。只有拥有 Secret Admin 权限的人 (SecretManager 和 TenantAdmin 角色) 才能读回它，每次显示都会记录在审计日志中。";

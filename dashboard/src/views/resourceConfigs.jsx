@@ -7,6 +7,7 @@ import CopyableId from '../components/CopyableId';
 import { Badge, ActiveBadge } from '../components/StatusBadge';
 import SecretOnceModal from '../components/SecretOnceModal';
 import ValuePromptModal from '../components/ValuePromptModal';
+import SecretRevealModal from '../components/SecretRevealModal';
 import EffectivePermissionsModal from '../components/EffectivePermissionsModal';
 import McpTestModal from '../components/McpTestModal';
 import CompilePreviewModal from '../components/CompilePreviewModal';
@@ -34,6 +35,7 @@ import AgentAssetVersionsModal from '../components/AgentAssetVersionsModal';
 import { ASSET_KINDS } from '../utils/assets';
 import CapabilityDetail, { CapabilityHints, CapabilitySource } from '../components/CapabilityDetail';
 import CapabilityRefreshModal from '../components/CapabilityRefreshModal';
+import { holds, loadCallerPermissions } from '../utils/apps';
 import { RefreshIcon, WandIcon } from '../components/Icons';
 import { translateServerText } from '../utils/serverText';
 import {
@@ -661,6 +663,15 @@ function secretCredentialNotice(r, t, i18n) {
   return parts.length ? <>{parts}</> : null;
 }
 
+/** Why Reveal is unavailable for a secret row: no stored value, or the caller lacks Admin on Secret. '' when allowed. */
+export function secretRevealBlocked(r, { t, lookups }) {
+  if (r && r.id && r.kind !== 'LeaseBroker' && r.valueLast4 == null && r.fingerprint == null) return t('tips.resources.secrets.revealNoValue');
+  if (!holds(lookups?.permissions, 'Secret', 'Admin', { resourceId: r?.id || null })) {
+    return t('tips.apps.denied', { operation: enumLabel(t, 'operationType', 'Admin'), resource: enumLabel(t, 'resourceType', 'Secret') });
+  }
+  return '';
+}
+
 export const secretsConfig = {
   id: 'secrets',
   explainer: 'secrets',
@@ -703,8 +714,25 @@ export const secretsConfig = {
     return body;
   },
   canDuplicate: false,
+  // The caller's grants decide whether Reveal is enabled: it needs Admin on Secret (SecretManager, TenantAdmin).
+  loadLookups: async ({ apiClient, tenantId, principal }) => ({ permissions: await loadCallerPermissions(apiClient, tenantId, principal) }),
   formNotice: (r, { t, i18n }) => secretCredentialNotice(r, t, i18n),
   rowActions: (r, ctx) => [
+    {
+      label: ctx.t('resources.secrets.actions.reveal'),
+      tip: secretRevealBlocked(r, ctx) || actionTip(ctx.t, 'secrets', 'reveal'),
+      hidden: r.kind === 'LeaseBroker',
+      disabled: !!secretRevealBlocked(r, ctx),
+      onClick: () =>
+        ctx.setExtraModal(
+          <SecretRevealModal
+            name={r.name}
+            multiline={MULTILINE_SECRET_KINDS.includes(r.kind)}
+            load={() => ctx.apiClient.revealSecret(ctx.tenantId, r.id)}
+            onClose={() => ctx.setExtraModal(null)}
+          />
+        )
+    },
     {
       label: ctx.t('resources.secrets.actions.setValue'),
       tip: actionTip(ctx.t, 'secrets', 'setValue'),

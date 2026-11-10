@@ -5124,3 +5124,17 @@ fr.views.studio.discarded = "{{title}} supprimé.";
 
 fr.components.studio.chat.resize = "Redimensionner le chat";
 fr.components.studio.chat.resizeHint = "Faites glisser pour redimensionner. Utilisez les flèches haut ou bas pour régler la hauteur, ou Début pour la réinitialiser.";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+fr.components.secretReveal = { title: "Afficher la valeur du secret", warning: "L’affichage montre la valeur stockée en clair. Chaque affichage est consigné dans le journal d’audit à votre nom. Fermez cette fenêtre une fois terminé ; la valeur n’est pas conservée.", value: "Valeur", reveal: "Afficher", hide: "Masquer" };
+fr.tips.secretReveal = { reveal: "Déchiffrer et afficher la valeur stockée. Le serveur écrit un enregistrement d’audit SecretRevealed.", hide: "Masquer à nouveau la valeur. L’afficher encore écrit un autre enregistrement d’audit.", close: "Fermer la fenêtre et oublier la valeur affichée.", value: "La valeur déchiffrée, telle qu’elle est stockée. Traitez-la comme un mot de passe.", copy: "Copier la valeur dans le presse-papiers." };
+fr.resources.secrets.actions.reveal = "Afficher";
+fr.tips.resources.secrets.actions.reveal = "Afficher la valeur stockée en clair. Nécessite Admin sur Secret (SecretManager ou TenantAdmin) et est consigné dans le journal d’audit.";
+fr.tips.resources.secrets.revealNoValue = "Ce secret n’a pas encore de valeur stockée. Utilisez d’abord Définir la valeur.";
+fr.enums.auditEventType.SecretRevealed = "Secret affiché";
+fr.tips.enums.auditEventType.SecretRevealed = "Une personne disposant d’Admin sur Secret a lu la valeur déchiffrée d’un secret.";
+fr.resources.secrets.subtitle = "Identifiants chiffrés pour les harnesses et les intégrations. Les gestionnaires de secrets peuvent afficher les valeurs ; chaque affichage est audité.";
+fr.tips.nav.tabs.secrets = "Clés d’API et jetons chiffrés. Les déploiements les lient par alias ; seuls les gestionnaires de secrets peuvent afficher les valeurs, et chaque affichage est audité.";
+fr.tips.resources.secrets.add = "Enregistrer un nouvel identifiant, comme une clé d’API ou un jeton, chiffré au repos. Les déploiements le référencent par alias ; après l’enregistrement, seules les personnes disposant d’Admin sur Secret peuvent l’afficher.";
+fr.tips.resources.secrets.value = "La valeur du secret. Elle est chiffrée à l’enregistrement. Les personnes disposant d’Admin sur Secret peuvent l’afficher, et chaque affichage est audité.";
+fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d’API ou un jeton. Après l’enregistrement, vous pouvez la remplacer ou la faire tourner. Sa relecture est réservée aux personnes disposant d’Admin sur Secret (les rôles SecretManager et TenantAdmin), et chaque affichage est consigné dans le journal d’audit.";

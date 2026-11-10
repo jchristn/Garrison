@@ -1378,7 +1378,7 @@ export const SECRET_STATUSES = ["Ok", "NeedsReauthentication"] as const;
 /** One of {@link SECRET_STATUSES}. */
 export type SecretStatus = typeof SECRET_STATUSES[number];
 
-/** Secret metadata. The value is write-only and never returned. */
+/** Secret metadata. get and list never include the value; Secrets.reveal returns it to callers holding Admin on Secret. */
 export interface Secret extends Json {
   brokerResource?: string | null; brokerAudience?: string | null;
   id: string; tenantId: string; name: string; description?: string; kind: string; valueLast4?: string;
@@ -1394,6 +1394,19 @@ export interface Secret extends Json {
   /** Expiry of the stored ChatGPT access token (CodexAuthJson only), or absent. */
   accessTokenExpiresUtc?: string;
   createdUtc: string; lastUpdateUtc: string;
+}
+
+/** Secrets.reveal result: the decrypted value of one secret. Show it briefly and never store it. */
+export interface SecretReveal {
+  id: string; name: string;
+  /** Secret kind, for example GenericEnv or AnthropicApiKey. */
+  kind: string;
+  /** The decrypted value. */
+  value: string;
+  /** Last four characters of the value, or null when the server did not record them. */
+  valueLast4?: string | null;
+  /** When the server decrypted the value (ISO 8601, UTC). */
+  revealedUtc: string;
 }
 
 /**
@@ -2107,6 +2120,13 @@ export class McpServers extends Resource<McpServer> {
 export class Secrets extends Resource {
   setValue(id: string, value: string): Promise<Json> { return this.t.request("PUT", this.item(id) + "/value", undefined, { value }); }
   rotate(id: string, value: string): Promise<Json> { return this.t.request("POST", this.item(id) + "/rotate", undefined, { value }); }
+  /**
+   * Return the decrypted value of a secret. Needs Admin on Secret (SecretManager, TenantAdmin, or ResourceAdmin hold it;
+   * others get 403), and every call writes a SecretRevealed audit record. Rejects with GarrisonError 404 for an unknown
+   * secret, or 409 with code NotRevealable (LeaseBroker secret), NoValue (nothing stored), or ValueUnreadable (the
+   * configured master keys cannot decrypt it).
+   */
+  reveal(id: string): Promise<SecretReveal> { return this.t.request("POST", this.item(id) + "/reveal"); }
 }
 
 export class Manifests {

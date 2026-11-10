@@ -76,6 +76,11 @@ namespace Garrison.Sdk.Enums
         SecretChanged,
 
         /// <summary>
+        /// A caller with Admin on Secret read a secret's decrypted value through the reveal route.
+        /// </summary>
+        SecretRevealed,
+
+        /// <summary>
         /// SettingsChanged.
         /// </summary>
         SettingsChanged,

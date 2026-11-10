@@ -5,7 +5,7 @@ namespace Garrison.Core.Requests
     using Garrison.Core.Enums;
 
     /// <summary>
-    /// Create or update a secret. The value is write-only and never returned.
+    /// Create or update a secret. Responses never echo the value; only the reveal route returns it.
     /// </summary>
     public class SecretRequest
     {

@@ -646,7 +646,21 @@ await check("scheduling, pinned sessions, remote admission, and key rotation", a
     let refused = false;
     try { await client.secrets.setValue(read.id, "forbidden-static-value"); } catch (error) { refused = error.statusCode === 400; }
     require(refused, "broker metadata rejects reusable static values");
+    let revealCode;
+    try { await client.secrets.reveal(read.id); } catch (error) { revealCode = error.statusCode === 409 ? error.code : `status ${error.statusCode}`; }
+    require(revealCode === "NotRevealable", `broker reveal must be 409 NotRevealable, got ${revealCode}`);
   } finally { await client.secrets.delete(brokerMetadata.id); }
+  const revealable = await client.secrets.create({ name: `sdk-js-reveal-${suffix}`, kind: "GenericEnv", value: `sdk-js-reveal-one-${suffix}` });
+  try {
+    const first = await client.secrets.reveal(revealable.id);
+    require(first.id === revealable.id && first.name === revealable.name && first.kind === "GenericEnv" && first.value === `sdk-js-reveal-one-${suffix}`, "reveal returns the created value");
+    await client.secrets.rotate(revealable.id, `sdk-js-reveal-two-${suffix}`);
+    const second = await client.secrets.reveal(revealable.id);
+    require(second.value === `sdk-js-reveal-two-${suffix}` && second.valueLast4 === second.value.slice(-4) && second.revealedUtc, "reveal returns the rotated value");
+    let missingStatus;
+    try { await client.secrets.reveal("sec_missing_sdk_js"); } catch (error) { missingStatus = error.statusCode; }
+    require(missingStatus === 404, "unknown secret reveal must be 404");
+  } finally { await client.secrets.delete(revealable.id); }
   const pinned = await client.harnessProfiles.create({ name: `sdk-js-session-${suffix}`, harnessType: "Generic", executable: "garrison-fake-harness", sessionFormat: "sdk-fixture-v1" });
   try { require((await client.harnessProfiles.get(pinned.id)).sessionFormat === "sdk-fixture-v1", "session format round trip"); }
   finally { await client.harnessProfiles.delete(pinned.id); }

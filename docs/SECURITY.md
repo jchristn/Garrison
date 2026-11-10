@@ -125,7 +125,7 @@ Denials are audited with the permission that was missing, and the response carri
 | `AgentDeveloper` | Author harness profiles, prompts, agents, deployments, MCP servers, and workspaces; invoke agents |
 | `AgentOperator` | Operate runs and conversations (read, cancel, retry, delete), decide permission approvals, and observe nodes |
 | `AgentInvoker` | Invoke agents and read runs and conversations; meant for integration credentials |
-| `SecretManager` | Manage secrets and use them in configuration |
+| `SecretManager` | Manage secrets, reveal their values, and use them in configuration |
 | `SecretUser` | Use secrets in configuration (`Execute` on `Secret`) without managing them; assign with resource scope to allow one secret |
 | `NodeAgent` | The node protocol only; for worker credentials |
 | `AgentRegistrar` | Self-registration of remote agents |
@@ -355,7 +355,9 @@ Harness processes are started with an argument list, never through a shell, and 
 
 ## Configuration authors and tenant secrets
 
-Secret values are never returned by the API. Sending a secret somewhere through configuration is a separate permission, `Execute` on `Secret` ("use"), which `TenantAdmin`, `SecretManager`, and `SecretUser` hold and `Editor` and `AgentDeveloper` do not (SR-10). It is checked, for each secret involved, whenever someone saves configuration that would send a secret's value somewhere:
+Secret values are never returned by the API, with one audited exception: `POST .../secrets/{id}/reveal` returns the decrypted value to a caller with `Admin` on `Secret`. `TenantAdmin`, `SecretManager`, and `ResourceAdmin` hold it; `SecretUser`, `Editor`, and `AgentDeveloper` do not. Each reveal writes a `SecretRevealed` audit record (the value is never in it), the response carries `Cache-Control: no-store`, and request history redacts the body. The dashboard's Reveal action fetches only when the person confirms and discards the value when the dialog closes. There is no MCP tool for it, so agents cannot reveal secrets through Garrison's MCP server.
+
+Sending a secret somewhere through configuration is a separate permission, `Execute` on `Secret` ("use"), which `TenantAdmin`, `SecretManager`, and `SecretUser` hold and `Editor` and `AgentDeveloper` do not (SR-10). It is checked, for each secret involved, whenever someone saves configuration that would send a secret's value somewhere:
 
 - a deployment that binds secrets (every bound secret, on every save, since any change to a deployment can change where its secrets go);
 - an MCP server or harness profile whose templates reference secrets, for the secrets of every deployment that uses it;
@@ -413,7 +415,7 @@ The session token is kept in `localStorage`, so script running in the dashboard'
 
 ## Audit
 
-Garrison records authentication successes and failures, sessions issued and revoked, credential creation, rotation, and use, authorization denials and administrator bypasses, changes to roles, permissions, assignments, configuration, secrets, and settings, restarts, manifest applies, node registration and status changes, run cancellations, permission approval decisions, trigger and notification endpoint changes, manual trigger fires, and signing secret rotations (`SigningSecretRotated`). Read them at `GET .../audit` with the `Audit` permission. They are kept for `Audit.RetentionDays` (365).
+Garrison records authentication successes and failures, sessions issued and revoked, credential creation, rotation, and use, authorization denials and administrator bypasses, changes to roles, permissions, assignments, configuration, secrets, and settings, secret reveals (`SecretRevealed`), restarts, manifest applies, node registration and status changes, run cancellations, permission approval decisions, trigger and notification endpoint changes, manual trigger fires, and signing secret rotations (`SigningSecretRotated`). Read them at `GET .../audit` with the `Audit` permission. They are kept for `Audit.RetentionDays` (365).
 
 ## Reporting a vulnerability
 

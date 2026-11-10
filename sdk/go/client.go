@@ -98,7 +98,7 @@ type Client struct {
 	HarnessProfiles            *HarnessProfilesClient
 	PromptTemplates            *PromptTemplatesClient
 	McpServers                 *Resource
-	Secrets                    *Resource
+	Secrets                    *SecretsClient
 	WorkspaceTemplates         *Resource
 	ArtifactStores             *Resource
 	Artifacts                  *ArtifactsClient
@@ -147,7 +147,7 @@ func NewClient(baseURL string) *Client {
 	c.HarnessProfiles = &HarnessProfilesClient{Resource{c: c, segment: "harness-profiles"}}
 	c.PromptTemplates = &PromptTemplatesClient{Resource{c: c, segment: "prompt-templates"}}
 	c.McpServers = &Resource{c: c, segment: "mcp-servers"}
-	c.Secrets = &Resource{c: c, segment: "secrets"}
+	c.Secrets = &SecretsClient{Resource{c: c, segment: "secrets"}}
 	c.WorkspaceTemplates = &Resource{c: c, segment: "workspace-templates"}
 	c.ArtifactStores = &Resource{c: c, segment: "artifact-stores"}
 	c.Artifacts = &ArtifactsClient{c: c}

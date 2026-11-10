@@ -176,7 +176,7 @@ export const ENUMS = {
   fanOutGroupStatus: ['Running', 'Joined', 'TimedOut', 'BudgetExceeded', 'Cancelled'],
   fanOutJoinPolicy: ['All', 'Any', 'Quorum'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SecretRevealed', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull'],
   // Permission approvals (P12.3).
   approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
   approvalDecision: ['Allow', 'Deny'],

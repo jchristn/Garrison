@@ -5075,3 +5075,17 @@ yueHant.views.studio.discarded = "已刪除 {{title}}。";
 
 yueHant.components.studio.chat.resize = "調整聊天大小";
 yueHant.components.studio.chat.resizeHint = "拖動調整聊天大小。用上下方向鍵調整高度，或者撳 Home 重設。";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+yueHant.components.secretReveal = { title: "顯示密鑰值", warning: "顯示之後，儲存咗嘅值會以明文出現。每次顯示都會用你個名記錄喺稽核日誌。用完就關咗呢個對話框；個值唔會保留。", value: "值", reveal: "顯示", hide: "隱藏" };
+yueHant.tips.secretReveal = { reveal: "解密並顯示儲存咗嘅值。伺服器會寫一條 SecretRevealed 稽核記錄。", hide: "再次隱藏個值。再顯示一次會再寫多一條稽核記錄。", close: "關閉對話框，丟棄顯示咗嘅值。", value: "解密後嘅值，同儲存嘅一模一樣。當佢係密碼咁處理。", copy: "將個值複製去剪貼簿。" };
+yueHant.resources.secrets.actions.reveal = "顯示";
+yueHant.tips.resources.secrets.actions.reveal = "以明文顯示儲存咗嘅值。需要 Secret 嘅 Admin 權限 (SecretManager 或者 TenantAdmin)，而且會記錄喺稽核日誌。";
+yueHant.tips.resources.secrets.revealNoValue = "呢個密鑰仲未有儲存值。請先用「設定值」。";
+yueHant.enums.auditEventType.SecretRevealed = "密鑰已顯示";
+yueHant.tips.enums.auditEventType.SecretRevealed = "有 Secret Admin 權限嘅人讀取咗一個密鑰解密後嘅值。";
+yueHant.resources.secrets.subtitle = "畀 harness 同整合用嘅加密憑證。密鑰管理員可以顯示值；每次顯示都會稽核。";
+yueHant.tips.nav.tabs.secrets = "加密嘅 API 金鑰同權杖。部署用別名綁定佢哋；只有密鑰管理員可以顯示值，每次顯示都會稽核。";
+yueHant.tips.resources.secrets.add = "儲存一個新憑證，例如 API 金鑰或者權杖，靜態時加密。部署用別名引用佢；儲存之後，只有具備 Secret Admin 權限嘅人可以顯示佢。";
+yueHant.tips.resources.secrets.value = "密鑰值。儲存時會加密。具備 Secret Admin 權限嘅人可以顯示佢，每次顯示都會稽核。";
+yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰或者權杖。儲存之後你可以取代或者輪替佢。只有具備 Secret Admin 權限嘅人 (SecretManager 同 TenantAdmin 角色) 先可以讀返佢，每次顯示都會記錄喺稽核日誌。";

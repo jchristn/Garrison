@@ -71,6 +71,8 @@ The Agent Studio release. Garrison stays a horizontally elastic runtime for head
 
 ### Added
 
+- Secrets can be revealed. `POST /v1.0/api/tenants/{tenantId}/secrets/{id}/reveal` returns the decrypted value to callers with Admin on Secret (`TenantAdmin`, `SecretManager`, `ResourceAdmin`; `SecretUser` gets 403), with `Cache-Control: no-store`, and writes a new `SecretRevealed` audit record each time. LeaseBroker secrets answer 409 `NotRevealable`, secrets without a value 409 `NoValue`, and values the master keys cannot decrypt 409 `ValueUnreadable`. The dashboard Secrets page has a Reveal action that fetches only when you confirm, offers copy, and drops the value when hidden or closed; it is disabled without the permission. Added `Secrets.RevealAsync` (C#), `secrets.reveal` (Python, JavaScript), and `Secrets.Reveal` (Go, which also gains typed `SetValue` and `Rotate`), a Postman request, REST and security docs, and Touchstone, dashboard, and SDK harness tests. There is no MCP tool for it.
+
 - Reusable tenant runtime connections on harness profiles, shared by architects, deployments, and Agent Wizard. Existing inline settings migrate to named profiles (schema 45). Wizard model access reuses existing architects or saved connections. Central editing supports CLI credentials, Mux endpoint names, and native Ollama/OpenAI-compatible authentication; SDKs, manifests, REST/MCP behavior, and regression tests cover references.
 - Dashboard Configuration splits into Agent Resources and Platform Configuration, with shared Import / Export actions, legacy-link redirects, and mobile tab selection.
 

@@ -724,8 +724,28 @@ def t_control_plane_contracts():
             raise AssertionError("broker static value accepted")
         except GarrisonError as error:
             require(error.status_code == 400, "broker static values must be rejected")
+        try:
+            client.secrets.reveal(read["id"])
+            raise AssertionError("broker secret revealed")
+        except GarrisonError as error:
+            require(error.status_code == 409 and (error.error or {}).get("code") == "NotRevealable", "broker reveal must be 409 NotRevealable")
     finally:
         client.secrets.delete(broker_metadata["id"])
+    revealable = client.secrets.create({"name": f"sdk-py-reveal-{SUFFIX}", "kind": "GenericEnv", "value": f"sdk-py-reveal-one-{SUFFIX}"})
+    try:
+        first = client.secrets.reveal(revealable["id"])
+        require(first["id"] == revealable["id"] and first["name"] == revealable["name"] and first["kind"] == "GenericEnv"
+                and first["value"] == f"sdk-py-reveal-one-{SUFFIX}", "reveal returns the created value")
+        client.secrets.rotate(revealable["id"], f"sdk-py-reveal-two-{SUFFIX}")
+        second = client.secrets.reveal(revealable["id"])
+        require(second["value"] == f"sdk-py-reveal-two-{SUFFIX}" and second["valueLast4"] == second["value"][-4:] and second["revealedUtc"], "reveal returns the rotated value")
+        try:
+            client.secrets.reveal("sec_missing_sdk_py")
+            raise AssertionError("unknown secret revealed")
+        except GarrisonError as error:
+            require(error.status_code == 404, "unknown secret reveal must be 404")
+    finally:
+        client.secrets.delete(revealable["id"])
     pinned = client.harness_profiles.create({"name": f"sdk-py-session-{SUFFIX}", "harnessType": "Generic", "executable": "garrison-fake-harness", "sessionFormat": "sdk-fixture-v1"})
     try:
         require(client.harness_profiles.get(pinned["id"])["sessionFormat"] == "sdk-fixture-v1", "session format round trip")

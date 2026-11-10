@@ -5124,3 +5124,17 @@ it.views.studio.discarded = "{{title}} eliminato.";
 
 it.components.studio.chat.resize = "Ridimensiona chat";
 it.components.studio.chat.resizeHint = "Trascina per ridimensionare. Usa le frecce su o giù per regolare l’altezza oppure Home per ripristinarla.";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+it.components.secretReveal = { title: "Mostra il valore del segreto", warning: "La visualizzazione mostra il valore memorizzato in chiaro. Ogni visualizzazione viene registrata nel registro di audit con il tuo nome. Chiudi questa finestra quando hai finito; il valore non viene conservato.", value: "Valore", reveal: "Mostra", hide: "Nascondi" };
+it.tips.secretReveal = { reveal: "Decifra e mostra il valore memorizzato. Il server scrive un record di audit SecretRevealed.", hide: "Nascondi di nuovo il valore. Mostrarlo ancora scrive un altro record di audit.", close: "Chiudi la finestra e scarta il valore mostrato.", value: "Il valore decifrato, esattamente come è memorizzato. Trattalo come una password.", copy: "Copia il valore negli appunti." };
+it.resources.secrets.actions.reveal = "Mostra";
+it.tips.resources.secrets.actions.reveal = "Mostra il valore memorizzato in chiaro. Richiede Admin su Secret (SecretManager o TenantAdmin) e viene registrato nel registro di audit.";
+it.tips.resources.secrets.revealNoValue = "Questo segreto non ha ancora un valore memorizzato. Usa prima Imposta valore.";
+it.enums.auditEventType.SecretRevealed = "Segreto mostrato";
+it.tips.enums.auditEventType.SecretRevealed = "Qualcuno con Admin su Secret ha letto il valore decifrato di un segreto.";
+it.resources.secrets.subtitle = "Credenziali cifrate per harness e integrazioni. I gestori dei segreti possono mostrare i valori; ogni visualizzazione è sottoposta ad audit.";
+it.tips.nav.tabs.secrets = "Chiavi API e token cifrati. I deployment li associano tramite alias; solo i gestori dei segreti possono mostrare i valori, e ogni visualizzazione è sottoposta ad audit.";
+it.tips.resources.secrets.add = "Memorizza una nuova credenziale, come una chiave API o un token, cifrata a riposo. I deployment la referenziano tramite alias; dopo il salvataggio, solo chi ha Admin su Secret può mostrarla.";
+it.tips.resources.secrets.value = "Il valore del segreto. Viene cifrato al salvataggio. Chi ha Admin su Secret può mostrarlo, e ogni visualizzazione è sottoposta ad audit.";
+it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API o un token. Dopo il salvataggio puoi sostituirlo o ruotarlo. Rileggerlo è consentito solo a chi ha Admin su Secret (i ruoli SecretManager e TenantAdmin), e ogni visualizzazione viene registrata nel registro di audit.";

@@ -81,7 +81,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -457,6 +457,18 @@ When the agent has an output schema, the server validates each run's final outpu
 ## Executors and run pods
 
 `Deployment.Executor` chooses how runs execute: `RunExecutorEnum.Process` (a subprocess of the worker, the default) or `RunExecutorEnum.KubernetesJob` (a Kubernetes Job per run, in its own pod with no service account token and a hardened security context). Null uses the node pool's `NodePool.DefaultExecutor`, then Process. `Deployment.PodResources` (`RunPodResources`: `CpuRequest`, `CpuLimit`, `MemoryRequest`, `MemoryLimit`, `EphemeralStorageRequest`, `EphemeralStorageLimit`, as Kubernetes quantities such as `500m` or `2Gi`) sets the run pod's requests and limits. Each run records its executor in `Run.Executor`, and only nodes whose `Node.Executors` include it claim the run; a run nobody can take reports `RunBlockedReason` `NoCapableWorker`. `WorkspaceKindEnum.PersistentVolume` with `WorkspaceTemplate.PersistentVolumeClaim` mounts an existing claim at the workspace path (KubernetesJob runs only). Run pod failures outside the harness (unschedulable, image pull, OOMKilled, evicted) end with `RunOutcomeEnum.PodFailed` and a message naming the cause. See `docs/KUBERNETES.md`.
+
+## Revealing a secret value
+
+Reads of a secret (`GetAsync`, `ListAsync`) return metadata only. To read the stored value back, call `Secrets.RevealAsync(id)`, which returns a `SecretReveal` with `Id`, `Name`, `Kind`, `Value` (the decrypted value), `ValueLast4`, and `RevealedUtc`.
+
+```csharp
+SecretReveal revealed = await client.Secrets.RevealAsync(secretId, token).ConfigureAwait(false);
+```
+
+Only callers holding Admin on Secret can reveal. The SecretManager, TenantAdmin, and ResourceAdmin roles hold it; SecretUser and AgentDeveloper do not, and get 403. Each reveal writes a `SecretRevealed` audit record naming the caller and the secret, so treat it as a deliberate act rather than something to call on every page load. The server marks the response `Cache-Control: no-store`. Show the value briefly and do not log it or keep it.
+
+The call fails with `GarrisonException` 404 when the secret does not exist in your tenant, and with 409 in three cases, told apart by the error code: `NotRevealable` for a `LeaseBroker` secret, which holds provider metadata and never a value; `NoValue` when nothing has been stored yet; and `ValueUnreadable` when the configured master keys cannot decrypt the stored value. The fix for `ValueUnreadable` is to set a new value. Check `e.Error?.Code` for the code.
 
 ## Secret status
 

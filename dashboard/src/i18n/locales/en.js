@@ -856,7 +856,7 @@ const en = {
     },
     secrets: {
       errors: { expiryPast: 'Choose an expiry in the future, or leave it empty so the secret never expires.' },
-      ...resourcePage('Secrets', 'secret', 'Encrypted credentials for harnesses and integrations. Values are write-only.', 'Add the API key or token your agents need, for example an Anthropic API key.'),
+      ...resourcePage('Secrets', 'secret', "Encrypted credentials for harnesses and integrations. Secret managers can reveal values; every reveal is audited.", 'Add the API key or token your agents need, for example an Anthropic API key.'),
       notSet: 'Not set',
       neverRefreshed: 'Not yet',
       reauth: { title: 'This login needs reauthentication', since: 'Since {{time}}', action: 'Runs that use this secret fail until you replace its value. Sign in again with codex login using a separate CODEX_HOME, then use Set value to store the new auth.json, or switch the deployment to an OpenAI API key secret. Do not keep using the same login on another machine: both copies share one refresh token.' },
@@ -5103,3 +5103,12 @@ en.views.studio.discarded = "Deleted {{title}}.";
 
 en.components.studio.chat.resize = "Resize chat";
 en.components.studio.chat.resizeHint = "Drag to resize the chat. Use Up or Down to adjust its height, or Home to reset.";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+en.components.secretReveal = { title: "Reveal secret value", warning: "Revealing shows the stored value in plain text. Every reveal is recorded in the audit log with your name. Close this dialog when you are done; the value is not kept.", value: "Value", reveal: "Reveal", hide: "Hide" };
+en.tips.secretReveal = { reveal: "Decrypt and show the stored value. The server writes a SecretRevealed audit record.", hide: "Hide the value again. Revealing it once more writes another audit record.", close: "Close the dialog and discard the revealed value.", value: "The decrypted value, exactly as stored. Treat it like a password.", copy: "Copy the value to the clipboard." };
+en.resources.secrets.actions.reveal = "Reveal";
+en.tips.resources.secrets.actions.reveal = "Show the stored value in plain text. Requires Admin on Secret (SecretManager or TenantAdmin) and is recorded in the audit log.";
+en.tips.resources.secrets.revealNoValue = "This secret has no stored value yet. Use Set value first.";
+en.enums.auditEventType.SecretRevealed = "Secret revealed";
+en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read a secret's decrypted value.";

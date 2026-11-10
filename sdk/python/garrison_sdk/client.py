@@ -193,6 +193,16 @@ class MasterKeyRotationResponse(TypedDict):
     failed: int
 
 
+class SecretReveal(TypedDict):
+    """Secrets.reveal() result: the decrypted value of one secret. Show it briefly and never store it."""
+    id: str
+    name: str
+    kind: str  # secret kind, for example "GenericEnv" or "AnthropicApiKey"
+    value: str
+    valueLast4: Optional[str]
+    revealedUtc: str  # ISO 8601 UTC timestamp of the decryption
+
+
 class PromptPin(TypedDict):
     """AgentRevision["promptPins"] item: a prompt template pinned to a version for one role."""
     role: str
@@ -2222,7 +2232,7 @@ class McpServers(Resource):
 
 
 class Secrets(Resource):
-    """Secrets (metadata only; values are write-only).
+    """Secrets. get and list return metadata only; reveal is the one call that returns a decrypted value.
 
     Each secret carries ``status`` (one of SECRET_STATUSES), ``statusMessage``, ``statusUtc``, ``refreshedUtc`` (when the
     control plane last refreshed a Codex login itself), and ``accessTokenExpiresUtc`` (CodexAuthJson only). A secret
@@ -2234,6 +2244,13 @@ class Secrets(Resource):
 
     def rotate(self, id: str, value: str) -> Dict[str, Any]:
         return self._t.request("POST", self._item(id) + "/rotate", body={"value": value})
+
+    def reveal(self, id: str) -> SecretReveal:
+        """Return the decrypted value of a secret. Needs Admin on Secret (SecretManager, TenantAdmin, or ResourceAdmin
+        hold it; others get 403), and every call writes a SecretRevealed audit record. Raises GarrisonError 404 for an
+        unknown secret, or 409 with code NotRevealable (LeaseBroker secret), NoValue (nothing stored), or
+        ValueUnreadable (the configured master keys cannot decrypt it)."""
+        return self._t.request("POST", self._item(id) + "/reveal")
 
 
 class Manifests:

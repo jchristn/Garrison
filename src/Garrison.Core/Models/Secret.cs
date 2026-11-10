@@ -74,7 +74,7 @@ namespace Garrison.Core.Models
         public SecretKindEnum Kind { get; set; } = SecretKindEnum.GenericEnv;
 
         /// <summary>
-        /// Encrypted value. Never returned by the API.
+        /// Encrypted value. Never serialized; the reveal route returns the decrypted value separately.
         /// </summary>
         [JsonIgnore]
         public string? ValueEncrypted { get; set; } = null;

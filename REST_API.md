@@ -1691,7 +1691,7 @@ The test renders only the secrets its command, arguments, environment, and heade
 
 #### Using secrets
 
-Reading and managing secrets (`Read`, `Create`, `Update`, `Delete` on `Secret`) is separate from using them. Using a secret, `Execute` on `Secret`, is what it takes to save configuration that sends a secret's value somewhere. `TenantAdmin`, `SecretManager`, and `SecretUser` hold it; `Editor` and `AgentDeveloper` do not. Assign `SecretUser` with `resourceScope: Resource` and the secret's identifier to allow one secret. Without it, these answer 400 `ValidationFailed` with field code `SecretUseDenied` and name the secret:
+Reading and managing secrets (`Read`, `Create`, `Update`, `Delete` on `Secret`) is separate from using them, and both are separate from revealing a value (`Admin` on `Secret`, see [reveal](#post-v10apitenantstenantidsecretsidreveal)). Using a secret, `Execute` on `Secret`, is what it takes to save configuration that sends a secret's value somewhere. `TenantAdmin`, `SecretManager`, and `SecretUser` hold it; `Editor` and `AgentDeveloper` do not. Assign `SecretUser` with `resourceScope: Resource` and the secret's identifier to allow one secret. Without it, these answer 400 `ValidationFailed` with field code `SecretUseDenied` and name the secret:
 
 | Request | Secrets checked |
 |---|---|
@@ -1808,6 +1808,32 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}/rot
   -H "Content-Type: application/json" \
   -d '{"value": "new-value"}'
 ```
+
+#### `POST /v1.0/api/tenants/{tenantId}/secrets/{id}/reveal`
+
+Reveal a secret value.
+
+| | |
+|---|---|
+| Permission | Admin on `Secret` |
+| Response | `SecretRevealResponse` |
+| Success | 200 |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}/reveal" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+This is the one route that returns a secret's decrypted value, so it asks for more than reading metadata. `TenantAdmin`, `SecretManager`, and `ResourceAdmin` hold Admin on `Secret`; `SecretUser`, `AgentDeveloper`, and `Editor` do not and get 403. Assign `SecretManager` at resource scope to let someone reveal one secret only.
+
+Each call writes a `SecretRevealed` audit record naming the caller and the secret, never the value. The response carries `Cache-Control: no-store`, and request history stores its body as `[redacted]`, as it does for every secrets route.
+
+| Status | Code | When |
+|---|---|---|
+| 404 | `NotFound` | No such secret in the tenant |
+| 409 | `NotRevealable` | A `LeaseBroker` secret: it stores provider metadata, not a value |
+| 409 | `NoValue` | The secret was created without a value and none has been set |
+| 409 | `ValueUnreadable` | The configured master keys cannot decrypt the stored value; set a new one |
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/secrets/{id}`
 
@@ -4809,7 +4835,7 @@ Trigger agent targets apply the same schema check to the rendered trigger input;
 
 **Built-in records.** Built-in harness profiles, prompt templates, roles, and permissions have no tenant, are visible to every tenant, and cannot be changed or deleted through these routes (409 `BuiltInImmutable` or `Protected`). Clone them to customize. `POST .../prompt-templates/{id}/reset` restores a built-in's seeded content in a tenant copy.
 
-**Secrets.** Secret values are write-only. Responses carry metadata, the last four characters, and a fingerprint, never the value.
+**Secrets.** Secret responses carry metadata, the last four characters, and a fingerprint, never the value. The one exception is `POST .../secrets/{id}/reveal`, which needs Admin on `Secret` and writes a `SecretRevealed` audit record.
 
 **Credentials.** `POST .../credentials` and `POST .../credentials/{id}/rotate` return the secret key exactly once. When the caller is the administrator API key (which has no user), `userId` is required.
 
@@ -5104,7 +5130,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`
 
 #### `AuthSchemeEnum`
 
@@ -7096,7 +7122,7 @@ Encrypted credential or secret value.
 
 #### `SecretRequest`
 
-Create or update a secret. The value is write-only and never returned.
+Create or update a secret. Responses never echo the value; only `POST .../secrets/{id}/reveal` returns it.
 
 | Field | Type | Description |
 |---|---|---|
@@ -7105,6 +7131,19 @@ Create or update a secret. The value is write-only and never returned.
 | `kind` | `SecretKindEnum` | Kind. |
 | `value` | `string?` | Secret value; omit on update to keep the current value. |
 | `expiresUtc` | `DateTime?` | Expiration (UTC). |
+
+#### `SecretRevealResponse`
+
+The decrypted value of one secret, returned by `POST .../secrets/{id}/reveal`.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Secret identifier (`sec_`). |
+| `name` | `string` | Secret name. |
+| `kind` | `SecretKindEnum` | Kind. |
+| `value` | `string` | The decrypted value, exactly as stored. |
+| `valueLast4` | `string?` | Last four characters, matching the secret's metadata. |
+| `revealedUtc` | `DateTime` | When the server decrypted the value (UTC). |
 
 #### `SecretValueRequest`
 

@@ -1671,6 +1671,38 @@ func main() {
 		if !garrison.IsStatus(err, 400) {
 			return errors.New("broker metadata must reject reusable static values")
 		}
+		if _, err := client.Secrets.SetValue(ctx, brokerMetadata.ID, "forbidden-static-value"); !garrison.IsStatus(err, 400) {
+			return errors.New("typed SetValue must reject broker static values")
+		}
+		var revealErr *garrison.Error
+		if _, err := client.Secrets.Reveal(ctx, brokerMetadata.ID); !errors.As(err, &revealErr) || revealErr.StatusCode != 409 || revealErr.Code != "NotRevealable" {
+			return fmt.Errorf("broker reveal must be 409 NotRevealable: %v", err)
+		}
+		var revealable garrison.Secret
+		if err := client.Secrets.Create(ctx, map[string]any{"name": "sdk-go-reveal-" + suffix, "kind": "GenericEnv", "value": "sdk-go-reveal-one-" + suffix}, &revealable); err != nil {
+			return err
+		}
+		defer client.Secrets.Delete(ctx, revealable.ID)
+		first, err := client.Secrets.Reveal(ctx, revealable.ID)
+		if err != nil {
+			return err
+		}
+		if first.ID != revealable.ID || first.Name != revealable.Name || first.Kind != "GenericEnv" || first.Value != "sdk-go-reveal-one-"+suffix {
+			return fmt.Errorf("reveal returns the created value: %+v", first)
+		}
+		if _, err := client.Secrets.Rotate(ctx, revealable.ID, "sdk-go-reveal-two-"+suffix); err != nil {
+			return err
+		}
+		second, err := client.Secrets.Reveal(ctx, revealable.ID)
+		if err != nil {
+			return err
+		}
+		if second.Value != "sdk-go-reveal-two-"+suffix || second.ValueLast4 == nil || *second.ValueLast4 != second.Value[len(second.Value)-4:] || second.RevealedUTC == "" {
+			return fmt.Errorf("reveal returns the rotated value: %+v", second)
+		}
+		if _, err := client.Secrets.Reveal(ctx, "sec_missing_sdk_go"); !garrison.IsStatus(err, 404) {
+			return fmt.Errorf("unknown secret reveal must be 404: %v", err)
+		}
 		var pinned garrison.HarnessProfile
 		if err := client.HarnessProfiles.Create(ctx, map[string]any{"name": "sdk-go-session-" + suffix, "harnessType": "Generic", "executable": "garrison-fake-harness", "sessionFormat": "sdk-fixture-v1"}, &pinned); err != nil {
 			return err

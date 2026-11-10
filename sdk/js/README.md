@@ -204,6 +204,18 @@ When the agent has an output schema, the server validates each run's final outpu
 
 `Deployment.executor` (`RunExecutor`: `"Process"`, the default, or `"KubernetesJob"` for a Kubernetes Job per run) chooses how runs execute; null uses the node pool's `defaultExecutor`, then Process. `Deployment.podResources` (`RunPodResources`) sets the run pod's requests and limits as Kubernetes quantities. Runs carry `executor`, worker nodes (`WorkerNode`) list `executors`, and only nodes reporting a run's executor claim it. `WorkspaceTemplate` kind `"PersistentVolume"` mounts `persistentVolumeClaim` at the workspace path (KubernetesJob runs only). `RUN_OUTCOMES` includes `PodFailed` for run pods that fail outside the harness. `WorkerNode.containerized` (default `false`) says whether the worker runs inside a container or pod, which makes the built-in Codex profiles default their sandbox to `danger-full-access`. See `docs/KUBERNETES.md`.
 
+## Revealing a secret value
+
+`client.secrets.get` and `list` return metadata only. To read the stored value back, call `client.secrets.reveal(id)`. It resolves to a `SecretReveal` with `id`, `name`, `kind`, `value` (the decrypted value), `valueLast4`, and `revealedUtc`.
+
+```ts
+const { value } = await client.secrets.reveal(secretId);
+```
+
+Only callers holding Admin on Secret can reveal. The SecretManager, TenantAdmin, and ResourceAdmin roles hold it; SecretUser and AgentDeveloper do not, and get 403. Each reveal writes a `SecretRevealed` audit record naming the caller and the secret, so treat it as a deliberate act rather than something to call on every page load. The server marks the response `Cache-Control: no-store`. Show the value briefly and do not log it or keep it.
+
+The call fails with `GarrisonError` 404 when the secret does not exist in your tenant, and with 409 in three cases, told apart by the error code: `NotRevealable` for a `LeaseBroker` secret, which holds provider metadata and never a value; `NoValue` when nothing has been stored yet; and `ValueUnreadable` when the configured master keys cannot decrypt the stored value. The fix for `ValueUnreadable` is to set a new value. The code is in `error.code`.
+
 ## Secret status
 
 The control plane refreshes ChatGPT logins stored in `CodexAuthJson` secrets itself, shortly before the access token expires, and writes the rotated tokens back to the secret. When OpenAI rejects the stored refresh token for good (reused, expired, or revoked), the secret's status becomes `NeedsReauthentication`.

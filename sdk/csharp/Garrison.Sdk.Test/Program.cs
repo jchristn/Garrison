@@ -1030,8 +1030,26 @@ namespace Garrison.Sdk.Test
                         try { await client.Secrets.SetValueAsync(read.Id, "forbidden-static-value", token).ConfigureAwait(false); }
                         catch (GarrisonException e) when (e.StatusCode == 400) { refused = true; }
                         Require(refused, "broker metadata rejects reusable static values");
+                        string notRevealable = String.Empty;
+                        try { await client.Secrets.RevealAsync(read.Id, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 409) { notRevealable = e.Error?.Code ?? String.Empty; }
+                        Require(notRevealable == "NotRevealable", "broker reveal must be 409 NotRevealable, got " + notRevealable);
                     }
                     finally { await client.Secrets.DeleteAsync(brokerMetadata.Id, token).ConfigureAwait(false); }
+                    Secret revealable = await client.Secrets.CreateAsync(new SecretRequest { Name = "sdk-cs-reveal-" + suffix, Kind = SecretKindEnum.GenericEnv, Value = "sdk-cs-reveal-one-" + suffix }, token).ConfigureAwait(false);
+                    try
+                    {
+                        SecretReveal first = await client.Secrets.RevealAsync(revealable.Id, token).ConfigureAwait(false);
+                        Require(first.Id == revealable.Id && first.Name == revealable.Name && first.Kind == SecretKindEnum.GenericEnv && first.Value == "sdk-cs-reveal-one-" + suffix, "reveal returns the created value");
+                        await client.Secrets.RotateAsync(revealable.Id, "sdk-cs-reveal-two-" + suffix, token).ConfigureAwait(false);
+                        SecretReveal second = await client.Secrets.RevealAsync(revealable.Id, token).ConfigureAwait(false);
+                        Require(second.Value == "sdk-cs-reveal-two-" + suffix && second.ValueLast4 == second.Value.Substring(second.Value.Length - 4), "reveal returns the rotated value");
+                        bool missingSecret = false;
+                        try { await client.Secrets.RevealAsync("sec_missing_sdk_cs", token).ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { missingSecret = true; }
+                        Require(missingSecret, "unknown secret reveal must be 404");
+                    }
+                    finally { await client.Secrets.DeleteAsync(revealable.Id, token).ConfigureAwait(false); }
                     HarnessProfile pinned = await client.HarnessProfiles.CreateAsync(new HarnessProfile { Name = "sdk-cs-session-" + suffix, Executable = "garrison-fake-harness", SessionFormat = "sdk-fixture-v1" }, token).ConfigureAwait(false);
                     try { Require((await client.HarnessProfiles.GetAsync(pinned.Id, token).ConfigureAwait(false)).SessionFormat == "sdk-fixture-v1", "session format round trip"); }
                     finally { await client.HarnessProfiles.DeleteAsync(pinned.Id, token).ConfigureAwait(false); }

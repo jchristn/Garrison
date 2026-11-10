@@ -564,6 +564,40 @@ func (a *AnalyticsClient) Dimensions(ctx context.Context, from, to string) (*Ana
 	return &out, nil
 }
 
+// SecretsClient manages tenant secrets. Get and List return metadata only; Reveal is the one call that returns a
+// decrypted value.
+type SecretsClient struct{ Resource }
+
+// SetValue replaces a secret's value and returns the updated metadata. LeaseBroker secrets answer 400.
+func (r *SecretsClient) SetValue(ctx context.Context, id, value string) (*Secret, error) {
+	var out Secret
+	if err := r.c.Do(ctx, http.MethodPut, r.item(id)+"/value", nil, map[string]string{"value": value}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Rotate replaces a secret's value with a new one and returns the updated metadata.
+func (r *SecretsClient) Rotate(ctx context.Context, id, value string) (*Secret, error) {
+	var out Secret
+	if err := r.c.Do(ctx, http.MethodPost, r.item(id)+"/rotate", nil, map[string]string{"value": value}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Reveal returns a secret's decrypted value. It needs Admin on Secret (SecretManager, TenantAdmin, and ResourceAdmin
+// hold it; other callers get 403), and every call writes a SecretRevealed audit record. The server answers 404 for an
+// unknown secret and 409 with Error.Code NotRevealable (LeaseBroker secret), NoValue (nothing stored), or
+// ValueUnreadable (the configured master keys cannot decrypt it).
+func (r *SecretsClient) Reveal(ctx context.Context, id string) (*SecretReveal, error) {
+	var out SecretReveal
+	if err := r.c.Do(ctx, http.MethodPost, r.item(id)+"/reveal", nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // UsageQuotasClient configures daily UTC quotas and reads counters with missing-cost coverage.
 type UsageQuotasClient struct{ Resource }
 

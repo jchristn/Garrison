@@ -5075,3 +5075,17 @@ ja.views.studio.discarded = "{{title}} を削除しました。";
 
 ja.components.studio.chat.resize = "チャットのサイズを変更";
 ja.components.studio.chat.resizeHint = "ドラッグしてサイズを変更します。上下キーで高さを調整し、Home キーで元に戻します。";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+ja.components.secretReveal = { title: "シークレットの値を表示", warning: "表示すると、保存されている値が平文で示されます。表示のたびに、あなたの名前で監査ログに記録されます。終わったらこのダイアログを閉じてください。値は保持されません。", value: "値", reveal: "表示", hide: "隠す" };
+ja.tips.secretReveal = { reveal: "保存されている値を復号して表示します。サーバーは SecretRevealed の監査レコードを書き込みます。", hide: "値を再び隠します。もう一度表示すると、別の監査レコードが書き込まれます。", close: "ダイアログを閉じ、表示した値を破棄します。", value: "保存されているとおりの復号済みの値です。パスワードと同じように扱ってください。", copy: "値をクリップボードにコピーします。" };
+ja.resources.secrets.actions.reveal = "表示";
+ja.tips.resources.secrets.actions.reveal = "保存されている値を平文で表示します。Secret に対する Admin (SecretManager または TenantAdmin) が必要で、監査ログに記録されます。";
+ja.tips.resources.secrets.revealNoValue = "このシークレットにはまだ値が保存されていません。先に「値を設定」を使ってください。";
+ja.enums.auditEventType.SecretRevealed = "シークレットが表示された";
+ja.tips.enums.auditEventType.SecretRevealed = "Secret に対する Admin を持つユーザーがシークレットの復号済みの値を読み取りました。";
+ja.resources.secrets.subtitle = "ハーネスと連携のための暗号化された認証情報です。シークレット管理者は値を表示でき、表示はすべて監査されます。";
+ja.tips.nav.tabs.secrets = "暗号化された API キーとトークンです。デプロイメントはエイリアスで紐付けます。値を表示できるのはシークレット管理者だけで、表示はすべて監査されます。";
+ja.tips.resources.secrets.add = "API キーやトークンなどの新しい認証情報を、保存時に暗号化して格納します。デプロイメントはエイリアスで参照します。保存後に値を表示できるのは、Secret に対する Admin を持つユーザーだけです。";
+ja.tips.resources.secrets.value = "シークレットの値です。保存時に暗号化されます。Secret に対する Admin を持つユーザーは表示でき、表示はすべて監査されます。";
+ja.explainers.secrets.p1 = "シークレットは、API キーやトークンなどの暗号化された値です。保存後は置き換えやローテーションができます。値を読み戻せるのは Secret に対する Admin を持つユーザー (SecretManager ロールと TenantAdmin ロール) だけで、表示はすべて監査ログに記録されます。";

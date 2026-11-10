@@ -142,7 +142,8 @@ const (
 	SecretStatusNeedsReauthentication = "NeedsReauthentication"
 )
 
-// Secret is secret metadata. The value is write-only and never returned. Decode a Client.Secrets response into it.
+// Secret is secret metadata. Get and List never include the value; Client.Secrets.Reveal returns it to callers holding
+// Admin on Secret. Decode a Client.Secrets response into it.
 type Secret struct {
 	BrokerResource *string `json:"brokerResource,omitempty"`
 	BrokerAudience *string `json:"brokerAudience,omitempty"`
@@ -170,6 +171,21 @@ type Secret struct {
 	AccessTokenExpiresUTC string `json:"accessTokenExpiresUtc,omitempty"`
 	CreatedUTC            string `json:"createdUtc,omitempty"`
 	LastUpdateUTC         string `json:"lastUpdateUtc,omitempty"`
+}
+
+// SecretReveal is the decrypted value of one secret, returned by Client.Secrets.Reveal. Show it briefly and never
+// store it.
+type SecretReveal struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Kind is the secret kind, for example GenericEnv or AnthropicApiKey.
+	Kind string `json:"kind"`
+	// Value is the decrypted value.
+	Value string `json:"value"`
+	// ValueLast4 is the last four characters of the value, or nil when the server did not record them.
+	ValueLast4 *string `json:"valueLast4,omitempty"`
+	// RevealedUTC is when the server decrypted the value (ISO 8601, UTC).
+	RevealedUTC string `json:"revealedUtc"`
 }
 
 // ExecutorRequirements are optional placement requirements copied into admitted runs.

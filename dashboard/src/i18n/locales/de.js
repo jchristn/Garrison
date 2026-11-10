@@ -5110,3 +5110,17 @@ de.views.studio.discarded = "{{title}} gelöscht.";
 
 de.components.studio.chat.resize = "Chatgröße ändern";
 de.components.studio.chat.resizeHint = "Ziehen Sie, um die Chatgröße zu ändern. Pfeil nach oben oder unten ändert die Höhe, Pos1 setzt sie zurück.";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+de.components.secretReveal = { title: "Geheimniswert anzeigen", warning: "Beim Anzeigen erscheint der gespeicherte Wert im Klartext. Jede Anzeige wird mit Ihrem Namen im Audit-Protokoll festgehalten. Schließen Sie den Dialog, wenn Sie fertig sind; der Wert wird nicht aufbewahrt.", value: "Wert", reveal: "Anzeigen", hide: "Ausblenden" };
+de.tips.secretReveal = { reveal: "Den gespeicherten Wert entschlüsseln und anzeigen. Der Server schreibt einen SecretRevealed-Audit-Eintrag.", hide: "Den Wert wieder ausblenden. Erneutes Anzeigen schreibt einen weiteren Audit-Eintrag.", close: "Den Dialog schließen und den angezeigten Wert verwerfen.", value: "Der entschlüsselte Wert, genau wie gespeichert. Behandeln Sie ihn wie ein Passwort.", copy: "Den Wert in die Zwischenablage kopieren." };
+de.resources.secrets.actions.reveal = "Anzeigen";
+de.tips.resources.secrets.actions.reveal = "Den gespeicherten Wert im Klartext anzeigen. Erfordert Admin auf Secret (SecretManager oder TenantAdmin) und wird im Audit-Protokoll festgehalten.";
+de.tips.resources.secrets.revealNoValue = "Dieses Geheimnis hat noch keinen gespeicherten Wert. Verwenden Sie zuerst Wert setzen.";
+de.enums.auditEventType.SecretRevealed = "Geheimnis angezeigt";
+de.tips.enums.auditEventType.SecretRevealed = "Jemand mit Admin auf Secret hat den entschlüsselten Wert eines Geheimnisses gelesen.";
+de.resources.secrets.subtitle = "Verschlüsselte Zugangsdaten für Harnesses und Integrationen. Geheimnisverwalter können Werte anzeigen; jede Anzeige wird protokolliert.";
+de.tips.nav.tabs.secrets = "Verschlüsselte API-Schlüssel und Token. Bereitstellungen binden sie über einen Alias; nur Geheimnisverwalter können Werte anzeigen, und jede Anzeige wird protokolliert.";
+de.tips.resources.secrets.add = "Neue Zugangsdaten wie einen API-Schlüssel oder ein Token verschlüsselt speichern. Bereitstellungen referenzieren sie über einen Alias; nach dem Speichern können nur Personen mit Admin auf Secret den Wert anzeigen.";
+de.tips.resources.secrets.value = "Der geheime Wert. Er wird beim Speichern verschlüsselt. Personen mit Admin auf Secret können ihn anzeigen, und jede Anzeige wird protokolliert.";
+de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein API-Schlüssel oder ein Token. Nach dem Speichern können Sie ihn ersetzen oder rotieren. Auslesen dürfen nur Personen mit Admin auf Secret (die Rollen SecretManager und TenantAdmin), und jede Anzeige wird im Audit-Protokoll festgehalten.";

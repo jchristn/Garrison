@@ -5076,3 +5076,17 @@ zhHant.views.studio.discarded = "已刪除 {{title}}。";
 
 zhHant.components.studio.chat.resize = "調整聊天大小";
 zhHant.components.studio.chat.resizeHint = "拖曳以調整聊天大小。使用上下方向鍵調整高度，或按 Home 重設。";
+
+// Secret reveal (Admin on Secret, audited as SecretRevealed).
+zhHant.components.secretReveal = { title: "顯示密鑰值", warning: "顯示後，儲存的值將以明文呈現。每次顯示都會以你的名字記錄在稽核日誌中。完成後請關閉此對話框；該值不會被保留。", value: "值", reveal: "顯示", hide: "隱藏" };
+zhHant.tips.secretReveal = { reveal: "解密並顯示儲存的值。伺服器會寫入一筆 SecretRevealed 稽核記錄。", hide: "再次隱藏該值。再次顯示會寫入另一筆稽核記錄。", close: "關閉對話框並捨棄顯示的值。", value: "解密後的值，與儲存的完全一致。請像對待密碼一樣對待它。", copy: "將該值複製到剪貼簿。" };
+zhHant.resources.secrets.actions.reveal = "顯示";
+zhHant.tips.resources.secrets.actions.reveal = "以明文顯示儲存的值。需要 Secret 的 Admin 權限 (SecretManager 或 TenantAdmin)，並會記錄在稽核日誌中。";
+zhHant.tips.resources.secrets.revealNoValue = "此密鑰尚未儲存值。請先使用「設定值」。";
+zhHant.enums.auditEventType.SecretRevealed = "密鑰已顯示";
+zhHant.tips.enums.auditEventType.SecretRevealed = "擁有 Secret Admin 權限的人讀取了某個密鑰解密後的值。";
+zhHant.resources.secrets.subtitle = "供 harness 與整合使用的加密憑證。密鑰管理員可以顯示值；每次顯示都會被稽核。";
+zhHant.tips.nav.tabs.secrets = "加密的 API 金鑰與權杖。部署透過別名繫結它們；只有密鑰管理員可以顯示值，每次顯示都會被稽核。";
+zhHant.tips.resources.secrets.add = "儲存新的憑證，例如 API 金鑰或權杖，靜態加密。部署透過別名參照它；儲存後，只有擁有 Secret Admin 權限的人可以顯示它。";
+zhHant.tips.resources.secrets.value = "密鑰值。儲存時會加密。擁有 Secret Admin 權限的人可以顯示它，每次顯示都會被稽核。";
+zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰或權杖。儲存後你可以取代或輪替它。只有擁有 Secret Admin 權限的人 (SecretManager 與 TenantAdmin 角色) 才能讀回它，每次顯示都會記錄在稽核日誌中。";
