@@ -78,7 +78,10 @@ describe('secret reveal', () => {
     await act(async () => q('[data-testid="secret-reveal-confirm"]').click());
     expect(load).toHaveBeenCalledTimes(1);
     expect(q('[data-testid="secret-reveal-value"]').textContent).toBe('sk-ant-shown-1234');
-    expect(q('[data-testid="secret-reveal-copy"]')).not.toBeNull();
+    const card = q('[data-testid="secret-reveal-card"]');
+    expect(card.classList.contains('code-block')).toBe(true);
+    expect(card.querySelector('[data-testid="secret-reveal-value"]').tagName).toBe('PRE');
+    expect(card.querySelector('[data-testid="secret-reveal-copy"]').classList.contains('copy-btn')).toBe(true);
     await act(async () => q('[data-testid="secret-reveal-hide"]').click());
     expect(q('[data-testid="secret-reveal-value"]')).toBeNull();
     expect(document.body.textContent).not.toContain('sk-ant-shown-1234');

@@ -607,6 +607,9 @@ button[aria-disabled="true"]:hover { filter: none; }
 /* Toolbar sits above the scroll gutter; give the button a surface backing so a scrollbar never occludes it. */
 .code-block-toolbar { position: absolute; top: 0.35rem; inset-inline-end: 0.55rem; z-index: 2; background: var(--color-surface-alt); border-radius: var(--radius-sm); }
 .code-block pre { padding: var(--spacing-sm); padding-inline-end: 2.5rem; overflow-x: auto; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre; max-height: 360px; overflow-y: auto; scrollbar-gutter: stable; }
+/* Secret reveal: the value sits in a code-block card with the shared copy button; long tokens wrap instead of scrolling. */
+.secret-reveal-card pre { margin: 0; padding: var(--spacing-sm) var(--spacing-md); padding-inline-end: 2.75rem; font-family: var(--font-mono); font-size: var(--font-size-sm); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; overflow-x: hidden; }
+.secret-reveal-card pre.is-multiline { word-break: normal; }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-sm); }
 .detail-item { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 .detail-item-label { font-size: var(--font-size-xs); color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }

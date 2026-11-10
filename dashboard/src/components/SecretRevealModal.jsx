@@ -66,9 +66,11 @@ export default function SecretRevealModal({ name, multiline = false, load, onClo
       {value !== null && (
         <div className="field">
           <label {...tip(t('tips.secretReveal.value'))}>{t('components.secretReveal.value')}</label>
-          <div className="secret-row">
-            {multiline ? <pre data-testid="secret-reveal-value" style={{ flex: 1, minWidth: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: 0 }}>{value}</pre> : <code data-testid="secret-reveal-value">{value}</code>}
-            <CopyButton value={value} tipText={t('tips.secretReveal.copy')} testId="secret-reveal-copy" />
+          <div className="code-block secret-reveal-card" data-testid="secret-reveal-card">
+            <div className="code-block-toolbar">
+              <CopyButton value={value} tipText={t('tips.secretReveal.copy')} testId="secret-reveal-copy" />
+            </div>
+            <pre data-testid="secret-reveal-value" className={multiline ? 'is-multiline' : undefined}>{value}</pre>
           </div>
         </div>
       )}
