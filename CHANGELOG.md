@@ -2,6 +2,12 @@
 
 All notable changes to Garrison are recorded here. The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org). Versions below 1.0 are alpha and may break compatibility in any release.
 
+## [Unreleased]
+
+### Changed
+
+- Run effect safety and cluster effect checks on relevant pushes only; remove the weekly, pull request, and manual triggers.
+
 ## [1.3.0] - 2026-11-03
 
 ### Fixed

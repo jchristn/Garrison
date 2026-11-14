@@ -1,10 +1,7 @@
 name: Effect safety
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '17 4 * * 1'
-  pull_request:
+  push:
     paths:
       - 'src/Garrison.Core/Database/Ado/AdoEffectOperationMethods.cs'
       - 'src/Garrison.Server/Protocols/GarrisonMcpServer.cs'
@@ -57,7 +54,6 @@ jobs:
           retention-days: 30
 
   cluster-effects:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
