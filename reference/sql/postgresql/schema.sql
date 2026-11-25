@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 28).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 46).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -827,6 +827,7 @@ CREATE TABLE IF NOT EXISTS "manifest_apply_items" (
     message TEXT
 );
 CREATE INDEX IF NOT EXISTS "idx_manifest_apply_items_parent" ON "manifest_apply_items" ("manifestapplyid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 1, 'Initial schema', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 1);
 
 -- Migration 2: Run timing telemetry
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS firsttokenutc TIMESTAMPTZ;
@@ -838,11 +839,13 @@ ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS queuems BIGINT;
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS totalms BIGINT;
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS toolcallcount INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS reasoningtokens BIGINT NOT NULL DEFAULT 0;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 2, 'Run timing telemetry', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 2);
 
 -- Migration 3: Structured output validation and repair
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS outputschemavalid BOOLEAN;
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS schemavalidationerrors TEXT;
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS repairattempts INTEGER NOT NULL DEFAULT 0;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 3, 'Structured output validation and repair', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 3);
 
 -- Migration 4: Delegation wait telemetry, manifest field changes, and run event codes
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS delegationwaitms BIGINT;
@@ -860,10 +863,12 @@ CREATE TABLE IF NOT EXISTS "manifest_apply_changes" (
     aftervalue TEXT
 );
 CREATE INDEX IF NOT EXISTS "idx_manifest_apply_changes_parent" ON "manifest_apply_changes" ("manifestapplyid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 4, 'Delegation wait telemetry, manifest field changes, and run event codes', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 4);
 
 -- Migration 5: Run trace identifiers
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS traceid VARCHAR(32);
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS traceparent VARCHAR(64);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 5, 'Run trace identifiers', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 5);
 
 -- Migration 6: Multi-replica state (nonces, rate limits, MCP sessions, backplane) and read path indexes
 CREATE TABLE IF NOT EXISTS "request_nonces" (
@@ -905,6 +910,7 @@ CREATE INDEX IF NOT EXISTS "idx_runs_deadline" ON "runs" ("status", "deadlineutc
 CREATE INDEX IF NOT EXISTS "idx_runs_completed" ON "runs" ("status", "completedutc");
 CREATE INDEX IF NOT EXISTS "idx_run_events_created" ON "run_events" ("createdutc");
 CREATE INDEX IF NOT EXISTS "idx_authsessions_expires" ON "authsessions" ("expiresutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 6, 'Multi-replica state (nonces, rate limits, MCP sessions, backplane) and read path indexes', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 6);
 
 -- Migration 7: Control-plane replicas (control nodes)
 CREATE TABLE IF NOT EXISTS "control_nodes" (
@@ -923,11 +929,13 @@ CREATE TABLE IF NOT EXISTS "control_nodes" (
     heldlongpolls INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "idx_control_nodes_statusheartbeat" ON "control_nodes" ("status", "lastheartbeatutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 7, 'Control-plane replicas (control nodes)', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 7);
 
 -- Migration 8: Run guard limits on deployments
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS repetitionguard BOOLEAN;
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS maxassistantchars BIGINT;
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS noprogressseconds INTEGER;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 8, 'Run guard limits on deployments', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 8);
 
 -- Migration 9: Run executors, run pod resources, and PersistentVolume workspaces
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS executor VARCHAR(64);
@@ -946,6 +954,7 @@ CREATE TABLE IF NOT EXISTS "node_executors" (
     executor VARCHAR(64) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "idx_node_executors_parent" ON "node_executors" ("nodeid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 9, 'Run executors, run pod resources, and PersistentVolume workspaces', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 9);
 
 -- Migration 10: Secret credential status and Codex login refresh
 ALTER TABLE "secrets" ADD COLUMN IF NOT EXISTS status VARCHAR(64);
@@ -954,11 +963,13 @@ ALTER TABLE "secrets" ADD COLUMN IF NOT EXISTS statusutc TIMESTAMPTZ;
 ALTER TABLE "secrets" ADD COLUMN IF NOT EXISTS refreshedutc TIMESTAMPTZ;
 ALTER TABLE "secrets" ADD COLUMN IF NOT EXISTS accesstokenexpiresutc TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS "idx_secrets_kind" ON "secrets" ("kind");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 10, 'Secret credential status and Codex login refresh', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 10);
 
 -- Migration 11: Run token lease epochs and manifest error codes
 ALTER TABLE "authsessions" ADD COLUMN IF NOT EXISTS leaseepoch BIGINT;
 ALTER TABLE "manifest_apply_items" ADD COLUMN IF NOT EXISTS errorcode VARCHAR(64);
 ALTER TABLE "manifest_apply_items" ADD COLUMN IF NOT EXISTS errorfield VARCHAR(512);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 11, 'Run token lease epochs and manifest error codes', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 11);
 
 -- Migration 12: Conversations: harness session resume, node affinity, and transcript fallback
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS conversationid VARCHAR(64);
@@ -999,6 +1010,7 @@ CREATE INDEX IF NOT EXISTS "idx_conversations_tenantcreated" ON "conversations" 
 CREATE INDEX IF NOT EXISTS "idx_conversations_tenantagent" ON "conversations" ("tenantid", "agentid");
 CREATE INDEX IF NOT EXISTS "idx_conversations_context" ON "conversations" ("tenantid", "agentid", "contextid");
 CREATE INDEX IF NOT EXISTS "idx_runs_conversation" ON "runs" ("conversationid", "createdutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 12, 'Conversations: harness session resume, node affinity, and transcript fallback', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 12);
 
 -- Migration 13: Permission approvals and deployment approval rules
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS approvalsenabled BOOLEAN;
@@ -1054,6 +1066,7 @@ CREATE INDEX IF NOT EXISTS "idx_approvals_tenantstatuscreated" ON "approvals" ("
 CREATE INDEX IF NOT EXISTS "idx_approvals_tenantcreated" ON "approvals" ("tenantid", "createdutc");
 CREATE INDEX IF NOT EXISTS "idx_approvals_run" ON "approvals" ("runid");
 CREATE INDEX IF NOT EXISTS "idx_approvals_statusexpires" ON "approvals" ("status", "expiresutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 13, 'Permission approvals and deployment approval rules', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 13);
 
 -- Migration 14: Operator-configured model prices for run cost estimation
 CREATE TABLE IF NOT EXISTS "model_prices" (
@@ -1076,6 +1089,7 @@ CREATE TABLE IF NOT EXISTS "model_prices" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_model_prices_tenantname" ON "model_prices" ("tenantid", "name");
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_model_prices_tenantmodel" ON "model_prices" ("tenantid", "harnesstype", "model");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 14, 'Operator-configured model prices for run cost estimation', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 14);
 
 -- Migration 15: Daily UTC quotas and retained run usage
 CREATE TABLE IF NOT EXISTS "usage_quotas" (
@@ -1115,9 +1129,11 @@ CREATE INDEX IF NOT EXISTS "idx_run_usage_agent" ON "run_usage" ("tenantid", "ag
 CREATE INDEX IF NOT EXISTS "idx_run_usage_deployment" ON "run_usage" ("tenantid", "deploymentid");
 CREATE VIEW "quota_usage_source" AS SELECT runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "run_usage" UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM "runs" r WHERE NOT EXISTS (SELECT 1 FROM "run_usage" u WHERE u.runid = r.id);
 INSERT INTO "run_usage" (runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd) SELECT id, tenantid, agentid, deploymentid, harnesstype, COALESCE(queuedutc, createdutc), completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "runs";
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 15, 'Daily UTC quotas and retained run usage', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 15);
 
 -- Migration 16: Explicit opt-in quota enforcement
 ALTER TABLE "usage_quotas" ADD COLUMN IF NOT EXISTS enforcementenabled BOOLEAN NOT NULL DEFAULT FALSE;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 16, 'Explicit opt-in quota enforcement', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 16);
 
 -- Migration 17: Executor capability negotiation and run requirements
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS capisolation INTEGER NOT NULL DEFAULT 0;
@@ -1139,32 +1155,78 @@ ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capsessioncontinuation BOO
 ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capcrossnoderestore BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capcoldstartclass VARCHAR(32);
 ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capreported BOOLEAN NOT NULL DEFAULT FALSE;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 17, 'Executor capability negotiation and run requirements', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 17);
 
 -- Migration 18: Warm-start capability without removing cold execution support
-ALTER TABLE "node_executors" ADD COLUMN capwarmstart BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capwarmstart BOOLEAN NOT NULL DEFAULT FALSE;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 18, 'Warm-start capability without removing cold execution support', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 18);
 
 -- Migration 19: Artifact stores, deployment collection globs, and run artifact metadata
-ALTER TABLE "artifact_stores" ADD COLUMN pathprefix VARCHAR(512);
-ALTER TABLE "artifact_stores" ADD COLUMN bucket VARCHAR(255);
-ALTER TABLE "artifact_stores" ADD COLUMN endpoint VARCHAR(2048);
-ALTER TABLE "artifact_stores" ADD COLUMN region VARCHAR(128) NOT NULL DEFAULT 'us-east-1';
-ALTER TABLE "artifact_stores" ADD COLUMN secretid VARCHAR(64);
-ALTER TABLE "artifact_stores" ADD COLUMN forcepathstyle BOOLEAN NOT NULL DEFAULT TRUE;
-CREATE TABLE IF NOT EXISTS "deployment_artifact_globs" (id VARCHAR(64) NOT NULL PRIMARY KEY, deploymentid VARCHAR(64) NOT NULL, tenantid VARCHAR(64) NOT NULL, position INTEGER NOT NULL, pattern VARCHAR(512) NOT NULL);
+ALTER TABLE "artifact_stores" ADD COLUMN IF NOT EXISTS pathprefix VARCHAR(512);
+ALTER TABLE "artifact_stores" ADD COLUMN IF NOT EXISTS bucket VARCHAR(255);
+ALTER TABLE "artifact_stores" ADD COLUMN IF NOT EXISTS endpoint VARCHAR(2048);
+ALTER TABLE "artifact_stores" ADD COLUMN IF NOT EXISTS region VARCHAR(128) NOT NULL DEFAULT 'us-east-1';
+ALTER TABLE "artifact_stores" ADD COLUMN IF NOT EXISTS secretid VARCHAR(64);
+ALTER TABLE "artifact_stores" ADD COLUMN IF NOT EXISTS forcepathstyle BOOLEAN NOT NULL DEFAULT TRUE;
+CREATE TABLE IF NOT EXISTS "deployment_artifact_globs" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    deploymentid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    pattern VARCHAR(512) NOT NULL
+);
 CREATE INDEX IF NOT EXISTS "idx_deployment_artifact_globs_parent" ON "deployment_artifact_globs" ("deploymentid", "position");
-CREATE TABLE IF NOT EXISTS "artifacts" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, runid VARCHAR(64) NOT NULL, artifactstoreid VARCHAR(64) NOT NULL, name VARCHAR(1024) NOT NULL, mediatype VARCHAR(255) NOT NULL, sizebytes BIGINT NOT NULL, sha256 VARCHAR(64) NOT NULL, location VARCHAR(2048) NOT NULL, leaseepoch BIGINT NOT NULL, repairattempt INTEGER NOT NULL, content BYTEA, createdutc TIMESTAMP WITH TIME ZONE NOT NULL, lastupdateutc TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE IF NOT EXISTS "artifacts" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    runid VARCHAR(64) NOT NULL,
+    artifactstoreid VARCHAR(64) NOT NULL,
+    name VARCHAR(1024) NOT NULL,
+    mediatype VARCHAR(255) NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    location VARCHAR(2048) NOT NULL,
+    leaseepoch BIGINT NOT NULL,
+    repairattempt INTEGER NOT NULL,
+    content BYTEA,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
 CREATE INDEX IF NOT EXISTS "idx_artifacts_tenant" ON "artifacts" ("tenantid", "createdutc");
 CREATE INDEX IF NOT EXISTS "idx_artifacts_run" ON "artifacts" ("tenantid", "runid");
 CREATE INDEX IF NOT EXISTS "idx_artifacts_store" ON "artifacts" ("tenantid", "artifactstoreid");
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_artifacts_upload" ON "artifacts" ("tenantid", "runid", "leaseepoch", "repairattempt", "name");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 19, 'Artifact stores, deployment collection globs, and run artifact metadata', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 19);
 
 -- Migration 20: Transient worker stdio MCP diagnostics with structured outcomes
-ALTER TABLE "nodes" ADD COLUMN supportsmcptests BOOLEAN NOT NULL DEFAULT FALSE;
-CREATE TABLE IF NOT EXISTS "mcp_tests" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, serverid VARCHAR(64) NOT NULL, nodeid VARCHAR(64) NOT NULL, noderegisteredutc TIMESTAMPTZ NOT NULL, serverupdatedutc TIMESTAMPTZ NOT NULL, expiresutc TIMESTAMPTZ NOT NULL, started BOOLEAN NOT NULL, finished BOOLEAN NOT NULL, success BOOLEAN NOT NULL, durationms BIGINT NOT NULL, timeoutms INTEGER NOT NULL, error VARCHAR(2048));
+ALTER TABLE "nodes" ADD COLUMN IF NOT EXISTS supportsmcptests BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE TABLE IF NOT EXISTS "mcp_tests" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    serverid VARCHAR(64) NOT NULL,
+    nodeid VARCHAR(64) NOT NULL,
+    noderegisteredutc TIMESTAMPTZ NOT NULL,
+    serverupdatedutc TIMESTAMPTZ NOT NULL,
+    expiresutc TIMESTAMPTZ NOT NULL,
+    started BOOLEAN NOT NULL,
+    finished BOOLEAN NOT NULL,
+    success BOOLEAN NOT NULL,
+    durationms BIGINT NOT NULL,
+    timeoutms INTEGER NOT NULL,
+    error VARCHAR(2048)
+);
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_mcp_tests_node" ON "mcp_tests" ("nodeid");
 CREATE INDEX IF NOT EXISTS "idx_mcp_tests_expires" ON "mcp_tests" ("expiresutc");
-CREATE TABLE IF NOT EXISTS "mcp_test_tools" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, testid VARCHAR(64) NOT NULL, kind VARCHAR(16) NOT NULL, name VARCHAR(512) NOT NULL, position INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS "mcp_test_tools" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    testid VARCHAR(64) NOT NULL,
+    kind VARCHAR(16) NOT NULL,
+    name VARCHAR(512) NOT NULL,
+    position INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS "idx_mcp_test_tools_parent" ON "mcp_test_tools" ("testid", "position");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 20, 'Transient worker stdio MCP diagnostics with structured outcomes', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 20);
 
 -- Migration 21: Ordered pipelines and stage review gates
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS pipelinerunid VARCHAR(64);
@@ -1316,27 +1378,38 @@ CREATE UNIQUE INDEX IF NOT EXISTS "idx_pipeline_reviews_execution" ON "pipeline_
 CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_tenantstatus" ON "pipeline_reviews" ("tenantid", "status", "createdutc");
 CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_expires" ON "pipeline_reviews" ("status", "expiresutc");
 CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_pipelinerun" ON "pipeline_reviews" ("pipelinerunid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 21, 'Ordered pipelines and stage review gates', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 21);
 
 -- Migration 22: Delegation child waits and worker child reserve
-ALTER TABLE "nodes" ADD COLUMN childreserveslots INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE "nodes" ADD COLUMN maxresidentwaiters INTEGER NOT NULL DEFAULT 0;
-CREATE TABLE IF NOT EXISTS "run_child_waits" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, parentrunid VARCHAR(64) NOT NULL, childrunid VARCHAR(64) NOT NULL, createdutc TIMESTAMPTZ NOT NULL);
+ALTER TABLE "nodes" ADD COLUMN IF NOT EXISTS childreserveslots INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "nodes" ADD COLUMN IF NOT EXISTS maxresidentwaiters INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS "run_child_waits" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    parentrunid VARCHAR(64) NOT NULL,
+    childrunid VARCHAR(64) NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL
+);
 CREATE INDEX IF NOT EXISTS "idx_run_child_waits_parent" ON "run_child_waits" ("parentrunid");
 CREATE INDEX IF NOT EXISTS "idx_run_child_waits_child" ON "run_child_waits" ("childrunid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 22, 'Delegation child waits and worker child reserve', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 22);
 
 -- Migration 23: Deployment trust level and tenant Untrusted policy
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS trustlevel VARCHAR(32) NOT NULL DEFAULT 'Trusted';
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS trustlevel VARCHAR(32) NOT NULL DEFAULT 'Trusted';
 ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS requireuntrusted BOOLEAN NOT NULL DEFAULT FALSE;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 23, 'Deployment trust level and tenant Untrusted policy', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 23);
 
 -- Migration 24: Deployment effect policy replaces retryOnNodeLoss
 ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS effectpolicy VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce';
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS effectpolicy VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce';
 UPDATE "deployments" SET effectpolicy = 'AtLeastOnce' WHERE retryonnodeloss = TRUE;
 UPDATE "runs" SET effectpolicy = 'AtLeastOnce' WHERE deploymentid IN (SELECT id FROM "deployments" WHERE retryonnodeloss = TRUE);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 24, 'Deployment effect policy replaces retryOnNodeLoss', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 24);
 
 -- Migration 25: Worker containerized flag
 ALTER TABLE "nodes" ADD COLUMN IF NOT EXISTS containerized BOOLEAN NOT NULL DEFAULT FALSE;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 25, 'Worker containerized flag', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 25);
 
 -- Migration 26: Manifest apply item warnings
 CREATE TABLE IF NOT EXISTS "manifest_apply_warnings" (
@@ -1352,6 +1425,7 @@ CREATE TABLE IF NOT EXISTS "manifest_apply_warnings" (
     message VARCHAR(1024)
 );
 CREATE INDEX IF NOT EXISTS "idx_manifest_apply_warnings_parent" ON "manifest_apply_warnings" ("manifestapplyid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 26, 'Manifest apply item warnings', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 26);
 
 -- Migration 27: Deployment egress allowlists
 CREATE TABLE IF NOT EXISTS "deployment_egress_rules" (
@@ -1364,6 +1438,7 @@ CREATE TABLE IF NOT EXISTS "deployment_egress_rules" (
     protocol VARCHAR(8) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "idx_deployment_egress_rules_parent" ON "deployment_egress_rules" ("deploymentid", "position");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 27, 'Deployment egress allowlists', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 27);
 
 -- Migration 28: Cron and webhook triggers, notification endpoints, and the notification outbox
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS triggerid VARCHAR(64);
@@ -1482,16 +1557,595 @@ CREATE TABLE IF NOT EXISTS "notification_cursors" (
     cursorid VARCHAR(64),
     lastupdateutc TIMESTAMPTZ NOT NULL
 );
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 28, 'Cron and webhook triggers, notification endpoints, and the notification outbox', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 28);
 
--- Migration 44: Typed inference endpoint configuration (supplement to the reference baseline).
-CREATE TABLE IF NOT EXISTS deployment_inference_endpoints (
+-- Migration 29: Epoch fenced effect journal and recovery checkpoints
+CREATE TABLE IF NOT EXISTS "effect_operations" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    runid VARCHAR(64) NOT NULL,
+    leaseepoch BIGINT NOT NULL,
+    tool VARCHAR(512) NOT NULL,
+    argumentdigest VARCHAR(64) NOT NULL,
+    state VARCHAR(32) NOT NULL,
+    resultreference VARCHAR(1024),
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_effect_operations_run" ON "effect_operations" ("tenantid", "runid", "leaseepoch");
+CREATE TABLE IF NOT EXISTS "effect_checkpoints" (
+    tenantid VARCHAR(64) NOT NULL,
+    runid VARCHAR(64) NOT NULL PRIMARY KEY,
+    leaseepoch BIGINT NOT NULL,
+    gatewayonly BOOLEAN NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 29, 'Epoch fenced effect journal and recovery checkpoints', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 29);
+
+-- Migration 31: Tenant weighted scheduling
+ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS schedulingweight INTEGER NOT NULL DEFAULT 1;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 31, 'Tenant weighted scheduling', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 31);
+
+-- Migration 30: Durable continuation checkpoints and session contracts
+ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS suspensionenabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE "harness_profiles" ADD COLUMN IF NOT EXISTS sessionformat VARCHAR(128);
+CREATE TABLE IF NOT EXISTS "run_checkpoints" (
+    runid VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    artifactid VARCHAR(64) NOT NULL,
+    sessionid VARCHAR(256) NOT NULL,
+    sessionformat VARCHAR(128) NOT NULL,
+    epoch BIGINT NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 30, 'Durable continuation checkpoints and session contracts', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 30);
+
+-- Migration 32: Revocable provider credential leases
+ALTER TABLE "secrets" ADD COLUMN IF NOT EXISTS brokerresource VARCHAR(512);
+ALTER TABLE "secrets" ADD COLUMN IF NOT EXISTS brokeraudience VARCHAR(512);
+CREATE TABLE IF NOT EXISTS "credential_leases" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    runid VARCHAR(64) NOT NULL,
+    secretid VARCHAR(64) NOT NULL,
+    leaseepoch BIGINT NOT NULL,
+    resource VARCHAR(512) NOT NULL,
+    audience VARCHAR(512),
+    state VARCHAR(32) NOT NULL,
+    expiresutc TIMESTAMPTZ NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    revokedutc TIMESTAMPTZ,
+    revokeattempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_credential_leases_attempt" ON "credential_leases" ("runid", "leaseepoch", "secretid");
+CREATE INDEX IF NOT EXISTS "idx_credential_leases_pending" ON "credential_leases" ("state", "expiresutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 32, 'Revocable provider credential leases', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 32);
+
+-- Migration 33: One-time exact-input durable approval grants
+ALTER TABLE "approvals" ADD COLUMN IF NOT EXISTS inputdigest VARCHAR(64);
+ALTER TABLE "approvals" ADD COLUMN IF NOT EXISTS resumeepoch BIGINT;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 33, 'One-time exact-input durable approval grants', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 33);
+
+-- Migration 34: Exact scoped per-run database attribution
+CREATE TABLE IF NOT EXISTS "run_database_usage" (
+    tenantid VARCHAR(64) NOT NULL,
+    runid VARCHAR(64) NOT NULL,
+    operation VARCHAR(64) NOT NULL,
+    statements BIGINT NOT NULL DEFAULT 0,
+    reads BIGINT NOT NULL DEFAULT 0,
+    writes BIGINT NOT NULL DEFAULT 0,
+    errors BIGINT NOT NULL DEFAULT 0,
+    transactions BIGINT NOT NULL DEFAULT 0,
+    durationmicroseconds BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (tenantid,runid,operation)
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 34, 'Exact scoped per-run database attribution', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 34);
+
+-- Migration 35: Agent revisions, environments, and promotions
+ALTER TABLE "agents" ADD COLUMN IF NOT EXISTS latestpublishedrevisionid VARCHAR(64);
+ALTER TABLE "agents" ADD COLUMN IF NOT EXISTS draftrevisionid VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS agentrevisionid VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS environment VARCHAR(32) NOT NULL DEFAULT 'dev';
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS agentrevisionid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "agent_revisions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    number INTEGER NOT NULL,
+    state VARCHAR(16) NOT NULL,
+    contenthash VARCHAR(64) NOT NULL,
+    displayname VARCHAR(256),
+    description TEXT,
+    inputmode VARCHAR(64) NOT NULL,
+    inputschemajson TEXT,
+    outputschemajson TEXT,
+    delegationmode VARCHAR(64) NOT NULL,
+    delegationmaxdepth INTEGER NOT NULL,
+    delegationallowrecursion BOOLEAN NOT NULL,
+    authoruserid VARCHAR(64),
+    authorname VARCHAR(256),
+    changenote VARCHAR(2000),
+    publishedbyuserid VARCHAR(64),
+    publishedbyname VARCHAR(256),
+    publishedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agent_revisions_number" ON "agent_revisions" ("agentid", "number");
+CREATE INDEX IF NOT EXISTS "idx_agent_revisions_tenant" ON "agent_revisions" ("tenantid", "agentid");
+CREATE TABLE IF NOT EXISTS "agent_revision_prompt_pins" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    role VARCHAR(64) NOT NULL,
+    templateid VARCHAR(64) NOT NULL,
+    pinnedversion INTEGER
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_revision_prompt_pins_parent" ON "agent_revision_prompt_pins" ("revisionid", "position");
+CREATE TABLE IF NOT EXISTS "agent_revision_allowlist" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    agentname VARCHAR(128) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_revision_allowlist_parent" ON "agent_revision_allowlist" ("revisionid", "position");
+CREATE TABLE IF NOT EXISTS "agent_revision_capabilities" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    capability VARCHAR(256) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_revision_capabilities_parent" ON "agent_revision_capabilities" ("revisionid", "position");
+CREATE TABLE IF NOT EXISTS "agent_revision_tags" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    tag VARCHAR(128) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_revision_tags_parent" ON "agent_revision_tags" ("revisionid", "position");
+CREATE INDEX IF NOT EXISTS "idx_deployments_environment" ON "deployments" ("tenantid", "environment");
+CREATE TABLE IF NOT EXISTS "tenant_environments" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(32) NOT NULL,
+    description VARCHAR(1000),
+    position INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_tenant_environments_name" ON "tenant_environments" ("tenantid", "name");
+CREATE TABLE IF NOT EXISTS "promotion_records" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    kind VARCHAR(16) NOT NULL,
+    outcome VARCHAR(16) NOT NULL,
+    agentid VARCHAR(64),
+    appid VARCHAR(64),
+    apprevisionid VARCHAR(64),
+    agentrevisionid VARCHAR(64),
+    sourceenvironment VARCHAR(32) NOT NULL,
+    targetenvironment VARCHAR(32) NOT NULL,
+    skippedenvironments BOOLEAN NOT NULL,
+    rollbackofid VARCHAR(64),
+    rolledbackbyid VARCHAR(64),
+    actortype VARCHAR(32) NOT NULL,
+    actorid VARCHAR(128),
+    actorname VARCHAR(256),
+    note VARCHAR(2000),
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_promotion_records_tenant" ON "promotion_records" ("tenantid", "createdutc");
+CREATE TABLE IF NOT EXISTS "promotion_record_items" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    promotionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    deploymentid VARCHAR(64) NOT NULL,
+    deploymentname VARCHAR(128) NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    previousrevisionid VARCHAR(64),
+    newrevisionid VARCHAR(64)
+);
+CREATE INDEX IF NOT EXISTS "idx_promotion_record_items_parent" ON "promotion_record_items" ("promotionid", "position");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 35, 'Agent revisions, environments, and promotions', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 35);
+
+-- Migration 36: Agent assets, asset versions, revision asset pins, and harness asset placements
+CREATE TABLE IF NOT EXISTS "agent_assets" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    description TEXT,
+    prompttemplateid VARCHAR(64),
+    artifactstoreid VARCHAR(64),
+    currentversion INTEGER NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agent_assets_name" ON "agent_assets" ("tenantid", "name");
+CREATE TABLE IF NOT EXISTS "agent_asset_tags" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    assetid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    tag VARCHAR(128) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_asset_tags_parent" ON "agent_asset_tags" ("assetid", "position");
+CREATE TABLE IF NOT EXISTS "agent_asset_versions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    assetid VARCHAR(64) NOT NULL,
+    number INTEGER NOT NULL,
+    totalbytes BIGINT NOT NULL,
+    authorname VARCHAR(256),
+    changenote VARCHAR(2000),
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agent_asset_versions_number" ON "agent_asset_versions" ("assetid", "number");
+CREATE TABLE IF NOT EXISTS "agent_asset_version_files" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    versionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    path VARCHAR(512) NOT NULL,
+    mediatype VARCHAR(256) NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    storagekey VARCHAR(1024) NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agent_asset_version_files_parent" ON "agent_asset_version_files" ("versionid", "path");
+CREATE TABLE IF NOT EXISTS "agent_asset_blobs" (
+    storagekey VARCHAR(1024) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    content BYTEA NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS "agent_revision_asset_pins" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    assetid VARCHAR(64) NOT NULL,
+    version INTEGER
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_revision_asset_pins_parent" ON "agent_revision_asset_pins" ("revisionid", "position");
+CREATE INDEX IF NOT EXISTS "idx_agent_revision_asset_pins_asset" ON "agent_revision_asset_pins" ("tenantid", "assetid");
+CREATE TABLE IF NOT EXISTS "harness_profile_asset_placements" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    harnessprofileid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    pathtemplate VARCHAR(512) NOT NULL,
+    listinsystemprompt BOOLEAN NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_asset_placements_parent" ON "harness_profile_asset_placements" ("harnessprofileid", "position");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 36, 'Agent assets, asset versions, revision asset pins, and harness asset placements', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 36);
+
+-- Migration 37: Conversation file spaces
+ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS filespacemountpath VARCHAR(128) NOT NULL DEFAULT 'files';
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS filespaceid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "conversation_file_spaces" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    ownerkey VARCHAR(128) NOT NULL,
+    conversationid VARCHAR(64),
+    pipelinerunid VARCHAR(64),
+    rootrunid VARCHAR(64),
+    artifactstoreid VARCHAR(64),
+    filecount INTEGER NOT NULL,
+    totalbytes BIGINT NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_conversation_file_spaces_owner" ON "conversation_file_spaces" ("tenantid", "ownerkey");
+CREATE TABLE IF NOT EXISTS "conversation_files" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    filespaceid VARCHAR(64) NOT NULL,
+    path VARCHAR(512) NOT NULL,
+    currentversion INTEGER NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    mediatype VARCHAR(256) NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_conversation_files_path" ON "conversation_files" ("filespaceid", "path");
+CREATE TABLE IF NOT EXISTS "conversation_file_versions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    fileid VARCHAR(64) NOT NULL,
+    number INTEGER NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    mediatype VARCHAR(256) NOT NULL,
+    runid VARCHAR(64),
+    leaseepoch BIGINT,
+    writtenby VARCHAR(256),
+    storagekey VARCHAR(1024) NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_conversation_file_versions_number" ON "conversation_file_versions" ("fileid", "number");
+CREATE TABLE IF NOT EXISTS "file_space_blobs" (
+    storagekey VARCHAR(1024) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    content BYTEA NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 37, 'Conversation file spaces', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 37);
+
+-- Migration 38: Capability descriptors and harness tool probes
+ALTER TABLE "mcp_test_tools" ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE "mcp_test_tools" ADD COLUMN IF NOT EXISTS inputschemajson TEXT;
+CREATE TABLE IF NOT EXISTS "capability_descriptors" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64),
+    scopekey VARCHAR(64) NOT NULL,
+    name VARCHAR(256) NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    origin VARCHAR(32) NOT NULL,
+    sourcekey VARCHAR(512) NOT NULL,
+    sourceagentid VARCHAR(64),
+    sourcerevisionid VARCHAR(64),
+    sourcemcpserverid VARCHAR(64),
+    sourcetoolname VARCHAR(256),
+    sourceharnessprofileid VARCHAR(64),
+    sourceharnesstype VARCHAR(32),
+    summary TEXT,
+    inputschemajson TEXT,
+    outputschemajson TEXT,
+    hintstatus VARCHAR(32) NOT NULL,
+    hintsamplesize INTEGER NOT NULL,
+    hintmediandurationms BIGINT,
+    hintp90durationms BIGINT,
+    hintmeancostusd DOUBLE PRECISION,
+    hintwindowdays INTEGER NOT NULL,
+    hintcomputedutc TIMESTAMPTZ,
+    refreshwarning TEXT,
+    lastrefreshedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_capability_descriptors_source" ON "capability_descriptors" ("scopekey", "sourcekey");
+CREATE INDEX IF NOT EXISTS "idx_capability_descriptors_tenantkind" ON "capability_descriptors" ("tenantid", "kind", "name");
+CREATE TABLE IF NOT EXISTS "capability_descriptor_tags" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    capabilityid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    tag VARCHAR(64) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_capability_descriptor_tags_parent" ON "capability_descriptor_tags" ("capabilityid", "position");
+CREATE TABLE IF NOT EXISTS "capability_descriptor_requirements" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    capabilityid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    labelkey VARCHAR(256) NOT NULL,
+    labelvalue VARCHAR(256) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_capability_descriptor_requirements_parent" ON "capability_descriptor_requirements" ("capabilityid", "position");
+CREATE TABLE IF NOT EXISTS "harness_profile_tool_probes" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    harnessprofileid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    executable VARCHAR(128) NOT NULL,
+    argument VARCHAR(32),
+    description TEXT
+);
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_tool_probes_parent" ON "harness_profile_tool_probes" ("harnessprofileid", "position");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 38, 'Capability descriptors and harness tool probes', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 38);
+
+-- Migration 39: Fan-out groups
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS fanoutgroupid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "fan_out_groups" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    parentrunid VARCHAR(64) NOT NULL,
+    rootrunid VARCHAR(64) NOT NULL,
+    joinpolicy VARCHAR(16) NOT NULL,
+    quorum INTEGER NOT NULL,
+    timeoutseconds INTEGER NOT NULL,
+    deadlineutc TIMESTAMPTZ,
+    maxcostusd DOUBLE PRECISION,
+    maxtokens BIGINT,
+    cancelremaining BOOLEAN NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    statusreason TEXT,
+    costusd DOUBLE PRECISION NOT NULL,
+    tokens BIGINT NOT NULL,
+    requestdigest VARCHAR(64) NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    completedutc TIMESTAMPTZ,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_fan_out_groups_parent" ON "fan_out_groups" ("tenantid", "parentrunid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_fan_out_groups_status" ON "fan_out_groups" ("status", "createdutc");
+CREATE TABLE IF NOT EXISTS "fan_out_group_members" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    groupid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    label VARCHAR(128) NOT NULL,
+    agentname VARCHAR(128) NOT NULL,
+    childrunid VARCHAR(64) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_fan_out_group_members_parent" ON "fan_out_group_members" ("groupid", "position");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 39, 'Fan-out groups', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 39);
+
+-- Migration 40: Agentic apps and app revisions
+ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS appid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "agentic_apps" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    slug VARCHAR(64) NOT NULL,
+    description TEXT,
+    entryagentid VARCHAR(64) NOT NULL,
+    liveenvironment VARCHAR(64) NOT NULL,
+    authmode VARCHAR(32) NOT NULL,
+    anonymousenabled BOOLEAN NOT NULL,
+    showoperatordetail BOOLEAN NOT NULL,
+    displayname VARCHAR(128),
+    logoassetid VARCHAR(64),
+    primarycolor VARCHAR(16),
+    accentcolor VARCHAR(16),
+    welcometext TEXT,
+    latestpublishedrevisionid VARCHAR(64),
+    active BOOLEAN NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agentic_apps_slug" ON "agentic_apps" ("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agentic_apps_name" ON "agentic_apps" ("tenantid", "name");
+CREATE TABLE IF NOT EXISTS "agentic_app_members" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    appid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    role VARCHAR(256)
+);
+CREATE INDEX IF NOT EXISTS "idx_agentic_app_members_parent" ON "agentic_app_members" ("appid", "position");
+CREATE INDEX IF NOT EXISTS "idx_agentic_app_members_agent" ON "agentic_app_members" ("agentid");
+CREATE TABLE IF NOT EXISTS "agentic_app_edges" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    appid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    calleragentid VARCHAR(64) NOT NULL,
+    calleeagentid VARCHAR(64) NOT NULL,
+    fanoutallowed BOOLEAN NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_agentic_app_edges_parent" ON "agentic_app_edges" ("appid", "position");
+CREATE TABLE IF NOT EXISTS "agentic_app_environments" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    appid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    environment VARCHAR(64) NOT NULL,
+    deploymentid VARCHAR(64)
+);
+CREATE INDEX IF NOT EXISTS "idx_agentic_app_environments_parent" ON "agentic_app_environments" ("appid", "position");
+CREATE TABLE IF NOT EXISTS "app_revisions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    appid VARCHAR(64) NOT NULL,
+    number INTEGER NOT NULL,
+    state VARCHAR(16) NOT NULL,
+    authorname VARCHAR(256),
+    changenote TEXT,
+    publishedbyname VARCHAR(256),
+    publishedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_app_revisions_number" ON "app_revisions" ("appid", "number");
+CREATE TABLE IF NOT EXISTS "app_revision_members" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    revisionid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    agentrevisionid VARCHAR(64) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_app_revision_members_parent" ON "app_revision_members" ("revisionid", "position");
+CREATE TABLE IF NOT EXISTS "app_revision_edges" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    revisionid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    calleragentid VARCHAR(64) NOT NULL,
+    calleeagentid VARCHAR(64) NOT NULL,
+    fanoutallowed BOOLEAN NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_app_revision_edges_parent" ON "app_revision_edges" ("revisionid", "position");
+CREATE TABLE IF NOT EXISTS "app_sessions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    appid VARCHAR(64) NOT NULL,
+    tokenhash VARCHAR(64) NOT NULL,
+    userid VARCHAR(64),
+    principalname VARCHAR(256) NOT NULL,
+    expiresutc TIMESTAMPTZ NOT NULL,
+    revokedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_app_sessions_token" ON "app_sessions" ("tokenhash");
+CREATE INDEX IF NOT EXISTS "idx_app_sessions_expires" ON "app_sessions" ("expiresutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 40, 'Agentic apps and app revisions', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 40);
+
+-- Migration 41: Studio drafts and deployment management access
+ALTER TABLE "deployments" ADD COLUMN IF NOT EXISTS managementaccess VARCHAR(16) NOT NULL DEFAULT 'None';
+ALTER TABLE "approvals" ADD COLUMN IF NOT EXISTS draftid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "studio_drafts" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    owneruserid VARCHAR(64),
+    ownername VARCHAR(256),
+    conversationid VARCHAR(64),
+    targetapp VARCHAR(64),
+    version INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    approvalid VARCHAR(64),
+    publishonapply BOOLEAN NOT NULL,
+    manifestapplyid VARCHAR(64),
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_studio_drafts_tenant" ON "studio_drafts" ("tenantid", "lastupdateutc");
+CREATE TABLE IF NOT EXISTS "studio_draft_items" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    draftid VARCHAR(64) NOT NULL,
+    kind VARCHAR(64) NOT NULL,
+    name VARCHAR(256) NOT NULL,
+    operation VARCHAR(16) NOT NULL,
+    document TEXT NOT NULL,
+    basehash VARCHAR(64),
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_studio_draft_items_key" ON "studio_draft_items" ("draftid", "kind", "name");
+CREATE TABLE IF NOT EXISTS "studio_draft_layout" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    draftid VARCHAR(64) NOT NULL,
+    nodekey VARCHAR(320) NOT NULL,
+    x DOUBLE PRECISION NOT NULL,
+    y DOUBLE PRECISION NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_studio_draft_layout_key" ON "studio_draft_layout" ("draftid", "nodekey");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 41, 'Studio drafts and deployment management access', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 41);
+
+-- Migration 42: App branding colors, typeface, and favicon
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS backgroundcolor VARCHAR(16);
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS headercolor VARCHAR(16);
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS agentbubblecolor VARCHAR(16);
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS fontfamily VARCHAR(32);
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS faviconassetid VARCHAR(64);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 42, 'App branding colors, typeface, and favicon', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 42);
+
+-- Migration 43: App branding colors for the conversation list, message input, and file list
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS conversationlistcolor VARCHAR(16);
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS composercolor VARCHAR(16);
+ALTER TABLE "agentic_apps" ADD COLUMN IF NOT EXISTS filescolor VARCHAR(16);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 43, 'App branding colors for the conversation list, message input, and file list', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 43);
+
+-- Migration 44: Typed inference protocols and secret-backed authentication
+CREATE TABLE IF NOT EXISTS "deployment_inference_endpoints" (
     deploymentid VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
     protocol VARCHAR(32) NOT NULL,
     baseurl TEXT NOT NULL,
     authenticationtype VARCHAR(32) NOT NULL
 );
-CREATE TABLE IF NOT EXISTS deployment_inference_credentials (
+CREATE TABLE IF NOT EXISTS "deployment_inference_credentials" (
     deploymentid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64) NOT NULL,
     position INTEGER NOT NULL,
@@ -1500,10 +2154,11 @@ CREATE TABLE IF NOT EXISTS deployment_inference_credentials (
     secretid VARCHAR(64) NOT NULL,
     PRIMARY KEY (deploymentid, position)
 );
-CREATE INDEX IF NOT EXISTS idx_deployment_inference_credentials_secret ON deployment_inference_credentials (tenantid, secretid);
+CREATE INDEX IF NOT EXISTS "idx_deployment_inference_credentials_secret" ON "deployment_inference_credentials" ("tenantid", "secretid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 44, 'Typed inference protocols and secret-backed authentication', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 44);
 
--- Migration 45: Reusable harness runtime connections.
-CREATE TABLE IF NOT EXISTS harness_runtime_settings (
+-- Migration 45: Reusable harness runtime connections
+CREATE TABLE IF NOT EXISTS "harness_runtime_settings" (
     profileid VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
     model VARCHAR(512),
@@ -1513,7 +2168,7 @@ CREATE TABLE IF NOT EXISTS harness_runtime_settings (
     baseurl TEXT,
     authenticationtype VARCHAR(32)
 );
-CREATE TABLE IF NOT EXISTS harness_runtime_credentials (
+CREATE TABLE IF NOT EXISTS "harness_runtime_credentials" (
     profileid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64) NOT NULL,
     position INTEGER NOT NULL,
@@ -1522,9 +2177,10 @@ CREATE TABLE IF NOT EXISTS harness_runtime_credentials (
     secretid VARCHAR(64) NOT NULL,
     PRIMARY KEY (profileid, position)
 );
-CREATE INDEX IF NOT EXISTS idx_harness_runtime_credentials_secret ON harness_runtime_credentials (tenantid, secretid);
+CREATE INDEX IF NOT EXISTS "idx_harness_runtime_credentials_secret" ON "harness_runtime_credentials" ("tenantid", "secretid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 45, 'Reusable harness runtime connections', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 45);
 
--- Migration 46: Mandates, mandate revisions, and keeper ticks (AA1).
+-- Migration 46: Mandates, mandate revisions, and keeper ticks
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS mandateid VARCHAR(64);
 ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS mandatetickid VARCHAR(64);
 CREATE INDEX IF NOT EXISTS "idx_runs_mandate" ON "runs" ("tenantid", "mandateid", "createdutc") WHERE mandateid IS NOT NULL;
@@ -1621,3 +2277,4 @@ CREATE TABLE IF NOT EXISTS "mandate_ticks" (
 CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_mandate" ON "mandate_ticks" ("tenantid", "mandateid", "startedutc");
 CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_run" ON "mandate_ticks" ("runid");
 CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_created" ON "mandate_ticks" ("createdutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 46, 'Mandates, mandate revisions, and keeper ticks', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 46);

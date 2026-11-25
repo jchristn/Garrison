@@ -6,6 +6,11 @@ All notable changes to Garrison are recorded here. The format follows [Keep a Ch
 
 The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs `AA<phase>.<n>`, decisions `AA-<nnn>`).
 
+### Fixed
+
+- Tenant deletion now removes deployment inference endpoints and credentials and harness runtime settings and credentials, and the startup table check covers them; `TableCatalog` had left these four tables out.
+- The reference schemas in `reference/sql` were missing migrations 29 to 43. They are regenerated from `SchemaBuilder` through migration 46 and record each migration in `schema_migrations`, so turning `Database.ManageSchema` on later does not run migrations again.
+
 ### Changed
 
 - The product version is 0.3.0 in every mirror listed in `scripts/version-mirrors.txt`, including the C# SDK packages, which had moved to 0.2.1 on their own (AA0.3).
