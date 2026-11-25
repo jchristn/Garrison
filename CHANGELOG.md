@@ -2,10 +2,13 @@
 
 All notable changes to Garrison are recorded here. The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org). Versions below 1.0 are alpha and may break compatibility in any release.
 
-## [Unreleased]
+## [0.3.0] - Unreleased
+
+The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs `AA<phase>.<n>`, decisions `AA-<nnn>`).
 
 ### Changed
 
+- The product version is 0.3.0 in every mirror listed in `scripts/version-mirrors.txt`, including the C# SDK packages, which had moved to 0.2.1 on their own (AA0.3).
 - Run effect safety and cluster effect checks on relevant pushes only; remove the weekly, pull request, and manual triggers.
 
 ## [1.3.0] - 2026-11-03
