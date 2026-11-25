@@ -1082,7 +1082,8 @@ const tips = {
         controlPlane: 'Réplicas del plano de control: estado, cambios de líder, tráfico y retraso del backplane, latidos e iteraciones de los servicios en segundo plano.',
         security: 'Fallos de autenticación por esquema y motivo, denegaciones de autorización, limitación de tasa, tokens emitidos, descifrado de secretos y renovaciones de tokens de Codex.',
         integrations: 'Llamadas salientes por servicio: pruebas de servidores MCP, sondeos de observabilidad, el proxy MCP, la API de Kubernetes y el plano de control desde los workers.',
-        logs: 'Volumen de registros, errores y advertencias por componente e inquilino, líneas de error recientes y enlaces a trazas.'
+        logs: 'Volumen de registros, errores y advertencias por componente e inquilino, líneas de error recientes y enlaces a trazas.',
+        autonomy: 'Guardianes: ticks por resultado y origen del despertar, despertares omitidos y fallidos, retraso de inicio de los ticks y los intervalos que aplica el planificador.'
       },
       observabilityDocs: 'Abre la guía de telemetría en una pestaña nueva: cómo recoger las métricas de Garrison y conectar Grafana, Prometheus, Tempo o Loki.',
       observability: 'Enlaces a las herramientas de métricas, paneles y trazas que esta instalación declara como configuradas. Los servicios sin configurar no se muestran.',

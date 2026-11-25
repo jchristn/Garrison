@@ -1079,7 +1079,8 @@ const tips = {
         controlPlane: '控制平面副本：狀態、領導者變更、背板流量與延遲、心跳以及背景服務的反覆執行。',
         security: '依機制和原因統計的驗證失敗、授權拒絕、速率限制、核發的權杖、機密解密以及 Codex 權杖更新。',
         integrations: '依服務統計的對外呼叫：MCP 伺服器測試、可觀測性探測、MCP Proxy、Kubernetes API 以及工作節點對控制平面的呼叫。',
-        logs: '依元件和租用戶統計的記錄量、錯誤與警告、近期錯誤行以及追蹤連結。'
+        logs: '依元件和租用戶統計的記錄量、錯誤與警告、近期錯誤行以及追蹤連結。',
+        autonomy: '守護者：依結果和喚醒來源統計的 tick、略過和失敗的喚醒、tick 啟動延遲，以及排程器套用的間隔。'
       },
       observabilityDocs: '在新分頁開啟遙測指南：如何收集 Garrison 指標並連接 Grafana、Prometheus、Tempo 或 Loki。',
       observability: '連到此環境回報為已設定的指標、儀表板與追蹤工具。未設定的服務不會顯示。',

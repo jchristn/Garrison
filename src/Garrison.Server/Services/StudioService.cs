@@ -30,7 +30,7 @@ namespace Garrison.Server.Services
         /// <summary>
         /// Kinds a draft may hold. Secrets are left out: drafts never carry secret values.
         /// </summary>
-        public static readonly IReadOnlyList<string> DraftKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> DraftKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "NotificationEndpoint" };
 
         /// <summary>
         /// Kinds a draft may delete.
@@ -499,7 +499,7 @@ namespace Garrison.Server.Services
             }
             if (!diff.Valid) await ReopenInvalidAsync(ctx, approvals, approval, draft, "The draft no longer validates: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
 
-            ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, approval.TenantId) };
+            ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, approval.TenantId), MandateRevisionSource = MandateRevisionSourceEnum.Architect };
             List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
             string? applyId = null;
             if (upserts.Count > 0)

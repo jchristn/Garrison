@@ -143,6 +143,9 @@ namespace Garrison.Core.Database.Ado
             PipelineReviews = new AdoPipelineReviewMethods(this);
             Triggers = new AdoTriggerMethods(this);
             TriggerFires = new AdoTriggerFireMethods(this);
+            Mandates = new AdoMandateMethods(this);
+            MandateRevisions = new AdoMandateRevisionMethods(this);
+            MandateTicks = new AdoMandateTickMethods(this);
             NotificationEndpoints = new AdoNotificationEndpointMethods(this);
             NotificationDeliveries = new AdoNotificationDeliveryMethods(this);
             AgentRevisions = new AdoAgentRevisionMethods(this);

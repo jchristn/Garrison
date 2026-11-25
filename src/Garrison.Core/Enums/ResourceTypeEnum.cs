@@ -225,6 +225,12 @@ namespace Garrison.Core.Enums
         /// Studio drafts (AD7): manifest bundles designed in the studio before a person approves applying them. Create starts
         /// a draft; Update edits it and requests its apply; applying needs Create on Manifest when the approval is decided.
         /// </summary>
-        StudioDraft
+        StudioDraft,
+
+        /// <summary>
+        /// Mandates (AA1): standing responsibilities bound to a deployment, with versioned revisions and tick history. Execute
+        /// pauses, resumes, and wakes a mandate; publishing a revision needs Update.
+        /// </summary>
+        Mandate
     }
 }

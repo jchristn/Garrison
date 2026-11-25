@@ -10,6 +10,7 @@ namespace Garrison.Core.Manifests
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
+    using Garrison.Core.Keepers;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
@@ -34,13 +35,13 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "NotificationEndpoint", "Bundle" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "NotificationEndpoint", "Bundle" };
 
         /// <summary>
         /// Kinds an export can select (P12.21), in apply order. Secrets are never exported as documents (only as bundle
         /// requirements), and the Bundle document is written by every export.
         /// </summary>
-        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "NotificationEndpoint" };
 
         /// <summary>
         /// Name written to the Bundle document of an export.
@@ -81,6 +82,12 @@ namespace Garrison.Core.Manifests
         /// references are checked.
         /// </summary>
         public Func<string, AgenticApp, string?, CancellationToken, Task>? AppValidator { get; set; } = null;
+
+        /// <summary>
+        /// Applies the cluster interval bounds (Autonomy.MinIntervalSeconds and Autonomy.MaxIntervalSeconds) to a Mandate
+        /// document's revision (AA1.12). The control plane sets it; with none set, only the revision's own ranges apply.
+        /// </summary>
+        public Action<MandateRevision>? MandateRevisionBounds { get; set; } = null;
 
         #endregion
 
@@ -325,6 +332,7 @@ namespace Garrison.Core.Manifests
             foreach (Pipeline pipeline in plan.Selected<Pipeline>()) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
             foreach (AgenticApp app in plan.Selected<AgenticApp>()) documents.Add(Wrap("AgenticApp", app.Name, await AppTreeAsync(app, resolver, token).ConfigureAwait(false)));
             foreach (Trigger trigger in plan.Selected<Trigger>()) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
+            foreach (Mandate mandate in plan.Selected<Mandate>()) documents.Add(Wrap("Mandate", mandate.Name, await MandateTreeAsync(mandate, null, null, resolver, token).ConfigureAwait(false)));
             foreach (NotificationEndpoint endpoint in plan.Selected<NotificationEndpoint>()) documents.Add(Wrap("NotificationEndpoint", endpoint.Name, await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false)));
 
             ManifestExportResult result = new ManifestExportResult();
@@ -410,6 +418,9 @@ namespace Garrison.Core.Manifests
                     break;
                 case "trigger":
                     await PlanTriggerAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "mandate":
+                    await PlanMandateAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
                     break;
                 case "notificationendpoint":
                     await PlanNotificationEndpointAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
@@ -1486,6 +1497,198 @@ namespace Garrison.Core.Manifests
             return tree;
         }
 
+        private async Task PlanMandateAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            MandateSpec spec = Deserialize<MandateSpec>(document);
+            Mandate mandate = new Mandate();
+            mandate.TenantId = tenantId;
+            mandate.Name = document.Metadata.Name;
+            mandate.Description = spec.Description;
+            mandate.AgentId = String.IsNullOrWhiteSpace(spec.Agent) ? String.Empty : await resolver.RequireAsync("Agent", spec.Agent, "spec.agent", token).ConfigureAwait(false);
+            mandate.DeploymentId = String.IsNullOrWhiteSpace(spec.Deployment) ? String.Empty : await resolver.RequireAsync("Deployment", spec.Deployment, "spec.deployment", token).ConfigureAwait(false);
+            if (spec.Revision == null) throw new ValidationException("Mandate " + mandate.Name + " needs spec.revision with at least an objective.", new Dictionary<string, string> { { "spec.revision", "A revision is required." } });
+            MandateRevision revision = MandateRevisionFrom(spec.Revision);
+            MandateRevisionBounds?.Invoke(revision);
+            MandateValidator.ValidateRevision(revision);
+            revision.Source = options.MandateRevisionSource;
+            MandateStatusEnum desired = spec.Paused == true ? MandateStatusEnum.Paused : MandateStatusEnum.Active;
+
+            Mandate? existing = await _Database.Mandates.ReadByNameAsync(tenantId, mandate.Name, token).ConfigureAwait(false);
+            MandateRevision? current = null;
+            if (existing != null)
+            {
+                if (!String.IsNullOrEmpty(existing.AgentId) && existing.AgentId != mandate.AgentId)
+                {
+                    throw new ValidationException("Mandate " + existing.Name + " belongs to another agent; the agent cannot change. Delete it and apply it again to move it.", new Dictionary<string, string> { { "spec.agent", "The agent cannot change." } }, new Dictionary<string, string> { { "spec.agent", "Immutable" } });
+                }
+                mandate.Id = existing.Id;
+                mandate.CreatedUtc = existing.CreatedUtc;
+                mandate.CreatedBy = existing.CreatedBy;
+                mandate.CurrentRevisionId = existing.CurrentRevisionId;
+                mandate.CurrentRevisionNumber = existing.CurrentRevisionNumber;
+                mandate.NextWakeUtc = existing.NextWakeUtc;
+                mandate.PendingWakeSource = existing.PendingWakeSource;
+                mandate.CurrentIntervalSeconds = existing.CurrentIntervalSeconds;
+                mandate.ConsecutiveQuietTicks = existing.ConsecutiveQuietTicks;
+                mandate.LastTickUtc = existing.LastTickUtc;
+                mandate.LastTickOutcome = existing.LastTickOutcome;
+                mandate.ActiveRunId = existing.ActiveRunId;
+                mandate.ActiveTickId = existing.ActiveTickId;
+                mandate.TickCount = existing.TickCount;
+                mandate.RunAsType = existing.RunAsType;
+                mandate.RunAsId = existing.RunAsId;
+                mandate.RunAsName = existing.RunAsName;
+                current = String.IsNullOrEmpty(existing.CurrentRevisionId) ? null : await _Database.MandateRevisions.ReadAsync(tenantId, existing.CurrentRevisionId, token).ConfigureAwait(false);
+            }
+            else
+            {
+                mandate.CreatedBy = options.PrincipalName;
+            }
+
+            // The planned mandate carries the desired status, and the revision only when it differs from the current one.
+            bool revisionChanged = current == null || !Same(MandateRevisionTree(current), MandateRevisionTree(revision));
+            mandate.Status = desired;
+            mandate.CurrentRevision = revisionChanged ? revision : null;
+            planned.Model = mandate;
+            planned.ResourceId = mandate.Id;
+            bool unchanged = false;
+            if (existing != null)
+            {
+                // Frozen, CapReached, and Retired are brakes, not configuration: they compare as Active.
+                MandateStatusEnum existingStatus = existing.Status == MandateStatusEnum.Paused ? MandateStatusEnum.Paused : MandateStatusEnum.Active;
+                Dictionary<string, object?> before = await MandateTreeAsync(existing, current, existingStatus, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> after = await MandateTreeAsync(mandate, revision, desired, resolver, token).ConfigureAwait(false);
+                unchanged = Same(before, after);
+                if (!unchanged) planned.Changes = Diff(before, after);
+            }
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (planned.Result != ManifestApplyResultEnum.Unchanged)
+            {
+                // A written mandate's ticks run as the principal that applied the manifest.
+                mandate.RunAsType = options.PrincipalType;
+                mandate.RunAsId = options.PrincipalId;
+                mandate.RunAsName = options.PrincipalName;
+            }
+            planned.Previous = existing;
+            resolver.Add("Mandate", mandate.Name, mandate.Id);
+        }
+
+        private static MandateRevision MandateRevisionFrom(MandateRevisionSpec spec)
+        {
+            MandateRevision revision = new MandateRevision();
+            revision.Objective = spec.Objective ?? String.Empty;
+            revision.HealthyDefinition = spec.HealthyDefinition;
+            revision.Autonomy = spec.Autonomy;
+            revision.EscalationPolicy = spec.EscalationPolicy;
+            revision.Direction = spec.Direction;
+            revision.Signals = (spec.Signals ?? new List<MandateSignalSpec>()).Select(s => new MandateRevisionSignal { Name = s.Name ?? String.Empty, Description = s.Description }).ToList();
+            if (spec.WakeMode.HasValue) revision.WakeMode = spec.WakeMode.Value;
+            if (spec.MinIntervalSeconds.HasValue) revision.MinIntervalSeconds = spec.MinIntervalSeconds.Value;
+            if (spec.MaxIntervalSeconds.HasValue) revision.MaxIntervalSeconds = spec.MaxIntervalSeconds.Value;
+            if (spec.BackoffFactor.HasValue) revision.BackoffFactor = spec.BackoffFactor.Value;
+            revision.JitterPercent = spec.JitterPercent;
+            revision.BudgetPerTickUsd = spec.BudgetPerTickUsd;
+            revision.BudgetPerDayUsd = spec.BudgetPerDayUsd;
+            revision.MaxTokensPerTick = spec.MaxTokensPerTick;
+            revision.ChangeNote = spec.ChangeNote;
+            return revision;
+        }
+
+        private async Task<Dictionary<string, object?>> MandateTreeAsync(Mandate mandate, MandateRevision? revision, MandateStatusEnum? status, Resolver resolver, CancellationToken token)
+        {
+            if (revision == null && !String.IsNullOrEmpty(mandate.CurrentRevisionId)) revision = await _Database.MandateRevisions.ReadAsync(mandate.TenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false);
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (mandate.Description != null) tree["description"] = mandate.Description;
+            tree["agent"] = await resolver.NameAsync("Agent", mandate.AgentId, token).ConfigureAwait(false) ?? mandate.AgentId;
+            tree["deployment"] = await resolver.NameAsync("Deployment", mandate.DeploymentId, token).ConfigureAwait(false) ?? mandate.DeploymentId;
+            MandateStatusEnum effective = status ?? mandate.Status;
+            if (effective == MandateStatusEnum.Paused) tree["paused"] = true;
+            if (revision != null) tree["revision"] = MandateRevisionTree(revision);
+            return tree;
+        }
+
+        private static Dictionary<string, object?> MandateRevisionTree(MandateRevision revision)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            tree["objective"] = revision.Objective;
+            if (revision.HealthyDefinition != null) tree["healthyDefinition"] = revision.HealthyDefinition;
+            if (revision.Autonomy != null) tree["autonomy"] = revision.Autonomy;
+            if (revision.EscalationPolicy != null) tree["escalationPolicy"] = revision.EscalationPolicy;
+            if (revision.Direction != null) tree["direction"] = revision.Direction;
+            if (revision.Signals.Count > 0)
+            {
+                List<object?> signals = new List<object?>();
+                foreach (MandateRevisionSignal signal in revision.Signals)
+                {
+                    Dictionary<string, object?> item = new Dictionary<string, object?>();
+                    item["name"] = signal.Name;
+                    if (signal.Description != null) item["description"] = signal.Description;
+                    signals.Add(item);
+                }
+                tree["signals"] = signals;
+            }
+            tree["wakeMode"] = revision.WakeMode.ToString();
+            tree["minIntervalSeconds"] = (long)revision.MinIntervalSeconds;
+            tree["maxIntervalSeconds"] = (long)revision.MaxIntervalSeconds;
+            if (revision.WakeMode == WakeModeEnum.Backoff) tree["backoffFactor"] = revision.BackoffFactor;
+            if (revision.JitterPercent.HasValue) tree["jitterPercent"] = (long)revision.JitterPercent.Value;
+            if (revision.BudgetPerTickUsd.HasValue) tree["budgetPerTickUsd"] = revision.BudgetPerTickUsd.Value;
+            if (revision.BudgetPerDayUsd.HasValue) tree["budgetPerDayUsd"] = revision.BudgetPerDayUsd.Value;
+            if (revision.MaxTokensPerTick.HasValue) tree["maxTokensPerTick"] = revision.MaxTokensPerTick.Value;
+            return tree;
+        }
+
+        private async Task WriteMandateAsync(string tenantId, Mandate mandate, bool create, CancellationToken token)
+        {
+            await MandateValidator.ValidateAsync(_Database, tenantId, mandate, token).ConfigureAwait(false);
+            MandateRevision? revision = mandate.CurrentRevision;
+            MandateStatusEnum desired = mandate.Status;
+            if (create)
+            {
+                mandate.Status = MandateStatusEnum.Draft;
+                mandate.CurrentRevisionId = null;
+                mandate.CurrentRevisionNumber = 0;
+                mandate.NextWakeUtc = null;
+                await _Database.Mandates.CreateAsync(mandate, token).ConfigureAwait(false);
+            }
+            else
+            {
+                await _Database.Mandates.UpdateAsync(mandate, token).ConfigureAwait(false);
+                Mandate? stored = await _Database.Mandates.ReadAsync(tenantId, mandate.Id, token).ConfigureAwait(false);
+                if (stored != null) mandate.Status = stored.Status;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            if (revision != null)
+            {
+                revision.Id = String.Empty;
+                revision.TenantId = tenantId;
+                revision.MandateId = mandate.Id;
+                revision.Number = await _Database.MandateRevisions.NextNumberAsync(mandate.Id, token).ConfigureAwait(false);
+                revision.State = MandateRevisionStateEnum.Published;
+                revision.PublishedUtc = now;
+                revision.Author = mandate.RunAsName;
+                await _Database.MandateRevisions.CreateAsync(revision, token).ConfigureAwait(false);
+                mandate.CurrentRevisionId = revision.Id;
+                mandate.CurrentRevisionNumber = revision.Number;
+                mandate.CurrentIntervalSeconds = revision.MinIntervalSeconds;
+                mandate.ConsecutiveQuietTicks = 0;
+                mandate.Status = desired;
+                mandate.NextWakeUtc = desired == MandateStatusEnum.Active ? now : null;
+                mandate.PendingWakeSource = null;
+                await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
+            }
+            else if (mandate.Status != desired && (mandate.Status == MandateStatusEnum.Active || mandate.Status == MandateStatusEnum.Paused) && !String.IsNullOrEmpty(mandate.CurrentRevisionId))
+            {
+                MandateRevision? current = await _Database.MandateRevisions.ReadAsync(tenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false);
+                mandate.Status = desired;
+                mandate.NextWakeUtc = desired == MandateStatusEnum.Active ? now : null;
+                mandate.PendingWakeSource = null;
+                if (desired == MandateStatusEnum.Active && current != null) mandate.CurrentIntervalSeconds = current.MinIntervalSeconds;
+                await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
+            }
+        }
+
         private async Task PlanNotificationEndpointAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
         {
             NotificationEndpointSpec spec = Deserialize<NotificationEndpointSpec>(document);
@@ -1641,6 +1844,7 @@ namespace Garrison.Core.Manifests
                 case AgenticApp: return await _Database.Apps.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 case Pipeline: return await _Database.Pipelines.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 case Trigger: return await _Database.Triggers.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case Mandate: return await _Database.Mandates.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 case NotificationEndpoint: return await _Database.NotificationEndpoints.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 default: return null;
             }
@@ -1713,6 +1917,14 @@ namespace Garrison.Core.Manifests
                         case Trigger:
                             if (created) await _Database.Triggers.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
                             else if (prior is Trigger r) await _Database.Triggers.UpdateAsync(r, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case Mandate:
+                            if (created) await _Database.Mandates.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Mandate m)
+                            {
+                                await _Database.Mandates.UpdateAsync(m, CancellationToken.None).ConfigureAwait(false);
+                                await _Database.Mandates.UpdateScheduleAsync(m, CancellationToken.None).ConfigureAwait(false);
+                            }
                             break;
                         case NotificationEndpoint:
                             if (created) await _Database.NotificationEndpoints.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
@@ -1818,6 +2030,9 @@ namespace Garrison.Core.Manifests
                     if (create) await _Database.Triggers.CreateAsync(trigger, token).ConfigureAwait(false);
                     else await _Database.Triggers.UpdateAsync(trigger, token).ConfigureAwait(false);
                     break;
+                case Mandate mandate:
+                    await WriteMandateAsync(tenantId, mandate, create, token).ConfigureAwait(false);
+                    break;
                 case NotificationEndpoint endpoint:
                     await ConfigurationValidator.NotificationEndpointAsync(_Database, tenantId, endpoint, AllowPrivateNotificationDestinations, token).ConfigureAwait(false);
                     if (create) await _Database.NotificationEndpoints.CreateAsync(endpoint, token).ConfigureAwait(false);
@@ -1836,6 +2051,7 @@ namespace Garrison.Core.Manifests
                 HarnessProfile profile => profile.Warnings,
                 McpServer server => server.Warnings,
                 WorkspaceTemplate workspace => workspace.Warnings,
+                Mandate mandate => mandate.Warnings,
                 _ => null
             };
             return warnings == null ? new List<FieldWarning>() : new List<FieldWarning>(warnings);

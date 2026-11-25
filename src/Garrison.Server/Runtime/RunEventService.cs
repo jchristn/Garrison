@@ -82,6 +82,12 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public ConversationService? Conversations { get; set; } = null;
 
+        /// <summary>
+        /// Keeper scheduler (AA1): finishes a keeper tick as soon as its run finishes. Null when not wired; the scheduler's
+        /// sweep then finishes it.
+        /// </summary>
+        public KeeperScheduler? Keepers { get; set; } = null;
+
         #endregion
 
         /// <summary>Optional model-price estimator, configured by the runtime module.</summary>
@@ -471,6 +477,7 @@ namespace Garrison.Server.Runtime
             _Signals.Complete(run.Id);
             if (FanOuts != null && !String.IsNullOrEmpty(run.FanOutGroupId)) await FanOuts.OnRunFinishedAsync(run, token).ConfigureAwait(false);
             if (Continuations != null && !String.IsNullOrEmpty(run.ParentRunId)) await Continuations.ResumeAsync(run.TenantId, run.ParentRunId, token).ConfigureAwait(false);
+            if (Keepers != null && run.Kind == RunKindEnum.Keeper) await Keepers.OnRunFinishedAsync(run, token).ConfigureAwait(false);
             _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId)
                 + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", labels.Deployment, "model", run.ServedModel, "node", run.LeaseNodeName ?? request.NodeId, "outcome", run.Outcome.ToString()));
 

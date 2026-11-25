@@ -247,6 +247,21 @@ namespace Garrison.Core.Database
         public ITriggerFireMethods TriggerFires { get; protected set; } = null!;
 
         /// <summary>
+        /// Mandates: standing responsibilities of keepers and their scheduling state (AA1).
+        /// </summary>
+        public IMandateMethods Mandates { get; protected set; } = null!;
+
+        /// <summary>
+        /// Mandate revisions with their signals (AA1).
+        /// </summary>
+        public IMandateRevisionMethods MandateRevisions { get; protected set; } = null!;
+
+        /// <summary>
+        /// Keeper tick history (AA1).
+        /// </summary>
+        public IMandateTickMethods MandateTicks { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;

@@ -1079,7 +1079,8 @@ const tips = {
         controlPlane: '控制平面副本：状态、领导者变更、背板流量与延迟、心跳以及后台服务的迭代。',
         security: '按方案和原因统计的认证失败、授权拒绝、速率限制、签发的令牌、密钥解密以及 Codex 令牌刷新。',
         integrations: '按服务统计的出站调用：MCP 服务器测试、可观测性探测、MCP 代理、Kubernetes API 以及工作节点对控制平面的调用。',
-        logs: '按组件和租户统计的日志量、错误与警告、最近的错误行以及追踪链接。'
+        logs: '按组件和租户统计的日志量、错误与警告、最近的错误行以及追踪链接。',
+        autonomy: '守护者：按结果和唤醒来源统计的 tick、跳过和失败的唤醒、tick 启动延迟，以及调度器应用的间隔。'
       },
       observabilityDocs: '在新标签页中打开遥测指南：如何采集 Garrison 指标并连接 Grafana、Prometheus、Tempo 或 Loki。',
       observability: '指向此环境报告为已配置的指标、仪表板和追踪工具的链接。未配置的服务不会显示。',

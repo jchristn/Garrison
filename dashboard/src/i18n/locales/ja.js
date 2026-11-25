@@ -1147,7 +1147,7 @@ const ja = {
       observabilityOpen: '{{service}} を開く',
       kpisGrafana: '概要を Grafana で開く',
       grafanaDashboards: 'Grafana ダッシュボード',
-      grafanaSections: { overview: '概要', http: 'HTTP API', runs: '実行', agents: 'エージェント', models: 'モデルとトークン', workers: 'ワーカー', kubernetes: 'Kubernetes エグゼキューター', protocols: 'プロトコル', scheduler: 'スケジューラーとキュー', database: 'データベース', controlPlane: 'コントロールプレーン', security: 'セキュリティと認証', integrations: '連携', logs: 'ログとトレース' },
+      grafanaSections: { overview: '概要', http: 'HTTP API', runs: '実行', agents: 'エージェント', models: 'モデルとトークン', workers: 'ワーカー', kubernetes: 'Kubernetes エグゼキューター', protocols: 'プロトコル', scheduler: 'スケジューラーとキュー', database: 'データベース', controlPlane: 'コントロールプレーン', security: 'セキュリティと認証', integrations: '連携', logs: 'ログとトレース', autonomy: '自律' },
       observabilitySetup: 'オブザーバビリティを設定する',
       observabilityNone: 'この環境には、オブザーバビリティのサービス (Grafana、Prometheus、Tempo、Loki) が構成されていません。',
       observability: 'オブザーバビリティ',

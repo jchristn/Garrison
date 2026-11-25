@@ -134,6 +134,16 @@ namespace Garrison.Server.Runtime
         public string? TriggerId { get; set; } = null;
 
         /// <summary>
+        /// Mandate of a keeper tick run (AA1), or null.
+        /// </summary>
+        public string? MandateId { get; set; } = null;
+
+        /// <summary>
+        /// Mandate tick of a keeper tick run (AA1), or null.
+        /// </summary>
+        public string? MandateTickId { get; set; } = null;
+
+        /// <summary>
         /// Identifier to give the new run, or null (the default) to generate one. The delegation wait handshake (P12.38)
         /// records the parent's wait on this identifier before the run exists. An idempotent retry still returns the
         /// existing run with its own identifier.

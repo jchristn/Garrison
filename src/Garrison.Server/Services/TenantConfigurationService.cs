@@ -508,6 +508,13 @@ namespace Garrison.Server.Services
             {
                 throw new ConflictException("ReferencedByNotificationEndpoint", what + " is the filter of notification endpoint" + (endpoints.Count == 1 ? " " : "s ") + String.Join(", ", endpoints) + ". Change or delete " + (endpoints.Count == 1 ? "that endpoint" : "those endpoints") + " first.");
             }
+            List<string> mandates = column == "agentid" || column == "deploymentid"
+                ? await _Server.Database.Mandates.NamesReferencingAsync(tenantId, column, resourceId, token).ConfigureAwait(false)
+                : new List<string>();
+            if (mandates.Count > 0)
+            {
+                throw new ConflictException("ReferencedByMandate", what + " is used by mandate" + (mandates.Count == 1 ? " " : "s ") + String.Join(", ", mandates) + ". Change or delete " + (mandates.Count == 1 ? "that mandate" : "those mandates") + " first.");
+            }
         }
         private int MaxStages()
         {

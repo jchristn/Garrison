@@ -1248,7 +1248,7 @@ The response includes `observability`, which is always present: the browser-faci
     "protocols": "garrison-protocols", "integrations": "garrison-integrations", "agents": "garrison-agents",
     "models": "garrison-models", "kubernetes": "garrison-kubernetes", "scheduler": "garrison-scheduler",
     "database": "garrison-database", "controlPlane": "garrison-control-plane", "security": "garrison-security",
-    "logs": "garrison-logs"
+    "logs": "garrison-logs", "autonomy": "garrison-autonomy"
   }
 }
 ```

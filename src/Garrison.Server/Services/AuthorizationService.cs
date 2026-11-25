@@ -584,7 +584,7 @@ namespace Garrison.Server.Services
             return resourceType == ResourceTypeEnum.Deployment || resourceType == ResourceTypeEnum.HarnessProfile || resourceType == ResourceTypeEnum.PromptTemplate
                 || resourceType == ResourceTypeEnum.McpServer || resourceType == ResourceTypeEnum.Workspace || resourceType == ResourceTypeEnum.AgentRevision
                 || resourceType == ResourceTypeEnum.AgentAsset || resourceType == ResourceTypeEnum.Capability || resourceType == ResourceTypeEnum.AgenticApp
-                || resourceType == ResourceTypeEnum.Pipeline || resourceType == ResourceTypeEnum.Trigger;
+                || resourceType == ResourceTypeEnum.Pipeline || resourceType == ResourceTypeEnum.Trigger || resourceType == ResourceTypeEnum.Mandate;
         }
 
         private async Task<List<PermissionGrant>> ExpandAsync(string? roleId, string? roleName, ResourceScopeEnum scope, string? resourceId, bool inherits, string tenantId, CancellationToken token)

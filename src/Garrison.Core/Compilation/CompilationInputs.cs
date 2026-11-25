@@ -82,5 +82,10 @@ namespace Garrison.Core.Compilation
         /// that reported Containerized. Exposed to templates as executor.containerized. Default false.
         /// </summary>
         public bool Containerized { get; set; } = false;
+
+        /// <summary>
+        /// Keeper inputs when the run is a keeper tick (AA1.9), or null.
+        /// </summary>
+        public CompilationKeeper? Keeper { get; set; } = null;
     }
 }

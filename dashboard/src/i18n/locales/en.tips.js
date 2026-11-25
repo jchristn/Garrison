@@ -1080,7 +1080,8 @@ const tips = {
         controlPlane: 'Control-plane replicas: status, leader changes, backplane traffic and lag, heartbeats, and background service iterations.',
         security: 'Authentication failures by scheme and reason, authorization denials, rate limiting, tokens issued, secret decryption, and Codex token refreshes.',
         integrations: 'Outbound calls by service: MCP server tests, observability probes, the MCP proxy, the Kubernetes API, and the control plane from workers.',
-        logs: 'Log volume, errors and warnings by component and tenant, recent error lines, and links to traces.'
+        logs: 'Log volume, errors and warnings by component and tenant, recent error lines, and links to traces.',
+        autonomy: 'Keepers: ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies.'
       },
       observabilityDocs: 'Open the telemetry guide in a new tab: how to scrape Garrison metrics and connect Grafana, Prometheus, Tempo, or Loki.',
       observability: 'Links to the metrics, dashboard, and tracing tools this deployment reports as configured. Services that are not configured are not shown.',

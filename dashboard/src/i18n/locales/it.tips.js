@@ -1082,7 +1082,8 @@ const tips = {
         controlPlane: 'Repliche del piano di controllo: stato, cambi di leader, traffico e ritardo del backplane, heartbeat e iterazioni dei servizi in background.',
         security: 'Errori di autenticazione per schema e motivo, dinieghi di autorizzazione, limitazione della frequenza, token emessi, decifratura dei segreti e rinnovi dei token Codex.',
         integrations: 'Chiamate in uscita per servizio: test dei server MCP, controlli di osservabilità, proxy MCP, API Kubernetes e piano di controllo dal lato dei worker.',
-        logs: 'Volume dei log, errori e avvisi per componente e tenant, righe di errore recenti e link alle tracce.'
+        logs: 'Volume dei log, errori e avvisi per componente e tenant, righe di errore recenti e link alle tracce.',
+        autonomy: 'Custodi: tick per esito e origine del risveglio, risvegli saltati e non riusciti, ritardo di avvio dei tick e intervalli applicati dallo scheduler.'
       },
       observabilityDocs: 'Apri la guida alla telemetria in una nuova scheda: come raccogliere le metriche di Garrison e collegare Grafana, Prometheus, Tempo o Loki.',
       observability: 'Collegamenti agli strumenti di metriche, dashboard e tracciamento che questa installazione dichiara configurati. I servizi non configurati non vengono mostrati.',

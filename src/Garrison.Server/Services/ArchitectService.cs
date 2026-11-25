@@ -316,7 +316,7 @@ namespace Garrison.Server.Services
         /// <param name="existing">The architect deployment.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
-        /// <exception cref="ConflictException">Thrown with Protected, ReferencedByTrigger, ReferencedByNotificationEndpoint, or ReferencedByPipeline.</exception>
+        /// <exception cref="ConflictException">Thrown with Protected, ReferencedByTrigger, ReferencedByNotificationEndpoint, ReferencedByMandate, or ReferencedByPipeline.</exception>
         public async Task DeleteAsync(RequestContext ctx, string tenantId, Deployment existing, CancellationToken token)
         {
             if (existing == null) throw new ArgumentNullException(nameof(existing));

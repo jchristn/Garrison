@@ -86,6 +86,9 @@ configMapGenerator:
   - name: garrison-grafana-dashboard-logs
     files:
       - garrison-logs.json=dashboards/garrison-logs.json
+  - name: garrison-grafana-dashboard-autonomy
+    files:
+      - garrison-autonomy.json=dashboards/garrison-autonomy.json
 
 patches:
   - path: garrison-env.yaml

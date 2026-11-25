@@ -94,6 +94,45 @@ namespace Garrison.Core.Helpers
             return Long(value.Value, minimum, maximum, field, warnings);
         }
 
+        /// <summary>
+        /// Clamp a double. NaN is replaced by the minimum.
+        /// </summary>
+        /// <param name="value">Given value.</param>
+        /// <param name="minimum">Minimum allowed value.</param>
+        /// <param name="maximum">Maximum allowed value; must not be below minimum.</param>
+        /// <param name="field">Field name for the warning.</param>
+        /// <param name="warnings">List that receives the warning.</param>
+        /// <returns>The clamped value.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when warnings is null.</exception>
+        public static double Double(double value, double minimum, double maximum, string field, List<FieldWarning> warnings)
+        {
+            if (warnings == null) throw new ArgumentNullException(nameof(warnings));
+            double clamped = System.Double.IsNaN(value) ? minimum : Math.Clamp(value, minimum, maximum);
+            Record(field, !value.Equals(clamped), Text(value), Text(clamped), Text(minimum), Text(maximum), warnings);
+            return clamped;
+        }
+
+        /// <summary>
+        /// Clamp an optional double; null stays null. NaN is replaced by the minimum.
+        /// </summary>
+        /// <param name="value">Given value, or null.</param>
+        /// <param name="minimum">Minimum allowed value.</param>
+        /// <param name="maximum">Maximum allowed value; must not be below minimum.</param>
+        /// <param name="field">Field name for the warning.</param>
+        /// <param name="warnings">List that receives the warning.</param>
+        /// <returns>The clamped value, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when warnings is null.</exception>
+        public static double? NullableDouble(double? value, double minimum, double maximum, string field, List<FieldWarning> warnings)
+        {
+            if (warnings == null) throw new ArgumentNullException(nameof(warnings));
+            if (!value.HasValue)
+            {
+                Record(field, false, null, null, null, null, warnings);
+                return null;
+            }
+            return Double(value.Value, minimum, maximum, field, warnings);
+        }
+
         #endregion
 
         #region Private-Methods
@@ -109,6 +148,11 @@ namespace Garrison.Core.Helpers
         private static string Text(long value)
         {
             return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static string Text(double value)
+        {
+            return value.ToString("R", CultureInfo.InvariantCulture);
         }
 
         #endregion

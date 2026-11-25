@@ -203,7 +203,8 @@ test('P13.27 home lists one Grafana dashboard link per section, each with a tool
     ['controlPlane', 'garrison-control-plane', 'Control plane'],
     ['security', 'garrison-security', 'Security and auth'],
     ['integrations', 'garrison-integrations', 'Integrations'],
-    ['logs', 'garrison-logs', 'Logs and traces']
+    ['logs', 'garrison-logs', 'Logs and traces'],
+    ['autonomy', 'garrison-autonomy', 'Autonomy']
   ];
   await expect(list.locator('a')).toHaveCount(sections.length);
   for (const [key, uid, label] of sections) {
@@ -220,7 +221,7 @@ test('P13.27 home skips sections whose UID is blank', async ({ page }) => {
     patched(route, () => ({ observability: { ...OBSERVABILITY_CONFIGURED, dashboards: { ...OBSERVABILITY_CONFIGURED.dashboards, kubernetes: '', logs: '' } } }))
   );
   await login(page);
-  await expect(page.getByTestId('grafana-dashboards').locator('a')).toHaveCount(12);
+  await expect(page.getByTestId('grafana-dashboards').locator('a')).toHaveCount(13);
   await expect(page.getByTestId('grafana-dashboard-kubernetes')).toHaveCount(0);
   await expect(page.getByTestId('grafana-dashboard-logs')).toHaveCount(0);
   await page.unroute(/\/v1\.0\/api\/server-info$/);

@@ -210,6 +210,7 @@ namespace Garrison.Core.Compilation
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline, run.AgentRevisionId).ConfigureAwait(false);
             await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(run.ConversationId)) inputs.StudioDraft = await _Database.StudioDrafts.ReadByConversationAsync(run.TenantId, run.ConversationId, token).ConfigureAwait(false);
+            if (run.Kind == RunKindEnum.Keeper && !String.IsNullOrEmpty(run.MandateId)) await LoadKeeperAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -708,6 +709,13 @@ namespace Garrison.Core.Compilation
             HashSet<string> usedIncludes = new HashSet<string>(StringComparer.Ordinal);
 
             string system = RenderPrompt(inputs, "System", context, includes, usedIncludes);
+            if (inputs.Keeper != null)
+            {
+                // AA1.9: every keeper tick carries its mandate in the system prompt, whatever system template it binds.
+                context.Set("keeper", KeeperContext(inputs.Keeper));
+                string keeper = RenderPrompt(inputs, Garrison.Core.Keepers.KeeperTemplateResolver.SystemRole, context, includes, usedIncludes).Trim();
+                if (keeper.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + keeper : keeper;
+            }
             string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
             if (repair != null)
             {
@@ -1359,7 +1367,8 @@ namespace Garrison.Core.Compilation
             List<McpServerEntry> servers = new List<McpServerEntry>();
             int index = 0;
 
-            if (delegationEnabled || approvalsEnabled || (_Options.AgentMemoryEnabled && !String.IsNullOrEmpty(runToken)))
+            bool keeper = inputs.Keeper != null && !String.IsNullOrEmpty(runToken);
+            if (delegationEnabled || approvalsEnabled || keeper || (_Options.AgentMemoryEnabled && !String.IsNullOrEmpty(runToken)))
             {
                 McpServerEntry garrison = new McpServerEntry();
                 garrison.Name = Constants.McpServerName;
@@ -1370,6 +1379,7 @@ namespace Garrison.Core.Compilation
                 if (delegationEnabled && inputs.Agent.DelegationMode != DelegationModeEnum.None) garrison.RequiredTools.Add("garrison_invoke_agent");
                 if (inputs.Deployment.ManagementAccess == ManagementAccessEnum.Drafts) garrison.RequiredTools.Add("garrison_studio_get_draft");
                 if (approvalsEnabled) garrison.RequiredTools.Add(PermissionPromptTool);
+                if (keeper) garrison.RequiredTools.Add("garrison_keeper_complete_tick");
                 garrison.ToolTimeoutSeconds = approvalsEnabled ? Math.Max(600, inputs.Deployment.ApprovalTimeoutSeconds + 120) : 600;
                 garrison.Headers.Add(Variable("Authorization", "Bearer " + runToken, true));
                 garrison.BearerToken = runToken;
@@ -1706,6 +1716,56 @@ namespace Garrison.Core.Compilation
                 }
             }
             return workspace;
+        }
+
+        private async Task LoadKeeperAsync(CompilationInputs inputs, Run run, CancellationToken token)
+        {
+            Mandate mandate = await _Database.Mandates.ReadAsync(run.TenantId, run.MandateId!, token).ConfigureAwait(false)
+                ?? throw new CompilationException("ReferenceNotFound", "Mandate " + run.MandateId + " of keeper run " + run.Id + " was not found.");
+            if (String.IsNullOrEmpty(mandate.CurrentRevisionId)) throw new CompilationException("ReferenceNotFound", "Mandate " + mandate.Name + " has no published revision.");
+            MandateRevision revision = await _Database.MandateRevisions.ReadAsync(run.TenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false)
+                ?? throw new CompilationException("ReferenceNotFound", "Revision " + mandate.CurrentRevisionId + " of mandate " + mandate.Name + " was not found.");
+            inputs.Keeper = new CompilationKeeper { Mandate = mandate, Revision = revision };
+            string role = Garrison.Core.Keepers.KeeperTemplateResolver.SystemRole;
+            if (!inputs.Prompts.ContainsKey(role))
+            {
+                PromptTemplate template = await new Garrison.Core.Keepers.KeeperTemplateResolver(_Database).ResolveAsync(run.TenantId, Garrison.Core.Keepers.KeeperTemplateResolver.SystemTemplateName, PromptTemplateKindEnum.Fragment, token).ConfigureAwait(false);
+                BoundPrompt bound = new BoundPrompt();
+                bound.Role = role;
+                bound.TemplateId = template.Id;
+                bound.TemplateName = template.Name;
+                bound.Version = template.CurrentVersion;
+                bound.Content = template.Content;
+                inputs.Prompts[role] = bound;
+                if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
+            }
+        }
+
+        private static Dictionary<string, object?> KeeperContext(CompilationKeeper keeper)
+        {
+            Dictionary<string, object?> map = TemplateContext.NewMap();
+            map["mandateId"] = keeper.Mandate.Id;
+            map["mandateName"] = keeper.Mandate.Name;
+            map["revisionNumber"] = (long)keeper.Revision.Number;
+            map["objective"] = keeper.Revision.Objective;
+            map["healthyDefinition"] = keeper.Revision.HealthyDefinition;
+            map["autonomy"] = keeper.Revision.Autonomy;
+            map["escalationPolicy"] = keeper.Revision.EscalationPolicy;
+            map["direction"] = keeper.Revision.Direction;
+            map["wakeMode"] = keeper.Revision.WakeMode.ToString();
+            map["minIntervalSeconds"] = (long)keeper.Revision.MinIntervalSeconds;
+            map["maxIntervalSeconds"] = (long)keeper.Revision.MaxIntervalSeconds;
+            List<object?> signals = new List<object?>();
+            foreach (MandateRevisionSignal signal in keeper.Revision.Signals)
+            {
+                Dictionary<string, object?> item = TemplateContext.NewMap();
+                item["name"] = signal.Name;
+                item["description"] = signal.Description;
+                signals.Add(item);
+            }
+            map["signals"] = signals;
+            map["hasSignals"] = signals.Count > 0;
+            return map;
         }
 
         private static List<RunTemplateVersion> TemplateVersions(CompilationInputs inputs, Run run, HashSet<string> usedIncludes)

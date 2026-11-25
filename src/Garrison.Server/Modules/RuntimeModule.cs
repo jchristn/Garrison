@@ -65,6 +65,9 @@ namespace Garrison.Server.Modules
         private TriggerService? _Triggers = null;
         private NotificationService? _Notifications = null;
         private TranscriptOptions? _TranscriptOptions = null;
+        private KeeperOptions? _KeeperOptions = null;
+        private MandateService? _Mandates = null;
+        private KeeperScheduler? _Keepers = null;
 
         #endregion
 
@@ -167,6 +170,17 @@ namespace Garrison.Server.Modules
             context.Register(new TranscriptService(context.Database, new RunRedactorFactory(context.Database, context.Cipher), _TranscriptOptions));
             _Maintenance.Triggers = _Triggers;
             _Maintenance.Notifications = _Notifications;
+            _KeeperOptions = new KeeperOptions();
+            _Mandates = new MandateService(context.Database, context.Audit, _KeeperOptions);
+            RunService runs = _Runs;
+            _Mandates.CancelRunAsync = async (tenantId, runId, ct) =>
+            {
+                Run? tickRun = await context.Database.Runs.ReadAsync(tenantId, runId, ct).ConfigureAwait(false);
+                if (tickRun != null && !RunService.IsTerminal(tickRun.Status)) await runs.CancelAsync(tickRun, ct).ConfigureAwait(false);
+            };
+            _Keepers = new KeeperScheduler(context.Database, _Runs, new RunAsAuthorization(context.Database, context.Authorization), _KeeperOptions, context.Logging);
+            _Maintenance.Keepers = _Keepers;
+            _Events.Keepers = _Keepers;
             if (context.Settings.Archive.Enabled)
             {
                 _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
@@ -192,6 +206,9 @@ namespace Garrison.Server.Modules
             context.Register(_TriggerOptions);
             context.Register(_NotificationOptions);
             context.Register(_Triggers);
+            context.Register(_KeeperOptions);
+            context.Register(_Mandates);
+            context.Register(_Keepers);
             context.Register(_Notifications);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
@@ -217,10 +234,11 @@ namespace Garrison.Server.Modules
             new PipelineRunRoutes(context, _Pipelines!).Register(routes);
             new PipelineReviewRoutes(context, _Pipelines!).Register(routes);
             new TriggerRoutes(context, _Triggers!).Register(routes);
+            new MandateRoutes(context, _Mandates!).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, approvals, nodes)", "Live updates");
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, nodes)", "Live updates");
         }
 
         /// <inheritdoc />
@@ -233,6 +251,7 @@ namespace Garrison.Server.Modules
             }
 
             _Manifests = context.TryGet<ManifestService>();
+            if (_Manifests != null && _Mandates != null) _Manifests.MandateRevisionBounds = _Mandates.ApplyBounds;
             ClusterSettingsService? cluster = context.TryGet<ClusterSettingsService>();
             if (cluster != null)
             {
@@ -369,6 +388,16 @@ namespace Garrison.Server.Modules
                 _TriggerOptions.WebhookToleranceSeconds = cluster.GetInt("Triggers.WebhookToleranceSeconds");
                 _TriggerOptions.CronMaxLatenessSeconds = cluster.GetInt("Triggers.CronMaxLatenessSeconds");
                 _TriggerOptions.FireRetentionDays = cluster.GetInt("Triggers.FireRetentionDays");
+            }
+            if (_KeeperOptions != null)
+            {
+                _KeeperOptions.SchedulerSweepSeconds = cluster.GetInt("Autonomy.SchedulerSweepSeconds");
+                _KeeperOptions.MinIntervalSeconds = cluster.GetInt("Autonomy.MinIntervalSeconds");
+                _KeeperOptions.MaxIntervalSeconds = cluster.GetInt("Autonomy.MaxIntervalSeconds");
+                _KeeperOptions.DefaultJitterPercent = cluster.GetInt("Autonomy.DefaultJitterPercent");
+                _KeeperOptions.MaxDueClaimsPerSweep = cluster.GetInt("Autonomy.MaxDueClaimsPerSweep");
+                _KeeperOptions.TickHistoryRetentionDays = cluster.GetInt("Autonomy.TickHistoryRetentionDays");
+                _KeeperOptions.TickInputRecentTicks = cluster.GetInt("Autonomy.TickInputRecentTicks");
             }
             if (_NotificationOptions != null)
             {

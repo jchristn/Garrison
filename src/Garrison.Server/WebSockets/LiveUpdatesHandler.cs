@@ -283,8 +283,17 @@ namespace Garrison.Server.WebSockets
                 }
                 return null;
             }
+            if (channel.StartsWith("mandate:", StringComparison.Ordinal))
+            {
+                // One mandate (AA1.13): tick.started and tick.completed with the outcome and next wake.
+                string mandateId = channel.Substring("mandate:".Length);
+                AuthorizationDecision mandates = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Mandate, OperationTypeEnum.Read, mandateId, token).ConfigureAwait(false);
+                if (!mandates.Permitted) return mandates.Reason;
+                if (String.IsNullOrEmpty(mandateId) || await _Context.Database.Mandates.ReadAsync(ctx.TenantId!, mandateId, token).ConfigureAwait(false) == null) return "Mandate not found.";
+                return null;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, approvals, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -310,6 +319,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("fan-out:", StringComparison.Ordinal)) await PumpFanOutAsync(session, ctx, subscription.Key.Substring("fan-out:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("studio-draft:", StringComparison.Ordinal)) await PumpStudioDraftAsync(session, ctx, subscription.Key.Substring("studio-draft:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("mandate:", StringComparison.Ordinal)) await PumpMandateAsync(session, ctx, subscription.Key.Substring("mandate:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -428,6 +438,28 @@ namespace Garrison.Server.WebSockets
                 changed.Add(new { kind = key.Substring(0, slash), name = key.Substring(slash + 1), operation = (string?)null, removed = true });
             }
             await SendAsync(session, sendLock, new { type = "studio-draft.changed", draftId = draft.Id, version = draft.Version, status = draft.Status.ToString(), changed = changed, graph = StudioService.Graph(draft) }, token).ConfigureAwait(false);
+        }
+
+        private async Task PumpMandateAsync(WebSocketSession session, RequestContext ctx, string mandateId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            Mandate? mandate = await _Context.Database.Mandates.ReadAsync(ctx.TenantId!, mandateId, token).ConfigureAwait(false);
+            if (mandate == null) return;
+            string lastTick = mandate.LastTickUtc.HasValue ? mandate.LastTickUtc.Value.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) : String.Empty;
+            string fingerprint = (mandate.ActiveRunId ?? String.Empty) + "|" + lastTick;
+            if (fingerprint == state.Fingerprint) return;
+            bool first = state.Fingerprint == null;
+            string[] previous = (state.Fingerprint ?? "|").Split('|');
+            state.Fingerprint = fingerprint;
+            if (first) return;
+            if (!String.IsNullOrEmpty(mandate.ActiveRunId) && mandate.ActiveRunId != previous[0])
+            {
+                await SendAsync(session, sendLock, new { type = "tick.started", mandateId = mandate.Id, tickId = mandate.ActiveTickId, runId = mandate.ActiveRunId }, token).ConfigureAwait(false);
+            }
+            if (lastTick.Length > 0 && lastTick != previous[1])
+            {
+                MandateTick? finished = (await _Context.Database.MandateTicks.ListRecentAsync(ctx.TenantId!, mandate.Id, 1, token).ConfigureAwait(false)).FirstOrDefault();
+                await SendAsync(session, sendLock, new { type = "tick.completed", mandateId = mandate.Id, tickId = finished?.Id, runId = finished?.RunId, outcome = (finished?.Outcome ?? mandate.LastTickOutcome)?.ToString(), appliedIntervalSeconds = finished?.AppliedIntervalSeconds, nextWakeUtc = mandate.NextWakeUtc, status = mandate.Status.ToString() }, token).ConfigureAwait(false);
+            }
         }
 
         private async Task PumpConversationFilesAsync(WebSocketSession session, RequestContext ctx, string conversationId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)

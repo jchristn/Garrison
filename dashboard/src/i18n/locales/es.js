@@ -1192,7 +1192,7 @@ const es = {
       observabilityOpen: 'Abrir {{service}}',
       kpisGrafana: 'Abrir el resumen en Grafana',
       grafanaDashboards: 'Paneles de Grafana',
-      grafanaSections: { overview: 'Resumen', http: 'API HTTP', runs: 'Ejecuciones', agents: 'Agentes', models: 'Modelos y tokens', workers: 'Nodos de trabajo', kubernetes: 'Ejecutor de Kubernetes', protocols: 'Protocolos', scheduler: 'Planificador y cola', database: 'Base de datos', controlPlane: 'Plano de control', security: 'Seguridad y autenticación', integrations: 'Integraciones', logs: 'Registros y trazas' },
+      grafanaSections: { overview: 'Resumen', http: 'API HTTP', runs: 'Ejecuciones', agents: 'Agentes', models: 'Modelos y tokens', workers: 'Nodos de trabajo', kubernetes: 'Ejecutor de Kubernetes', protocols: 'Protocolos', scheduler: 'Planificador y cola', database: 'Base de datos', controlPlane: 'Plano de control', security: 'Seguridad y autenticación', integrations: 'Integraciones', logs: 'Registros y trazas', autonomy: 'Autonomía' },
       observabilitySetup: 'Configurar la observabilidad',
       observabilityNone: 'Esta instalación no tiene configurado ningún servicio de observabilidad (Grafana, Prometheus, Tempo o Loki).',
       observability: 'Observabilidad',

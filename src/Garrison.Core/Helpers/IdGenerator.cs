@@ -290,6 +290,33 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a mandate identifier (prefix mdt_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewMandateId()
+        {
+            return New(Constants.MandateIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a mandate revision identifier (prefix mdr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewMandateRevisionId()
+        {
+            return New(Constants.MandateRevisionIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a mandate tick identifier (prefix mtk_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewMandateTickId()
+        {
+            return New(Constants.MandateTickIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a notification endpoint identifier (prefix nep_).
         /// </summary>
         /// <returns>Identifier.</returns>

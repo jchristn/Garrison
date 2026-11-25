@@ -164,6 +164,11 @@ namespace Garrison.Server.Runtime
         public TriggerService? Triggers { get; set; } = null;
 
         /// <summary>
+        /// Keeper wake scheduler (AA1), swept by the leader every Autonomy.SchedulerSweepSeconds; null when not wired.
+        /// </summary>
+        public KeeperScheduler? Keepers { get; set; } = null;
+
+        /// <summary>
         /// Notification service (P12.14). When set, the leader queues notifications for new events on every pass.
         /// </summary>
         public NotificationService? Notifications { get; set; } = null;
@@ -539,6 +544,19 @@ namespace Garrison.Server.Runtime
                         finally
                         {
                             // Firing creates runs; that work is not a pause.
+                            _Pause.Touch();
+                        }
+                    }
+                    KeeperScheduler? keepers = Keepers;
+                    if (keepers != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "keepers", keepers.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Starting ticks creates runs; that work is not a pause.
                             _Pause.Touch();
                         }
                     }

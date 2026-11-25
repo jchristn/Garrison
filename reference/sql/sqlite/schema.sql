@@ -1523,3 +1523,101 @@ CREATE TABLE IF NOT EXISTS harness_runtime_credentials (
     PRIMARY KEY (profileid, position)
 );
 CREATE INDEX IF NOT EXISTS idx_harness_runtime_credentials_secret ON harness_runtime_credentials (tenantid, secretid);
+
+-- Migration 46: Mandates, mandate revisions, and keeper ticks (AA1).
+ALTER TABLE "runs" ADD COLUMN mandateid VARCHAR(64);
+ALTER TABLE "runs" ADD COLUMN mandatetickid VARCHAR(64);
+CREATE INDEX IF NOT EXISTS "idx_runs_mandate" ON "runs" ("tenantid", "mandateid", "createdutc") WHERE mandateid IS NOT NULL;
+CREATE TABLE IF NOT EXISTS "mandates" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    agentid VARCHAR(64) NOT NULL,
+    deploymentid VARCHAR(64) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    currentrevisionid VARCHAR(64),
+    currentrevisionnumber INTEGER NOT NULL,
+    nextwakeutc TEXT,
+    pendingwakesource VARCHAR(32),
+    currentintervalseconds INTEGER NOT NULL,
+    consecutivequietticks INTEGER NOT NULL,
+    lasttickutc TEXT,
+    lasttickoutcome VARCHAR(32),
+    activerunid VARCHAR(64),
+    activetickid VARCHAR(64),
+    tickcount BIGINT NOT NULL,
+    runastype VARCHAR(32) NOT NULL,
+    runasid VARCHAR(64),
+    runasname VARCHAR(256),
+    createdby VARCHAR(256),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_mandates_tenantname" ON "mandates" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_mandates_due" ON "mandates" ("status", "nextwakeutc");
+CREATE INDEX IF NOT EXISTS "idx_mandates_agent" ON "mandates" ("tenantid", "agentid");
+CREATE INDEX IF NOT EXISTS "idx_mandates_deployment" ON "mandates" ("tenantid", "deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_mandates_tenantcreated" ON "mandates" ("tenantid", "createdutc");
+CREATE TABLE IF NOT EXISTS "mandate_revisions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    mandateid VARCHAR(64) NOT NULL,
+    number INTEGER NOT NULL,
+    state VARCHAR(32) NOT NULL,
+    objective TEXT NOT NULL,
+    healthydefinition TEXT,
+    autonomy TEXT,
+    escalationpolicy TEXT,
+    direction TEXT,
+    wakemode VARCHAR(32) NOT NULL,
+    minintervalseconds INTEGER NOT NULL,
+    maxintervalseconds INTEGER NOT NULL,
+    backofffactor REAL NOT NULL,
+    jitterpercent INTEGER,
+    budgetpertickusd REAL,
+    budgetperdayusd REAL,
+    maxtokenspertick BIGINT,
+    source VARCHAR(32) NOT NULL,
+    author VARCHAR(256),
+    changenote VARCHAR(1024),
+    createdutc TEXT NOT NULL,
+    publishedutc TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_mandate_revisions_number" ON "mandate_revisions" ("mandateid", "number");
+CREATE INDEX IF NOT EXISTS "idx_mandate_revisions_tenantmandate" ON "mandate_revisions" ("tenantid", "mandateid");
+CREATE TABLE IF NOT EXISTS "mandate_revision_signals" (
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    PRIMARY KEY (revisionid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_mandate_revision_signals_tenant" ON "mandate_revision_signals" ("tenantid", "revisionid");
+CREATE TABLE IF NOT EXISTS "mandate_ticks" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    mandateid VARCHAR(64) NOT NULL,
+    revisionid VARCHAR(64),
+    revisionnumber INTEGER NOT NULL,
+    wakesource VARCHAR(32) NOT NULL,
+    scheduledutc TEXT NOT NULL,
+    startedutc TEXT NOT NULL,
+    finishedutc TEXT,
+    runid VARCHAR(64),
+    outcome VARCHAR(32),
+    reported INTEGER NOT NULL,
+    requestednextwakeseconds INTEGER,
+    appliedintervalseconds INTEGER,
+    costusd REAL,
+    summary TEXT,
+    templatename VARCHAR(256),
+    templateversion INTEGER NOT NULL,
+    errorcode VARCHAR(64),
+    errormessage TEXT,
+    createdutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_mandate" ON "mandate_ticks" ("tenantid", "mandateid", "startedutc");
+CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_run" ON "mandate_ticks" ("runid");
+CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_created" ON "mandate_ticks" ("createdutc");

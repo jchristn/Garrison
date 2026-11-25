@@ -12,7 +12,7 @@ Alloy to the `garrison` namespace. Enable it with `k8s/overlays/k3s-observabilit
 | `prometheus.yaml`, `loki.yaml`, `tempo.yaml`, `alloy.yaml`, `grafana.yaml` | Deployments, Services, and PVCs |
 | `garrison-env.yaml` | OTLP export and in-cluster observability URLs for the server and workers |
 | `config/` | Prometheus, Loki, Tempo, Alloy, and Grafana provisioning files, plus `grafana.ini` (feature toggles) |
-| `dashboards/` | Grafana dashboards: `garrison-overview`, `garrison-http`, `garrison-runs`, `garrison-agents`, `garrison-models`, `garrison-workers`, `garrison-kubernetes`, `garrison-protocols`, `garrison-scheduler`, `garrison-database`, `garrison-control-plane`, `garrison-security`, `garrison-integrations`, `garrison-logs` (see the table in `docs/TELEMETRY.md`) |
+| `dashboards/` | Grafana dashboards: `garrison-overview`, `garrison-http`, `garrison-runs`, `garrison-agents`, `garrison-models`, `garrison-workers`, `garrison-kubernetes`, `garrison-protocols`, `garrison-scheduler`, `garrison-database`, `garrison-control-plane`, `garrison-security`, `garrison-integrations`, `garrison-logs`, `garrison-autonomy` (see the table in `docs/TELEMETRY.md`) |
 
 Keep these copies in step:
 

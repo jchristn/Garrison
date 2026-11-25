@@ -65,6 +65,11 @@ namespace Garrison.Core.Requests
         public string? TriggerId { get; set; } = null;
 
         /// <summary>
+        /// Mandate filter (keeper tick runs of a mandate, AA1).
+        /// </summary>
+        public string? MandateId { get; set; } = null;
+
+        /// <summary>
         /// Outcome filter.
         /// </summary>
         public RunOutcomeEnum? Outcome { get; set; } = null;

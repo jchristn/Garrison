@@ -169,6 +169,10 @@ namespace Garrison.Core.Database
                 "studio_drafts",
                 "studio_draft_items",
                 "studio_draft_layout",
+                "mandates",
+                "mandate_revisions",
+                "mandate_revision_signals",
+                "mandate_ticks",
         };
 
         private readonly SqlDialect _Dialect;

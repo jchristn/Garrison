@@ -370,6 +370,11 @@ namespace Garrison.Core.Database.Ado
             v45.Index("harness_runtime_credentials", "secret", false, "tenantid", "secretid");
             migrations.Add(new SchemaMigration(45, "Reusable harness runtime connections", v45._Statements, v45._Columns));
 
+            // AA1: mandates with revisions, signals, and tick history; the mandate and tick a keeper run belongs to.
+            SchemaBuilder v46 = new SchemaBuilder(catalog, dialect);
+            v46.BuildVersion46();
+            migrations.Add(new SchemaMigration(46, "Mandates, mandate revisions, and keeper ticks", v46._Statements, v46._Columns));
+
             return migrations;
         }
 
@@ -433,6 +438,107 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion46()
+        {
+            SqlDialect d = _Dialect;
+            Column("runs", "mandateid", d.TypeId);
+            Column("runs", "mandatetickid", d.TypeId);
+            PartialIndex("runs", "mandate", false, "mandateid IS NOT NULL", "tenantid", "mandateid", "createdutc");
+
+            Table("mandates",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "agentid " + d.TypeId + " NOT NULL",
+                "deploymentid " + d.TypeId + " NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "currentrevisionid " + d.TypeId,
+                "currentrevisionnumber " + d.TypeInt + " NOT NULL",
+                "nextwakeutc " + d.TypeTimestamp,
+                "pendingwakesource VARCHAR(32)",
+                "currentintervalseconds " + d.TypeInt + " NOT NULL",
+                "consecutivequietticks " + d.TypeInt + " NOT NULL",
+                "lasttickutc " + d.TypeTimestamp,
+                "lasttickoutcome VARCHAR(32)",
+                "activerunid " + d.TypeId,
+                "activetickid " + d.TypeId,
+                "tickcount " + d.TypeBigInt + " NOT NULL",
+                "runastype VARCHAR(32) NOT NULL",
+                "runasid " + d.TypeId,
+                "runasname VARCHAR(256)",
+                "createdby VARCHAR(256)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("mandates", "tenantname", true, "tenantid", "name");
+            Index("mandates", "due", false, "status", "nextwakeutc");
+            Index("mandates", "agent", false, "tenantid", "agentid");
+            Index("mandates", "deployment", false, "tenantid", "deploymentid");
+            Index("mandates", "tenantcreated", false, "tenantid", "createdutc");
+
+            Table("mandate_revisions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "mandateid " + d.TypeId + " NOT NULL",
+                "number " + d.TypeInt + " NOT NULL",
+                "state VARCHAR(32) NOT NULL",
+                "objective " + d.TypeText + " NOT NULL",
+                "healthydefinition " + d.TypeText,
+                "autonomy " + d.TypeText,
+                "escalationpolicy " + d.TypeText,
+                "direction " + d.TypeText,
+                "wakemode VARCHAR(32) NOT NULL",
+                "minintervalseconds " + d.TypeInt + " NOT NULL",
+                "maxintervalseconds " + d.TypeInt + " NOT NULL",
+                "backofffactor " + d.TypeDouble + " NOT NULL",
+                "jitterpercent " + d.TypeInt,
+                "budgetpertickusd " + d.TypeDouble,
+                "budgetperdayusd " + d.TypeDouble,
+                "maxtokenspertick " + d.TypeBigInt,
+                "source VARCHAR(32) NOT NULL",
+                "author VARCHAR(256)",
+                "changenote VARCHAR(1024)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "publishedutc " + d.TypeTimestamp);
+            Index("mandate_revisions", "number", true, "mandateid", "number");
+            Index("mandate_revisions", "tenantmandate", false, "tenantid", "mandateid");
+
+            Table("mandate_revision_signals",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "PRIMARY KEY (revisionid, position)");
+            Index("mandate_revision_signals", "tenant", false, "tenantid", "revisionid");
+
+            Table("mandate_ticks",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "mandateid " + d.TypeId + " NOT NULL",
+                "revisionid " + d.TypeId,
+                "revisionnumber " + d.TypeInt + " NOT NULL",
+                "wakesource VARCHAR(32) NOT NULL",
+                "scheduledutc " + d.TypeTimestamp + " NOT NULL",
+                "startedutc " + d.TypeTimestamp + " NOT NULL",
+                "finishedutc " + d.TypeTimestamp,
+                "runid " + d.TypeId,
+                "outcome VARCHAR(32)",
+                "reported " + d.TypeBool + " NOT NULL",
+                "requestednextwakeseconds " + d.TypeInt,
+                "appliedintervalseconds " + d.TypeInt,
+                "costusd " + d.TypeDouble,
+                "summary " + d.TypeText,
+                "templatename VARCHAR(256)",
+                "templateversion " + d.TypeInt + " NOT NULL",
+                "errorcode VARCHAR(64)",
+                "errormessage " + d.TypeText,
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("mandate_ticks", "mandate", false, "tenantid", "mandateid", "startedutc");
+            Index("mandate_ticks", "run", false, "runid");
+            Index("mandate_ticks", "created", false, "createdutc");
         }
 
         private void BuildVersion43()

@@ -41,5 +41,11 @@ namespace Garrison.Core.Manifests
         /// Null skips the check, for trusted in-process callers such as tests.
         /// </summary>
         public SecretUseChecker? SecretUse { get; set; } = null;
+
+        /// <summary>
+        /// Source recorded on mandate revisions this apply publishes (AA1.12): Human by default, Architect for an applied
+        /// studio draft.
+        /// </summary>
+        public MandateRevisionSourceEnum MandateRevisionSource { get; set; } = MandateRevisionSourceEnum.Human;
     }
 }

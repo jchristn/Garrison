@@ -204,6 +204,8 @@ namespace Garrison.Server.Runtime
             run.PipelinePosition = create.PipelinePosition;
             run.PipelineExecution = create.PipelineExecution;
             run.TriggerId = create.TriggerId;
+            run.MandateId = create.MandateId;
+            run.MandateTickId = create.MandateTickId;
             run.MaxAttempts = deployment.MaxAttempts;
             run.Attempt = 1;
 

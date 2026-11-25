@@ -1080,7 +1080,8 @@ const tips = {
         controlPlane: 'Replikate der Steuerungsebene: Status, Leader-Wechsel, Backplane-Verkehr und Verzögerung, Heartbeats und Durchläufe der Hintergrunddienste.',
         security: 'Authentifizierungsfehler nach Schema und Grund, Autorisierungsablehnungen, Ratenbegrenzung, ausgestellte Tokens, Entschlüsselung von Geheimnissen und Codex-Token-Aktualisierungen.',
         integrations: 'Ausgehende Aufrufe nach Dienst: MCP-Servertests, Observability-Prüfungen, der MCP-Proxy, die Kubernetes-API und die Steuerungsebene aus Sicht der Worker.',
-        logs: 'Logvolumen, Fehler und Warnungen nach Komponente und Mandant, aktuelle Fehlerzeilen und Links zu Traces.'
+        logs: 'Logvolumen, Fehler und Warnungen nach Komponente und Mandant, aktuelle Fehlerzeilen und Links zu Traces.',
+        autonomy: 'Keeper: Ticks nach Ergebnis und Weckquelle, übersprungene und fehlgeschlagene Weckvorgänge, Startverzögerung der Ticks und die Intervalle, die der Scheduler anwendet.'
       },
       observabilityDocs: 'Die Telemetrie-Anleitung in einem neuen Tab öffnen: wie Sie Garrison-Metriken abrufen und Grafana, Prometheus, Tempo oder Loki anbinden.',
       observability: 'Links zu den Metrik-, Dashboard- und Tracing-Werkzeugen, die diese Installation als konfiguriert meldet. Nicht konfigurierte Dienste werden nicht angezeigt.',

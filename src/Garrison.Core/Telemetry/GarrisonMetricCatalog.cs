@@ -171,6 +171,15 @@ namespace Garrison.Core.Telemetry
         /// <summary>Trigger fires (P12.5).</summary>
         public static readonly MetricDescriptor TriggerFires = new MetricDescriptor("garrison.trigger.fires", MetricKindEnum.Counter, "{fire}", "tenant, source, outcome", "Trigger fires, by source (cron, webhook, manual) and outcome (started, failed, skipped); repeated webhook deliveries are not counted", "server", "Runs", "garrison-runs");
 
+        /// <summary>Keeper ticks finished or skipped (AA1).</summary>
+        public static readonly MetricDescriptor KeeperTicks = new MetricDescriptor("garrison.keeper.ticks", MetricKindEnum.Counter, "{tick}", "outcome, source", "Keeper ticks, by outcome (quiet, acted, attention, escalated, failed, skipped, unreported) and wake source (timer, manual, message, escalationanswer, webhook, report)", "server", "Autonomy", "garrison-autonomy");
+
+        /// <summary>Keeper tick start lag (AA1).</summary>
+        public static readonly MetricDescriptor KeeperTickLag = new MetricDescriptor("garrison.keeper.tick.lag.duration", MetricKindEnum.Histogram, "s", "source", "Time from a keeper wake coming due to the scheduler starting its tick, by wake source", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
+
+        /// <summary>Keeper intervals applied after ticks (AA1).</summary>
+        public static readonly MetricDescriptor KeeperInterval = new MetricDescriptor("garrison.keeper.interval", MetricKindEnum.Histogram, "s", "mode", "Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
+
         /// <summary>Trigger webhook deliveries refused before firing (P12.5).</summary>
         public static readonly MetricDescriptor TriggerWebhookRejections = new MetricDescriptor("garrison.trigger.webhook.rejections", MetricKindEnum.Counter, "{request}", "reason", "Trigger webhook deliveries refused before firing, by reason (missing, malformed, stale, mismatch, too_large, inactive, bad_delivery_id)", "server", "Runs", "garrison-runs");
 
@@ -453,7 +462,7 @@ namespace Garrison.Core.Telemetry
             SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

@@ -1176,7 +1176,7 @@ const en = {
       observabilityOpen: 'Open {{service}}',
       kpisGrafana: 'Open the overview in Grafana',
       grafanaDashboards: 'Grafana dashboards',
-      grafanaSections: { overview: 'Overview', http: 'HTTP API', runs: 'Runs', agents: 'Agents', models: 'Models and tokens', workers: 'Workers', kubernetes: 'Kubernetes executor', protocols: 'Protocols', scheduler: 'Scheduler and queue', database: 'Database', controlPlane: 'Control plane', security: 'Security and auth', integrations: 'Integrations', logs: 'Logs and traces' },
+      grafanaSections: { overview: 'Overview', http: 'HTTP API', runs: 'Runs', agents: 'Agents', models: 'Models and tokens', workers: 'Workers', kubernetes: 'Kubernetes executor', protocols: 'Protocols', scheduler: 'Scheduler and queue', database: 'Database', controlPlane: 'Control plane', security: 'Security and auth', integrations: 'Integrations', logs: 'Logs and traces', autonomy: 'Autonomy' },
       observabilitySetup: 'Set up observability',
       observabilityNone: 'No observability services (Grafana, Prometheus, Tempo, or Loki) are configured for this deployment.',
       observability: 'Observability',

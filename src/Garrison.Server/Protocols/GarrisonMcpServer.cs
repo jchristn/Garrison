@@ -407,6 +407,7 @@ namespace Garrison.Server.Protocols
                 if (tool.Name.StartsWith("garrison_memory_", StringComparison.Ordinal) && !_Context.Settings.AgentMemory.Enabled) continue;
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
+                if (tool.Name.StartsWith("garrison_keeper_", StringComparison.Ordinal) && await KeeperRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -848,6 +849,21 @@ namespace Garrison.Server.Protocols
                     case "garrison_studio_list_capabilities":
                     case "garrison_studio_describe_capability":
                         result = await CapabilityToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_mandates":
+                    case "garrison_get_mandate":
+                    case "garrison_create_mandate":
+                    case "garrison_update_mandate":
+                    case "garrison_publish_mandate_revision":
+                    case "garrison_pause_mandate":
+                    case "garrison_resume_mandate":
+                    case "garrison_wake_mandate":
+                    case "garrison_list_mandate_ticks":
+                        result = await MandateToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_keeper_context":
+                    case "garrison_keeper_complete_tick":
+                        result = await KeeperToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_memory_read":
                     case "garrison_memory_write":
@@ -1512,6 +1528,117 @@ namespace Garrison.Server.Protocols
                     await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "AgentMemory", agent.Id, tool, tenantId, ct).ConfigureAwait(false);
                 return result;
             }, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> MandateToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            MandateService mandates = _Context.Get<MandateService>();
+            McpMandateArguments arguments = ManagementArguments<McpMandateArguments>(args);
+            Func<string, Task<bool>> agentCheck = async agentId =>
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agentId, token).ConfigureAwait(false);
+                return true;
+            };
+            if (tool.Name == "garrison_list_mandates")
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Mandate, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                MandateStatusEnum? status = null;
+                if (!String.IsNullOrWhiteSpace(arguments.Status))
+                {
+                    if (!Enum.TryParse<MandateStatusEnum>(arguments.Status, true, out MandateStatusEnum parsed) || !Enum.IsDefined(parsed)) throw ToolError("ValidationFailed", "status must be Draft, Active, Paused, Frozen, CapReached, or Retired.");
+                    status = parsed;
+                }
+                EnumerationQuery query = new EnumerationQuery();
+                query.Search = String.IsNullOrWhiteSpace(arguments.Search) ? null : arguments.Search.Trim();
+                query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+                return await _Context.Database.Mandates.EnumerateAsync(tenantId, status, String.IsNullOrWhiteSpace(arguments.Agent) ? null : arguments.Agent.Trim(), null, query, token).ConfigureAwait(false);
+            }
+            if (tool.Name == "garrison_create_mandate")
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Mandate, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                Mandate? created = await mandates.CreateAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), agentCheck, token).ConfigureAwait(false);
+                return created ?? throw ToolError("Forbidden", "Not permitted to run the mandate's agent.");
+            }
+
+            if (String.IsNullOrWhiteSpace(arguments.Mandate)) throw ToolError("ValidationFailed", "mandate is required.");
+            Mandate existing = await mandates.FindAsync(tenantId, arguments.Mandate.Trim(), token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "Mandate " + arguments.Mandate.Trim() + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Mandate, tool.Operation, existing.Id, token).ConfigureAwait(false);
+            switch (tool.Name)
+            {
+                case "garrison_get_mandate":
+                    return existing;
+                case "garrison_update_mandate":
+                    Mandate? updated = await mandates.UpdateAsync(ctx, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), agentCheck, token).ConfigureAwait(false);
+                    return updated ?? throw ToolError("Forbidden", "Not permitted to run the mandate's agent.");
+                case "garrison_publish_mandate_revision":
+                    MandateRevision draft = await mandates.CreateRevisionAsync(ctx, existing, arguments.Revision ?? throw ToolError("ValidationFailed", "revision is required."), MandateRevisionSourceEnum.Human, token).ConfigureAwait(false);
+                    return await mandates.PublishRevisionAsync(ctx, existing, draft, token).ConfigureAwait(false);
+                case "garrison_pause_mandate":
+                    return await mandates.PauseAsync(ctx, existing, token).ConfigureAwait(false);
+                case "garrison_resume_mandate":
+                    return await mandates.ResumeAsync(ctx, existing, token).ConfigureAwait(false);
+                case "garrison_wake_mandate":
+                    return await mandates.WakeAsync(ctx, existing, token).ConfigureAwait(false);
+                default:
+                    TickOutcomeEnum? outcome = null;
+                    if (!String.IsNullOrWhiteSpace(arguments.Outcome))
+                    {
+                        if (!Enum.TryParse<TickOutcomeEnum>(arguments.Outcome, true, out TickOutcomeEnum parsedOutcome) || !Enum.IsDefined(parsedOutcome)) throw ToolError("ValidationFailed", "outcome must be Quiet, Acted, Attention, Escalated, Failed, Skipped, or Unreported.");
+                        outcome = parsedOutcome;
+                    }
+                    EnumerationQuery ticks = new EnumerationQuery();
+                    ticks.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+                    return await _Context.Database.MandateTicks.EnumerateAsync(tenantId, existing.Id, outcome, ticks, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<object> KeeperToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            Run run = await KeeperRunAsync(ctx, token).ConfigureAwait(false)
+                ?? throw ToolError("Forbidden", tool.Name + " is available only to keeper tick runs.");
+            if (run.TenantId != tenantId) throw ToolError("Forbidden", tool.Name + " is available only to keeper tick runs.");
+            McpKeeperArguments arguments = ManagementArguments<McpKeeperArguments>(args);
+            MandateTick tick = await _Context.Database.MandateTicks.ReadAsync(tenantId, run.MandateTickId!, token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "The tick of this run was not found.");
+            if (tool.Name == "garrison_keeper_context")
+            {
+                MandateService mandates = _Context.Get<MandateService>();
+                Mandate mandate = await mandates.FindAsync(tenantId, run.MandateId, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotFound", "The mandate of this run was not found.");
+                McpKeeperContext context = new McpKeeperContext();
+                context.Mandate = mandate;
+                context.Tick = tick;
+                context.RecentTicks = await _Context.Database.MandateTicks.ListRecentAsync(tenantId, mandate.Id, Math.Clamp(arguments.RecentTicks ?? 10, 1, 100), token).ConfigureAwait(false);
+                return context;
+            }
+
+            if (String.IsNullOrWhiteSpace(arguments.Outcome)
+                || !Enum.TryParse<TickOutcomeEnum>(arguments.Outcome, true, out TickOutcomeEnum reported)
+                || (reported != TickOutcomeEnum.Quiet && reported != TickOutcomeEnum.Acted && reported != TickOutcomeEnum.Attention && reported != TickOutcomeEnum.Escalated))
+            {
+                throw ToolError("ValidationFailed", "outcome must be Quiet, Acted, Attention, or Escalated.");
+            }
+            if (arguments.Summary != null && arguments.Summary.Length > 4000) throw ToolError("ValidationFailed", "summary is limited to 4000 characters.");
+            if (arguments.NextWakeSeconds.HasValue && (arguments.NextWakeSeconds.Value < 1 || arguments.NextWakeSeconds.Value > 2592000)) throw ToolError("ValidationFailed", "nextWakeSeconds must be 1 to 2592000.");
+            bool accepted = await _Context.Database.MandateTicks.TryReportAsync(tenantId, tick.Id, reported, arguments.Summary, arguments.NextWakeSeconds, token).ConfigureAwait(false);
+            MandateTick current = await _Context.Database.MandateTicks.ReadAsync(tenantId, tick.Id, token).ConfigureAwait(false) ?? tick;
+            McpKeeperTickResult result = new McpKeeperTickResult();
+            result.TickId = tick.Id;
+            result.Outcome = current.Outcome?.ToString();
+            result.Accepted = accepted;
+            result.Message = accepted
+                ? "Recorded " + reported + ". Finish your reply; Garrison schedules your next wake when this run ends."
+                : "This tick already has an outcome (" + (current.Outcome?.ToString() ?? "finished") + "); nothing changed.";
+            return result;
+        }
+
+        private async Task<Run?> KeeperRunAsync(RequestContext ctx, CancellationToken token)
+        {
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return null;
+            Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
+            if (run == null || run.Kind != RunKindEnum.Keeper || String.IsNullOrEmpty(run.MandateId) || String.IsNullOrEmpty(run.MandateTickId)) return null;
+            return run;
         }
 
         private async Task<object> ListAgentsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)

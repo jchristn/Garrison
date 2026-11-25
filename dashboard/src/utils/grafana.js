@@ -20,7 +20,8 @@ export const DEFAULT_DASHBOARDS = Object.freeze({
   database: 'garrison-database',
   controlPlane: 'garrison-control-plane',
   security: 'garrison-security',
-  logs: 'garrison-logs'
+  logs: 'garrison-logs',
+  autonomy: 'garrison-autonomy'
 });
 
 /**

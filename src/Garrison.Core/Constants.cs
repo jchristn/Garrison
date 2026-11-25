@@ -117,6 +117,15 @@ namespace Garrison.Core
         /// <summary>App session identifier prefix (AD6.5).</summary>
         public const string AppSessionIdPrefix = "aps_";
 
+        /// <summary>Mandate identifier prefix (AA1).</summary>
+        public const string MandateIdPrefix = "mdt_";
+
+        /// <summary>Mandate revision identifier prefix (AA1).</summary>
+        public const string MandateRevisionIdPrefix = "mdr_";
+
+        /// <summary>Mandate tick identifier prefix (AA1).</summary>
+        public const string MandateTickIdPrefix = "mtk_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

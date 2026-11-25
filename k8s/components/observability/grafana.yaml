@@ -152,6 +152,8 @@ spec:
                   name: garrison-grafana-dashboard-integrations
               - configMap:
                   name: garrison-grafana-dashboard-logs
+              - configMap:
+                  name: garrison-grafana-dashboard-autonomy
         - name: data
           emptyDir: {}
 ---

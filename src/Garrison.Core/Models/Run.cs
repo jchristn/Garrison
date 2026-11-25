@@ -424,6 +424,16 @@ namespace Garrison.Core.Models
         public string? TriggerId { get; set; } = null;
 
         /// <summary>
+        /// Mandate whose keeper tick this run is (AA1), or null. Set only on runs of kind Keeper.
+        /// </summary>
+        public string? MandateId { get; set; } = null;
+
+        /// <summary>
+        /// Mandate tick this run executes (AA1), or null.
+        /// </summary>
+        public string? MandateTickId { get; set; } = null;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.

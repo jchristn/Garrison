@@ -1149,7 +1149,7 @@ const zhHans = {
       observabilityOpen: '打开 {{service}}',
       kpisGrafana: '在 Grafana 中打开概览',
       grafanaDashboards: 'Grafana 仪表板',
-      grafanaSections: { overview: '概览', http: 'HTTP API', runs: '运行', agents: '智能体', models: '模型与令牌', workers: '工作节点', kubernetes: 'Kubernetes 执行器', protocols: '协议', scheduler: '调度器与队列', database: '数据库', controlPlane: '控制平面', security: '安全与认证', integrations: '集成', logs: '日志与追踪' },
+      grafanaSections: { overview: '概览', http: 'HTTP API', runs: '运行', agents: '智能体', models: '模型与令牌', workers: '工作节点', kubernetes: 'Kubernetes 执行器', protocols: '协议', scheduler: '调度器与队列', database: '数据库', controlPlane: '控制平面', security: '安全与认证', integrations: '集成', logs: '日志与追踪', autonomy: '自主' },
       observabilitySetup: '设置可观测性',
       observabilityNone: '此环境未配置任何可观测性服务（Grafana、Prometheus、Tempo 或 Loki）。',
       observability: '可观测性',

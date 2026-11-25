@@ -77,5 +77,10 @@ namespace Garrison.Core.Responses
         /// Logs and traces dashboard UID (log volume, errors and warnings, trace search). Default garrison-logs.
         /// </summary>
         public string Logs { get; set; } = "garrison-logs";
+
+        /// <summary>
+        /// Autonomy dashboard UID (keeper ticks by outcome and wake source, tick start lag, scheduled intervals). Default garrison-autonomy.
+        /// </summary>
+        public string Autonomy { get; set; } = "garrison-autonomy";
     }
 }
