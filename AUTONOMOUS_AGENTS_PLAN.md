@@ -1,0 +1,973 @@
+# Garrison Autonomous Agents Plan
+
+This plan turns Garrison from a runtime that executes agents when asked into a platform where agents hold standing jobs, talk to each other, report up a chain of command, and reorganize their own work inside authority a person gave them. Part I is the story: why this matters and what it should feel like. Part II is the work: every task a developer needs to ship it across the server, worker, database, dashboard, SDKs, Postman, documentation, website, tests, and release, with a checkbox to annotate as it lands.
+
+Where Part I and Part II differ in detail, Part II wins. Part I stays as written because it is the reason the work exists.
+
+| | |
+|---|---|
+| Parent plans | `archive/GARRISON_PLAN.md` (D- decisions), `archive/AGENT_DESIGN_DEPLOY_PLAN.md` (AD- decisions). Phase AA9 absorbs the deferred AD11 (eval sets and promotion gates). |
+| Product version | `0.2.0` at plan creation. The release target `0.3.0` is proposed (AA-011) and is not applied until the user explicitly approves it (task AA0.2, `VERSIONING.md` section 4). |
+| Release branch | `feature/autonomous-agents` (AA0.1). Every later task commits to it or to a mission branch that merges into it, never directly to `main`. |
+| Task and decision IDs | Tasks `AA<phase>.<n>`; decisions `AA-<nnn>`. Nothing collides with `P`, `D-`, `AD`, or `AD-`. |
+| Requirements | `~/Code/Agents/requirements` (all files), this repository's `CLAUDE.md`, and the conventions carried over from the parent plans. Section 1.4 records where the project's own rules override the generic requirements. |
+| Plan created | 2026-11-25 |
+| Plan owner | Joel Christner |
+| Status | Not started. See the [Progress Dashboard](#2-progress-dashboard). |
+
+---
+
+## Table of Contents
+
+- [Part I: The story](#part-i-the-story)
+- [Part II: The plan](#part-ii-the-plan)
+  1. [How to use this plan](#1-how-to-use-this-plan)
+  2. [Progress Dashboard](#2-progress-dashboard)
+  3. [Purpose and scope](#3-purpose-and-scope)
+  4. [Current state and gaps](#4-current-state-and-gaps)
+  5. [Vocabulary](#5-vocabulary)
+  6. [Decision log](#6-decision-log)
+  7. [Architecture](#7-architecture)
+  8. [Work breakdown](#8-work-breakdown)
+  9. [Security and RBAC](#9-security-and-rbac)
+  10. [Risks and open questions](#10-risks-and-open-questions)
+  11. [Walkthroughs](#11-walkthroughs)
+
+---
+
+## Part I: The story
+
+### The idea that kept me up
+
+Models are improving faster than the tools around them. Every few months a new model makes some piece of scaffolding unnecessary: a retrieval trick, a planning loop, a prompt chain somebody spent a quarter tuning. Anything we build to make models smarter is on borrowed time.
+
+The models don't absorb the world they operate in. A model can't give itself a standing job. It can't decide who it reports to, which other agents exist, what it may touch, or who catches it when it is wrong. The environment decides those things, and the environment gets more valuable as the models get better, because a more capable worker is worth more when it is placed well.
+
+So the short-term work that matters is giving agents three things that come from their environment.
+
+Awareness: an agent knows its job, keeps knowing it from one run to the next, and knows what the agents around it are responsible for.
+
+Connectivity: agents can reach one another, ask, hand off, report, and wait, without a person carrying messages between them.
+
+Hierarchy: some agents are responsible for the big picture and some for execution, and the ones at the top can change what the ones below them are responsible for as the work changes.
+
+Nobody owns this idea. Multi-agent frameworks have modeled "a company of agents" with role charts for a couple of years, and most serious agent products are now some form of orchestrator with workers. What those systems mostly lack is standing responsibility, accountability, bounded authority, and a person who can see the whole organization and steer it. Garrison has spent its life building that kind of plumbing for a different reason, and this roadmap points it at the bigger target.
+
+### Where we are: helpers
+
+Most AI use today is a person handing a task to a helper. Rename these files. Write this test. Summarize this thread. The helper is fast and good at the work, and it does nothing until asked. When the task ends, it forgets it was ever there, so it has assignments but no job.
+
+Garrison already does this well at scale. A run comes in over REST, MCP, or A2A, gets compiled into an `ExecutionSpec`, gets leased to a worker, and runs a real harness like Claude Code or Codex with its own credentials, prompt templates, and limits. Everything below builds on that.
+
+### Stage one: the ant farm
+
+Picture a kid with an ant farm or a gerbil. The kid's job is narrow and concrete: keep this thing alive. Feed it, clean up after it, notice when it seems off. The kid doesn't control the thermostat. Somebody else does, and the kid may not even know who. The kid just watches the gerbil, because that is what they were told to do, and tells a parent when something looks wrong.
+
+That kid is a keeper: an agent with a standing responsibility for one thing, a cadence for checking on it, a memory of what it saw last time, and a rule for when to raise a hand. It is autonomy at microscopic scale, and everything else on this roadmap is built from it. A keeper might watch a service's error budget, a vendor's contract renewals, a repository's dependency health, or a single customer account.
+
+In code, a keeper is barely different from a helper. In behavior it is very different: a helper waits to be invoked, while a keeper wakes on its own schedule, compares today with yesterday, and acts within its lane without anyone asking.
+
+### Stage two: growing up
+
+Kids grow into adults with more specific jobs, and the job of a single adult often gets split into several narrower roles. The keeper that watched "the website" becomes one agent for uptime, one for performance, one for content freshness.
+
+What makes them a team is that they know about each other. The uptime agent knows the performance agent exists and what it owns. When latency spikes it doesn't try to fix the database itself; it tells the agent whose job that is, and the two of them finish something neither could alone. Each agent stays narrow while the group covers more ground.
+
+A team like that needs a directory of who exists and what they own, a way to reach a peer that isn't a blocking function call, and shared ground where one agent can leave work for another to pick up.
+
+### Stage three: the org chart
+
+Once specialists can find each other, someone has to decide what they should be doing. An executive agent holds the big picture and is accountable for an outcome. Leads below it own areas, and workers below them execute.
+
+The executives also own the shape of the organization. If one team is overloaded, a director can propose splitting it. If a role has gone quiet for a month, it can be folded into another. If the goal changes, the CEO agent rewrites the mandates beneath it.
+
+Most "company of agents" demos stop working at this stage, for three reasons.
+
+Errors compound with depth. If each layer gets things right 95 percent of the time, four layers of hand-offs are right about 81 percent of the time, and nobody in the chain sees the whole failure. Smarter models alone won't fix that. Human organizations handle it with verification and accountability, and ours have to do the same.
+
+Hierarchy in human companies exists largely because people have limited attention. Agents are limited by context windows, cost, and above all the difficulty of verifying each other's work. So we should copy the parts of the org chart that scope authority and assign accountability, and be skeptical of layers that only relay messages, since each one adds error and nothing else.
+
+Self-modification is where goals drift. An executive that can rewrite its subordinates' jobs is optimizing for whatever it was measured on, and a measure becomes a target fast. An executive that can rewrite its own job, budget, or authority is a system nobody is running. None of this kills the idea, but it decides how the idea has to be built.
+
+### The board seat
+
+Every one of these organizations needs a human above the CEO. That person should not approve every action, which would defeat the purpose. They sit where a board sits: setting the mission, approving structural change, reading the briefs, and holding the off switch.
+
+The kid with the gerbil answers to a parent, and the CEO agent answers to a person. Garrison's product is the connection between those two. The person describes what they want the organization to accomplish. The executive proposes an org to accomplish it, with roles, mandates, reporting lines, and budgets. Once the person approves, the organization runs, and the executive comes back with what it learned and what it wants to change. The person approves, adjusts, or refuses.
+
+Autonomy should be graduated and earned. Early on, every structural change goes to the person. Over time the person pre-authorizes classes of change ("you may retune a worker's prompt inside your own subtree," "you may change a keeper's cadence within these limits") the same way a manager gets signing authority up to a dollar amount. Some things never get delegated: an agent never changes its own mandate, its own authority, its own budget, or anything above it in the chart.
+
+### What Garrison already has
+
+More than I expected when I sat down to write this. Most of the governance layer exists, because we built it for multi-tenant safety.
+
+| The idea | What exists today |
+|---|---|
+| A defined job that changes over time | Agents with versioned revisions; every prompt is a versioned `PromptTemplate` recorded per run |
+| A keeper waking on its own | Cron and webhook triggers start ordinary runs on a schedule |
+| Remembering yesterday | Agent memory: per-agent persistent key/value, isolated by tenant and agent |
+| Knowing who else exists | The capability catalog lists agents, MCP tools, and harness tools in one shape, with schemas and cost hints |
+| Reaching another agent | Delegation with allow lists, depth limits, and cycle checks; fan-out and gather for parallel work |
+| A team with a shape | Agentic apps: members, roles, an entry agent, and edges that become each member's delegation policy |
+| Waiting without wasting a worker | Durable continuation: a parent suspends while children run or a person decides, and resumes on any node |
+| An executive proposing org changes | The agent architect works in Studio drafts with `managementAccess: Drafts` |
+| A human approving structural change | Draft apply creates an approval; runs can never decide approvals, their own or anyone's |
+| Reaching agents outside the building | Remote agents over A2A and MCP, plus an A2A gateway for inbound |
+| Accountability | Audit records, telemetry, per-run cost, quotas per tenant and agent, environments and promotion |
+
+The architect is already a prototype of the executive relationship. It is an ordinary agent that proposes changes to the organization's configuration. Its authority is bounded by the person who started it, and it can never apply its own proposal: a person reviews a diff and decides. We built that board seat for designing agent apps, and it can grow into one for running an organization.
+
+### What we have to build
+
+The plumbing mostly exists. The work is turning one-shot runs into standing roles, adding communication beyond call-and-return, and growing the draft tool into a governance loop. Here it is, in the order I'd do it.
+
+#### 1. Mandates and keepers
+
+A mandate is a standing responsibility attached to an agent: the objective, what to observe, how often, what "healthy" means, what it may do on its own, when to escalate, and its budget. A mandate compiles into the run through a prompt template like everything else, binds a cron trigger for cadence, and scopes a memory namespace. An agent with a mandate is a keeper.
+
+Keepers are the smallest useful thing on this roadmap, and they're useful by themselves. Most of the parts exist. The mandate ties them together and gives a person one object to read when they ask "what is this agent for?"
+
+#### 2. Escalation
+
+Today a run can ask permission to use a tool, but it cannot ask a person a question. Keepers need a first-class way to raise a hand: "the gerbil hasn't eaten in two days, what do you want me to do?" An escalation is a typed request routed up the chain (to a manager agent, or to the human at the top), and the run suspends on it through the existing continuation path until someone answers.
+
+#### 3. Reports and org memory
+
+Agent memory is private by design, and it should stay that way. Hierarchy also needs a deliberately shared channel: structured reports a run files upward (status, metrics, issues, decisions taken), readable by the agents above it in the chart and by people. Teams also need shared, enumerable spaces where peers can leave work for each other without calling each other synchronously, like the bulletin board in a break room.
+
+#### 4. Peer messaging
+
+Delegation works like a phone call: you dial, you wait, you get an answer. Peers also need mail. A message to a peer, sent along an allowed edge, lands in that peer's inbox and is picked up on its next run, or wakes it if the sender asks. Messages follow the same allow lists, depth and cycle rules, and audit as delegation.
+
+#### 5. Organizations
+
+An organization sits above apps. It has org units, each with a lead agent, reporting lines between units, and a budget per subtree that rolls up the way quotas roll up. Revisions apply to the whole org, so "what did the org look like last Tuesday" has an answer and "put it back" is one operation. Promotion through environments already works for apps, and it should work for orgs.
+
+#### 6. Executive authority
+
+Executives get a new management access level alongside `Drafts`: an executive may propose changes to its own subtree and nothing else. Proposals go through the same draft, diff, and approval path the architect uses. Approval rules, modeled on tool approval rules, let a person pre-authorize narrow classes of change so routine retuning doesn't wait on them. The hard limits stay hard: no changes to self, no changes upward, no new credentials, and no budget increases without a person.
+
+#### 7. The board interface
+
+The human at the top gets a view of the org chart with each unit's health, recent reports and escalations, pending proposals with their diffs, spend against budget, and a way to talk to the CEO agent directly. The CEO agent produces a brief on a cadence the person chooses. Direction the person gives becomes a new revision of the CEO's mandate, so every change of course is versioned and attributable.
+
+#### 8. Evaluation and brakes
+
+Managers need to judge subordinates on something better than the subordinates' own reports. Expose run outcomes, cost, latency, and capability run samples to the agents above, and let people define checks an agent cannot grade for itself. Give the human brakes that work at the scale of the org: freeze a subtree, roll the org back to a revision, cap spend per unit, and cancel everything beneath a node in one action.
+
+### How we'll know it works
+
+Each stage gets a real deployment before the next stage starts, and each has a plain test.
+
+Keepers work when one runs unattended for a month, catches something a person would have missed, and escalates exactly the things it should.
+
+Teams work when three specialists hand work between them with no person relaying it, and the result is better than one generalist agent given the same goal.
+
+Orgs work when an executive proposes a structural change, a person approves it, and measured outcomes improve afterwards. When it proposes a bad change, the diff should make the problem obvious to the person reviewing it.
+
+The board seat works when the person at the top spends less time each week while the organization does more, and can still explain everything it did.
+
+### What this is not
+
+I'm not betting that hierarchy is the final shape of machine work. It might not be. I'm betting that a structure people already know how to audit, staff, and correct is the right first structure for agents to run in while they earn trust. If the agents later show us something better, the revisions, approvals, and audit trail will give us the evidence to adopt it safely.
+
+Nor is this unattended self-growth. The organization grows itself inside the authority it was given, with a person who can see all of it and stop any of it. Nobody would let the thing run without that.
+
+---
+
+## Part II: The plan
+
+## 1. How to use this plan
+
+### 1.1 Status markers and annotations
+
+Every unit of work is a checkbox with a stable ID such as `AA3.2`. An ID never changes once assigned, even if the task moves or is dropped. Commits, pull requests, and mission notes reference it.
+
+| Marker | Meaning |
+|---|---|
+| `[ ]` | Not started |
+| `[~]` | Partial: implemented or tested, with the outstanding acceptance, depth, or coverage stated in the annotation |
+| `[x]` | Done and verified by tests or a written manual check |
+| `[-]` | Dropped or deferred, with the reason in the annotation |
+| `[!]` | Blocked, with the blocker in the annotation |
+
+Annotate a task by appending `  | <who> <YYYY-MM-DD> <short note, commit hash, or PR>` to its line. Keep earlier annotations and add new ones after them, so the row reads as a history.
+
+```
+- [x] AA1.3 ... Accept: ...  | claude 2026-12-02 schema 46, both providers (KeeperSuite 41/41)
+- [!] AA0.2 ... Accept: ...  | jc 2026-11-26 waiting on version approval
+```
+
+Each task ends with an `Accept:` note. A task is `[x]` only when that note is true and the default bar in 1.2 holds. When a task turns out larger than one mission, split it into new IDs (`AA3.2a`, `AA3.2b`) instead of rewriting it. When scope changes, add a task; never silently rewrite a finished one.
+
+Update the Progress Dashboard by hand when a phase changes state.
+
+### 1.2 Default bar for every task
+
+These apply on top of each task's own acceptance note, and a reviewer may reject a task for missing any of them.
+
+- `dotnet build src/Garrison.sln` finishes with zero errors and zero warnings.
+- The change is covered by a Touchstone case in `src/Test.Shared` (run by `Test.Automated`, `Test.Xunit`, and `Test.Nunit`) or by a written manual check recorded in the annotation.
+- Schema work passes migrate-twice, tenant isolation, and cross-tenant 404 cases on both providers: `GARRISON_TEST_PROVIDERS=sqlite,postgresql dotnet run --project src/Test.Automated -f net10.0`.
+- C# follows `CLAUDE.md` and `CODE_STYLE.md` exactly: usings inside the namespace, no `var`, no tuples, one class or enum per file, `_PascalCase` private fields, XML docs on every public member with defaults, minimums, maximums, nullability, thread safety, and `/// <exception>` tags, `ConfigureAwait(false)`, a `CancellationToken` on every async method, classic `using (...) { }` blocks, the full dispose pattern, no `Console.WriteLine` in library code, no partial classes, no `JsonElement` or `JsonNode` navigation for fixed contracts.
+- Nothing a developer may want to tune is a constant. It is a setting or a public member with a private backing field, a documented default, and clamped bounds.
+- Every route and MCP tool has an `OperationScopeMap` entry, OpenAPI metadata, request history capture, a Postman request, and documentation in `REST_API.md` or `MCP_API.md`. `scripts/check-api-docs.py` passes.
+- Every piece of text sent to a harness comes from a `PromptTemplate`. Memory, reports, messages, escalation answers, and anything else written by an agent reach a prompt only as a data block inside a template, never as instructions (AA-025).
+- Every new dashboard string exists in all shipped locales (`de`, `en`, `es`, `fr`, `it`, `ja`, `yue-Hant`, `zh-Hans`, `zh-Hant`) with a matching tooltip in the `*.tips.js` file.
+- `scripts/check-em-dash.sh` passes. Plain ASCII in code, docs, Postman, and commit messages.
+- Loopback is `127.0.0.1`, never `localhost`, in code, tests, SDK harnesses, Postman variables, and docs.
+- No version number changes outside AA0.2 to AA0.3.
+
+### 1.3 Layer checklist
+
+Most feature phases touch the same layers, and each phase below lists a task per layer. When reviewing a phase, check it against this list:
+
+| Layer | Where | Done means |
+|---|---|---|
+| Enums and models | `src/Garrison.Core/Enums`, `src/Garrison.Core/Models`, `Requests/`, `Responses/` | One type per file, XML docs, validated setters with clamps |
+| Schema | `src/Garrison.Core/Database/Ado/SchemaBuilder.cs`, `Sqlite/Queries`, `Postgresql/Queries`, `Sql/SqlDialect.cs`, `TableCatalog.cs`, `Interfaces/` | Next free migration version, structured columns and child tables, composite tenant indexes, backup, retention, and tenant deletion coverage |
+| Service | `src/Garrison.Server/Services` or `Runtime` | Tenant scoping from `RequestContext`, cancellation, audit records, effect journal for run-token mutations |
+| REST | `src/Garrison.Server/Routes/<Feature>Routes.cs` | Registrar class, `/v1.0/api/tenants/{tenantId}/...`, typed DTOs, explicit status codes, scope map, OpenAPI |
+| MCP | `src/Garrison.Server/Protocols` (`GarrisonMcpServer`, `McpToolCatalog`, typed `Mcp*Arguments` classes) | Tool definitions with input schemas, run-token visibility stated, `structuredContent` for records |
+| WebSocket | `src/Garrison.Server/WebSockets` | Channel with a read permission check, documented in `WEBSOCKETS_API.md` |
+| Manifests | `src/Garrison.Core/Manifests` | `kind` spec class, parser, resolver, export, studio draft item kind where the architect should draft it |
+| Prompt templates | `src/Garrison.Core/Services/BuiltInSeeder.cs` and built-in definitions | `builtin/...` templates seeded idempotently, tenant override by name where documented in `docs/PROMPTS.md` |
+| Telemetry | `src/Garrison.Core/Telemetry` (`GarrisonMetricCatalog`, `GarrisonTracing`, `LabelGuard`) | Counter by outcome, latency histograms per stage, spans nested under the request or run span, low-cardinality labels, panels per `docs/TELEMETRY.md` |
+| Settings | Server settings classes, `docker/server/garrison.json`, Helm values, k8s config, dashboard Settings page | Default, minimum, maximum documented in `docs/CONFIGURATION.md` |
+| Dashboard | `dashboard/src/views`, `components`, `utils` API client, `i18n/locales`, `dashboard/tests` | Requirements of `DASHBOARD_STYLE_AND_USABILITY.md` and `FRONTEND_ARCHITECTURE.md`: shared API client, above-table pagination, backend filters and sort, select columns, row action menus, custom confirm modals, form editors (raw JSON only as View JSON), copyable IDs, empty, loading, and error states, light and dark, 1280, 768, and 390 pixel widths, unit and e2e tests |
+| SDKs | `sdk/csharp`, `sdk/python`, `sdk/js`, `sdk/go` | Typed models and methods, live harness cases, README section, `scripts/run-sdk-harnesses.sh` passes |
+| Postman | `assets/postman/Garrison.postman_collection.json`, `postman/README.md` | Folder per resource, collection, folder, and request descriptions, variables for base URL, ports, tenant, and tokens, Newman run passes |
+| Docs | `docs/*.md`, `REST_API.md`, `MCP_API.md`, `WEBSOCKETS_API.md`, `docs/README.md`, `CHANGELOG.md` | Accurate, human voice per `WRITING_DOCUMENTS.md`, linked from the docs index |
+| Tests | `src/Test.Shared/Suites/<Feature>Suite.cs`, registered in `src/Test.Shared/GarrisonSuites.cs` | Both providers, multi-replica where scheduling is involved, runs in CI with no exclusions |
+
+### 1.4 Requirements conflicts, recorded
+
+`~/Code/Agents/requirements` says to satisfy the stricter rule or call out a conflict. These conflicts already exist in Garrison and this plan keeps the project's rule. None of them is new, and none is to be "fixed" by a captain inside this plan.
+
+| Generic requirement | Garrison rule kept | Source |
+|---|---|---|
+| Four database providers (`Sqlite`, `Mysql`, `Postgresql`, `SqlServer`) | Sqlite and Postgresql only | D-011 |
+| Paths under `/api/v1/...` | `/v1.0/api/...`, tokens at `/v1.0/token` | `CLAUDE.md` |
+| 0.x releases labeled `-alpha` | `vX.Y.Z` with no suffix; 0.x means alpha; `scripts/check-version.sh` rejects `-alpha` | `CLAUDE.md` |
+| Test hosts Xunit3, Xunit2, Nunit, Mstest | `Test.Automated`, `Test.Xunit`, `Test.Nunit` | Existing repository |
+
+---
+
+## 2. Progress Dashboard
+
+| Phase | Name | Depends on | Status | Done / Total |
+|---|---|---|---|---|
+| AA0 | Release start: branch, version, plan wiring (first) | none | Not started | 0 / 5 |
+| AA1 | Mandates, wake schedules, and keepers | AA0 | Not started | 0 / 19 |
+| AA2 | Escalations | AA1 | Not started | 0 / 16 |
+| AA3 | Brakes I: freezes, spend caps, kill switch | AA1 | Not started | 0 / 11 |
+| AA4 | Scoped memory: private and collective | AA1 | Not started | 0 / 15 |
+| AA5 | Reports | AA1 | Not started | 0 / 13 |
+| AA6 | Mailboxes and wake-on-message | AA1, AA3 | Not started | 0 / 16 |
+| AA7 | Organizations | AA2, AA4, AA5, AA6 | Not started | 0 / 18 |
+| AA8 | Executive authority and pre-authorized change | AA7 | Not started | 0 / 14 |
+| AA9 | Evaluation, shadow, and canary (absorbs AD11) | AA1, AA3 (AA9.10 needs AA8) | Not started | 0 / 18 |
+| AA10 | The board | AA7 (AA10.4 needs AA8 and AA9) | Not started | 0 / 12 |
+| AA11 | Performance signals and org-scale brakes | AA7, AA9 | Not started | 0 / 10 |
+| AA12 | Reference examples, trials, and validation | AA1 to AA11 | Not started | 0 / 8 |
+| AA13 | Release (last) | every other phase | Not started | 0 / 16 |
+
+Total tasks: 191.
+
+```
+AA0 branch feature/autonomous-agents, version 0.3.0 after approval (FIRST)
+  |
+  v
+AA1 mandates + wake scheduler (keepers) --+--> AA2 escalations ---------------+
+                                          +--> AA3 freezes, caps, kill switch -+--> AA6 mailboxes + wake-on-message --+
+                                          +--> AA4 scoped memory --------------------------------------------------+   |
+                                          +--> AA5 reports --------------------------------------------------------+---+--> AA7 organizations
+                                          |                                                                                   |
+                                          +--> AA9 evals, shadow, canary <------------------------------------------+        +--> AA8 executive authority
+                                                                                                                     |        +--> AA10 board
+                                                                                                                     +-- AA11 performance + org brakes
+AA1..AA11 --> AA12 examples, trials, simulated users, benchmarks --> AA13 release (LAST)
+```
+
+AA2, AA3, AA4, AA5, and AA9's data model can run in parallel once AA1's schema (AA1.3) lands. AA6 waits for AA3 because messaging must not ship before freezes and caps (AA-017). AA10 can start its read-only board while AA8 and AA9 are in flight; AA10.4 adds proposal evidence when they land.
+
+| Milestone | Definition | Phases |
+|---|---|---|
+| AAM0: Release branch | `feature/autonomous-agents` exists; version approved and applied | AA0 |
+| AAM1: Keepers | A keeper wakes on a schedule with backoff, remembers, escalates, and can be frozen or capped | AA1 to AA4 |
+| AAM2: Teams | Agents message each other, wake on mail, file reports, and share team memory, with loop guards | AA5, AA6 |
+| AAM3: Organizations | An org chart with budgets, chain of command, org revisions, and a board view | AA7, AA10 |
+| AAM4: Self-revising organizations | Executives propose and, under human-written rules, apply changes to their subtree, backed by evals, shadow runs, and canaries; org-scale brakes | AA8, AA9, AA11 |
+| AAM5: Release | Examples, trials, docs, SDKs, Postman, website, images | AA12, AA13 |
+
+Each milestone is useful alone. If work stops after AAM1, keepers still ship.
+
+---
+
+## 3. Purpose and scope
+
+### 3.1 What this plan delivers
+
+Garrison gains standing agents (keepers) that wake on their own, a way for agents to raise a hand, private and shared memory, upward reports, asynchronous messages between agents, organizations with a chain of command and budgets, executives that propose changes to their own part of the org, an evaluation pipeline that tests new worker agents before they go live, a board view for the human at the top, and brakes that work at every level. Every capability is reachable over REST, MCP, the dashboard, four SDKs, manifests, and Postman, and is documented.
+
+### 3.2 Out of scope
+
+- Agents changing their own mandate, authority, budget, or anything above them in the chart, under any rule. This is permanent, not deferred (AA-022).
+- Semantic or vector search in the built-in memory provider. External providers may offer it behind the interface (AA-018).
+- Durable suspension for remote A2A or MCP executors. Blocking escalations require a Process executor with `suspensionEnabled`, the same boundary as today's continuation.
+- Cross-tenant organizations. An organization lives in one tenant.
+- Any change to the `app-ui` end-user experience beyond a regression pass. Board members use the operator dashboard.
+- Mysql and SqlServer providers (section 1.4).
+
+---
+
+## 4. Current state and gaps
+
+Part I's table "What Garrison already has" is accurate at plan creation. The gaps, with the phase that closes each:
+
+| Gap | Today | Phase |
+|---|---|---|
+| Standing responsibility | Runs start when invoked or when a cron or webhook trigger fires; nothing says what an agent is for between runs | AA1 |
+| Adaptive cadence | Cron is fixed; no backoff, no agent-requested next wake, no single-flight guarantee per job | AA1 |
+| Asking a person a question | A run can ask permission for a tool (`garrison_permission_prompt`) and nothing else | AA2 |
+| Brakes | Usage quotas per tenant, agent, and deployment; no freeze, no per-job caps, no tenant-wide stop for autonomous work | AA3, AA11 |
+| Shared memory | `IAgentMemoryStore` is private per agent, has no enumeration or provenance, and survives agent and tenant deletion | AA4 |
+| Upward reporting | None | AA5 |
+| Asynchronous messages | Delegation and fan-out are call-and-wait only | AA6 |
+| Hierarchy | Apps are flat graphs of members and edges; no reporting lines, no budgets per subtree | AA7 |
+| Executive authority | `managementAccess: Drafts` drafts anything the starting person may touch; nothing scopes it to a subtree, nothing pre-authorizes routine change | AA8 |
+| Testing new workers | Playground runs exist; eval sets, gates, shadow runs, and canaries do not (AD11 deferred) | AA9 |
+| A view of the whole | Dashboard pages per resource; nothing shows an organization's health, spend, proposals, and escalations together | AA10 |
+
+---
+
+## 5. Vocabulary
+
+| Term | Meaning |
+|---|---|
+| Mandate | A standing responsibility bound to one deployment: objective, signals to observe, definition of healthy, what the agent may do alone, escalation policy, wake schedule, and budget. Versioned by mandate revisions. |
+| Keeper | An agent deployment with an active mandate. |
+| Tick | One wake of a keeper: a run of kind `Keeper`, recorded as a mandate tick with its outcome. |
+| Wake source | Why a tick started: `Timer`, `Manual`, `Message`, `EscalationAnswer`, `Webhook`, `Report`. |
+| Backoff | The interval grows by a factor after each quiet tick, up to the mandate's maximum, and returns to the minimum after a tick that needs attention. |
+| Escalation | A question a run raises to a person or an agent, with optional choices, a severity, a mode (`Blocking` or `NonBlocking`), and a timeout action. |
+| Report | An immutable, addressed, structured status record a run files upward. A brief is a report from the top of an org to the board. |
+| Memory scope | Where a memory entry lives and who may read or write it: `Agent`, `App`, `OrgUnit`, `Organization`. |
+| Message | An asynchronous note from one agent (or a person) to another along an allowed line, with urgency, thread, and hop count. |
+| Loop guard | Limits that stop agents from waking each other forever: hop limit, per-line rate, per-thread budget. |
+| Organization | A tree of org units in one tenant with a mission, a root unit led by the CEO agent, budgets, and revisions. |
+| Org unit | A node in the tree: a lead agent, members, optional app, budget, peer lines to other units. |
+| Executive | An agent that leads an org unit and whose deployment has `managementAccess: OrgSubtree`. |
+| Subtree | An org unit and every unit below it, with their members, deployments, and mandates. |
+| Change rule | A human-written pre-authorization that lets an executive's proposal apply without a person when every change matches the rule. |
+| Eval set | Cases with checks, used to score a draft agent revision. Approved sets can gate promotion. |
+| Shadow | A candidate deployment receives copies of live inputs with every effect denied; its outputs are compared, never used. |
+| Canary | A candidate deployment receives a small weighted share of real work, with automatic rollback on failure. |
+| Board | The people above the CEO agent, and the dashboard view built for them. |
+| Freeze | A brake that stops new runs and ticks for an agent, deployment, mandate, app, org unit, organization, or the tenant's autonomous work. |
+
+---
+
+## 6. Decision log
+
+AA-001 to AA-010 come from the user in the conversation of 2026-11-25. AA-011 onward are choices this plan makes where the request left room; each is "proposed" until the user confirms it or work lands on it. New decisions made during implementation take the next number.
+
+| ID | Decision | Rationale | Source |
+|---|---|---|---|
+| AA-001 | The short-term goal is awareness, connectivity, and hierarchy for agents, with a human above the top agent who approves structural change. | The models absorb scaffolding; their environment is what stays valuable. | User, 2026-11-25 |
+| AA-002 | A keeper runs on a loop: a fixed timer or a timer with exponential backoff. The tick is where it checks the thing it keeps and where it raises its hand. | "Keep the gerbil alive" needs a heartbeat. | User, 2026-11-25 |
+| AA-003 | Escalation belongs to the loop: a keeper raises it during a tick. | User: "See #1". The plan keeps escalation as its own record so it outlives the tick (AA-016). | User, 2026-11-25 |
+| AA-004 | Agents need private memory and shared, collective memory. The backing store may be a hierarchy of flat files or something richer. NotDory and Armada are examples of richer designs, not choices: neither is endorsed, required, or integrated by this plan. | User, 2026-11-25: "Not advocating for their use, just examples". | User, 2026-11-25 |
+| AA-005 | Agents wake when a message arrives, not only on the timer. | Mail that waits a day for the next tick is useless for urgent work. | User, 2026-11-25 |
+| AA-006 | Organizations sit above apps, with budgets per subtree and versioned org structure. | Agreed by the user. | User, 2026-11-25 |
+| AA-007 | Executives can define a new worker agent, test and evaluate it, and then update or deploy it. | Self-growth needs a safe way to add capability. | User, 2026-11-25 |
+| AA-008 | The human at the top gets a board view of the whole organization. | Agreed by the user ("100%"). | User, 2026-11-25 |
+| AA-009 | Managers judge subordinates on real signals, and people get brakes at every scale. | Agreed by the user. | User, 2026-11-25 |
+| AA-010 | This plan is exhaustive and actionable, covers every product surface (server, worker, dashboard, website, SDKs, Postman, docs, tests, versions, repository), and complies with `~/Code/Agents/requirements`. | The request. | User, 2026-11-25 |
+| AA-011 | Release `v0.3.0` from `feature/autonomous-agents`. The version change waits for the user's explicit approval (AA0.2). | New, backward-compatible features in a 0.x line call for a minor bump; `VERSIONING.md` forbids changing it unasked. | Proposed |
+| AA-012 | A mandate is its own versioned entity bound to one deployment, not a field on the agent. Revisions are immutable once published. A deployment may carry several mandates. | One agent can keep different things in different environments; board direction and executive edits must be versioned and attributable. | Proposed |
+| AA-013 | Keeper ticks are ordinary runs with a new `RunKindEnum.Keeper`, so leases, quotas, telemetry, transcripts, and continuation apply unchanged. Message-started runs use `RunKindEnum.Message`; eval and shadow runs use `Eval` and `Shadow`. | Reuse the run path instead of a parallel one. | Proposed |
+| AA-014 | The wake scheduler is a leader-run sweep, like triggers. It claims a due mandate with one compare-and-set on `nextwakeutc` and `activerunid`, so several replicas produce exactly one tick. A tick never starts while the mandate's previous tick runs (single-flight); the skipped wake is recorded. Next wake = clamp(requested or computed interval, min, max) plus jitter. Backoff multiplies the interval by the revision's factor after a `Quiet` tick and resets to the minimum after `Attention`, `Escalated`, or `Failed`. | Exactly-once ticks across replicas; no overlapping runs; cost stays bounded when nothing is happening. | Proposed |
+| AA-015 | A tick reports its outcome with `garrison_keeper_complete_tick`. A run that ends without it records `Unreported`, and the interval stays unchanged. | Backoff must never be driven by guesswork. | Proposed |
+| AA-016 | An escalation is a new entity, not an `ApprovalKindEnum` value. It carries free-text questions, optional choices, a target (person, role, agent, or after AA7 the manager), a mode, and a timeout action (`UseDefaultAnswer`, `Cancel`, `EscalateUp`). `NonBlocking` is the default; `Blocking` reuses durable continuation. | Approvals decide tool calls; escalations ask questions, route to agents, and must not stall a keeper by default. | Proposed |
+| AA-017 | Freezes, mandate spend caps, and the autonomy kill switch ship in AA3, before messaging (AA6). | Unattended loops and agents waking each other are where runaway cost comes from. | Proposed |
+| AA-018 | Scoped memory stores metadata in the database (`memory_entries` with tags and provenance) and content in a provider behind a new `IScopedMemoryStore` interface. The default provider is a flat-file tree. Writes support compare-and-set by version. The existing agent memory tools keep working and map to the `Agent` scope. | Enumeration, provenance, and tenant deletion need structured rows; content stays pluggable; the structured persistence rule holds. | Proposed |
+| AA-019 | Reports are immutable rows with child tables for metrics, issues, and decisions. The body is user-authored text, not JSON. | Reports are evidence; evidence is not edited. | Proposed |
+| AA-020 | Messages travel only along allowed lines: app edges (both directions), org reporting lines, org peer lines, and replies within a thread. Normal mail is delivered at the recipient's next tick; urgent mail wakes it now, capped per hour. One run drains up to a configured number of queued messages. Loop guards: hop limit, per-line rate, per-thread message budget. Rejections are recorded with a reason. | The actor model, with the guardrails that stop agents from paging each other forever. | Proposed |
+| AA-021 | An organization is a tree of org units with one root. Each unit has a lead agent, members, an optional app, peer lines, and per-period budgets that cap the whole subtree's spend. Org revisions snapshot the tree; promotion and rollback reuse `PromotionRecord`. | Hierarchy that is scoped, budgeted, versioned, and reversible. | Proposed |
+| AA-022 | `ManagementAccessEnum.OrgSubtree` lets an executive draft changes inside its own subtree. Hard limits that no rule can lift: nothing that touches its own agent, deployment, mandate, or unit, or anything above it; no secrets or credentials; no budget increases; no `managementAccess` changes; no change rules. | Self-modification is where goals drift (Part I). | Proposed |
+| AA-023 | Change rules are created only by people. When every item of an executive's draft matches an active rule, the draft applies with an approval decided by source `Rule`, audited and reversible by org rollback; otherwise it waits for a person. | Graduated autonomy, the same idea as signing authority. | Proposed |
+| AA-024 | Eval sets used as gates must be approved by a person or authored by an evaluator agent outside the proposer's subtree. Cases marked hidden are never returned to the proposer's run tokens. | An executive must not mark its own homework. | Proposed |
+| AA-025 | Memory, reports, messages, escalation answers, and briefs are untrusted data. They reach prompts only through templates that frame them as data with provenance, never as instructions. | Shared state is a prompt-injection channel between agents. | Proposed |
+| AA-026 | Every run-token mutation added by this plan goes through the epoch-fenced effect journal, as agent memory writes already do. | A replayed or fenced-off run must not double-send a message or file a duplicate report. | Proposed |
+| AA-027 | Shadow runs use `RunKindEnum.Shadow` and a run token flagged shadow: tool approvals default to Deny, effectful tools are denied, file spaces do not write back, and messaging, escalation, report, memory-write, and draft tools refuse. | A shadow that can act is not a shadow. | Proposed |
+| AA-028 | Section 1.4's requirement conflicts keep the project's existing rules. | They predate this plan and are recorded decisions. | Proposed |
+| AA-029 | The k3s multi-replica validation (formerly AA12.5) and the 72-hour soak (formerly AA12.6) are removed from the plan. Their IDs are retired and not reused. Multi-replica correctness rests on the `MultiReplicaSuite` cases in AA1.5, AA3.2, AA6.4, and AA6.5. | Neither can run inside an agent session. | User, 2026-11-25 |
+
+---
+
+## 7. Architecture
+
+### 7.1 How the pieces fit
+
+```
+                  person (board)
+                       |  direction, approvals, answers, brakes
+                       v
+   Organization ---- root OrgUnit (lead: CEO agent, mandate, budget)
+                       |  reporting lines (escalate up, report up, direct down)
+           +-----------+------------+
+           v                        v
+     OrgUnit (lead)  <-- peer -->  OrgUnit (lead)
+       |   members                   |   members
+       v                             v
+    keepers: deployment + mandate --> wake scheduler (leader sweep) --> run kind Keeper --> worker
+       ^           |                                      ^
+       |           +-- garrison_keeper_complete_tick ------+  outcome, next wake
+       |           +-- garrison_escalate -----------------> escalation --> person | agent | manager
+       |           +-- garrison_file_report --------------> report (immutable) --> managers, board
+       |           +-- garrison_send_message -------------> mailbox --> next tick or urgent wake
+       |           +-- garrison_memory_* -----------------> memory_entries + IScopedMemoryStore
+       |
+   executive (OrgSubtree) -- studio draft --> change rule match? --yes--> apply (source Rule)
+                                          \--no--> approval --> person
+   candidate worker -- eval set --> shadow --> canary (weight) --> promote | auto-rollback
+   brakes: freeze (any level), spend caps, cascade cancel, org rollback, kill switch
+```
+
+### 7.2 New and changed entities
+
+New ID prefixes were checked against `src/Garrison.Core/Constants.cs` and the source tree at plan time. `msg_` is avoided because the fake harness emits it for Codex message IDs; messages use `amg_`.
+
+| Entity | Prefix | Tables | Key fields | Phase |
+|---|---|---|---|---|
+| Mandate | `mdt_` | `mandates` | Tenant, name (unique per tenant), description, agent, deployment, environment, status (`Draft`, `Active`, `Paused`, `Frozen`, `CapReached`, `Retired`), current revision, next wake, current interval seconds, consecutive quiet ticks, last tick time and outcome, active run (single-flight), escalation target defaults, created and updated by and time | AA1 |
+| MandateRevision | `mdr_` | `mandate_revisions`, child `mandate_revision_signals` | Mandate, number, state (`Draft`, `Published`), objective, healthy definition, autonomy (what it may do alone), escalation policy text, direction (board text), wake mode (`Fixed`, `Backoff`), min and max interval seconds, backoff factor, jitter percent, budget per tick and per day (USD), max tokens per tick, source (`Human`, `Board`, `Executive`, `Architect`), author, change note; per signal: name, description, order | AA1 |
+| MandateTick | `mtk_` | `mandate_ticks` | Mandate, revision, wake source, scheduled, started, finished, run, outcome (`Quiet`, `Acted`, `Attention`, `Escalated`, `Failed`, `Skipped`, `Unreported`), requested next wake seconds, applied interval seconds, cost USD, summary text | AA1 |
+| Escalation | `esc_` | `escalations`, child `escalation_options` | Tenant, raising run, agent, mandate (nullable), target kind (`User`, `Role`, `Agent`, `Manager`), target ID, severity (`Info`, `Warning`, `Urgent`), mode, status (`Open`, `Answered`, `Expired`, `Cancelled`, `Withdrawn`), question, context, default answer, timeout and timeout action, parent escalation (escalate-up chain), answer text, chosen option, answered by and time; per option: key, label, order | AA2 |
+| Freeze | `mfz_` | `freezes` | Tenant, target kind (`Agent`, `Deployment`, `Mandate`, `App`, `OrgUnit`, `Organization`, `TenantAutonomy`), target ID, reason, cancel active runs flag, created by and time, lifted by and time | AA3 |
+| MemoryEntry | `mem_` | `memory_entries`, child `memory_entry_tags` | Tenant, scope kind, scope ID, key (unique per scope), category, bytes, SHA-256, version (compare-and-set), writer agent, writer run, writer principal, created, updated, expires; content in `IScopedMemoryStore` | AA4 |
+| Report | `rpt_` | `reports`, child `report_metrics`, `report_issues`, `report_decisions` | Tenant, author agent, run, mandate, org unit or app, audience (`Manager`, `Chain`, `Board`), kind (`Status`, `Incident`, `Decision`, `Handoff`, `Brief`), health (`Healthy`, `Degraded`, `Unhealthy`, `Unknown`), title, body, period start and end; metric: name, value, unit; issue: severity, text; decision: text | AA5 |
+| AgentMessage | `amg_` | `agent_messages`, child `agent_message_artifacts` | Tenant, thread (first message ID), hop count, sender agent, run, or principal, recipient agent, urgency (`Normal`, `Urgent`), subject, body, status (`Queued`, `Delivered`, `Acknowledged`, `Expired`, `Rejected`), rejection reason (`HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, `Frozen`), delivered run, expires | AA6 |
+| Organization | `org_` | `organizations` | Tenant, name, description, mission, status (`Draft`, `Active`, `Frozen`, `Retired`), root unit, current revision | AA7 |
+| OrgUnit | `oun_` | `org_units`, child `org_unit_members`, `org_unit_peer_lines`, `org_unit_budgets` | Organization, parent unit (null for root), name, description, lead agent, optional app; member: agent, title, optional mandate; peer line: other unit; budget: period (`Day`, `Month`), amount USD | AA7 |
+| OrgRevision | `orv_` | `org_revisions`, child `org_revision_units`, `org_revision_members`, `org_revision_peer_lines`, `org_revision_budgets`, `org_revision_mandates` | Organization, number, state, snapshot of the tree, pinned mandate revisions, author, note | AA7 |
+| ChangeRule | `chr_` | `change_rules`, child `change_rule_classes`, `change_rule_limits` | Tenant, organization, unit (applies to its subtree), active, expires, created by (person only); class: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`; limit: name, minimum, maximum | AA8 |
+| EvalSet | `evs_` | `eval_sets`, child `eval_set_tags` | Tenant, name, version, state (`Draft`, `Approved`), origin (`Human`, `Evaluator`, `Playground`), approved by and time, authoring subtree | AA9 |
+| EvalCase | `evc_` | `eval_cases`, child `eval_case_checks`, `eval_case_files` | Set, order, input text, hidden flag, expected text; check: scorer (`ExactMatch`, `Contains`, `JsonSchemaValid`, `Judge`), argument text, weight | AA9 |
+| EvalRun | `evr_` | `eval_runs` | Set and version, target agent revision or deployment, status, score, threshold, passed, budget, started by, times | AA9 |
+| EvalCaseResult | `evx_` | `eval_case_results`, child `eval_case_check_results` | Eval run, case, run, output text, score, passed; per check: scorer, score, passed, judge run, note | AA9 |
+| ShadowTrial | `shd_` | `shadow_trials` | Tenant, source deployment, candidate deployment, sample percent, ends, comparison eval set, status, counts compared, agreed, diverged, candidate failures | AA9 |
+| CanaryRelease | `cnr_` | `canary_releases`, child `canary_release_steps` | Tenant, agent, candidate deployment, baseline deployment, steps (weight percent, minimum runs, minimum minutes), failure thresholds (error rate, eval score), status (`Running`, `Promoted`, `RolledBack`, `Aborted`), rollback reason | AA9 |
+
+Changed entities:
+
+| Entity | Change | Phase |
+|---|---|---|
+| `RunKindEnum` | Add `Keeper`, `Message`, `Eval`, `Shadow` | AA1, AA6, AA9 |
+| `Run` | Nullable `mandateid`, `mandatetickid`, `escalationid` (blocking waits), `shadowtrialid`, `evalrunid` | AA1, AA2, AA9 |
+| `ManagementAccessEnum` | Add `OrgSubtree` | AA8 |
+| `UsageQuotaScopeEnum` | Add `Mandate`, `OrgUnit` | AA3, AA7 |
+| `NotificationEventEnum` | Add `EscalationRaised`, `EscalationExpired`, `MandateCapReached`, `FreezeApplied`, `BoardBrief`, `CanaryRolledBack` | AA2, AA3, AA9, AA10 |
+| `TriggerTargetTypeEnum` | Add `EvalSet` (scheduled checks) | AA11 |
+| `ApprovalSourceEnum` | Use the existing `Rule` source for change-rule applies; verify the value exists, add it if not | AA8 |
+| `ResourceTypeEnum` | Add `Mandate`, `Escalation`, `Freeze`, `Memory`, `Report`, `AgentMessage`, `Organization`, `ChangeRule`, `EvalSet`, `EvalRun`, `ShadowTrial`, `CanaryRelease` | Each phase |
+| `PromotionRecord` | Subject kind `Organization` for org revision promote and rollback | AA7 |
+| `StudioDraft` items | Item kinds `Mandate`, `Organization`, `OrgUnit`, `EvalSet`; drafts record the originating run and whether it came from an `OrgSubtree` token | AA1, AA7, AA8, AA9 |
+| Built-in roles | New `BoardMember`; mappings in section 9 | AA10 |
+| `IAgentMemoryStore` | Unchanged contract; the `Agent` scope of `IScopedMemoryStore` reads the same data, and a migration copies existing entries' metadata | AA4 |
+
+### 7.3 Data model work
+
+Each phase that adds tables follows the parent plan's rule (AD 7.3): a `SchemaMigration` in `src/Garrison.Core/Database/Ado/SchemaBuilder.cs` at the next free version (46 at plan time; take the next free number when the work lands), query files under `Sqlite/Queries` and `Postgresql/Queries`, dialect differences in `Sql/SqlDialect.cs`, registration in `TableCatalog.cs` for backup, retention, and tenant deletion, and driver interface methods under `Database/Interfaces` with async enumeration variants. Columns stay structured. The plan adds no unmanaged JSON column: eval case checks that need a JSON Schema store it as user-authored text in `argument`, named and documented as unmanaged, matching the existing schema columns' exception (parent plan 7.5).
+
+### 7.4 REST surface
+
+All routes are tenant routes under `/v1.0/api/tenants/{tenantId}` with an operation scope map entry and OpenAPI metadata. `{id}` accepts an ID or, where names are unique, a name.
+
+| Phase | Routes |
+|---|---|
+| AA1 | `GET, POST /mandates`; `GET, PUT, DELETE /mandates/{id}`; `GET, POST /mandates/{id}/revisions`; `GET /mandates/{id}/revisions/{revId}`; `POST /mandates/{id}/revisions/{revId}/publish`; `POST /mandates/{id}/pause`, `/resume`, `/wake`; `GET /mandates/{id}/ticks`; `GET /mandate-ticks/{tickId}` |
+| AA2 | `GET /escalations` (filters: status, target, severity, agent, mandate); `GET /escalations/{id}`; `POST /escalations/{id}/answer`; `POST /escalations/{id}/cancel` |
+| AA3 | `GET, POST /freezes`; `GET /freezes/{id}`; `POST /freezes/{id}/lift`; `GET, PUT /autonomy/kill-switch` |
+| AA4 | `GET /memory/scopes`; `GET /memory/entries` (filters: scope kind, scope, category, tag, search, writer); `GET /memory/entries/{id}`; `GET /memory/entries/{id}/content`; `DELETE /memory/entries/{id}` |
+| AA5 | `GET /reports` (filters: author, unit, app, kind, health, period); `GET /reports/{id}`; `GET /reports/metrics` (series by author and metric name) |
+| AA6 | `GET /messages` (filters: sender, recipient, status, urgency, thread); `GET /messages/{id}`; `POST /messages` (a person writes to an agent); `GET /message-threads/{threadId}` |
+| AA7 | `GET, POST /organizations`; `GET, PUT, DELETE /organizations/{id}`; `GET, POST /organizations/{id}/units`; `GET, PUT, DELETE /organizations/{id}/units/{unitId}`; `GET /organizations/{id}/chart`; `GET, POST /organizations/{id}/revisions`; `POST /organizations/{id}/revisions/{revId}/publish`; `POST /organizations/{id}/rollback`; `GET /organizations/{id}/spend` |
+| AA8 | `GET, POST /change-rules`; `GET, PUT, DELETE /change-rules/{id}`; `GET /organizations/{id}/proposals` |
+| AA9 | `GET, POST /eval-sets`; `GET, PUT, DELETE /eval-sets/{id}`; `POST /eval-sets/{id}/approve`; `GET, POST /eval-sets/{id}/cases`; `GET, PUT, DELETE /eval-sets/{id}/cases/{caseId}`; `GET, POST /eval-runs`; `GET /eval-runs/{id}`; `POST /eval-runs/{id}/cancel`; `GET, POST /shadow-trials`; `GET /shadow-trials/{id}`; `POST /shadow-trials/{id}/stop`; `GET, POST /canary-releases`; `GET /canary-releases/{id}`; `POST /canary-releases/{id}/abort` |
+| AA10 | `GET /organizations/{id}/board` (one aggregate call); `POST /organizations/{id}/direction` |
+| AA11 | `GET /organizations/{id}/performance` (by unit and agent, period); `POST /organizations/{id}/units/{unitId}/cancel-all` |
+
+### 7.5 MCP surface
+
+"Run tokens" means hosted run tokens; "users" means user and credential callers with the matching permission. Management tools stay hidden from run tokens, as today.
+
+| Tool | Who may call | Phase |
+|---|---|---|
+| `garrison_keeper_context`, `garrison_keeper_complete_tick` | Run tokens of `Keeper` runs, for their own mandate | AA1 |
+| `garrison_list_mandates`, `garrison_get_mandate`, `garrison_create_mandate`, `garrison_update_mandate`, `garrison_publish_mandate_revision`, `garrison_pause_mandate`, `garrison_resume_mandate`, `garrison_wake_mandate`, `garrison_list_mandate_ticks` | Users | AA1 |
+| `garrison_escalate`, `garrison_get_escalation`, `garrison_list_my_escalations`, `garrison_withdraw_escalation` | Run tokens (own escalations) | AA2 |
+| `garrison_answer_escalation` | Run tokens of the target agent (escalations addressed to it); users | AA2 |
+| `garrison_list_escalations` | Users | AA2 |
+| `garrison_list_freezes`, `garrison_freeze`, `garrison_lift_freeze` | Users only; never run tokens | AA3 |
+| `garrison_memory_read`, `garrison_memory_write`, `garrison_memory_delete` gain `scope`, `scopeId`, `expectedVersion`; new `garrison_memory_list`, `garrison_memory_search` | Run tokens within the access policy (AA4.5); users | AA4 |
+| `garrison_file_report`, `garrison_list_reports` (own and subordinates'), `garrison_get_report` | Run tokens; users | AA5 |
+| `garrison_send_message`, `garrison_reply_message`, `garrison_read_inbox`, `garrison_ack_message` | Run tokens; users may send and list | AA6 |
+| `garrison_org_chart`, `garrison_org_whoami` | Run tokens of org members (their own organization only); users | AA7 |
+| `garrison_list_organizations`, `garrison_get_organization`, `garrison_create_organization`, `garrison_update_organization`, `garrison_publish_org_revision`, `garrison_rollback_organization` | Users | AA7 |
+| Studio draft tools (existing) | Run tokens of `OrgSubtree` deployments, validated against the subtree | AA8 |
+| `garrison_list_change_rules` | Run tokens of executives (read, their subtree); users | AA8 |
+| `garrison_create_change_rule`, `garrison_update_change_rule`, `garrison_delete_change_rule` | Users only; never run tokens | AA8 |
+| `garrison_run_eval`, `garrison_get_eval_run` | Run tokens of executives (own drafts, hidden cases redacted); users | AA9 |
+| `garrison_list_eval_sets`, `garrison_create_eval_set`, `garrison_approve_eval_set`, `garrison_start_shadow_trial`, `garrison_start_canary`, `garrison_abort_canary` | Users (approve: people only) | AA9 |
+| `garrison_subordinate_performance` | Run tokens of unit leads (their subtree only); users | AA11 |
+
+### 7.6 WebSocket surface
+
+| Channel | Permission | Sends | Phase |
+|---|---|---|---|
+| `mandate:{mandateId}` | Read on Mandate | `tick.started`, `tick.completed` with outcome and next wake | AA1 |
+| `escalations` | Read on Escalation | `escalation.raised`, `escalation.answered`, `escalation.expired` | AA2 |
+| `freezes` | Read on Freeze | `freeze.applied`, `freeze.lifted`, `killswitch.changed` | AA3 |
+| `agent-inbox:{agentId}` | Read on AgentMessage | `message.queued`, `message.delivered`, `message.rejected` | AA6 |
+| `organization:{orgId}` | Read on Organization | `org.changed`, `report.filed`, `spend.updated`, `proposal.changed` | AA7, AA8 |
+| `eval-run:{evalRunId}` | Read on EvalRun | `eval.case.completed`, `eval.completed` | AA9 |
+
+### 7.7 Prompt templates
+
+Seeded idempotently as built-ins; each has a tenant override by name where the column says so. No template carries hard-coded instructions in code.
+
+| Template | Kind | Override name | Phase |
+|---|---|---|---|
+| `builtin/keeper-system` | System fragment | `keeper-system` | AA1 |
+| `builtin/keeper-tick` | Task | `keeper-tick` | AA1 |
+| `builtin/escalation-received` | Task | `escalation-received` | AA2 |
+| `builtin/escalation-answered` | Task | `escalation-answered` | AA2 |
+| `builtin/memory-recall` | Data fragment | `memory-recall` | AA4 |
+| `builtin/memory-curator-system` | System | (clone to customize) | AA4 |
+| `builtin/report-digest` | Data fragment | `report-digest` | AA5 |
+| `builtin/inbox-delivery` | Data fragment | `inbox-delivery` | AA6 |
+| `builtin/message-wake` | Task | `message-wake` | AA6 |
+| `builtin/org-context` | Data fragment | `org-context` | AA7 |
+| `builtin/executive-system` | System fragment | `executive-system` | AA8 |
+| `builtin/eval-judge` | System | `eval-judge` | AA9 |
+| `builtin/board-brief` | Task | `board-brief` | AA10 |
+| `builtin/board-conversation` | System fragment | `board-conversation` | AA10 |
+
+### 7.8 Settings
+
+New settings live in an `Autonomy` section of the server settings (and cluster settings where the existing settings service supports runtime change). Every value is clamped, and `docs/CONFIGURATION.md` lists default, minimum, maximum, and meaning.
+
+| Setting | Default | Range | Meaning |
+|---|---|---|---|
+| `Autonomy.SchedulerSweepSeconds` | 5 | 1 to 60 | How often the leader looks for due mandates |
+| `Autonomy.MinIntervalSeconds` | 60 | 10 to 86400 | Floor for any mandate's minimum interval |
+| `Autonomy.MaxIntervalSeconds` | 604800 | 60 to 2592000 | Ceiling for any mandate's maximum interval |
+| `Autonomy.DefaultJitterPercent` | 10 | 0 to 50 | Jitter applied when a revision does not set one |
+| `Autonomy.MaxDueClaimsPerSweep` | 100 | 1 to 10000 | Mandates claimed per sweep |
+| `Autonomy.TickHistoryRetentionDays` | 30 | 1 to 3650 | Retention of mandate tick rows |
+| `Escalations.DefaultTimeoutSeconds` | 86400 | 60 to 2592000 | Timeout when the caller sets none |
+| `Escalations.MaxQuestionBytes` | 8192 | 256 to 65536 | Bound on question plus context |
+| `Memory.Scoped.Enabled` | true | | Turns on scoped memory (requires the memory root) |
+| `Memory.Scoped.MaxValueBytes` | 65536 | 1 to 1048576 | Bound on one entry |
+| `Memory.Scoped.MaxEntriesPerScope` | 10000 | 10 to 1000000 | Bound on entries per scope |
+| `Reports.MaxBodyBytes` | 32768 | 256 to 262144 | Bound on report body |
+| `Messaging.MaxHops` | 8 | 1 to 64 | Hop limit per thread |
+| `Messaging.LineRatePerMinute` | 30 | 1 to 6000 | Messages per minute per sender and recipient pair |
+| `Messaging.ThreadBudget` | 200 | 2 to 100000 | Messages per thread |
+| `Messaging.UrgentWakesPerHour` | 12 | 0 to 3600 | Urgent wakes per mandate per hour |
+| `Messaging.MaxMessagesPerDelivery` | 50 | 1 to 500 | Messages one run drains |
+| `Messaging.MaxBodyBytes` | 16384 | 256 to 262144 | Bound on a message body |
+| `Evaluation.MaxConcurrentCases` | 4 | 1 to 64 | Parallel cases per eval run |
+| `Evaluation.MaxCasesPerSet` | 500 | 1 to 10000 | Bound on set size |
+
+### 7.9 Telemetry
+
+Metric families are added to `GarrisonMetricCatalog` with descriptors, follow the existing `garrison.` naming and `LabelGuard` rules, and never carry IDs as labels.
+
+| Metric | Kind | Labels |
+|---|---|---|
+| `garrison.keeper.ticks` | Counter | `outcome`, `source` |
+| `garrison.keeper.tick.lag.duration` | Histogram (s) | `source` |
+| `garrison.keeper.interval` | Histogram (s) | `mode` |
+| `garrison.escalations` | Counter | `target_kind`, `severity`, `outcome` |
+| `garrison.escalation.answer.duration` | Histogram (s) | `target_kind` |
+| `garrison.freezes` | Counter | `target_kind`, `action` |
+| `garrison.spend.cap.hits` | Counter | `scope` |
+| `garrison.memory.operations` | Counter | `scope_kind`, `operation`, `outcome` |
+| `garrison.reports` | Counter | `kind`, `health` |
+| `garrison.messages` | Counter | `urgency`, `outcome` |
+| `garrison.message.delivery.lag.duration` | Histogram (s) | `urgency` |
+| `garrison.message.loop.guard` | Counter | `reason` |
+| `garrison.org.proposals` | Counter | `decision_source`, `outcome` |
+| `garrison.eval.runs` | Counter | `outcome` |
+| `garrison.eval.case.duration` | Histogram (s) | `scorer` |
+| `garrison.shadow.comparisons` | Counter | `result` |
+| `garrison.canary.transitions` | Counter | `result` |
+
+Spans: `keeper tick` (root for scheduled ticks, child of the run span chain), `escalation route`, `message deliver`, `memory <operation>`, `org proposal validate`, `eval run`, `eval case`, `shadow compare`, `canary step`. Each sets status on failure. A Grafana dashboard folder `Autonomy` with keepers, messaging, and evaluation dashboards is added wherever `docs/TELEMETRY.md` says dashboards are provisioned.
+
+### 7.10 Dashboard
+
+A new sidebar group, Autonomy, with role gating:
+
+| Route | View | Phase |
+|---|---|---|
+| `/autonomy/keepers` | `KeepersView.jsx`, `KeeperDetailView.jsx` (overview, revisions, ticks timeline chart, settings) | AA1 |
+| `/autonomy/escalations` | `EscalationsView.jsx` with sidebar badge for open items, answer modal | AA2 |
+| `/autonomy/freezes` | `FreezesView.jsx`, freeze action on agent, deployment, mandate, app, unit, and organization pages, kill switch on Settings and Home | AA3 |
+| `/autonomy/memory` | `MemoryView.jsx` (scope tree, entries table, content viewer) | AA4 |
+| `/autonomy/reports` | `ReportsView.jsx`, `ReportDetailView.jsx`, metric chart per author | AA5 |
+| `/autonomy/messages` | `MessagesView.jsx`, thread view, inbox tab on `AgentDetailView.jsx` | AA6 |
+| `/autonomy/organizations` | `OrganizationsView.jsx`, `OrganizationDetailView.jsx` (chart, units, members, budgets, revisions, spend) | AA7 |
+| `/autonomy/change-rules` | `ChangeRulesView.jsx`, proposals tab on the organization page | AA8 |
+| `/autonomy/evaluations` | `EvalSetsView.jsx`, `EvalRunDetailView.jsx`, `ShadowTrialsView.jsx`, `CanaryReleasesView.jsx`, playground "save as eval case" | AA9 |
+| `/autonomy/board` | `BoardView.jsx` | AA10 |
+| `/autonomy/performance` | `PerformanceView.jsx` | AA11 |
+
+`HomeView.jsx` gains an Autonomy card: active keepers, ticks in 24 hours, open escalations, messages rejected by loop guards, spend against caps, and links. The guided tour and setup wizard gain an optional "first keeper" path.
+
+### 7.11 SDKs
+
+| SDK | Work |
+|---|---|
+| C# (`sdk/csharp`) | Models and methods for every resource in 7.4; console commands in `Garrison.Sdk.Console`; tests in `Garrison.Sdk.Test` |
+| Python (`sdk/python`) | Dataclasses and methods; `test_harness.py` cases |
+| JavaScript and TypeScript (`sdk/js`) | Types and methods (ESM and CJS); `test-harness.mjs` cases |
+| Go (`sdk/go`) | New files `mandates.go`, `escalations.go`, `freezes.go`, `memory.go`, `reports.go`, `messages.go`, `organizations.go`, `changerules.go`, `evals.go`, `board.go` |
+| All | README sections; `scripts/run-sdk-harnesses.sh` and `.bat` pass; `scripts/verify-sdk-consoles.py` passes |
+
+---
+
+## 8. Work breakdown
+
+Each phase lists what it depends on and what it touches. Tasks are in the order a captain should take them; a task depends on the earlier tasks of its phase unless it says otherwise.
+
+### Phase AA0: Release start: branch, version, plan wiring
+
+Depends on: none. AA0.1 is the first task of the plan.
+Touches: git branches, the files listed in `scripts/version-mirrors.txt`, `CHANGELOG.md`, `CLAUDE.md`, `docs/README.md`.
+
+- [ ] AA0.1 Create or enter `feature/autonomous-agents`: if it exists locally or on `origin`, check it out and fast-forward it to `main`; otherwise create it from `main` at the commit containing this plan and push it with upstream tracking (pushing is outward-facing: confirm with the user first). Record the branch point.  Accept: `git rev-parse --abbrev-ref HEAD` prints `feature/autonomous-agents`; `git ls-remote --heads origin feature/autonomous-agents` returns one ref.
+- [ ] AA0.2 Ask the user to approve the release version `0.3.0` (AA-011), or the version they choose. Do not change any version before the answer.  Accept: the annotation records the approved version, who approved it, and the date; AA-011 moves from Proposed to User.
+- [ ] AA0.3 Apply the approved version to every file in `scripts/version-mirrors.txt` (product props and `Constants.ProductVersion`, Dockerfiles, compose and k8s tags, Helm chart, build scripts, dashboard and app-ui `package.json` and lockfile roots, `APP_VERSION`, e2e mocks, four SDK manifests, Postman collection, README, DOCKERHUB_README, API docs, docs, `CLAUDE.md`) and open a `[0.3.0]` section at the top of `CHANGELOG.md`. Leave third-party pins and recorded history alone, as AD0 did.  Accept: `scripts/check-version.sh` and `.bat` pass; build has zero warnings; dashboard, app-ui, and SDK builds pass.
+- [ ] AA0.4 Re-check every prefix in section 7.2 against `src/Garrison.Core/Constants.cs` and `git grep` on the branch, and every `ResourceTypeEnum`, `RunKindEnum`, and `NotificationEventEnum` value this plan adds; record collisions as decisions and adjust 7.2 before AA1 starts.  Accept: the annotation lists the check command and its clean result.
+- [ ] AA0.5 Wire the plan into the repository: `CLAUDE.md` names `AUTONOMOUS_AGENTS_PLAN.md` as the active plan (keeping the archive pointers); `docs/README.md` status section links it.  Accept: both links resolve; `scripts/check-em-dash.sh` passes.
+
+### Phase AA1: Mandates, wake schedules, and keepers
+
+Depends on: AA0.
+Touches: `src/Garrison.Core/{Enums,Models,Requests,Responses,Database,Manifests,Telemetry}`, `src/Garrison.Server/{Runtime,Services,Routes,Protocols,WebSockets}`, `src/Garrison.FakeHarness`, `dashboard/`, `sdk/*`, Postman, docs, `src/Test.Shared`.
+
+- [ ] AA1.1 Enums, one per file with XML docs: `MandateStatusEnum`, `MandateRevisionStateEnum`, `MandateRevisionSourceEnum`, `WakeModeEnum` (`Fixed`, `Backoff`), `WakeSourceEnum`, `TickOutcomeEnum`; add `Keeper` to `RunKindEnum`; add `Mandate` to `ResourceTypeEnum`; prefixes `mdt_`, `mdr_`, `mtk_` in `Constants.cs`.  Accept: build clean; enum serialization round-trips in a unit case.
+- [ ] AA1.2 Models `Mandate`, `MandateRevision`, `MandateRevisionSignal`, `MandateTick`, request and response DTOs, with validated setters: min interval at least `Autonomy.MinIntervalSeconds`, max at most `Autonomy.MaxIntervalSeconds`, min not above max, backoff factor 1.0 to 10.0, jitter 0 to 50, budgets non-negative. Out-of-range values clamp and produce a `warnings` entry like other resources.  Accept: model unit cases cover every clamp and warning.
+- [ ] AA1.3 Schema migration (next free version) for `mandates`, `mandate_revisions`, `mandate_revision_signals`, `mandate_ticks`, plus nullable `mandateid` and `mandatetickid` on `runs`; indexes on `(tenantid, name)`, `(nextwakeutc, status)`, `(mandateid, startedutc)`; queries for both providers; `TableCatalog` registration; `IMandateMethods`, `IMandateRevisionMethods`, `IMandateTickMethods` with async enumeration variants.  Accept: migrate-twice, tenant isolation, and cross-tenant 404 pass on Sqlite and Postgresql; tenant deletion removes the rows; backup includes them.
+- [ ] AA1.4 `MandateService`: create, update, delete (refused with 409 `MandateActive` while a tick runs unless forced), revision draft and publish (publishing makes it current and resets backoff), pause, resume, manual wake; deployment must belong to the agent and be active; audit records for every mutation.  Accept: service cases for each operation and refusal.
+- [ ] AA1.5 Wake scheduler `KeeperScheduler` in `src/Garrison.Server/Runtime`, run by the leader: each sweep claims up to `MaxDueClaimsPerSweep` due mandates with one compare-and-set on next wake and active run (AA-014), skips frozen, paused, and capped mandates, records `Skipped` when the previous tick is still running, starts a `Keeper` run through `AgentInvoker` with the mandate's deployment, and stamps the run with mandate and tick.  Accept: `MultiReplicaSuite` case with three replicas and 50 due mandates produces exactly 50 ticks; a long tick produces `Skipped` rows and no overlapping runs.
+- [ ] AA1.6 Interval computation: fixed mode keeps the interval; backoff mode multiplies after `Quiet` and resets after `Attention`, `Escalated`, or `Failed`; a requested next wake is clamped to the revision bounds; `Unreported` keeps the interval; jitter is applied last. Implemented as a pure, injectable-clock class.  Accept: table-driven unit cases cover a 10-tick quiet sequence reaching the maximum, a reset, clamping, and jitter bounds.
+- [ ] AA1.7 Run-token MCP tools `garrison_keeper_context` (current revision, signals, last N tick summaries, configurable N default 10, range 1 to 100) and `garrison_keeper_complete_tick` (outcome, summary, requested next wake), offered only to `Keeper` runs for their own mandate, with completion going through the effect journal; on run completion the scheduler finalizes the tick (AA-015).  Accept: a fake-harness keeper run calls both tools; a retried completion is not applied twice; a run without completion records `Unreported`.
+- [ ] AA1.8 Fake harness: let a scripted fake run call MCP tools with given arguments (if it cannot already), so keeper, escalation, report, message, and memory behavior is testable without a model.  Accept: a `RuntimeSuite` case scripts a fake run that calls `garrison_keeper_complete_tick` with `Quiet`.
+- [ ] AA1.9 Prompt templates `builtin/keeper-system` (mandate, signals, autonomy, escalation policy, tick protocol) and `builtin/keeper-tick` (wake source, time since last tick, last summaries), seeded idempotently with tenant overrides `keeper-system` and `keeper-tick`; the compiler adds them to `Keeper` runs.  Accept: `TemplateSuite` renders both; compile preview of a keeper run shows both with template IDs and versions recorded on the run.
+- [ ] AA1.10 REST registrar `MandateRoutes.cs` with the AA1 routes in 7.4, typed DTOs, enumeration with `maxResults` (1 to 1000, default 25), `skip`, `ordering`, `search`, status filter; scope map and OpenAPI entries.  Accept: route cases for every route, permission denials, and cross-tenant 404.
+- [ ] AA1.11 Management MCP tools for users listed in 7.5 (AA1), hidden from run tokens.  Accept: `ManagementMcpSuite` cases; a run token's tool list omits them.
+- [ ] AA1.12 Manifests: `kind: Mandate` (with an inline revision spec), apply, export, bundles; studio draft item kind `Mandate` so the architect can draft keepers; studio validation of mandate bounds.  Accept: `ManifestBundleSuite` round-trips a mandate; a draft containing a mandate applies after approval.
+- [ ] AA1.13 WebSocket channel `mandate:{id}` with `tick.started` and `tick.completed`.  Accept: a WebSocket case receives both events for a scheduled tick.
+- [ ] AA1.14 Settings `Autonomy.*` from 7.8 (scheduler, intervals, jitter, claims, retention) with clamps; `docker/server/garrison.json`, Helm values, k8s config; tick retention in `RetentionService`.  Accept: settings cases for clamps; retention deletes ticks older than the setting.
+- [ ] AA1.15 Telemetry: `garrison.keeper.*` metrics and `keeper tick` spans (7.9); Grafana keepers dashboard.  Accept: `TelemetryCoverageSuite` sees each metric after a scheduled tick; labels pass `LabelGuard`.
+- [ ] AA1.16 Dashboard: Autonomy sidebar group; `KeepersView` table (status, agent, deployment, next wake, interval, last outcome; backend filters, sort, select columns, pagination bar, refresh, row actions View, Edit, View JSON, Pause, Resume, Wake now, Delete with custom confirm); create and edit modal as a form with revision fields; `KeeperDetailView` with ticks timeline chart, revisions list and diff, live updates; Home Autonomy card; i18n for all locales and tips; unit and e2e tests with mocks; visual QA at 1280, 768, 390 in light and dark.  Accept: `npm run lint`, `npm run build`, `npm test` pass; e2e covers create, pause, wake, and an empty state; QA notes in the annotation.
+- [ ] AA1.17 SDKs: mandates, revisions, ticks, pause, resume, wake in C#, Python, JS/TS, and Go, with harness cases and README sections.  Accept: `scripts/run-sdk-harnesses.sh` passes against a local server.
+- [ ] AA1.18 Postman folder Mandates with documented requests and variables; Newman run passes.  Accept: Newman report attached to the annotation.
+- [ ] AA1.19 Docs: new `docs/KEEPERS.md` (concepts, tick protocol, backoff math with an example table, single-flight, examples); updates to `REST_API.md`, `MCP_API.md`, `WEBSOCKETS_API.md`, `docs/MANIFESTS.md`, `docs/PROMPTS.md`, `docs/CONFIGURATION.md`, `docs/TELEMETRY.md`, `docs/README.md`, `CHANGELOG.md`; `KeeperSuite` registered in `GarrisonSuites.cs`.  Accept: `scripts/check-api-docs.py` passes; human-voice review done; suite passes on both providers and in `Test.Xunit` and `Test.Nunit`.
+
+### Phase AA2: Escalations
+
+Depends on: AA1.
+Touches: Core models and schema, `ContinuationService`, `NotificationService`, MCP, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA2.1 Enums `EscalationStatusEnum`, `EscalationModeEnum`, `EscalationTargetKindEnum`, `EscalationSeverityEnum`, `EscalationTimeoutActionEnum`; `Escalation` and `EscalationOption` models and DTOs; prefix `esc_`; `ResourceTypeEnum.Escalation`; mandate revisions gain default escalation target fields (kind and ID).  Accept: model cases for bounds (question plus context at most `Escalations.MaxQuestionBytes`).
+- [ ] AA2.2 Schema for `escalations` and `escalation_options`, nullable `escalationid` on `runs`, both providers, `TableCatalog`, driver interfaces.  Accept: migrate-twice, isolation, cross-tenant 404 on both providers.
+- [ ] AA2.3 `EscalationService`: raise, answer (choice must match an option when options exist), cancel, withdraw by the raiser, escalate-up chaining (creates a child escalation and marks the parent), audit for each; routing by target kind: `User` and `Role` notify people, `Agent` starts a run of the target's default active deployment with `builtin/escalation-received` (or, after AA6, delivers as an urgent message), `Manager` returns `ManagerUnavailable` until AA7.5 lands.  Accept: service cases for each route and refusal.
+- [ ] AA2.4 Non-blocking mode (default): the raising run continues; an answer to a keeper's escalation sets the mandate's next wake to now with source `EscalationAnswer`, and the tick input includes the answer through `builtin/escalation-answered`; answers to non-keeper runs are fetched with `garrison_get_escalation`.  Accept: a fake keeper escalates, finishes its tick, and the answer wakes it once with the answer in its input.
+- [ ] AA2.5 Blocking mode: add an escalation wait boundary to durable continuation (same rules as approval waits: persisted current-epoch wait, checkpoint, requeue on answer, resume template `builtin/escalation-answered`); refused with `BlockingUnsupported` where suspension is unavailable (remote executors, profiles without resume).  Accept: `ContinuationArchiveSuite` style case suspends a fake run on an escalation, answers it, and resumes on another worker.
+- [ ] AA2.6 Timeout sweep in the leader maintenance loop: `UseDefaultAnswer` answers with the default, `Cancel` cancels the escalation (and the blocked run if blocking), `EscalateUp` escalates to the next target (manager after AA7, otherwise the mandate's human default); `Expired` recorded with source.  Accept: one case per timeout action with an injectable clock.
+- [ ] AA2.7 Run-token MCP tools `garrison_escalate`, `garrison_get_escalation`, `garrison_list_my_escalations`, `garrison_withdraw_escalation`, and `garrison_answer_escalation` for the target agent; effect journal for raise, withdraw, and answer.  Accept: a run can only see its own escalations and those addressed to its agent; replayed raise creates one escalation.
+- [ ] AA2.8 Templates `builtin/escalation-received` and `builtin/escalation-answered` framing question, context, and answer as data (AA-025).  Accept: `TemplateSuite` renders both with hostile text kept inside the data block.
+- [ ] AA2.9 REST registrar `EscalationRoutes.cs` (7.4) and user MCP `garrison_list_escalations`; scope map; OpenAPI.  Accept: route cases including answer permission (Update on Escalation) and cross-tenant 404.
+- [ ] AA2.10 Notifications: `EscalationRaised` and `EscalationExpired` events with signed payloads; endpoints may filter by severity.  Accept: `NotificationSuite` receives both events with valid signatures.
+- [ ] AA2.11 WebSocket channel `escalations`.  Accept: events arrive for raise, answer, expire.
+- [ ] AA2.12 Telemetry `garrison.escalations`, `garrison.escalation.answer.duration`, `escalation route` span.  Accept: coverage suite sees them.
+- [ ] AA2.13 Dashboard: `EscalationsView` with open-first sort, severity and status filters, sidebar badge count, answer modal (choices as buttons, free text, default answer shown), detail with raising run and mandate links, Home attention list; i18n; tests; visual QA.  Accept: e2e answers an escalation and sees the badge drop; QA recorded.
+- [ ] AA2.14 SDKs (four) with harness cases and README sections.  Accept: harnesses pass.
+- [ ] AA2.15 Postman folder Escalations; Newman passes.  Accept: Newman report.
+- [ ] AA2.16 Docs `docs/ESCALATIONS.md` and updates to the API docs, `docs/CONTINUATION.md`, `docs/NOTIFICATIONS.md`, `docs/KEEPERS.md`, docs index, changelog; `EscalationSuite` registered.  Accept: docs check passes; suite passes on both providers.
+
+### Phase AA3: Brakes I: freezes, spend caps, kill switch
+
+Depends on: AA1. Lands before AA6 (AA-017).
+Touches: models, schema, run admission in `RunService` and `AgentInvoker`, `KeeperScheduler`, `UsageQuotaPolicy`, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA3.1 `Freeze` model and `FreezeTargetKindEnum`; prefix `mfz_`; `ResourceTypeEnum.Freeze`; schema for `freezes` on both providers with an index on `(tenantid, targetkind, targetid, liftedutc)`.  Accept: migrate-twice and isolation pass.
+- [ ] AA3.2 Enforcement: admission refuses new runs whose agent, deployment, mandate, or app is under an active freeze with 409 `Frozen` naming the freeze; the scheduler skips frozen mandates and records `Skipped`; a freeze with `cancelActiveRuns` cancels runs in scope through the existing cancellation path. A cached freeze lookup keeps admission cheap and is invalidated through the backplane.  Accept: cases for each target kind on two replicas; a freeze applied on one replica is honored by the other within one backplane round trip.
+- [ ] AA3.3 Mandate spend caps: per-tick budget enforced at admission with `RunCostEstimationService` and by cancelling the tick run when its accumulated cost exceeds the budget; per-day budget tracked through a new `UsageQuotaScopeEnum.Mandate`; reaching the daily cap sets status `CapReached` until the window resets and raises an `Urgent` escalation to the mandate's human default.  Accept: a fake keeper with a tiny daily budget stops ticking and escalates; it resumes after the window.
+- [ ] AA3.4 Autonomy kill switch: a tenant-level setting that stops the scheduler from starting ticks, makes urgent message wakes queue instead (once AA6 lands), and leaves ordinary invocations working; changing it is audited and announced on the `freezes` channel.  Accept: with the switch on, no ticks start for 3 sweeps; turning it off resumes schedules without a burst (claims spread by jitter).
+- [ ] AA3.5 REST `FreezeRoutes.cs` and kill-switch routes (7.4); user MCP tools `garrison_list_freezes`, `garrison_freeze`, `garrison_lift_freeze`, never offered to run tokens.  Accept: route cases; run token is refused.
+- [ ] AA3.6 Notifications `FreezeApplied` and `MandateCapReached`.  Accept: signed deliveries received.
+- [ ] AA3.7 Telemetry `garrison.freezes`, `garrison.spend.cap.hits`.  Accept: coverage suite.
+- [ ] AA3.8 Dashboard: `FreezesView`; Freeze and Lift actions with custom confirm modals on agent, deployment, keeper, and app pages; frozen banner on those pages; kill switch control on Settings and the Home Autonomy card; i18n; tests; QA.  Accept: e2e freezes a keeper and sees the banner; QA recorded.
+- [ ] AA3.9 SDKs (four).  Accept: harnesses pass.
+- [ ] AA3.10 Postman folder Freezes and Kill switch; Newman passes.  Accept: Newman report.
+- [ ] AA3.11 Docs `docs/BRAKES.md` (freezes, caps, kill switch; later sections added by AA11), API docs, `docs/SECURITY.md`, `docs/CONFIGURATION.md`, index, changelog; `BrakeSuite` registered.  Accept: docs check; suite passes on both providers.
+
+### Phase AA4: Scoped memory: private and collective
+
+Depends on: AA1. Org scopes activate in AA7.
+Touches: `src/Garrison.Core/Memory`, schema, MCP memory tools, compiler, retention and deletion, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA4.1 `MemoryScopeKindEnum` (`Agent`, `App`, `OrgUnit`, `Organization`); `MemoryEntry` and `MemoryEntryTag` models; prefix `mem_`; `ResourceTypeEnum.Memory`.  Accept: model cases.
+- [ ] AA4.2 Schema `memory_entries` and `memory_entry_tags`, unique `(tenantid, scopekind, scopeid, key)`, both providers, `TableCatalog`, `IMemoryEntryMethods`.  Accept: migrate-twice and isolation pass.
+- [ ] AA4.3 `IScopedMemoryStore` interface at the provider boundary (read, write, delete content by tenant, scope, and key with cancellation) and `FilesystemScopedMemoryStore` default that hashes tenant, scope kind, scope, and key into the path, bounds bytes, refuses links, and writes owner-only files, following `FilesystemAgentMemoryStore`; registration through `ServerContext` so a module can replace it.  Accept: contract cases for persistence, concurrent writes, cancellation, isolation, and link refusal.
+- [ ] AA4.4 Metadata and content coordination: writes record SHA-256, bytes, version, writer agent, run, and principal; compare-and-set with `expectedVersion` returns 409 `MemoryVersionConflict`; content and metadata stay consistent after a crash between the two (write content first, then metadata; a sweep removes orphaned content).  Accept: fault-injection case leaves no visible half-written entry.
+- [ ] AA4.5 `MemoryAccessPolicy`: a run reads and writes its agent scope; reads and writes the `App` scopes of apps its agent is a member of; after AA7, reads and writes its `OrgUnit` scope, reads its ancestors' unit scopes and its organization scope, and leads read their subtree's unit scopes; nobody writes upward; people need Read or Update on Memory.  Accept: a policy matrix case covers every role and scope pair.
+- [ ] AA4.6 MCP: `garrison_memory_read`, `write`, `delete` gain `scope`, `scopeId`, `expectedVersion` (defaults keep today's behavior); new `garrison_memory_list` and `garrison_memory_search` (keyword over key, category, tags, and content for the filesystem provider); run-token mutations through the effect journal.  Accept: existing `AgentMemorySuite` passes unchanged; new cases for scopes.
+- [ ] AA4.7 Migration of existing agent memory: a one-time job records metadata rows for content already under the agent memory root so it appears in listings, without moving files.  Accept: an upgrade case with pre-existing memory lists it afterwards.
+- [ ] AA4.8 Recall rendering: `builtin/memory-recall` frames recalled entries as data with provenance (scope, key, writer, time); no code path inserts memory text into a prompt any other way.  Accept: template case with hostile memory text.
+- [ ] AA4.9 Deletion and retention: deleting an agent, app, org unit, organization, or tenant deletes its scope's metadata and content; `expiresUtc` sweep; backup covers metadata, and `docs/BACKUP.md` says how to back up content. Closes the gap noted in `docs/AGENT_MEMORY.md`.  Accept: deletion cases on both providers leave no rows and no files.
+- [ ] AA4.10 Curator support: `builtin/memory-curator-system`, and listing that returns staleness (last read and write times) so a curator keeper can merge and expire entries; reads update a last-read time in batches.  Accept: a scripted fake curator merges two duplicate entries in an `App` scope.
+- [ ] AA4.11 REST `MemoryRoutes.cs` (7.4); scope map; OpenAPI.  Accept: route cases and cross-tenant 404.
+- [ ] AA4.12 Telemetry `garrison.memory.operations` and `memory <operation>` spans.  Accept: coverage suite.
+- [ ] AA4.13 Dashboard `MemoryView`: scope tree, entries table with backend filters, provenance columns, content viewer, delete with confirm; i18n; tests; QA.  Accept: e2e browses and deletes an entry; QA recorded.
+- [ ] AA4.14 SDKs (four) and Postman folder Memory.  Accept: harnesses and Newman pass.
+- [ ] AA4.15 Docs: update `docs/AGENT_MEMORY.md` (scopes, policy, provenance, curator, replacing the provider); `docs/NOTDORY.md` states that an external provider plugs in by implementing `IScopedMemoryStore` and that NotDory remains an optional example (AA-004); API docs; index; changelog; `ScopedMemorySuite` registered.  Accept: docs check; suite passes on both providers.
+
+### Phase AA5: Reports
+
+Depends on: AA1. Chain-of-command audiences activate in AA7.
+Touches: models, schema, MCP, compiler, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA5.1 Enums `ReportKindEnum`, `ReportHealthEnum`, `ReportAudienceEnum`; models `Report`, `ReportMetric`, `ReportIssue`, `ReportDecision`; prefix `rpt_`; `ResourceTypeEnum.Report`.  Accept: model cases (body bound `Reports.MaxBodyBytes`, metric names 1 to 64 characters).
+- [ ] AA5.2 Schema for the four tables on both providers, indexes on `(tenantid, authoragentid, createdutc)` and `(tenantid, orgunitid, createdutc)`; reports are insert-only at the driver level.  Accept: migrate-twice and isolation; no update method exists on the interface.
+- [ ] AA5.3 `ReportService`: file (from runs or people), visibility (author, people with Read on Report, and before AA7 the entry agent of an app the author belongs to; after AA7 the author's chain up to the board per audience).  Accept: visibility matrix case.
+- [ ] AA5.4 MCP `garrison_file_report` (effect journal), `garrison_list_reports` (own and visible subordinates'), `garrison_get_report`.  Accept: replayed filing creates one report; a peer cannot read another peer's report unless the audience allows it.
+- [ ] AA5.5 Tick integration: a keeper's tick input includes reports filed by its visible subordinates since its last tick, rendered by `builtin/report-digest` and bounded by a configurable count (default 20, range 0 to 200).  Accept: a manager keeper's compiled input contains two subordinate reports framed as data.
+- [ ] AA5.6 REST `ReportRoutes.cs` including the metric series route; scope map; OpenAPI.  Accept: route cases.
+- [ ] AA5.7 Notifications: an `Unhealthy` report can notify (new event `ReportUnhealthy`).  Accept: signed delivery received.
+- [ ] AA5.8 WebSocket `report.filed` on the organization channel (AA7) and on a tenant `reports` channel now.  Accept: event received.
+- [ ] AA5.9 Telemetry `garrison.reports`.  Accept: coverage suite.
+- [ ] AA5.10 Dashboard `ReportsView` and `ReportDetailView` (health badge, metrics table, issues, decisions), metric chart per author over time; i18n; tests; QA.  Accept: e2e opens a report and its chart; QA recorded.
+- [ ] AA5.11 SDKs (four).  Accept: harnesses pass.
+- [ ] AA5.12 Postman folder Reports.  Accept: Newman passes.
+- [ ] AA5.13 Docs `docs/REPORTS.md`, API docs, `docs/PROMPTS.md`, index, changelog; `ReportSuite` registered.  Accept: docs check; suite passes on both providers.
+
+### Phase AA6: Mailboxes and wake-on-message
+
+Depends on: AA1, AA3. Org lines activate in AA7.
+Touches: models, schema, `KeeperScheduler`, `AgentInvoker`, MCP, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA6.1 Enums `MessageUrgencyEnum`, `MessageStatusEnum`, `MessageRejectionEnum`; models `AgentMessage`, `AgentMessageArtifact`; prefix `amg_`; `ResourceTypeEnum.AgentMessage`; `RunKindEnum.Message`.  Accept: model cases.
+- [ ] AA6.2 Schema `agent_messages` and `agent_message_artifacts` on both providers, indexes on `(tenantid, recipientagentid, status, createdutc)` and `(threadid)`.  Accept: migrate-twice and isolation.
+- [ ] AA6.3 `MessageLinePolicy`: allowed when an app edge connects sender and recipient in either direction, when replying within a thread to its sender, and after AA7 along reporting lines and peer lines; people with Create on AgentMessage may write to any agent.  Accept: matrix case; `NoLine` rejection recorded.
+- [ ] AA6.4 Loop guards: hop count from the thread, `Messaging.MaxHops`, per-pair `LineRatePerMinute` (sliding window in the database so it holds across replicas), `ThreadBudget`; frozen recipients reject with `Frozen`; every rejection is stored with its reason and counted.  Accept: a scripted ping-pong between two fake agents stops at the hop limit and at the thread budget; rate limit holds across two replicas.
+- [ ] AA6.5 Delivery: normal mail is included in the recipient keeper's next tick input through `builtin/inbox-delivery` (up to `MaxMessagesPerDelivery`, oldest first, remainder stays queued); urgent mail sets the recipient mandate's next wake to now with source `Message`, honoring single-flight and `UrgentWakesPerHour`; a recipient with no mandate gets urgent mail as a `Message` run on its default active deployment through `builtin/message-wake`, and normal mail waits for `garrison_read_inbox`. Delivery marks messages `Delivered` with the run.  Accept: ten messages arriving during a tick are handled by one following run; an urgent message under three replicas causes exactly one wake.
+- [ ] AA6.6 MCP `garrison_send_message`, `garrison_reply_message`, `garrison_read_inbox`, `garrison_ack_message` (effect journal for send, reply, ack); users may send and list.  Accept: replayed send creates one message; a recipient cannot read another agent's inbox.
+- [ ] AA6.7 Escalation routing to agents switches to urgent messages (AA2.3) while keeping the escalation record as the source of truth.  Accept: an agent-targeted escalation arrives as an urgent message linked to the escalation.
+- [ ] AA6.8 Expiry sweep for undelivered messages past `expires`.  Accept: case with an injectable clock.
+- [ ] AA6.9 REST `MessageRoutes.cs` (7.4); scope map; OpenAPI.  Accept: route cases.
+- [ ] AA6.10 WebSocket `agent-inbox:{agentId}`.  Accept: events received.
+- [ ] AA6.11 Telemetry `garrison.messages`, `garrison.message.delivery.lag.duration`, `garrison.message.loop.guard`, `message deliver` span; Grafana messaging dashboard.  Accept: coverage suite.
+- [ ] AA6.12 Dashboard `MessagesView` (filters, thread view, rejected tab with reasons), inbox tab on `AgentDetailView`, send-message modal for people; Home card shows loop-guard rejections; i18n; tests; QA.  Accept: e2e sends a message and opens its thread; QA recorded.
+- [ ] AA6.13 SDKs (four).  Accept: harnesses pass.
+- [ ] AA6.14 Postman folder Messages.  Accept: Newman passes.
+- [ ] AA6.15 Docs `docs/MESSAGING.md` (lines, urgency, coalescing, loop guards with a worked ping-pong example), `docs/KEEPERS.md` wake sources, API docs, `docs/CONFIGURATION.md`, index, changelog.  Accept: docs check.
+- [ ] AA6.16 `MessagingSuite` registered: line policy, guards, coalescing, urgent wake, expiry, isolation.  Accept: suite passes on both providers, including the multi-replica cases.
+
+### Phase AA7: Organizations
+
+Depends on: AA2, AA4, AA5, AA6.
+Touches: models, schema, services, policies from AA2 to AA6, `PromotionRecord`, manifests, studio, capability catalog, routes, MCP, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA7.1 Enums `OrganizationStatusEnum`, `BudgetPeriodEnum`, `OrgRevisionStateEnum`; models `Organization`, `OrgUnit`, `OrgUnitMember`, `OrgUnitPeerLine`, `OrgUnitBudget`, `OrgRevision` and its snapshot children; prefixes `org_`, `oun_`, `orv_`; `ResourceTypeEnum.Organization`.  Accept: model cases.
+- [ ] AA7.2 Schema for all organization tables on both providers; unique `(tenantid, name)` for organizations and `(organizationid, name)` for units.  Accept: migrate-twice and isolation.
+- [ ] AA7.3 `OrganizationService`: tree validation (one root, no cycles, parent in the same org, an agent leads at most one unit per organization, members are active agents), CRUD, chart computation, audit.  Accept: validation cases for each rule.
+- [ ] AA7.4 Org revisions: snapshot units, members, peer lines, budgets, and pinned mandate revisions; publish makes the snapshot live; rollback restores a previous revision including mandate revisions; promotion across environments through `PromotionRecord` with subject kind `Organization`.  Accept: publish, change, rollback returns the tree and mandates to the earlier state; promotion record written.
+- [ ] AA7.5 Chain of command resolver used everywhere: an agent's unit, its manager (lead of the parent unit, or the board above the root), its subtree. Wire it into escalations (`Manager` target and `EscalateUp`), reports (audience), memory (`OrgUnit` and `Organization` scopes), and messaging (reporting and peer lines).  Accept: one case per integration point, each using the resolver.
+- [ ] AA7.6 Budgets: per-unit, per-period caps on the whole subtree's spend through `UsageQuotaScopeEnum.OrgUnit`; admission refuses runs of agents in a capped subtree with 409 `BudgetExhausted` and raises an escalation to the unit's manager; a child budget may not exceed its parent's.  Accept: a subtree hits its cap and stops; the escalation reaches the parent lead.
+- [ ] AA7.7 Freezes extend to `OrgUnit` (whole subtree) and `Organization`.  Accept: freezing a unit stops ticks of every keeper below it.
+- [ ] AA7.8 Awareness: run MCP `garrison_org_chart` (units, leads, members, titles, mandate one-line summaries, peer lines) and `garrison_org_whoami` (my unit, manager, direct reports); `builtin/org-context` adds a short org summary to member runs; capability descriptors of agents carry their unit and mandate summary so peers can discover responsibilities.  Accept: a member run sees its chart; a non-member run is refused.
+- [ ] AA7.9 Manifests `kind: Organization` with nested units; export and import; studio draft item kinds `Organization` and `OrgUnit` with validation.  Accept: bundle round-trip; a draft that creates an organization applies after approval.
+- [ ] AA7.10 Studio canvas: render organizations as nested groups with reporting and peer lines, editable through the same draft graph operations.  Accept: browser test adds a unit on the canvas and sees it in the diff.
+- [ ] AA7.11 REST `OrganizationRoutes.cs` (7.4) and user MCP tools; scope map; OpenAPI.  Accept: route cases and cross-tenant 404.
+- [ ] AA7.12 WebSocket `organization:{orgId}` with `org.changed`, `report.filed`, `spend.updated`.  Accept: events received.
+- [ ] AA7.13 Telemetry: org-labelled spend gauge only at unit-count-safe cardinality (no IDs; aggregate by tenant), spans for chart and budget checks.  Accept: coverage suite; `LabelGuard` passes.
+- [ ] AA7.14 Dashboard `OrganizationsView` and `OrganizationDetailView`: interactive chart (tree with health from latest reports), unit editor forms, members, peer lines, budgets with spend bars, revisions with diff, publish, rollback with confirm; i18n; tests; QA including the chart at 390 pixels.  Accept: e2e creates an org with two units and publishes it; QA recorded.
+- [ ] AA7.15 SDKs (four).  Accept: harnesses pass.
+- [ ] AA7.16 Postman folder Organizations.  Accept: Newman passes.
+- [ ] AA7.17 Docs `docs/ORGANIZATIONS.md`, updates to `ESCALATIONS.md`, `REPORTS.md`, `AGENT_MEMORY.md`, `MESSAGING.md`, `BRAKES.md`, `docs/MANIFESTS.md`, `docs/STUDIO.md`, `docs/CAPABILITIES.md`, `docs/REVISIONS.md`, API docs, index, changelog.  Accept: docs check.
+- [ ] AA7.18 `OrganizationSuite` registered: validation, revisions, rollback, budgets, resolver integrations, isolation.  Accept: suite passes on both providers.
+
+### Phase AA8: Executive authority and pre-authorized change
+
+Depends on: AA7.
+Touches: `ManagementAccessEnum`, `StudioService`, approvals, new change rules, MCP, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA8.1 `ManagementAccessEnum.OrgSubtree`; deployment validation allows it only for a deployment of an agent that leads an org unit; the run token carries the unit.  Accept: validation cases.
+- [ ] AA8.2 `SubtreeAuthority`: computes the resources inside an executive's subtree (units below its own, their members, deployments, mandates, and prompt templates and assets used only inside the subtree). Shared resources are read-only.  Accept: cases for shared versus exclusive templates and assets.
+- [ ] AA8.3 Draft validation for drafts written by `OrgSubtree` runs: every item inside the subtree; hard limits from AA-022 refused with `OutsideSubtree`, `SelfModification`, `ForbiddenKind`, `BudgetIncrease`, `AuthorityChange`; the permission check against the person who started the run still applies.  Accept: one refusal case per code; a valid draft passes.
+- [ ] AA8.4 Change rules: `ChangeRule`, `ChangeRuleClass`, `ChangeRuleLimit`, `ChangeClassEnum`; prefix `chr_`; `ResourceTypeEnum.ChangeRule`; schema on both providers; created, updated, and deleted only by people.  Accept: migrate-twice; a run token is refused on every mutation.
+- [ ] AA8.5 Classifier: maps each draft item's diff to change classes (for example a model field change is `ModelChange`, a wake bound change is `WakeTuning`) and checks limits (for example wake bounds within a range, at most N added workers).  Accept: table-driven cases for every class and limit.
+- [ ] AA8.6 Apply path: `request-apply` from an `OrgSubtree` run applies at once when every item matches an active rule for the subtree, recorded as an approval decided with source `Rule` and the matching rule IDs; otherwise it waits for a person as today. Every rule apply creates an org revision so rollback undoes it.  Accept: a matching draft applies without a person; a non-matching one waits; rollback undoes the rule apply.
+- [ ] AA8.7 Mandate revisions authored by executives carry source `Executive`; an executive may publish revisions only for mandates inside its subtree and only through the draft path.  Accept: direct publish by run token refused; draft path works.
+- [ ] AA8.8 Template `builtin/executive-system` renders the executive's unit, subtree summary, authority, hard limits, and active rules.  Accept: template case; compile preview of an executive run shows it.
+- [ ] AA8.9 REST `ChangeRuleRoutes.cs` and organization proposals route; run MCP `garrison_list_change_rules`; user MCP rule tools; scope map; OpenAPI.  Accept: route cases.
+- [ ] AA8.10 Notifications and WebSocket: `proposal.changed` on the organization channel; rule applies notify subscribed board endpoints.  Accept: events received.
+- [ ] AA8.11 Telemetry `garrison.org.proposals` by decision source and outcome; `org proposal validate` span.  Accept: coverage suite.
+- [ ] AA8.12 Dashboard: `ChangeRulesView` with a form for classes and limits; proposals tab on the organization page with diff, matched rules or "needs approval", approve and deny; i18n; tests; QA.  Accept: e2e creates a rule and sees a matching proposal auto-applied in the list.
+- [ ] AA8.13 SDKs (four) and Postman folder Change rules.  Accept: harnesses and Newman pass.
+- [ ] AA8.14 Docs `docs/EXECUTIVES.md` (authority, hard limits, rules, examples) and a threat section in `docs/SECURITY.md`; `ExecutiveAuthoritySuite` registered.  Accept: docs check; suite passes on both providers.
+
+### Phase AA9: Evaluation, shadow, and canary
+
+Depends on: AA1, AA3. AA9.10 needs AA8. Absorbs archived AD11.1 to AD11.6.
+Touches: models, schema, `AgentInvoker`, new eval runner, effect policy for shadow runs, deployment weights, promotion, studio playground, MCP, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA9.1 Enums `EvalSetStateEnum`, `EvalSetOriginEnum`, `EvalScorerEnum`, `EvalRunStatusEnum`, `ShadowTrialStatusEnum`, `CanaryStatusEnum`; models for eval sets, cases, checks, files, runs, results, shadow trials, canary releases and steps; prefixes `evs_`, `evc_`, `evr_`, `evx_`, `shd_`, `cnr_`; `ResourceTypeEnum` values; `RunKindEnum.Eval` and `Shadow`.  Accept: model cases.
+- [ ] AA9.2 Schema for all evaluation tables on both providers; approved sets are immutable (edits create the next version).  Accept: migrate-twice; editing an approved set produces a new version.
+- [ ] AA9.3 Eval runner: runs every case against a draft agent revision or a deployment as `Eval` runs, bounded by `Evaluation.MaxConcurrentCases` and a budget, recording outputs and scores.  Accept: a 10-case set on the fake harness records ten results.
+- [ ] AA9.4 Scorers: exact match, contains, JSON Schema validity, and judge (a Garrison agent run with `builtin/eval-judge`, its verdict parsed from a typed output schema).  Accept: unit cases per scorer; the judge's prompt comes from the template.
+- [ ] AA9.5 Authorship separation (AA-024): sets used as gates must be `Approved` by a person or have origin `Evaluator` from outside the proposer's subtree; hidden cases are redacted for the proposer's run tokens, which see scores only.  Accept: a proposer's run cannot read hidden case inputs; a self-authored set cannot gate.
+- [ ] AA9.6 Promotion gates (AD11.4): an environment may require an eval set and threshold; promotion fails with `EvalGateFailed` linking the eval run.  Accept: a failing run blocks promotion to `prod`; a passing one allows it.
+- [ ] AA9.7 Shadow trials: copy a sampled share of the source deployment's inputs to the candidate as `Shadow` runs with the restrictions of AA-027; compare outputs with the trial's eval set or judge; record agreed and diverged counts.  Accept: a shadow run that tries an effectful tool, a message, a memory write, and a report is refused on each; the source run is unaffected.
+- [ ] AA9.8 Canary releases: steps of deployment weight, minimum runs, and minimum minutes; advance automatically while error rate and eval score stay within thresholds; roll back weights and notify `CanaryRolledBack` otherwise.  Accept: a canary with a failing candidate rolls back at step one; a healthy one reaches 100 percent.
+- [ ] AA9.9 Studio playground "save as eval case" and eval run views (AD11.5).  Accept: browser test saves a case and runs the set.
+- [ ] AA9.10 Executive lifecycle: an executive's draft that adds or changes a worker can run evals (`garrison_run_eval`), and its approval summary carries eval, shadow, and canary evidence; change rules may require a passing gate set for `AddWorker` and `ModelChange`.  Accept: a rule that requires a gate refuses auto-apply until the eval passes.
+- [ ] AA9.11 Scheduled re-evaluation hooks used by AA11 (an eval set can be run on a schedule against a deployment's recent inputs).  Accept: runner accepts recent-input mode; case covers it.
+- [ ] AA9.12 REST `EvaluationRoutes.cs`, `ShadowTrialRoutes.cs`, `CanaryRoutes.cs` (7.4) and MCP tools; scope map; OpenAPI.  Accept: route cases.
+- [ ] AA9.13 WebSocket `eval-run:{id}`.  Accept: events received.
+- [ ] AA9.14 Telemetry `garrison.eval.*`, `garrison.shadow.comparisons`, `garrison.canary.transitions`, spans; Grafana evaluation dashboard.  Accept: coverage suite.
+- [ ] AA9.15 Dashboard evaluation views (sets with case editor forms, approve, run, run detail with per-case diff and scorer notes, shadow trials comparison, canary steps and rollback); i18n; tests; QA.  Accept: e2e runs a set and opens a failing case.
+- [ ] AA9.16 SDKs (four), AD11.6.  Accept: harnesses run an eval set.
+- [ ] AA9.17 Postman folders Eval sets, Eval runs, Shadow trials, Canary releases.  Accept: Newman passes.
+- [ ] AA9.18 Docs `docs/EVALS.md` (sets, scorers, separation, gates, shadow, canary), `docs/REVISIONS.md`, `docs/STUDIO.md`, API docs, index, changelog; `EvalSuite`, `ShadowSuite`, `CanarySuite` registered.  Accept: docs check; suites pass on both providers.
+
+### Phase AA10: The board
+
+Depends on: AA7. AA10.4 needs AA8 and AA9.
+Touches: roles, aggregate route, mandates, conversations, notifications, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA10.1 Built-in role `BoardMember` (section 9) seeded idempotently, assignable per organization through resource scope.  Accept: `IdentitySuite` cases for the role's grants.
+- [ ] AA10.2 Aggregate route `GET /organizations/{id}/board` returning one typed response: chart with unit health, open escalations, pending proposals, spend against budget per unit, latest brief, recent unhealthy reports, active freezes.  Accept: route case; one call renders the board in the e2e mock.
+- [ ] AA10.3 Briefs: the CEO mandate may set a brief cadence; the tick input asks for a `Brief` report through `builtin/board-brief`; the `BoardBrief` notification fires on filing.  Accept: a fake CEO keeper files a brief and the notification arrives.
+- [ ] AA10.4 Proposal evidence on the board: diff, matched rules, eval runs, shadow and canary results, approve and deny actions.  Accept: e2e approves a proposal from the board.
+- [ ] AA10.5 Direction: `POST /organizations/{id}/direction` creates a published CEO mandate revision with source `Board` and the direction text, audited with the person's identity.  Accept: the CEO's next tick input contains the direction framed as the board's instruction from a template.
+- [ ] AA10.6 Talk to the CEO: a board conversation panel backed by an ordinary conversation with the CEO deployment and `builtin/board-conversation`.  Accept: e2e sends a message and sees the reply stream.
+- [ ] AA10.7 Dashboard `BoardView`: chart with health, attention column (escalations, unhealthy reports, cap hits), proposals, spend chart, brief, brakes panel (freeze unit or org, rollback, kill switch) with confirms; responsive at 390 pixels; i18n; a11y pass; tests; QA.  Accept: e2e covers every panel's empty and populated states; QA recorded.
+- [ ] AA10.8 Guided tour steps for Autonomy and a setup wizard path "create your first keeper".  Accept: tour replays; wizard creates a keeper on the fake harness.
+- [ ] AA10.9 SDK board client (four).  Accept: harnesses pass.
+- [ ] AA10.10 Postman folder Board.  Accept: Newman passes.
+- [ ] AA10.11 Docs `docs/BOARD.md` and a "Run an autonomous organization" section in `docs/QUICKSTART.md`.  Accept: docs check; quickstart steps run as written.
+- [ ] AA10.12 `BoardSuite` registered (aggregate correctness, direction, briefs, permissions).  Accept: suite passes on both providers.
+
+### Phase AA11: Performance signals and org-scale brakes
+
+Depends on: AA7, AA9.
+Touches: analytics, triggers, brakes, MCP, routes, dashboard, SDKs, Postman, docs, tests.
+
+- [ ] AA11.1 Performance rollups per agent and unit over a period: run outcomes, cost, latency percentiles, escalation rate, loop-guard rejections, eval scores, capability run samples; built on `RunAnalyticsService`.  Accept: rollup case against seeded runs.
+- [ ] AA11.2 Run MCP `garrison_subordinate_performance` for unit leads (their subtree only) and REST `GET /organizations/{id}/performance`.  Accept: a lead sees its subtree and is refused outside it.
+- [ ] AA11.3 Checks agents cannot grade: `TriggerTargetTypeEnum.EvalSet` schedules eval runs against a deployment's recent inputs (AA9.11); results are visible to managers and writable only by people.  Accept: a scheduled check runs and its result appears in performance.
+- [ ] AA11.4 Cascade cancel: `POST /organizations/{id}/units/{unitId}/cancel-all` cancels running and queued runs in the subtree, withdraws open escalations raised there, and expires queued messages, in one audited action.  Accept: case with runs, escalations, and messages in a subtree; nothing remains active.
+- [ ] AA11.5 Automatic freeze on budget breach: a subtree that exceeds its cap by a configurable margin (default 10 percent, range 0 to 100) is frozen and the board is notified.  Accept: case with an overrun.
+- [ ] AA11.6 Org rollback hardening: rollback during active ticks finishes or cancels them per a chosen option and leaves no mandate on a revision outside the restored snapshot.  Accept: case rolling back mid-tick.
+- [ ] AA11.7 Dashboard `PerformanceView` (unit and agent tables, charts, checks) and brakes panel additions (cascade cancel with confirm); i18n; tests; QA.  Accept: e2e cascade-cancels a unit.
+- [ ] AA11.8 SDKs (four) and Postman folder Performance.  Accept: harnesses and Newman pass.
+- [ ] AA11.9 Docs: `docs/BRAKES.md` org-scale section, `docs/ORGANIZATIONS.md` performance section, `docs/TRIGGERS.md` eval set target, API docs.  Accept: docs check.
+- [ ] AA11.10 `PerformanceSuite` and brake cascade cases in `BrakeSuite`.  Accept: suites pass on both providers.
+
+### Phase AA12: Reference examples, trials, and validation
+
+Depends on: AA1 to AA11.
+Touches: `examples/`, `scripts/`, `src/Test.Benchmark`, `benchmarks/`, `docs/testing/`.
+
+- [ ] AA12.1 `examples/autonomous/gerbil/`: one keeper that watches a URL's health and a file's freshness, with a mandate, memory of yesterday, and an escalation rule; fake-harness variant for CI and a Claude Code variant documented.  Accept: `ExamplesSuite` applies and runs the fake variant; README walks through it.
+- [ ] AA12.2 `examples/autonomous/site-reliability-org/`: an organization with a CEO (reliability lead), uptime, latency, and dependency keepers, a memory curator, peer lines, budgets, change rules, and an approved eval set.  Accept: `ExamplesSuite` applies it; a scripted fake run sequence exercises report, message, escalation, and a rule-applied proposal.
+- [ ] AA12.3 `scripts/run-autonomy-example.sh` and `.bat` (no hard-coded hosts, IDs, or secrets).  Accept: both run the gerbil example end to end locally.
+- [ ] AA12.4 Benchmarks per `BENCHMARKING.md`: scheduler load (1, 100, 1000, 10000 mandates; tick lag p50, p95, p99), message throughput and delivery lag, memory operation latency; black-box harness in `src/Test.Benchmark`; results in `benchmarks/` with provenance; CI gate subset.  Accept: reports committed; `ci-gate` subset runs in CI.
+- [ ] AA12.7 Story trials from Part I ("How we'll know it works"): keeper, team, org, and board trials on a real harness, recorded in `docs/testing/AUTONOMY_TRIALS.md`. The one-month keeper trial starts before release and its result is recorded when it ends; release does not wait for the month.  Accept: three trials recorded; the month trial started with its start date recorded.
+- [ ] AA12.8 Simulated user testing session per `SIMULATED_USER_TESTING.md` covering every new surface with an operator, a developer, a board member, and a restricted viewer; findings report in `docs/testing/AUTONOMY_SIMULATED_USERS.md`; fixes only with the user's approval.  Accept: report meets that document's definition of done.
+- [ ] AA12.9 Security review addendum in `docs/SECURITY_REVIEW.md`: prompt injection through memory, reports, messages, and answers; self-modification; privilege escalation through drafts and rules; loop cost; shadow leakage; tenant isolation of every new table.  Accept: each threat has a mitigation and a test reference.
+- [ ] AA12.10 Accessibility review addendum in `docs/testing/ACCESSIBILITY_REVIEW.md` for the Autonomy views.  Accept: issues fixed or recorded with reasons.
+
+### Phase AA13: Release
+
+Depends on: every other phase. AA13.15 and AA13.16 are the last tasks of the plan.
+Touches: repository-wide documentation, website, Postman, SDKs, CI, images.
+
+- [ ] AA13.1 `README.md`: an "Autonomous agents" section (keepers, teams, organizations, board, brakes), layout table, documentation links, status; `AOT support` heading per `REPOSITORY_REQUIREMENTS.md` item 15 present and accurate.  Accept: links resolve; human-voice review done.
+- [ ] AA13.2 `DOCKERHUB_README.md` mirrors the README's key points with explicit asset URLs.  Accept: rendered preview checked.
+- [ ] AA13.3 `docs/ARCHITECTURE.md`: autonomy section and diagram (scheduler, mailboxes, org resolver, executive path, evaluation path).  Accept: reviewed against the code.
+- [ ] AA13.4 `docs/README.md` index gains "Run autonomous agents and organizations" linking every new doc; `docs/REMAINING_PLAN_MATRIX.md` updated.  Accept: links resolve.
+- [ ] AA13.5 `CLAUDE.md`: layout and rules updates (autonomy rules: no self-modification, untrusted agent-written data, effect journal for run-token mutations).  Accept: reviewed.
+- [ ] AA13.6 Website (`~/Websites/usegarrison.ai`): an autonomy feature page, a story page adapted from Part I, docs and quickstart links, version references; site builds.  Accept: `npm run build` and `npm run check` pass for the site; pages reviewed for human voice.
+- [ ] AA13.7 Postman: full review of every new folder and request description, variables, and `postman/README.md`; Newman runs the whole collection.  Accept: Newman report.
+- [ ] AA13.8 SDK sweep: four READMEs, `scripts/run-sdk-harnesses.sh` and `.bat`, `scripts/verify-sdk-consoles.py`, `scripts/pack-sdks.sh`.  Accept: all pass.
+- [ ] AA13.9 Dashboard and app-ui: lint, build, tests; app-ui regression pass (no feature change expected); visual QA matrix summary for every new view.  Accept: all pass; QA summary in the annotation.
+- [ ] AA13.10 i18n gate: all locales complete for new keys, pseudo-locale and missing-key checks pass, long-string and RTL-safe layouts spot-checked.  Accept: checks pass.
+- [ ] AA13.11 Full test matrix: `Test.Automated` on both providers, `Test.Xunit`, `Test.Nunit`, SDK harnesses, dashboard and app-ui tests, k8s workflow; CI green on the branch with no excluded tests (`BACKEND_TEST_ARCHITECTURE.md` CI rules).  Accept: CI run links in the annotation.
+- [ ] AA13.12 Compliance gate: `scripts/check-em-dash.sh`, `scripts/check-version.sh`, `scripts/check-api-docs.py`, zero build warnings, every task in AA0 to AA12 `[x]` or `[-]` with reasons.  Accept: all pass.
+- [ ] AA13.13 `CHANGELOG.md` `[0.3.0]` section complete and written for people.  Accept: reviewed.
+- [ ] AA13.14 Build images with `./build-all.sh` for the approved version.  Accept: images build locally for amd64 and arm64.
+- [ ] AA13.15 Publish images and merge: push images and merge `feature/autonomous-agents` to `main` only after the user's explicit go-ahead and the operator's own test of the gerbil example and the site-reliability org on the release images.  Accept: user approval recorded; images tagged `v0.3.0` (or the approved version); merge commit recorded.
+- [ ] AA13.16 Archive: move this plan to `archive/AUTONOMOUS_AGENTS_PLAN.md`, update `CLAUDE.md` pointers, and record the month-long keeper trial result when it ends (AA12.7).  Accept: links resolve.
+
+---
+
+## 9. Security and RBAC
+
+New resource types and the built-in roles' grants. Every route and tool is checked against the operation scope map; every tenant-owned query filters by tenant; cross-tenant reads return 404.
+
+| Resource | Viewer, Auditor | AgentDeveloper | AgentOperator | BoardMember (new) | TenantAdmin, ResourceAdmin |
+|---|---|---|---|---|---|
+| Mandate | Read | Create, Read, Update, Delete | Read, Execute (pause, resume, wake) | Read, Execute | All |
+| Escalation | Read | Read | Read, Update (answer) | Read, Update | All |
+| Freeze | Read | Read | Create, Read, Update (lift) | Create, Read, Update | All |
+| Memory | Read | Read, Update, Delete | Read | Read | All |
+| Report | Read | Read | Read | Read | All |
+| AgentMessage | Read | Read, Create | Read, Create | Read, Create | All |
+| Organization | Read | Create, Read, Update | Read | Read, Update (direction, publish, rollback) | All |
+| ChangeRule | Read | Read | Read | Create, Read, Update, Delete | All |
+| EvalSet, EvalRun | Read | Create, Read, Update, Execute | Read, Execute | Read, Update (approve) | All |
+| ShadowTrial, CanaryRelease | Read | Create, Read, Update | Read, Update (stop, abort) | Read, Update | All |
+
+Run tokens never receive management permissions through these grants. The run-token tools in 7.5 are authorized by the run's own identity (its mandate, its agent, its unit), every permission is also checked against the person who started the run, and the tool list hides what a run may not call. Run tokens can never: create, change, or lift freezes; create or change change rules; approve eval sets; decide approvals; publish mandate revisions outside the draft path; touch anything at or above their own position in the org (AA-022).
+
+Agent-written content (memory, reports, messages, answers, briefs) is untrusted (AA-025): templates frame it as data, it is size-bounded, secrets are scrubbed from it the same way run output is, and it is never interpreted as configuration.
+
+---
+
+## 10. Risks and open questions
+
+| ID | Risk or question | Mitigation or owner |
+|---|---|---|
+| R1 | Runaway cost from loops: keepers ticking too often, agents waking each other | Min interval floor, backoff, single-flight, caps (AA3), loop guards (AA6), kill switch, Home card alerts |
+| R2 | Prompt injection through shared state: a worker reads a hostile page and writes it into team memory that an executive later reads | AA-025 data framing, provenance on every entry, scoped write rules, security review AA12.9 |
+| R3 | Goal drift through self-modification | AA-022 hard limits, change rules written only by people, org revisions with one-step rollback |
+| R4 | Scheduler correctness across replicas and leader changes | Compare-and-set claims, multi-replica suite cases (AA1.5, AA6.4, AA6.5) |
+| R5 | Blocking escalations hold sessions for days | Non-blocking default; blocking only with durable continuation, which frees the worker |
+| R6 | Executive marks its own homework | AA-024 separation and hidden cases |
+| R7 | Shadow runs leak effects | AA-027 restrictions with a test per refused effect (AA9.7) |
+| R8 | Dashboard scope: eleven new views strain the existing navigation | One Autonomy group, role gating, board view as the default landing for BoardMember |
+| Q1 | Should escalations to people also reach the app UI's end users when the keeper serves an app? | Open; out of scope for 0.3.0 (3.2) unless the user moves it in |
+| Q2 | Should change rules expire by default? | Proposed: optional expiry, no default; decide during AA8.4 |
+| Q3 | Release version: `0.3.0`? | User decision at AA0.2 |
+
+---
+
+## 11. Walkthroughs
+
+### 11.1 The gerbil
+
+A developer applies `examples/autonomous/gerbil/` and opens Autonomy > Keepers. The keeper `gerbil-keeper` has a mandate: keep the status page healthy, check every 15 minutes, back off to 4 hours while it stays healthy, never restart anything, escalate to the on-call role when it is down twice in a row. Its first tick reads memory (`last-seen-healthy`), checks the page, writes memory, and completes with `Quiet`. Over the afternoon its interval stretches to 4 hours. At 2 a.m. the page returns 503; the tick completes with `Attention` and the interval snaps back to 15 minutes. Fifteen minutes later it is still down, so the keeper raises a non-blocking escalation: "Status page down 15 minutes, last healthy 01:52. Restart, wait, or ignore?" The on-call person answers "wait" from the Escalations view on their phone. The answer wakes the keeper, which records the instruction in memory and keeps watching.
+
+### 11.2 The organization
+
+An operator applies the site-reliability org. The reliability lead (CEO) has a daily brief cadence. The latency keeper notices p95 rising and, instead of touching the database, sends an urgent message to the dependency keeper, whose job that is, along their peer line. The dependency keeper finds an outdated driver and reports it upward with a `Degraded` health. The reliability lead reads both reports at its next tick and drafts a change: add a "driver upgrade" worker to the dependency unit. The board's change rule allows `AddWorker` in that unit only with a passing gate set, so the draft waits; the lead runs the approved eval set, the candidate passes, a shadow trial agrees on 48 of 50 sampled inputs, and the rule applies the change, recorded as an org revision. The next morning's brief on the Board view explains what happened, shows spend at 31 percent of the unit's budget, and offers the rollback button nobody needs to press.
