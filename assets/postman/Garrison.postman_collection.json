@@ -19472,6 +19472,602 @@
       ]
     },
     {
+      "name": "Mandates",
+      "description": "Keepers (mandates, AA1): an agent with a standing job that wakes on a schedule. Each wake is a tick, one run of the keeper's deployment; only one tick runs at a time. Changes to the objective and schedule are revisions, published to take effect. A keeper runs as the principal that last created or changed it, so creating one needs Execute on its agent.",
+      "item": [
+        {
+          "name": "Create keeper",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates"
+              ]
+            },
+            "description": "Creates a keeper (mandate) on the Postman agent and deployment. The inline currentRevision is published as revision 1, so the keeper starts Active and its first wake is scheduled. minIntervalSeconds 10 is below the cluster floor Autonomy.MinIntervalSeconds (60 by default), so the stored value is raised and the response lists a ValueClamped warning. Needs Create on Mandate and Execute on the agent; the caller becomes the principal its ticks run as. A remote agent answers 400 RemoteAgentUnsupported; a duplicate name answers 409 NameConflict.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-keeper-{{suffix}}\",\n  \"description\": \"Watches the Postman queue\",\n  \"agentId\": \"{{agentId}}\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"currentRevision\": {\n    \"objective\": \"Keep the Postman queue short and say what changed.\",\n    \"healthyDefinition\": \"Nothing waits longer than an hour.\",\n    \"autonomy\": \"Close duplicates on its own.\",\n    \"escalationPolicy\": \"Ask a person before deleting anything.\",\n    \"signals\": [\n      {\n        \"name\": \"queue depth\",\n        \"description\": \"Items waiting\"\n      }\n    ],\n    \"wakeMode\": \"Backoff\",\n    \"minIntervalSeconds\": 10,\n    \"maxIntervalSeconds\": 7200,\n    \"backoffFactor\": 2,\n    \"budgetPerTickUsd\": 0.5\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('mandateId', json.id);",
+                  "pm.test('mdt_ identifier, Active on revision 1', function () { pm.expect(json.id).to.match(/^mdt_/); pm.expect(json.status).to.eql('Active'); pm.expect(json.currentRevisionNumber).to.eql(1); pm.expect(json.nextWakeUtc).to.be.a('string'); });",
+                  "pm.test('signals round-trip', function () { pm.expect(json.currentRevision.signals[0].name).to.eql('queue depth'); });",
+                  "pm.test('minimum interval raised to the cluster floor with a warning', function () { pm.expect(json.currentRevision.minIntervalSeconds).to.be.at.least(60); pm.expect((json.warnings || []).map(function (w) { return w.field; })).to.include('minIntervalSeconds'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get keeper",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}"
+              ]
+            },
+            "description": "Reads a keeper with its current revision, by identifier or name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('carries the current revision', function () { pm.expect(json.currentRevision.number).to.eql(1); pm.expect(json.runAsId).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List keepers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates?status=Active&search=postman-keeper",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Active"
+                },
+                {
+                  "key": "search",
+                  "value": "postman-keeper"
+                }
+              ]
+            },
+            "description": "Lists keepers. Filters: status, agentId, deploymentId, search; paging with maxResults and skip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('finds the keeper', function () { pm.expect(json.objects.map(function (m) { return m.id; })).to.include(pm.collectionVariables.get('mandateId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update keeper",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}"
+              ]
+            },
+            "description": "Changes the name, description, and deployment. The agent cannot change, and the revision changes through a new revision. The caller becomes the run-as principal. Fields left out are cleared, so send the name and deployment again.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-keeper-{{suffix}}\",\n  \"description\": \"Watches the Postman queue and its backlog\",\n  \"deploymentId\": \"{{deploymentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('description changed', function () { pm.expect(json.description).to.eql('Watches the Postman queue and its backlog'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft keeper revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "revisions"
+              ]
+            },
+            "description": "Saves a new revision as a draft. It does not change the keeper until it is published.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": \"Keep the Postman queue under ten items.\",\n  \"changeNote\": \"Tighter target\",\n  \"wakeMode\": \"Fixed\",\n  \"minIntervalSeconds\": 600\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('mandateRevisionId', json.id);",
+                  "pm.test('draft revision 2', function () { pm.expect(json.id).to.match(/^mdr_/); pm.expect(json.state).to.eql('Draft'); pm.expect(json.number).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get keeper revision",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/revisions/{{mandateRevisionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "revisions",
+                "{{mandateRevisionId}}"
+              ]
+            },
+            "description": "Reads one revision of a keeper."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the draft', function () { pm.expect(json.changeNote).to.eql('Tighter target'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List keeper revisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "revisions"
+              ]
+            },
+            "description": "Lists revisions, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two revisions, newest first', function () { pm.expect(json.objects.map(function (r) { return r.number; })).to.eql([2, 1]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish keeper revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/revisions/{{mandateRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "revisions",
+                "{{mandateRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Publishes the draft: it becomes current, the backoff resets, and an Active keeper wakes now. Publishing a published revision answers 409 RevisionPublished."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('revision 2 is current', function () { pm.expect(json.currentRevisionNumber).to.eql(2); pm.expect(json.currentRevisionId).to.eql(pm.collectionVariables.get('mandateRevisionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pause keeper",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/pause",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "pause"
+              ]
+            },
+            "description": "Stops further wakes. A running tick finishes. Only an Active keeper (or one at its budget cap) can be paused; others answer 409 MandateNotActive."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('paused with no next wake', function () { pm.expect(json.status).to.eql('Paused'); pm.expect(json.nextWakeUtc).to.be.oneOf([undefined, null]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resume keeper",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/resume",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "resume"
+              ]
+            },
+            "description": "Starts waking again at once with the interval reset. Only a Paused keeper can be resumed; others answer 409 MandateNotPaused."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('active again', function () { pm.expect(json.status).to.eql('Active'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wake keeper",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/wake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "wake"
+              ]
+            },
+            "description": "Starts a tick now instead of waiting for the schedule; if a tick is running, the next one starts after it. Only an Active keeper can be woken. Answers 202."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 202', function () { pm.response.to.have.status(202); });",
+                  "pm.test('still active', function () { pm.expect(json.status).to.eql('Active'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List keeper ticks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/ticks?maxResults=25&skip=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "ticks"
+              ],
+              "query": [
+                {
+                  "key": "maxResults",
+                  "value": "25"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists ticks, newest first, optionally by outcome. The leader starts the woken tick within Autonomy.SchedulerSweepSeconds, so this request waits and repeats (up to ten times) until a tick with a run appears."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (Number(pm.collectionVariables.get('mandateTickTries') || 0) > 0) setTimeout(function () {}, 2000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var tick = (json.objects || []).find(function (x) { return x.runId; });",
+                  "var tries = Number(pm.collectionVariables.get('mandateTickTries') || 0);",
+                  "if (!tick && tries < 10) { pm.collectionVariables.set('mandateTickTries', tries + 1); postman.setNextRequest('List keeper ticks'); }",
+                  "else { pm.collectionVariables.set('mandateTickTries', 0); pm.test('a tick with a run', function () { pm.expect(tick).to.be.an('object'); pm.expect(tick.id).to.match(/^mtk_/); }); if (tick) { pm.collectionVariables.set('mandateTickId', tick.id); pm.collectionVariables.set('mandateTickRunId', tick.runId); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get keeper tick",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandate-ticks/{{mandateTickId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandate-ticks",
+                "{{mandateTickId}}"
+              ]
+            },
+            "description": "Reads one tick: what woke the keeper, its run, outcome, summary, and the interval it set. Authorized as Read on its keeper."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('belongs to the keeper', function () { pm.expect(json.mandateId).to.eql(pm.collectionVariables.get('mandateId')); pm.expect(json.wakeSource).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Runs started by the keeper",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs?mandateId={{mandateId}}&maxResults=25&skip=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "mandateId",
+                  "value": "{{mandateId}}"
+                },
+                {
+                  "key": "maxResults",
+                  "value": "25"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists the runs of the keeper's ticks with the mandateId filter. Each has kind Keeper and links back to its tick."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('keeper tick runs', function () { var run = json.objects.find(function (r) { return r.id === pm.collectionVariables.get('mandateTickRunId'); }); pm.expect(run).to.be.an('object'); pm.expect(run.kind).to.eql('Keeper'); pm.expect(run.mandateTickId).to.eql(pm.collectionVariables.get('mandateTickId')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -21032,6 +21628,46 @@
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
+        {
+          "name": "Delete keeper",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}?force=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}"
+              ],
+              "query": [
+                {
+                  "key": "force",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Deletes the keeper with its revisions and tick history. force=true cancels a running tick's run; without it a running tick answers 409 MandateActive. Runs it started are kept."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Delete webhook trigger",
           "request": {
@@ -22826,6 +23462,26 @@
     {
       "key": "runtimeProfileId",
       "value": "hrn_saved_connection"
+    },
+    {
+      "key": "mandateId",
+      "value": ""
+    },
+    {
+      "key": "mandateRevisionId",
+      "value": ""
+    },
+    {
+      "key": "mandateTickId",
+      "value": ""
+    },
+    {
+      "key": "mandateTickRunId",
+      "value": ""
+    },
+    {
+      "key": "mandateTickTries",
+      "value": ""
     }
   ]
 }
