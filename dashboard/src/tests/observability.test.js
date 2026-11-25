@@ -136,11 +136,13 @@ describe('observability cards', () => {
 });
 
 describe('section dashboards (P13.27)', () => {
-  it('covers all fourteen Garrison sections with garrison- UIDs', () => {
-    expect(DASHBOARD_SECTIONS).toHaveLength(14);
+  // AA1.13 added the Autonomy (keepers) dashboard as the fifteenth section.
+  it('covers all fifteen Garrison sections with garrison- UIDs', () => {
+    expect(DASHBOARD_SECTIONS).toHaveLength(15);
     for (const key of DASHBOARD_SECTIONS) expect(DEFAULT_DASHBOARDS[key]).toMatch(/^garrison-[a-z-]+$/);
     expect(DEFAULT_DASHBOARDS.controlPlane).toBe('garrison-control-plane');
-    expect(new Set(Object.values(DEFAULT_DASHBOARDS)).size).toBe(14);
+    expect(DEFAULT_DASHBOARDS.autonomy).toBe('garrison-autonomy');
+    expect(new Set(Object.values(DEFAULT_DASHBOARDS)).size).toBe(15);
   });
   it('lists one link per section in display order', () => {
     const links = sectionDashboardLinks(INFO);

@@ -5138,3 +5138,473 @@ it.tips.nav.tabs.secrets = "Chiavi API e token cifrati. I deployment li associan
 it.tips.resources.secrets.add = "Memorizza una nuova credenziale, come una chiave API o un token, cifrata a riposo. I deployment la referenziano tramite alias; dopo il salvataggio, solo chi ha Admin su Secret può mostrarla.";
 it.tips.resources.secrets.value = "Il valore del segreto. Viene cifrato al salvataggio. Chi ha Admin su Secret può mostrarlo, e ogni visualizzazione è sottoposta ad audit.";
 it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API o un token. Dopo il salvataggio puoi sostituirlo o ruotarlo. Rileggerlo è consentito solo a chi ha Admin su Secret (i ruoli SecretManager e TenantAdmin), e ogni visualizzazione viene registrata nel registro di audit.";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "Autonomia",
+    "tip": "Agenti che continuano a lavorare da soli: i custodi si svegliano secondo una pianificazione e si occupano di un incarico permanente."
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "Custodi",
+    "tip": "Agenti che si svegliano secondo una pianificazione per occuparsi di un incarico permanente"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "Ciclo del custode"
+  },
+  "resourceType": {
+   "Mandate": "Custode (mandato)"
+  },
+  "mandateStatus": {
+   "Draft": "Bozza",
+   "Active": "Attivo",
+   "Paused": "In pausa",
+   "Frozen": "Congelato",
+   "CapReached": "Budget raggiunto",
+   "Retired": "Ritirato"
+  },
+  "mandateRevisionState": {
+   "Draft": "Bozza",
+   "Published": "Pubblicata"
+  },
+  "mandateRevisionSource": {
+   "Human": "Persona",
+   "Board": "Consiglio",
+   "Executive": "Direzione",
+   "Architect": "Architetto degli agenti"
+  },
+  "wakeMode": {
+   "Fixed": "Intervallo fisso",
+   "Backoff": "Dilata se calmo"
+  },
+  "wakeSource": {
+   "Timer": "Pianificazione",
+   "Manual": "Svegliato a mano",
+   "Message": "Messaggio",
+   "EscalationAnswer": "Escalation risolta",
+   "Webhook": "Webhook",
+   "Report": "Rapporto"
+  },
+  "tickOutcome": {
+   "Quiet": "Calmo",
+   "Acted": "Intervenuto",
+   "Attention": "Richiede attenzione",
+   "Escalated": "Escalato",
+   "Failed": "Non riuscito",
+   "Skipped": "Saltato",
+   "Unreported": "Non riportato"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "Un ciclo di questo custode è in corso. Attendi che finisca, metti in pausa il custode oppure eliminalo comunque, il che annulla l'esecuzione del ciclo.",
+  "MandateNotActive": "Solo un custode attivo può essere svegliato o messo in pausa.",
+  "MandateNotPaused": "Solo un custode in pausa può essere ripreso.",
+  "RemoteAgentUnsupported": "I custodi vengono eseguiti su distribuzioni ospitate, quindi un agente remoto non può essere un custode.",
+  "DeploymentInactive": "Questa distribuzione è inattiva. Scegli una distribuzione attiva.",
+  "DeploymentAgentMismatch": "Questa distribuzione appartiene a un altro agente. Scegli una delle distribuzioni di questo agente.",
+  "RevisionMismatch": "Questa revisione appartiene a un altro custode."
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "Custode"
+   }
+  },
+  "keepers": {
+   "title": "Custodi",
+   "subtitle": "Agenti che si svegliano secondo una pianificazione per occuparsi di un incarico permanente e riferiscono ogni volta che cosa hanno trovato.",
+   "add": "Aggiungi custode",
+   "create": "Crea custode",
+   "edit": "Modifica custode",
+   "view": "Dettagli del custode",
+   "deleteTitle": "Elimina custode",
+   "emptyTitle": "Ancora nessun custode",
+   "emptyBody": "Crea un custode perché un agente controlli qualcosa con regolarità, come una coda, una dashboard o una casella di posta, e agisca o chieda aiuto quando serve.",
+   "columns": {
+    "name": "Nome",
+    "status": "Stato",
+    "agent": "Agente",
+    "deployment": "Distribuzione",
+    "nextWakeUtc": "Prossimo risveglio",
+    "currentIntervalSeconds": "Intervallo",
+    "lastTick": "Ultimo ciclo",
+    "tickCount": "Cicli",
+    "currentRevisionNumber": "Revisione",
+    "runAs": "Eseguito come",
+    "description": "Descrizione",
+    "id": "ID",
+    "createdUtc": "Creato"
+   },
+   "fields": {
+    "name": "Nome",
+    "description": "Descrizione",
+    "agentId": "Agente",
+    "deploymentId": "Distribuzione",
+    "objective": "Obiettivo",
+    "healthyDefinition": "Come appare uno stato sano",
+    "autonomy": "Che cosa può fare da solo",
+    "escalationPolicy": "Quando chiedere aiuto",
+    "direction": "Indirizzo attuale",
+    "signals": "Segnali da osservare",
+    "signalsItems": {
+     "name": "Segnale",
+     "description": "Che cosa significa"
+    },
+    "wakeMode": "Modalità di risveglio",
+    "minIntervalSeconds": "Intervallo minimo (secondi)",
+    "maxIntervalSeconds": "Intervallo massimo (secondi)",
+    "backoffFactor": "Fattore di dilatazione",
+    "jitterPercent": "Jitter (percentuale)",
+    "budgetPerTickUsd": "Budget per ciclo (USD)",
+    "budgetPerDayUsd": "Budget al giorno (USD)",
+    "maxTokensPerTick": "Massimo di token per ciclo",
+    "changeNote": "Nota di modifica"
+   },
+   "hints": {
+    "name": "Lettere minuscole, cifre e trattini.",
+    "agentId": "Un agente ospitato. L'agente non può cambiare dopo la creazione del custode.",
+    "deploymentId": "La distribuzione attiva su cui viene eseguito ogni ciclo.",
+    "objective": "L'incarico permanente, in parole semplici. Il custode lo legge a ogni ciclo.",
+    "minIntervalSeconds": "Da {{min}} a {{max}} secondi. L'impostazione del cluster Autonomy.MinIntervalSeconds può alzarlo.",
+    "maxIntervalSeconds": "Da {{min}} a {{max}} secondi. La dilatazione smette di crescere qui.",
+    "backoffFactor": "Da {{min}} a {{max}}. Dopo ogni ciclo calmo l'intervallo viene moltiplicato per questo valore.",
+    "jitterPercent": "Da {{min}} a {{max}}. Se vuoto usa il valore predefinito del cluster.",
+    "budgetPerTickUsd": "Vuoto significa nessun limite.",
+    "budgetPerDayUsd": "Vuoto significa nessun limite.",
+    "maxTokensPerTick": "Token di input più token di output. Vuoto significa nessun limite.",
+    "changeNote": "Perché questa revisione modifica il custode. Mostrata nell'elenco delle revisioni."
+   },
+   "sections": {
+    "mandate": "Mandato",
+    "schedule": "Pianificazione dei risvegli",
+    "budgets": "Budget"
+   },
+   "sectionHints": {
+    "mandate": "Il salvataggio pubblica questi campi come revisione 1 e avvia la pianificazione dei risvegli. Le modifiche successive passano da Nuova revisione nella pagina del custode.",
+    "budgets": "Salvati ora e applicati in una versione futura."
+   },
+   "errors": {
+    "name": "Usa da 1 a 64 lettere minuscole, cifre e trattini, iniziando e finendo con una lettera o una cifra.",
+    "nameTaken": "Un altro custode usa già questo nome.",
+    "text": "Limitato a {{max}} caratteri.",
+    "agentRequired": "Scegli l'agente che si occupa di questo mandato.",
+    "deploymentRequired": "Scegli la distribuzione su cui vengono eseguiti i suoi cicli.",
+    "objective": "Descrivi l'incarico permanente.",
+    "signalsMax": "Una revisione ha al massimo {{max}} segnali.",
+    "signalName": "I nomi dei segnali hanno da 1 a {{max}} caratteri.",
+    "signalUnique": "Ogni segnale ha bisogno di un nome diverso.",
+    "signalsInvalid": "Correggi i segnali contrassegnati qui sotto.",
+    "interval": "Inserisci secondi interi da {{min}} a {{max}}.",
+    "maxBelowMin": "L'intervallo massimo non può essere più breve del minimo.",
+    "backoffFactor": "Inserisci un numero da {{min}} a {{max}}.",
+    "jitterPercent": "Inserisci un numero intero da {{min}} a {{max}}.",
+    "budget": "Inserisci un importo da {{min}} a {{max}}.",
+    "maxTokens": "Inserisci un numero intero da {{min}} a {{max}}."
+   },
+   "actions": {
+    "pause": "Metti in pausa",
+    "resume": "Riprendi",
+    "wake": "Sveglia ora",
+    "runs": "Vedi esecuzioni"
+   },
+   "toasts": {
+    "pause": "{{name}} messo in pausa.",
+    "resume": "{{name}} ripreso. Si sveglia ora.",
+    "wake": "{{name}} si sveglia ora."
+   },
+   "units": {
+    "seconds_one": "{{count}} secondo",
+    "seconds_other": "{{count}} secondi",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} ora",
+    "hours_other": "{{count}} ore",
+    "days_one": "{{count}} giorno",
+    "days_other": "{{count}} giorni"
+   },
+   "ticking": "Ciclo in corso",
+   "neverTicked": "Non ancora svegliato",
+   "addSignal": "Aggiungi segnale",
+   "signalNamePlaceholder": "lunghezza della coda",
+   "editNotice": "Eseguito come {{name}}. Salvando, diventi il principal con cui vengono eseguiti i suoi cicli. Per cambiare l'obiettivo o la pianificazione, apri il custode e usa Nuova revisione."
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "Nuova revisione di {{name}}",
+   "intro": "Questa diventa la revisione {{number}}. Pubblicandola diventa subito quella corrente: la dilatazione si azzera e il custode si sveglia ora.",
+   "draft": "Salva come bozza",
+   "publish": "Pubblica",
+   "drafted": "Revisione {{number}} salvata come bozza.",
+   "published": "Revisione {{number}} pubblicata."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "Custode"
+  },
+  "home": {
+   "autonomy": {
+    "title": "Autonomia",
+    "open": "Apri i custodi",
+    "empty": "Ancora nessun custode. Un custode si sveglia secondo una pianificazione per occuparsi di un incarico permanente.",
+    "active": "attivi",
+    "paused": "in pausa",
+    "ticking": "in ciclo ora",
+    "nextWake": "Prossimo risveglio:",
+    "allQuiet": "Nessun custode richiede attenzione.",
+    "attention_one": "{{count}} custode richiede attenzione",
+    "attention_other": "{{count}} custodi richiedono attenzione"
+   }
+  },
+  "keeperDetail": {
+   "title": "Custode",
+   "heading": "Custode {{name}}",
+   "notFoundTitle": "Custode non trovato",
+   "notFoundBody": "Potrebbe essere stato eliminato oppure appartenere a un altro tenant.",
+   "live": "In diretta",
+   "polling": "Aggiornamento",
+   "newRevision": "Nuova revisione",
+   "noWake": "Non pianificato",
+   "quietStreak": "Cicli calmi di fila",
+   "activeRun": "Ciclo in corso",
+   "revisionTitle": "Revisione corrente",
+   "revisionHeading": "Revisione corrente ({{number}})",
+   "noRevision": "Nessuna revisione è ancora pubblicata. Usa Nuova revisione per scriverne una e pubblicarla.",
+   "clusterDefault": "Predefinito del cluster",
+   "noLimit": "Nessun limite",
+   "ticks": "Cicli",
+   "outcomeFilter": "Esito",
+   "allOutcomes": "Tutti gli esiti",
+   "noTicksTitle": "Ancora nessun ciclo",
+   "noTicksActive": "Il primo ciclo parte al prossimo risveglio. Usa Sveglia ora per avviarne uno subito.",
+   "noTicksBody": "I cicli compaiono qui quando il custode è attivo e si sveglia.",
+   "chartTitle": "Intervallo dopo ogni ciclo",
+   "chartHelp": "Minuti al prossimo risveglio, come impostati al termine di ogni ciclo. I cicli calmi lo allungano in modalità Backoff.",
+   "chartSeries": "Intervallo (minuti)",
+   "columns": {
+    "started": "Avviato",
+    "source": "Svegliato da",
+    "outcome": "Esito",
+    "run": "Esecuzione",
+    "interval": "Intervallo successivo",
+    "cost": "Costo",
+    "summary": "Riepilogo",
+    "number": "Numero",
+    "state": "Stato",
+    "revisionSource": "Origine",
+    "author": "Autore",
+    "changeNote": "Nota di modifica",
+    "created": "Creata"
+   },
+   "requested": "ha chiesto {{interval}}",
+   "revisions": "Revisioni",
+   "noRevisions": "Ancora nessuna revisione.",
+   "current": "Corrente",
+   "diff": "Confronta",
+   "diffTitle": "Revisione {{number}} a confronto con la precedente",
+   "diffFirst": "Questa è la prima revisione, quindi tutto ciò che contiene è nuovo.",
+   "revisionLabel": "Revisione {{number}}",
+   "nothing": "Niente",
+   "confirmDelete": "Eliminare il custode {{name}} con le sue revisioni e la cronologia dei cicli? Le sue esecuzioni passate restano.",
+   "confirmForceDelete": "Un ciclo di {{name}} è in corso. Eliminare comunque il custode e annullare l'esecuzione di quel ciclo?",
+   "forceDelete": "Elimina e annulla il ciclo",
+   "changeNote": "Nota di modifica: {{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agenti che lavorano da soli tra una richiesta e l'altra. I custodi si svegliano secondo una pianificazione, controllano un incarico permanente e agiscono o chiedono aiuto."
+   },
+   "tabs": {
+    "keepers": "Custodi: agenti che si svegliano secondo una pianificazione per occuparsi di un incarico permanente, con i loro cicli e le loro revisioni."
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "Avviata dal risveglio di un custode. L'esecuzione è un ciclo di quel custode e rimanda a lui."
+   },
+   "resourceType": {
+    "Mandate": "Custodi (mandati): gli incarichi permanenti di cui gli agenti si occupano secondo una pianificazione di risvegli, con le loro revisioni e i loro cicli."
+   },
+   "mandateStatus": {
+    "Draft": "Creato senza una revisione pubblicata, quindi non si sveglia ancora. Pubblica una revisione per avviarlo.",
+    "Active": "Si sveglia secondo la sua pianificazione. Ogni risveglio avvia un ciclo, un'esecuzione della sua distribuzione.",
+    "Paused": "Non si sveglia finché qualcuno non lo riprende. Riprendendolo si sveglia subito con l'intervallo azzerato.",
+    "Frozen": "Fermato da un amministratore o da una policy. Non si sveglia finché non viene scongelato.",
+    "CapReached": "Il suo budget giornaliero è esaurito. Si risveglia all'inizio del prossimo giorno UTC.",
+    "Retired": "Non più in uso. Conserva la sua cronologia e non si sveglia mai."
+   },
+   "mandateRevisionState": {
+    "Draft": "Salvata ma non in uso. Pubblicala per renderla la revisione corrente del custode.",
+    "Published": "È stata o è in uso. Le revisioni pubblicate non cambiano mai; scrivi invece una nuova revisione."
+   },
+   "mandateRevisionSource": {
+    "Human": "Scritta da una persona nella dashboard, tramite l'API o in un manifesto.",
+    "Board": "Impostata da un consiglio di agenti che supervisiona questo custode.",
+    "Executive": "Impostata da un agente dirigente che guida questo custode.",
+    "Architect": "Scritta dall'architetto degli agenti a partire da una bozza dello studio."
+   },
+   "wakeMode": {
+    "Fixed": "Si sveglia a ogni intervallo minimo, qualunque cosa abbia trovato l'ultimo ciclo.",
+    "Backoff": "Attende più a lungo dopo ogni ciclo calmo, fino all'intervallo massimo, e torna al minimo non appena succede qualcosa."
+   },
+   "wakeSource": {
+    "Timer": "La pianificazione dei risvegli è scaduta, quindi il custode si è svegliato da solo.",
+    "Manual": "Qualcuno ha usato Sveglia ora o ha ripreso il custode.",
+    "Message": "È arrivato un messaggio per il custode.",
+    "EscalationAnswer": "Qualcuno ha risposto a una domanda che il custode aveva escalato.",
+    "Webhook": "Un altro sistema ha chiamato il webhook del custode.",
+    "Report": "Il rapporto di un altro agente ha chiesto a questo custode di dare un'occhiata."
+   },
+   "tickOutcome": {
+    "Quiet": "Tutto era in buono stato e non c'era niente da fare. In modalità Backoff il prossimo risveglio arriva più tardi.",
+    "Acted": "Il custode ha cambiato qualcosa per mantenere sano l'incarico.",
+    "Attention": "Il custode ha trovato qualcosa che una persona dovrebbe guardare.",
+    "Escalated": "Il custode ha chiesto una decisione a una persona o a un altro agente.",
+    "Failed": "L'esecuzione del ciclo è fallita, è scaduta o è stata annullata.",
+    "Skipped": "Un risveglio è arrivato mentre il ciclo precedente era ancora in corso, quindi è stato saltato e il successivo attende la sua fine.",
+    "Unreported": "L'esecuzione è terminata senza riportare un esito, quindi il custode potrebbe aver bisogno di un obiettivo più chiaro."
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "Il custode che ha avviato questa esecuzione come uno dei suoi cicli, se presente. Fai clic per aprire il custode.",
+    "openKeeper": "Apri il custode di cui questa esecuzione è un ciclo."
+   },
+   "keepers": {
+    "add": "Crea un custode: scegli un agente ospitato e una distribuzione, descrivi l'incarico permanente e imposta ogni quanto si sveglia.",
+    "name": "Un nome univoco in questo tenant, usato negli URL, nei manifesti e nell'API.",
+    "status": "Indica se il custode si sveglia secondo la sua pianificazione (Attivo) oppure è in attesa, in pausa, congelato o ritirato.",
+    "agent": "L'agente ospitato che si occupa di questo mandato. Ogni ciclo esegue questo agente.",
+    "deployment": "La distribuzione su cui viene eseguito ogni ciclo, che definisce harness, modello e strumenti.",
+    "nextWakeUtc": "Quando parte il prossimo ciclo. Passa il puntatore per vedere l'ora esatta.",
+    "currentIntervalSeconds": "L'attesa dopo l'ultimo ciclo. In modalità Backoff cresce dopo i cicli calmi.",
+    "lastTick": "Quando il custode si è svegliato l'ultima volta e che cosa ha riportato quel ciclo.",
+    "tickCount": "Quanti cicli ha eseguito il custode in totale.",
+    "currentRevisionNumber": "La revisione pubblicata che il custode segue ora.",
+    "runAs": "L'utente o la credenziale con i cui permessi viene eseguito ogni ciclo: chi ha salvato per ultimo il custode.",
+    "description": "Note per le persone. Il custode non le legge; legge l'obiettivo.",
+    "id": "L'identificatore del custode, usato nell'API e nei record di esecuzione.",
+    "createdUtc": "Quando il custode è stato creato.",
+    "agentId": "L'agente ospitato che si occupa di questo mandato. Gli agenti remoti non possono essere custodi. Fisso dopo la creazione.",
+    "deploymentId": "La distribuzione attiva di quell'agente su cui viene eseguito ogni ciclo.",
+    "objective": "L'incarico permanente in parole semplici, come mantenere la coda del supporto sotto i 20 ticket aperti. Il custode lo legge a ogni ciclo.",
+    "healthyDefinition": "Come appare uno stato buono, così il custode distingue un ciclo calmo da uno che richiede di agire.",
+    "autonomy": "Che cosa il custode può cambiare da solo senza chiedere a nessuno.",
+    "escalationPolicy": "Quando il custode deve fermarsi e chiedere una decisione a una persona o a un altro agente.",
+    "direction": "Indicazioni a breve termine che possono cambiare spesso, come un'attenzione particolare per questa settimana.",
+    "signals": "Misurazioni con nome che il custode deve controllare a ogni ciclo, con il significato di ciascuna.",
+    "signalsItems": {
+     "name": "Un nome breve per la misurazione, univoco all'interno della revisione.",
+     "description": "Che cosa significa la misurazione e quali valori sono preoccupanti."
+    },
+    "wakeMode": "Fisso si sveglia ogni volta all'intervallo minimo. Backoff attende più a lungo dopo i cicli calmi.",
+    "minIntervalSeconds": "L'attesa più breve tra risvegli pianificati, in secondi.",
+    "maxIntervalSeconds": "L'attesa più lunga tra risvegli pianificati in modalità Backoff, in secondi.",
+    "backoffFactor": "Di quanto cresce l'attesa dopo ogni ciclo calmo in modalità Backoff. 2 la raddoppia.",
+    "jitterPercent": "Un ritardo casuale fino a questa percentuale dell'intervallo, così molti custodi non si svegliano nello stesso istante.",
+    "budgetPerTickUsd": "Il massimo che un ciclo può costare in dollari statunitensi.",
+    "budgetPerDayUsd": "Il massimo che i cicli di questo custode possono costare per giorno UTC in dollari statunitensi.",
+    "maxTokensPerTick": "Il massimo di token di input e output che un ciclo può usare.",
+    "changeNote": "Una breve nota sul perché questa revisione modifica il custode, conservata con la revisione.",
+    "sections": {
+     "mandate": "Di che cosa si occupa il custode e quanto può fare da solo.",
+     "schedule": "Ogni quanto si sveglia il custode e come cambia l'attesa dopo i cicli calmi.",
+     "budgets": "Limiti a ciò che i cicli del custode possono costare e consumare."
+    },
+    "actions": {
+     "pause": "Smetti di svegliare questo custode. Un ciclo in corso termina; non ne parte un altro finché non lo riprendi.",
+     "resume": "Riprendi a svegliare questo custode. Si sveglia subito con l'intervallo riportato al minimo.",
+     "wake": "Avvia un ciclo ora invece di attendere la pianificazione. Se un ciclo è in corso, il nuovo parte dopo.",
+     "runs": "Apri la pagina Esecuzioni filtrata sui cicli di questo custode."
+    },
+    "ticking": "Un ciclo di questo custode è in corso ora."
+   }
+  },
+  "keeperRevision": {
+   "done": "Chiudi questa finestra. La revisione è stata salvata con i valori modificati elencati sopra.",
+   "draft": "Salva questa revisione come bozza senza usarla. Pubblicala più tardi dall'elenco delle revisioni.",
+   "publish": "Salva questa revisione e rendila corrente ora. La dilatazione si azzera e il custode si sveglia subito."
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "Il custode che ha avviato questa esecuzione come uno dei suoi cicli.",
+    "openKeeper": "Apri il custode, con i suoi cicli e le sue revisioni."
+   },
+   "home": {
+    "autonomy": {
+     "title": "I custodi di questo tenant e quelli il cui ultimo ciclo richiede una persona.",
+     "open": "Apri la pagina Custodi per creare, mettere in pausa, svegliare o modificare i custodi.",
+     "active": "Custodi che si svegliano secondo la loro pianificazione.",
+     "paused": "Custodi che non si svegliano finché qualcuno non li riprende.",
+     "ticking": "Custodi con un ciclo in corso in questo momento.",
+     "nextWake": "Il prossimo risveglio pianificato più vicino tra i custodi attivi.",
+     "attention": "Custodi il cui ultimo ciclo richiede attenzione, è stato escalato, è fallito o non ha riportato nulla, e custodi fermati da un budget o da un congelamento.",
+     "openKeeper": "Apri la pagina di questo custode per vedere i suoi cicli."
+    }
+   },
+   "keeperDetail": {
+    "openRun": "Apri la pagina di dettaglio di questa esecuzione: trascrizione, chiamate agli strumenti e risultato.",
+    "live": "Gli aggiornamenti arrivano quando i cicli iniziano e finiscono, tramite la connessione in diretta.",
+    "polling": "La connessione in diretta non è disponibile, quindi la pagina rilegge il custode ogni pochi secondi.",
+    "viewJson": "Mostra il record del custode con la sua revisione corrente in JSON.",
+    "newRevision": "Scrivi una nuova revisione di obiettivo, pianificazione o budget, partendo da quella corrente.",
+    "delete": "Elimina questo custode con le sue revisioni e la cronologia dei cicli. Le sue esecuzioni passate restano.",
+    "forceDelete": "Elimina il custode e annulla l'esecuzione del ciclo in corso.",
+    "openAgent": "Apri l'agente che questo custode esegue.",
+    "quietStreak": "Quanti cicli di fila non hanno trovato nulla da fare. In modalità Backoff ognuno allunga l'attesa.",
+    "activeRun": "L'esecuzione del ciclo in corso, se ce n'è uno.",
+    "revisionTitle": "La revisione pubblicata che il custode segue a ogni ciclo.",
+    "ticks": "Ogni risveglio di questo custode, dal più recente: che cosa lo ha svegliato, che cosa ha trovato e l'attesa che ha impostato.",
+    "outcomeFilter": "Mostra solo i cicli con questo esito.",
+    "outcomeCounts": "Quanti cicli di questa pagina hanno avuto ciascun esito.",
+    "chart": "L'attesa dopo ogni ciclo di questa pagina, il più vecchio a sinistra. Cresce dopo i cicli calmi in modalità Backoff e si azzera quando succede qualcosa.",
+    "columns": {
+     "started": "Quando è iniziato il ciclo. Passa il puntatore per vedere l'ora esatta.",
+     "source": "Che cosa ha svegliato il custode per questo ciclo.",
+     "outcome": "Che cosa ha riportato il ciclo: calmo, intervenuto, richiede attenzione, escalato o non riuscito.",
+     "run": "L'esecuzione che ha svolto il ciclo.",
+     "interval": "L'attesa fino al prossimo risveglio, come impostata al termine di questo ciclo.",
+     "cost": "Quanto è costata l'esecuzione del ciclo, in base al listino prezzi del modello.",
+     "summary": "Che cosa il custode ha detto di aver trovato o fatto, oppure l'errore che ha fermato il ciclo.",
+     "number": "Il numero della revisione. Quella corrente è contrassegnata.",
+     "state": "Le revisioni in bozza sono salvate ma non in uso; quelle pubblicate sono state o sono in uso.",
+     "revisionSource": "Chi ha scritto la revisione: una persona, l'architetto degli agenti o un agente supervisore.",
+     "author": "L'utente o la credenziale che ha salvato la revisione.",
+     "changeNote": "Perché la revisione ha modificato il custode.",
+     "created": "Quando la revisione è stata salvata."
+    },
+    "requested": "Il custode ha chiesto questa attesa; il server la mantiene entro l'intervallo minimo e massimo.",
+    "revisions": "Ogni revisione di questo custode, dalla più recente. Confrontane una con la precedente o pubblica una bozza.",
+    "current": "La revisione che il custode segue ora.",
+    "diff": "Mostra che cosa ha cambiato questa revisione rispetto alla precedente."
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "Custodi",
+   "p1": "Un custode è un agente con un incarico permanente, il suo mandato. Si sveglia secondo una pianificazione, controlla come stanno le cose, agisce entro ciò che può fare da solo e riporta ogni volta un breve esito. Ogni risveglio è un ciclo, e ogni ciclo è un'esecuzione della distribuzione del custode.",
+   "p2": "In modalità Backoff un ciclo calmo sposta più in là il prossimo risveglio, fino all'intervallo massimo, e qualsiasi altro esito lo riporta al minimo. Viene eseguito un solo ciclo alla volta: un risveglio che arriva durante un ciclo ne attende la fine.",
+   "p3": "Le modifiche a obiettivo, pianificazione o budget sono revisioni. Pubblicare una revisione la rende subito corrente e sveglia il custode, e ogni revisione resta nella cronologia per essere confrontata."
+  }
+ }
+});

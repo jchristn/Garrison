@@ -67,6 +67,8 @@ import { jsonToText, textToJson } from '../utils/jsonFields';
 export { pipelinesConfig } from './pipelineConfigs';
 // Triggers (P12.5) and notification endpoints (P12.14) live in their own module too.
 export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
+// AA1.16: keepers (mandates) under Autonomy.
+export { keepersConfig } from './keeperConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

@@ -5142,3 +5142,473 @@ es.tips.nav.tabs.secrets = "Claves de API y tokens cifrados. Los despliegues los
 es.tips.resources.secrets.add = "Guardar una nueva credencial, como una clave de API o un token, cifrada en reposo. Los despliegues la referencian por alias; después de guardarla, solo quien tenga Admin sobre Secret puede mostrarla.";
 es.tips.resources.secrets.value = "El valor del secreto. Se cifra al guardarlo. Quien tenga Admin sobre Secret puede mostrarlo, y cada consulta queda auditada.";
 es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de API o un token. Después de guardarlo puede reemplazarlo o rotarlo. Leerlo de nuevo está limitado a quien tenga Admin sobre Secret (los roles SecretManager y TenantAdmin), y cada consulta queda en el registro de auditoría.";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "Autonomía",
+    "tip": "Agentes que siguen trabajando por su cuenta: los guardianes se despiertan según un horario y se ocupan de una tarea permanente."
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "Guardianes",
+    "tip": "Agentes que se despiertan según un horario para ocuparse de una tarea permanente"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "Ciclo de guardián"
+  },
+  "resourceType": {
+   "Mandate": "Guardián (mandato)"
+  },
+  "mandateStatus": {
+   "Draft": "Borrador",
+   "Active": "Activo",
+   "Paused": "En pausa",
+   "Frozen": "Congelado",
+   "CapReached": "Presupuesto alcanzado",
+   "Retired": "Retirado"
+  },
+  "mandateRevisionState": {
+   "Draft": "Borrador",
+   "Published": "Publicada"
+  },
+  "mandateRevisionSource": {
+   "Human": "Persona",
+   "Board": "Consejo",
+   "Executive": "Dirección",
+   "Architect": "Arquitecto de agentes"
+  },
+  "wakeMode": {
+   "Fixed": "Intervalo fijo",
+   "Backoff": "Espaciar en calma"
+  },
+  "wakeSource": {
+   "Timer": "Horario",
+   "Manual": "Despertado a mano",
+   "Message": "Mensaje",
+   "EscalationAnswer": "Escalado respondido",
+   "Webhook": "Webhook",
+   "Report": "Informe"
+  },
+  "tickOutcome": {
+   "Quiet": "Tranquilo",
+   "Acted": "Actuó",
+   "Attention": "Requiere atención",
+   "Escalated": "Escalado",
+   "Failed": "Fallido",
+   "Skipped": "Omitido",
+   "Unreported": "Sin informe"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "Hay un ciclo de este guardián en marcha. Espera a que termine, pausa el guardián o elimínalo de todos modos, lo que cancela la ejecución del ciclo.",
+  "MandateNotActive": "Solo se puede despertar o pausar a un guardián activo.",
+  "MandateNotPaused": "Solo se puede reanudar a un guardián en pausa.",
+  "RemoteAgentUnsupported": "Los guardianes se ejecutan en despliegues alojados, así que un agente remoto no puede ser guardián.",
+  "DeploymentInactive": "Ese despliegue está inactivo. Elige un despliegue activo.",
+  "DeploymentAgentMismatch": "Ese despliegue pertenece a otro agente. Elige uno de los despliegues de este agente.",
+  "RevisionMismatch": "Esa revisión pertenece a otro guardián."
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "Guardián"
+   }
+  },
+  "keepers": {
+   "title": "Guardianes",
+   "subtitle": "Agentes que se despiertan según un horario para ocuparse de una tarea permanente e informan de lo que encontraron cada vez.",
+   "add": "Añadir guardián",
+   "create": "Crear guardián",
+   "edit": "Editar guardián",
+   "view": "Detalles del guardián",
+   "deleteTitle": "Eliminar guardián",
+   "emptyTitle": "Aún no hay guardianes",
+   "emptyBody": "Crea un guardián para que un agente revise algo con regularidad, como una cola, un panel o una bandeja de entrada, y actúe o pida ayuda cuando lo necesite.",
+   "columns": {
+    "name": "Nombre",
+    "status": "Estado",
+    "agent": "Agente",
+    "deployment": "Despliegue",
+    "nextWakeUtc": "Próximo despertar",
+    "currentIntervalSeconds": "Intervalo",
+    "lastTick": "Último ciclo",
+    "tickCount": "Ciclos",
+    "currentRevisionNumber": "Revisión",
+    "runAs": "Se ejecuta como",
+    "description": "Descripción",
+    "id": "ID",
+    "createdUtc": "Creado"
+   },
+   "fields": {
+    "name": "Nombre",
+    "description": "Descripción",
+    "agentId": "Agente",
+    "deploymentId": "Despliegue",
+    "objective": "Objetivo",
+    "healthyDefinition": "Cómo se ve lo saludable",
+    "autonomy": "Lo que puede hacer por su cuenta",
+    "escalationPolicy": "Cuándo pedir ayuda",
+    "direction": "Dirección actual",
+    "signals": "Señales que vigilar",
+    "signalsItems": {
+     "name": "Señal",
+     "description": "Qué significa"
+    },
+    "wakeMode": "Modo de despertar",
+    "minIntervalSeconds": "Intervalo mínimo (segundos)",
+    "maxIntervalSeconds": "Intervalo máximo (segundos)",
+    "backoffFactor": "Factor de espaciado",
+    "jitterPercent": "Jitter (porcentaje)",
+    "budgetPerTickUsd": "Presupuesto por ciclo (USD)",
+    "budgetPerDayUsd": "Presupuesto por día (USD)",
+    "maxTokensPerTick": "Máximo de tokens por ciclo",
+    "changeNote": "Nota de cambio"
+   },
+   "hints": {
+    "name": "Letras minúsculas, dígitos y guiones.",
+    "agentId": "Un agente alojado. El agente no se puede cambiar después de crear el guardián.",
+    "deploymentId": "El despliegue activo en el que se ejecuta cada ciclo.",
+    "objective": "La tarea permanente, en palabras sencillas. El guardián la lee en cada ciclo.",
+    "minIntervalSeconds": "De {{min}} a {{max}} segundos. El ajuste del clúster Autonomy.MinIntervalSeconds puede aumentarlo.",
+    "maxIntervalSeconds": "De {{min}} a {{max}} segundos. El espaciado deja de crecer aquí.",
+    "backoffFactor": "De {{min}} a {{max}}. Tras cada ciclo tranquilo, el intervalo se multiplica por este valor.",
+    "jitterPercent": "De {{min}} a {{max}}. Vacío usa el valor predeterminado del clúster.",
+    "budgetPerTickUsd": "Vacío significa sin límite.",
+    "budgetPerDayUsd": "Vacío significa sin límite.",
+    "maxTokensPerTick": "Tokens de entrada más salida. Vacío significa sin límite.",
+    "changeNote": "Por qué esta revisión cambia el guardián. Se muestra en la lista de revisiones."
+   },
+   "sections": {
+    "mandate": "Mandato",
+    "schedule": "Horario de despertar",
+    "budgets": "Presupuestos"
+   },
+   "sectionHints": {
+    "mandate": "Al guardar, estos campos se publican como revisión 1 y empieza el horario de despertar. Los cambios posteriores se hacen con Nueva revisión en la página del guardián.",
+    "budgets": "Se guardan ahora y se aplicarán en una versión posterior."
+   },
+   "errors": {
+    "name": "Usa de 1 a 64 letras minúsculas, dígitos y guiones, empezando y terminando con una letra o un dígito.",
+    "nameTaken": "Otro guardián ya usa este nombre.",
+    "text": "Limitado a {{max}} caracteres.",
+    "agentRequired": "Elige el agente que se encarga de este mandato.",
+    "deploymentRequired": "Elige el despliegue en el que se ejecutan sus ciclos.",
+    "objective": "Describe la tarea permanente.",
+    "signalsMax": "Una revisión tiene como máximo {{max}} señales.",
+    "signalName": "Los nombres de señal tienen de 1 a {{max}} caracteres.",
+    "signalUnique": "Cada señal necesita un nombre distinto.",
+    "signalsInvalid": "Corrige las señales marcadas abajo.",
+    "interval": "Introduce segundos enteros de {{min}} a {{max}}.",
+    "maxBelowMin": "El intervalo máximo no puede ser más corto que el mínimo.",
+    "backoffFactor": "Introduce un número de {{min}} a {{max}}.",
+    "jitterPercent": "Introduce un número entero de {{min}} a {{max}}.",
+    "budget": "Introduce un importe de {{min}} a {{max}}.",
+    "maxTokens": "Introduce un número entero de {{min}} a {{max}}."
+   },
+   "actions": {
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "wake": "Despertar ahora",
+    "runs": "Ver ejecuciones"
+   },
+   "toasts": {
+    "pause": "{{name}} en pausa.",
+    "resume": "{{name}} reanudado. Se despierta ahora.",
+    "wake": "{{name}} se despierta ahora."
+   },
+   "units": {
+    "seconds_one": "{{count}} segundo",
+    "seconds_other": "{{count}} segundos",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} hora",
+    "hours_other": "{{count}} horas",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días"
+   },
+   "ticking": "En ciclo",
+   "neverTicked": "Aún no se ha despertado",
+   "addSignal": "Añadir señal",
+   "signalNamePlaceholder": "longitud de la cola",
+   "editNotice": "Se ejecuta como {{name}}. Al guardar, pasas a ser el principal con el que se ejecutan sus ciclos. Para cambiar el objetivo o el horario, abre el guardián y usa Nueva revisión."
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "Nueva revisión de {{name}}",
+   "intro": "Esta será la revisión {{number}}. Al publicarla pasa a ser la actual de inmediato: el espaciado se reinicia y el guardián se despierta ahora.",
+   "draft": "Guardar como borrador",
+   "publish": "Publicar",
+   "drafted": "Revisión {{number}} guardada como borrador.",
+   "published": "Revisión {{number}} publicada."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "Guardián"
+  },
+  "home": {
+   "autonomy": {
+    "title": "Autonomía",
+    "open": "Abrir guardianes",
+    "empty": "Aún no hay guardianes. Un guardián se despierta según un horario para ocuparse de una tarea permanente.",
+    "active": "activos",
+    "paused": "en pausa",
+    "ticking": "en ciclo ahora",
+    "nextWake": "Próximo despertar:",
+    "allQuiet": "Ningún guardián requiere atención.",
+    "attention_one": "{{count}} guardián requiere atención",
+    "attention_other": "{{count}} guardianes requieren atención"
+   }
+  },
+  "keeperDetail": {
+   "title": "Guardián",
+   "heading": "Guardián {{name}}",
+   "notFoundTitle": "Guardián no encontrado",
+   "notFoundBody": "Puede que se haya eliminado o que pertenezca a otro inquilino.",
+   "live": "En vivo",
+   "polling": "Actualizando",
+   "newRevision": "Nueva revisión",
+   "noWake": "Sin programar",
+   "quietStreak": "Ciclos tranquilos seguidos",
+   "activeRun": "Ciclo en marcha",
+   "revisionTitle": "Revisión actual",
+   "revisionHeading": "Revisión actual ({{number}})",
+   "noRevision": "Aún no hay ninguna revisión publicada. Usa Nueva revisión para escribir una y publicarla.",
+   "clusterDefault": "Predeterminado del clúster",
+   "noLimit": "Sin límite",
+   "ticks": "Ciclos",
+   "outcomeFilter": "Resultado",
+   "allOutcomes": "Todos los resultados",
+   "noTicksTitle": "Aún no hay ciclos",
+   "noTicksActive": "El primer ciclo empieza en el próximo despertar. Usa Despertar ahora para iniciar uno de inmediato.",
+   "noTicksBody": "Los ciclos aparecen aquí cuando el guardián está activo y se despierta.",
+   "chartTitle": "Intervalo tras cada ciclo",
+   "chartHelp": "Minutos hasta el próximo despertar, según se fijó al terminar cada ciclo. Los ciclos tranquilos lo alargan en el modo Backoff.",
+   "chartSeries": "Intervalo (minutos)",
+   "columns": {
+    "started": "Inicio",
+    "source": "Despertado por",
+    "outcome": "Resultado",
+    "run": "Ejecución",
+    "interval": "Siguiente intervalo",
+    "cost": "Coste",
+    "summary": "Resumen",
+    "number": "Número",
+    "state": "Estado",
+    "revisionSource": "Origen",
+    "author": "Autor",
+    "changeNote": "Nota de cambio",
+    "created": "Creada"
+   },
+   "requested": "pidió {{interval}}",
+   "revisions": "Revisiones",
+   "noRevisions": "Aún no hay revisiones.",
+   "current": "Actual",
+   "diff": "Comparar",
+   "diffTitle": "Revisión {{number}} comparada con la anterior",
+   "diffFirst": "Esta es la primera revisión, así que todo lo que contiene es nuevo.",
+   "revisionLabel": "Revisión {{number}}",
+   "nothing": "Nada",
+   "confirmDelete": "¿Eliminar el guardián {{name}} con sus revisiones y su historial de ciclos? Sus ejecuciones pasadas se conservan.",
+   "confirmForceDelete": "Hay un ciclo de {{name}} en marcha. ¿Eliminar el guardián de todos modos y cancelar la ejecución de ese ciclo?",
+   "forceDelete": "Eliminar y cancelar ciclo",
+   "changeNote": "Nota de cambio: {{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agentes que trabajan por su cuenta entre solicitudes. Los guardianes se despiertan según un horario, revisan una tarea permanente y actúan o piden ayuda."
+   },
+   "tabs": {
+    "keepers": "Guardianes: agentes que se despiertan según un horario para ocuparse de una tarea permanente, con sus ciclos y revisiones."
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "Iniciada por el despertar de un guardián. La ejecución es un ciclo de ese guardián y enlaza de vuelta a él."
+   },
+   "resourceType": {
+    "Mandate": "Guardianes (mandatos): las tareas permanentes de las que se ocupan los agentes según un horario de despertar, con sus revisiones y ciclos."
+   },
+   "mandateStatus": {
+    "Draft": "Creado sin una revisión publicada, así que todavía no se despierta. Publica una revisión para ponerlo en marcha.",
+    "Active": "Se despierta según su horario. Cada despertar inicia un ciclo, una ejecución de su despliegue.",
+    "Paused": "No se despierta hasta que alguien lo reanude. Al reanudarlo se despierta de inmediato con el intervalo reiniciado.",
+    "Frozen": "Detenido por un administrador o una política. No se despierta hasta que se descongele.",
+    "CapReached": "Se agotó su presupuesto diario. Vuelve a despertarse cuando empiece el siguiente día UTC.",
+    "Retired": "Ya no se usa. Conserva su historial y nunca se despierta."
+   },
+   "mandateRevisionState": {
+    "Draft": "Guardada pero sin usar. Publícala para convertirla en la revisión actual del guardián.",
+    "Published": "Estuvo o está en uso. Las revisiones publicadas nunca cambian; escribe una revisión nueva en su lugar."
+   },
+   "mandateRevisionSource": {
+    "Human": "Escrita por una persona en el panel, la API o un manifiesto.",
+    "Board": "Fijada por un consejo de agentes que supervisa a este guardián.",
+    "Executive": "Fijada por un agente directivo que dirige a este guardián.",
+    "Architect": "Escrita por el arquitecto de agentes a partir de un borrador del estudio."
+   },
+   "wakeMode": {
+    "Fixed": "Se despierta cada intervalo mínimo, sea lo que sea que encontró el último ciclo.",
+    "Backoff": "Espera más tras cada ciclo tranquilo, hasta el intervalo máximo, y vuelve al mínimo en cuanto ocurre algo."
+   },
+   "wakeSource": {
+    "Timer": "El horario de despertar llegó a su hora, así que el guardián se despertó por sí solo.",
+    "Manual": "Alguien usó Despertar ahora o reanudó el guardián.",
+    "Message": "Llegó un mensaje para el guardián.",
+    "EscalationAnswer": "Alguien respondió a una pregunta que el guardián escaló.",
+    "Webhook": "Otro sistema llamó al webhook del guardián.",
+    "Report": "El informe de otro agente pidió a este guardián que echara un vistazo."
+   },
+   "tickOutcome": {
+    "Quiet": "Todo estaba en buen estado y no hizo falta hacer nada. En el modo Backoff el próximo despertar llega más tarde.",
+    "Acted": "El guardián cambió algo para mantener sana la tarea.",
+    "Attention": "El guardián encontró algo que una persona debería revisar.",
+    "Escalated": "El guardián pidió una decisión a una persona o a otro agente.",
+    "Failed": "La ejecución del ciclo falló, agotó el tiempo o se canceló.",
+    "Skipped": "Llegó un despertar mientras el ciclo anterior seguía en marcha, así que se omitió y el siguiente espera a que termine.",
+    "Unreported": "La ejecución terminó sin informar de un resultado, así que quizá el guardián necesite un objetivo más claro."
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "El guardián que inició esta ejecución como uno de sus ciclos, si lo hay. Haz clic para abrir el guardián.",
+    "openKeeper": "Abrir el guardián al que pertenece el ciclo de esta ejecución."
+   },
+   "keepers": {
+    "add": "Crear un guardián: elige un agente alojado y un despliegue, describe la tarea permanente y define cada cuánto se despierta.",
+    "name": "Un nombre único en este inquilino, usado en URL, manifiestos y la API.",
+    "status": "Si el guardián se despierta según su horario (Activo) o está esperando, en pausa, congelado o retirado.",
+    "agent": "El agente alojado que se encarga de este mandato. Cada ciclo ejecuta este agente.",
+    "deployment": "El despliegue en el que se ejecuta cada ciclo, que define el arnés, el modelo y las herramientas.",
+    "nextWakeUtc": "Cuándo empieza el próximo ciclo. Pasa el cursor para ver la hora exacta.",
+    "currentIntervalSeconds": "La espera tras el último ciclo. En el modo Backoff crece tras los ciclos tranquilos.",
+    "lastTick": "Cuándo se despertó el guardián por última vez y qué informó ese ciclo.",
+    "tickCount": "Cuántos ciclos ha ejecutado el guardián en total.",
+    "currentRevisionNumber": "La revisión publicada que el guardián sigue ahora.",
+    "runAs": "El usuario o la credencial con cuyos permisos se ejecuta cada ciclo: quien guardó el guardián por última vez.",
+    "description": "Notas para personas. El guardián no lo lee; lee el objetivo.",
+    "id": "El identificador del guardián, usado en la API y en los registros de ejecución.",
+    "createdUtc": "Cuándo se creó el guardián.",
+    "agentId": "El agente alojado que se encarga de este mandato. Los agentes remotos no pueden ser guardianes. No cambia tras la creación.",
+    "deploymentId": "El despliegue activo de ese agente en el que se ejecuta cada ciclo.",
+    "objective": "La tarea permanente en palabras sencillas, como mantener la cola de soporte por debajo de 20 tickets abiertos. El guardián la lee en cada ciclo.",
+    "healthyDefinition": "Cómo es un buen estado, para que el guardián distinga un ciclo tranquilo de uno que requiere actuar.",
+    "autonomy": "Lo que el guardián puede cambiar por su cuenta sin preguntar a nadie.",
+    "escalationPolicy": "Cuándo debe el guardián detenerse y pedir una decisión a una persona o a otro agente.",
+    "direction": "Orientación a corto plazo que puede cambiar a menudo, como un enfoque para esta semana.",
+    "signals": "Mediciones con nombre que el guardián debe revisar en cada ciclo, con lo que significa cada una.",
+    "signalsItems": {
+     "name": "Un nombre corto para la medición, único dentro de la revisión.",
+     "description": "Qué significa la medición y qué valores son preocupantes."
+    },
+    "wakeMode": "Fijo se despierta siempre en el intervalo mínimo. Backoff espera más tras los ciclos tranquilos.",
+    "minIntervalSeconds": "La espera más corta entre despertares programados, en segundos.",
+    "maxIntervalSeconds": "La espera más larga entre despertares programados en el modo Backoff, en segundos.",
+    "backoffFactor": "Cuánto crece la espera tras cada ciclo tranquilo en el modo Backoff. 2 la duplica.",
+    "jitterPercent": "Un retraso aleatorio de hasta este porcentaje del intervalo, para que muchos guardianes no se despierten en el mismo instante.",
+    "budgetPerTickUsd": "Lo máximo que puede costar un ciclo en dólares estadounidenses.",
+    "budgetPerDayUsd": "Lo máximo que pueden costar los ciclos de este guardián por día UTC en dólares estadounidenses.",
+    "maxTokensPerTick": "Los tokens de entrada y salida máximos que puede usar un ciclo.",
+    "changeNote": "Una nota breve sobre por qué esta revisión cambia el guardián, que se conserva con la revisión.",
+    "sections": {
+     "mandate": "De qué se ocupa el guardián y cuánto puede hacer por su cuenta.",
+     "schedule": "Cada cuánto se despierta el guardián y cómo cambia la espera tras los ciclos tranquilos.",
+     "budgets": "Límites de lo que pueden costar y consumir los ciclos del guardián."
+    },
+    "actions": {
+     "pause": "Dejar de despertar a este guardián. Un ciclo en marcha termina; no empieza otro hasta que lo reanudes.",
+     "resume": "Volver a despertar a este guardián. Se despierta de inmediato con el intervalo reiniciado al mínimo.",
+     "wake": "Iniciar un ciclo ahora en lugar de esperar al horario. Si hay un ciclo en marcha, el nuevo empieza después.",
+     "runs": "Abrir la página Ejecuciones filtrada por los ciclos de este guardián."
+    },
+    "ticking": "Hay un ciclo de este guardián en marcha ahora."
+   }
+  },
+  "keeperRevision": {
+   "done": "Cerrar este cuadro de diálogo. La revisión se guardó con los valores ajustados indicados arriba.",
+   "draft": "Guardar esta revisión como borrador sin usarla. Publícala más tarde desde la lista de revisiones.",
+   "publish": "Guardar esta revisión y hacerla actual ahora. El espaciado se reinicia y el guardián se despierta de inmediato."
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "El guardián que inició esta ejecución como uno de sus ciclos.",
+    "openKeeper": "Abrir el guardián, con sus ciclos y revisiones."
+   },
+   "home": {
+    "autonomy": {
+     "title": "Guardianes de este inquilino y aquellos cuyo último ciclo necesita a una persona.",
+     "open": "Abrir la página Guardianes para crear, pausar, despertar o editar guardianes.",
+     "active": "Guardianes que se despiertan según su horario.",
+     "paused": "Guardianes que no se despiertan hasta que alguien los reanude.",
+     "ticking": "Guardianes con un ciclo en marcha ahora mismo.",
+     "nextWake": "El próximo despertar programado más cercano entre los guardianes activos.",
+     "attention": "Guardianes cuyo último ciclo requiere atención, escaló, falló o no informó, y guardianes detenidos por un presupuesto o una congelación.",
+     "openKeeper": "Abrir la página de este guardián para ver sus ciclos."
+    }
+   },
+   "keeperDetail": {
+    "openRun": "Abrir la página de detalle de esta ejecución: su transcripción, llamadas a herramientas y resultado.",
+    "live": "Las actualizaciones llegan cuando los ciclos empiezan y terminan, a través de la conexión en vivo.",
+    "polling": "La conexión en vivo no está disponible, así que la página vuelve a leer el guardián cada pocos segundos.",
+    "viewJson": "Mostrar el registro del guardián con su revisión actual como JSON.",
+    "newRevision": "Escribir una nueva revisión del objetivo, el horario o los presupuestos, a partir de la actual.",
+    "delete": "Eliminar este guardián con sus revisiones y su historial de ciclos. Sus ejecuciones pasadas se conservan.",
+    "forceDelete": "Eliminar el guardián y cancelar la ejecución del ciclo en curso.",
+    "openAgent": "Abrir el agente que ejecuta este guardián.",
+    "quietStreak": "Cuántos ciclos seguidos no encontraron nada que hacer. En el modo Backoff cada uno alarga la espera.",
+    "activeRun": "La ejecución del ciclo en curso, si hay uno en marcha.",
+    "revisionTitle": "La revisión publicada que el guardián sigue en cada ciclo.",
+    "ticks": "Cada despertar de este guardián, el más reciente primero: qué lo despertó, qué encontró y la espera que fijó.",
+    "outcomeFilter": "Mostrar solo los ciclos con este resultado.",
+    "outcomeCounts": "Cuántos ciclos de esta página tuvieron cada resultado.",
+    "chart": "La espera tras cada ciclo de esta página, el más antiguo a la izquierda. Crece tras los ciclos tranquilos en el modo Backoff y se reinicia cuando ocurre algo.",
+    "columns": {
+     "started": "Cuándo empezó el ciclo. Pasa el cursor para ver la hora exacta.",
+     "source": "Qué despertó al guardián para este ciclo.",
+     "outcome": "Lo que informó el ciclo: tranquilo, actuó, requiere atención, escalado o fallido.",
+     "run": "La ejecución que llevó a cabo el ciclo.",
+     "interval": "La espera hasta el próximo despertar, según se fijó al terminar este ciclo.",
+     "cost": "Lo que costó la ejecución del ciclo, según la lista de precios del modelo.",
+     "summary": "Lo que el guardián dijo que encontró o hizo, o el error que detuvo el ciclo.",
+     "number": "El número de revisión. La actual está marcada.",
+     "state": "Las revisiones en borrador están guardadas pero sin usar; las publicadas estuvieron o están en uso.",
+     "revisionSource": "Quién escribió la revisión: una persona, el arquitecto de agentes o un agente supervisor.",
+     "author": "El usuario o la credencial que guardó la revisión.",
+     "changeNote": "Por qué la revisión cambió el guardián.",
+     "created": "Cuándo se guardó la revisión."
+    },
+    "requested": "El guardián pidió esta espera; el servidor la mantiene dentro del intervalo mínimo y máximo.",
+    "revisions": "Todas las revisiones de este guardián, la más reciente primero. Compara una con la anterior o publica un borrador.",
+    "current": "La revisión que el guardián sigue ahora.",
+    "diff": "Mostrar qué cambió esta revisión respecto a la anterior."
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "Guardianes",
+   "p1": "Un guardián es un agente con una tarea permanente, su mandato. Se despierta según un horario, comprueba cómo están las cosas, actúa dentro de lo que puede hacer por su cuenta e informa de un resultado breve cada vez. Cada despertar es un ciclo, y cada ciclo es una ejecución del despliegue del guardián.",
+   "p2": "En el modo Backoff, un ciclo tranquilo hace que el próximo despertar llegue más tarde, hasta el intervalo máximo, y cualquier otra cosa lo devuelve al mínimo. Solo se ejecuta un ciclo a la vez: un despertar que llega durante un ciclo espera a que termine.",
+   "p3": "Los cambios en el objetivo, el horario o los presupuestos son revisiones. Publicar una revisión la convierte en la actual de inmediato y despierta al guardián, y todas las revisiones permanecen en el historial para compararlas."
+  }
+ }
+});

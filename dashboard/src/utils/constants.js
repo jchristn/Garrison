@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -198,7 +198,14 @@ export const ENUMS = {
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
   notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
-  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger'],
+  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper'],
+  // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
+  mandateStatus: ['Draft', 'Active', 'Paused', 'Frozen', 'CapReached', 'Retired'],
+  mandateRevisionState: ['Draft', 'Published'],
+  mandateRevisionSource: ['Human', 'Board', 'Executive', 'Architect'],
+  wakeMode: ['Fixed', 'Backoff'],
+  wakeSource: ['Timer', 'Manual', 'Message', 'EscalationAnswer', 'Webhook', 'Report'],
+  tickOutcome: ['Quiet', 'Acted', 'Attention', 'Escalated', 'Failed', 'Skipped', 'Unreported'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -283,6 +290,9 @@ export const PIPELINE_LIMITS = {
 /** How often (ms) a pipeline run page re-reads the run while it is unfinished and no live push arrives. */
 export const PIPELINE_RUN_POLL_MS = 3000;
 
+/** How often a keeper's page re-reads it when the live mandate channel is unavailable (AA1.16). */
+export const KEEPER_POLL_MS = 10000;
+
 /** Semantic tone for a pipeline run status pill. */
 export function pipelineRunStatusTone(status) {
   switch (status) {
@@ -357,6 +367,66 @@ export const TRIGGER_LIMITS = {
   resultTextMaxChars: { min: 1, max: 16000, default: 1000 },
   descriptionMax: 4000
 };
+
+/**
+ * Keeper (mandate) bounds, mirroring the server (AA1): names follow the trigger rule, text fields hold at most 8000
+ * characters, a revision has at most 50 signals, intervals run from 10 seconds to 30 days (the cluster settings
+ * Autonomy.MinIntervalSeconds and Autonomy.MaxIntervalSeconds narrow that further), backoff factor from 1 to 10, and
+ * jitter from 0 to 50 percent.
+ */
+export const MANDATE_LIMITS = {
+  descriptionMax: 4000,
+  textMax: 8000,
+  changeNoteMax: 1024,
+  signalsMax: 50,
+  signalNameMax: 128,
+  signalDescriptionMax: 2000,
+  interval: { min: 10, max: 2592000 },
+  minIntervalDefault: 900,
+  maxIntervalDefault: 86400,
+  backoffFactor: { min: 1, max: 10, default: 2 },
+  jitterPercent: { min: 0, max: 50 },
+  budgetUsd: { min: 0, max: 1000000 },
+  maxTokensPerTick: { min: 0, max: 100000000 }
+};
+
+/** Semantic tone for a mandate status pill. */
+export function mandateStatusTone(status) {
+  switch (status) {
+    case 'Active':
+      return 'success';
+    case 'Paused':
+    case 'Draft':
+      return 'neutral';
+    case 'Frozen':
+    case 'CapReached':
+      return 'warning';
+    case 'Retired':
+      return 'neutral';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a keeper tick outcome pill. */
+export function tickOutcomeTone(outcome) {
+  switch (outcome) {
+    case 'Quiet':
+      return 'neutral';
+    case 'Acted':
+      return 'success';
+    case 'Attention':
+    case 'Escalated':
+    case 'Unreported':
+      return 'warning';
+    case 'Failed':
+      return 'danger';
+    case 'Skipped':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
 
 /** Semantic tone for a trigger fire outcome pill. */
 export function triggerFireOutcomeTone(outcome) {

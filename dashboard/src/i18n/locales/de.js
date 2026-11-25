@@ -5124,3 +5124,473 @@ de.tips.nav.tabs.secrets = "Verschlüsselte API-Schlüssel und Token. Bereitstel
 de.tips.resources.secrets.add = "Neue Zugangsdaten wie einen API-Schlüssel oder ein Token verschlüsselt speichern. Bereitstellungen referenzieren sie über einen Alias; nach dem Speichern können nur Personen mit Admin auf Secret den Wert anzeigen.";
 de.tips.resources.secrets.value = "Der geheime Wert. Er wird beim Speichern verschlüsselt. Personen mit Admin auf Secret können ihn anzeigen, und jede Anzeige wird protokolliert.";
 de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein API-Schlüssel oder ein Token. Nach dem Speichern können Sie ihn ersetzen oder rotieren. Auslesen dürfen nur Personen mit Admin auf Secret (die Rollen SecretManager und TenantAdmin), und jede Anzeige wird im Audit-Protokoll festgehalten.";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "Autonomie",
+    "tip": "Agenten, die selbstständig weiterarbeiten: Wächter wachen nach Zeitplan auf und kümmern sich um einen Dauerauftrag."
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "Wächter",
+    "tip": "Agenten, die nach Zeitplan aufwachen und sich um einen Dauerauftrag kümmern"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "Wächter-Zyklus"
+  },
+  "resourceType": {
+   "Mandate": "Wächter (Auftrag)"
+  },
+  "mandateStatus": {
+   "Draft": "Entwurf",
+   "Active": "Aktiv",
+   "Paused": "Pausiert",
+   "Frozen": "Eingefroren",
+   "CapReached": "Budget erreicht",
+   "Retired": "Außer Dienst"
+  },
+  "mandateRevisionState": {
+   "Draft": "Entwurf",
+   "Published": "Veröffentlicht"
+  },
+  "mandateRevisionSource": {
+   "Human": "Mensch",
+   "Board": "Gremium",
+   "Executive": "Leitung",
+   "Architect": "Agent-Architekt"
+  },
+  "wakeMode": {
+   "Fixed": "Festes Intervall",
+   "Backoff": "Bei Ruhe verlängern"
+  },
+  "wakeSource": {
+   "Timer": "Zeitplan",
+   "Manual": "Von Hand geweckt",
+   "Message": "Nachricht",
+   "EscalationAnswer": "Eskalation beantwortet",
+   "Webhook": "Webhook",
+   "Report": "Bericht"
+  },
+  "tickOutcome": {
+   "Quiet": "Ruhig",
+   "Acted": "Gehandelt",
+   "Attention": "Braucht Aufmerksamkeit",
+   "Escalated": "Eskaliert",
+   "Failed": "Fehlgeschlagen",
+   "Skipped": "Übersprungen",
+   "Unreported": "Nicht gemeldet"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "Ein Zyklus dieses Wächters läuft gerade. Warten Sie, bis er fertig ist, pausieren Sie den Wächter oder löschen Sie ihn trotzdem, wodurch der Lauf des Zyklus abgebrochen wird.",
+  "MandateNotActive": "Nur ein aktiver Wächter kann geweckt oder pausiert werden.",
+  "MandateNotPaused": "Nur ein pausierter Wächter kann fortgesetzt werden.",
+  "RemoteAgentUnsupported": "Wächter laufen auf gehosteten Bereitstellungen, daher kann ein Remote-Agent kein Wächter sein.",
+  "DeploymentInactive": "Diese Bereitstellung ist inaktiv. Wählen Sie eine aktive Bereitstellung.",
+  "DeploymentAgentMismatch": "Diese Bereitstellung gehört zu einem anderen Agenten. Wählen Sie eine Bereitstellung dieses Agenten.",
+  "RevisionMismatch": "Diese Revision gehört zu einem anderen Wächter."
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "Wächter"
+   }
+  },
+  "keepers": {
+   "title": "Wächter",
+   "subtitle": "Agenten, die nach Zeitplan aufwachen, sich um einen Dauerauftrag kümmern und jedes Mal melden, was sie gefunden haben.",
+   "add": "Wächter hinzufügen",
+   "create": "Wächter erstellen",
+   "edit": "Wächter bearbeiten",
+   "view": "Wächter-Details",
+   "deleteTitle": "Wächter löschen",
+   "emptyTitle": "Noch keine Wächter",
+   "emptyBody": "Erstellen Sie einen Wächter, damit ein Agent regelmäßig etwas prüft, etwa eine Warteschlange, ein Dashboard oder einen Posteingang, und handelt oder um Hilfe bittet, wenn nötig.",
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "agent": "Agent",
+    "deployment": "Bereitstellung",
+    "nextWakeUtc": "Nächstes Aufwachen",
+    "currentIntervalSeconds": "Intervall",
+    "lastTick": "Letzter Zyklus",
+    "tickCount": "Zyklen",
+    "currentRevisionNumber": "Revision",
+    "runAs": "Läuft als",
+    "description": "Beschreibung",
+    "id": "ID",
+    "createdUtc": "Erstellt"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Beschreibung",
+    "agentId": "Agent",
+    "deploymentId": "Bereitstellung",
+    "objective": "Ziel",
+    "healthyDefinition": "Woran man Gesundheit erkennt",
+    "autonomy": "Was er selbstständig tun darf",
+    "escalationPolicy": "Wann er um Hilfe bitten soll",
+    "direction": "Aktuelle Richtung",
+    "signals": "Zu beobachtende Signale",
+    "signalsItems": {
+     "name": "Signal",
+     "description": "Bedeutung"
+    },
+    "wakeMode": "Aufwachmodus",
+    "minIntervalSeconds": "Mindestintervall (Sekunden)",
+    "maxIntervalSeconds": "Höchstintervall (Sekunden)",
+    "backoffFactor": "Verlängerungsfaktor",
+    "jitterPercent": "Jitter (Prozent)",
+    "budgetPerTickUsd": "Budget pro Zyklus (USD)",
+    "budgetPerDayUsd": "Budget pro Tag (USD)",
+    "maxTokensPerTick": "Höchstzahl Token pro Zyklus",
+    "changeNote": "Änderungsnotiz"
+   },
+   "hints": {
+    "name": "Kleinbuchstaben, Ziffern und Bindestriche.",
+    "agentId": "Ein gehosteter Agent. Der Agent lässt sich nach dem Erstellen des Wächters nicht mehr ändern.",
+    "deploymentId": "Die aktive Bereitstellung, auf der jeder Zyklus läuft.",
+    "objective": "Der Dauerauftrag in einfachen Worten. Der Wächter liest ihn bei jedem Zyklus.",
+    "minIntervalSeconds": "Von {{min}} bis {{max}} Sekunden. Die Cluster-Einstellung Autonomy.MinIntervalSeconds kann den Wert anheben.",
+    "maxIntervalSeconds": "Von {{min}} bis {{max}} Sekunden. Hier hört die Verlängerung auf zu wachsen.",
+    "backoffFactor": "Von {{min}} bis {{max}}. Nach jedem ruhigen Zyklus wird das Intervall mit diesem Faktor multipliziert.",
+    "jitterPercent": "Von {{min}} bis {{max}}. Leer verwendet den Cluster-Standard.",
+    "budgetPerTickUsd": "Leer bedeutet kein Limit.",
+    "budgetPerDayUsd": "Leer bedeutet kein Limit.",
+    "maxTokensPerTick": "Eingabe- plus Ausgabe-Token. Leer bedeutet kein Limit.",
+    "changeNote": "Warum diese Revision den Wächter ändert. Wird in der Revisionsliste angezeigt."
+   },
+   "sections": {
+    "mandate": "Auftrag",
+    "schedule": "Aufwachplan",
+    "budgets": "Budgetgrenzen"
+   },
+   "sectionHints": {
+    "mandate": "Beim Speichern werden diese Felder als Revision 1 veröffentlicht und der Aufwachplan startet. Spätere Änderungen laufen über Neue Revision auf der Seite des Wächters.",
+    "budgets": "Wird jetzt gespeichert und in einer späteren Version durchgesetzt."
+   },
+   "errors": {
+    "name": "Verwenden Sie 1 bis 64 Kleinbuchstaben, Ziffern und Bindestriche, mit einem Buchstaben oder einer Ziffer am Anfang und Ende.",
+    "nameTaken": "Ein anderer Wächter verwendet diesen Namen bereits.",
+    "text": "Auf {{max}} Zeichen begrenzt.",
+    "agentRequired": "Wählen Sie den Agenten, der diesen Auftrag übernimmt.",
+    "deploymentRequired": "Wählen Sie die Bereitstellung, auf der seine Zyklen laufen.",
+    "objective": "Beschreiben Sie den Dauerauftrag.",
+    "signalsMax": "Eine Revision hat höchstens {{max}} Signale.",
+    "signalName": "Signalnamen haben 1 bis {{max}} Zeichen.",
+    "signalUnique": "Jedes Signal braucht einen eigenen Namen.",
+    "signalsInvalid": "Korrigieren Sie die unten markierten Signale.",
+    "interval": "Geben Sie ganze Sekunden von {{min}} bis {{max}} ein.",
+    "maxBelowMin": "Das Höchstintervall darf nicht kürzer als das Mindestintervall sein.",
+    "backoffFactor": "Geben Sie eine Zahl von {{min}} bis {{max}} ein.",
+    "jitterPercent": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein.",
+    "budget": "Geben Sie einen Betrag von {{min}} bis {{max}} ein.",
+    "maxTokens": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein."
+   },
+   "actions": {
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "wake": "Jetzt wecken",
+    "runs": "Läufe anzeigen"
+   },
+   "toasts": {
+    "pause": "{{name}} pausiert.",
+    "resume": "{{name}} fortgesetzt. Er wacht jetzt auf.",
+    "wake": "{{name}} wacht jetzt auf."
+   },
+   "units": {
+    "seconds_one": "{{count}} Sekunde",
+    "seconds_other": "{{count}} Sekunden",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} Stunde",
+    "hours_other": "{{count}} Stunden",
+    "days_one": "{{count}} Tag",
+    "days_other": "{{count}} Tage"
+   },
+   "ticking": "Zyklus läuft",
+   "neverTicked": "Noch nicht geweckt",
+   "addSignal": "Signal hinzufügen",
+   "signalNamePlaceholder": "Warteschlangenlänge",
+   "editNotice": "Läuft als {{name}}. Beim Speichern werden Sie zum Principal, als der seine Zyklen laufen. Um Ziel oder Zeitplan zu ändern, öffnen Sie den Wächter und verwenden Sie Neue Revision."
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "Neue Revision von {{name}}",
+   "intro": "Dies wird Revision {{number}}. Mit dem Veröffentlichen wird sie sofort aktuell: Die Verlängerung wird zurückgesetzt und der Wächter wacht jetzt auf.",
+   "draft": "Als Entwurf speichern",
+   "publish": "Veröffentlichen",
+   "drafted": "Revision {{number}} als Entwurf gespeichert.",
+   "published": "Revision {{number}} veröffentlicht."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "Wächter"
+  },
+  "home": {
+   "autonomy": {
+    "title": "Autonomie",
+    "open": "Wächter öffnen",
+    "empty": "Noch keine Wächter. Ein Wächter wacht nach Zeitplan auf und kümmert sich um einen Dauerauftrag.",
+    "active": "aktiv",
+    "paused": "pausiert",
+    "ticking": "läuft gerade",
+    "nextWake": "Nächstes Aufwachen:",
+    "allQuiet": "Kein Wächter braucht Aufmerksamkeit.",
+    "attention_one": "{{count}} Wächter braucht Aufmerksamkeit",
+    "attention_other": "{{count}} Wächter brauchen Aufmerksamkeit"
+   }
+  },
+  "keeperDetail": {
+   "title": "Wächter",
+   "heading": "Wächter {{name}}",
+   "notFoundTitle": "Wächter nicht gefunden",
+   "notFoundBody": "Er wurde möglicherweise gelöscht oder gehört zu einem anderen Mandanten.",
+   "live": "Live",
+   "polling": "Aktualisierung",
+   "newRevision": "Neue Revision",
+   "noWake": "Nicht geplant",
+   "quietStreak": "Ruhige Zyklen in Folge",
+   "activeRun": "Laufender Zyklus",
+   "revisionTitle": "Aktuelle Revision",
+   "revisionHeading": "Aktuelle Revision ({{number}})",
+   "noRevision": "Noch keine Revision veröffentlicht. Verwenden Sie Neue Revision, um eine zu schreiben und zu veröffentlichen.",
+   "clusterDefault": "Cluster-Standard",
+   "noLimit": "Kein Limit",
+   "ticks": "Zyklen",
+   "outcomeFilter": "Ergebnis",
+   "allOutcomes": "Alle Ergebnisse",
+   "noTicksTitle": "Noch keine Zyklen",
+   "noTicksActive": "Der erste Zyklus beginnt beim nächsten Aufwachen. Mit Jetzt wecken starten Sie sofort einen.",
+   "noTicksBody": "Zyklen erscheinen hier, sobald der Wächter aktiv ist und aufwacht.",
+   "chartTitle": "Intervall nach jedem Zyklus",
+   "chartHelp": "Minuten bis zum nächsten Aufwachen, so wie beim Ende jedes Zyklus festgelegt. Ruhige Zyklen verlängern es im Modus Backoff.",
+   "chartSeries": "Intervall (Minuten)",
+   "columns": {
+    "started": "Gestartet",
+    "source": "Geweckt durch",
+    "outcome": "Ergebnis",
+    "run": "Lauf",
+    "interval": "Nächstes Intervall",
+    "cost": "Kosten",
+    "summary": "Zusammenfassung",
+    "number": "Nummer",
+    "state": "Zustand",
+    "revisionSource": "Quelle",
+    "author": "Autor",
+    "changeNote": "Änderungsnotiz",
+    "created": "Erstellt"
+   },
+   "requested": "{{interval}} angefordert",
+   "revisions": "Revisionen",
+   "noRevisions": "Noch keine Revisionen.",
+   "current": "Aktuell",
+   "diff": "Vergleichen",
+   "diffTitle": "Revision {{number}} im Vergleich zur vorherigen",
+   "diffFirst": "Dies ist die erste Revision, daher ist alles darin neu.",
+   "revisionLabel": "Revision {{number}}",
+   "nothing": "Nichts",
+   "confirmDelete": "Wächter {{name}} mit seinen Revisionen und seinem Zyklusverlauf löschen? Seine bisherigen Läufe bleiben erhalten.",
+   "confirmForceDelete": "Ein Zyklus von {{name}} läuft gerade. Den Wächter trotzdem löschen und den Lauf dieses Zyklus abbrechen?",
+   "forceDelete": "Löschen und Zyklus abbrechen",
+   "changeNote": "Änderungsnotiz: {{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agenten, die zwischen Anfragen selbstständig arbeiten. Wächter wachen nach Zeitplan auf, prüfen einen Dauerauftrag und handeln oder bitten um Hilfe."
+   },
+   "tabs": {
+    "keepers": "Wächter: Agenten, die nach Zeitplan aufwachen und sich um einen Dauerauftrag kümmern, mit ihren Zyklen und Revisionen."
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "Vom Aufwachen eines Wächters gestartet. Der Lauf ist ein Zyklus dieses Wächters und verweist auf ihn zurück."
+   },
+   "resourceType": {
+    "Mandate": "Wächter (Aufträge): die Daueraufträge, um die sich Agenten nach einem Aufwachplan kümmern, mit ihren Revisionen und Zyklen."
+   },
+   "mandateStatus": {
+    "Draft": "Ohne veröffentlichte Revision erstellt und wacht daher noch nicht auf. Veröffentlichen Sie eine Revision, um ihn zu starten.",
+    "Active": "Wacht nach seinem Zeitplan auf. Jedes Aufwachen startet einen Zyklus, einen Lauf seiner Bereitstellung.",
+    "Paused": "Wacht nicht auf, bis ihn jemand fortsetzt. Beim Fortsetzen wacht er sofort mit zurückgesetztem Intervall auf.",
+    "Frozen": "Von einem Administrator oder einer Richtlinie gestoppt. Er wacht erst wieder auf, wenn er aufgetaut wird.",
+    "CapReached": "Sein Tagesbudget ist aufgebraucht. Er wacht wieder auf, sobald der nächste UTC-Tag beginnt.",
+    "Retired": "Nicht mehr in Gebrauch. Er behält seinen Verlauf und wacht nie wieder auf."
+   },
+   "mandateRevisionState": {
+    "Draft": "Gespeichert, aber nicht in Gebrauch. Veröffentlichen Sie sie, um sie zur aktuellen Revision des Wächters zu machen.",
+    "Published": "War oder ist in Gebrauch. Veröffentlichte Revisionen ändern sich nie; schreiben Sie stattdessen eine neue Revision."
+   },
+   "mandateRevisionSource": {
+    "Human": "Von einer Person im Dashboard, über die API oder in einem Manifest geschrieben.",
+    "Board": "Von einem Gremium aus Agenten festgelegt, das diesen Wächter beaufsichtigt.",
+    "Executive": "Von einem leitenden Agenten festgelegt, der diesen Wächter steuert.",
+    "Architect": "Vom Agent-Architekten aus einem Studio-Entwurf geschrieben."
+   },
+   "wakeMode": {
+    "Fixed": "Wacht alle Mindestintervalle auf, unabhängig davon, was der letzte Zyklus gefunden hat.",
+    "Backoff": "Wartet nach jedem ruhigen Zyklus länger, bis zum Höchstintervall, und kehrt zum Minimum zurück, sobald etwas passiert."
+   },
+   "wakeSource": {
+    "Timer": "Der Aufwachplan war fällig, also ist der Wächter von selbst aufgewacht.",
+    "Manual": "Jemand hat Jetzt wecken verwendet oder den Wächter fortgesetzt.",
+    "Message": "Für den Wächter ist eine Nachricht eingetroffen.",
+    "EscalationAnswer": "Jemand hat eine vom Wächter eskalierte Frage beantwortet.",
+    "Webhook": "Ein anderes System hat den Webhook des Wächters aufgerufen.",
+    "Report": "Der Bericht eines anderen Agenten hat diesen Wächter um einen Blick gebeten."
+   },
+   "tickOutcome": {
+    "Quiet": "Alles war in Ordnung und nichts musste getan werden. Im Modus Backoff kommt das nächste Aufwachen später.",
+    "Acted": "Der Wächter hat etwas geändert, um den Auftrag in Ordnung zu halten.",
+    "Attention": "Der Wächter hat etwas gefunden, das sich eine Person ansehen sollte.",
+    "Escalated": "Der Wächter hat eine Person oder einen anderen Agenten um eine Entscheidung gebeten.",
+    "Failed": "Der Lauf des Zyklus ist fehlgeschlagen, hat das Zeitlimit überschritten oder wurde abgebrochen.",
+    "Skipped": "Ein Aufwachen kam, während der vorherige Zyklus noch lief, deshalb wurde es übersprungen und das nächste wartet auf ihn.",
+    "Unreported": "Der Lauf endete ohne Ergebnismeldung, daher braucht der Wächter möglicherweise ein klareres Ziel."
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "Der Wächter, der diesen Lauf als einen seiner Zyklen gestartet hat, falls vorhanden. Klicken Sie darauf, um den Wächter zu öffnen.",
+    "openKeeper": "Den Wächter öffnen, dessen Zyklus dieser Lauf ist."
+   },
+   "keepers": {
+    "add": "Einen Wächter erstellen: Wählen Sie einen gehosteten Agenten und eine Bereitstellung, beschreiben Sie den Dauerauftrag und legen Sie fest, wie oft er aufwacht.",
+    "name": "Ein eindeutiger Name in diesem Mandanten, verwendet in URLs, Manifesten und der API.",
+    "status": "Ob der Wächter nach seinem Zeitplan aufwacht (Aktiv) oder wartet, pausiert, eingefroren oder außer Dienst ist.",
+    "agent": "Der gehostete Agent, der diesen Auftrag übernimmt. Jeder Zyklus führt diesen Agenten aus.",
+    "deployment": "Die Bereitstellung, auf der jeder Zyklus läuft und die Harness, Modell und Werkzeuge festlegt.",
+    "nextWakeUtc": "Wann der nächste Zyklus beginnt. Zeigen Sie mit der Maus darauf für die genaue Zeit.",
+    "currentIntervalSeconds": "Die Wartezeit nach dem letzten Zyklus. Im Modus Backoff wächst sie nach ruhigen Zyklen.",
+    "lastTick": "Wann der Wächter zuletzt aufgewacht ist und was dieser Zyklus gemeldet hat.",
+    "tickCount": "Wie viele Zyklen der Wächter insgesamt ausgeführt hat.",
+    "currentRevisionNumber": "Die veröffentlichte Revision, der der Wächter jetzt folgt.",
+    "runAs": "Der Benutzer oder die Anmeldedaten, mit deren Berechtigungen jeder Zyklus läuft: wer den Wächter zuletzt gespeichert hat.",
+    "description": "Notizen für Menschen. Der Wächter liest dies nicht, er liest das Ziel.",
+    "id": "Die Kennung des Wächters, verwendet in der API und in Laufdatensätzen.",
+    "createdUtc": "Wann der Wächter erstellt wurde.",
+    "agentId": "Der gehostete Agent, der diesen Auftrag übernimmt. Remote-Agenten können keine Wächter sein. Nach dem Erstellen nicht mehr änderbar.",
+    "deploymentId": "Die aktive Bereitstellung dieses Agenten, auf der jeder Zyklus läuft.",
+    "objective": "Der Dauerauftrag in einfachen Worten, zum Beispiel: Halte die Support-Warteschlange unter 20 offenen Tickets. Der Wächter liest ihn bei jedem Zyklus.",
+    "healthyDefinition": "Wie ein guter Zustand aussieht, damit der Wächter einen ruhigen Zyklus von einem unterscheiden kann, der Handeln erfordert.",
+    "autonomy": "Was der Wächter selbstständig ändern darf, ohne jemanden zu fragen.",
+    "escalationPolicy": "Wann der Wächter anhalten und eine Person oder einen anderen Agenten um eine Entscheidung bitten soll.",
+    "direction": "Kurzfristige Hinweise, die sich oft ändern können, etwa ein Schwerpunkt für diese Woche.",
+    "signals": "Benannte Messwerte, die der Wächter bei jedem Zyklus prüfen soll, mit ihrer jeweiligen Bedeutung.",
+    "signalsItems": {
+     "name": "Ein kurzer Name für den Messwert, eindeutig innerhalb der Revision.",
+     "description": "Was der Messwert bedeutet und welche Werte besorgniserregend sind."
+    },
+    "wakeMode": "Fest wacht jedes Mal im Mindestintervall auf. Backoff wartet nach ruhigen Zyklen länger.",
+    "minIntervalSeconds": "Die kürzeste Wartezeit zwischen geplanten Aufwachvorgängen, in Sekunden.",
+    "maxIntervalSeconds": "Die längste Wartezeit zwischen geplanten Aufwachvorgängen im Modus Backoff, in Sekunden.",
+    "backoffFactor": "Um wie viel die Wartezeit nach jedem ruhigen Zyklus im Modus Backoff wächst. 2 verdoppelt sie.",
+    "jitterPercent": "Eine zufällige Verzögerung von bis zu diesem Prozentsatz des Intervalls, damit viele Wächter nicht im selben Moment aufwachen.",
+    "budgetPerTickUsd": "Das Maximum, das ein Zyklus in US-Dollar kosten darf.",
+    "budgetPerDayUsd": "Das Maximum, das die Zyklen dieses Wächters pro UTC-Tag in US-Dollar kosten dürfen.",
+    "maxTokensPerTick": "Die höchste Zahl an Eingabe- und Ausgabe-Token, die ein Zyklus verbrauchen darf.",
+    "changeNote": "Eine kurze Notiz, warum diese Revision den Wächter ändert, aufbewahrt bei der Revision.",
+    "sections": {
+     "mandate": "Wofür der Wächter zuständig ist und wie viel er selbstständig tun darf.",
+     "schedule": "Wie oft der Wächter aufwacht und wie sich die Wartezeit nach ruhigen Zyklen ändert.",
+     "budgets": "Grenzen dafür, was die Zyklen des Wächters kosten und verbrauchen dürfen."
+    },
+    "actions": {
+     "pause": "Diesen Wächter nicht mehr wecken. Ein laufender Zyklus wird beendet; bis zum Fortsetzen startet kein neuer.",
+     "resume": "Diesen Wächter wieder wecken. Er wacht sofort auf, sein Intervall wird auf das Minimum zurückgesetzt.",
+     "wake": "Jetzt einen Zyklus starten, statt auf den Zeitplan zu warten. Läuft bereits ein Zyklus, startet der neue danach.",
+     "runs": "Die Seite Läufe, gefiltert auf die Zyklen dieses Wächters, öffnen."
+    },
+    "ticking": "Ein Zyklus dieses Wächters läuft gerade."
+   }
+  },
+  "keeperRevision": {
+   "done": "Diesen Dialog schließen. Die Revision wurde mit den oben aufgeführten angepassten Werten gespeichert.",
+   "draft": "Diese Revision als Entwurf speichern, ohne sie zu verwenden. Veröffentlichen Sie sie später in der Revisionsliste.",
+   "publish": "Diese Revision speichern und sofort aktuell machen. Die Verlängerung wird zurückgesetzt und der Wächter wacht sofort auf."
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "Der Wächter, der diesen Lauf als einen seiner Zyklen gestartet hat.",
+    "openKeeper": "Den Wächter mit seinen Zyklen und Revisionen öffnen."
+   },
+   "home": {
+    "autonomy": {
+     "title": "Wächter in diesem Mandanten und diejenigen, deren letzter Zyklus eine Person braucht.",
+     "open": "Die Seite Wächter öffnen, um Wächter zu erstellen, zu pausieren, zu wecken oder zu bearbeiten.",
+     "active": "Wächter, die nach ihrem Zeitplan aufwachen.",
+     "paused": "Wächter, die nicht aufwachen, bis sie jemand fortsetzt.",
+     "ticking": "Wächter, bei denen gerade ein Zyklus läuft.",
+     "nextWake": "Das früheste geplante Aufwachen unter den aktiven Wächtern.",
+     "attention": "Wächter, deren letzter Zyklus Aufmerksamkeit braucht, eskaliert, fehlgeschlagen oder nicht gemeldet wurde, sowie Wächter, die durch ein Budget oder Einfrieren gestoppt wurden.",
+     "openKeeper": "Die Seite dieses Wächters öffnen, um seine Zyklen zu sehen."
+    }
+   },
+   "keeperDetail": {
+    "openRun": "Die Detailseite dieses Laufs öffnen: sein Transkript, Werkzeugaufrufe und Ergebnis.",
+    "live": "Aktualisierungen kommen über die Live-Verbindung, wenn Zyklen starten und enden.",
+    "polling": "Die Live-Verbindung ist nicht verfügbar, daher liest die Seite den Wächter alle paar Sekunden neu ein.",
+    "viewJson": "Den Wächter-Datensatz mit seiner aktuellen Revision als JSON anzeigen.",
+    "newRevision": "Eine neue Revision von Ziel, Zeitplan oder Budgets schreiben, ausgehend von der aktuellen.",
+    "delete": "Diesen Wächter mit seinen Revisionen und seinem Zyklusverlauf löschen. Seine bisherigen Läufe bleiben erhalten.",
+    "forceDelete": "Den Wächter löschen und den Lauf des laufenden Zyklus abbrechen.",
+    "openAgent": "Den Agenten öffnen, den dieser Wächter ausführt.",
+    "quietStreak": "Wie viele Zyklen in Folge nichts zu tun fanden. Im Modus Backoff verlängert jeder die Wartezeit.",
+    "activeRun": "Der Lauf des laufenden Zyklus, falls einer läuft.",
+    "revisionTitle": "Die veröffentlichte Revision, der der Wächter bei jedem Zyklus folgt.",
+    "ticks": "Jedes Aufwachen dieses Wächters, neueste zuerst: was ihn geweckt hat, was er gefunden hat und welche Wartezeit er festgelegt hat.",
+    "outcomeFilter": "Nur Zyklen mit diesem Ergebnis anzeigen.",
+    "outcomeCounts": "Wie viele Zyklen auf dieser Seite jedes Ergebnis hatten.",
+    "chart": "Die Wartezeit nach jedem Zyklus auf dieser Seite, älteste links. Sie wächst nach ruhigen Zyklen im Modus Backoff und wird zurückgesetzt, wenn etwas passiert.",
+    "columns": {
+     "started": "Wann der Zyklus gestartet wurde. Zeigen Sie mit der Maus darauf für die genaue Zeit.",
+     "source": "Was den Wächter für diesen Zyklus geweckt hat.",
+     "outcome": "Was der Zyklus gemeldet hat: ruhig, gehandelt, braucht Aufmerksamkeit, eskaliert oder fehlgeschlagen.",
+     "run": "Der Lauf, der den Zyklus ausgeführt hat.",
+     "interval": "Die Wartezeit bis zum nächsten Aufwachen, so wie beim Ende dieses Zyklus festgelegt.",
+     "cost": "Was der Lauf des Zyklus gekostet hat, laut Modellpreisliste.",
+     "summary": "Was der Wächter gefunden oder getan hat, oder der Fehler, der den Zyklus gestoppt hat.",
+     "number": "Die Revisionsnummer. Die aktuelle ist markiert.",
+     "state": "Entwurfsrevisionen sind gespeichert, aber nicht in Gebrauch; veröffentlichte waren oder sind in Gebrauch.",
+     "revisionSource": "Wer die Revision geschrieben hat: eine Person, der Agent-Architekt oder ein beaufsichtigender Agent.",
+     "author": "Der Benutzer oder die Anmeldedaten, die die Revision gespeichert haben.",
+     "changeNote": "Warum die Revision den Wächter geändert hat.",
+     "created": "Wann die Revision gespeichert wurde."
+    },
+    "requested": "Der Wächter hat diese Wartezeit angefordert; der Server hält sie innerhalb von Mindest- und Höchstintervall.",
+    "revisions": "Jede Revision dieses Wächters, neueste zuerst. Vergleichen Sie eine mit der vorherigen oder veröffentlichen Sie einen Entwurf.",
+    "current": "Die Revision, der der Wächter jetzt folgt.",
+    "diff": "Zeigen, was diese Revision gegenüber der vorherigen geändert hat."
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "Wächter",
+   "p1": "Ein Wächter ist ein Agent mit einem Dauerauftrag, seinem Auftrag. Er wacht nach Zeitplan auf, prüft den Stand der Dinge, handelt im Rahmen dessen, was er selbstständig tun darf, und meldet jedes Mal ein kurzes Ergebnis. Jedes Aufwachen ist ein Zyklus, und jeder Zyklus ist ein Lauf der Bereitstellung des Wächters.",
+   "p2": "Im Modus Backoff verschiebt ein ruhiger Zyklus das nächste Aufwachen nach hinten, bis zum Höchstintervall, und alles andere bringt es auf das Minimum zurück. Es läuft immer nur ein Zyklus: Ein Aufwachen, das während eines Zyklus eintrifft, wartet auf dessen Ende.",
+   "p3": "Änderungen an Ziel, Zeitplan oder Budgets sind Revisionen. Das Veröffentlichen einer Revision macht sie sofort aktuell und weckt den Wächter, und jede Revision bleibt zum Vergleichen im Verlauf."
+  }
+ }
+});

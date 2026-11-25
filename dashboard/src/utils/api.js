@@ -1192,6 +1192,78 @@ class ApiClient {
     return this._list(this._t(tenantId, `triggers/${enc(id)}/fires`), params);
   }
 
+  // ------------------------------------------------------------------ keepers (AA1)
+
+  /** Keeper mandates. filters: status, agentId, deploymentId, search, ordering, pageNumber, pageSize. */
+  listMandates(tenantId, params) {
+    return this._list(this._t(tenantId, 'mandates'), params);
+  }
+
+  /** Read a mandate, with its current revision, by ID or name. */
+  getMandate(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `mandates/${enc(id)}`));
+  }
+
+  /** Create a mandate. An inline currentRevision is published as revision 1 and the mandate becomes Active. */
+  createMandate(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'mandates'), { body });
+  }
+
+  /** Update a mandate's name, description, and deployment (the caller becomes its run-as principal). */
+  updateMandate(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `mandates/${enc(id)}`), { body });
+  }
+
+  /** Delete a mandate with its revisions and ticks. force cancels a running tick instead of answering 409 MandateActive. */
+  deleteMandate(tenantId, id, force = false) {
+    return this._request('DELETE', this._t(tenantId, `mandates/${enc(id)}`), { query: force ? { force: 'true' } : null });
+  }
+
+  /** A mandate's revisions, newest first. filters: pageNumber, pageSize. */
+  listMandateRevisions(tenantId, id, params) {
+    return this._list(this._t(tenantId, `mandates/${enc(id)}/revisions`), params);
+  }
+
+  /** Read one revision of a mandate. */
+  getMandateRevision(tenantId, id, revisionId) {
+    return this._request('GET', this._t(tenantId, `mandates/${enc(id)}/revisions/${enc(revisionId)}`));
+  }
+
+  /** Draft a new revision of a mandate. */
+  createMandateRevision(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `mandates/${enc(id)}/revisions`), { body });
+  }
+
+  /** Publish a draft revision: it becomes current, backoff resets, and the mandate wakes now. Returns the mandate. */
+  publishMandateRevision(tenantId, id, revisionId) {
+    return this._request('POST', this._t(tenantId, `mandates/${enc(id)}/revisions/${enc(revisionId)}/publish`));
+  }
+
+  /** Pause a mandate: no further wakes until it is resumed. Returns the mandate. */
+  pauseMandate(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `mandates/${enc(id)}/pause`));
+  }
+
+  /** Resume a paused mandate: it wakes now with its interval reset. Returns the mandate. */
+  resumeMandate(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `mandates/${enc(id)}/resume`));
+  }
+
+  /** Wake an Active mandate now (after the running tick, if one is running). Returns the mandate. */
+  wakeMandate(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `mandates/${enc(id)}/wake`));
+  }
+
+  /** A mandate's ticks, newest first. filters: outcome, pageNumber, pageSize. */
+  listMandateTicks(tenantId, id, params) {
+    return this._list(this._t(tenantId, `mandates/${enc(id)}/ticks`), params);
+  }
+
+  /** Read one keeper tick. */
+  getMandateTick(tenantId, tickId) {
+    return this._request('GET', this._t(tenantId, `mandate-ticks/${enc(tickId)}`));
+  }
+
   // ------------------------------------------------------------------ notification endpoints (P12.14)
 
   /** Outbound webhook subscriptions. filters: search, activeOnly, pageNumber, pageSize. */

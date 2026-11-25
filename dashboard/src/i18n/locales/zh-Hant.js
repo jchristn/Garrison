@@ -5090,3 +5090,468 @@ zhHant.tips.nav.tabs.secrets = "加密的 API 金鑰與權杖。部署透過別�
 zhHant.tips.resources.secrets.add = "儲存新的憑證，例如 API 金鑰或權杖，靜態加密。部署透過別名參照它；儲存後，只有擁有 Secret Admin 權限的人可以顯示它。";
 zhHant.tips.resources.secrets.value = "密鑰值。儲存時會加密。擁有 Secret Admin 權限的人可以顯示它，每次顯示都會被稽核。";
 zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰或權杖。儲存後你可以取代或輪替它。只有擁有 Secret Admin 權限的人 (SecretManager 與 TenantAdmin 角色) 才能讀回它，每次顯示都會記錄在稽核日誌中。";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "自主運作",
+    "tip": "能自行持續工作的代理程式：守護者依排程喚醒，照看一項長期職責。"
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "守護者",
+    "tip": "依排程喚醒、照看長期職責的代理程式"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "守護者巡檢"
+  },
+  "resourceType": {
+   "Mandate": "守護者（職責）"
+  },
+  "mandateStatus": {
+   "Draft": "草稿",
+   "Active": "啟用中",
+   "Paused": "已暫停",
+   "Frozen": "已凍結",
+   "CapReached": "已達預算上限",
+   "Retired": "已停用"
+  },
+  "mandateRevisionState": {
+   "Draft": "草稿",
+   "Published": "已發布"
+  },
+  "mandateRevisionSource": {
+   "Human": "人員",
+   "Board": "委員會",
+   "Executive": "主管",
+   "Architect": "代理程式架構師"
+  },
+  "wakeMode": {
+   "Fixed": "固定間隔",
+   "Backoff": "安靜時退避"
+  },
+  "wakeSource": {
+   "Timer": "排程",
+   "Manual": "手動喚醒",
+   "Message": "訊息",
+   "EscalationAnswer": "已回覆上報",
+   "Webhook": "Webhook 回呼",
+   "Report": "報告"
+  },
+  "tickOutcome": {
+   "Quiet": "平靜",
+   "Acted": "已處理",
+   "Attention": "需要關注",
+   "Escalated": "已上報",
+   "Failed": "失敗",
+   "Skipped": "已略過",
+   "Unreported": "未回報"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "此守護者有一次巡檢正在執行。請等它結束，或先暫停守護者，也可以直接刪除，這會取消該次巡檢的執行。",
+  "MandateNotActive": "只有啟用中的守護者才能被喚醒或暫停。",
+  "MandateNotPaused": "只有已暫停的守護者才能恢復。",
+  "RemoteAgentUnsupported": "守護者執行於代管部署上，因此遠端代理程式不能作為守護者。",
+  "DeploymentInactive": "該部署未啟用。請選擇一個啟用中的部署。",
+  "DeploymentAgentMismatch": "該部署屬於另一個代理程式。請選擇此代理程式自己的部署。",
+  "RevisionMismatch": "該修訂版屬於另一個守護者。"
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "守護者"
+   }
+  },
+  "keepers": {
+   "title": "守護者",
+   "subtitle": "依排程喚醒、照看一項長期職責的代理程式，每次都會回報發現的情況。",
+   "add": "新增守護者",
+   "create": "建立守護者",
+   "edit": "編輯守護者",
+   "view": "守護者詳細資料",
+   "deleteTitle": "刪除守護者",
+   "emptyTitle": "尚無守護者",
+   "emptyBody": "建立守護者，讓代理程式定期查看佇列、儀表板或收件匣之類的事物，並在需要時自行處理或請求協助。",
+   "columns": {
+    "name": "名稱",
+    "status": "狀態",
+    "agent": "代理程式",
+    "deployment": "部署",
+    "nextWakeUtc": "下次喚醒",
+    "currentIntervalSeconds": "間隔",
+    "lastTick": "上次巡檢",
+    "tickCount": "巡檢次數",
+    "currentRevisionNumber": "修訂版",
+    "runAs": "執行身分",
+    "description": "說明",
+    "id": "ID",
+    "createdUtc": "建立時間"
+   },
+   "fields": {
+    "name": "名稱",
+    "description": "說明",
+    "agentId": "代理程式",
+    "deploymentId": "部署",
+    "objective": "目標",
+    "healthyDefinition": "健康狀態的標準",
+    "autonomy": "可自行處理的事項",
+    "escalationPolicy": "何時請求協助",
+    "direction": "目前方向",
+    "signals": "需要關注的訊號",
+    "signalsItems": {
+     "name": "訊號",
+     "description": "意義"
+    },
+    "wakeMode": "喚醒模式",
+    "minIntervalSeconds": "最小間隔（秒）",
+    "maxIntervalSeconds": "最大間隔（秒）",
+    "backoffFactor": "退避係數",
+    "jitterPercent": "抖動（百分比）",
+    "budgetPerTickUsd": "每次巡檢預算（USD）",
+    "budgetPerDayUsd": "每日預算（USD）",
+    "maxTokensPerTick": "每次巡檢最大 token 數",
+    "changeNote": "變更說明"
+   },
+   "hints": {
+    "name": "小寫字母、數字和連字號。",
+    "agentId": "一個代管代理程式。守護者建立後，代理程式無法變更。",
+    "deploymentId": "每次巡檢所執行的啟用中部署。",
+    "objective": "用平實的話描述這項長期職責。守護者每次巡檢都會讀取它。",
+    "minIntervalSeconds": "範圍為 {{min}} 到 {{max}} 秒。叢集設定 Autonomy.MinIntervalSeconds 可能會調高下限。",
+    "maxIntervalSeconds": "範圍為 {{min}} 到 {{max}} 秒。退避增長到此值為止。",
+    "backoffFactor": "範圍為 {{min}} 到 {{max}}。每次平靜的巡檢之後，間隔都會乘以這個值。",
+    "jitterPercent": "範圍為 {{min}} 到 {{max}}。留空則使用叢集預設值。",
+    "budgetPerTickUsd": "留空表示不設上限。",
+    "budgetPerDayUsd": "留空表示不設上限。",
+    "maxTokensPerTick": "輸入與輸出 token 的總和。留空表示不設上限。",
+    "changeNote": "說明此修訂版為何要變更守護者。顯示在修訂版清單中。"
+   },
+   "sections": {
+    "mandate": "職責",
+    "schedule": "喚醒排程",
+    "budgets": "預算"
+   },
+   "sectionHints": {
+    "mandate": "儲存後，這些欄位會作為修訂版 1 發布，並啟動喚醒排程。之後的變更請在守護者頁面使用「新增修訂版」。",
+    "budgets": "目前僅儲存，將於後續版本中強制執行。"
+   },
+   "errors": {
+    "name": "請使用 1 到 64 個小寫字母、數字和連字號，並以字母或數字開頭和結尾。",
+    "nameTaken": "已有另一個守護者使用此名稱。",
+    "text": "最多 {{max}} 個字元。",
+    "agentRequired": "請選擇負責這項職責的代理程式。",
+    "deploymentRequired": "請選擇其巡檢所執行的部署。",
+    "objective": "請描述這項長期職責。",
+    "signalsMax": "一個修訂版最多包含 {{max}} 個訊號。",
+    "signalName": "訊號名稱為 1 到 {{max}} 個字元。",
+    "signalUnique": "每個訊號需要使用不同的名稱。",
+    "signalsInvalid": "請修正下方標記的訊號。",
+    "interval": "請輸入 {{min}} 到 {{max}} 之間的整數秒數。",
+    "maxBelowMin": "最大間隔不能短於最小間隔。",
+    "backoffFactor": "請輸入 {{min}} 到 {{max}} 之間的數字。",
+    "jitterPercent": "請輸入 {{min}} 到 {{max}} 之間的整數。",
+    "budget": "請輸入 {{min}} 到 {{max}} 之間的金額。",
+    "maxTokens": "請輸入 {{min}} 到 {{max}} 之間的整數。"
+   },
+   "actions": {
+    "pause": "暫停",
+    "resume": "恢復",
+    "wake": "立即喚醒",
+    "runs": "檢視執行"
+   },
+   "toasts": {
+    "pause": "已暫停 {{name}}。",
+    "resume": "已恢復 {{name}}，現在喚醒它。",
+    "wake": "{{name}} 現在喚醒。"
+   },
+   "units": {
+    "seconds_other": "{{count}} 秒",
+    "minutes_other": "{{count}} 分鐘",
+    "hours_other": "{{count}} 小時",
+    "days_other": "{{count}} 天"
+   },
+   "ticking": "巡檢中",
+   "neverTicked": "尚未喚醒",
+   "addSignal": "新增訊號",
+   "signalNamePlaceholder": "佇列深度",
+   "editNotice": "以 {{name}} 的身分執行。儲存後，你將成為其巡檢所用的執行身分。若要變更目標或排程，請開啟守護者並使用「新增修訂版」。"
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "{{name}} 的新修訂版",
+   "intro": "這將成為修訂版 {{number}}。發布後它會立即成為目前版本：退避會重設，守護者隨即被喚醒。",
+   "draft": "儲存為草稿",
+   "publish": "發布",
+   "drafted": "已將修訂版 {{number}} 儲存為草稿。",
+   "published": "已發布修訂版 {{number}}。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "守護者"
+  },
+  "home": {
+   "autonomy": {
+    "title": "自主運作",
+    "open": "開啟守護者",
+    "empty": "尚無守護者。守護者依排程喚醒，照看一項長期職責。",
+    "active": "啟用中",
+    "paused": "已暫停",
+    "ticking": "正在巡檢",
+    "nextWake": "下次喚醒：",
+    "allQuiet": "沒有需要關注的守護者。",
+    "attention_other": "有 {{count}} 個守護者需要關注"
+   }
+  },
+  "keeperDetail": {
+   "title": "守護者",
+   "heading": "守護者 {{name}}",
+   "notFoundTitle": "找不到守護者",
+   "notFoundBody": "它可能已被刪除，或屬於另一個租用戶。",
+   "live": "即時",
+   "polling": "重新整理中",
+   "newRevision": "新增修訂版",
+   "noWake": "未排程",
+   "quietStreak": "連續平靜的巡檢",
+   "activeRun": "正在執行的巡檢",
+   "revisionTitle": "目前修訂版",
+   "revisionHeading": "目前修訂版（{{number}}）",
+   "noRevision": "尚未發布任何修訂版。請使用「新增修訂版」撰寫並發布一個。",
+   "clusterDefault": "叢集預設值",
+   "noLimit": "不設上限",
+   "ticks": "巡檢",
+   "outcomeFilter": "結果",
+   "allOutcomes": "所有結果",
+   "noTicksTitle": "尚無巡檢",
+   "noTicksActive": "第一次巡檢會在下次喚醒時開始。使用「立即喚醒」可馬上開始一次。",
+   "noTicksBody": "守護者啟用並被喚醒後，巡檢會顯示在這裡。",
+   "chartTitle": "每次巡檢後的間隔",
+   "chartHelp": "到下次喚醒的分鐘數，取每次巡檢結束時設定的值。在退避模式下，平靜的巡檢會使其變長。",
+   "chartSeries": "間隔（分鐘）",
+   "columns": {
+    "started": "開始時間",
+    "source": "喚醒來源",
+    "outcome": "結果",
+    "run": "執行",
+    "interval": "下次間隔",
+    "cost": "費用",
+    "summary": "摘要",
+    "number": "編號",
+    "state": "狀態",
+    "revisionSource": "來源",
+    "author": "作者",
+    "changeNote": "變更說明",
+    "created": "建立時間"
+   },
+   "requested": "要求了 {{interval}}",
+   "revisions": "修訂版",
+   "noRevisions": "尚無修訂版。",
+   "current": "目前",
+   "diff": "比較",
+   "diffTitle": "修訂版 {{number}} 與前一個版本的比較",
+   "diffFirst": "這是第一個修訂版，因此其中的所有內容都是新增的。",
+   "revisionLabel": "修訂版 {{number}}",
+   "nothing": "無",
+   "confirmDelete": "要刪除守護者 {{name}} 及其修訂版和巡檢歷程嗎？它過去的執行會保留。",
+   "confirmForceDelete": "{{name}} 有一次巡檢正在執行。仍要刪除該守護者並取消這次巡檢的執行嗎？",
+   "forceDelete": "刪除並取消巡檢",
+   "changeNote": "變更說明：{{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "在請求之間自行工作的代理程式。守護者依排程喚醒，查看一項長期職責，並採取行動或請求協助。"
+   },
+   "tabs": {
+    "keepers": "守護者：依排程喚醒、照看一項長期職責的代理程式，附帶其巡檢和修訂版。"
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "由守護者的喚醒啟動。該執行是這個守護者的一次巡檢，並連結回它。"
+   },
+   "resourceType": {
+    "Mandate": "守護者（職責）：代理程式依喚醒排程照看的長期職責，附帶其修訂版和巡檢。"
+   },
+   "mandateStatus": {
+    "Draft": "建立時沒有已發布的修訂版，所以還不會喚醒。發布一個修訂版即可啟動。",
+    "Active": "依排程喚醒。每次喚醒會啟動一次巡檢，即其部署的一次執行。",
+    "Paused": "在有人恢復之前不會喚醒。恢復後會立即喚醒，並重設間隔。",
+    "Frozen": "已被管理員或原則停止。解除凍結之前不會喚醒。",
+    "CapReached": "當日預算已用完。下一個 UTC 日開始時會再次喚醒。",
+    "Retired": "不再使用。它保留歷程記錄，且不會再喚醒。"
+   },
+   "mandateRevisionState": {
+    "Draft": "已儲存但未使用。發布後它會成為守護者的目前修訂版。",
+    "Published": "曾經或正在使用。已發布的修訂版不會變動，請另寫一個新修訂版。"
+   },
+   "mandateRevisionSource": {
+    "Human": "由人員在儀表板、API 或資訊清單中撰寫。",
+    "Board": "由監督此守護者的代理程式委員會設定。",
+    "Executive": "由指揮此守護者的主管代理程式設定。",
+    "Architect": "由代理程式架構師根據工作室草稿撰寫。"
+   },
+   "wakeMode": {
+    "Fixed": "無論上次巡檢發現了什麼，都每隔最小間隔喚醒一次。",
+    "Backoff": "每次平靜的巡檢之後等待更久，最長到最大間隔，一旦有事發生就回到最小間隔。"
+   },
+   "wakeSource": {
+    "Timer": "喚醒排程到期，守護者自行喚醒了。",
+    "Manual": "有人使用了「立即喚醒」，或恢復了守護者。",
+    "Message": "有一則訊息傳給了守護者。",
+    "EscalationAnswer": "有人回覆了守護者上報的問題。",
+    "Webhook": "另一個系統呼叫了守護者的 Webhook。",
+    "Report": "另一個代理程式的報告請這個守護者去查看。"
+   },
+   "tickOutcome": {
+    "Quiet": "一切健康，無須處理。在退避模式下，下次喚醒會更晚。",
+    "Acted": "守護者為保持職責健康而變更了某些內容。",
+    "Attention": "守護者發現了需要人員查看的情況。",
+    "Escalated": "守護者請求某個人或另一個代理程式做出決定。",
+    "Failed": "這次巡檢的執行失敗、逾時或被取消。",
+    "Skipped": "喚醒到來時上一次巡檢仍在執行，因此被略過，下一次會等它結束。",
+    "Unreported": "執行結束時沒有回報結果，所以守護者可能需要更清楚的目標。"
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "把這次執行作為自己的一次巡檢啟動的守護者（如果有）。點擊即可開啟該守護者。",
+    "openKeeper": "開啟以這次執行作為巡檢的守護者。"
+   },
+   "keepers": {
+    "add": "建立守護者：選擇代管代理程式和部署，描述長期職責，並設定喚醒的頻率。",
+    "name": "在此租用戶內唯一的名稱，用於 URL、資訊清單和 API。",
+    "status": "守護者是否依排程喚醒（啟用中），或處於等待、暫停、凍結、停用狀態。",
+    "agent": "負責這項職責的代管代理程式。每次巡檢都會執行這個代理程式。",
+    "deployment": "每次巡檢所執行的部署，它決定了 harness、模型和工具。",
+    "nextWakeUtc": "下一次巡檢開始的時間。將游標停留其上可查看確切時間。",
+    "currentIntervalSeconds": "上次巡檢之後的等待時間。在退避模式下，它會在平靜的巡檢之後增長。",
+    "lastTick": "守護者上次喚醒的時間，以及那次巡檢回報的內容。",
+    "tickCount": "守護者累計執行過的巡檢次數。",
+    "currentRevisionNumber": "守護者目前遵循的已發布修訂版。",
+    "runAs": "每次巡檢所用權限的使用者或認證：最後一次儲存守護者的人。",
+    "description": "寫給人看的備註。守護者不會讀取它，它讀取的是目標。",
+    "id": "守護者的識別碼，用於 API 和執行記錄。",
+    "createdUtc": "守護者的建立時間。",
+    "agentId": "負責這項職責的代管代理程式。遠端代理程式不能作為守護者。建立後無法變更。",
+    "deploymentId": "該代理程式每次巡檢所執行的啟用中部署。",
+    "objective": "用平實的話描述長期職責，例如讓支援佇列中的未處理工單保持在 20 個以下。守護者每次巡檢都會讀取它。",
+    "healthyDefinition": "良好狀態是什麼樣子，讓守護者能區分平靜的巡檢和需要行動的巡檢。",
+    "autonomy": "守護者無須詢問任何人就可以自行變更的內容。",
+    "escalationPolicy": "守護者應在何時停下來，請某個人或另一個代理程式做決定。",
+    "direction": "可能經常變化的短期指引，例如本週的重點。",
+    "signals": "守護者每次巡檢應檢查的具名指標，以及各自的意義。",
+    "signalsItems": {
+     "name": "這項指標的簡短名稱，在修訂版內唯一。",
+     "description": "這項指標的意義，以及哪些數值值得擔心。"
+    },
+    "wakeMode": "固定模式每次都依最小間隔喚醒。退避模式會在平靜的巡檢之後等待更久。",
+    "minIntervalSeconds": "兩次排程喚醒之間的最短等待時間，單位為秒。",
+    "maxIntervalSeconds": "退避模式下兩次排程喚醒之間的最長等待時間，單位為秒。",
+    "backoffFactor": "退避模式下，每次平靜的巡檢之後等待時間增長的倍數。2 表示加倍。",
+    "jitterPercent": "最多為間隔此百分比的隨機延遲，避免許多守護者在同一時刻喚醒。",
+    "budgetPerTickUsd": "一次巡檢最多可花費的美元金額。",
+    "budgetPerDayUsd": "此守護者的巡檢每個 UTC 日最多可花費的美元金額。",
+    "maxTokensPerTick": "一次巡檢最多可使用的輸入和輸出 token 數。",
+    "changeNote": "簡短說明此修訂版為何要變更守護者，隨修訂版一併儲存。",
+    "sections": {
+     "mandate": "守護者照看什麼，以及它可以自行處理多少事情。",
+     "schedule": "守護者多久喚醒一次，以及平靜的巡檢之後等待時間如何變化。",
+     "budgets": "守護者的巡檢可花費和可使用的額度上限。"
+    },
+    "actions": {
+     "pause": "停止喚醒此守護者。正在執行的巡檢會完成，恢復之前不會開始新的巡檢。",
+     "resume": "重新開始喚醒此守護者。它會立即喚醒，間隔重設為最小值。",
+     "wake": "立即開始一次巡檢，而不是等待排程。如果有巡檢正在執行，新的會在它之後開始。",
+     "runs": "開啟依此守護者的巡檢篩選後的執行頁面。"
+    },
+    "ticking": "此守護者有一次巡檢正在執行。"
+   }
+  },
+  "keeperRevision": {
+   "done": "關閉此對話方塊。修訂版已依上面列出的調整後的值儲存。",
+   "draft": "將此修訂版儲存為草稿而不啟用。之後可在修訂版清單中發布。",
+   "publish": "儲存此修訂版並立即設為目前版本。退避會重設，守護者隨即被喚醒。"
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "把這次執行作為自己的一次巡檢啟動的守護者。",
+    "openKeeper": "開啟該守護者，查看其巡檢和修訂版。"
+   },
+   "home": {
+    "autonomy": {
+     "title": "此租用戶中的守護者，以及上次巡檢需要人員處理的守護者。",
+     "open": "開啟守護者頁面，建立、暫停、喚醒或編輯守護者。",
+     "active": "依排程喚醒的守護者。",
+     "paused": "在有人恢復之前不會喚醒的守護者。",
+     "ticking": "此刻有巡檢正在執行的守護者。",
+     "nextWake": "啟用中的守護者裡最早的排程喚醒時間。",
+     "attention": "上次巡檢需要關注、已上報、失敗或未回報的守護者，以及因預算或凍結而停止的守護者。",
+     "openKeeper": "開啟此守護者的頁面，查看它的巡檢。"
+    }
+   },
+   "keeperDetail": {
+    "openRun": "開啟這次執行的詳細資料頁：其記錄、工具呼叫和結果。",
+    "live": "巡檢開始和結束時，更新會透過即時連線送達。",
+    "polling": "即時連線無法使用，因此頁面每隔幾秒重新讀取一次守護者。",
+    "viewJson": "以 JSON 顯示守護者記錄及其目前修訂版。",
+    "newRevision": "以目前版本為起點，撰寫目標、排程或預算的新修訂版。",
+    "delete": "刪除此守護者及其修訂版和巡檢歷程。它過去的執行會保留。",
+    "forceDelete": "刪除守護者，並取消進行中巡檢的執行。",
+    "openAgent": "開啟此守護者所執行的代理程式。",
+    "quietStreak": "連續有多少次巡檢發現無事可做。在退避模式下，每一次都會拉長等待時間。",
+    "activeRun": "進行中巡檢的執行（如果有）。",
+    "revisionTitle": "守護者每次巡檢所遵循的已發布修訂版。",
+    "ticks": "此守護者的每一次喚醒，最新的在前：是什麼喚醒了它、它發現了什麼，以及它設定的等待時間。",
+    "outcomeFilter": "只顯示具有此結果的巡檢。",
+    "outcomeCounts": "此頁面上各個結果的巡檢數量。",
+    "chart": "此頁面上每次巡檢之後的等待時間，最早的在左側。在退避模式下它會在平靜的巡檢之後增長，有事發生時重設。",
+    "columns": {
+     "started": "巡檢開始的時間。將游標停留其上可查看確切時間。",
+     "source": "這次巡檢是由什麼喚醒守護者的。",
+     "outcome": "這次巡檢的回報：平靜、已處理、需要關注、已上報或失敗。",
+     "run": "執行這次巡檢的執行。",
+     "interval": "到下次喚醒的等待時間，取這次巡檢結束時設定的值。",
+     "cost": "這次巡檢的執行花費，依據模型價目表計算。",
+     "summary": "守護者說明的發現或所做的事，或導致巡檢停止的錯誤。",
+     "number": "修訂版編號。目前版本會被標出。",
+     "state": "草稿修訂版已儲存但未使用；已發布的曾經或正在使用。",
+     "revisionSource": "修訂版由誰撰寫：人員、代理程式架構師或監督它的代理程式。",
+     "author": "儲存此修訂版的使用者或認證。",
+     "changeNote": "此修訂版為何變更守護者。",
+     "created": "修訂版的儲存時間。"
+    },
+    "requested": "守護者要求了這個等待時間，伺服器會把它限制在最小和最大間隔之內。",
+    "revisions": "此守護者的所有修訂版，最新的在前。可與前一個版本比較，或發布草稿。",
+    "current": "守護者目前遵循的修訂版。",
+    "diff": "顯示此修訂版相對於前一個修訂版變更了什麼。"
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "守護者",
+   "p1": "守護者是承擔長期職責的代理程式。它依排程喚醒，查看事情的進展，在自己可以處理的範圍內採取行動，並在每次結束時回報一個簡短的結果。每次喚醒稱為一次巡檢，每次巡檢就是守護者所在部署的一次執行。",
+   "p2": "在退避模式下，平靜的巡檢會讓下次喚醒往後延，最多延到最大間隔，其他任何結果都會讓它回到最小間隔。同一時間只會執行一次巡檢：在巡檢期間到來的喚醒要等它結束。",
+   "p3": "對目標、排程或預算的變更都以修訂版的形式進行。發布修訂版會使其立即成為目前版本並喚醒守護者，每個修訂版都保留在歷程中，可供比較。"
+  }
+ }
+});

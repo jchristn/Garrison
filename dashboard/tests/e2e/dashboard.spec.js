@@ -56,8 +56,9 @@ test('sidebar shows the consolidated hubs', async ({ page }) => {
   const items = page.locator('.sidebar-item');
   await expect(items).toHaveCount(HUBS.filter((hub) => !hub.hidden).length);
   // Ten consolidated hubs plus the Approvals inbox (P12.3), which needs its own item for the pending badge. Pipelines
-  // (P12.9) add tabs to Agents, Runs, and Approvals, not sidebar items (D-048).
-  expect(HUBS.filter((hub) => !hub.hidden).length).toBeLessThanOrEqual(13);
+  // (P12.9) add tabs to Agents, Runs, and Approvals, not sidebar items (D-048). Autonomy (AA1.16) is one more item;
+  // later autonomy pages join it as tabs.
+  expect(HUBS.filter((hub) => !hub.hidden).length).toBeLessThanOrEqual(14);
   await expect(page.locator('.sidebar-group-label')).toHaveText(['Operate', 'Platform', 'Administration']);
 });
 

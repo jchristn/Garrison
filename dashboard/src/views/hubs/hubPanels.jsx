@@ -48,6 +48,8 @@ import PipelineRunDetailView from '../PipelineRunDetailView';
 import PipelineReviewsView from '../PipelineReviewsView';
 import TriggersView from '../TriggersView';
 import NotificationsView from '../NotificationsView';
+import KeepersView from '../KeepersView';
+import KeeperDetailView from '../KeeperDetailView';
 
 /**
  * View components keyed by page id (see config/navConfig.js). Labels, ordering, hub membership,
@@ -71,6 +73,7 @@ export const PAGE_VIEWS = {
   deployments: DeploymentsView,
   pipelines: PipelinesView,
   triggers: TriggersView,
+  keepers: KeepersView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,
@@ -104,6 +107,7 @@ export const DETAIL_VIEWS = {
   conversations: ConversationDetailView,
   pipelineRuns: PipelineRunDetailView,
   approvals: ApprovalDetailView,
+  keepers: KeeperDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView,
   studio: StudioDraftView,

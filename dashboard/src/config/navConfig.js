@@ -52,6 +52,14 @@ export const NAV_SECTIONS = [
           { id: 'pipelineReviews', slug: 'pipeline-reviews' }
         ]
       },
+      // AA1.16: autonomous agents. Keepers are mandates an agent keeps on a wake schedule; /dashboard/keepers/<id> is
+      // one keeper's ticks and revisions. Later phases add escalations and the other autonomy pages here.
+      {
+        key: 'autonomy',
+        slug: 'autonomy',
+        icon: 'AutonomyIcon',
+        tabs: [{ id: 'keepers', slug: 'keepers', detail: true }]
+      },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
       {
         key: 'agents',

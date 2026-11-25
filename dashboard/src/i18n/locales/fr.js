@@ -5138,3 +5138,473 @@ fr.tips.nav.tabs.secrets = "Clés d’API et jetons chiffrés. Les déploiements
 fr.tips.resources.secrets.add = "Enregistrer un nouvel identifiant, comme une clé d’API ou un jeton, chiffré au repos. Les déploiements le référencent par alias ; après l’enregistrement, seules les personnes disposant d’Admin sur Secret peuvent l’afficher.";
 fr.tips.resources.secrets.value = "La valeur du secret. Elle est chiffrée à l’enregistrement. Les personnes disposant d’Admin sur Secret peuvent l’afficher, et chaque affichage est audité.";
 fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d’API ou un jeton. Après l’enregistrement, vous pouvez la remplacer ou la faire tourner. Sa relecture est réservée aux personnes disposant d’Admin sur Secret (les rôles SecretManager et TenantAdmin), et chaque affichage est consigné dans le journal d’audit.";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "Autonomie",
+    "tip": "Des agents qui continuent à travailler seuls : les gardiens se réveillent selon un calendrier et veillent sur une mission permanente."
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "Gardiens",
+    "tip": "Des agents qui se réveillent selon un calendrier pour veiller sur une mission permanente"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "Cycle de gardien"
+  },
+  "resourceType": {
+   "Mandate": "Gardien (mandat)"
+  },
+  "mandateStatus": {
+   "Draft": "Brouillon",
+   "Active": "Active",
+   "Paused": "En pause",
+   "Frozen": "Gelé",
+   "CapReached": "Budget atteint",
+   "Retired": "Retiré"
+  },
+  "mandateRevisionState": {
+   "Draft": "Brouillon",
+   "Published": "Publiée"
+  },
+  "mandateRevisionSource": {
+   "Human": "Personne",
+   "Board": "Comité",
+   "Executive": "Direction",
+   "Architect": "Architecte d'agents"
+  },
+  "wakeMode": {
+   "Fixed": "Intervalle fixe",
+   "Backoff": "Espacer si calme"
+  },
+  "wakeSource": {
+   "Timer": "Calendrier",
+   "Manual": "Réveillé à la main",
+   "Message": "Message",
+   "EscalationAnswer": "Escalade traitée",
+   "Webhook": "Webhook",
+   "Report": "Rapport"
+  },
+  "tickOutcome": {
+   "Quiet": "Calme",
+   "Acted": "Intervenu",
+   "Attention": "Demande attention",
+   "Escalated": "Escaladé",
+   "Failed": "Échoué",
+   "Skipped": "Ignoré",
+   "Unreported": "Non rapporté"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "Un cycle de ce gardien est en cours. Attendez qu'il se termine, mettez le gardien en pause ou supprimez-le quand même, ce qui annule l'exécution du cycle.",
+  "MandateNotActive": "Seul un gardien actif peut être réveillé ou mis en pause.",
+  "MandateNotPaused": "Seul un gardien en pause peut être repris.",
+  "RemoteAgentUnsupported": "Les gardiens s'exécutent sur des déploiements hébergés, donc un agent distant ne peut pas être un gardien.",
+  "DeploymentInactive": "Ce déploiement est inactif. Choisissez un déploiement actif.",
+  "DeploymentAgentMismatch": "Ce déploiement appartient à un autre agent. Choisissez l'un des déploiements de cet agent.",
+  "RevisionMismatch": "Cette révision appartient à un autre gardien."
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "Gardien"
+   }
+  },
+  "keepers": {
+   "title": "Gardiens",
+   "subtitle": "Des agents qui se réveillent selon un calendrier pour veiller sur une mission permanente et rapportent à chaque fois ce qu'ils ont trouvé.",
+   "add": "Ajouter un gardien",
+   "create": "Créer un gardien",
+   "edit": "Modifier le gardien",
+   "view": "Détails du gardien",
+   "deleteTitle": "Supprimer le gardien",
+   "emptyTitle": "Aucun gardien pour l'instant",
+   "emptyBody": "Créez un gardien pour qu'un agent vérifie régulièrement quelque chose, comme une file d'attente, un tableau de bord ou une boîte de réception, et agisse ou demande de l'aide au besoin.",
+   "columns": {
+    "name": "Nom",
+    "status": "Statut",
+    "agent": "Agent",
+    "deployment": "Déploiement",
+    "nextWakeUtc": "Prochain réveil",
+    "currentIntervalSeconds": "Intervalle",
+    "lastTick": "Dernier cycle",
+    "tickCount": "Cycles",
+    "currentRevisionNumber": "Révision",
+    "runAs": "S'exécute en tant que",
+    "description": "Description",
+    "id": "ID",
+    "createdUtc": "Créé"
+   },
+   "fields": {
+    "name": "Nom",
+    "description": "Description",
+    "agentId": "Agent",
+    "deploymentId": "Déploiement",
+    "objective": "Objectif",
+    "healthyDefinition": "À quoi ressemble un bon état",
+    "autonomy": "Ce qu'il peut faire seul",
+    "escalationPolicy": "Quand demander de l'aide",
+    "direction": "Orientation actuelle",
+    "signals": "Signaux à surveiller",
+    "signalsItems": {
+     "name": "Signal",
+     "description": "Ce que cela signifie"
+    },
+    "wakeMode": "Mode de réveil",
+    "minIntervalSeconds": "Intervalle minimal (secondes)",
+    "maxIntervalSeconds": "Intervalle maximal (secondes)",
+    "backoffFactor": "Facteur d'espacement",
+    "jitterPercent": "Jitter (pourcentage)",
+    "budgetPerTickUsd": "Budget par cycle (USD)",
+    "budgetPerDayUsd": "Budget par jour (USD)",
+    "maxTokensPerTick": "Maximum de jetons par cycle",
+    "changeNote": "Note de modification"
+   },
+   "hints": {
+    "name": "Lettres minuscules, chiffres et traits d'union.",
+    "agentId": "Un agent hébergé. L'agent ne peut plus être changé après la création du gardien.",
+    "deploymentId": "Le déploiement actif sur lequel s'exécute chaque cycle.",
+    "objective": "La mission permanente, en termes simples. Le gardien la lit à chaque cycle.",
+    "minIntervalSeconds": "De {{min}} à {{max}} secondes. Le paramètre de cluster Autonomy.MinIntervalSeconds peut l'augmenter.",
+    "maxIntervalSeconds": "De {{min}} à {{max}} secondes. L'espacement cesse de croître ici.",
+    "backoffFactor": "De {{min}} à {{max}}. Après chaque cycle calme, l'intervalle est multiplié par cette valeur.",
+    "jitterPercent": "De {{min}} à {{max}}. Vide, la valeur par défaut du cluster s'applique.",
+    "budgetPerTickUsd": "Vide signifie aucune limite.",
+    "budgetPerDayUsd": "Vide signifie aucune limite.",
+    "maxTokensPerTick": "Jetons d'entrée plus jetons de sortie. Vide signifie aucune limite.",
+    "changeNote": "Pourquoi cette révision modifie le gardien. Affiché dans la liste des révisions."
+   },
+   "sections": {
+    "mandate": "Mandat",
+    "schedule": "Calendrier de réveil",
+    "budgets": "Plafonds de coût"
+   },
+   "sectionHints": {
+    "mandate": "L'enregistrement publie ces champs comme révision 1 et démarre le calendrier de réveil. Les modifications ultérieures passent par Nouvelle révision sur la page du gardien.",
+    "budgets": "Enregistrés dès maintenant et appliqués dans une version ultérieure."
+   },
+   "errors": {
+    "name": "Utilisez de 1 à 64 lettres minuscules, chiffres et traits d'union, en commençant et en finissant par une lettre ou un chiffre.",
+    "nameTaken": "Un autre gardien utilise déjà ce nom.",
+    "text": "Limité à {{max}} caractères.",
+    "agentRequired": "Choisissez l'agent qui assure ce mandat.",
+    "deploymentRequired": "Choisissez le déploiement sur lequel s'exécutent ses cycles.",
+    "objective": "Décrivez la mission permanente.",
+    "signalsMax": "Une révision compte au plus {{max}} signaux.",
+    "signalName": "Les noms de signaux comptent de 1 à {{max}} caractères.",
+    "signalUnique": "Chaque signal doit avoir un nom différent.",
+    "signalsInvalid": "Corrigez les signaux signalés ci-dessous.",
+    "interval": "Saisissez un nombre entier de secondes de {{min}} à {{max}}.",
+    "maxBelowMin": "L'intervalle maximal ne peut pas être plus court que l'intervalle minimal.",
+    "backoffFactor": "Saisissez un nombre de {{min}} à {{max}}.",
+    "jitterPercent": "Saisissez un nombre entier de {{min}} à {{max}}.",
+    "budget": "Saisissez un montant de {{min}} à {{max}}.",
+    "maxTokens": "Saisissez un nombre entier de {{min}} à {{max}}."
+   },
+   "actions": {
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "wake": "Réveiller maintenant",
+    "runs": "Voir les exécutions"
+   },
+   "toasts": {
+    "pause": "{{name}} mis en pause.",
+    "resume": "{{name}} repris. Il se réveille maintenant.",
+    "wake": "{{name}} se réveille maintenant."
+   },
+   "units": {
+    "seconds_one": "{{count}} seconde",
+    "seconds_other": "{{count}} secondes",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} heure",
+    "hours_other": "{{count}} heures",
+    "days_one": "{{count}} jour",
+    "days_other": "{{count}} jours"
+   },
+   "ticking": "Cycle en cours",
+   "neverTicked": "Pas encore réveillé",
+   "addSignal": "Ajouter un signal",
+   "signalNamePlaceholder": "taille de la file",
+   "editNotice": "S'exécute en tant que {{name}}. L'enregistrement fait de vous le principal sous lequel s'exécutent ses cycles. Pour changer l'objectif ou le calendrier, ouvrez le gardien et utilisez Nouvelle révision."
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "Nouvelle révision de {{name}}",
+   "intro": "Ce sera la révision {{number}}. La publier la rend courante immédiatement : l'espacement est réinitialisé et le gardien se réveille maintenant.",
+   "draft": "Enregistrer comme brouillon",
+   "publish": "Publier",
+   "drafted": "Révision {{number}} enregistrée comme brouillon.",
+   "published": "Révision {{number}} publiée."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "Gardien"
+  },
+  "home": {
+   "autonomy": {
+    "title": "Autonomie",
+    "open": "Ouvrir les gardiens",
+    "empty": "Aucun gardien pour l'instant. Un gardien se réveille selon un calendrier pour veiller sur une mission permanente.",
+    "active": "actifs",
+    "paused": "en pause",
+    "ticking": "en cycle maintenant",
+    "nextWake": "Prochain réveil :",
+    "allQuiet": "Aucun gardien ne demande d'attention.",
+    "attention_one": "{{count}} gardien demande de l'attention",
+    "attention_other": "{{count}} gardiens demandent de l'attention"
+   }
+  },
+  "keeperDetail": {
+   "title": "Gardien",
+   "heading": "Gardien {{name}}",
+   "notFoundTitle": "Gardien introuvable",
+   "notFoundBody": "Il a peut-être été supprimé, ou il appartient à un autre locataire.",
+   "live": "En direct",
+   "polling": "Actualisation",
+   "newRevision": "Nouvelle révision",
+   "noWake": "Non planifié",
+   "quietStreak": "Cycles calmes d'affilée",
+   "activeRun": "Cycle en cours",
+   "revisionTitle": "Révision courante",
+   "revisionHeading": "Révision courante ({{number}})",
+   "noRevision": "Aucune révision n'est encore publiée. Utilisez Nouvelle révision pour en rédiger une et la publier.",
+   "clusterDefault": "Valeur par défaut du cluster",
+   "noLimit": "Aucune limite",
+   "ticks": "Cycles",
+   "outcomeFilter": "Résultat",
+   "allOutcomes": "Tous les résultats",
+   "noTicksTitle": "Aucun cycle pour l'instant",
+   "noTicksActive": "Le premier cycle démarre au prochain réveil. Utilisez Réveiller maintenant pour en lancer un tout de suite.",
+   "noTicksBody": "Les cycles apparaissent ici dès que le gardien est actif et se réveille.",
+   "chartTitle": "Intervalle après chaque cycle",
+   "chartHelp": "Minutes jusqu'au prochain réveil, telles que fixées à la fin de chaque cycle. Les cycles calmes l'allongent en mode Backoff.",
+   "chartSeries": "Intervalle (minutes)",
+   "columns": {
+    "started": "Début",
+    "source": "Réveillé par",
+    "outcome": "Résultat",
+    "run": "Exécution",
+    "interval": "Intervalle suivant",
+    "cost": "Coût",
+    "summary": "Résumé",
+    "number": "Numéro",
+    "state": "État",
+    "revisionSource": "Source",
+    "author": "Auteur",
+    "changeNote": "Note de modification",
+    "created": "Créée"
+   },
+   "requested": "a demandé {{interval}}",
+   "revisions": "Révisions",
+   "noRevisions": "Aucune révision pour l'instant.",
+   "current": "Courante",
+   "diff": "Comparer",
+   "diffTitle": "Révision {{number}} comparée à la précédente",
+   "diffFirst": "Il s'agit de la première révision, donc tout ce qu'elle contient est nouveau.",
+   "revisionLabel": "Révision {{number}}",
+   "nothing": "Rien",
+   "confirmDelete": "Supprimer le gardien {{name}} avec ses révisions et son historique de cycles ? Ses exécutions passées sont conservées.",
+   "confirmForceDelete": "Un cycle de {{name}} est en cours. Supprimer quand même le gardien et annuler l'exécution de ce cycle ?",
+   "forceDelete": "Supprimer et annuler le cycle",
+   "changeNote": "Note de modification : {{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Des agents qui travaillent seuls entre les demandes. Les gardiens se réveillent selon un calendrier, vérifient une mission permanente et agissent ou demandent de l'aide."
+   },
+   "tabs": {
+    "keepers": "Gardiens : des agents qui se réveillent selon un calendrier pour veiller sur une mission permanente, avec leurs cycles et leurs révisions."
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "Lancée par le réveil d'un gardien. L'exécution est un cycle de ce gardien et renvoie vers lui."
+   },
+   "resourceType": {
+    "Mandate": "Gardiens (mandats) : les missions permanentes dont les agents s'occupent selon un calendrier de réveil, avec leurs révisions et leurs cycles."
+   },
+   "mandateStatus": {
+    "Draft": "Créé sans révision publiée, il ne se réveille donc pas encore. Publiez une révision pour le démarrer.",
+    "Active": "Se réveille selon son calendrier. Chaque réveil lance un cycle, une exécution de son déploiement.",
+    "Paused": "Ne se réveille pas tant que personne ne le reprend. La reprise le réveille aussitôt avec l'intervalle réinitialisé.",
+    "Frozen": "Arrêté par un administrateur ou une politique. Il ne se réveille pas tant qu'il n'est pas dégelé.",
+    "CapReached": "Son budget quotidien est épuisé. Il se réveille de nouveau au début du prochain jour UTC.",
+    "Retired": "N'est plus utilisé. Il conserve son historique et ne se réveille jamais."
+   },
+   "mandateRevisionState": {
+    "Draft": "Enregistrée mais non utilisée. Publiez-la pour en faire la révision courante du gardien.",
+    "Published": "A été ou est utilisée. Les révisions publiées ne changent jamais ; rédigez plutôt une nouvelle révision."
+   },
+   "mandateRevisionSource": {
+    "Human": "Rédigée par une personne dans le tableau de bord, l'API ou un manifeste.",
+    "Board": "Définie par un comité d'agents qui supervise ce gardien.",
+    "Executive": "Définie par un agent de direction qui pilote ce gardien.",
+    "Architect": "Rédigée par l'architecte d'agents à partir d'un brouillon du studio."
+   },
+   "wakeMode": {
+    "Fixed": "Se réveille à chaque intervalle minimal, quoi qu'ait trouvé le dernier cycle.",
+    "Backoff": "Attend plus longtemps après chaque cycle calme, jusqu'à l'intervalle maximal, et revient au minimum dès qu'il se passe quelque chose."
+   },
+   "wakeSource": {
+    "Timer": "Le calendrier de réveil est arrivé à échéance, le gardien s'est donc réveillé de lui-même.",
+    "Manual": "Quelqu'un a utilisé Réveiller maintenant ou a repris le gardien.",
+    "Message": "Un message est arrivé pour le gardien.",
+    "EscalationAnswer": "Quelqu'un a répondu à une question escaladée par le gardien.",
+    "Webhook": "Un autre système a appelé le webhook du gardien.",
+    "Report": "Le rapport d'un autre agent a demandé à ce gardien d'y jeter un œil."
+   },
+   "tickOutcome": {
+    "Quiet": "Tout allait bien et rien n'était à faire. En mode Backoff, le prochain réveil arrive plus tard.",
+    "Acted": "Le gardien a modifié quelque chose pour maintenir la mission en bon état.",
+    "Attention": "Le gardien a trouvé quelque chose qu'une personne devrait examiner.",
+    "Escalated": "Le gardien a demandé une décision à une personne ou à un autre agent.",
+    "Failed": "L'exécution du cycle a échoué, a expiré ou a été annulée.",
+    "Skipped": "Un réveil est arrivé alors que le cycle précédent tournait encore, il a donc été ignoré et le suivant attend la fin de celui-ci.",
+    "Unreported": "L'exécution s'est terminée sans rapporter de résultat, le gardien a donc peut-être besoin d'un objectif plus clair."
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "Le gardien qui a lancé cette exécution comme l'un de ses cycles, le cas échéant. Cliquez pour ouvrir le gardien.",
+    "openKeeper": "Ouvrir le gardien dont cette exécution est un cycle."
+   },
+   "keepers": {
+    "add": "Créer un gardien : choisissez un agent hébergé et un déploiement, décrivez la mission permanente et définissez la fréquence de réveil.",
+    "name": "Un nom unique dans ce locataire, utilisé dans les URL, les manifestes et l'API.",
+    "status": "Indique si le gardien se réveille selon son calendrier (Actif) ou s'il est en attente, en pause, gelé ou retiré.",
+    "agent": "L'agent hébergé qui assure ce mandat. Chaque cycle exécute cet agent.",
+    "deployment": "Le déploiement sur lequel s'exécute chaque cycle, qui détermine le harnais, le modèle et les outils.",
+    "nextWakeUtc": "Quand démarre le prochain cycle. Survolez pour voir l'heure exacte.",
+    "currentIntervalSeconds": "L'attente après le dernier cycle. En mode Backoff, elle augmente après les cycles calmes.",
+    "lastTick": "Quand le gardien s'est réveillé pour la dernière fois et ce qu'a rapporté ce cycle.",
+    "tickCount": "Le nombre total de cycles exécutés par le gardien.",
+    "currentRevisionNumber": "La révision publiée que le gardien suit actuellement.",
+    "runAs": "L'utilisateur ou l'identifiant dont les permissions s'appliquent à chaque cycle : la dernière personne à avoir enregistré le gardien.",
+    "description": "Notes pour les personnes. Le gardien ne la lit pas ; il lit l'objectif.",
+    "id": "L'identifiant du gardien, utilisé dans l'API et dans les enregistrements d'exécution.",
+    "createdUtc": "Quand le gardien a été créé.",
+    "agentId": "L'agent hébergé qui assure ce mandat. Les agents distants ne peuvent pas être des gardiens. Fixé après la création.",
+    "deploymentId": "Le déploiement actif de cet agent sur lequel s'exécute chaque cycle.",
+    "objective": "La mission permanente en termes simples, par exemple garder la file du support sous 20 tickets ouverts. Le gardien la lit à chaque cycle.",
+    "healthyDefinition": "À quoi ressemble un bon état, pour que le gardien distingue un cycle calme d'un cycle qui exige d'agir.",
+    "autonomy": "Ce que le gardien peut modifier seul sans demander à personne.",
+    "escalationPolicy": "Quand le gardien doit s'arrêter et demander une décision à une personne ou à un autre agent.",
+    "direction": "Des consignes à court terme qui peuvent changer souvent, comme une priorité pour cette semaine.",
+    "signals": "Des mesures nommées que le gardien doit vérifier à chaque cycle, avec la signification de chacune.",
+    "signalsItems": {
+     "name": "Un nom court pour la mesure, unique au sein de la révision.",
+     "description": "Ce que signifie la mesure et quelles valeurs sont préoccupantes."
+    },
+    "wakeMode": "Fixe se réveille à chaque fois à l'intervalle minimal. Backoff attend plus longtemps après les cycles calmes.",
+    "minIntervalSeconds": "L'attente la plus courte entre deux réveils planifiés, en secondes.",
+    "maxIntervalSeconds": "L'attente la plus longue entre deux réveils planifiés en mode Backoff, en secondes.",
+    "backoffFactor": "De combien l'attente augmente après chaque cycle calme en mode Backoff. 2 la double.",
+    "jitterPercent": "Un délai aléatoire pouvant aller jusqu'à ce pourcentage de l'intervalle, pour que de nombreux gardiens ne se réveillent pas au même instant.",
+    "budgetPerTickUsd": "Le maximum qu'un cycle peut coûter, en dollars américains.",
+    "budgetPerDayUsd": "Le maximum que les cycles de ce gardien peuvent coûter par jour UTC, en dollars américains.",
+    "maxTokensPerTick": "Le maximum de jetons d'entrée et de sortie qu'un cycle peut utiliser.",
+    "changeNote": "Une courte note expliquant pourquoi cette révision modifie le gardien, conservée avec la révision.",
+    "sections": {
+     "mandate": "Ce dont le gardien s'occupe et ce qu'il peut faire seul.",
+     "schedule": "À quelle fréquence le gardien se réveille et comment l'attente évolue après les cycles calmes.",
+     "budgets": "Les limites de ce que les cycles du gardien peuvent coûter et consommer."
+    },
+    "actions": {
+     "pause": "Cesser de réveiller ce gardien. Un cycle en cours se termine ; aucun nouveau ne démarre avant la reprise.",
+     "resume": "Recommencer à réveiller ce gardien. Il se réveille aussitôt, son intervalle étant ramené au minimum.",
+     "wake": "Lancer un cycle maintenant au lieu d'attendre le calendrier. Si un cycle est en cours, le nouveau démarre après lui.",
+     "runs": "Ouvrir la page Exécutions filtrée sur les cycles de ce gardien."
+    },
+    "ticking": "Un cycle de ce gardien est en cours."
+   }
+  },
+  "keeperRevision": {
+   "done": "Fermer cette boîte de dialogue. La révision a été enregistrée avec les valeurs ajustées listées ci-dessus.",
+   "draft": "Enregistrer cette révision comme brouillon sans l'utiliser. Publiez-la plus tard depuis la liste des révisions.",
+   "publish": "Enregistrer cette révision et la rendre courante maintenant. L'espacement est réinitialisé et le gardien se réveille aussitôt."
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "Le gardien qui a lancé cette exécution comme l'un de ses cycles.",
+    "openKeeper": "Ouvrir le gardien, avec ses cycles et ses révisions."
+   },
+   "home": {
+    "autonomy": {
+     "title": "Les gardiens de ce locataire et ceux dont le dernier cycle demande une personne.",
+     "open": "Ouvrir la page Gardiens pour créer, mettre en pause, réveiller ou modifier des gardiens.",
+     "active": "Gardiens qui se réveillent selon leur calendrier.",
+     "paused": "Gardiens qui ne se réveillent pas tant que personne ne les reprend.",
+     "ticking": "Gardiens dont un cycle est en cours en ce moment.",
+     "nextWake": "Le réveil planifié le plus proche parmi les gardiens actifs.",
+     "attention": "Gardiens dont le dernier cycle demande de l'attention, a escaladé, a échoué ou n'a pas rapporté, et gardiens arrêtés par un budget ou un gel.",
+     "openKeeper": "Ouvrir la page de ce gardien pour voir ses cycles."
+    }
+   },
+   "keeperDetail": {
+    "openRun": "Ouvrir la page de détail de cette exécution : sa transcription, ses appels d'outils et son résultat.",
+    "live": "Les mises à jour arrivent au démarrage et à la fin des cycles, via la connexion en direct.",
+    "polling": "La connexion en direct est indisponible, la page relit donc le gardien toutes les quelques secondes.",
+    "viewJson": "Afficher l'enregistrement du gardien avec sa révision courante au format JSON.",
+    "newRevision": "Rédiger une nouvelle révision de l'objectif, du calendrier ou des budgets, à partir de la révision courante.",
+    "delete": "Supprimer ce gardien avec ses révisions et son historique de cycles. Ses exécutions passées sont conservées.",
+    "forceDelete": "Supprimer le gardien et annuler l'exécution du cycle en cours.",
+    "openAgent": "Ouvrir l'agent que ce gardien exécute.",
+    "quietStreak": "Combien de cycles d'affilée n'ont rien trouvé à faire. En mode Backoff, chacun allonge l'attente.",
+    "activeRun": "L'exécution du cycle en cours, s'il y en a un.",
+    "revisionTitle": "La révision publiée que le gardien suit à chaque cycle.",
+    "ticks": "Chaque réveil de ce gardien, du plus récent au plus ancien : ce qui l'a réveillé, ce qu'il a trouvé et l'attente qu'il a fixée.",
+    "outcomeFilter": "Afficher uniquement les cycles ayant ce résultat.",
+    "outcomeCounts": "Combien de cycles de cette page ont eu chaque résultat.",
+    "chart": "L'attente après chaque cycle de cette page, le plus ancien à gauche. Elle augmente après les cycles calmes en mode Backoff et se réinitialise quand il se passe quelque chose.",
+    "columns": {
+     "started": "Quand le cycle a démarré. Survolez pour voir l'heure exacte.",
+     "source": "Ce qui a réveillé le gardien pour ce cycle.",
+     "outcome": "Ce que le cycle a rapporté : calme, intervenu, demande attention, escaladé ou échoué.",
+     "run": "L'exécution qui a réalisé le cycle.",
+     "interval": "L'attente jusqu'au prochain réveil, telle que fixée à la fin de ce cycle.",
+     "cost": "Ce qu'a coûté l'exécution du cycle, d'après la grille tarifaire du modèle.",
+     "summary": "Ce que le gardien a dit avoir trouvé ou fait, ou l'erreur qui a arrêté le cycle.",
+     "number": "Le numéro de révision. La révision courante est marquée.",
+     "state": "Les révisions en brouillon sont enregistrées mais non utilisées ; les publiées ont été ou sont utilisées.",
+     "revisionSource": "Qui a rédigé la révision : une personne, l'architecte d'agents ou un agent de supervision.",
+     "author": "L'utilisateur ou l'identifiant qui a enregistré la révision.",
+     "changeNote": "Pourquoi la révision a modifié le gardien.",
+     "created": "Quand la révision a été enregistrée."
+    },
+    "requested": "Le gardien a demandé cette attente ; le serveur la maintient entre l'intervalle minimal et l'intervalle maximal.",
+    "revisions": "Toutes les révisions de ce gardien, de la plus récente à la plus ancienne. Comparez-en une avec la précédente ou publiez un brouillon.",
+    "current": "La révision que le gardien suit actuellement.",
+    "diff": "Afficher ce que cette révision a modifié par rapport à la précédente."
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "Gardiens",
+   "p1": "Un gardien est un agent qui a une mission permanente, son mandat. Il se réveille selon un calendrier, vérifie où en sont les choses, agit dans les limites de ce qu'il peut faire seul et rapporte un bref résultat à chaque fois. Chaque réveil est un cycle, et chaque cycle est une exécution du déploiement du gardien.",
+   "p2": "En mode Backoff, un cycle calme repousse le prochain réveil, jusqu'à l'intervalle maximal, et tout autre résultat le ramène au minimum. Un seul cycle s'exécute à la fois : un réveil qui arrive pendant un cycle attend la fin de celui-ci.",
+   "p3": "Les changements d'objectif, de calendrier ou de budgets sont des révisions. Publier une révision la rend courante immédiatement et réveille le gardien, et chaque révision reste dans l'historique pour être comparée."
+  }
+ }
+});

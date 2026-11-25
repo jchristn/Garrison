@@ -156,7 +156,7 @@ export const runsConfig = {
   id: 'runs',
   explainer: 'runs',
   autoRefresh: 5,
-  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId', 'triggerId'],
+  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId'],
   api: {
     list: (c, tenant, p) => c.listRuns(tenant, p),
     create: null,
@@ -238,6 +238,24 @@ export const runsConfig = {
         '-'
       ),
     { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.triggerId || '' }),
+    // AA1.16: a keeper tick's run opens that keeper's page.
+    col('runs', t, 'mandateId', (r) =>
+      r.mandateId ? (
+        <a
+          href={pathFor('keepers', r.mandateId)}
+          {...tip(t('tips.resources.runs.openKeeper'))}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(pathFor('keepers', r.mandateId));
+          }}
+        >
+          <code>{r.mandateId}</code>
+        </a>
+      ) : (
+        '-'
+      ),
+    { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.mandateId || '' }),
     col('runs', t, 'kind', (r) => <span {...tip(enumTip(t, 'runKind', r.kind))}>{enumLabel(t, 'runKind', r.kind || 'Invoke')}</span>, { defaultHidden: true, csv: (r) => r.kind || '' }),
     col('runs', t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true })
   ],

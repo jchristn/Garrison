@@ -5112,3 +5112,473 @@ en.tips.resources.secrets.actions.reveal = "Show the stored value in plain text.
 en.tips.resources.secrets.revealNoValue = "This secret has no stored value yet. Use Set value first.";
 en.enums.auditEventType.SecretRevealed = "Secret revealed";
 en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read a secret's decrypted value.";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "Autonomy",
+    "tip": "Agents that keep working on their own: keepers wake on a schedule and look after a standing job."
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "Keepers",
+    "tip": "Agents that wake on a schedule to look after a standing job"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "Keeper tick"
+  },
+  "resourceType": {
+   "Mandate": "Keeper (mandate)"
+  },
+  "mandateStatus": {
+   "Draft": "Draft",
+   "Active": "Active",
+   "Paused": "Paused",
+   "Frozen": "Frozen",
+   "CapReached": "Budget reached",
+   "Retired": "Retired"
+  },
+  "mandateRevisionState": {
+   "Draft": "Draft",
+   "Published": "Published"
+  },
+  "mandateRevisionSource": {
+   "Human": "Person",
+   "Board": "Board",
+   "Executive": "Executive",
+   "Architect": "Agent architect"
+  },
+  "wakeMode": {
+   "Fixed": "Fixed interval",
+   "Backoff": "Back off when quiet"
+  },
+  "wakeSource": {
+   "Timer": "Schedule",
+   "Manual": "Woken by hand",
+   "Message": "Message",
+   "EscalationAnswer": "Escalation answered",
+   "Webhook": "Webhook",
+   "Report": "Report"
+  },
+  "tickOutcome": {
+   "Quiet": "Quiet",
+   "Acted": "Acted",
+   "Attention": "Needs attention",
+   "Escalated": "Escalated",
+   "Failed": "Failed",
+   "Skipped": "Skipped",
+   "Unreported": "Not reported"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "A tick of this keeper is running. Wait for it to finish, pause the keeper, or delete it anyway, which cancels the tick's run.",
+  "MandateNotActive": "Only an active keeper can be woken or paused.",
+  "MandateNotPaused": "Only a paused keeper can be resumed.",
+  "RemoteAgentUnsupported": "Keepers run on hosted deployments, so a remote agent cannot be a keeper.",
+  "DeploymentInactive": "That deployment is inactive. Choose an active deployment.",
+  "DeploymentAgentMismatch": "That deployment belongs to another agent. Choose one of this agent's deployments.",
+  "RevisionMismatch": "That revision belongs to another keeper."
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "Keeper"
+   }
+  },
+  "keepers": {
+   "title": "Keepers",
+   "subtitle": "Agents that wake on a schedule to look after a standing job, and report what they found each time.",
+   "add": "Add keeper",
+   "create": "Create keeper",
+   "edit": "Edit keeper",
+   "view": "Keeper details",
+   "deleteTitle": "Delete keeper",
+   "emptyTitle": "No keepers yet",
+   "emptyBody": "Create a keeper to have an agent check on something regularly, such as a queue, a dashboard, or an inbox, and act or ask for help when it needs to.",
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "agent": "Agent",
+    "deployment": "Deployment",
+    "nextWakeUtc": "Next wake",
+    "currentIntervalSeconds": "Interval",
+    "lastTick": "Last tick",
+    "tickCount": "Ticks",
+    "currentRevisionNumber": "Revision",
+    "runAs": "Runs as",
+    "description": "Description",
+    "id": "ID",
+    "createdUtc": "Created"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Description",
+    "agentId": "Agent",
+    "deploymentId": "Deployment",
+    "objective": "Objective",
+    "healthyDefinition": "What healthy looks like",
+    "autonomy": "What it may do on its own",
+    "escalationPolicy": "When to ask for help",
+    "direction": "Current direction",
+    "signals": "Signals to watch",
+    "signalsItems": {
+     "name": "Signal",
+     "description": "What it means"
+    },
+    "wakeMode": "Wake mode",
+    "minIntervalSeconds": "Minimum interval (seconds)",
+    "maxIntervalSeconds": "Maximum interval (seconds)",
+    "backoffFactor": "Backoff factor",
+    "jitterPercent": "Jitter (percent)",
+    "budgetPerTickUsd": "Budget per tick (USD)",
+    "budgetPerDayUsd": "Budget per day (USD)",
+    "maxTokensPerTick": "Most tokens per tick",
+    "changeNote": "Change note"
+   },
+   "hints": {
+    "name": "Lowercase letters, digits, and hyphens.",
+    "agentId": "A hosted agent. The agent cannot change after the keeper is created.",
+    "deploymentId": "The active deployment each tick runs on.",
+    "objective": "The standing job, in plain words. The keeper reads it at every tick.",
+    "minIntervalSeconds": "From {{min}} to {{max}} seconds. The cluster setting Autonomy.MinIntervalSeconds may raise it.",
+    "maxIntervalSeconds": "From {{min}} to {{max}} seconds. Backoff stops growing here.",
+    "backoffFactor": "From {{min}} to {{max}}. After each quiet tick the interval is multiplied by this.",
+    "jitterPercent": "From {{min}} to {{max}}. Empty uses the cluster default.",
+    "budgetPerTickUsd": "Empty means no limit.",
+    "budgetPerDayUsd": "Empty means no limit.",
+    "maxTokensPerTick": "Input plus output tokens. Empty means no limit.",
+    "changeNote": "Why this revision changes the keeper. Shown in the revision list."
+   },
+   "sections": {
+    "mandate": "Mandate",
+    "schedule": "Wake schedule",
+    "budgets": "Budgets"
+   },
+   "sectionHints": {
+    "mandate": "Saving publishes these fields as revision 1 and starts the wake schedule. Later changes go through New revision on the keeper's page.",
+    "budgets": "Stored now and enforced in a later release."
+   },
+   "errors": {
+    "name": "Use 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.",
+    "nameTaken": "Another keeper already uses this name.",
+    "text": "Limited to {{max}} characters.",
+    "agentRequired": "Choose the agent that keeps this mandate.",
+    "deploymentRequired": "Choose the deployment its ticks run on.",
+    "objective": "Describe the standing job.",
+    "signalsMax": "A revision has at most {{max}} signals.",
+    "signalName": "Signal names are 1 to {{max}} characters.",
+    "signalUnique": "Each signal needs a different name.",
+    "signalsInvalid": "Fix the signals marked below.",
+    "interval": "Enter whole seconds from {{min}} to {{max}}.",
+    "maxBelowMin": "The maximum interval cannot be shorter than the minimum.",
+    "backoffFactor": "Enter a number from {{min}} to {{max}}.",
+    "jitterPercent": "Enter a whole number from {{min}} to {{max}}.",
+    "budget": "Enter an amount from {{min}} to {{max}}.",
+    "maxTokens": "Enter a whole number from {{min}} to {{max}}."
+   },
+   "actions": {
+    "pause": "Pause",
+    "resume": "Resume",
+    "wake": "Wake now",
+    "runs": "View runs"
+   },
+   "toasts": {
+    "pause": "Paused {{name}}.",
+    "resume": "Resumed {{name}}. It wakes now.",
+    "wake": "{{name}} wakes now."
+   },
+   "units": {
+    "seconds_one": "{{count}} second",
+    "seconds_other": "{{count}} seconds",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days"
+   },
+   "ticking": "Ticking",
+   "neverTicked": "Not woken yet",
+   "addSignal": "Add signal",
+   "signalNamePlaceholder": "queue depth",
+   "editNotice": "Runs as {{name}}. Saving makes you the principal its ticks run as. To change the objective or schedule, open the keeper and use New revision."
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "New revision of {{name}}",
+   "intro": "This becomes revision {{number}}. Publishing it makes it current at once: the backoff resets and the keeper wakes now.",
+   "draft": "Save as draft",
+   "publish": "Publish",
+   "drafted": "Saved revision {{number}} as a draft.",
+   "published": "Published revision {{number}}."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "Keeper"
+  },
+  "home": {
+   "autonomy": {
+    "title": "Autonomy",
+    "open": "Open keepers",
+    "empty": "No keepers yet. A keeper wakes on a schedule to look after a standing job.",
+    "active": "active",
+    "paused": "paused",
+    "ticking": "ticking now",
+    "nextWake": "Next wake:",
+    "allQuiet": "No keeper needs attention.",
+    "attention_one": "{{count}} keeper needs attention",
+    "attention_other": "{{count}} keepers need attention"
+   }
+  },
+  "keeperDetail": {
+   "title": "Keeper",
+   "heading": "Keeper {{name}}",
+   "notFoundTitle": "Keeper not found",
+   "notFoundBody": "It may have been deleted, or it belongs to another tenant.",
+   "live": "Live",
+   "polling": "Refreshing",
+   "newRevision": "New revision",
+   "noWake": "Not scheduled",
+   "quietStreak": "Quiet ticks in a row",
+   "activeRun": "Running tick",
+   "revisionTitle": "Current revision",
+   "revisionHeading": "Current revision ({{number}})",
+   "noRevision": "No revision is published yet. Use New revision to write one and publish it.",
+   "clusterDefault": "Cluster default",
+   "noLimit": "No limit",
+   "ticks": "Ticks",
+   "outcomeFilter": "Outcome",
+   "allOutcomes": "All outcomes",
+   "noTicksTitle": "No ticks yet",
+   "noTicksActive": "The first tick starts at the next wake. Use Wake now to start one at once.",
+   "noTicksBody": "Ticks appear here once the keeper is active and wakes.",
+   "chartTitle": "Interval after each tick",
+   "chartHelp": "Minutes until the next wake, as set when each tick finished. Quiet ticks lengthen it in Backoff mode.",
+   "chartSeries": "Interval (minutes)",
+   "columns": {
+    "started": "Started",
+    "source": "Woken by",
+    "outcome": "Outcome",
+    "run": "Run",
+    "interval": "Next interval",
+    "cost": "Cost",
+    "summary": "Summary",
+    "number": "Number",
+    "state": "State",
+    "revisionSource": "Source",
+    "author": "Author",
+    "changeNote": "Change note",
+    "created": "Created"
+   },
+   "requested": "asked for {{interval}}",
+   "revisions": "Revisions",
+   "noRevisions": "No revisions yet.",
+   "current": "Current",
+   "diff": "Compare",
+   "diffTitle": "Revision {{number}} compared with the one before",
+   "diffFirst": "This is the first revision, so everything in it is new.",
+   "revisionLabel": "Revision {{number}}",
+   "nothing": "Nothing",
+   "confirmDelete": "Delete keeper {{name}} with its revisions and tick history? Its past runs stay.",
+   "confirmForceDelete": "A tick of {{name}} is running. Delete the keeper anyway and cancel that tick's run?",
+   "forceDelete": "Delete and cancel tick",
+   "changeNote": "Change note: {{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agents that work on their own between requests. Keepers wake on a schedule, check on a standing job, and act or ask for help."
+   },
+   "tabs": {
+    "keepers": "Keepers: agents that wake on a schedule to look after a standing job, with their ticks and revisions."
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "Started by a keeper's wake. The run is one tick of that keeper and links back to it."
+   },
+   "resourceType": {
+    "Mandate": "Keepers (mandates): the standing jobs agents look after on a wake schedule, with their revisions and ticks."
+   },
+   "mandateStatus": {
+    "Draft": "Created without a published revision, so it does not wake yet. Publish a revision to start it.",
+    "Active": "Wakes on its schedule. Each wake starts one tick, a run of its deployment.",
+    "Paused": "Does not wake until someone resumes it. Resuming wakes it at once with the interval reset.",
+    "Frozen": "Stopped by an administrator or a policy. It does not wake until it is unfrozen.",
+    "CapReached": "Its daily budget is used up. It wakes again when the next UTC day starts.",
+    "Retired": "No longer in use. It keeps its history and never wakes."
+   },
+   "mandateRevisionState": {
+    "Draft": "Saved but not in use. Publish it to make it the keeper's current revision.",
+    "Published": "Was or is in use. Published revisions never change; write a new revision instead."
+   },
+   "mandateRevisionSource": {
+    "Human": "Written by a person in the dashboard, the API, or a manifest.",
+    "Board": "Set by a board of agents that oversees this keeper.",
+    "Executive": "Set by an executive agent that directs this keeper.",
+    "Architect": "Written by the agent architect from a studio draft."
+   },
+   "wakeMode": {
+    "Fixed": "Wakes every minimum interval, whatever the last tick found.",
+    "Backoff": "Waits longer after each quiet tick, up to the maximum interval, and returns to the minimum once something happens."
+   },
+   "wakeSource": {
+    "Timer": "The wake schedule came due, so the keeper woke on its own.",
+    "Manual": "Someone used Wake now or resumed the keeper.",
+    "Message": "A message arrived for the keeper.",
+    "EscalationAnswer": "Someone answered a question the keeper escalated.",
+    "Webhook": "Another system called the keeper's webhook.",
+    "Report": "Another agent's report asked this keeper to look."
+   },
+   "tickOutcome": {
+    "Quiet": "Everything was healthy and nothing needed doing. In Backoff mode the next wake comes later.",
+    "Acted": "The keeper changed something to keep the job healthy.",
+    "Attention": "The keeper found something a person should look at.",
+    "Escalated": "The keeper asked a person or another agent for a decision.",
+    "Failed": "The tick's run failed, timed out, or was cancelled.",
+    "Skipped": "A wake came while the previous tick was still running, so it was skipped and the next one waits for it.",
+    "Unreported": "The run finished without reporting an outcome, so the keeper may need a clearer objective."
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "The keeper that started this run as one of its ticks, if any. Click it to open the keeper.",
+    "openKeeper": "Open the keeper whose tick this run is."
+   },
+   "keepers": {
+    "add": "Create a keeper: choose a hosted agent and deployment, describe the standing job, and set how often it wakes.",
+    "name": "A unique name in this tenant, used in URLs, manifests, and the API.",
+    "status": "Whether the keeper wakes on its schedule (Active) or is waiting, paused, frozen, or retired.",
+    "agent": "The hosted agent that keeps this mandate. Each tick runs this agent.",
+    "deployment": "The deployment each tick runs on, which sets the harness, model, and tools.",
+    "nextWakeUtc": "When the next tick starts. Hover for the exact time.",
+    "currentIntervalSeconds": "The wait after the last tick. In Backoff mode it grows after quiet ticks.",
+    "lastTick": "When the keeper last woke and what that tick reported.",
+    "tickCount": "How many ticks the keeper has run in total.",
+    "currentRevisionNumber": "The published revision the keeper follows now.",
+    "runAs": "The user or credential whose permissions each tick runs with: whoever last saved the keeper.",
+    "description": "Notes for people. The keeper does not read this; it reads the objective.",
+    "id": "The keeper's identifier, used in the API and in run records.",
+    "createdUtc": "When the keeper was created.",
+    "agentId": "The hosted agent that keeps this mandate. Remote agents cannot be keepers. Fixed after creation.",
+    "deploymentId": "The active deployment of that agent each tick runs on.",
+    "objective": "The standing job in plain words, such as keep the support queue under 20 open tickets. The keeper reads it at every tick.",
+    "healthyDefinition": "What good looks like, so the keeper can tell a quiet tick from one that needs action.",
+    "autonomy": "What the keeper may change on its own without asking anyone.",
+    "escalationPolicy": "When the keeper should stop and ask a person or another agent for a decision.",
+    "direction": "Short-term guidance that may change often, such as a focus for this week.",
+    "signals": "Named measurements the keeper should check each tick, with what each one means.",
+    "signalsItems": {
+     "name": "A short name for the measurement, unique within the revision.",
+     "description": "What the measurement means and which values are worrying."
+    },
+    "wakeMode": "Fixed wakes at the minimum interval every time. Backoff waits longer after quiet ticks.",
+    "minIntervalSeconds": "The shortest wait between scheduled wakes, in seconds.",
+    "maxIntervalSeconds": "The longest wait between scheduled wakes in Backoff mode, in seconds.",
+    "backoffFactor": "How much the wait grows after each quiet tick in Backoff mode. 2 doubles it.",
+    "jitterPercent": "A random delay of up to this percent of the interval, so many keepers do not wake at the same moment.",
+    "budgetPerTickUsd": "The most one tick may cost in US dollars.",
+    "budgetPerDayUsd": "The most this keeper's ticks may cost per UTC day in US dollars.",
+    "maxTokensPerTick": "The most input and output tokens one tick may use.",
+    "changeNote": "A short note on why this revision changes the keeper, kept with the revision.",
+    "sections": {
+     "mandate": "What the keeper looks after and how much it may do on its own.",
+     "schedule": "How often the keeper wakes and how the wait changes after quiet ticks.",
+     "budgets": "Limits on what the keeper's ticks may cost and use."
+    },
+    "actions": {
+     "pause": "Stop waking this keeper. A running tick finishes; no new one starts until you resume it.",
+     "resume": "Start waking this keeper again. It wakes at once with its interval reset to the minimum.",
+     "wake": "Start a tick now instead of waiting for the schedule. If a tick is running, the new one starts after it.",
+     "runs": "Open the Runs page filtered to this keeper's ticks."
+    },
+    "ticking": "A tick of this keeper is running now."
+   }
+  },
+  "keeperRevision": {
+   "done": "Close this dialog. The revision was saved with the adjusted values listed above.",
+   "draft": "Save this revision as a draft without using it. Publish it later from the revision list.",
+   "publish": "Save this revision and make it current now. The backoff resets and the keeper wakes at once."
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "The keeper that started this run as one of its ticks.",
+    "openKeeper": "Open the keeper, with its ticks and revisions."
+   },
+   "home": {
+    "autonomy": {
+     "title": "Keepers in this tenant and the ones whose last tick needs a person.",
+     "open": "Open the Keepers page to create, pause, wake, or edit keepers.",
+     "active": "Keepers that wake on their schedule.",
+     "paused": "Keepers that do not wake until someone resumes them.",
+     "ticking": "Keepers with a tick running right now.",
+     "nextWake": "The soonest scheduled wake among active keepers.",
+     "attention": "Keepers whose last tick needs attention, escalated, failed, or did not report, and keepers stopped by a budget or freeze.",
+     "openKeeper": "Open this keeper's page to see its ticks."
+    }
+   },
+   "keeperDetail": {
+    "openRun": "Open this run's detail page: its transcript, tool calls, and result.",
+    "live": "Updates arrive as ticks start and finish, over the live connection.",
+    "polling": "The live connection is unavailable, so the page re-reads the keeper every few seconds.",
+    "viewJson": "Show the keeper record with its current revision as JSON.",
+    "newRevision": "Write a new revision of the objective, schedule, or budgets, starting from the current one.",
+    "delete": "Delete this keeper with its revisions and tick history. Its past runs stay.",
+    "forceDelete": "Delete the keeper and cancel the run of the tick in progress.",
+    "openAgent": "Open the agent this keeper runs.",
+    "quietStreak": "How many ticks in a row found nothing to do. In Backoff mode each one lengthens the wait.",
+    "activeRun": "The run of the tick in progress, if one is running.",
+    "revisionTitle": "The published revision the keeper follows at every tick.",
+    "ticks": "Every wake of this keeper, newest first: what woke it, what it found, and the wait it set.",
+    "outcomeFilter": "Show only ticks with this outcome.",
+    "outcomeCounts": "How many ticks on this page had each outcome.",
+    "chart": "The wait after each tick on this page, oldest on the left. It grows after quiet ticks in Backoff mode and resets when something happens.",
+    "columns": {
+     "started": "When the tick started. Hover for the exact time.",
+     "source": "What woke the keeper for this tick.",
+     "outcome": "What the tick reported: quiet, acted, needs attention, escalated, or failed.",
+     "run": "The run that carried out the tick.",
+     "interval": "The wait until the next wake, as set when this tick finished.",
+     "cost": "What the tick's run cost, from the model price list.",
+     "summary": "What the keeper said it found or did, or the error that stopped the tick.",
+     "number": "The revision number. The current one is marked.",
+     "state": "Draft revisions are saved but not in use; published ones were or are in use.",
+     "revisionSource": "Who wrote the revision: a person, the agent architect, or an overseeing agent.",
+     "author": "The user or credential that saved the revision.",
+     "changeNote": "Why the revision changed the keeper.",
+     "created": "When the revision was saved."
+    },
+    "requested": "The keeper asked for this wait; the server keeps it within the minimum and maximum interval.",
+    "revisions": "Every revision of this keeper, newest first. Compare one with the one before, or publish a draft.",
+    "current": "The revision the keeper follows now.",
+    "diff": "Show what this revision changed compared with the revision before it."
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "Keepers",
+   "p1": "A keeper is an agent with a standing job, its mandate. It wakes on a schedule, checks how things stand, acts within what it may do on its own, and reports a short outcome each time. Each wake is a tick, and each tick is one run of the keeper's deployment.",
+   "p2": "In Backoff mode a quiet tick makes the next wake come later, up to the maximum interval, and anything else brings it back to the minimum. Only one tick runs at a time: a wake that arrives during a tick waits for it to finish.",
+   "p3": "Changes to the objective, schedule, or budgets are revisions. Publishing a revision makes it current at once and wakes the keeper, and every revision stays in the history to compare."
+  }
+ }
+});

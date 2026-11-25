@@ -26,13 +26,15 @@ export const UNTRANSLATED_ALLOWLIST = {
   '*': [
     'Alias', 'Audit', 'Editor', 'Streaming', 'Prompts',
     // The product name stays in English in every language (AD12.12).
-    'Garrison Agent Studio', 'Agent Studio'
+    'Garrison Agent Studio', 'Agent Studio',
+    // A wake source of keepers (AA1.16); the technical term is used untranslated in these languages.
+    'Webhook'
   ],
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
     'Manifest', 'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
     'Version', 'Version {{version}}', 'Leader', 'Executor', 'Executors', 'Pipeline', 'Pipelines', 'Quorum', 'App', 'Apps', 'Graph',
-    'Logo', 'Revision', 'Asset', 'Details', 'Revision {{number}} ({{state}})', 'Studio'
+    'Logo', 'Revision', 'Asset', 'Details', 'Revision {{number}} ({{state}})', 'Studio', 'Signal', 'Revision {{number}}'
   ],
   ja: [],
   es: [
@@ -43,7 +45,7 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
     'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset',
-    'Documentation'
+    'Documentation', 'Signal', 'Source'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',

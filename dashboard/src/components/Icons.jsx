@@ -461,3 +461,33 @@ export function InfoIcon({ size = 18 }) {
     </svg>
   );
 }
+
+/** A clock with a return arrow: work that comes back on its own schedule (Autonomy, AA1.16). */
+export function AutonomyIcon({ size = 18 }) {
+  return (
+    <svg {...base(size)}>
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+/** A small alarm bell: wake a keeper now. */
+export function WakeIcon({ size = 16 }) {
+  return (
+    <svg {...base(size)}>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+/** Two bars: pause. */
+export function PauseIcon({ size = 16 }) {
+  return (
+    <svg {...base(size)}>
+      <path d="M8 5v14M16 5v14" />
+    </svg>
+  );
+}

@@ -462,6 +462,21 @@ export default function RunDetailView({ recordId }) {
             </span>
           </Detail>
         )}
+        {run.mandateId && (
+          <Detail label={t('views.runDetail.keeper')} tip={t('tips.views.runDetail.keeper')}>
+            <a
+              href={pathFor('keepers', run.mandateId)}
+              data-testid="run-keeper-link"
+              {...tip(t('tips.views.runDetail.openKeeper'))}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(pathFor('keepers', run.mandateId));
+              }}
+            >
+              <code>{run.mandateId}</code>
+            </a>
+          </Detail>
+        )}
         <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
         {run.outputSchemaValid != null && (
           <Detail label={t('views.runDetail.outputSchema')} tip={t('tips.views.runDetail.outputSchema')}>

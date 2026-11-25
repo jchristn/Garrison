@@ -33,6 +33,7 @@ export const DASHBOARD_SECTIONS = Object.freeze([
   'http',
   'runs',
   'agents',
+  'autonomy',
   'models',
   'workers',
   'kubernetes',

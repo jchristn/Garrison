@@ -5090,3 +5090,468 @@ zhHans.tips.nav.tabs.secrets = "加密的 API 密钥和令牌。部署通过别�
 zhHans.tips.resources.secrets.add = "存储新的凭据，例如 API 密钥或令牌，静态加密。部署通过别名引用它；保存后，只有拥有 Secret Admin 权限的人可以显示它。";
 zhHans.tips.resources.secrets.value = "密钥值。保存时会加密。拥有 Secret Admin 权限的人可以显示它，每次显示都会被审计。";
 zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥或令牌。保存后你可以替换或轮换它。只有拥有 Secret Admin 权限的人 (SecretManager 和 TenantAdmin 角色) 才能读回它，每次显示都会记录在审计日志中。";
+
+// Keepers (AA1.16): the Autonomy workspace, the keeper list and page, keeper enums, and the Home Autonomy card.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "label": "自主运行",
+    "tip": "能自己持续工作的智能体：守护者按计划唤醒，照看一项长期职责。"
+   }
+  },
+  "items": {
+   "keepers": {
+    "label": "守护者",
+    "tip": "按计划唤醒、照看长期职责的智能体"
+   }
+  }
+ },
+ "enums": {
+  "runKind": {
+   "Keeper": "守护者巡检"
+  },
+  "resourceType": {
+   "Mandate": "守护者（职责）"
+  },
+  "mandateStatus": {
+   "Draft": "草稿",
+   "Active": "活动",
+   "Paused": "已暂停",
+   "Frozen": "已冻结",
+   "CapReached": "已达预算上限",
+   "Retired": "已停用"
+  },
+  "mandateRevisionState": {
+   "Draft": "草稿",
+   "Published": "已发布"
+  },
+  "mandateRevisionSource": {
+   "Human": "人工",
+   "Board": "委员会",
+   "Executive": "主管",
+   "Architect": "智能体架构师"
+  },
+  "wakeMode": {
+   "Fixed": "固定间隔",
+   "Backoff": "安静时退避"
+  },
+  "wakeSource": {
+   "Timer": "计划",
+   "Manual": "手动唤醒",
+   "Message": "消息",
+   "EscalationAnswer": "已答复上报",
+   "Webhook": "Webhook 回调",
+   "Report": "报告"
+  },
+  "tickOutcome": {
+   "Quiet": "平静",
+   "Acted": "已处理",
+   "Attention": "需要关注",
+   "Escalated": "已上报",
+   "Failed": "失败",
+   "Skipped": "已跳过",
+   "Unreported": "未报告"
+  }
+ },
+ "errorCodes": {
+  "MandateActive": "此守护者有一次巡检正在运行。请等它结束，或先暂停守护者，也可以直接删除，这会取消该次巡检的运行。",
+  "MandateNotActive": "只有处于活动状态的守护者才能被唤醒或暂停。",
+  "MandateNotPaused": "只有已暂停的守护者才能恢复。",
+  "RemoteAgentUnsupported": "守护者运行在托管部署上，因此远程智能体不能作为守护者。",
+  "DeploymentInactive": "该部署未启用。请选择一个活动部署。",
+  "DeploymentAgentMismatch": "该部署属于另一个智能体。请选择此智能体自己的部署。",
+  "RevisionMismatch": "该修订版属于另一个守护者。"
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "mandateId": "守护者"
+   }
+  },
+  "keepers": {
+   "title": "守护者",
+   "subtitle": "按计划唤醒、照看一项长期职责的智能体，每次都会汇报发现的情况。",
+   "add": "添加守护者",
+   "create": "创建守护者",
+   "edit": "编辑守护者",
+   "view": "守护者详情",
+   "deleteTitle": "删除守护者",
+   "emptyTitle": "还没有守护者",
+   "emptyBody": "创建守护者，让智能体定期查看队列、仪表板或收件箱之类的事物，并在需要时自行处理或请求协助。",
+   "columns": {
+    "name": "名称",
+    "status": "状态",
+    "agent": "智能体",
+    "deployment": "部署",
+    "nextWakeUtc": "下次唤醒",
+    "currentIntervalSeconds": "间隔",
+    "lastTick": "上次巡检",
+    "tickCount": "巡检次数",
+    "currentRevisionNumber": "修订版",
+    "runAs": "运行身份",
+    "description": "描述",
+    "id": "ID",
+    "createdUtc": "创建时间"
+   },
+   "fields": {
+    "name": "名称",
+    "description": "描述",
+    "agentId": "智能体",
+    "deploymentId": "部署",
+    "objective": "目标",
+    "healthyDefinition": "健康状态的标准",
+    "autonomy": "可自行处理的事项",
+    "escalationPolicy": "何时请求协助",
+    "direction": "当前方向",
+    "signals": "需要关注的信号",
+    "signalsItems": {
+     "name": "信号",
+     "description": "含义"
+    },
+    "wakeMode": "唤醒模式",
+    "minIntervalSeconds": "最小间隔（秒）",
+    "maxIntervalSeconds": "最大间隔（秒）",
+    "backoffFactor": "退避系数",
+    "jitterPercent": "抖动（百分比）",
+    "budgetPerTickUsd": "每次巡检预算（USD）",
+    "budgetPerDayUsd": "每日预算（USD）",
+    "maxTokensPerTick": "每次巡检最大 token 数",
+    "changeNote": "变更说明"
+   },
+   "hints": {
+    "name": "小写字母、数字和连字符。",
+    "agentId": "一个托管智能体。守护者创建后，智能体不可更改。",
+    "deploymentId": "每次巡检所运行的活动部署。",
+    "objective": "用平实的话描述这项长期职责。守护者每次巡检都会读取它。",
+    "minIntervalSeconds": "范围为 {{min}} 到 {{max}} 秒。集群设置 Autonomy.MinIntervalSeconds 可能会调高下限。",
+    "maxIntervalSeconds": "范围为 {{min}} 到 {{max}} 秒。退避增长到此值为止。",
+    "backoffFactor": "范围为 {{min}} 到 {{max}}。每次平静的巡检之后，间隔都会乘以这个值。",
+    "jitterPercent": "范围为 {{min}} 到 {{max}}。留空则使用集群默认值。",
+    "budgetPerTickUsd": "留空表示不设上限。",
+    "budgetPerDayUsd": "留空表示不设上限。",
+    "maxTokensPerTick": "输入与输出 token 之和。留空表示不设上限。",
+    "changeNote": "说明此修订版为何要改动守护者。显示在修订版列表中。"
+   },
+   "sections": {
+    "mandate": "职责",
+    "schedule": "唤醒计划",
+    "budgets": "预算"
+   },
+   "sectionHints": {
+    "mandate": "保存后，这些字段会作为修订版 1 发布，并启动唤醒计划。之后的更改请在守护者页面使用“新建修订版”。",
+    "budgets": "现在只做保存，将在后续版本中强制执行。"
+   },
+   "errors": {
+    "name": "请使用 1 到 64 个小写字母、数字和连字符，并以字母或数字开头和结尾。",
+    "nameTaken": "已有另一个守护者使用此名称。",
+    "text": "最多 {{max}} 个字符。",
+    "agentRequired": "请选择负责这项职责的智能体。",
+    "deploymentRequired": "请选择其巡检所运行的部署。",
+    "objective": "请描述这项长期职责。",
+    "signalsMax": "一个修订版最多包含 {{max}} 个信号。",
+    "signalName": "信号名称为 1 到 {{max}} 个字符。",
+    "signalUnique": "每个信号需要使用不同的名称。",
+    "signalsInvalid": "请修正下方标记的信号。",
+    "interval": "请输入 {{min}} 到 {{max}} 之间的整数秒数。",
+    "maxBelowMin": "最大间隔不能短于最小间隔。",
+    "backoffFactor": "请输入 {{min}} 到 {{max}} 之间的数字。",
+    "jitterPercent": "请输入 {{min}} 到 {{max}} 之间的整数。",
+    "budget": "请输入 {{min}} 到 {{max}} 之间的金额。",
+    "maxTokens": "请输入 {{min}} 到 {{max}} 之间的整数。"
+   },
+   "actions": {
+    "pause": "暂停",
+    "resume": "恢复",
+    "wake": "立即唤醒",
+    "runs": "查看运行"
+   },
+   "toasts": {
+    "pause": "已暂停 {{name}}。",
+    "resume": "已恢复 {{name}}，现在唤醒它。",
+    "wake": "{{name}} 现在唤醒。"
+   },
+   "units": {
+    "seconds_other": "{{count}} 秒",
+    "minutes_other": "{{count}} 分钟",
+    "hours_other": "{{count}} 小时",
+    "days_other": "{{count}} 天"
+   },
+   "ticking": "巡检中",
+   "neverTicked": "尚未唤醒",
+   "addSignal": "添加信号",
+   "signalNamePlaceholder": "队列深度",
+   "editNotice": "以 {{name}} 的身份运行。保存后，你将成为其巡检所用的运行身份。要更改目标或计划，请打开守护者并使用“新建修订版”。"
+  }
+ },
+ "components": {
+  "keeperRevision": {
+   "title": "{{name}} 的新修订版",
+   "intro": "这将成为修订版 {{number}}。发布后它立即成为当前版本：退避会重置，守护者随即被唤醒。",
+   "draft": "保存为草稿",
+   "publish": "发布",
+   "drafted": "已将修订版 {{number}} 保存为草稿。",
+   "published": "已发布修订版 {{number}}。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "keeper": "守护者"
+  },
+  "home": {
+   "autonomy": {
+    "title": "自主运行",
+    "open": "打开守护者",
+    "empty": "还没有守护者。守护者按计划唤醒，照看一项长期职责。",
+    "active": "活动",
+    "paused": "已暂停",
+    "ticking": "正在巡检",
+    "nextWake": "下次唤醒：",
+    "allQuiet": "没有需要关注的守护者。",
+    "attention_other": "有 {{count}} 个守护者需要关注"
+   }
+  },
+  "keeperDetail": {
+   "title": "守护者",
+   "heading": "守护者 {{name}}",
+   "notFoundTitle": "未找到守护者",
+   "notFoundBody": "它可能已被删除，或属于另一个租户。",
+   "live": "实时",
+   "polling": "刷新中",
+   "newRevision": "新建修订版",
+   "noWake": "未安排",
+   "quietStreak": "连续平静的巡检",
+   "activeRun": "正在运行的巡检",
+   "revisionTitle": "当前修订版",
+   "revisionHeading": "当前修订版（{{number}}）",
+   "noRevision": "尚未发布任何修订版。请使用“新建修订版”编写并发布一个。",
+   "clusterDefault": "集群默认值",
+   "noLimit": "不设上限",
+   "ticks": "巡检",
+   "outcomeFilter": "结果",
+   "allOutcomes": "所有结果",
+   "noTicksTitle": "还没有巡检",
+   "noTicksActive": "第一次巡检会在下次唤醒时开始。使用“立即唤醒”可马上开始一次。",
+   "noTicksBody": "守护者处于活动状态并被唤醒后，巡检会显示在这里。",
+   "chartTitle": "每次巡检后的间隔",
+   "chartHelp": "到下次唤醒的分钟数，取每次巡检结束时设定的值。在退避模式下，平静的巡检会使其变长。",
+   "chartSeries": "间隔（分钟）",
+   "columns": {
+    "started": "开始时间",
+    "source": "唤醒来源",
+    "outcome": "结果",
+    "run": "运行",
+    "interval": "下次间隔",
+    "cost": "费用",
+    "summary": "摘要",
+    "number": "编号",
+    "state": "状态",
+    "revisionSource": "来源",
+    "author": "作者",
+    "changeNote": "变更说明",
+    "created": "创建时间"
+   },
+   "requested": "请求了 {{interval}}",
+   "revisions": "修订版",
+   "noRevisions": "还没有修订版。",
+   "current": "当前",
+   "diff": "对比",
+   "diffTitle": "修订版 {{number}} 与上一个版本的对比",
+   "diffFirst": "这是第一个修订版，因此其中的所有内容都是新增的。",
+   "revisionLabel": "修订版 {{number}}",
+   "nothing": "无",
+   "confirmDelete": "要删除守护者 {{name}} 及其修订版和巡检历史吗？它过去的运行会保留。",
+   "confirmForceDelete": "{{name}} 有一次巡检正在运行。仍要删除该守护者并取消这次巡检的运行吗？",
+   "forceDelete": "删除并取消巡检",
+   "changeNote": "变更说明：{{note}}"
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "在请求之间自行工作的智能体。守护者按计划唤醒，查看一项长期职责，并采取行动或请求协助。"
+   },
+   "tabs": {
+    "keepers": "守护者：按计划唤醒、照看一项长期职责的智能体，附带其巡检和修订版。"
+   }
+  },
+  "enums": {
+   "runKind": {
+    "Keeper": "由守护者的唤醒启动。该运行是这个守护者的一次巡检，并链接回它。"
+   },
+   "resourceType": {
+    "Mandate": "守护者（职责）：智能体按唤醒计划照看的长期职责，附带其修订版和巡检。"
+   },
+   "mandateStatus": {
+    "Draft": "创建时没有已发布的修订版，所以还不会唤醒。发布一个修订版即可启动。",
+    "Active": "按计划唤醒。每次唤醒会启动一次巡检，即其部署的一次运行。",
+    "Paused": "在有人恢复之前不会唤醒。恢复后会立即唤醒，并重置间隔。",
+    "Frozen": "已被管理员或策略停止。解冻之前不会唤醒。",
+    "CapReached": "当日预算已用完。下一个 UTC 日开始时会再次唤醒。",
+    "Retired": "不再使用。它保留历史记录，且不会再唤醒。"
+   },
+   "mandateRevisionState": {
+    "Draft": "已保存但未使用。发布后它会成为守护者的当前修订版。",
+    "Published": "曾经或正在使用。已发布的修订版不会改动，请另写一个新修订版。"
+   },
+   "mandateRevisionSource": {
+    "Human": "由人在仪表板、API 或清单中编写。",
+    "Board": "由监督此守护者的智能体委员会设定。",
+    "Executive": "由指挥此守护者的主管智能体设定。",
+    "Architect": "由智能体架构师根据工作室草稿编写。"
+   },
+   "wakeMode": {
+    "Fixed": "无论上次巡检发现了什么，都每隔最小间隔唤醒一次。",
+    "Backoff": "每次平静的巡检之后等待更久，最长到最大间隔，一旦有事发生就回到最小间隔。"
+   },
+   "wakeSource": {
+    "Timer": "唤醒计划到期，守护者自行唤醒了。",
+    "Manual": "有人使用了“立即唤醒”，或恢复了守护者。",
+    "Message": "有一条消息发给了守护者。",
+    "EscalationAnswer": "有人答复了守护者上报的问题。",
+    "Webhook": "另一个系统调用了守护者的 Webhook。",
+    "Report": "另一个智能体的报告请这个守护者去查看。"
+   },
+   "tickOutcome": {
+    "Quiet": "一切健康，无需处理。在退避模式下，下次唤醒会更晚。",
+    "Acted": "守护者为保持职责健康而改动了某些内容。",
+    "Attention": "守护者发现了需要人来查看的情况。",
+    "Escalated": "守护者请求某个人或另一个智能体做出决定。",
+    "Failed": "这次巡检的运行失败、超时或被取消。",
+    "Skipped": "唤醒到来时上一次巡检仍在运行，因此被跳过，下一次会等它结束。",
+    "Unreported": "运行结束时没有报告结果，所以守护者可能需要更清晰的目标。"
+   }
+  },
+  "resources": {
+   "runs": {
+    "mandateId": "把这次运行作为自己的一次巡检启动的守护者（如果有）。点击即可打开该守护者。",
+    "openKeeper": "打开以这次运行作为巡检的守护者。"
+   },
+   "keepers": {
+    "add": "创建守护者：选择托管智能体和部署，描述长期职责，并设定唤醒的频率。",
+    "name": "在此租户内唯一的名称，用于 URL、清单和 API。",
+    "status": "守护者是否按计划唤醒（活动），或处于等待、暂停、冻结、停用状态。",
+    "agent": "负责这项职责的托管智能体。每次巡检都会运行这个智能体。",
+    "deployment": "每次巡检所运行的部署，它决定了 harness、模型和工具。",
+    "nextWakeUtc": "下一次巡检开始的时间。悬停可查看确切时间。",
+    "currentIntervalSeconds": "上次巡检之后的等待时间。在退避模式下，它会在平静的巡检之后增长。",
+    "lastTick": "守护者上次唤醒的时间，以及那次巡检报告的内容。",
+    "tickCount": "守护者累计运行过的巡检次数。",
+    "currentRevisionNumber": "守护者当前遵循的已发布修订版。",
+    "runAs": "每次巡检所用权限的用户或凭据：最后一次保存守护者的人。",
+    "description": "写给人看的备注。守护者不会读取它，它读取的是目标。",
+    "id": "守护者的标识符，用于 API 和运行记录。",
+    "createdUtc": "守护者的创建时间。",
+    "agentId": "负责这项职责的托管智能体。远程智能体不能作为守护者。创建后不可更改。",
+    "deploymentId": "该智能体每次巡检所运行的活动部署。",
+    "objective": "用平实的话描述长期职责，例如让支持队列中的未处理工单保持在 20 个以下。守护者每次巡检都会读取它。",
+    "healthyDefinition": "良好状态是什么样子，让守护者能区分平静的巡检和需要行动的巡检。",
+    "autonomy": "守护者无需询问任何人就可以自行改动的内容。",
+    "escalationPolicy": "守护者应在何时停下来，请某个人或另一个智能体做决定。",
+    "direction": "可能经常变化的短期指引，例如本周的重点。",
+    "signals": "守护者每次巡检应检查的命名指标，以及各自的含义。",
+    "signalsItems": {
+     "name": "这项指标的简短名称，在修订版内唯一。",
+     "description": "这项指标的含义，以及哪些取值值得担心。"
+    },
+    "wakeMode": "固定模式每次都按最小间隔唤醒。退避模式会在平静的巡检之后等待更久。",
+    "minIntervalSeconds": "两次计划唤醒之间的最短等待时间，单位为秒。",
+    "maxIntervalSeconds": "退避模式下两次计划唤醒之间的最长等待时间，单位为秒。",
+    "backoffFactor": "退避模式下，每次平静的巡检之后等待时间增长的倍数。2 表示翻倍。",
+    "jitterPercent": "最多为间隔此百分比的随机延迟，避免许多守护者在同一时刻唤醒。",
+    "budgetPerTickUsd": "一次巡检最多可花费的美元金额。",
+    "budgetPerDayUsd": "此守护者的巡检每个 UTC 日最多可花费的美元金额。",
+    "maxTokensPerTick": "一次巡检最多可使用的输入和输出 token 数。",
+    "changeNote": "简短说明此修订版为何要改动守护者，随修订版一并保存。",
+    "sections": {
+     "mandate": "守护者照看什么，以及它可以自行处理多少事情。",
+     "schedule": "守护者多久唤醒一次，以及平静的巡检之后等待时间如何变化。",
+     "budgets": "守护者的巡检可花费和可使用的额度上限。"
+    },
+    "actions": {
+     "pause": "停止唤醒此守护者。正在运行的巡检会完成，恢复之前不会开始新的巡检。",
+     "resume": "重新开始唤醒此守护者。它会立即唤醒，间隔重置为最小值。",
+     "wake": "立即开始一次巡检，而不是等待计划。如果有巡检正在运行，新的会在它之后开始。",
+     "runs": "打开按此守护者的巡检筛选后的运行页面。"
+    },
+    "ticking": "此守护者有一次巡检正在运行。"
+   }
+  },
+  "keeperRevision": {
+   "done": "关闭此对话框。修订版已按上面列出的调整后的值保存。",
+   "draft": "将此修订版保存为草稿而不启用。之后可在修订版列表中发布。",
+   "publish": "保存此修订版并立即设为当前版本。退避会重置，守护者随即被唤醒。"
+  },
+  "views": {
+   "runDetail": {
+    "keeper": "把这次运行作为自己的一次巡检启动的守护者。",
+    "openKeeper": "打开该守护者，查看其巡检和修订版。"
+   },
+   "home": {
+    "autonomy": {
+     "title": "此租户中的守护者，以及上次巡检需要人来处理的守护者。",
+     "open": "打开守护者页面，创建、暂停、唤醒或编辑守护者。",
+     "active": "按计划唤醒的守护者。",
+     "paused": "在有人恢复之前不会唤醒的守护者。",
+     "ticking": "此刻有巡检正在运行的守护者。",
+     "nextWake": "活动守护者中最早的计划唤醒时间。",
+     "attention": "上次巡检需要关注、已上报、失败或未报告的守护者，以及因预算或冻结而停止的守护者。",
+     "openKeeper": "打开此守护者的页面，查看它的巡检。"
+    }
+   },
+   "keeperDetail": {
+    "openRun": "打开这次运行的详情页：其记录、工具调用和结果。",
+    "live": "巡检开始和结束时，更新会通过实时连接送达。",
+    "polling": "实时连接不可用，因此页面每隔几秒重新读取一次守护者。",
+    "viewJson": "以 JSON 显示守护者记录及其当前修订版。",
+    "newRevision": "以当前版本为起点，编写目标、计划或预算的新修订版。",
+    "delete": "删除此守护者及其修订版和巡检历史。它过去的运行会保留。",
+    "forceDelete": "删除守护者，并取消正在进行的巡检的运行。",
+    "openAgent": "打开此守护者所运行的智能体。",
+    "quietStreak": "连续有多少次巡检发现无事可做。在退避模式下，每一次都会拉长等待时间。",
+    "activeRun": "正在进行的巡检的运行（如果有）。",
+    "revisionTitle": "守护者每次巡检所遵循的已发布修订版。",
+    "ticks": "此守护者的每一次唤醒，最新的在前：是什么唤醒了它、它发现了什么，以及它设定的等待时间。",
+    "outcomeFilter": "只显示具有此结果的巡检。",
+    "outcomeCounts": "此页面上各个结果的巡检数量。",
+    "chart": "此页面上每次巡检之后的等待时间，最早的在左侧。在退避模式下它会在平静的巡检之后增长，有事发生时重置。",
+    "columns": {
+     "started": "巡检开始的时间。悬停可查看确切时间。",
+     "source": "这次巡检是由什么唤醒守护者的。",
+     "outcome": "这次巡检的报告：平静、已处理、需要关注、已上报或失败。",
+     "run": "执行这次巡检的运行。",
+     "interval": "到下次唤醒的等待时间，取这次巡检结束时设定的值。",
+     "cost": "这次巡检的运行花费，依据模型价格表计算。",
+     "summary": "守护者说明的发现或所做的事，或导致巡检停止的错误。",
+     "number": "修订版编号。当前版本会被标出。",
+     "state": "草稿修订版已保存但未使用；已发布的曾经或正在使用。",
+     "revisionSource": "修订版由谁编写：人、智能体架构师或监督它的智能体。",
+     "author": "保存此修订版的用户或凭据。",
+     "changeNote": "此修订版为何改动守护者。",
+     "created": "修订版的保存时间。"
+    },
+    "requested": "守护者请求了这个等待时间，服务器会把它限制在最小和最大间隔之内。",
+    "revisions": "此守护者的所有修订版，最新的在前。可与上一个版本对比，或发布草稿。",
+    "current": "守护者当前遵循的修订版。",
+    "diff": "显示此修订版相对于上一个修订版改动了什么。"
+   }
+  }
+ },
+ "explainers": {
+  "keepers": {
+   "title": "守护者",
+   "p1": "守护者是承担长期职责的智能体。它按计划唤醒，查看事情的进展，在自己可以处理的范围内采取行动，并在每次结束时汇报一个简短的结果。每次唤醒称为一次巡检，每次巡检就是守护者所在部署的一次运行。",
+   "p2": "在退避模式下，平静的巡检会让下次唤醒推后，最多推后到最大间隔，其他任何结果都会让它回到最小间隔。同一时间只会运行一次巡检：在巡检期间到来的唤醒要等它结束。",
+   "p3": "对目标、计划或预算的更改都以修订版的形式进行。发布修订版会使其立即成为当前版本并唤醒守护者，每个修订版都保留在历史中，可供对比。"
+  }
+ }
+});

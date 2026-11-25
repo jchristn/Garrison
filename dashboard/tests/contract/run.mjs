@@ -335,8 +335,50 @@ async function seed(api) {
   await seedApprovals(api, ids);
   await seedPipelines(api, ids);
   await seedTriggers(api, ids);
+  await seedKeepers(api, ids);
   await sleep(1500);
   return ids;
+}
+
+/**
+ * Keepers (AA1.16): a keeper on the fake agent with a full first revision (signals, budgets), woken by hand so a tick
+ * exists, and a draft second revision.
+ */
+async function seedKeepers(api, ids) {
+  const created = await api.post(tp('mandates'), {
+    name: 'contract-keeper',
+    description: 'Keeps the contract queue short',
+    agentId: ids.agent,
+    deploymentId: ids.deployment,
+    currentRevision: {
+      objective: 'Keep the queue short.',
+      healthyDefinition: 'Fewer than 20 items.',
+      autonomy: 'Close duplicates.',
+      escalationPolicy: 'Ask before deleting.',
+      direction: 'Focus on billing this week.',
+      signals: [{ name: 'queue depth', description: 'Items waiting' }],
+      wakeMode: 'Backoff',
+      minIntervalSeconds: 900,
+      maxIntervalSeconds: 7200,
+      backoffFactor: 2,
+      jitterPercent: 10,
+      budgetPerTickUsd: 0.5,
+      budgetPerDayUsd: 5,
+      maxTokensPerTick: 100000
+    }
+  });
+  ids.keeper = created.id;
+  await api.post(tp(`mandates/${ids.keeper}/wake`));
+  ids.keeperDraft = (await api.post(tp(`mandates/${ids.keeper}/revisions`), { objective: 'Keep the queue shorter.', changeNote: 'Tighter target', wakeMode: 'Fixed', minIntervalSeconds: 600 })).id;
+  // The leader sweep starts the tick within Autonomy.SchedulerSweepSeconds; wait for it so tick history exists.
+  for (let i = 0; i < 40; i++) {
+    const ticks = await api.get(tp(`mandates/${ids.keeper}/ticks?maxResults=5&skip=0`));
+    if ((ticks.objects || []).length) {
+      ids.keeperTick = ticks.objects[0].id;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
 }
 
 /**
@@ -615,6 +657,13 @@ function routes(ids) {
     ['listTriggerFires (webhook)', tp(`triggers/${ids.webhookTrigger}/fires?maxResults=50&skip=0`)],
     ['listRuns (triggerId)', tp(`runs?${list}&triggerId=${ids.cronTrigger}`)],
     ['getRun (trigger)', tp(`runs/${ids.triggerRun}`)],
+    ['listMandates', tp(`mandates?${list}`)],
+    ['listMandates (status)', tp(`mandates?${list}&status=Active`)],
+    ['getMandate', tp(`mandates/${ids.keeper}`)],
+    ['listMandateRevisions', tp(`mandates/${ids.keeper}/revisions?maxResults=100&skip=0`)],
+    ['getMandateRevision (draft)', tp(`mandates/${ids.keeper}/revisions/${ids.keeperDraft}`)],
+    ['listMandateTicks', tp(`mandates/${ids.keeper}/ticks?maxResults=25&skip=0`)],
+    ...(ids.keeperTick ? [['getMandateTick', tp(`mandate-ticks/${ids.keeperTick}`)]] : []),
     ['listNotificationEndpoints', tp(`notification-endpoints?${list}`)],
     ['getNotificationEndpoint', tp(`notification-endpoints/${ids.endpoint}`)],
     ['listNotificationDeliveries', tp(`notification-endpoints/${ids.endpoint}/deliveries?maxResults=50&skip=0`)],

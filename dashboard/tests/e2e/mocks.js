@@ -223,6 +223,8 @@ function run(i) {
   if (status === 'Running') out.resultText = 'Hello from the fake harness.';
   // P12.5: run_0007 was started by the cron trigger trg_0001.
   if (i === 7) Object.assign(out, { kind: 'Trigger', triggerId: 'trg_0001' });
+  // AA1.16: run_0019 is a tick of the keeper mdt_0001.
+  if (i === 19) Object.assign(out, { kind: 'Keeper', mandateId: 'mdt_0001', mandateTickId: 'mtk_0001' });
   return out;
 }
 
@@ -1064,6 +1066,152 @@ function notificationDeliveryList(url, endpointId) {
 /** POST /notification-endpoints/{id}/test: the test delivery after its first attempt. */
 export function testDelivery(endpointId) {
   return { ...notificationDelivery(4, endpointId), id: 'ndl_0099' };
+}
+
+// ---------------------------------------------------------------- keepers (AA1.16)
+
+const KEEPER_ROWS = [
+  { name: 'support-queue', status: 'Active', interval: 1800, quiet: 2, lastTickOutcome: 'Quiet', tickCount: 41 },
+  { name: 'nightly-costs', status: 'Paused', interval: 3600, quiet: 0, lastTickOutcome: 'Attention', tickCount: 12 },
+  { name: 'release-notes', status: 'Draft', interval: 900, quiet: 0, tickCount: 0 }
+];
+
+const KEEPER_REVISION_ROWS = [
+  { number: 2, state: 'Published', source: 'Human', changeNote: 'Watch the backlog too.', objective: 'Keep the support queue under 20 open tickets.\nAnswer the simple ones yourself.', direction: 'Billing questions first this week.', wakeMode: 'Backoff', minIntervalSeconds: 900, maxIntervalSeconds: 14400, jitterPercent: 10, budgetPerTickUsd: 0.5, budgetPerDayUsd: 5, maxTokensPerTick: 200000 },
+  { number: 1, state: 'Published', source: 'Human', objective: 'Keep the support queue under 20 open tickets.', wakeMode: 'Backoff', minIntervalSeconds: 900, maxIntervalSeconds: 7200 },
+  { number: 3, state: 'Draft', source: 'Architect', changeNote: 'Tighten the escalation rule.', objective: 'Keep the support queue under 15 open tickets.', wakeMode: 'Fixed', minIntervalSeconds: 600, maxIntervalSeconds: 14400 }
+];
+
+/** One keeper revision by row number (1-based), shaped like GET /mandates/{id}/revisions/{revId}. */
+export function keeperRevision(i, mandateId = 'mdt_0001') {
+  const row = KEEPER_REVISION_ROWS[(i - 1) % KEEPER_REVISION_ROWS.length];
+  const out = {
+    id: `mdr_${pad(row.number)}`,
+    tenantId: TENANT,
+    mandateId,
+    number: row.number,
+    state: row.state,
+    objective: row.objective,
+    healthyDefinition: row.number >= 2 ? 'Fewer than 20 open tickets and none older than a day.' : undefined,
+    autonomy: row.number >= 2 ? 'Reply to password resets and billing questions. Close duplicates.' : undefined,
+    escalationPolicy: row.number >= 2 ? 'Ask a person before refunding anything.' : undefined,
+    signals: row.number >= 2 ? [{ name: 'open tickets', description: 'Count in the support inbox; worrying above 20.', order: 0 }, { name: 'oldest ticket age', order: 1 }] : [],
+    wakeMode: row.wakeMode,
+    minIntervalSeconds: row.minIntervalSeconds,
+    maxIntervalSeconds: row.maxIntervalSeconds,
+    backoffFactor: 2,
+    source: row.source,
+    author: 'admin@garrison',
+    createdUtc: iso(1000 - row.number * 100)
+  };
+  for (const key of ['direction', 'jitterPercent', 'budgetPerTickUsd', 'budgetPerDayUsd', 'maxTokensPerTick', 'changeNote']) if (row[key] !== undefined) out[key] = row[key];
+  if (row.state === 'Published') out.publishedUtc = iso(1000 - row.number * 100 - 1);
+  return out;
+}
+
+/** One keeper by row number (1-based), shaped like GET /mandates/{id} (with its current revision; nulls omitted). */
+export function keeper(i, withRevision = true) {
+  const row = KEEPER_ROWS[(i - 1) % KEEPER_ROWS.length];
+  const out = {
+    id: `mdt_${pad(i)}`,
+    tenantId: TENANT,
+    name: i <= KEEPER_ROWS.length ? row.name : `keeper-${i}`,
+    description: i === 1 ? 'Keeps the support inbox under control.' : undefined,
+    agentId: 'agt_0001',
+    deploymentId: 'dep_0001',
+    status: row.status,
+    currentIntervalSeconds: row.interval,
+    consecutiveQuietTicks: row.quiet,
+    tickCount: row.tickCount,
+    runAsType: 'User',
+    runAsId: 'usr_0001',
+    runAsName: 'admin@garrison',
+    createdBy: 'admin@garrison',
+    createdUtc: iso(i * 900),
+    lastUpdateUtc: iso(i * 30)
+  };
+  if (row.status !== 'Draft') {
+    out.currentRevisionId = 'mdr_0002';
+    out.currentRevisionNumber = 2;
+    if (withRevision) out.currentRevision = keeperRevision(1, out.id);
+  }
+  if (row.status === 'Active') out.nextWakeUtc = iso(-25);
+  if (row.lastTickOutcome) {
+    out.lastTickUtc = iso(i * 5);
+    out.lastTickOutcome = row.lastTickOutcome;
+  }
+  return out;
+}
+
+const TICK_ROWS = [
+  { wakeSource: 'Timer', outcome: 'Quiet', interval: 1800, summary: 'Queue at 12 open tickets; nothing to do.', costUsd: 0.012 },
+  { wakeSource: 'Timer', outcome: 'Quiet', interval: 900, summary: 'Queue at 14 open tickets.', costUsd: 0.011 },
+  { wakeSource: 'Manual', outcome: 'Acted', interval: 900, requested: 600, summary: 'Answered 4 password resets and closed 2 duplicates.', costUsd: 0.048 },
+  { wakeSource: 'Timer', outcome: 'Attention', interval: 900, summary: 'Queue at 31; a billing outage may be behind it.', costUsd: 0.02 },
+  { wakeSource: 'Timer', outcome: 'Failed', interval: 900, errorCode: 'RunFailed', errorMessage: 'The tick run failed: the harness exited with code 1.' },
+  { wakeSource: 'Timer', outcome: 'Skipped', errorCode: 'PreviousTickRunning', errorMessage: 'The previous tick was still running.' }
+];
+
+/** One keeper tick by row number (1-based), newest first, shaped like GET /mandates/{id}/ticks. */
+export function keeperTick(i, mandateId = 'mdt_0001') {
+  const row = TICK_ROWS[(i - 1) % TICK_ROWS.length];
+  const out = {
+    id: `mtk_${pad(i)}`,
+    tenantId: TENANT,
+    mandateId,
+    revisionId: 'mdr_0002',
+    revisionNumber: 2,
+    wakeSource: row.wakeSource,
+    scheduledUtc: iso(i * 30),
+    startedUtc: iso(i * 30 - 0.5),
+    finishedUtc: iso(i * 30 - 2),
+    outcome: row.outcome,
+    reported: row.outcome !== 'Failed' && row.outcome !== 'Skipped',
+    templateName: 'keeper-tick',
+    templateVersion: 1,
+    createdUtc: iso(i * 30)
+  };
+  if (row.outcome !== 'Skipped') out.runId = `run_${pad(12 + i)}`;
+  if (row.interval) out.appliedIntervalSeconds = row.interval;
+  if (row.requested) out.requestedNextWakeSeconds = row.requested;
+  for (const key of ['summary', 'costUsd', 'errorCode', 'errorMessage']) if (row[key] !== undefined) out[key] = row[key];
+  return out;
+}
+
+function keeperList(url) {
+  let rows = KEEPER_ROWS.map((_, k) => keeper(k + 1, false));
+  for (const key of ['status', 'agentId']) {
+    const value = url.searchParams.get(key);
+    if (value) rows = rows.filter((r) => r[key] === value);
+  }
+  return pageOf(rows, url);
+}
+
+function keeperTickList(url, mandateId) {
+  let rows = TICK_ROWS.map((_, k) => keeperTick(k + 1, mandateId));
+  const outcome = url.searchParams.get('outcome');
+  if (outcome) rows = rows.filter((r) => r.outcome === outcome);
+  return pageOf(rows, url);
+}
+
+/** Responses for the keeper (mandate) routes, or undefined for other collections. */
+function keeperRoutes(method, url, parts) {
+  const collection = parts[0];
+  const num = (id, fallback) => (/^mdt_\d+$/.test(id) ? Number(id.slice(4)) : fallback);
+  if (collection === 'mandate-ticks' && parts.length === 2) return { ...keeperTick(/^mtk_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1), id: parts[1] };
+  if (collection !== 'mandates') return undefined;
+  if (parts.length === 1) return method === 'GET' ? keeperList(url) : { ...keeper(1), id: 'mdt_0099', name: 'new-keeper', tickCount: 0 };
+  const i = num(parts[1], 1);
+  if (parts[2] === 'pause') return { ...keeper(i), status: 'Paused', nextWakeUtc: undefined };
+  if (parts[2] === 'resume') return { ...keeper(i), status: 'Active', nextWakeUtc: iso(0), pendingWakeSource: 'Manual' };
+  if (parts[2] === 'wake') return { ...keeper(i), nextWakeUtc: iso(0), pendingWakeSource: 'Manual' };
+  if (parts[2] === 'ticks') return keeperTickList(url, parts[1]);
+  if (parts[2] === 'revisions' && parts.length === 3) return method === 'GET' ? pageOf(KEEPER_REVISION_ROWS.map((_, k) => keeperRevision(k + 1, parts[1])).sort((a, b) => b.number - a.number), url) : { ...keeperRevision(3, parts[1]), id: 'mdr_0099', number: 4, state: 'Draft', source: 'Human' };
+  if (parts[2] === 'revisions' && parts[4] === 'publish') return { ...keeper(i), currentRevisionId: parts[3], currentRevisionNumber: 4 };
+  if (parts[2] === 'revisions' && parts.length === 4) return { ...keeperRevision(1, parts[1]), id: parts[3] };
+  // An ID the fixtures do not know (the contract test's real IDs) gets every optional field.
+  if (parts.length === 2) return /^mdt_\d+$/.test(parts[1]) ? keeper(i) : { ...keeper(1), lastTickUtc: iso(5), lastTickOutcome: 'Acted', activeRunId: 'run_0001', activeTickId: 'mtk_0001', pendingWakeSource: 'Manual', id: parts[1] };
+  return {};
 }
 
 /** Responses for the trigger and notification endpoint routes, or undefined for other collections. */
@@ -2282,6 +2430,8 @@ export function respond(method, url) {
     if (collection === 'pipeline-reviews' && parts.length === 2) return { ...pipelineReview(/^prv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 2), id: parts[1] };
     const triggered = triggerRoutes(method, url, parts);
     if (triggered !== undefined) return triggered;
+    const kept = keeperRoutes(method, url, parts);
+    if (kept !== undefined) return kept;
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
     const apped = appRoutes(method, url, parts);
