@@ -128,6 +128,21 @@ const failed = await client.triggers.listFires(nightly.id!, { outcome: "Failed" 
 
 `signWebhook(secret, unixSeconds, body)` builds a signature and `verifyWebhook(header, secret, body, toleranceSeconds = 300)` checks one; both are async because they use Web Crypto. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
+## Keepers
+
+A keeper (a mandate) is a standing objective an agent works on a wake schedule. Each wake is a tick that starts a run, and the objective, signals, wake settings, and budgets live in numbered revisions; only the published revision is live. Creating one needs Execute on its agent, and it runs as the principal that last created or changed it.
+
+```ts
+const keeper = await client.mandates.create({
+  name: "queue-keeper", agentId, deploymentId,
+  currentRevision: { objective: "Keep the work queue healthy.", signals: [{ name: "queue depth", order: 1 }], wakeMode: "Backoff", minIntervalSeconds: 900 },
+}); // the inline revision is published as revision 1 and the keeper is Active
+await client.mandates.wake(keeper.id!);
+const ticks = await client.mandates.listTicks(keeper.id!, { outcome: "Acted" });
+```
+
+`client.mandates` adds `list({ status, agentId, deploymentId })`, `update` (name, description, and deployment only), `delete(id, { force })` (without `force`, a running tick rejects with 409 `MandateActive`; `force` cancels its run), `listRevisions`, `getRevision`, `createRevision` (drafts a revision), `publishRevision` (resolves with the mandate), `pause`, `resume`, `wake`, `listTicks` (filter by outcome), and `getTick`. Values outside the cluster limits are clamped, and the response carries a `warnings` array of `field`, `given`, `stored`, and `message`; for example a `minIntervalSeconds` of 10 is raised to the floor. Runs a tick started have `kind` `Keeper`, `mandateId`, and `mandateTickId`; `client.runs.list({ mandateId })` lists them. Enums are string unions (`MandateStatus`, `MandateRevisionState`, `MandateRevisionSource`, `WakeMode`, `WakeSource`, `TickOutcome`) with matching constants such as `MANDATE_STATUSES` and `TICK_OUTCOMES`.
+
 ## Streaming run events
 
 ```ts

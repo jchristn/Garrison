@@ -1013,11 +1013,20 @@ PIPELINE_REVIEW_SOURCES = ("User", "Timeout", "Cancelled")
 TRIGGER_TYPES = ("Cron", "Webhook")
 # Run["kind"] values. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft"
 # environment (PLAYGROUND_ENVIRONMENT); see Agents.playground_invoke and StudioDrafts.playground_invoke.
-RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground")
+RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper")
 PLAYGROUND_ENVIRONMENT = "draft"
 TRIGGER_TARGET_TYPES = ("Agent", "Pipeline")
 TRIGGER_FIRE_SOURCES = ("Cron", "Webhook", "Manual")
 TRIGGER_FIRE_OUTCOMES = ("Started", "Failed", "Skipped")
+# Keepers (mandates): standing objectives an agent works on a wake schedule. Mandate["status"], MandateRevision["state"],
+# ["source"] and ["wakeMode"], MandateTick["wakeSource"] and ["outcome"]. Run["kind"] is "Keeper" and Run["mandateId"] and
+# ["mandateTickId"] are set for runs a keeper tick started.
+MANDATE_STATUSES = ("Draft", "Active", "Paused", "Frozen", "CapReached", "Retired")
+MANDATE_REVISION_STATES = ("Draft", "Published")
+MANDATE_REVISION_SOURCES = ("Human", "Board", "Executive", "Architect")
+WAKE_MODES = ("Fixed", "Backoff")
+WAKE_SOURCES = ("Timer", "Manual", "Message", "EscalationAnswer", "Webhook", "Report")
+TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped", "Unreported")
 # Notification endpoints. NotificationEndpoint["events"] items (Test is only sent by the test action and cannot be
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
@@ -1502,6 +1511,67 @@ class Triggers(Resource):
         if delivery_id:
             headers[WEBHOOK_DELIVERY_HEADER] = delivery_id
         return self._t.request("POST", self._item(trigger_id) + "/webhook", body=data, content_type=content_type, headers=headers)
+
+
+class Mandates(Resource):
+    """Keepers (mandates): a standing objective an agent works on a wake schedule, versioned as revisions. get/update/delete
+    take an identifier or a name. Create and update need Execute on the agent; the keeper runs as the caller. A create body
+    with an inline "currentRevision" publishes it as revision 1 and the mandate becomes Active. Create and revision
+    responses may carry a "warnings" list (field, given, stored, message) when values were clamped to the cluster limits."""
+
+    def list(self, max_results: Optional[int] = None, skip: Optional[int] = None, ordering: Optional[str] = None,
+             search: Optional[str] = None, status: Optional[str] = None, agent_id: Optional[str] = None,
+             deployment_id: Optional[str] = None) -> Dict[str, Any]:
+        """List mandates; status is one of MANDATE_STATUSES."""
+        return self._t.request("GET", self._base(), {"status": status, "agentId": agent_id, "deploymentId": deployment_id,
+                                                     "search": search, "maxResults": max_results, "skip": skip, "ordering": ordering})
+
+    def update(self, id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        """Change a mandate's name, description, and deploymentId only; the agent cannot change and revisions are edited
+        by creating a new one."""
+        return super().update(id, body)
+
+    def delete(self, id: str, force: Optional[bool] = None) -> Any:
+        """Delete a mandate with its revisions and tick history. Raises GarrisonError 409 MandateActive while a tick runs,
+        unless force is True, which cancels the tick's run."""
+        return self._t.request("DELETE", self._item(id), {"force": force})
+
+    def list_revisions(self, mandate: str) -> Dict[str, Any]:
+        """List a mandate's revisions, newest first."""
+        return self._t.request("GET", self._item(mandate) + "/revisions")
+
+    def get_revision(self, mandate: str, revision_id: str) -> Dict[str, Any]:
+        """Read one revision of a mandate."""
+        return self._t.request("GET", self._item(mandate) + f"/revisions/{_seg(revision_id)}")
+
+    def create_revision(self, mandate: str, revision: Dict[str, Any]) -> Dict[str, Any]:
+        """Draft a new revision (objective, signals, wake settings, budgets). It is not live until publish_revision."""
+        return self._t.request("POST", self._item(mandate) + "/revisions", body=revision)
+
+    def publish_revision(self, mandate: str, revision_id: str) -> Dict[str, Any]:
+        """Publish a draft revision: it becomes current, backoff resets, and an Active mandate wakes now. Returns the mandate."""
+        return self._t.request("POST", self._item(mandate) + f"/revisions/{_seg(revision_id)}/publish")
+
+    def pause(self, mandate: str) -> Dict[str, Any]:
+        """Pause a mandate: no further wakes until it is resumed. Returns the mandate."""
+        return self._t.request("POST", self._item(mandate) + "/pause")
+
+    def resume(self, mandate: str) -> Dict[str, Any]:
+        """Resume a paused mandate: it wakes now with its interval reset. Returns the mandate."""
+        return self._t.request("POST", self._item(mandate) + "/resume")
+
+    def wake(self, mandate: str) -> Dict[str, Any]:
+        """Wake an Active mandate now (after the running tick, if one is running). Returns the mandate."""
+        return self._t.request("POST", self._item(mandate) + "/wake")
+
+    def list_ticks(self, mandate: str, outcome: Optional[str] = None, max_results: Optional[int] = None,
+                   skip: Optional[int] = None) -> Dict[str, Any]:
+        """List a mandate's ticks, newest first; outcome is one of TICK_OUTCOMES."""
+        return self._t.request("GET", self._item(mandate) + "/ticks", {"outcome": outcome, "maxResults": max_results, "skip": skip})
+
+    def get_tick(self, tick_id: str) -> Dict[str, Any]:
+        """Read one tick, authorized as Read on its mandate."""
+        return self._t.request("GET", self._t.tenant_path(f"/mandate-ticks/{_seg(tick_id)}"))
 
 
 class NotificationEndpoints(Resource):
@@ -2355,8 +2425,8 @@ class Runs:
              root_run_id: Optional[str] = None, outcome: Optional[str] = None, from_utc: Optional[datetime] = None,
              to_utc: Optional[datetime] = None, max_results: Optional[int] = None, skip: Optional[int] = None,
              ordering: Optional[str] = None, caller_id: Optional[str] = None, conversation_id: Optional[str] = None,
-             trigger_id: Optional[str] = None) -> Dict[str, Any]:
-        return self._t.request("GET", self._p(), {"triggerId": trigger_id,
+             trigger_id: Optional[str] = None, mandate_id: Optional[str] = None) -> Dict[str, Any]:
+        return self._t.request("GET", self._p(), {"triggerId": trigger_id, "mandateId": mandate_id,
             "status": status, "agentId": agent_id, "deploymentId": deployment_id, "harnessType": harness_type, "nodeId": node_id,
             "parentRunId": parent_run_id, "rootRunId": root_run_id, "outcome": outcome, "fromUtc": from_utc, "toUtc": to_utc,
             "maxResults": max_results, "skip": skip, "ordering": ordering, "callerId": caller_id,
@@ -2673,6 +2743,7 @@ class GarrisonClient:
         self.pipeline_runs = PipelineRuns(t)
         self.pipeline_reviews = PipelineReviews(t)
         self.triggers = Triggers(t, "triggers")
+        self.mandates = Mandates(t, "mandates")
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

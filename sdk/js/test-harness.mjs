@@ -585,6 +585,48 @@ await check("webhook and cron triggers", async () => {
   }
 });
 
+await check("keepers", async () => {
+  let mandate;
+  try {
+    const signals = [{ name: "queue depth", description: "Pending items", order: 1 }, { name: "error rate", order: 2 }];
+    mandate = await client.mandates.create({ name: `sdk-js-keeper-${suffix}`, description: "SDK keeper", agentId: state.agent, deploymentId: state.deployment,
+      currentRevision: { objective: "Keep the queue healthy.", signals, wakeMode: "Fixed", minIntervalSeconds: 900, maxIntervalSeconds: 3600 } });
+    require(mandate.status === "Active" && mandate.currentRevisionNumber === 1, `create with revision: ${JSON.stringify(mandate)}`);
+    require(mandate.currentRevision.state === "Published" && mandate.currentRevision.signals.map((x) => x.name).join() === "queue depth,error rate", "signals round-trip");
+    const read = await client.mandates.get(mandate.name);
+    require(read.id === mandate.id, "get by name");
+    require((await client.mandates.list({ status: "Active", agentId: state.agent })).objects.some((m) => m.id === mandate.id), "list by status");
+    require(!(await client.mandates.list({ status: "Paused" })).objects.some((m) => m.id === mandate.id), "list excludes other statuses");
+    const updated = await client.mandates.update(mandate.id, { name: mandate.name, description: "Updated by the SDK", deploymentId: state.deployment });
+    require(updated.description === "Updated by the SDK", "update description");
+    const draft = await client.mandates.createRevision(mandate.id, { objective: "Keep the queue healthy and quiet.", signals, wakeMode: "Fixed",
+      minIntervalSeconds: 10, maxIntervalSeconds: 3600, changeNote: "tighter" });
+    require(draft.state === "Draft" && draft.number === 2, `draft revision: ${JSON.stringify(draft)}`);
+    const warning = (draft.warnings ?? []).find((w) => w.field === "minIntervalSeconds");
+    require(warning && String(warning.given) === "10" && String(warning.stored) === "60" && draft.minIntervalSeconds === 60, `clamp warning: ${JSON.stringify(draft.warnings)}`);
+    require((await client.mandates.getRevision(mandate.id, draft.id)).id === draft.id, "get revision");
+    require((await client.mandates.listRevisions(mandate.id)).objects.length === 2, "list revisions");
+    const published = await client.mandates.publishRevision(mandate.id, draft.id);
+    require(published.currentRevisionNumber === 2 && published.currentRevisionId === draft.id, "publish revision");
+    require((await client.mandates.pause(mandate.id)).status === "Paused", "pause");
+    require((await client.mandates.resume(mandate.id)).status === "Active", "resume");
+    await client.mandates.wake(mandate.id);
+    let tick;
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      tick = (await client.mandates.listTicks(mandate.id)).objects.find((x) => x.runId);
+      if (tick) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    require(tick, "a tick started a run");
+    require((await client.mandates.getTick(tick.id)).id === tick.id, "get tick");
+    const runs = (await client.runs.list({ mandateId: mandate.id })).objects;
+    require(runs.some((r) => r.id === tick.runId && r.kind === "Keeper" && r.mandateId === mandate.id), "runs by mandate");
+  } finally {
+    if (mandate) await client.mandates.delete(mandate.id, { force: true });
+  }
+});
+
 await check("notification endpoints", async () => {
   let status = 0;
   let codes;

@@ -39,6 +39,11 @@ namespace Garrison.Sdk.Enums
         /// A studio playground run (AD9.1): an agent's draft revision on an ephemeral deployment in the reserved draft
         /// environment. Left out of capability hints and never reachable from an app UI.
         /// </summary>
-        Playground
+        Playground,
+
+        /// <summary>
+        /// A keeper tick (AA1): a run of a mandate's agent woken by the keeper scheduler. MandateId and MandateTickId are set.
+        /// </summary>
+        Keeper
     }
 }

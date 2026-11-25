@@ -664,6 +664,54 @@ def t_triggers():
             client.triggers.delete(cron["id"])
 
 
+def t_keepers():
+    mandate = None
+    try:
+        signals = [{"name": "queue depth", "description": "Pending items", "order": 1}, {"name": "error rate", "order": 2}]
+        mandate = client.mandates.create({"name": f"sdk-py-keeper-{SUFFIX}", "description": "SDK keeper", "agentId": state["agent"],
+                                          "deploymentId": state["deployment"],
+                                          "currentRevision": {"objective": "Keep the queue healthy.", "signals": signals,
+                                                              "wakeMode": "Fixed", "minIntervalSeconds": 900, "maxIntervalSeconds": 3600}})
+        require(mandate["status"] == "Active" and mandate["currentRevisionNumber"] == 1, f"create with revision: {mandate}")
+        require(mandate["currentRevision"]["state"] == "Published" and [x["name"] for x in mandate["currentRevision"]["signals"]] == ["queue depth", "error rate"], "signals round-trip")
+        read = client.mandates.get(mandate["name"])
+        require(read["id"] == mandate["id"], "get by name")
+        require(any(m["id"] == mandate["id"] for m in client.mandates.list(status="Active", agent_id=state["agent"])["objects"]), "list by status")
+        require(not any(m["id"] == mandate["id"] for m in client.mandates.list(status="Paused")["objects"]), "list excludes other statuses")
+        updated = client.mandates.update(mandate["id"], {"name": mandate["name"], "description": "Updated by the SDK", "deploymentId": state["deployment"]})
+        require(updated["description"] == "Updated by the SDK", "update description")
+        draft = client.mandates.create_revision(mandate["id"], {"objective": "Keep the queue healthy and quiet.", "signals": signals,
+                                                                "wakeMode": "Fixed", "minIntervalSeconds": 10, "maxIntervalSeconds": 3600,
+                                                                "changeNote": "tighter"})
+        require(draft["state"] == "Draft" and draft["number"] == 2, f"draft revision: {draft}")
+        warning = next((w for w in draft.get("warnings", []) if w["field"] == "minIntervalSeconds"), None)
+        require(warning is not None and str(warning["given"]) == "10" and str(warning["stored"]) == "60" and draft["minIntervalSeconds"] == 60, f"clamp warning: {draft.get('warnings')}")
+        require(client.mandates.get_revision(mandate["id"], draft["id"])["id"] == draft["id"], "get revision")
+        require(len(client.mandates.list_revisions(mandate["id"])["objects"]) == 2, "list revisions")
+        published = client.mandates.publish_revision(mandate["id"], draft["id"])
+        require(published["currentRevisionNumber"] == 2 and published["currentRevisionId"] == draft["id"], "publish revision")
+        paused = client.mandates.pause(mandate["id"])
+        require(paused["status"] == "Paused", "pause")
+        resumed = client.mandates.resume(mandate["id"])
+        require(resumed["status"] == "Active", "resume")
+        client.mandates.wake(mandate["id"])
+        tick = None
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            ticks = client.mandates.list_ticks(mandate["id"])["objects"]
+            tick = next((x for x in ticks if x.get("runId")), None)
+            if tick:
+                break
+            time.sleep(1)
+        require(tick is not None, "a tick started a run")
+        require(client.mandates.get_tick(tick["id"])["id"] == tick["id"], "get tick")
+        runs = client.runs.list(mandate_id=mandate["id"])["objects"]
+        require(any(r["id"] == tick["runId"] and r["kind"] == "Keeper" and r.get("mandateId") == mandate["id"] for r in runs), "runs by mandate")
+    finally:
+        if mandate:
+            client.mandates.delete(mandate["id"], force=True)
+
+
 def t_notifications():
     try:
         client.notification_endpoints.create({"name": f"sdk-py-local-{SUFFIX}", "url": "http://127.0.0.1:9/x", "events": ["RunFailed"]})
@@ -1173,7 +1221,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

@@ -6,7 +6,15 @@ All notable changes to Garrison are recorded here. The format follows [Keep a Ch
 
 The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs `AA<phase>.<n>`, decisions `AA-<nnn>`).
 
+### Added
+
+- Dashboard: an Autonomy group in the sidebar with a Keepers page (AA1.16). The list filters by status and agent and has Pause, Resume, Wake now, and View runs in each row. Creating a keeper writes its first revision in the same form. Each keeper's page shows its schedule, current revision, a chart of the interval after each tick, a paged tick table with an outcome filter, and the revision list with a diff against the previous revision and Publish for drafts. It updates live over the `mandate:{id}` channel and otherwise polls. Delete offers to cancel a running tick when the server answers `MandateActive`. Home has an Autonomy card that counts keepers and lists the ones whose last tick needs a person, and a keeper tick's run links back to its keeper. All nine locales are translated.
+
+- SDKs: a Mandates client in C#, Python, JavaScript/TypeScript, and Go for keepers, their revisions, ticks, and pause, resume, and wake, plus the runs `mandateId` filter and the `Keeper` run kind (AA1.17).
+
 ### Fixed
+
+- The Grafana links on Home and Server info left out the Autonomy dashboard added in AA1.15.
 
 - Tenant deletion now removes deployment inference endpoints and credentials and harness runtime settings and credentials, and the startup table check covers them; `TableCatalog` had left these four tables out.
 - The reference schemas in `reference/sql` were missing migrations 29 to 43. They are regenerated from `SchemaBuilder` through migration 46 and record each migration in `schema_migrations`, so turning `Database.ManageSchema` on later does not run migrations again.

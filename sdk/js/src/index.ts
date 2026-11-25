@@ -836,6 +836,78 @@ export interface TriggerFire extends Json {
 /** Optional body of a manual fire; the payload reaches the input template as webhook.body. */
 export interface TriggerFireRequest { body?: string; contentType?: string; }
 
+/** Lifecycle status of a keeper (mandate). */
+export type MandateStatus = "Draft" | "Active" | "Paused" | "Frozen" | "CapReached" | "Retired";
+/** Whether a mandate revision is a draft or live. */
+export type MandateRevisionState = "Draft" | "Published";
+/** Who authored a mandate revision. */
+export type MandateRevisionSource = "Human" | "Board" | "Executive" | "Architect";
+/** How the interval between wakes changes: Fixed keeps minIntervalSeconds, Backoff grows it while ticks stay quiet. */
+export type WakeMode = "Fixed" | "Backoff";
+/** What started a keeper tick. */
+export type WakeSource = "Timer" | "Manual" | "Message" | "EscalationAnswer" | "Webhook" | "Report";
+/** How a keeper tick ended. */
+export type TickOutcome = "Quiet" | "Acted" | "Attention" | "Escalated" | "Failed" | "Skipped" | "Unreported";
+export const MANDATE_STATUSES: readonly MandateStatus[] = ["Draft", "Active", "Paused", "Frozen", "CapReached", "Retired"] as const;
+export const MANDATE_REVISION_STATES: readonly MandateRevisionState[] = ["Draft", "Published"] as const;
+export const MANDATE_REVISION_SOURCES: readonly MandateRevisionSource[] = ["Human", "Board", "Executive", "Architect"] as const;
+export const WAKE_MODES: readonly WakeMode[] = ["Fixed", "Backoff"] as const;
+export const WAKE_SOURCES: readonly WakeSource[] = ["Timer", "Manual", "Message", "EscalationAnswer", "Webhook", "Report"] as const;
+export const TICK_OUTCOMES: readonly TickOutcome[] = ["Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped", "Unreported"] as const;
+
+/** A value the server clamped to a cluster limit: the field, what was given, what was stored, and why. */
+export interface MandateWarning extends Json { field: string; given?: string; stored?: string; message: string; code?: string; }
+
+/** One signal a keeper watches, in display order. */
+export interface MandateRevisionSignal extends Json { name: string; description?: string | null; order?: number; }
+
+/** One version of a keeper's standing objective, signals, wake schedule, and budgets. Only a Published revision is live. */
+export interface MandateRevision extends Json {
+  id?: string; tenantId?: string; mandateId?: string; number?: number; state?: MandateRevisionState;
+  objective: string; healthyDefinition?: string | null; autonomy?: string | null; escalationPolicy?: string | null; direction?: string | null;
+  signals?: MandateRevisionSignal[];
+  /** Fixed or Backoff. Default Backoff. */
+  wakeMode?: WakeMode;
+  /** Seconds between wakes (the floor under Backoff). Clamped to the cluster limits, which raises a warning. Default 900. */
+  minIntervalSeconds?: number;
+  /** Longest interval under Backoff. Default 86400. */
+  maxIntervalSeconds?: number;
+  backoffFactor?: number; jitterPercent?: number | null;
+  budgetPerTickUsd?: number | null; budgetPerDayUsd?: number | null; maxTokensPerTick?: number | null;
+  source?: MandateRevisionSource; author?: string | null; changeNote?: string | null;
+  createdUtc?: string; publishedUtc?: string | null;
+  /** Present when values were clamped. */
+  warnings?: MandateWarning[];
+}
+
+/** A keeper: a standing objective an agent works on a wake schedule. Ticks run as the principal that last saved it. */
+export interface Mandate extends Json {
+  id?: string; tenantId?: string; name: string; description?: string | null;
+  agentId?: string; deploymentId?: string;
+  status?: MandateStatus;
+  currentRevisionId?: string | null; currentRevisionNumber?: number;
+  /** The live revision. On create, an inline currentRevision is published as revision 1 and the mandate becomes Active. */
+  currentRevision?: MandateRevision | null;
+  nextWakeUtc?: string | null; pendingWakeSource?: WakeSource | null;
+  currentIntervalSeconds?: number; consecutiveQuietTicks?: number;
+  lastTickUtc?: string | null; lastTickOutcome?: TickOutcome | null;
+  activeRunId?: string | null; activeTickId?: string | null; tickCount?: number;
+  runAsType?: string; runAsId?: string | null; runAsName?: string | null; createdBy?: string | null;
+  createdUtc?: string; lastUpdateUtc?: string;
+  /** Present when values were clamped. */
+  warnings?: MandateWarning[];
+}
+
+/** One wake of a keeper and the run it started. */
+export interface MandateTick extends Json {
+  id: string; tenantId: string; mandateId: string; revisionId?: string | null; revisionNumber?: number;
+  wakeSource: WakeSource; scheduledUtc: string; startedUtc: string; finishedUtc?: string | null;
+  runId?: string | null; outcome?: TickOutcome | null; reported?: boolean;
+  requestedNextWakeSeconds?: number | null; appliedIntervalSeconds?: number | null; costUsd?: number | null;
+  summary?: string | null; templateName?: string | null; templateVersion?: number;
+  errorCode?: string | null; errorMessage?: string | null; createdUtc?: string;
+}
+
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
 export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "Test";
 export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "Test"] as const;
@@ -1153,8 +1225,8 @@ export type RunStatus = "Queued" | "Leased" | "Running" | "Cancelling" | "Succee
 export const RUN_STATUSES: readonly RunStatus[] = ["Queued", "Leased", "Running", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected", "Suspended"] as const;
 export const QUEUE_FULL_ERROR = "QueueFull" as const;
 /** Why a run was created. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft" environment. */
-export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground";
-export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground"] as const;
+export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground" | "Keeper";
+export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper"] as const;
 /** The reserved environment playground deployments live in; users cannot create deployments in it. */
 export const PLAYGROUND_ENVIRONMENT = "draft" as const;
 export type EffectOperationState = "Authorized" | "Dispatched" | "Completed" | "Unknown";
@@ -1261,6 +1333,10 @@ export interface Run extends Json {
   pipelineExecution?: number;
   /** Trigger that started this run (kind Trigger), or null. */
   triggerId?: string | null;
+  /** Keeper (mandate) that started this run (kind Keeper), or null. */
+  mandateId?: string | null;
+  /** Keeper tick that started this run, or null. */
+  mandateTickId?: string | null;
   /** Fan-out group this run is a member of, or null when it was not started by garrison_fan_out. */
   fanOutGroupId?: string | null;
   /** Structured output of the run as a JSON value (any JSON type), or null when there is none. */
@@ -1467,6 +1543,8 @@ export interface RunFilter {
   conversationId?: string;
   /** Only runs this trigger started. */
   triggerId?: string;
+  /** Only runs this keeper (mandate) started. */
+  mandateId?: string;
   maxResults?: number; skip?: number; ordering?: string;
 }
 
@@ -2293,6 +2371,40 @@ export class Triggers extends Resource<Trigger> {
 }
 
 /**
+ * Keepers (mandates): a standing objective an agent works on a wake schedule, versioned as revisions. Create and update need
+ * Execute on the agent; the keeper runs as the caller. An inline currentRevision on create is published as revision 1 and the
+ * mandate becomes Active. Create and revision responses may carry warnings when values were clamped to the cluster limits.
+ */
+export class Mandates extends Resource<Mandate> {
+  /** List mandates; filter by status, agent, or deployment. */
+  list(query?: EnumerationQuery & { status?: MandateStatus; agentId?: string; deploymentId?: string }): Promise<EnumerationResult<Mandate>> { return this.t.request("GET", this.base(), query as any); }
+  /** Change a mandate's name, description, and deploymentId only; the agent cannot change and revisions are edited by drafting a new one. */
+  update(id: string, body: Partial<Mandate> | Json): Promise<Mandate> { return super.update(id, body); }
+  /** Delete a mandate with its revisions and tick history. Rejects with 409 MandateActive while a tick runs, unless force is true, which cancels the tick's run. */
+  delete(id: string, options: { force?: boolean } = {}): Promise<unknown> { return this.t.request("DELETE", this.item(id), options as any); }
+  /** List a mandate's revisions, newest first. */
+  listRevisions(id: string): Promise<EnumerationResult<MandateRevision>> { return this.t.request("GET", this.item(id) + "/revisions"); }
+  /** Read one revision of a mandate. */
+  getRevision(id: string, revisionId: string): Promise<MandateRevision> { return this.t.request("GET", this.item(id) + `/revisions/${seg(revisionId)}`); }
+  /** Draft a new revision (objective, signals, wake settings, budgets). It is not live until publishRevision. */
+  createRevision(id: string, revision: MandateRevision | Json): Promise<MandateRevision> { return this.t.request("POST", this.item(id) + "/revisions", undefined, revision); }
+  /** Publish a draft revision: it becomes current, backoff resets, and an Active mandate wakes now. Resolves with the mandate. */
+  publishRevision(id: string, revisionId: string): Promise<Mandate> { return this.t.request("POST", this.item(id) + `/revisions/${seg(revisionId)}/publish`); }
+  /** Pause a mandate: no further wakes until it is resumed. */
+  pause(id: string): Promise<Mandate> { return this.t.request("POST", this.item(id) + "/pause"); }
+  /** Resume a paused mandate: it wakes now with its interval reset. */
+  resume(id: string): Promise<Mandate> { return this.t.request("POST", this.item(id) + "/resume"); }
+  /** Wake an Active mandate now (after the running tick, if one is running). */
+  wake(id: string): Promise<Mandate> { return this.t.request("POST", this.item(id) + "/wake"); }
+  /** List a mandate's ticks, newest first. */
+  listTicks(id: string, filter: { outcome?: TickOutcome; maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<MandateTick>> {
+    return this.t.request("GET", this.item(id) + "/ticks", filter as any);
+  }
+  /** Read one tick, authorized as Read on its mandate. */
+  getTick(tickId: string): Promise<MandateTick> { return this.t.request("GET", this.t.tenantPath(`/mandate-ticks/${seg(tickId)}`)); }
+}
+
+/**
  * Notification endpoints: URLs that receive signed JSON notifications for run, pipeline, and approval events. Receivers check
  * each request with verifyWebhook and ignore repeated X-Garrison-Delivery values (delivery is at least once).
  */
@@ -2463,6 +2575,7 @@ export class GarrisonClient {
   readonly pipelineRuns: PipelineRuns;
   readonly pipelineReviews: PipelineReviews;
   readonly triggers: Triggers;
+  readonly mandates: Mandates;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2509,6 +2622,7 @@ export class GarrisonClient {
     this.pipelineRuns = new PipelineRuns(t);
     this.pipelineReviews = new PipelineReviews(t);
     this.triggers = new Triggers(t, "triggers");
+    this.mandates = new Mandates(t, "mandates");
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

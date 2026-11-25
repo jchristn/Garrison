@@ -112,6 +112,7 @@ type Client struct {
 	PipelineRuns               *PipelineRunsClient
 	PipelineReviews            *PipelineReviewsClient
 	Triggers                   *TriggersClient
+	Mandates                   *MandatesClient
 	NotificationEndpoints      *NotificationEndpointsClient
 	Environments               *EnvironmentsClient
 	Promotions                 *PromotionsClient
@@ -161,6 +162,7 @@ func NewClient(baseURL string) *Client {
 	c.PipelineRuns = &PipelineRunsClient{c: c}
 	c.PipelineReviews = &PipelineReviewsClient{c: c}
 	c.Triggers = &TriggersClient{Resource{c: c, segment: "triggers"}}
+	c.Mandates = &MandatesClient{Resource{c: c, segment: "mandates"}}
 	c.NotificationEndpoints = &NotificationEndpointsClient{Resource{c: c, segment: "notification-endpoints"}}
 	c.Environments = &EnvironmentsClient{c: c}
 	c.Promotions = &PromotionsClient{c: c}

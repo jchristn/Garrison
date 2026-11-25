@@ -359,6 +359,16 @@ namespace Garrison.Sdk.Models
         public string? TriggerId { get; set; } = null;
 
         /// <summary>
+        /// Keeper mandate this run ticked (Kind Keeper), or null.
+        /// </summary>
+        public string? MandateId { get; set; } = null;
+
+        /// <summary>
+        /// Keeper tick this run executes (Kind Keeper), or null.
+        /// </summary>
+        public string? MandateTickId { get; set; } = null;
+
+        /// <summary>
         /// Fan-out group this run is a member of, or null when it was not started by garrison_fan_out.
         /// </summary>
         public string? FanOutGroupId { get; set; } = null;

@@ -126,6 +126,23 @@ failed = client.triggers.list_fires(nightly["id"], outcome="Failed")
 
 `sign_webhook(secret, unix_seconds, body)` builds a signature and `verify_webhook(header, secret, body, tolerance_seconds=300)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
+## Keepers
+
+A keeper (a mandate) is a standing objective an agent works on a wake schedule. Each wake is a tick that starts a run, and the objective, signals, wake settings, and budgets live in numbered revisions; only the published revision is live. Creating one needs Execute on its agent, and it runs as the principal that last created or changed it.
+
+```python
+keeper = client.mandates.create({
+    "name": "queue-keeper", "agentId": agent_id, "deploymentId": deployment_id,
+    "currentRevision": {"objective": "Keep the work queue healthy.",
+                        "signals": [{"name": "queue depth", "order": 1}],
+                        "wakeMode": "Backoff", "minIntervalSeconds": 900},
+})  # the inline revision is published as revision 1 and the keeper is Active
+client.mandates.wake(keeper["id"])
+ticks = client.mandates.list_ticks(keeper["id"], outcome="Acted")
+```
+
+`client.mandates` adds `list(status=..., agent_id=..., deployment_id=...)` (status is one of `MANDATE_STATUSES`), `update` (name, description, and deployment only), `delete(id, force=True)` (without `force`, a running tick raises 409 `MandateActive`; `force` cancels its run), `list_revisions`, `get_revision`, `create_revision` (drafts a revision), `publish_revision` (returns the mandate), `pause`, `resume`, `wake`, `list_ticks` (filter by `TICK_OUTCOMES`), and `get_tick`. Values outside the cluster limits are clamped, and the response carries a `warnings` list of `field`, `given`, `stored`, and `message`; for example a `minIntervalSeconds` of 10 is raised to the floor. Runs a tick started have `kind` `Keeper`, `mandateId`, and `mandateTickId`; `client.runs.list(mandate_id=...)` lists them. The module also exports `MANDATE_REVISION_STATES`, `MANDATE_REVISION_SOURCES`, `WAKE_MODES`, and `WAKE_SOURCES`.
+
 ## Streaming run events
 
 ```python

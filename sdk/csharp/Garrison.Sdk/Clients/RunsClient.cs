@@ -130,6 +130,7 @@ namespace Garrison.Sdk.Clients
                 query["callerId"] = filter.CallerId;
                 query["conversationId"] = filter.ConversationId;
                 query["triggerId"] = filter.TriggerId;
+                query["mandateId"] = filter.MandateId;
                 query["fromUtc"] = QueryBuilder.Date(filter.FromUtc);
                 query["toUtc"] = QueryBuilder.Date(filter.ToUtc);
                 query["skip"] = filter.Skip.ToString();

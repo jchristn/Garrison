@@ -70,6 +70,11 @@ namespace Garrison.Sdk.Requests
         public string? TriggerId { get; set; } = null;
 
         /// <summary>
+        /// Keeper filter: only runs that ticked this mandate.
+        /// </summary>
+        public string? MandateId { get; set; } = null;
+
+        /// <summary>
         /// Created at or after (UTC).
         /// </summary>
         public DateTime? FromUtc { get; set; } = null;

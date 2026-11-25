@@ -81,7 +81,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -161,6 +161,29 @@ EnumerationResult<TriggerFire> fires = await client.Triggers.ListFiresAsync(nigh
 `NotificationEndpoints` manages URLs that receive signed JSON notifications for `NotificationEventEnum` events (`RunSucceeded`, `RunFailed`, `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed`, `ApprovalRequested`). It adds `RotateSecretAsync`, `TestAsync` (sends a `Test` notification and returns the `NotificationDelivery` after its first attempt), `ListDeliveriesAsync` (filter by `NotificationDeliveryStatusEnum`), and `GetDeliveryAsync`; a delivery's `Payload` is the JSON body as a `JsonElement?` object. A loopback or private URL answers 400 with field code `DestinationBlocked` in `GarrisonException.Error.FieldCodes` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
 
 `WebhookSignature.Header(secret, unixSeconds, body)` builds a signature and `WebhookSignature.Verify(header, secret, body, toleranceSeconds)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
+
+## Keepers
+
+A keeper is a mandate: a standing objective that wakes its agent on a schedule, one tick at a time, with a revision history for the objective, signals, wake schedule, and budgets. It runs as the principal that last created or changed it, so creating one needs Execute on its agent. A `Mandate` created with an inline `CurrentRevision` publishes it as revision 1 and becomes `Active`.
+
+```csharp
+Mandate keeper = await client.Mandates.CreateAsync(new Mandate
+{
+    Name = "service-watch",
+    AgentId = agentId,
+    DeploymentId = deploymentId,
+    CurrentRevision = new MandateRevision
+    {
+        Objective = "Keep the service healthy.",
+        Signals = new List<MandateRevisionSignal> { new MandateRevisionSignal { Name = "uptime", Order = 0 } },
+        MinIntervalSeconds = 300
+    }
+});
+await client.Mandates.WakeAsync(keeper.Name);
+EnumerationResult<MandateTick> ticks = await client.Mandates.ListTicksAsync(keeper.Name, TickOutcomeEnum.Acted);
+```
+
+`Mandates` adds `ListAsync(query, status, agentId, deploymentId)`, `DeleteAsync(id, force)` (`force` cancels a running tick; otherwise 409 `MandateActive`), `ListRevisionsAsync`, `GetRevisionAsync`, `CreateRevisionAsync` (drafts a revision), `PublishRevisionAsync` (makes it current and wakes an active keeper), `PauseAsync`, `ResumeAsync`, `WakeAsync` (the server answers 202 and the tick starts on the next scheduler sweep), `ListTicksAsync` (filter by `TickOutcomeEnum`), and `GetTickAsync`. `UpdateAsync` changes only `Name`, `Description`, and `DeploymentId`. A value the server clamps, such as a `MinIntervalSeconds` below the cluster floor (default 60), comes back in `Warnings` on the mandate or revision. Runs a tick started have `Kind` `Keeper`, `MandateId`, and `MandateTickId`; `RunFilter.MandateId` lists them.
 
 ## Agent revisions and promotion
 

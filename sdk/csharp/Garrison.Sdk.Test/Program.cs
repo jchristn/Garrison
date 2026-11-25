@@ -950,6 +950,62 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("keeper mandates", async () =>
+                {
+                    Mandate? keeper = null;
+                    try
+                    {
+                        MandateRevision first = new MandateRevision { Objective = "Keep the SDK scratch service healthy.", HealthyDefinition = "No failing checks.", WakeMode = WakeModeEnum.Backoff, MinIntervalSeconds = 60, MaxIntervalSeconds = 3600 };
+                        first.Signals = new List<MandateRevisionSignal> { new MandateRevisionSignal { Name = "uptime", Description = "Is it up?", Order = 0 }, new MandateRevisionSignal { Name = "errors", Order = 1 } };
+                        keeper = await client.Mandates.CreateAsync(new Mandate { Name = "sdk-cs-keeper-" + suffix, Description = "SDK keeper", AgentId = agentId!, DeploymentId = deploymentId!, CurrentRevision = first }, token).ConfigureAwait(false);
+                        Require(keeper.Id.StartsWith("mdt_", StringComparison.Ordinal) && keeper.Status == MandateStatusEnum.Active && keeper.CurrentRevisionNumber == 1 && keeper.CurrentRevision != null, "keeper create is Active at revision 1: " + keeper.Status + " " + keeper.CurrentRevisionNumber);
+                        Require(keeper.CurrentRevision!.State == MandateRevisionStateEnum.Published && keeper.CurrentRevision.Signals.Count == 2 && keeper.CurrentRevision.Signals[0].Name == "uptime" && keeper.CurrentRevision.Signals[1].Order == 1, "signals round-trip");
+
+                        Mandate read = await client.Mandates.GetAsync(keeper.Name, token).ConfigureAwait(false);
+                        Require(read.Id == keeper.Id && read.RunAsType == PrincipalTypeEnum.Credential, "get by name");
+                        Require((await client.Mandates.ListAsync(null, MandateStatusEnum.Active, agentId, deploymentId, token).ConfigureAwait(false)).Objects.Any(m => m.Id == keeper.Id), "list by status");
+                        Require(!(await client.Mandates.ListAsync(null, MandateStatusEnum.Retired, agentId, null, token).ConfigureAwait(false)).Objects.Any(m => m.Id == keeper.Id), "list by another status");
+
+                        Mandate updated = await client.Mandates.UpdateAsync(keeper.Id, new Mandate { Description = "SDK keeper, updated" }, token).ConfigureAwait(false);
+                        Require(updated.Description == "SDK keeper, updated" && updated.Name == keeper.Name, "update description");
+
+                        MandateRevision draft = await client.Mandates.CreateRevisionAsync(keeper.Id, new MandateRevision { Objective = "Keep the SDK scratch service healthy and fast.", ChangeNote = "second revision", MinIntervalSeconds = 10, MaxIntervalSeconds = 3600 }, token).ConfigureAwait(false);
+                        Require(draft.Number == 2 && draft.State == MandateRevisionStateEnum.Draft, "draft revision 2");
+                        Require(draft.Warnings != null && draft.Warnings.Any(w => w.Field == "minIntervalSeconds" && w.Code == "ValueClamped") && draft.MinIntervalSeconds == 60, "clamp warning raises 10 to the floor of 60");
+                        MandateRevision fetched = await client.Mandates.GetRevisionAsync(keeper.Id, draft.Id, token).ConfigureAwait(false);
+                        Require(fetched.Id == draft.Id && fetched.ChangeNote == "second revision", "get revision");
+                        Require((await client.Mandates.ListRevisionsAsync(keeper.Id, null, token).ConfigureAwait(false)).Objects.Count == 2, "list revisions");
+                        Mandate published = await client.Mandates.PublishRevisionAsync(keeper.Id, draft.Id, token).ConfigureAwait(false);
+                        Require(published.CurrentRevisionNumber == 2 && published.CurrentRevisionId == draft.Id, "publish makes revision 2 current");
+
+                        Mandate paused = await client.Mandates.PauseAsync(keeper.Id, token).ConfigureAwait(false);
+                        Require(paused.Status == MandateStatusEnum.Paused, "pause");
+                        Mandate resumed = await client.Mandates.ResumeAsync(keeper.Id, token).ConfigureAwait(false);
+                        Require(resumed.Status == MandateStatusEnum.Active, "resume");
+                        Mandate woken = await client.Mandates.WakeAsync(keeper.Id, token).ConfigureAwait(false);
+                        Require(woken.Status == MandateStatusEnum.Active, "wake");
+
+                        MandateTick? tick = null;
+                        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+                        while (DateTime.UtcNow < deadline)
+                        {
+                            tick = (await client.Mandates.ListTicksAsync(keeper.Id, null, null, token).ConfigureAwait(false)).Objects.FirstOrDefault(t => t.RunId != null);
+                            if (tick != null) break;
+                            await Task.Delay(1000, token).ConfigureAwait(false);
+                        }
+                        Require(tick != null, "a tick with a run appeared within 30 seconds");
+                        MandateTick readTick = await client.Mandates.GetTickAsync(tick!.Id, token).ConfigureAwait(false);
+                        Require(readTick.Id == tick.Id && readTick.MandateId == keeper.Id && readTick.RunId == tick.RunId && readTick.RevisionNumber >= 1, "get tick");
+                        EnumerationResult<Run> keeperRuns = await client.Runs.ListAsync(new RunFilter { MandateId = keeper.Id }, token).ConfigureAwait(false);
+                        Run keeperRun = keeperRuns.Objects.FirstOrDefault(r => r.Id == tick.RunId) ?? throw new InvalidOperationException("runs by mandate did not include the tick run");
+                        Require(keeperRun.Kind == RunKindEnum.Keeper && keeperRun.MandateId == keeper.Id && keeperRun.MandateTickId == tick.Id, "run carries the mandate and tick");
+                    }
+                    finally
+                    {
+                        if (keeper != null) await client.Mandates.DeleteAsync(keeper.Id, true, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

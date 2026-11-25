@@ -136,6 +136,27 @@ failed, err := client.Triggers.ListFires(ctx, nightly.ID, garrison.TriggerFireOu
 
 `garrison.SignWebhook(secret, unixSeconds, body)` builds a signature and `garrison.VerifyWebhook(header, secret, body, tolerance)` checks one (a zero tolerance means 300 seconds). The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
+## Keepers
+
+A keeper is a mandate: a standing objective that wakes its agent on a schedule, one tick at a time, with a revision history for the objective, signals, wake schedule, and budgets. It runs as the principal that last created or changed it, so creating one needs Execute on its agent. A `Mandate` created with an inline `CurrentRevision` publishes it as revision 1 and becomes `Active`.
+
+```go
+keeper, err := client.Mandates.Create(ctx, garrison.Mandate{
+	Name:         "service-watch",
+	AgentID:      agentID,
+	DeploymentID: deploymentID,
+	CurrentRevision: &garrison.MandateRevision{
+		Objective:          "Keep the service healthy.",
+		Signals:            []garrison.MandateRevisionSignal{{Name: "uptime", Order: 0}},
+		MinIntervalSeconds: 300,
+	},
+})
+_, err = client.Mandates.Wake(ctx, keeper.Name)
+ticks, err := client.Mandates.ListTicks(ctx, keeper.Name, garrison.TickOutcomeActed, nil)
+```
+
+`client.Mandates` is typed: `List(ctx, opts, status, agentID, deploymentID)`, `Get`, `Create`, `Update` (changes only `Name`, `Description`, and `DeploymentID`), `DeleteForce(ctx, id, force)` (`force` cancels a running tick; otherwise 409 `MandateActive`), `ListRevisions`, `GetRevision`, `CreateRevision` (drafts a revision), `PublishRevision` (makes it current and wakes an active keeper), `Pause`, `Resume`, `Wake` (the server answers 202 and the tick starts on the next scheduler sweep), `ListTicks` (filter by `TickOutcome` constants), and `GetTick`. A value the server clamps, such as a `MinIntervalSeconds` below the cluster floor (default 60), comes back in `Warnings` on the mandate or revision. Runs a tick started have `Kind` `Keeper`, `MandateID`, and `MandateTickID`; `RunFilter.MandateID` lists them.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

@@ -16,6 +16,7 @@ const (
 	RunKindPipeline   = "Pipeline"
 	RunKindTrigger    = "Trigger"
 	RunKindPlayground = "Playground"
+	RunKindKeeper     = "Keeper"
 )
 
 // PlaygroundEnvironment is the reserved environment playground deployments live in. Users cannot create deployments

@@ -1331,6 +1331,149 @@ func main() {
 		}
 		return nil
 	})
+	check("keeper mandates", func(ctx context.Context) error {
+		var keeper *garrison.Mandate
+		defer func() {
+			if keeper != nil {
+				_ = client.Mandates.DeleteForce(ctx, keeper.ID, true)
+			}
+		}()
+		objective := "Keep the SDK scratch service healthy."
+		description := "SDK keeper"
+		signalNote := "Is it up?"
+		first := garrison.MandateRevision{
+			Objective:          objective,
+			WakeMode:           garrison.WakeModeBackoff,
+			MinIntervalSeconds: 60,
+			MaxIntervalSeconds: 3600,
+			Signals:            []garrison.MandateRevisionSignal{{Name: "uptime", Description: &signalNote, Order: 0}, {Name: "errors", Order: 1}},
+		}
+		created, err := client.Mandates.Create(ctx, garrison.Mandate{Name: "sdk-go-keeper-" + suffix, Description: &description, AgentID: agentID, DeploymentID: deploymentID, CurrentRevision: &first})
+		if err != nil {
+			return err
+		}
+		keeper = created
+		if !strings.HasPrefix(keeper.ID, "mdt_") || keeper.Status != garrison.MandateStatusActive || keeper.CurrentRevisionNumber != 1 || keeper.CurrentRevision == nil {
+			return fmt.Errorf("keeper create should be Active at revision 1: %+v", keeper)
+		}
+		current := keeper.CurrentRevision
+		if current.State != garrison.MandateRevisionStatePublished || len(current.Signals) != 2 || current.Signals[0].Name != "uptime" || current.Signals[1].Order != 1 {
+			return errors.New("signals round-trip")
+		}
+		read, err := client.Mandates.Get(ctx, keeper.Name)
+		if err != nil || read.ID != keeper.ID {
+			return fmt.Errorf("get by name: %v", err)
+		}
+		active, err := client.Mandates.List(ctx, nil, garrison.MandateStatusActive, agentID, deploymentID)
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, m := range active.Objects {
+			if m.ID == keeper.ID {
+				found = true
+			}
+		}
+		if !found {
+			return errors.New("list by status")
+		}
+		retired, err := client.Mandates.List(ctx, nil, garrison.MandateStatusRetired, agentID, "")
+		if err != nil {
+			return err
+		}
+		for _, m := range retired.Objects {
+			if m.ID == keeper.ID {
+				return errors.New("list by another status")
+			}
+		}
+		newDescription := "SDK keeper, updated"
+		updated, err := client.Mandates.Update(ctx, keeper.ID, garrison.Mandate{Description: &newDescription})
+		if err != nil || updated.Description == nil || *updated.Description != newDescription || updated.Name != keeper.Name {
+			return fmt.Errorf("update description: %v", err)
+		}
+		note := "second revision"
+		draft, err := client.Mandates.CreateRevision(ctx, keeper.ID, garrison.MandateRevision{Objective: objective + " and fast.", ChangeNote: &note, MinIntervalSeconds: 10, MaxIntervalSeconds: 3600})
+		if err != nil {
+			return err
+		}
+		if draft.Number != 2 || draft.State != garrison.MandateRevisionStateDraft {
+			return fmt.Errorf("draft revision 2: %+v", draft)
+		}
+		clamped := false
+		for _, w := range draft.Warnings {
+			if w.Field == "minIntervalSeconds" && w.Code == garrison.FieldWarningValueClamped {
+				clamped = true
+			}
+		}
+		if !clamped || draft.MinIntervalSeconds != 60 {
+			return fmt.Errorf("clamp warning should raise 10 to the floor of 60: %+v", draft)
+		}
+		fetched, err := client.Mandates.GetRevision(ctx, keeper.ID, draft.ID)
+		if err != nil || fetched.ID != draft.ID || fetched.ChangeNote == nil || *fetched.ChangeNote != note {
+			return fmt.Errorf("get revision: %v", err)
+		}
+		revisions, err := client.Mandates.ListRevisions(ctx, keeper.ID, nil)
+		if err != nil || len(revisions.Objects) != 2 {
+			return fmt.Errorf("list revisions: %v", err)
+		}
+		published, err := client.Mandates.PublishRevision(ctx, keeper.ID, draft.ID)
+		if err != nil || published.CurrentRevisionNumber != 2 || published.CurrentRevisionID == nil || *published.CurrentRevisionID != draft.ID {
+			return fmt.Errorf("publish makes revision 2 current: %v", err)
+		}
+		paused, err := client.Mandates.Pause(ctx, keeper.ID)
+		if err != nil || paused.Status != garrison.MandateStatusPaused {
+			return fmt.Errorf("pause: %v", err)
+		}
+		resumed, err := client.Mandates.Resume(ctx, keeper.ID)
+		if err != nil || resumed.Status != garrison.MandateStatusActive {
+			return fmt.Errorf("resume: %v", err)
+		}
+		woken, err := client.Mandates.Wake(ctx, keeper.ID)
+		if err != nil || woken.Status != garrison.MandateStatusActive {
+			return fmt.Errorf("wake: %v", err)
+		}
+		var tick *garrison.MandateTick
+		deadline := time.Now().Add(30 * time.Second)
+		for tick == nil && time.Now().Before(deadline) {
+			ticks, err := client.Mandates.ListTicks(ctx, keeper.ID, "", nil)
+			if err != nil {
+				return err
+			}
+			for i := range ticks.Objects {
+				if ticks.Objects[i].RunID != nil {
+					tick = &ticks.Objects[i]
+					break
+				}
+			}
+			if tick == nil {
+				time.Sleep(time.Second)
+			}
+		}
+		if tick == nil {
+			return errors.New("a tick with a run should appear within 30 seconds")
+		}
+		readTick, err := client.Mandates.GetTick(ctx, tick.ID)
+		if err != nil || readTick.ID != tick.ID || readTick.MandateID != keeper.ID || readTick.RunID == nil || *readTick.RunID != *tick.RunID || readTick.RevisionNumber < 1 {
+			return fmt.Errorf("get tick: %v", err)
+		}
+		runs, err := client.Runs.List(ctx, garrison.RunFilter{MandateID: keeper.ID})
+		if err != nil {
+			return err
+		}
+		var keeperRun *garrison.Run
+		for i := range runs.Objects {
+			if runs.Objects[i].ID == *tick.RunID {
+				keeperRun = &runs.Objects[i]
+			}
+		}
+		if keeperRun == nil {
+			return errors.New("runs by mandate should include the tick run")
+		}
+		if keeperRun.Kind != garrison.RunKindKeeper || keeperRun.MandateID == nil || *keeperRun.MandateID != keeper.ID || keeperRun.MandateTickID == nil || *keeperRun.MandateTickID != tick.ID {
+			return errors.New("run carries the mandate and tick")
+		}
+		return nil
+	})
 	check("notification endpoints", func(ctx context.Context) error {
 		var refused garrison.NotificationEndpoint
 		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)

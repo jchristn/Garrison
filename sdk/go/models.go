@@ -607,7 +607,7 @@ type Run struct {
 	DeploymentID         string                `json:"deploymentId"`
 	// AgentRevisionID is the agent revision the run executed; nil when the deployment was unpinned.
 	AgentRevisionID *string `json:"agentRevisionId,omitempty"`
-	// Kind is a RunKind* constant: Invoke, Delegated, Test, Retry, Pipeline, Trigger, or Playground.
+	// Kind is a RunKind* constant: Invoke, Delegated, Test, Retry, Pipeline, Trigger, Playground, or Keeper.
 	Kind     string `json:"kind"`
 	Status   string `json:"status"`
 	Outcome  string `json:"outcome"`
@@ -704,6 +704,10 @@ type Run struct {
 	PipelineExecution int `json:"pipelineExecution"`
 	// TriggerID is the trigger that started this run (Kind Trigger); nil otherwise.
 	TriggerID *string `json:"triggerId"`
+	// MandateID is the keeper mandate this run ticked (Kind Keeper); nil otherwise.
+	MandateID *string `json:"mandateId,omitempty"`
+	// MandateTickID is the keeper tick this run executes (Kind Keeper); nil otherwise.
+	MandateTickID *string `json:"mandateTickId,omitempty"`
 	// FanOutGroupID is the fan-out group this run is a member of; nil when it was not started by garrison_fan_out.
 	FanOutGroupID *string `json:"fanOutGroupId,omitempty"`
 }
@@ -850,6 +854,8 @@ type RunFilter struct {
 	ConversationID string
 	// TriggerID keeps only the runs this trigger started.
 	TriggerID string
+	// MandateID keeps only the runs that ticked this keeper mandate.
+	MandateID string
 }
 
 // ManifestApply is the result of applying manifests. Items is kept raw for forward compatibility; call

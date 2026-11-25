@@ -174,6 +174,11 @@ namespace Garrison.Sdk
         public TriggersClient Triggers { get; }
 
         /// <summary>
+        /// Keepers (AA1): standing mandates whose agent wakes on a schedule, with revisions, pause, resume, wake, and tick history.
+        /// </summary>
+        public MandatesClient Mandates { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -298,6 +303,7 @@ namespace Garrison.Sdk
             PipelineRuns = new PipelineRunsClient(Transport);
             PipelineReviews = new PipelineReviewsClient(Transport);
             Triggers = new TriggersClient(Transport);
+            Mandates = new MandatesClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);
