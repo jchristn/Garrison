@@ -56,6 +56,7 @@ Start with the workflow you need, then use the configuration and protocol refere
 
 Garrison is alpha: a 0.x version means the REST API, MCP tools, schema, settings, and SDKs can still change. Durable suspension, memory and daily quota enforcement have explicit enablement requirements; retry policies do not make arbitrary shell or third-party effects exactly-once. Protocol and feature guides state their supported boundaries.
 
+- [Active plan: autonomous agents for 0.3.0](../AUTONOMOUS_AGENTS_PLAN.md).
 - [Current completed, deferred and conditional scope](REMAINING_PLAN_MATRIX.md).
 - [Latest recovery, continuation and cache acceptance](testing/D063_VALIDATION.md).
 - [Application telemetry, diagnostics and performance evidence](testing/D062_VALIDATION.md).

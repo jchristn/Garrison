@@ -7,13 +7,13 @@ Where Part I and Part II differ in detail, Part II wins. Part I stays as written
 | | |
 |---|---|
 | Parent plans | `archive/GARRISON_PLAN.md` (D- decisions), `archive/AGENT_DESIGN_DEPLOY_PLAN.md` (AD- decisions). Phase AA9 absorbs the deferred AD11 (eval sets and promotion gates). |
-| Product version | `0.2.0` at plan creation. The release target `0.3.0` is proposed (AA-011) and is not applied until the user explicitly approves it (task AA0.2, `VERSIONING.md` section 4). |
+| Product version | `0.2.0` at plan creation; `0.3.0` approved by the user on 2026-11-25 and applied in AA0.3 (AA-011). |
 | Release branch | `feature/autonomous-agents` (AA0.1). Every later task commits to it or to a mission branch that merges into it, never directly to `main`. |
 | Task and decision IDs | Tasks `AA<phase>.<n>`; decisions `AA-<nnn>`. Nothing collides with `P`, `D-`, `AD`, or `AD-`. |
 | Requirements | `~/Code/Agents/requirements` (all files), this repository's `CLAUDE.md`, and the conventions carried over from the parent plans. Section 1.4 records where the project's own rules override the generic requirements. |
 | Plan created | 2026-11-25 |
 | Plan owner | Joel Christner |
-| Status | Not started. See the [Progress Dashboard](#2-progress-dashboard). |
+| Status | In progress: AA0 done; AA1 next. See the [Progress Dashboard](#2-progress-dashboard). |
 
 ---
 
@@ -257,7 +257,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 
 | Phase | Name | Depends on | Status | Done / Total |
 |---|---|---|---|---|
-| AA0 | Release start: branch, version, plan wiring (first) | none | Not started | 0 / 5 |
+| AA0 | Release start: branch, version, plan wiring (first) | none | Done | 5 / 5 |
 | AA1 | Mandates, wake schedules, and keepers | AA0 | Not started | 0 / 19 |
 | AA2 | Escalations | AA1 | Not started | 0 / 16 |
 | AA3 | Brakes I: freezes, spend caps, kill switch | AA1 | Not started | 0 / 11 |
@@ -384,7 +384,7 @@ AA-001 to AA-010 come from the user in the conversation of 2026-11-25. AA-011 on
 | AA-008 | The human at the top gets a board view of the whole organization. | Agreed by the user ("100%"). | User, 2026-11-25 |
 | AA-009 | Managers judge subordinates on real signals, and people get brakes at every scale. | Agreed by the user. | User, 2026-11-25 |
 | AA-010 | This plan is exhaustive and actionable, covers every product surface (server, worker, dashboard, website, SDKs, Postman, docs, tests, versions, repository), and complies with `~/Code/Agents/requirements`. | The request. | User, 2026-11-25 |
-| AA-011 | Release `v0.3.0` from `feature/autonomous-agents`. The version change waits for the user's explicit approval (AA0.2). | New, backward-compatible features in a 0.x line call for a minor bump; `VERSIONING.md` forbids changing it unasked. | Proposed |
+| AA-011 | Release `v0.3.0` from `feature/autonomous-agents`. Approved by the user on 2026-11-25 (AA0.2). | New, backward-compatible features in a 0.x line call for a minor bump; `VERSIONING.md` forbids changing it unasked. | User, 2026-11-25 |
 | AA-012 | A mandate is its own versioned entity bound to one deployment, not a field on the agent. Revisions are immutable once published. A deployment may carry several mandates. | One agent can keep different things in different environments; board direction and executive edits must be versioned and attributable. | Proposed |
 | AA-013 | Keeper ticks are ordinary runs with a new `RunKindEnum.Keeper`, so leases, quotas, telemetry, transcripts, and continuation apply unchanged. Message-started runs use `RunKindEnum.Message`; eval and shadow runs use `Eval` and `Shadow`. | Reuse the run path instead of a parallel one. | Proposed |
 | AA-014 | The wake scheduler is a leader-run sweep, like triggers. It claims a due mandate with one compare-and-set on `nextwakeutc` and `activerunid`, so several replicas produce exactly one tick. A tick never starts while the mandate's previous tick runs (single-flight); the skipped wake is recorded. Next wake = clamp(requested or computed interval, min, max) plus jitter. Backoff multiplies the interval by the revision's factor after a `Quiet` tick and resets to the minimum after `Attention`, `Escalated`, or `Failed`. | Exactly-once ticks across replicas; no overlapping runs; cost stays bounded when nothing is happening. | Proposed |
@@ -403,6 +403,7 @@ AA-001 to AA-010 come from the user in the conversation of 2026-11-25. AA-011 on
 | AA-027 | Shadow runs use `RunKindEnum.Shadow` and a run token flagged shadow: tool approvals default to Deny, effectful tools are denied, file spaces do not write back, and messaging, escalation, report, memory-write, and draft tools refuse. | A shadow that can act is not a shadow. | Proposed |
 | AA-028 | Section 1.4's requirement conflicts keep the project's existing rules. | They predate this plan and are recorded decisions. | Proposed |
 | AA-029 | The k3s multi-replica validation (formerly AA12.5) and the 72-hour soak (formerly AA12.6) are removed from the plan. Their IDs are retired and not reused. Multi-replica correctness rests on the `MultiReplicaSuite` cases in AA1.5, AA3.2, AA6.4, and AA6.5. | Neither can run inside an agent session. | User, 2026-11-25 |
+| AA-030 | ChangeRule IDs use the prefix `cru_`. The planned `chr_` is already taken by `IdGenerator.NewChildRowId` for scalar child rows. | Found by the AA0.4 collision check. | Proposed |
 
 ---
 
@@ -437,7 +438,7 @@ AA-001 to AA-010 come from the user in the conversation of 2026-11-25. AA-011 on
 
 ### 7.2 New and changed entities
 
-New ID prefixes were checked against `src/Garrison.Core/Constants.cs` and the source tree at plan time. `msg_` is avoided because the fake harness emits it for Codex message IDs; messages use `amg_`.
+New ID prefixes were checked against `src/Garrison.Core/Constants.cs`, `src/Garrison.Core/Helpers/IdGenerator.cs` (where most prefixes are generated), and the source tree at plan time and again at AA0.4. `msg_` is avoided because the fake harness emits it for Codex message IDs; messages use `amg_`.
 
 | Entity | Prefix | Tables | Key fields | Phase |
 |---|---|---|---|---|
@@ -452,7 +453,7 @@ New ID prefixes were checked against `src/Garrison.Core/Constants.cs` and the so
 | Organization | `org_` | `organizations` | Tenant, name, description, mission, status (`Draft`, `Active`, `Frozen`, `Retired`), root unit, current revision | AA7 |
 | OrgUnit | `oun_` | `org_units`, child `org_unit_members`, `org_unit_peer_lines`, `org_unit_budgets` | Organization, parent unit (null for root), name, description, lead agent, optional app; member: agent, title, optional mandate; peer line: other unit; budget: period (`Day`, `Month`), amount USD | AA7 |
 | OrgRevision | `orv_` | `org_revisions`, child `org_revision_units`, `org_revision_members`, `org_revision_peer_lines`, `org_revision_budgets`, `org_revision_mandates` | Organization, number, state, snapshot of the tree, pinned mandate revisions, author, note | AA7 |
-| ChangeRule | `chr_` | `change_rules`, child `change_rule_classes`, `change_rule_limits` | Tenant, organization, unit (applies to its subtree), active, expires, created by (person only); class: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`; limit: name, minimum, maximum | AA8 |
+| ChangeRule | `cru_` | `change_rules`, child `change_rule_classes`, `change_rule_limits` | Tenant, organization, unit (applies to its subtree), active, expires, created by (person only); class: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`; limit: name, minimum, maximum | AA8 |
 | EvalSet | `evs_` | `eval_sets`, child `eval_set_tags` | Tenant, name, version, state (`Draft`, `Approved`), origin (`Human`, `Evaluator`, `Playground`), approved by and time, authoring subtree | AA9 |
 | EvalCase | `evc_` | `eval_cases`, child `eval_case_checks`, `eval_case_files` | Set, order, input text, hidden flag, expected text; check: scorer (`ExactMatch`, `Contains`, `JsonSchemaValid`, `Judge`), argument text, weight | AA9 |
 | EvalRun | `evr_` | `eval_runs` | Set and version, target agent revision or deployment, status, score, threshold, passed, budget, started by, times | AA9 |
@@ -470,7 +471,7 @@ Changed entities:
 | `UsageQuotaScopeEnum` | Add `Mandate`, `OrgUnit` | AA3, AA7 |
 | `NotificationEventEnum` | Add `EscalationRaised`, `EscalationExpired`, `MandateCapReached`, `FreezeApplied`, `BoardBrief`, `CanaryRolledBack` | AA2, AA3, AA9, AA10 |
 | `TriggerTargetTypeEnum` | Add `EvalSet` (scheduled checks) | AA11 |
-| `ApprovalSourceEnum` | Use the existing `Rule` source for change-rule applies; verify the value exists, add it if not | AA8 |
+| `ApprovalSourceEnum` | Use the existing `Rule` source for change-rule applies (confirmed present at AA0.4) | AA8 |
 | `ResourceTypeEnum` | Add `Mandate`, `Escalation`, `Freeze`, `Memory`, `Report`, `AgentMessage`, `Organization`, `ChangeRule`, `EvalSet`, `EvalRun`, `ShadowTrial`, `CanaryRelease` | Each phase |
 | `PromotionRecord` | Subject kind `Organization` for org revision promote and rollback | AA7 |
 | `StudioDraft` items | Item kinds `Mandate`, `Organization`, `OrgUnit`, `EvalSet`; drafts record the originating run and whether it came from an `OrgSubtree` token | AA1, AA7, AA8, AA9 |
@@ -649,11 +650,11 @@ Each phase lists what it depends on and what it touches. Tasks are in the order 
 Depends on: none. AA0.1 is the first task of the plan.
 Touches: git branches, the files listed in `scripts/version-mirrors.txt`, `CHANGELOG.md`, `CLAUDE.md`, `docs/README.md`.
 
-- [ ] AA0.1 Create or enter `feature/autonomous-agents`: if it exists locally or on `origin`, check it out and fast-forward it to `main`; otherwise create it from `main` at the commit containing this plan and push it with upstream tracking (pushing is outward-facing: confirm with the user first). Record the branch point.  Accept: `git rev-parse --abbrev-ref HEAD` prints `feature/autonomous-agents`; `git ls-remote --heads origin feature/autonomous-agents` returns one ref.
-- [ ] AA0.2 Ask the user to approve the release version `0.3.0` (AA-011), or the version they choose. Do not change any version before the answer.  Accept: the annotation records the approved version, who approved it, and the date; AA-011 moves from Proposed to User.
-- [ ] AA0.3 Apply the approved version to every file in `scripts/version-mirrors.txt` (product props and `Constants.ProductVersion`, Dockerfiles, compose and k8s tags, Helm chart, build scripts, dashboard and app-ui `package.json` and lockfile roots, `APP_VERSION`, e2e mocks, four SDK manifests, Postman collection, README, DOCKERHUB_README, API docs, docs, `CLAUDE.md`) and open a `[0.3.0]` section at the top of `CHANGELOG.md`. Leave third-party pins and recorded history alone, as AD0 did.  Accept: `scripts/check-version.sh` and `.bat` pass; build has zero warnings; dashboard, app-ui, and SDK builds pass.
-- [ ] AA0.4 Re-check every prefix in section 7.2 against `src/Garrison.Core/Constants.cs` and `git grep` on the branch, and every `ResourceTypeEnum`, `RunKindEnum`, and `NotificationEventEnum` value this plan adds; record collisions as decisions and adjust 7.2 before AA1 starts.  Accept: the annotation lists the check command and its clean result.
-- [ ] AA0.5 Wire the plan into the repository: `CLAUDE.md` names `AUTONOMOUS_AGENTS_PLAN.md` as the active plan (keeping the archive pointers); `docs/README.md` status section links it.  Accept: both links resolve; `scripts/check-em-dash.sh` passes.
+- [x] AA0.1 Create or enter `feature/autonomous-agents`: if it exists locally or on `origin`, check it out and fast-forward it to `main`; otherwise create it from `main` at the commit containing this plan and push it with upstream tracking (pushing is outward-facing: confirm with the user first). Record the branch point.  Accept: `git rev-parse --abbrev-ref HEAD` prints `feature/autonomous-agents`; `git ls-remote --heads origin feature/autonomous-agents` returns one ref.  | claude 2026-11-25 branched from main at 4c64be5; plan committed as 70d025d; pushed to origin with upstream tracking (push approved by user)
+- [x] AA0.2 Ask the user to approve the release version `0.3.0` (AA-011), or the version they choose. Do not change any version before the answer.  Accept: the annotation records the approved version, who approved it, and the date; AA-011 moves from Proposed to User.  | claude 2026-11-25 user approved 0.3.0 on 2026-11-25
+- [x] AA0.3 Apply the approved version to every file in `scripts/version-mirrors.txt` (product props and `Constants.ProductVersion`, Dockerfiles, compose and k8s tags, Helm chart, build scripts, dashboard and app-ui `package.json` and lockfile roots, `APP_VERSION`, e2e mocks, four SDK manifests, Postman collection, README, DOCKERHUB_README, API docs, docs, `CLAUDE.md`) and open a `[0.3.0]` section at the top of `CHANGELOG.md`. Leave third-party pins and recorded history alone, as AD0 did.  Accept: `scripts/check-version.sh` and `.bat` pass; build has zero warnings; dashboard, app-ui, and SDK builds pass.  | claude 2026-11-25 52 mirror files set to 0.3.0 (fixes the C# SDK csproj drift at 0.2.1); check-version.sh passes; solution, C# SDK, dashboard, app-ui, JS and Go SDK builds clean with 0 warnings; [0.3.0] changelog section opened
+- [x] AA0.4 Re-check every prefix in section 7.2 against `src/Garrison.Core/Constants.cs` and `git grep` on the branch, and every `ResourceTypeEnum`, `RunKindEnum`, and `NotificationEventEnum` value this plan adds; record collisions as decisions and adjust 7.2 before AA1 starts.  Accept: the annotation lists the check command and its clean result.  | claude 2026-11-25 `git grep -h -o -E '"[a-z]{3}_"' -- src | sort -u` plus Constants.cs and IdGenerator.cs: only collision `chr_` (child rows), ChangeRule moved to `cru_` (AA-030); no new enum value exists yet in RunKindEnum, ResourceTypeEnum, NotificationEventEnum, ManagementAccessEnum, UsageQuotaScopeEnum, TriggerTargetTypeEnum; ApprovalSourceEnum.Rule already exists
+- [x] AA0.5 Wire the plan into the repository: `CLAUDE.md` names `AUTONOMOUS_AGENTS_PLAN.md` as the active plan (keeping the archive pointers); `docs/README.md` status section links it.  Accept: both links resolve; `scripts/check-em-dash.sh` passes.  | claude 2026-11-25 CLAUDE.md names the active plan and branch; docs/README.md status section links it; em-dash check passes
 
 ### Phase AA1: Mandates, wake schedules, and keepers
 
@@ -813,7 +814,7 @@ Touches: `ManagementAccessEnum`, `StudioService`, approvals, new change rules, M
 - [ ] AA8.1 `ManagementAccessEnum.OrgSubtree`; deployment validation allows it only for a deployment of an agent that leads an org unit; the run token carries the unit.  Accept: validation cases.
 - [ ] AA8.2 `SubtreeAuthority`: computes the resources inside an executive's subtree (units below its own, their members, deployments, mandates, and prompt templates and assets used only inside the subtree). Shared resources are read-only.  Accept: cases for shared versus exclusive templates and assets.
 - [ ] AA8.3 Draft validation for drafts written by `OrgSubtree` runs: every item inside the subtree; hard limits from AA-022 refused with `OutsideSubtree`, `SelfModification`, `ForbiddenKind`, `BudgetIncrease`, `AuthorityChange`; the permission check against the person who started the run still applies.  Accept: one refusal case per code; a valid draft passes.
-- [ ] AA8.4 Change rules: `ChangeRule`, `ChangeRuleClass`, `ChangeRuleLimit`, `ChangeClassEnum`; prefix `chr_`; `ResourceTypeEnum.ChangeRule`; schema on both providers; created, updated, and deleted only by people.  Accept: migrate-twice; a run token is refused on every mutation.
+- [ ] AA8.4 Change rules: `ChangeRule`, `ChangeRuleClass`, `ChangeRuleLimit`, `ChangeClassEnum`; prefix `cru_` (AA-030); `ResourceTypeEnum.ChangeRule`; schema on both providers; created, updated, and deleted only by people.  Accept: migrate-twice; a run token is refused on every mutation.
 - [ ] AA8.5 Classifier: maps each draft item's diff to change classes (for example a model field change is `ModelChange`, a wake bound change is `WakeTuning`) and checks limits (for example wake bounds within a range, at most N added workers).  Accept: table-driven cases for every class and limit.
 - [ ] AA8.6 Apply path: `request-apply` from an `OrgSubtree` run applies at once when every item matches an active rule for the subtree, recorded as an approval decided with source `Rule` and the matching rule IDs; otherwise it waits for a person as today. Every rule apply creates an org revision so rollback undoes it.  Accept: a matching draft applies without a person; a non-matching one waits; rollback undoes the rule apply.
 - [ ] AA8.7 Mandate revisions authored by executives carry source `Executive`; an executive may publish revisions only for mandates inside its subtree and only through the draft path.  Accept: direct publish by run token refused; draft path works.

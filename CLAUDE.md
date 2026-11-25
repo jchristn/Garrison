@@ -2,6 +2,8 @@
 
 Guidance for agents working in this repository. The completed build plans are archived: `archive/GARRISON_PLAN.md` (the original plan and decision log, D- entries) and `archive/AGENT_DESIGN_DEPLOY_PLAN.md` (the 0.2.0 Agent Studio plan, AD entries). Read them for the reasoning behind a design and cite their IDs, but they are no longer annotated; record changes in `CHANGELOG.md`.
 
+The active plan is `AUTONOMOUS_AGENTS_PLAN.md` (the 0.3.0 autonomous agents release, tasks `AA<phase>.<n>` and decisions `AA-<nnn>`). Work happens on `feature/autonomous-agents`, never directly on `main`. Annotate each task's checkbox as it lands, following section 1.1 of that plan.
+
 ## What Garrison is
 
 A multi-tenant control plane that runs headless agent harnesses (Claude Code, Codex, Mux, Gemini CLI, opencode, pi, or any CLI described by a harness profile) on pull-based worker nodes, exposed over REST, MCP, and A2A, deployed to Kubernetes.
@@ -94,7 +96,7 @@ These come from `~/Code/Agents/requirements` and apply to every change.
 
 ### Versioning
 
-- The product version is `0.2.0`, defined once in `src/Directory.Build.props` and mirrored in the dashboard, SDK manifests, Helm chart, and image tags (`v0.2.0`). Versions and tags use `vX.Y.Z` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
+- The product version is `0.3.0`, defined once in `src/Directory.Build.props` and mirrored in the dashboard, SDK manifests, Helm chart, and image tags (`v0.3.0`). Versions and tags use `vX.Y.Z` with no `-alpha` suffix; a 0.x version means alpha. `scripts/check-version.sh` fails when a mirror drifts.
 - Never change a version number unless the user explicitly asks for that change.
 
 ### Git
