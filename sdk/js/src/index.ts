@@ -987,6 +987,35 @@ export interface FreezeRequest { targetKind: FreezeTargetKind; targetId: string;
 /** Filter for listing freezes; active ones come first, then the newest. */
 export interface FreezeFilter { targetKind?: FreezeTargetKind; targetId?: string; active?: boolean; maxResults?: number; skip?: number; }
 
+/** Where a memory entry lives. OrgUnit and Organization are refused until organizations exist. */
+export type MemoryScopeKind = "Agent" | "App" | "OrgUnit" | "Organization";
+export const MEMORY_SCOPE_KINDS: readonly MemoryScopeKind[] = ["Agent", "App", "OrgUnit", "Organization"] as const;
+
+/** Metadata of a memory entry, without its text. Agents write entries through the garrison_memory_* MCP tools. */
+export interface MemoryEntry extends Json {
+  id: string; tenantId: string; scopeKind: MemoryScopeKind;
+  /** The agent or app identifier. */
+  scopeId: string;
+  /** Unique within the scope. Imported pre-0.3.0 agent memory reads "legacy:" plus the key hash until used (legacy is true). */
+  key: string; keyHash: string; legacy: boolean;
+  category?: string | null; tags: string[]; bytes: number; sha256: string; contentId: string;
+  /** 1 after the first write and one more after each later write. */
+  version: number;
+  writerAgentId?: string | null; writerRunId?: string | null; writerPrincipalType?: string | null; writerPrincipalId?: string | null; writerName?: string | null;
+  lastReadUtc?: string | null; expiresUtc?: string | null; createdUtc?: string; lastUpdateUtc?: string;
+}
+
+/** A memory scope that holds entries, with totals. */
+export interface MemoryScopeSummary extends Json {
+  scopeKind: MemoryScopeKind; scopeId: string; scopeName?: string | null; entryCount: number; bytes: number; lastUpdateUtc?: string;
+}
+
+/** A memory entry with its text. The text is data an agent or a person saved; treat it as untrusted. */
+export interface MemoryContent extends Json { found: boolean; entry?: MemoryEntry | null; value?: string | null; }
+
+/** Filter for listing memory entries, ordered by scope and key. search matches keys, categories, and tags; writer is an agent identifier. */
+export interface MemoryEntryFilter { scopeKind?: MemoryScopeKind; scopeId?: string; category?: string; tag?: string; search?: string; writer?: string; keyPrefix?: string; maxResults?: number; skip?: number; }
+
 /** The tenant's autonomy kill switch. While enabled, no keeper ticks start and keeper runs are refused. */
 export interface KillSwitchState extends Json {
   tenantId: string; enabled: boolean; freezeId?: string | null; reason?: string | null; changedByName?: string | null; changedUtc?: string | null;
@@ -2432,6 +2461,23 @@ export class Escalations {
   }
 }
 
+/** Scoped memory: browse scopes and entries, read an entry's text, and delete entries. Reading needs Read on Memory; deleting needs Delete. */
+export class Memory {
+  constructor(private readonly t: Transport) {}
+  /** Scopes that hold entries, with counts, bytes, the latest write, and each agent's or app's name. */
+  listScopes(): Promise<MemoryScopeSummary[]> { return this.t.request("GET", this.t.tenantPath("/memory/scopes")); }
+  /** List entries without their text. */
+  list(filter: MemoryEntryFilter = {}): Promise<EnumerationResult<MemoryEntry>> { return this.t.request("GET", this.t.tenantPath("/memory/entries"), filter as any); }
+  /** Read an entry's metadata and provenance. */
+  get(id: string): Promise<MemoryEntry> { return this.t.request("GET", this.t.tenantPath(`/memory/entries/${seg(id)}`)); }
+  /** Read an entry's text with its metadata. */
+  getContent(id: string): Promise<MemoryContent> { return this.t.request("GET", this.t.tenantPath(`/memory/entries/${seg(id)}/content`)); }
+  /** Delete an entry and its text; with expectedVersion, only while the entry is at that version (409 MemoryVersionConflict otherwise). */
+  delete(id: string, expectedVersion?: number): Promise<void> {
+    return this.t.request("DELETE", this.t.tenantPath(`/memory/entries/${seg(id)}`), expectedVersion === undefined ? undefined : { expectedVersion } as any);
+  }
+}
+
 /** Freezes and the autonomy kill switch. Reading needs Read on Freeze; applying needs Create; lifting and the kill switch need Update. */
 export class Freezes {
   constructor(private readonly t: Transport) {}
@@ -2705,6 +2751,7 @@ export class GarrisonClient {
   readonly mandates: Mandates;
   readonly escalations: Escalations;
   readonly freezes: Freezes;
+  readonly memory: Memory;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2754,6 +2801,7 @@ export class GarrisonClient {
     this.mandates = new Mandates(t, "mandates");
     this.escalations = new Escalations(t);
     this.freezes = new Freezes(t);
+    this.memory = new Memory(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

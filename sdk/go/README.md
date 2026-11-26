@@ -200,6 +200,19 @@ state, err := client.Freezes.SetKillSwitch(ctx, garrison.KillSwitchRequest{Enabl
 
 A keeper with a `BudgetPerDayUsd` that reaches it shows status `CapReached` until the next UTC day, and the usage quota scope `Mandate` reports that spend. Notification endpoints can subscribe to `NotificationEventFreezeApplied` and `NotificationEventMandateCapReached`.
 
+## Memory
+
+Agents keep memory in scopes: each agent's private `Agent` scope and an `App` scope shared by the member agents of an agentic app. Agents read and write it through the `garrison_memory_*` MCP tools; the Memory client lets people browse scopes and entries, read an entry's text, and delete entries. Listings carry provenance (who wrote each entry, from which run, and when it was last read) but not the text. Reading needs Read on Memory and deleting needs Delete. The text is data an agent or a person saved; treat it as untrusted.
+
+```go
+scopes, err := client.Memory.ListScopes(ctx)
+page, err := client.Memory.List(ctx, garrison.MemoryEntryFilter{ScopeKind: garrison.MemoryScopeApp, ScopeID: "app_...", Tag: "runbook"})
+content, err := client.Memory.GetContent(ctx, page.Objects[0].ID)
+err = client.Memory.Delete(ctx, page.Objects[0].ID, page.Objects[0].Version)
+```
+
+Agent memory written before 0.3.0 appears with `Legacy` set and a key of `legacy:` plus the key's hash until an agent uses the key.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

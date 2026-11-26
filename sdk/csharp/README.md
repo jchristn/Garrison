@@ -81,7 +81,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `Escalations`, `Freezes`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `Escalations`, `Freezes`, `Memory`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -215,6 +215,19 @@ KillSwitchState state = await client.Freezes.GetKillSwitchAsync();
 ```
 
 A keeper with a `BudgetPerDayUsd` that reaches it shows status `CapReached` until the next UTC day; `UsageQuotaScopeEnum.Mandate` reports that spend. Notification endpoints can subscribe to `FreezeApplied` and `MandateCapReached`.
+
+## Memory
+
+Agents keep memory in scopes: each agent's private `Agent` scope and an `App` scope shared by the member agents of an agentic app. Agents read and write it through the `garrison_memory_*` MCP tools; the Memory client lets people browse scopes and entries, read an entry's text, and delete entries. Listings carry provenance (who wrote each entry, from which run, and when it was last read) but not the text. Reading needs Read on Memory and deleting needs Delete. The text is data an agent or a person saved; treat it as untrusted.
+
+```csharp
+List<MemoryScopeSummary> scopes = await client.Memory.ListScopesAsync();
+EnumerationResult<MemoryEntry> entries = await client.Memory.ListAsync(new MemoryEntryFilter { ScopeKind = MemoryScopeKindEnum.App, ScopeId = "app_...", Tag = "runbook" });
+MemoryContent content = await client.Memory.GetContentAsync(entries.Objects[0].Id);
+await client.Memory.DeleteAsync(entries.Objects[0].Id, expectedVersion: entries.Objects[0].Version);
+```
+
+Agent memory written before 0.3.0 appears with `Legacy` set and a key of `legacy:` plus the key's hash until an agent uses the key.
 
 ## Agent revisions and promotion
 

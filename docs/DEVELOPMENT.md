@@ -154,7 +154,7 @@ docker run --rm -v "$PWD/assets/postman:/etc/newman" postman/newman:latest run \
   --env-var baseUrl=http://host.docker.internal:8700 --env-var mcpUrl=http://host.docker.internal:8701/mcp
 ```
 
-The collection creates its own resources with unique names and deletes them at the end. Supply the credentials matching the target server through its environment variables; the bundled defaults are for development fixtures. Docker Desktop exposes `host.docker.internal`; on Linux Docker Engine add `--add-host=host.docker.internal:host-gateway` when using the containerized command.
+Start the server with agent memory on (`GARRISON_AGENT_MEMORY_ENABLE=true`) to run every check in the Memory folder; with memory off that folder checks only what works without memory content. The collection creates its own resources with unique names and deletes them at the end. Supply the credentials matching the target server through its environment variables; the bundled defaults are for development fixtures. Docker Desktop exposes `host.docker.internal`; on Linux Docker Engine add `--add-host=host.docker.internal:host-gateway` when using the containerized command.
 
 ## Conventions
 

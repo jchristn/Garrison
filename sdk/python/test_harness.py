@@ -776,6 +776,20 @@ def t_freezes():
             client.mandates.delete(mandate["id"], force=True)
 
 
+def t_memory():
+    # Agents write memory through MCP tools; the client browses, reads, and deletes. A fresh server holds none.
+    scopes = client.memory.list_scopes()
+    require(isinstance(scopes, list), f"list memory scopes: {scopes}")
+    page = client.memory.list(scope_kind="Agent", scope_id=state["agent"], search="sdk", max_results=10)
+    require(isinstance(page.get("objects"), list), f"list memory entries with filters: {page}")
+    for call in (lambda: client.memory.get("mem_sdk_missing"), lambda: client.memory.delete("mem_sdk_missing", expected_version=1)):
+        try:
+            call()
+            require(False, "an unknown memory entry is not found")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"status {e.status_code}")
+
+
 def t_notifications():
     try:
         client.notification_endpoints.create({"name": f"sdk-py-local-{SUFFIX}", "url": "http://127.0.0.1:9/x", "events": ["RunFailed"]})
@@ -1285,7 +1299,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

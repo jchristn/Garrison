@@ -189,6 +189,11 @@ namespace Garrison.Sdk
         public FreezesClient Freezes { get; }
 
         /// <summary>
+        /// Scoped memory (AA4): browse memory scopes and entries, read an entry's text, and delete entries.
+        /// </summary>
+        public MemoryClient Memory { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -316,6 +321,7 @@ namespace Garrison.Sdk
             Mandates = new MandatesClient(Transport);
             Escalations = new EscalationsClient(Transport);
             Freezes = new FreezesClient(Transport);
+            Memory = new MemoryClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

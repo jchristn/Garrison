@@ -1078,6 +1078,27 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("memory", async () =>
+                {
+                    // Agents write memory through MCP tools; the client browses, reads, and deletes. A fresh server holds none.
+                    List<MemoryScopeSummary> scopes = await client.Memory.ListScopesAsync(token).ConfigureAwait(false);
+                    Require(scopes != null, "list memory scopes");
+                    EnumerationResult<MemoryEntry> entries = await client.Memory.ListAsync(new MemoryEntryFilter { ScopeKind = MemoryScopeKindEnum.Agent, ScopeId = agentId, Search = "sdk", MaxResults = 10 }, token).ConfigureAwait(false);
+                    Require(entries.Objects != null && entries.TotalRecords >= 0, "list memory entries with filters");
+                    try
+                    {
+                        await client.Memory.GetAsync("mem_sdk_missing", token).ConfigureAwait(false);
+                        Require(false, "an unknown entry is not found");
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404) { }
+                    try
+                    {
+                        await client.Memory.DeleteAsync("mem_sdk_missing", 1, token).ConfigureAwait(false);
+                        Require(false, "deleting an unknown entry is not found");
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404) { }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

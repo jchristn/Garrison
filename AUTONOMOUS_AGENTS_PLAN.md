@@ -261,7 +261,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA1 | Mandates, wake schedules, and keepers | AA0 | Done | 19 / 19 |
 | AA2 | Escalations | AA1 | Done | 16 / 16 |
 | AA3 | Brakes I: freezes, spend caps, kill switch | AA1 | Done | 11 / 11 |
-| AA4 | Scoped memory: private and collective | AA1 | In progress | 12 / 15 |
+| AA4 | Scoped memory: private and collective | AA1 | In progress | 13 / 15 |
 | AA5 | Reports | AA1 | Not started | 0 / 13 |
 | AA6 | Mailboxes and wake-on-message | AA1, AA3 | Not started | 0 / 16 |
 | AA7 | Organizations | AA2, AA4, AA5, AA6 | Not started | 0 / 18 |
@@ -763,7 +763,7 @@ Touches: `src/Garrison.Core/Memory`, schema, MCP memory tools, compiler, retenti
 - [x] AA4.11 REST `MemoryRoutes.cs` (7.4); scope map; OpenAPI.  Accept: route cases and cross-tenant 404.  | claude 2026-11-26 MemoryRoutes: GET /memory/scopes, GET /memory/entries (scopeKind, scopeId, category, tag, search, writer, keyPrefix), GET /memory/entries/{id}, GET /memory/entries/{id}/content, DELETE /memory/entries/{id} (expectedVersion); scope map and OpenAPI through the registrar. routes case with cross-tenant 404
 - [x] AA4.12 Telemetry `garrison.memory.operations` and `memory <operation>` spans.  Accept: coverage suite.  | claude 2026-11-26 garrison.memory.operations (scope_kind, operation, outcome) and memory <operation> spans; Memory row on the Autonomy dashboard (k8s and Helm); TELEMETRY.md regenerated; telemetry suite passes
 - [ ] AA4.13 Dashboard `MemoryView`: scope tree, entries table with backend filters, provenance columns, content viewer, delete with confirm; i18n; tests; QA.  Accept: e2e browses and deletes an entry; QA recorded.
-- [ ] AA4.14 SDKs (four) and Postman folder Memory.  Accept: harnesses and Newman pass.
+- [x] AA4.14 SDKs (four) and Postman folder Memory.  Accept: harnesses and Newman pass.  | claude 2026-11-26 Memory client in C# (MemoryClient, MemoryScopeKindEnum, MemoryEntry, MemoryScopeSummary, MemoryContent, MemoryEntryFilter; ResourceTypeEnum.Memory), Python (Memory, MEMORY_SCOPE_KINDS), JS/TS (Memory and types), and Go (MemoryClient and constants): list scopes, list entries with filters, get, get content, delete with expectedVersion; README section "Memory" in each; harness case "memory" in each (scopes, filtered list, 404 for an unknown entry). scripts/run-sdk-harnesses.sh: C# 60/60, Python 59/59, JS 61/61, Go 60/60. Postman folder Memory after Freezes, 11 requests: write an entry over MCP, MemoryVersionConflict, OrgUnit refused with OrganizationsUnavailable, scopes, list by scope and tag, search, read, read text, delete at a stale version (409), delete (204), 404 after; a server without agent memory runs the folder in a reduced mode. Newman with agent memory on: 581 requests, 939 assertions, every Memory assertion passes; the 2 failures are the same two outside this folder as before (Agentic Apps gateway app info, Inference endpoint examples Ollama profile)
 - [ ] AA4.15 Docs: update `docs/AGENT_MEMORY.md` (scopes, policy, provenance, curator, replacing the provider); `docs/NOTDORY.md` states that an external provider plugs in by implementing `IScopedMemoryStore` and that NotDory remains an optional example (AA-004); API docs; index; changelog; `ScopedMemorySuite` registered.  Accept: docs check; suite passes on both providers.
 
 ### Phase AA5: Reports

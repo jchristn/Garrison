@@ -240,6 +240,11 @@ namespace Garrison.Sdk.Enums
         /// Freezes and the autonomy kill switch (AA3). Create applies a freeze; Update lifts one or changes the kill switch.
         /// Run tokens never hold these permissions.
         /// </summary>
-        Freeze
+        Freeze,
+
+        /// <summary>
+        /// Scoped memory entries (AA4). Read lists and reads entries and their text; Update writes; Delete removes.
+        /// </summary>
+        Memory
     }
 }

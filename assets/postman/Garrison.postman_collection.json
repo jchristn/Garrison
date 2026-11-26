@@ -21258,6 +21258,590 @@
       ]
     },
     {
+      "name": "Memory",
+      "description": "Scoped memory (AA4): every agent has a private Agent scope, and the member agents of an agentic app share an App scope. Agents read and write memory with the garrison_memory_read, write, delete, list, and search MCP tools; people browse, read, and delete entries through /memory. Each entry has metadata (key, category, tags, version, size, SHA-256, writer, last read, expiry) and its text in the memory store. Writes with expectedVersion are compare-and-set and answer MemoryVersionConflict when someone wrote in between. Start the server with AgentMemory.Enabled (GARRISON_AGENT_MEMORY_ENABLE=true) to run every check in this folder; without it the folder checks only the parts that work without memory content.",
+      "item": [
+        {
+          "name": "Write a memory entry (MCP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpAdminSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "Agents write memory with the garrison_memory_* MCP tools; this call writes one entry into the agent's private Agent scope as the administrator (tenantId is required with the administrator API key). People need Memory.Update and Execute on the agent. A server with AgentMemory.Enabled false answers MemoryDisabled; the rest of this folder then checks only what works without memory content.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 101,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_memory_write\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{agentName}}\",\n      \"key\": \"postman/notes\",\n      \"value\": \"Postman wrote this note. The queue drained at 02:00 UTC.\",\n      \"category\": \"postman\",\n      \"tags\": [\n        \"postman\",\n        \"notes\"\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key"
+                },
+                {
+                  "key": "value",
+                  "value": "{{adminApiKey}}"
+                },
+                {
+                  "key": "in",
+                  "value": "header"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var result = json.result || {};",
+                  "var text = ((result.content || [])[0] || {}).text || '';",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var disabled = result.isError === true && text.indexOf('MemoryDisabled') >= 0;",
+                  "pm.collectionVariables.set('memoryEnabled', disabled ? 'false' : 'true');",
+                  "if (disabled) pm.collectionVariables.set('memoryEntryId', 'mem_postman_none');",
+                  "if (!disabled) {",
+                  "  pm.test('version 1 with provenance', function () { var s = result.structuredContent || {}; pm.expect(result.isError || false).to.eql(false); pm.expect(s.version).to.eql(1); pm.expect(s.scope).to.eql('Agent'); pm.expect(s.entry.id).to.match(/^mem_/); pm.expect(s.entry.tags).to.eql(['postman', 'notes']); });",
+                  "  pm.collectionVariables.set('memoryEntryId', result.structuredContent.entry.id);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({ url: pm.variables.replaceIn('{{mcpUrl}}'), method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'x-api-key': pm.variables.get('adminApiKey') },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'postman-admin', version: '1' } } }) }",
+                  "}, function (err, res) { if (!err) { pm.collectionVariables.set('mcpAdminSessionId', res.headers.get('MCP-Session-Id')); } });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Write again with a stale expectedVersion (MCP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpAdminSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "expectedVersion makes a write compare-and-set: 0 means the key must not exist yet, and any other number must match the entry's current version. A mismatch answers MemoryVersionConflict and changes nothing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 102,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_memory_write\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{agentName}}\",\n      \"key\": \"postman/notes\",\n      \"value\": \"late\",\n      \"expectedVersion\": 0\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key"
+                },
+                {
+                  "key": "value",
+                  "value": "{{adminApiKey}}"
+                },
+                {
+                  "key": "in",
+                  "value": "header"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var result = json.result || {};",
+                  "var text = ((result.content || [])[0] || {}).text || '';",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.collectionVariables.get('memoryEnabled') === 'true') pm.test('MemoryVersionConflict', function () { pm.expect(result.isError).to.eql(true); pm.expect(text).to.include('MemoryVersionConflict'); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({ url: pm.variables.replaceIn('{{mcpUrl}}'), method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'x-api-key': pm.variables.get('adminApiKey') },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'postman-admin', version: '1' } } }) }",
+                  "}, function (err, res) { if (!err) { pm.collectionVariables.set('mcpAdminSessionId', res.headers.get('MCP-Session-Id')); } });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List an OrgUnit scope is refused (MCP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpAdminSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "OrgUnit and Organization memory scopes arrive with organizations; until then they answer OrganizationsUnavailable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 103,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_memory_list\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"scope\": \"OrgUnit\",\n      \"scopeId\": \"oun_postman\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key"
+                },
+                {
+                  "key": "value",
+                  "value": "{{adminApiKey}}"
+                },
+                {
+                  "key": "in",
+                  "value": "header"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var result = json.result || {};",
+                  "var text = ((result.content || [])[0] || {}).text || '';",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.collectionVariables.get('memoryEnabled') === 'true') pm.test('OrganizationsUnavailable', function () { pm.expect(result.isError).to.eql(true); pm.expect(text).to.include('OrganizationsUnavailable'); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({ url: pm.variables.replaceIn('{{mcpUrl}}'), method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'x-api-key': pm.variables.get('adminApiKey') },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'postman-admin', version: '1' } } }) }",
+                  "}, function (err, res) { if (!err) { pm.collectionVariables.set('mcpAdminSessionId', res.headers.get('MCP-Session-Id')); } });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List memory scopes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/scopes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "scopes"
+              ]
+            },
+            "description": "Scopes that hold entries, with entry counts, bytes, the latest write, and the agent's or app's current name. Needs Read on Memory (Viewer, Auditor, AgentOperator, AgentDeveloper, Editor, admins)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('an array', function () { pm.expect(json).to.be.an('array'); });",
+                  "if (enabled) pm.test('the agent scope is listed by name', function () { pm.expect(json.some(function (s) { return s.scopeKind === 'Agent' && s.scopeId === pm.collectionVariables.get('agentId') && s.scopeName === pm.collectionVariables.get('agentName') && s.entryCount >= 1; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List memory entries by scope and tag",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries?scopeKind=Agent&scopeId={{agentId}}&tag=postman",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries"
+              ],
+              "query": [
+                {
+                  "key": "scopeKind",
+                  "value": "Agent"
+                },
+                {
+                  "key": "scopeId",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "tag",
+                  "value": "postman"
+                }
+              ]
+            },
+            "description": "Entries without their text, ordered by scope and key. Filters: scopeKind, scopeId, category, tag, search (keys, categories, and tags), writer (agent identifier), keyPrefix, maxResults, skip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "if (enabled) pm.test('the note is listed with provenance', function () { pm.expect(json.totalRecords).to.eql(1); var e = json.objects[0]; pm.expect(e.key).to.eql('postman/notes'); pm.expect(e.category).to.eql('postman'); pm.expect(e.version).to.eql(1); pm.expect(e.sha256).to.have.length(64); pm.expect(e.writerName).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search memory entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries?search=POSTMAN/NOT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "POSTMAN/NOT"
+                }
+              ]
+            },
+            "description": "search matches keys, categories, and tags case-insensitively."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "if (enabled) pm.test('found by keyword', function () { pm.expect(json.objects.map(function (e) { return e.key; })).to.include('postman/notes'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a memory entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries/{{memoryEntryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries",
+                "{{memoryEntryId}}"
+              ]
+            },
+            "description": "An entry's metadata: scope, key, category, tags, version, size, SHA-256, who wrote it (agent, run, principal), when it was last read, and when it expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "if (enabled) {",
+                  "  pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "  pm.test('the note', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('memoryEntryId')); pm.expect(json.scopeKind).to.eql('Agent'); pm.expect(json.legacy).to.eql(false); });",
+                  "} else { pm.test('status is 404 without memory', function () { pm.response.to.have.status(404); }); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a memory entry's text",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries/{{memoryEntryId}}/content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries",
+                "{{memoryEntryId}}",
+                "content"
+              ]
+            },
+            "description": "The entry's text with its metadata. The text is data an agent or a person saved; treat it as untrusted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "if (enabled) {",
+                  "  pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "  pm.test('the text', function () { pm.expect(json.found).to.eql(true); pm.expect(json.value).to.include('queue drained'); });",
+                  "} else { pm.test('status is 404 without memory', function () { pm.response.to.have.status(404); }); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete at a stale version",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries/{{memoryEntryId}}?expectedVersion=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries",
+                "{{memoryEntryId}}"
+              ],
+              "query": [
+                {
+                  "key": "expectedVersion",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "With expectedVersion the delete happens only while the entry is at that version; otherwise 409 MemoryVersionConflict."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "if (enabled) {",
+                  "  pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "  pm.test('MemoryVersionConflict', function () { pm.expect(json.code).to.eql('MemoryVersionConflict'); });",
+                  "} else { pm.test('status is 404 without memory', function () { pm.response.to.have.status(404); }); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete a memory entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries/{{memoryEntryId}}?expectedVersion=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries",
+                "{{memoryEntryId}}"
+              ],
+              "query": [
+                {
+                  "key": "expectedVersion",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Deletes the entry and its text. Needs Delete on Memory (AgentDeveloper, Editor, admins)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "if (enabled) { pm.test('status is 204', function () { pm.response.to.have.status(204); }); }",
+                  "else { pm.test('status is 404 without memory', function () { pm.response.to.have.status(404); }); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a deleted memory entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/memory/entries/{{memoryEntryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "memory",
+                "entries",
+                "{{memoryEntryId}}"
+              ]
+            },
+            "description": "A deleted entry, like another tenant's entry, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var enabled = pm.collectionVariables.get('memoryEnabled') === 'true';",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -24717,6 +25301,14 @@
     },
     {
       "key": "agentFreezeId",
+      "value": ""
+    },
+    {
+      "key": "memoryEntryId",
+      "value": ""
+    },
+    {
+      "key": "memoryEnabled",
       "value": ""
     }
   ]

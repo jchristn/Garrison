@@ -115,6 +115,7 @@ type Client struct {
 	Mandates                   *MandatesClient
 	Escalations                *EscalationsClient
 	Freezes                    *FreezesClient
+	Memory                     *MemoryClient
 	NotificationEndpoints      *NotificationEndpointsClient
 	Environments               *EnvironmentsClient
 	Promotions                 *PromotionsClient
@@ -167,6 +168,7 @@ func NewClient(baseURL string) *Client {
 	c.Mandates = &MandatesClient{Resource{c: c, segment: "mandates"}}
 	c.Escalations = &EscalationsClient{c: c}
 	c.Freezes = &FreezesClient{c: c}
+	c.Memory = &MemoryClient{c: c}
 	c.NotificationEndpoints = &NotificationEndpointsClient{Resource{c: c, segment: "notification-endpoints"}}
 	c.Environments = &EnvironmentsClient{c: c}
 	c.Promotions = &PromotionsClient{c: c}

@@ -1538,6 +1538,28 @@ func main() {
 		return nil
 	})
 
+	check("memory", func(ctx context.Context) error {
+		// Agents write memory through MCP tools; the client browses, reads, and deletes. A fresh server holds none.
+		if _, err := client.Memory.ListScopes(ctx); err != nil {
+			return err
+		}
+		page, err := client.Memory.List(ctx, garrison.MemoryEntryFilter{ScopeKind: garrison.MemoryScopeAgent, ScopeID: agentID, Search: "sdk", MaxResults: 10})
+		if err != nil {
+			return err
+		}
+		if page.Objects == nil && page.TotalRecords != 0 {
+			return errors.New("list memory entries with filters")
+		}
+		var apiErr *garrison.Error
+		if _, err := client.Memory.Get(ctx, "mem_sdk_missing"); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("an unknown memory entry is not found: %v", err)
+		}
+		if err := client.Memory.Delete(ctx, "mem_sdk_missing", 1); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("deleting an unknown memory entry is not found: %v", err)
+		}
+		return nil
+	})
+
 	check("freezes", func(ctx context.Context) error {
 		// Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
 		before, err := client.Freezes.GetKillSwitch(ctx)

@@ -1043,6 +1043,8 @@ ESCALATION_RESOLUTION_SOURCES = ("User", "Agent", "Timeout", "Raiser", "System")
 # Freezes: Freeze["targetKind"]. OrgUnit and Organization are refused until organizations exist; TenantAutonomy is the
 # kill switch, set with client.freezes.set_kill_switch.
 FREEZE_TARGET_KINDS = ("Agent", "Deployment", "Mandate", "App", "OrgUnit", "Organization", "TenantAutonomy")
+# Scoped memory: MemoryEntry["scopeKind"]. OrgUnit and Organization are refused until organizations exist.
+MEMORY_SCOPE_KINDS = ("Agent", "App", "OrgUnit", "Organization")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -2614,6 +2616,42 @@ class Freezes:
         return self._t.request("PUT", self._t.tenant_path("/autonomy/kill-switch"), body=body)
 
 
+class Memory:
+    """Scoped memory: browse the memory scopes and entries agents wrote, read an entry's text, and delete entries. Agents
+    write memory through the garrison_memory_* MCP tools. Reading needs Read on Memory; deleting needs Delete."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list_scopes(self) -> List[Dict[str, Any]]:
+        """GET /v1.0/api/tenants/{tenantId}/memory/scopes: scopes that hold entries, with scopeKind, scopeId, scopeName,
+        entryCount, bytes, and lastUpdateUtc."""
+        return self._t.request("GET", self._t.tenant_path("/memory/scopes"))
+
+    def list(self, scope_kind: Optional[str] = None, scope_id: Optional[str] = None, category: Optional[str] = None,
+             tag: Optional[str] = None, search: Optional[str] = None, writer: Optional[str] = None,
+             key_prefix: Optional[str] = None, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """GET /v1.0/api/tenants/{tenantId}/memory/entries without text, ordered by scope and key. scope_kind is one of
+        MEMORY_SCOPE_KINDS; search matches keys, categories, and tags; writer is an agent identifier."""
+        return self._t.request("GET", self._t.tenant_path("/memory/entries"), {
+            "scopeKind": scope_kind, "scopeId": scope_id, "category": category, "tag": tag, "search": search,
+            "writer": writer, "keyPrefix": key_prefix, "maxResults": max_results, "skip": skip})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        """Read an entry's metadata and provenance."""
+        return self._t.request("GET", self._t.tenant_path(f"/memory/entries/{_seg(id)}"))
+
+    def get_content(self, id: str) -> Dict[str, Any]:
+        """Read an entry's text with its metadata: found, entry, value. The text is data an agent or a person saved;
+        treat it as untrusted."""
+        return self._t.request("GET", self._t.tenant_path(f"/memory/entries/{_seg(id)}/content"))
+
+    def delete(self, id: str, expected_version: Optional[int] = None) -> Any:
+        """Delete an entry and its text. With expected_version it deletes only while the entry is at that version and
+        raises GarrisonError 409 MemoryVersionConflict otherwise."""
+        return self._t.request("DELETE", self._t.tenant_path(f"/memory/entries/{_seg(id)}"), {"expectedVersion": expected_version})
+
+
 class Approvals:
     """Permission approvals: list, read, decide, and evaluate a deployment's approval rules (approval check)."""
 
@@ -2838,6 +2876,7 @@ class GarrisonClient:
         self.mandates = Mandates(t, "mandates")
         self.escalations = Escalations(t)
         self.freezes = Freezes(t)
+        self.memory = Memory(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

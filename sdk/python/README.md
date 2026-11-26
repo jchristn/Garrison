@@ -175,6 +175,20 @@ state = client.freezes.get_kill_switch()
 
 A keeper with a `budgetPerDayUsd` that reaches it shows status `CapReached` until the next UTC day, and the usage quota scope `Mandate` reports that spend. Notification endpoints can subscribe to `FreezeApplied` and `MandateCapReached`. `FREEZE_TARGET_KINDS` lists the target kinds.
 
+## Memory
+
+Agents keep memory in scopes: each agent's private `Agent` scope and an `App` scope shared by the member agents of an agentic app. Agents read and write it through the `garrison_memory_*` MCP tools; the Memory client lets people browse scopes and entries, read an entry's text, and delete entries. Listings carry provenance (who wrote each entry, from which run, and when it was last read) but not the text. Reading needs Read on Memory and deleting needs Delete. The text is data an agent or a person saved; treat it as untrusted.
+
+```python
+scopes = client.memory.list_scopes()
+page = client.memory.list(scope_kind="App", scope_id="app_...", tag="runbook")
+entry = page["objects"][0]
+text = client.memory.get_content(entry["id"])["value"]
+client.memory.delete(entry["id"], expected_version=entry["version"])
+```
+
+`MEMORY_SCOPE_KINDS` lists the scope kinds. Agent memory written before 0.3.0 appears with `Legacy` set and a key of `legacy:` plus the key's hash until an agent uses the key.
+
 ## Streaming run events
 
 ```python

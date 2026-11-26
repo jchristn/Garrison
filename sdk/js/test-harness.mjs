@@ -655,6 +655,19 @@ await check("escalations", async () => {
   }
 });
 
+await check("memory", async () => {
+  // Agents write memory through MCP tools; the client browses, reads, and deletes. A fresh server holds none.
+  const scopes = await client.memory.listScopes();
+  require(Array.isArray(scopes), "list memory scopes");
+  const page = await client.memory.list({ scopeKind: "Agent", scopeId: state.agent, search: "sdk", maxResults: 10 });
+  require(Array.isArray(page.objects), "list memory entries with filters");
+  for (const call of [() => client.memory.get("mem_sdk_missing"), () => client.memory.delete("mem_sdk_missing", 1)]) {
+    let status = 0;
+    try { await call(); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 404, `an unknown memory entry is not found (${status})`);
+  }
+});
+
 await check("freezes", async () => {
   // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
   let mandate;
