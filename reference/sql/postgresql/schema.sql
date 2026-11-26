@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 56).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 57).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2902,3 +2902,9 @@ ALTER TABLE "change_rules" ADD COLUMN IF NOT EXISTS gateevalset VARCHAR(128);
 ALTER TABLE "change_rules" ADD COLUMN IF NOT EXISTS gatethreshold DOUBLE PRECISION;
 ALTER TABLE "studio_drafts" ADD COLUMN IF NOT EXISTS contentchangedutc TIMESTAMPTZ;
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 56, 'Change rule eval gates and draft content change times', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 56);
+
+-- Migration 57: Board briefs and board conversations
+ALTER TABLE "mandate_revisions" ADD COLUMN IF NOT EXISTS briefintervalhours INTEGER;
+ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS organizationid VARCHAR(64);
+CREATE INDEX IF NOT EXISTS "idx_conversations_organization" ON "conversations" ("tenantid", "organizationid", "createdutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 57, 'Board briefs and board conversations', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 57);

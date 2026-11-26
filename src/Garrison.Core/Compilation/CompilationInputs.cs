@@ -98,5 +98,10 @@ namespace Garrison.Core.Compilation
         /// unit (AA8.8), or null.
         /// </summary>
         public CompilationExecutiveContext? Executive { get; set; } = null;
+
+        /// <summary>
+        /// The board conversation the run is a turn of (AA10.6), or null.
+        /// </summary>
+        public CompilationBoardContext? Board { get; set; } = null;
     }
 }

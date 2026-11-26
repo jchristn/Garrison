@@ -912,6 +912,10 @@ namespace Garrison.Server.Protocols
                     case "garrison_rollback_organization":
                         result = await OrganizationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_board_get":
+                    case "garrison_board_direct":
+                        result = await BoardToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_list_change_rules":
                     case "garrison_get_change_rule":
                     case "garrison_create_change_rule":
@@ -2220,6 +2224,20 @@ namespace Garrison.Server.Protocols
                     return await ToolCallAsync(() => organizations.RollbackAsync(caller, organization, arguments.RevisionId, arguments.Note, token)).ConfigureAwait(false);
                 }
             }
+        }
+
+        private async Task<object> BoardToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // Run tokens never see these tools; the check stays here in case a caller names one anyway.
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw ToolError("Forbidden", tool.Name + " is available only to people and API credentials.");
+            McpBoardArguments arguments = ManagementArguments<McpBoardArguments>(args);
+            OrganizationService organizations = _Context.Get<OrganizationService>();
+            BoardService board = _Context.Get<BoardService>();
+            Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+            await Require(ctx, tenantId, tool.ResourceType, tool.Operation, organization.Id, token).ConfigureAwait(false);
+            if (tool.Name == "garrison_board_get") return await ToolCallAsync(() => board.GetAsync(organization, arguments.Limit, token)).ConfigureAwait(false);
+            BoardDirectionRequest request = new BoardDirectionRequest { Direction = arguments.Direction, ChangeNote = arguments.ChangeNote };
+            return await ToolCallAsync(() => board.DirectAsync(ctx, organization, request, token)).ConfigureAwait(false);
         }
 
         private async Task<Organization> LoadOrganizationAsync(OrganizationService organizations, string tenantId, string? reference, CancellationToken token)

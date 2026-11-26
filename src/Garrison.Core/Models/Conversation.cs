@@ -112,6 +112,12 @@ namespace Garrison.Core.Models
         public string? AppId { get; set; } = null;
 
         /// <summary>
+        /// Organization whose board started the conversation with its top agent (AA10.6), or null. Every turn of such a
+        /// conversation carries the builtin/board-conversation system fragment.
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
         /// Short title: the first line of the first turn's input, at most 200 characters. Null until the first turn.
         /// </summary>
         public string? Title

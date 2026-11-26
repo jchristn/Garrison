@@ -674,7 +674,7 @@ spec:
 |---|---|
 | `agent`, `deployment` | The hosted agent that keeps the mandate and the active deployment its ticks run on, by name. Applying a document with a different agent to an existing mandate fails with `Immutable`; delete it first |
 | `paused` | `true` to create it paused, or to pause it. `false` or absent means active, so applying a document without it resumes a paused mandate |
-| `revision` | Required, with at least an `objective`. The other fields are those of a `MandateRevision` in the REST API, including `direction`, `jitterPercent`, the budgets, `changeNote`, and the default escalation target `escalationTargetKind` and `escalationTargetId` (see [Escalations](ESCALATIONS.md)) |
+| `revision` | Required, with at least an `objective`. The other fields are those of a `MandateRevision` in the REST API, including `direction`, `jitterPercent`, the budgets, `briefIntervalHours` (AA10), `changeNote`, and the default escalation target `escalationTargetKind` and `escalationTargetId` (see [Escalations](ESCALATIONS.md)) |
 
 An apply compares `revision` with the mandate's current revision. When they differ it publishes a new revision, so the keeper wakes at once with its interval reset; when they match, the revision is `Unchanged` and nothing wakes. Interval values outside the cluster bounds are adjusted before the comparison, as over REST, so a manifest asking for a 30 second minimum stays `Unchanged` on the second apply. A mandate the apply creates or changes runs as the principal that applied the manifest. A revision written by an apply has source `Human`, or `Architect` when Agent Studio applies a draft. Export writes the agent, deployment, `paused` when it is paused, and the current revision's non-default fields.
 

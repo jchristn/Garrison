@@ -53,7 +53,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// Event sources the leader sweeps, in order: runs, pipeline_runs, approvals, pipeline_reviews.
         /// </summary>
-        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports", "org_proposals", "canary_rollbacks" };
+        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports", "org_proposals", "canary_rollbacks", "briefs" };
 
         /// <summary>
         /// Resolves a destination host name to addresses when a delivery connects. Default: the system resolver
@@ -603,7 +603,7 @@ namespace Garrison.Server.Runtime
                             read = unhealthy.Count;
                             foreach (Report report in unhealthy)
                             {
-                                queued += await QueueReportAsync(report, interested, token).ConfigureAwait(false);
+                                queued += await QueueReportAsync(report, NotificationEventEnum.ReportUnhealthy, "report:", interested, token).ConfigureAwait(false);
                                 Advance(report.CreatedUtc, report.Id, ref lastUtc, ref lastId);
                             }
                             break;
@@ -623,6 +623,15 @@ namespace Garrison.Server.Runtime
                             {
                                 queued += await QueueCanaryAsync(release, interested, token).ConfigureAwait(false);
                                 Advance(release.CompletedUtc ?? release.LastUpdateUtc, release.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
+                        case "briefs":
+                            List<Report> briefs = await _Database.NotificationDeliveries.ListBriefReportsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = briefs.Count;
+                            foreach (Report brief in briefs)
+                            {
+                                queued += await QueueReportAsync(brief, NotificationEventEnum.BoardBrief, "brief:", interested, token).ConfigureAwait(false);
+                                Advance(brief.CreatedUtc, brief.Id, ref lastUtc, ref lastId);
                             }
                             break;
                         case "mandate_caps":
@@ -688,6 +697,8 @@ namespace Garrison.Server.Runtime
                     return source == "org_proposals";
                 case NotificationEventEnum.CanaryRolledBack:
                     return source == "canary_rollbacks";
+                case NotificationEventEnum.BoardBrief:
+                    return source == "briefs";
                 default:
                     return false;
             }
@@ -865,14 +876,15 @@ namespace Garrison.Server.Runtime
             return queued;
         }
 
-        private async Task<int> QueueReportAsync(Report report, List<NotificationEndpoint> endpoints, CancellationToken token)
+        private async Task<int> QueueReportAsync(Report report, NotificationEventEnum value, string keyPrefix, List<NotificationEndpoint> endpoints, CancellationToken token)
         {
             // An endpoint filtered to an agent receives reports from that agent only; one filtered to a deployment receives
-            // none, because a report belongs to an agent, not a deployment.
+            // none, because a report belongs to an agent, not a deployment. ReportUnhealthy and BoardBrief (AA10.3) carry
+            // the same report summary.
             int queued = 0;
             foreach (NotificationEndpoint endpoint in endpoints)
             {
-                if (!Subscribed(endpoint, report.TenantId, NotificationEventEnum.ReportUnhealthy, report.CreatedUtc)) continue;
+                if (!Subscribed(endpoint, report.TenantId, value, report.CreatedUtc)) continue;
                 if (!Matches(endpoint, report.AuthorAgentId, null)) continue;
                 NotificationReportSummary summary = new NotificationReportSummary();
                 summary.Id = report.Id;
@@ -884,9 +896,9 @@ namespace Garrison.Server.Runtime
                 summary.Health = report.Health;
                 summary.Title = report.Title;
                 summary.CreatedUtc = report.CreatedUtc;
-                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.ReportUnhealthy, report.CreatedUtc, "/reports/" + report.Id);
+                NotificationPayload payload = NewPayload(endpoint, value, report.CreatedUtc, "/reports/" + report.Id);
                 payload.Report = summary;
-                if (await QueueAsync(endpoint, NotificationEventEnum.ReportUnhealthy, "report:" + report.Id, "Report", report.Id, payload, token).ConfigureAwait(false)) queued++;
+                if (await QueueAsync(endpoint, value, keyPrefix + report.Id, "Report", report.Id, payload, token).ConfigureAwait(false)) queued++;
             }
             return queued;
         }

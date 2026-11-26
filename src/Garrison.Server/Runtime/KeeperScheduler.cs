@@ -469,6 +469,18 @@ namespace Garrison.Server.Runtime
                         throw new ConflictException("TemplateRenderFailed", "Template report-digest failed to render: " + e.Message);
                     }
                     if (digest != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + digest;
+
+                    // AA10.3: the organization's top agent is asked for its brief to the board through board-brief.
+                    string? brief;
+                    try
+                    {
+                        brief = await reports.RenderBoardBriefAsync(mandate, nowUtc, token).ConfigureAwait(false);
+                    }
+                    catch (TemplateException e)
+                    {
+                        throw new ConflictException("TemplateRenderFailed", "Template board-brief failed to render: " + e.Message);
+                    }
+                    if (brief != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + brief;
                 }
 
                 MessageService? messages = Messages;

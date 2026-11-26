@@ -426,6 +426,11 @@ namespace Garrison.Core.Database.Ado
             v56.BuildVersion56();
             migrations.Add(new SchemaMigration(56, "Change rule eval gates and draft content change times", v56._Statements, v56._Columns));
 
+            // AA10: a CEO mandate's brief cadence; conversations started from the board carry their organization.
+            SchemaBuilder v57 = new SchemaBuilder(catalog, dialect);
+            v57.BuildVersion57();
+            migrations.Add(new SchemaMigration(57, "Board briefs and board conversations", v57._Statements, v57._Columns));
+
             return migrations;
         }
 
@@ -489,6 +494,14 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion57()
+        {
+            SqlDialect d = _Dialect;
+            Column("mandate_revisions", "briefintervalhours", d.TypeInt);
+            Column("conversations", "organizationid", d.TypeId);
+            Index("conversations", "organization", false, "tenantid", "organizationid", "createdutc");
         }
 
         private void BuildVersion56()

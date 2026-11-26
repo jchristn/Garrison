@@ -80,6 +80,11 @@ namespace Garrison.Core.Manifests
         public long? MaxTokensPerTick { get; set; } = null;
 
         /// <summary>
+        /// Hours between briefs to the board (AA10.3), 1 to 720, or null for no briefs.
+        /// </summary>
+        public int? BriefIntervalHours { get; set; } = null;
+
+        /// <summary>
         /// Default escalation target kind (User, Role, Agent), or null for none (AA2).
         /// </summary>
         public EscalationTargetKindEnum? EscalationTargetKind { get; set; } = null;

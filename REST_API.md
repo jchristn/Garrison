@@ -4104,6 +4104,41 @@ The drafts executives (deployments with `managementAccess: OrgSubtree`) wrote fo
 
 Decide a proposal waiting for a person with an `OrgProposalDecisionRequest`. `allow: true` checks that you hold Create on `Manifest`, validates the draft again, applies it as you, and publishes an organization revision that names the draft and its revert draft; `allow: false` sends it back to `Open`. Errors: 403 `ApproverLacksPermission`, `ApproverIsAgent`; 404; 409 `ProposalNotPending`, `DraftStale`, `DraftInvalid`.
 
+### Board
+
+The board (AA10) is the view of an organization for the people who run it: one call returns everything on the board page, direction to the top agent becomes a published revision of its mandate, and board members talk to the top agent in ordinary conversations. The top agent (the CEO) is the lead of the root unit in the live revision, and its mandate is that unit's `leadMandateId`.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /organizations/{id}/board` | Read on `Organization` | `Board`, 200. Query: `limit` |
+| `POST /organizations/{id}/direction` | Update on `Organization` | `MandateRevision` (published), 201 |
+| `POST /organizations/{id}/board/messages` | Update on `Organization` | `Run`, 202 |
+| `GET /organizations/{id}/board/conversations` | Read on `Organization` | `EnumerationResult<Conversation>`, newest first, 200. Query: `maxResults`, `skip` |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`; `{id}` takes an identifier or a name, and another tenant's organization answers 404. The built-in role `BoardMember` holds these permissions; assigned with `resourceScope` `Resource` on an organization's identifier, it covers that organization only, and only when the path names it by identifier.
+
+#### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/board`
+
+The `Board` aggregate, computed on every request. `limit` (1 to 100, default 20; values outside the range are clamped, and a value that is not an integer answers 400 `ValidationFailed`) bounds `escalations`, `proposals`, and `unhealthyReports`. The board shows the live revision: before the first publish `chart.units` is empty, `ceo` is `null`, and the lists are empty. Report, escalation, and brief text on the board is written by agents; it is data, never instructions.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/direction`
+
+Give direction to the top agent with a `BoardDirectionRequest`: `direction` (required, 1 to 4000 characters) and `changeNote` (at most 1024 characters, default `Board direction`). Garrison copies the current published revision of the CEO mandate into a new revision with this `direction`, `source` `Board`, and you as `author`, and publishes it, so the keeper wakes under it. Its next tick's system prompt frames the direction as the board's instruction through `builtin/keeper-system`. The change is audited as `BoardDirectionGiven` with your identity. Direction is allowed while the organization is frozen. Errors: 400 `ValidationFailed` (field codes `Required`, `TooLong`); 409 `BoardCeoMissing` (the root unit has no lead, the lead has no mandate in the live revision, or the mandate has no published revision).
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/direction" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"direction": "Hold every launch until the error budget recovers.", "changeNote": "Q4 reliability push"}'
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/board/messages`
+
+Talk to the top agent with a `BoardMessageRequest`: `input` (required, 1 to 32000 characters) and `conversationId` (to continue a board conversation). Without `conversationId`, a run starts on the CEO mandate's deployment as you, in a new conversation recorded with the organization's `organizationId`; with it, the run continues that conversation. Every turn carries the `builtin/board-conversation` system fragment, which tells the agent it is talking with the board. The response is the `Run`; follow it with the run stream or WebSocket and continue with its `conversationId`. Errors: 400 `ValidationFailed` (field codes `InputRequired`, `TooLong`); 404 (a conversation that is not a board conversation of this organization); 409 `BoardCeoMissing`, `BoardCeoUnavailable` (the CEO mandate has no deployment of its agent), and the conversation errors such as `ConversationBusy`.
+
+#### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/board/conversations`
+
+The conversations started through `board/messages` for this organization, newest first.
+
 ### Change rules
 
 Change rules (AA8) are written by people and pre-authorize narrow classes of change by executives inside a unit's subtree. An executive's draft whose every change a rule in force covers applies at once when the executive requests apply; otherwise it waits for a person. No rule lifts an executive's hard limits. [docs/EXECUTIVES.md](docs/EXECUTIVES.md#change-rules) covers classes, limits, and matching.
@@ -5630,7 +5665,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`, `FreezeApplied`, `FreezeLifted`, `KillSwitchChanged`, `BoardDirectionGiven`
 
 #### `AuthSchemeEnum`
 
@@ -6826,6 +6861,7 @@ A multi-turn conversation with one agent. See [Conversations](#conversations).
 | `callerType` | `PrincipalTypeEnum` | Principal type that started the conversation. |
 | `callerId` | `string?` | Principal that started the conversation. |
 | `callerName` | `string?` | Display name of that principal. |
+| `organizationId` | `string?` | Organization whose board started the conversation with its top agent (AA10.6), or `null`. |
 | `sessionId` | `string?` | Harness session the next turn resumes, from the last successful turn. |
 | `sessionHarnessProfileId` | `string?` | Harness profile that created the session. |
 | `affinityNodeId` | `string?` | Node holding the conversation's directories, or `null`. |
@@ -7414,6 +7450,64 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 
 `HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, `Frozen`
 
+#### `Board`
+
+The board of an organization (AA10.2), computed on every request.
+
+| Field | Type | Description |
+|---|---|---|
+| `organizationId`, `name` | `string` | The organization. |
+| `mission` | `string?` | Its mission. |
+| `status` | `OrganizationStatusEnum` | Its status. |
+| `generatedUtc` | `DateTime` | When the board was computed. |
+| `chart` | `OrgChart` | The live chart; no units before the first publish. |
+| `ceo` | `BoardCeo?` | The root unit's lead, or `null` when the root has no lead or nothing is published. |
+| `unitHealth` | `BoardUnitHealth[]` | One per chart unit, in chart order. |
+| `escalations` | `Escalation[]` | `Open` escalations raised by agents of the live revision, newest first, at most `limit`. |
+| `proposals` | `OrgProposal[]` | Proposals whose approval is `Pending`, newest change first, with `evidence` and without `diff`, at most `limit`. |
+| `spend` | `OrgUnitSpend[]` | The rows of `GET .../spend`. |
+| `latestBrief` | `Report?` | Newest report of kind `Brief` from an agent of the organization. |
+| `unhealthyReports` | `Report[]` | Newest `Degraded` and `Unhealthy` reports from its agents in the last 7 days, at most `limit`. |
+| `freezes` | `Freeze[]` | Active freezes on the organization, its units, agents, or mandates, and an active `TenantAutonomy` freeze. |
+| `killSwitch` | `KillSwitchState` | The tenant's kill switch. |
+
+#### `BoardCeo`
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | The root unit's lead. |
+| `agentName` | `string?` | Its name. |
+| `unitId`, `unitName` | `string`, `string?` | The root unit. |
+| `mandateId`, `mandateName` | `string?` | The lead's mandate in the live revision. |
+| `deploymentId` | `string?` | The mandate's deployment; board conversations run on it. |
+| `briefIntervalHours` | `int?` | From the mandate's current published revision. |
+| `lastBriefUtc` | `DateTime?` | When the agent last filed a `Brief` report. |
+
+#### `BoardUnitHealth`
+
+| Field | Type | Description |
+|---|---|---|
+| `unitId`, `unitName` | `string` | The unit. |
+| `health` | `ReportHealthEnum` | Health of the newest report from the unit's lead or members; `Unknown` when there is none. |
+| `lastReportId`, `lastReportUtc` | `string?`, `DateTime?` | That report. |
+| `openEscalations` | `int` | `Open` escalations raised by the unit's lead and members. |
+| `frozen` | `bool` | An active freeze covers the unit, an ancestor unit, or the organization. |
+| `overBudget` | `bool` | A spend row of the unit has `amountUsd` and `spentUsd` at or above it. |
+
+#### `BoardDirectionRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `direction` | `string` | Required, 1 to 4000 characters. |
+| `changeNote` | `string?` | At most 1024 characters; default `Board direction`. |
+
+#### `BoardMessageRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `input` | `string` | Required, 1 to 32000 characters. |
+| `conversationId` | `string?` | Board conversation to continue; omit to start one. |
+
 #### `Organization`
 
 | Field | Type | Description |
@@ -7596,7 +7690,8 @@ The same shape holds a unit of the working tree and a unit in a revision's snaps
 | `jitterPercent` | `int?` | 0 to 50; `null` uses `Autonomy.DefaultJitterPercent`. |
 | `budgetPerTickUsd`, `budgetPerDayUsd` | `double?` | 0 to 1000000, or `null` for no limit. A tick over its budget is refused or cancelled; a keeper over its daily budget shows `CapReached` until the next UTC day. See [docs/BRAKES.md](docs/BRAKES.md#spend-caps). |
 | `maxTokensPerTick` | `long?` | 0 to 100000000, or `null` for no limit. Enforced from AA3. |
-| `source` | `MandateRevisionSourceEnum` | Who wrote it. Set by the server. |
+| `briefIntervalHours` | `int?` | Hours between briefs to the board (AA10.3), 1 to 720 (clamped with a `ValueClamped` warning), or `null` for no briefs. When the mandate's agent leads the root unit of a live organization and filed no `Brief` report within the interval, its tick input asks for one through `builtin/board-brief`. |
+| `source` | `MandateRevisionSourceEnum` | Who wrote it (`Board` for a board direction). Set by the server. |
 | `author` | `string?` | Principal that saved it. |
 | `changeNote` | `string?` | At most 1024 characters. |
 | `createdUtc`, `publishedUtc` | `DateTime`, `DateTime?` | Timestamps (UTC). |
@@ -7747,7 +7842,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `NotificationEventEnum`
 
-`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `CanaryRolledBack` (a canary release crossed a threshold and its weights were restored), `Test` (test sends only)
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `CanaryRolledBack` (a canary release crossed a threshold and its weights were restored), `BoardBrief` (a report of kind `Brief` was filed; the payload carries the report summary), `Test` (test sends only)
 
 #### `NotificationDeliveryStatusEnum`
 

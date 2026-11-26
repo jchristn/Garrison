@@ -236,6 +236,13 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Report>> ListBriefReportsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<Report>();
+            return await KeysetAsync(_Driver.Table("reports"), "createdutc", "kind = 'Brief'", tenantIds, afterUtc, afterId, untilUtc, limit, AdoReportMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<MandateTick>> ListCapReachedTicksAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
         {
             if (tenantIds == null || tenantIds.Count == 0) return new List<MandateTick>();

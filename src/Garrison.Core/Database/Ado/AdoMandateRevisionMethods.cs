@@ -19,7 +19,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, mandateid, number, state, objective, healthydefinition, autonomy, escalationpolicy, direction, wakemode, minintervalseconds, maxintervalseconds, backofffactor, jitterpercent, budgetpertickusd, budgetperdayusd, maxtokenspertick, escalationtargetkind, escalationtargetid, source, author, changenote, createdutc, publishedutc";
+        private static readonly string _Columns = "id, tenantid, mandateid, number, state, objective, healthydefinition, autonomy, escalationpolicy, direction, wakemode, minintervalseconds, maxintervalseconds, backofffactor, jitterpercent, budgetpertickusd, budgetperdayusd, maxtokenspertick, briefintervalhours, escalationtargetkind, escalationtargetid, source, author, changenote, createdutc, publishedutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
@@ -82,7 +82,7 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "UPDATE " + _Table + " SET objective = @objective, healthydefinition = @healthydefinition, autonomy = @autonomy, escalationpolicy = @escalationpolicy, direction = @direction, wakemode = @wakemode, minintervalseconds = @minintervalseconds, maxintervalseconds = @maxintervalseconds, backofffactor = @backofffactor, jitterpercent = @jitterpercent, budgetpertickusd = @budgetpertickusd, budgetperdayusd = @budgetperdayusd, maxtokenspertick = @maxtokenspertick, escalationtargetkind = @escalationtargetkind, escalationtargetid = @escalationtargetid, changenote = @changenote WHERE id = @id AND tenantid = @tenantid AND state = 'Draft';",
+                    "UPDATE " + _Table + " SET objective = @objective, healthydefinition = @healthydefinition, autonomy = @autonomy, escalationpolicy = @escalationpolicy, direction = @direction, wakemode = @wakemode, minintervalseconds = @minintervalseconds, maxintervalseconds = @maxintervalseconds, backofffactor = @backofffactor, jitterpercent = @jitterpercent, budgetpertickusd = @budgetpertickusd, budgetperdayusd = @budgetperdayusd, maxtokenspertick = @maxtokenspertick, briefintervalhours = @briefintervalhours, escalationtargetkind = @escalationtargetkind, escalationtargetid = @escalationtargetid, changenote = @changenote WHERE id = @id AND tenantid = @tenantid AND state = 'Draft';",
                     command => Bind(command, obj), ct).ConfigureAwait(false);
                 if (affected == 0) return;
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Signals + " WHERE revisionid = @id AND tenantid = @tenantid;", command =>
@@ -169,6 +169,7 @@ namespace Garrison.Core.Database.Ado
             obj.BudgetPerTickUsd = AdoConverters.NullableDouble(reader, "budgetpertickusd");
             obj.BudgetPerDayUsd = AdoConverters.NullableDouble(reader, "budgetperdayusd");
             obj.MaxTokensPerTick = AdoConverters.NullableLong(reader, "maxtokenspertick");
+            obj.BriefIntervalHours = AdoConverters.NullableInt(reader, "briefintervalhours");
             obj.EscalationTargetKind = AdoConverters.NullableEnum<EscalationTargetKindEnum>(reader, "escalationtargetkind");
             obj.EscalationTargetId = AdoConverters.NullableStr(reader, "escalationtargetid");
             obj.Source = AdoConverters.Enum<MandateRevisionSourceEnum>(reader, "source", MandateRevisionSourceEnum.Human);
@@ -251,6 +252,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "budgetpertickusd", obj.BudgetPerTickUsd);
             AdoDatabaseDriver.Add(command, "budgetperdayusd", obj.BudgetPerDayUsd);
             AdoDatabaseDriver.Add(command, "maxtokenspertick", obj.MaxTokensPerTick);
+            AdoDatabaseDriver.Add(command, "briefintervalhours", obj.BriefIntervalHours);
             AdoDatabaseDriver.Add(command, "escalationtargetkind", obj.EscalationTargetKind?.ToString());
             AdoDatabaseDriver.Add(command, "escalationtargetid", obj.EscalationTargetId);
             AdoDatabaseDriver.Add(command, "source", obj.Source.ToString());

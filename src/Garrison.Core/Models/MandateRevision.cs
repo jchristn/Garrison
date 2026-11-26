@@ -272,6 +272,23 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
+        /// Hours between briefs to the board (AA10.3), or null for no briefs. Minimum 1, maximum 720 (30 days). Applies when
+        /// the mandate's agent leads the root unit of a live organization: a tick whose agent filed no Brief report within
+        /// the interval is asked for one through the builtin/board-brief template.
+        /// </summary>
+        public int? BriefIntervalHours
+        {
+            get
+            {
+                return _BriefIntervalHours;
+            }
+            set
+            {
+                _BriefIntervalHours = ValueClamp.NullableInt(value, 1, 720, "briefIntervalHours", _ClampWarnings);
+            }
+        }
+
+        /// <summary>
         /// Who authored the revision. Default Human. Set by the server from the path the revision came through.
         /// </summary>
         public MandateRevisionSourceEnum Source { get; set; } = MandateRevisionSourceEnum.Human;
@@ -314,6 +331,7 @@ namespace Garrison.Core.Models
         private double? _BudgetPerTickUsd = null;
         private double? _BudgetPerDayUsd = null;
         private long? _MaxTokensPerTick = null;
+        private int? _BriefIntervalHours = null;
 
         #endregion
 

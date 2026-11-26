@@ -145,6 +145,9 @@ namespace Garrison.Core.Enums
         FreezeLifted,
 
         /// <summary>A person turned the autonomy kill switch on or off (AA3).</summary>
-        KillSwitchChanged
+        KillSwitchChanged,
+
+        /// <summary>A person gave direction to an organization's top agent from the board (AA10.5).</summary>
+        BoardDirectionGiven
     }
 }

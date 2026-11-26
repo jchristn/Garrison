@@ -92,6 +92,7 @@ Counters are created the first time something happens, so a series' first scrape
 | Are evals passing, and how long do cases take? | `garrison_eval_runs_total` by `outcome`, p95 of `garrison_eval_case_duration_seconds` by `scorer`. A slow `Judge` p95 is the judge agent, not the agent under test |
 | Does a shadow candidate agree with production? | `garrison_shadow_comparisons_total` by `result`: the `diverged` and `candidate_failed` shares |
 | Are canaries rolling back? | `garrison_canary_transitions_total{result="rolled_back"}` against `promoted` |
+| Is the board steering, and is the top agent briefing it? | `garrison_board_directions_total` by `organization`, and `garrison_board_briefs_total` against the brief cadence the CEO mandates set |
 
 Cost metrics contain harness-reported cost or server estimates using operator-configured model rates. Missing prices or usage can leave cost unknown; these counters do not measure infrastructure, database hosting, collector expense or a provider invoice. Worker cost metrics contain reported harness cost, while server completion can add a configured estimate.
 
@@ -251,7 +252,7 @@ The packaged Grafana provisions one dashboard per section into the `Garrison` fo
 | Security and auth | `garrison-security` | node | Authentication failures by scheme and reason, rate limiting, authorization denials, tokens issued, secret decryption, Codex token refresh, audit records |
 | Integrations | `garrison-integrations` | node, service | Outbound calls by service and operation (control plane, Kubernetes, MCP servers, observability probes), their latency and errors, observability reachability |
 | Logs and traces | `garrison-logs` | component, node, tenant, agent, run | Log volume by level and component, error and warning rates, recent problem lines, trace search, telemetry pipeline health |
-| Autonomy | `garrison-autonomy` | node | Keeper ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies; escalations, brakes, memory, reports, messaging, organizations, executive proposals, shadow comparisons, canary transitions, eval runs, and eval case duration p95 |
+| Autonomy | `garrison-autonomy` | node | Keeper ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies; escalations, brakes, memory, reports, messaging, organizations, executive proposals, shadow comparisons, canary transitions, eval runs, eval case duration p95, board directions, and board briefs |
 
 Dashboard JSON lives in `k8s/components/observability/dashboards` (mirrored byte for byte in the Helm chart, and mounted by Docker Compose), and `GET /v1.0/api/server-info` lists every UID under `observability.dashboards`.
 
@@ -315,6 +316,8 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 |---|---|---|---|---|---|
 | `garrison_run_tool_calls` | histogram | `agent`, `harness` | server | garrison-agents | Tool calls (MCP tools, shell commands, searches) per run |
 | `garrison_runs_guard_trips_total` | counter | `guard`, `tenant`, `agent`, `harness` | server | garrison-agents | Runs stopped by a guard: repetition, no_progress, output_limit, timeout, blocked |
+| `garrison_board_briefs_total` | counter | none | server | garrison-autonomy | Reports of kind Brief filed, usually by an organization's top agent for its board; carries no organization, agent, or report identifiers |
+| `garrison_board_directions_total` | counter | `organization` | server | garrison-autonomy | Board directions published as a new revision of an organization's top agent's mandate, by organization name; carries no person or mandate identifiers |
 | `garrison_canary_transitions_total` | counter | `result` | server | garrison-autonomy | Canary release transitions, by result (started, advanced, promoted, rolled_back, aborted); carries no release, agent, or deployment identifiers |
 | `garrison_escalation_answer_duration_seconds` | histogram, seconds | `target_kind` | server | garrison-autonomy | Time from raising an escalation to its answer, by target kind |
 | `garrison_escalations_total` | counter | `target_kind`, `severity`, `outcome` | server | garrison-autonomy | Escalations by target kind (user, role, agent, manager), severity (info, warning, urgent), and outcome (raised, answered, cancelled, withdrawn, expired, escalated) |
@@ -712,7 +715,11 @@ Every route registers through the route registrar, which records it in the opera
 | DELETE | `/v1.0/api/tenants/{tenantId}/organizations/{id}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/organizations/{id}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/organizations/{id}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/organizations/{id}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}/board` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/board"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/board` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/board` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}/board/conversations` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/board/conversations"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/board/conversations` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/board/conversations` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/organizations/{id}/board/messages` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/board/messages"` | `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/board/messages` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/board/messages` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}/chart` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/chart"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/chart` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/chart` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/organizations/{id}/direction` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/direction"` | `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/direction` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/direction` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/proposals` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}/decide` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}/decide"` | `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}/decide` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}/decide` | garrison-http |
@@ -905,6 +912,8 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_answer_escalation` | `tool="garrison_answer_escalation"` | `mcp garrison_answer_escalation` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_apply_manifest` | `tool="garrison_apply_manifest"` | `mcp garrison_apply_manifest` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_approve_eval_set` | `tool="garrison_approve_eval_set"` | `mcp garrison_approve_eval_set` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_board_direct` | `tool="garrison_board_direct"` | `mcp garrison_board_direct` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_board_get` | `tool="garrison_board_get"` | `mcp garrison_board_get` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_cancel_fan_out` | `tool="garrison_cancel_fan_out"` | `mcp garrison_cancel_fan_out` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_cancel_pipeline_run` | `tool="garrison_cancel_pipeline_run"` | `mcp garrison_cancel_pipeline_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_cancel_run` | `tool="garrison_cancel_run"` | `mcp garrison_cancel_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |

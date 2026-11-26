@@ -314,6 +314,8 @@ namespace Garrison.Server.Modules
             context.Register(new ExecutiveAuthority(context, chain));
             context.Register(new ChangeRuleService(context, organizations));
             context.Register(new OrgProposalService(context));
+            // AA10: the board of an organization: one aggregate read, direction to the top agent, and talking to it.
+            context.Register(new BoardService(context));
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -379,6 +381,7 @@ namespace Garrison.Server.Modules
             new MessageRoutes(context, context.Get<MessageService>()).Register(routes);
             new OrganizationRoutes(context, context.Get<OrganizationService>()).Register(routes);
             new ChangeRuleRoutes(context, context.Get<ChangeRuleService>(), context.Get<OrgProposalService>()).Register(routes);
+            new BoardRoutes(context.Get<OrganizationService>(), context.Get<BoardService>()).Register(routes);
             new ShadowTrialRoutes(context.Get<ShadowTrialService>()).Register(routes);
             new CanaryRoutes(context.Get<CanaryService>()).Register(routes);
             new EvaluationRoutes(context, context.Get<EvalSetService>(), context.Get<EvalRunService>()).Register(routes);

@@ -36,6 +36,7 @@ The mandate record says which agent keeps it and where its ticks run. Its revisi
 | `backoffFactor` | 1 to 10, default 2. How much the interval grows after a quiet tick |
 | `jitterPercent` | 0 to 50, or null for `Autonomy.DefaultJitterPercent` |
 | `budgetPerTickUsd`, `budgetPerDayUsd`, `maxTokensPerTick` | Spending limits. The two US dollar budgets are enforced: a tick over its budget is refused or cancelled, and a keeper over its daily budget shows `CapReached` until the next UTC day (see [Brakes](BRAKES.md#spend-caps)). `maxTokensPerTick` is stored and validated but not enforced yet |
+| `briefIntervalHours` | Hours between briefs to the board, 1 to 720, or null for none (AA10). It applies when the keeper's agent leads the root unit of a live organization: a tick whose agent filed no `Brief` report within the interval asks for one through `builtin/board-brief` |
 | `changeNote` | Why this revision changes the keeper |
 | `state`, `source`, `author` | `Draft` or `Published`; who wrote it (`Human`, `Board`, `Executive`, `Architect`); the user or credential that saved it |
 

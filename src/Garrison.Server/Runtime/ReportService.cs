@@ -243,6 +243,58 @@ namespace Garrison.Server.Runtime
             return String.IsNullOrWhiteSpace(text) ? null : text;
         }
 
+        /// <summary>
+        /// The newest Brief report an agent authored (AA10.3), or null.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agentId">Author agent.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Report or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or agentId is null or empty.</exception>
+        public async Task<Report?> LastBriefAsync(string tenantId, string agentId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(agentId)) throw new ArgumentNullException(nameof(agentId));
+            ReportFilter filter = new ReportFilter { TenantId = tenantId, AuthorAgentId = agentId, Kind = ReportKindEnum.Brief, MaxResults = 1 };
+            EnumerationResult<Report> page = await _Database.Reports.EnumerateAsync(filter, token).ConfigureAwait(false);
+            return page.Objects.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Render the board's request for a brief into a keeper tick's input (AA10.3), or null when none is due. A brief is
+        /// due when the mandate's agent leads the root unit of a live organization (as that unit's lead mandate, when the
+        /// unit names one), its current revision sets briefIntervalHours, and its last Brief report is missing or at least
+        /// that many hours old. The text comes only from the board-brief template.
+        /// </summary>
+        /// <param name="mandate">The ticking mandate.</param>
+        /// <param name="nowUtc">Now (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Rendered text, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when mandate is null.</exception>
+        /// <exception cref="Garrison.Core.Templates.TemplateException">Thrown when the template does not render.</exception>
+        public async Task<string?> RenderBoardBriefAsync(Mandate mandate, DateTime nowUtc, CancellationToken token = default)
+        {
+            if (mandate == null) throw new ArgumentNullException(nameof(mandate));
+            if (Chain == null || String.IsNullOrEmpty(mandate.CurrentRevisionId)) return null;
+            MandateRevision? revision = await _Database.MandateRevisions.ReadAsync(mandate.TenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false);
+            if (revision == null || !revision.BriefIntervalHours.HasValue) return null;
+            Garrison.Core.Organizations.OrgTree? led = null;
+            foreach (Garrison.Core.Organizations.OrgTree tree in await Chain.LiveTreesAsync(mandate.TenantId, token).ConfigureAwait(false))
+            {
+                OrgUnit? root = tree.Root;
+                if (root == null || root.LeadAgentId != mandate.AgentId) continue;
+                if (!String.IsNullOrEmpty(root.LeadMandateId) && root.LeadMandateId != mandate.Id) continue;
+                led = tree;
+                break;
+            }
+            if (led == null) return null;
+            Report? last = await LastBriefAsync(mandate.TenantId, mandate.AgentId, token).ConfigureAwait(false);
+            if (!BoardBriefRenderer.Due(revision.BriefIntervalHours, last?.CreatedUtc, nowUtc)) return null;
+            PromptTemplate template = await new KeeperTemplateResolver(_Database).ResolveAsync(mandate.TenantId, BoardBriefRenderer.TemplateName, PromptTemplateKindEnum.Task, token).ConfigureAwait(false);
+            string text = BoardBriefRenderer.Render(template.Content, template.Name, led.Organization.Name, mandate.Name, revision.BriefIntervalHours.Value, last?.CreatedUtc);
+            return String.IsNullOrWhiteSpace(text) ? null : text;
+        }
+
         #endregion
 
         #region Private-Methods
@@ -291,6 +343,7 @@ namespace Garrison.Server.Runtime
                 GarrisonTracing.Ok(span);
             }
             GarrisonMetrics.Count(GarrisonMetricCatalog.Reports, "kind", report.Kind.ToString().ToLowerInvariant(), "health", report.Health.ToString().ToLowerInvariant());
+            if (report.Kind == ReportKindEnum.Brief) GarrisonMetrics.Count(GarrisonMetricCatalog.BoardBriefs);
             // Titles and bodies are written by agents and never go to the audit log or the server log.
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Report", report.Id, "Filed report " + report.Id + " (" + report.Kind + ", " + report.Health + ")" + (report.AuthorAgentId != null ? " from agent " + report.AuthorAgentId : String.Empty) + ".", report.TenantId, token).ConfigureAwait(false);
             _Logging.Info(_Header + report.Id + " filed by " + report.FiledByPrincipalType + " " + (report.FiledByPrincipalId ?? "unknown") + ", " + report.Kind + ", " + report.Health + ", " + report.Metrics.Count.ToString(CultureInfo.InvariantCulture) + " metrics");

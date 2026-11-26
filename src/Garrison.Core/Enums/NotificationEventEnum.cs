@@ -74,6 +74,11 @@ namespace Garrison.Core.Enums
         CanaryRolledBack,
 
         /// <summary>
+        /// A report of kind Brief was filed (AA10.3), usually by an organization's top agent for its board.
+        /// </summary>
+        BoardBrief,
+
+        /// <summary>
         /// A test notification sent by the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

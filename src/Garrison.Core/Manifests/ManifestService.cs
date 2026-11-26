@@ -1971,6 +1971,7 @@ namespace Garrison.Core.Manifests
             revision.BudgetPerTickUsd = spec.BudgetPerTickUsd;
             revision.BudgetPerDayUsd = spec.BudgetPerDayUsd;
             revision.MaxTokensPerTick = spec.MaxTokensPerTick;
+            revision.BriefIntervalHours = spec.BriefIntervalHours;
             revision.EscalationTargetKind = spec.EscalationTargetKind;
             revision.EscalationTargetId = spec.EscalationTargetId;
             revision.ChangeNote = spec.ChangeNote;
@@ -2018,6 +2019,7 @@ namespace Garrison.Core.Manifests
             if (revision.BudgetPerTickUsd.HasValue) tree["budgetPerTickUsd"] = revision.BudgetPerTickUsd.Value;
             if (revision.BudgetPerDayUsd.HasValue) tree["budgetPerDayUsd"] = revision.BudgetPerDayUsd.Value;
             if (revision.MaxTokensPerTick.HasValue) tree["maxTokensPerTick"] = revision.MaxTokensPerTick.Value;
+            if (revision.BriefIntervalHours.HasValue) tree["briefIntervalHours"] = (long)revision.BriefIntervalHours.Value;
             if (revision.EscalationTargetKind.HasValue) tree["escalationTargetKind"] = revision.EscalationTargetKind.Value.ToString();
             if (revision.EscalationTargetId != null) tree["escalationTargetId"] = revision.EscalationTargetId;
             return tree;

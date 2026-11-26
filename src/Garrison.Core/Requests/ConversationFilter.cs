@@ -34,6 +34,11 @@ namespace Garrison.Core.Requests
         public string? AppId { get; set; } = null;
 
         /// <summary>
+        /// Only conversations the board of this organization started (AA10.6), or null.
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
         /// Case-insensitive substring of the title.
         /// </summary>
         public string? Search { get; set; } = null;

@@ -75,7 +75,7 @@ namespace Garrison.Core.Notifications
         public NotificationMandateCapSummary? MandateCap { get; set; } = null;
 
         /// <summary>
-        /// The report, for ReportUnhealthy (AA5.7).
+        /// The report, for ReportUnhealthy (AA5.7) and BoardBrief (AA10.3).
         /// </summary>
         public NotificationReportSummary? Report { get; set; } = null;
 

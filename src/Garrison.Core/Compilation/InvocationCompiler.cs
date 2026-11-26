@@ -213,6 +213,7 @@ namespace Garrison.Core.Compilation
             if (run.Kind == RunKindEnum.Keeper && !String.IsNullOrEmpty(run.MandateId)) await LoadKeeperAsync(inputs, run, token).ConfigureAwait(false);
             await LoadOrgAsync(inputs, run, token).ConfigureAwait(false);
             await LoadExecutiveAsync(inputs, run, token).ConfigureAwait(false);
+            await LoadBoardAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -743,6 +744,13 @@ namespace Garrison.Core.Compilation
                 context.Set("executive", ExecutiveContextMap(inputs.Executive));
                 string executive = RenderPrompt(inputs, Garrison.Core.Organizations.ExecutiveContextLoader.Role, context, includes, usedIncludes).Trim();
                 if (executive.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + executive : executive;
+            }
+            if (inputs.Board != null && inputs.Prompts.ContainsKey(CompilationBoardContext.Role))
+            {
+                // AA10.6: a turn of a board conversation knows it is talking with the board.
+                context.Set("board", BoardContextMap(inputs.Board));
+                string board = RenderPrompt(inputs, CompilationBoardContext.Role, context, includes, usedIncludes).Trim();
+                if (board.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + board : board;
             }
             string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
             if (repair != null)
@@ -1807,6 +1815,42 @@ namespace Garrison.Core.Compilation
             if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
         }
 
+        private async Task LoadBoardAsync(CompilationInputs inputs, Run run, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(run.ConversationId)) return;
+            Conversation? conversation = await _Database.Conversations.ReadAsync(run.TenantId, run.ConversationId, token).ConfigureAwait(false);
+            if (conversation == null || String.IsNullOrEmpty(conversation.OrganizationId)) return;
+            Organization? organization = await _Database.Organizations.ReadAsync(run.TenantId, conversation.OrganizationId, token).ConfigureAwait(false);
+            if (organization == null) return;
+            CompilationBoardContext board = new CompilationBoardContext();
+            board.OrganizationId = organization.Id;
+            board.OrganizationName = organization.Name;
+            board.Mission = organization.Mission;
+            board.SpeakerName = run.CallerName ?? conversation.CallerName;
+            inputs.Board = board;
+            string role = CompilationBoardContext.Role;
+            if (inputs.Prompts.ContainsKey(role)) return;
+            PromptTemplate template = await new Garrison.Core.Keepers.KeeperTemplateResolver(_Database).ResolveAsync(run.TenantId, CompilationBoardContext.TemplateName, PromptTemplateKindEnum.Fragment, token).ConfigureAwait(false);
+            BoundPrompt bound = new BoundPrompt();
+            bound.Role = role;
+            bound.TemplateId = template.Id;
+            bound.TemplateName = template.Name;
+            bound.Version = template.CurrentVersion;
+            bound.Content = template.Content;
+            inputs.Prompts[role] = bound;
+            if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
+        }
+
+        private static Dictionary<string, object?> BoardContextMap(CompilationBoardContext board)
+        {
+            Dictionary<string, object?> map = TemplateContext.NewMap();
+            map["organizationId"] = board.OrganizationId;
+            map["organizationName"] = board.OrganizationName;
+            map["mission"] = board.Mission;
+            map["speakerName"] = board.SpeakerName;
+            return map;
+        }
+
         private static Dictionary<string, object?> ExecutiveContextMap(CompilationExecutiveContext executive)
         {
             Dictionary<string, object?> map = TemplateContext.NewMap();
@@ -1865,6 +1909,7 @@ namespace Garrison.Core.Compilation
             map["autonomy"] = keeper.Revision.Autonomy;
             map["escalationPolicy"] = keeper.Revision.EscalationPolicy;
             map["direction"] = keeper.Revision.Direction;
+            map["directionFromBoard"] = keeper.Revision.Source == MandateRevisionSourceEnum.Board;
             map["wakeMode"] = keeper.Revision.WakeMode.ToString();
             map["minIntervalSeconds"] = (long)keeper.Revision.MinIntervalSeconds;
             map["maxIntervalSeconds"] = (long)keeper.Revision.MaxIntervalSeconds;

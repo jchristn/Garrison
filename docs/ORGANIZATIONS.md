@@ -222,6 +222,8 @@ People and API credentials manage organizations with management tools, which run
 | `garrison_update_organization` | Update on Organization | `organization`; optional `name`, `description`, `mission`, `status` (`Retired`, `Active`), `units` |
 | `garrison_publish_org_revision` | Update on Organization | `organization`; optional `revisionId`, `note` |
 | `garrison_rollback_organization` | Update on Organization | `organization`; optional `revisionId`, `note` |
+| `garrison_board_get` | Read on Organization | `organization`; optional `limit`. The board: chart with unit health, the CEO, open escalations, pending proposals, spend, briefs, unhealthy reports, freezes, and the kill switch (AA10) |
+| `garrison_board_direct` | Update on Organization | `organization`, `direction`; optional `changeNote`. Publishes the direction as a `Board` revision of the CEO mandate (AA10) |
 | `garrison_org_chart` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `organization` |
 | `garrison_org_whoami` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `agent`, optional `organization` |
 | `garrison_list_org_proposals`, `garrison_get_org_proposal` | Read on Organization | `organization`; `draftId` for one. See [EXECUTIVES.md](EXECUTIVES.md#mcp-tools) |

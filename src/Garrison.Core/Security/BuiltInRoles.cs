@@ -99,6 +99,14 @@ namespace Garrison.Core.Security
         public const string AppUser = "AppUser";
 
         /// <summary>
+        /// BoardMember role name (AA10.1, plan section 9): govern an organization from its board. Read its chart, mandates,
+        /// reports, memory, and messages; answer escalations; freeze and lift; give direction; publish and roll back; write
+        /// change rules; decide proposals, eval sets, shadow trials, and canaries; and talk to the top agent. Assign it with
+        /// Resource scope on an organization to limit it to that organization's routes.
+        /// </summary>
+        public const string BoardMember = "BoardMember";
+
+        /// <summary>
         /// All built-in role definitions.
         /// </summary>
         public static IReadOnlyList<BuiltInRole> All
@@ -445,6 +453,37 @@ namespace Garrison.Core.Security
             p_appuser_execute.Operations = new List<string> { "Execute" };
             appUser.Permissions.Add(p_appuser_execute);
             roles.Add(appUser);
+
+            BuiltInRole boardMember = new BuiltInRole();
+            boardMember.Id = "rol_builtin_boardmember";
+            boardMember.Name = BoardMember;
+            boardMember.Description = "Govern an organization from its board: read it, answer escalations, apply and lift freezes, give direction, publish and roll back, write change rules, decide proposals and releases, and talk to the top agent. Assign with Resource scope on an organization to limit it to that organization.";
+            BuiltInPermission p_board_read = new BuiltInPermission();
+            p_board_read.Name = "BoardMember.Read";
+            p_board_read.ResourceTypes = new List<string> { "Mandate", "Escalation", "Freeze", "Memory", "Report", "AgentMessage", "Organization", "ChangeRule", "EvalSet", "EvalRun", "ShadowTrial", "CanaryRelease", "Approval", "Agent", "Deployment", "Run", "Conversation" };
+            p_board_read.Operations = new List<string> { "Read" };
+            boardMember.Permissions.Add(p_board_read);
+            BuiltInPermission p_board_update = new BuiltInPermission();
+            p_board_update.Name = "BoardMember.Update";
+            p_board_update.ResourceTypes = new List<string> { "Escalation", "Freeze", "Organization", "ChangeRule", "EvalSet", "EvalRun", "ShadowTrial", "CanaryRelease", "Approval" };
+            p_board_update.Operations = new List<string> { "Update" };
+            boardMember.Permissions.Add(p_board_update);
+            BuiltInPermission p_board_create = new BuiltInPermission();
+            p_board_create.Name = "BoardMember.Create";
+            p_board_create.ResourceTypes = new List<string> { "Freeze", "AgentMessage", "ChangeRule" };
+            p_board_create.Operations = new List<string> { "Create" };
+            boardMember.Permissions.Add(p_board_create);
+            BuiltInPermission p_board_delete = new BuiltInPermission();
+            p_board_delete.Name = "BoardMember.Delete";
+            p_board_delete.ResourceTypes = new List<string> { "ChangeRule" };
+            p_board_delete.Operations = new List<string> { "Delete" };
+            boardMember.Permissions.Add(p_board_delete);
+            BuiltInPermission p_board_execute = new BuiltInPermission();
+            p_board_execute.Name = "BoardMember.Execute";
+            p_board_execute.ResourceTypes = new List<string> { "Mandate", "Deployment" };
+            p_board_execute.Operations = new List<string> { "Execute" };
+            boardMember.Permissions.Add(p_board_execute);
+            roles.Add(boardMember);
 
             return roles;
         }

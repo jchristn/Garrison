@@ -40,6 +40,7 @@ An endpoint only ever receives events that happened after it was created. Creati
 | `ReportUnhealthy` | A run or a person filed a report with health `Unhealthy` |
 | `OrgProposalApplied` | Change rules applied an executive's proposal without a person. See [Executives](EXECUTIVES.md) |
 | `CanaryRolledBack` | A canary release crossed its error rate or eval score threshold and both deployments went back to their weights from before it started |
+| `BoardBrief` | A run or a person filed a report of kind `Brief`, usually the organization's top agent briefing its board. The payload's `report` carries the summary, as for `ReportUnhealthy` |
 
 Every run counts, including delegated child runs and pipeline stage runs, so an endpoint that subscribes to `RunFailed` for a busy agent should expect traffic. `ApprovalRequested` skips permission requests that a deployment rule or the deployment default decided on the spot; those never waited for anyone. The additional value `Test` is used by the test action and cannot be subscribed to.
 

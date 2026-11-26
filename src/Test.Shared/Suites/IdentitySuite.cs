@@ -21,6 +21,7 @@ namespace Test.Shared.Suites
             List<TestCaseDescriptor> unit = new List<TestCaseDescriptor>();
             unit.Add(new TestCaseDescriptor("identity-unit", "token-tamper", "Tokens: tampered and expired tokens are rejected", IdentityUnitCases.TokenTamperAsync));
             unit.Add(new TestCaseDescriptor("identity-unit", "rbac-matrix", "RBAC: deny beats permit, resource scope, inheritance, Write expansion", IdentityUnitCases.RbacMatrixAsync));
+            unit.Add(new TestCaseDescriptor("identity-unit", "board-member", "BoardMember: the section 9 grants, limited to one organization with Resource scope", IdentityUnitCases.BoardMemberAsync));
             unit.Add(new TestCaseDescriptor("identity-unit", "secret-cipher", "Secrets: GCM round trip and tamper detection", IdentityUnitCases.SecretCipherAsync));
             unit.Add(new TestCaseDescriptor("identity-unit", "redaction", "Request history: secret headers and secret routes are redacted", IdentityUnitCases.RedactionAsync));
             unit.Add(new TestCaseDescriptor("identity-unit", "password-hashing", "Passwords: PBKDF2 format, salts, wrong passwords, legacy SHA-256, rehash detection", IdentityUnitCases.PasswordHashingAsync));

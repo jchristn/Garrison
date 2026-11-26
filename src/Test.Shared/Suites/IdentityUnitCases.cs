@@ -3,6 +3,7 @@ namespace Test.Shared.Suites
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
@@ -160,6 +161,59 @@ namespace Test.Shared.Suites
             Assert.True(!PermissionEvaluator.Evaluate(writes, ResourceTypeEnum.Deployment, OperationTypeEnum.Read, null).Permitted, "Write does not cover Read");
             Assert.True(!PermissionEvaluator.Evaluate(writes, ResourceTypeEnum.Agent, OperationTypeEnum.Create, null).Permitted, "Write is limited to its resource type");
             Assert.Equal(AuthorizationResultEnum.DeniedImplicit, PermissionEvaluator.Evaluate(new List<PermissionGrant>(), ResourceTypeEnum.Agent, OperationTypeEnum.Read, null).Result, "No grants");
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// BoardMember grants (AA10.1, plan section 9), at tenant scope and limited to one organization.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        public static Task BoardMemberAsync(CancellationToken token)
+        {
+            BuiltInRole role = BuiltInRoles.Find(BuiltInRoles.BoardMember) ?? throw new TestAssertionException("BoardMember is a built-in role");
+            Assert.Equal("rol_builtin_boardmember", role.Id, "Stable role identifier");
+            List<PermissionGrant> tenant = role.Permissions.Select(p => Grant(p.ResourceTypes.ToArray(), p.Operations.ToArray(), PermissionTypeEnum.Permit, ResourceScopeEnum.Tenant, null, true)).ToList();
+            Dictionary<ResourceTypeEnum, OperationTypeEnum[]> granted = new Dictionary<ResourceTypeEnum, OperationTypeEnum[]>
+            {
+                [ResourceTypeEnum.Mandate] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Execute },
+                [ResourceTypeEnum.Escalation] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.Freeze] = new[] { OperationTypeEnum.Create, OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.Memory] = new[] { OperationTypeEnum.Read },
+                [ResourceTypeEnum.Report] = new[] { OperationTypeEnum.Read },
+                [ResourceTypeEnum.AgentMessage] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Create },
+                [ResourceTypeEnum.Organization] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.ChangeRule] = new[] { OperationTypeEnum.Create, OperationTypeEnum.Read, OperationTypeEnum.Update, OperationTypeEnum.Delete },
+                [ResourceTypeEnum.EvalSet] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.EvalRun] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.ShadowTrial] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.CanaryRelease] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.Approval] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Update },
+                [ResourceTypeEnum.Agent] = new[] { OperationTypeEnum.Read },
+                [ResourceTypeEnum.Deployment] = new[] { OperationTypeEnum.Read, OperationTypeEnum.Execute },
+                [ResourceTypeEnum.Run] = new[] { OperationTypeEnum.Read },
+                [ResourceTypeEnum.Conversation] = new[] { OperationTypeEnum.Read }
+            };
+            OperationTypeEnum[] all = new[] { OperationTypeEnum.Create, OperationTypeEnum.Read, OperationTypeEnum.Update, OperationTypeEnum.Delete, OperationTypeEnum.Execute };
+            foreach (KeyValuePair<ResourceTypeEnum, OperationTypeEnum[]> entry in granted)
+            {
+                foreach (OperationTypeEnum operation in all)
+                {
+                    bool expected = entry.Value.Contains(operation);
+                    Assert.Equal(expected, PermissionEvaluator.Evaluate(tenant, entry.Key, operation, null).Permitted, "BoardMember " + operation + " on " + entry.Key);
+                }
+            }
+            foreach (ResourceTypeEnum other in new[] { ResourceTypeEnum.Secret, ResourceTypeEnum.User, ResourceTypeEnum.Role, ResourceTypeEnum.HarnessProfile, ResourceTypeEnum.StudioDraft, ResourceTypeEnum.Manifest })
+            {
+                Assert.True(!PermissionEvaluator.Evaluate(tenant, other, OperationTypeEnum.Read, null).Permitted, "BoardMember has nothing on " + other);
+            }
+
+            List<PermissionGrant> scoped = role.Permissions.Select(p => Grant(p.ResourceTypes.ToArray(), p.Operations.ToArray(), PermissionTypeEnum.Permit, ResourceScopeEnum.Resource, "org_mine", true)).ToList();
+            Assert.True(PermissionEvaluator.Evaluate(scoped, ResourceTypeEnum.Organization, OperationTypeEnum.Read, "org_mine").Permitted, "Scoped: reads its organization");
+            Assert.True(PermissionEvaluator.Evaluate(scoped, ResourceTypeEnum.Organization, OperationTypeEnum.Update, "org_mine").Permitted, "Scoped: directs its organization");
+            Assert.True(!PermissionEvaluator.Evaluate(scoped, ResourceTypeEnum.Organization, OperationTypeEnum.Read, "org_theirs").Permitted, "Scoped: not another organization");
+            Assert.True(!PermissionEvaluator.Evaluate(scoped, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null).Permitted, "Scoped: not the tenant's organization list");
+            Assert.True(!PermissionEvaluator.Evaluate(scoped, ResourceTypeEnum.Organization, OperationTypeEnum.Delete, "org_mine").Permitted, "Scoped: never delete");
             return Task.CompletedTask;
         }
 

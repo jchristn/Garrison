@@ -109,6 +109,11 @@ namespace Garrison.Server.Runtime
         public string? AppId { get; set; } = null;
 
         /// <summary>
+        /// Organization whose board starts the conversation (AA10.6), or null. Recorded on a new conversation only.
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
         /// Protocol surface the run came from (rest, mcp, or a2a), used as a metric label. Default rest.
         /// </summary>
         public string Surface { get; set; } = "rest";
