@@ -1143,6 +1143,65 @@ namespace Garrison.Sdk.Test
                     catch (GarrisonException e) when (e.StatusCode == 404) { }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("organizations", async () =>
+                {
+                    // Unit edits change the working tree; publishing a revision makes it live.
+                    Agent member = await client.Agents.CreateAsync(new Agent { Name = "sdk-cs-org-member-" + suffix, Description = "C# SDK harness org unit lead." }, token).ConfigureAwait(false);
+                    Organization? organization = null;
+                    try
+                    {
+                        organization = await client.Organizations.CreateAsync(new Organization { Name = "sdk-cs-org-" + suffix, Mission = "Exercise the C# SDK." }, token).ConfigureAwait(false);
+                        Require(organization.Id.StartsWith("org_", StringComparison.Ordinal) && organization.Status == OrganizationStatusEnum.Draft, "create an organization");
+                        OrgUnit root = await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "board", LeadAgentId = agentId, LeadTitle = "CEO" }, token).ConfigureAwait(false);
+                        Require(root.Id.StartsWith("oun_", StringComparison.Ordinal) && root.ParentUnitId == null && root.LeadAgentId == agentId, "add the root unit");
+                        OrgUnit child = new OrgUnit { Name = "engineering", ParentUnitId = root.Id, LeadAgentId = member.Name, LeadTitle = "Head of engineering" };
+                        child.Budgets.Add(new OrgUnitBudget { Period = BudgetPeriodEnum.Day, AmountUsd = 5 });
+                        child = await client.Organizations.CreateUnitAsync(organization.Id, child, token).ConfigureAwait(false);
+                        Require(child.ParentUnitId == root.Id && child.LeadAgentId == member.Id && child.Budgets.Count == 1, "add a child unit with a budget");
+                        Organization read = await client.Organizations.GetAsync(organization.Name, token).ConfigureAwait(false);
+                        Require(read.RootUnitId == root.Id && read.Units != null && read.Units.Count == 2, "read an organization with its units");
+                        Require((await client.Organizations.ListUnitsAsync(organization.Id, token).ConfigureAwait(false)).Count == 2, "list units");
+                        Require((await client.Organizations.GetUnitAsync(organization.Id, "engineering", token).ConfigureAwait(false)).Id == child.Id, "read a unit by name");
+                        OrgChart working = await client.Organizations.ChartAsync(organization.Id, token).ConfigureAwait(false);
+                        Require(working.Source == "Working" && working.Units.Count == 2, "chart of the working tree, got " + working.Source);
+
+                        OrgRevision first = await client.Organizations.CreateRevisionAsync(organization.Id, new OrgRevisionRequest { Note = "First" }, token).ConfigureAwait(false);
+                        Require(first.State == OrgRevisionStateEnum.Draft && first.Number == 1, "draft a revision");
+                        OrgRevision published = await client.Organizations.PublishAsync(organization.Id, first.Id, token).ConfigureAwait(false);
+                        Require(published.State == OrgRevisionStateEnum.Published, "publish a revision");
+                        OrgChart live = await client.Organizations.ChartAsync(organization.Id, token).ConfigureAwait(false);
+                        Require(live.Source == "Live" && live.RevisionId == first.Id && live.Units.Exists(u => u.Id == child.Id && u.ParentUnitId == root.Id && u.Lead != null && u.Lead.AgentId == member.Id), "chart of the live revision");
+
+                        child.Description = "Builds things.";
+                        await client.Organizations.UpdateUnitAsync(organization.Id, child.Id, child, token).ConfigureAwait(false);
+                        OrgRevision second = await client.Organizations.CreateRevisionAsync(organization.Id, new OrgRevisionRequest { Note = "Second" }, token).ConfigureAwait(false);
+                        await client.Organizations.PublishAsync(organization.Id, second.Id, token).ConfigureAwait(false);
+                        OrgRevision rolledBack = await client.Organizations.RollbackAsync(organization.Id, new OrgRollbackRequest { Note = "Back to the first" }, token).ConfigureAwait(false);
+                        Require(rolledBack.RollbackOfRevisionId == first.Id && rolledBack.State == OrgRevisionStateEnum.Published, "roll back to the first revision");
+                        List<OrgRevision> revisions = await client.Organizations.ListRevisionsAsync(organization.Id, token).ConfigureAwait(false);
+                        Require(revisions.Count == 3 && revisions[0].Id == rolledBack.Id, "list revisions newest first");
+                        Require((await client.Organizations.GetRevisionAsync(organization.Id, first.Id, token).ConfigureAwait(false)).Units.Count == 2, "read a revision with its snapshot");
+
+                        List<OrgUnitSpend> spend = await client.Organizations.SpendAsync(organization.Id, token).ConfigureAwait(false);
+                        Require(spend.Exists(s => s.UnitId == child.Id && s.Period == BudgetPeriodEnum.Day && s.AmountUsd == 5 && !s.Exhausted), "spend against the unit budget");
+
+                        try
+                        {
+                            await client.Organizations.GetAsync("org_sdk_missing", token).ConfigureAwait(false);
+                            Require(false, "an unknown organization is not found");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { }
+
+                        await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
+                        organization = null;
+                    }
+                    finally
+                    {
+                        if (organization != null) await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
+                        await client.Agents.DeleteAsync(member.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

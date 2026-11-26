@@ -59,6 +59,19 @@ type CapabilityHints struct {
 	ComputedUTC      *string  `json:"computedUtc,omitempty"`
 }
 
+// CapabilityOrgPlacement is the unit, title, and mandate summary of an Agent capability whose agent holds a position
+// in a live organization.
+type CapabilityOrgPlacement struct {
+	OrganizationID   string  `json:"organizationId"`
+	OrganizationName string  `json:"organizationName"`
+	UnitID           string  `json:"unitId"`
+	UnitName         string  `json:"unitName"`
+	IsLead           bool    `json:"isLead"`
+	Title            *string `json:"title,omitempty"`
+	MandateName      *string `json:"mandateName,omitempty"`
+	MandateSummary   *string `json:"mandateSummary,omitempty"`
+}
+
 // CapabilityDescriptor is one capability catalog entry: an agent, an MCP tool, or a harness built-in. TenantID is nil
 // for descriptors every tenant shares. InputSchema and OutputSchema are JSON Schema documents as JSON values (usually objects), nil when none. On create and update the server
 // uses Name, Kind, Summary, the schemas, Tags, Requirements, and the optional SourceAgentID, SourceMcpServerID, and
@@ -83,9 +96,11 @@ type CapabilityDescriptor struct {
 	Requirements           []CapabilityRequirement `json:"requirements,omitempty"`
 	Hints                  *CapabilityHints        `json:"hints,omitempty"`
 	RefreshWarning         *string                 `json:"refreshWarning,omitempty"`
-	LastRefreshedUTC       *string                 `json:"lastRefreshedUtc,omitempty"`
-	CreatedUTC             string                  `json:"createdUtc,omitempty"`
-	LastUpdateUTC          string                  `json:"lastUpdateUtc,omitempty"`
+	// Org is set for an Agent capability whose agent holds a position in a live organization. Read only.
+	Org              *CapabilityOrgPlacement `json:"org,omitempty"`
+	LastRefreshedUTC *string                 `json:"lastRefreshedUtc,omitempty"`
+	CreatedUTC       string                  `json:"createdUtc,omitempty"`
+	LastUpdateUTC    string                  `json:"lastUpdateUtc,omitempty"`
 }
 
 // CapabilityServerRefresh is the refresh outcome for one MCP server. Error is set when its tool listing failed.

@@ -255,6 +255,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Messages between agents (AA6). Read lists and reads messages and threads; Create writes to an agent.
         /// </summary>
-        AgentMessage
+        AgentMessage,
+
+        /// <summary>
+        /// Organizations, their units, revisions, chart, and spend (AA7). Update covers units, publishing, and rollback.
+        /// </summary>
+        Organization
     }
 }

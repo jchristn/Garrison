@@ -45,7 +45,7 @@ namespace Garrison.Sdk.Models
         public string? MandateTickId { get; set; } = null;
 
         /// <summary>
-        /// Organization unit of the author (once organizations exist), or null.
+        /// Organization unit of the author, or null.
         /// </summary>
         public string? OrgUnitId { get; set; } = null;
 

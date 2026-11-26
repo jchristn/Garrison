@@ -7,8 +7,8 @@ import (
 	"strconv"
 )
 
-// Freeze target kinds (Freeze.TargetKind). OrgUnit and Organization are refused until organizations exist;
-// TenantAutonomy is the kill switch, set with Freezes.SetKillSwitch.
+// Freeze target kinds (Freeze.TargetKind). OrgUnit freezes a unit's subtree and Organization a
+// whole organization; TenantAutonomy is the kill switch, set with Freezes.SetKillSwitch.
 const (
 	FreezeTargetAgent          = "Agent"
 	FreezeTargetDeployment     = "Deployment"

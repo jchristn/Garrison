@@ -214,6 +214,24 @@ thread = client.messages.thread(sent["threadId"])
 
 `MESSAGE_URGENCIES`, `MESSAGE_STATUSES`, and `MESSAGE_REJECTIONS` list the values.
 
+## Organizations
+
+An organization is a tree of units in one tenant: a mission, a root unit whose lead is the CEO agent, child units with a lead, members, an optional app, peer lines, and budgets that cap the whole subtree's spend. An agent holds at most one position in an organization. Unit edits change the working tree only. The chain of command, lines, and budgets follow the live revision, so draft a revision and publish it to make edits take effect; a rollback publishes a copy of an earlier live revision. The chart shows the live revision, or the working tree before the first publish. Reading needs Read on Organization; units, publishing, and rollback need Update. A refused change fails with status 409 and a code such as `OneRoot`, `Cycle`, `LeadsTwoUnits`, `PositionTaken`, `BudgetExceedsParent`, `UnitHasChildren`, `NameConflict`, `RevisionPublished`, or `NothingToRollBack`. Organizations and units are addressed by identifier or name.
+
+```python
+org = client.organizations.create({"name": "acme", "mission": "Ship the product."})
+board = client.organizations.create_unit(org["id"], {"name": "board", "leadAgentId": "ceo-agent", "leadTitle": "CEO"})
+client.organizations.create_unit(org["id"], {"name": "engineering", "parentUnitId": board["id"], "leadAgentId": "eng-lead",
+                                             "budgets": [{"period": "Day", "amountUsd": 25}]})
+draft = client.organizations.create_revision(org["id"], "First chart")
+client.organizations.publish(org["id"], draft["id"])
+chart = client.organizations.chart(org["id"])
+spend = client.organizations.spend(org["id"])
+client.organizations.rollback(org["id"], note="Undo")
+```
+
+`ORGANIZATION_STATUSES`, `ORG_REVISION_STATES`, `BUDGET_PERIODS`, `USAGE_QUOTA_SCOPES`, and `PROMOTION_SUBJECT_KINDS` list the values. A spend entry's `exhausted` is True when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, a capability descriptor's `org` places an agent capability in its organization, and a publish or rollback writes a promotion record with `subjectKind` `Organization`, `organizationId`, and `orgRevisionId`.
+
 ## Streaming run events
 
 ```python

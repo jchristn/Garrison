@@ -236,6 +236,26 @@ rejected, err := client.Messages.List(ctx, garrison.AgentMessageFilter{Status: g
 thread, err := client.Messages.Thread(ctx, sent.ThreadID)
 ```
 
+## Organizations
+
+An organization is a tree of units in one tenant: a mission, a root unit whose lead is the CEO agent, child units with a lead, members, an optional app, peer lines, and budgets that cap the whole subtree's spend. An agent holds at most one position in an organization. Unit edits change the working tree only. The chain of command, lines, and budgets follow the live revision, so draft a revision and publish it to make edits take effect; a rollback publishes a copy of an earlier live revision. The chart shows the live revision, or the working tree before the first publish. Reading needs Read on Organization; units, publishing, and rollback need Update. A refused change fails with status 409 and a code such as `OneRoot`, `Cycle`, `LeadsTwoUnits`, `PositionTaken`, `BudgetExceedsParent`, `UnitHasChildren`, `NameConflict`, `RevisionPublished`, or `NothingToRollBack`. Organizations and units are addressed by identifier or name.
+
+```go
+org, err := client.Organizations.Create(ctx, garrison.Organization{Name: "acme"})
+lead, title := "ceo-agent", "CEO"
+board, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: &lead, LeadTitle: &title})
+engLead := "eng-lead"
+_, err = client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "engineering", ParentUnitID: &board.ID, LeadAgentID: &engLead,
+	Budgets: []garrison.OrgUnitBudget{{Period: garrison.BudgetPeriodDay, AmountUSD: 25}}})
+draft, err := client.Organizations.CreateRevision(ctx, org.ID, "First chart")
+_, err = client.Organizations.Publish(ctx, org.ID, draft.ID)
+chart, err := client.Organizations.Chart(ctx, org.ID)
+spend, err := client.Organizations.Spend(ctx, org.ID)
+_, err = client.Organizations.Rollback(ctx, org.ID, garrison.OrgRollbackRequest{Note: "Undo"})
+```
+
+`OrgUnitSpend.Exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, `CapabilityDescriptor.Org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `SubjectKind` `Organization` (`PromotionSubjectOrganization`), `OrganizationID`, and `OrgRevisionID`.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

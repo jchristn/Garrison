@@ -37,6 +37,8 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 - Dashboard: an Autonomy > Messages tab with filters and a Rejected view that shows each refusal's reason, a thread page, a Send message dialog that explains a refused message, an Inbox tab on each agent's page, and a count of loop-guard rejections on the Home Autonomy card. All nine locales are translated (AA6.12).
 - SDKs: a Messages client in C#, Python, JavaScript/TypeScript, and Go to list, read, and send messages and read threads, plus the message enums and the `Message` run kind (AA6.13).
 - Postman: a Messages folder that writes to an agent with an idempotency key, follows up in the thread, sends and lists an inbox over MCP, and reads messages and threads (AA6.14).
+- SDKs: an Organizations client in C#, Python, JavaScript/TypeScript, and Go for organizations, units, the chart, revisions, publish, rollback, and spend, with the organization models and enums, a capability's `org` placement, the organization fields of promotion records, and the `OrgUnit` usage quota scope (AA7.15).
+- Postman: an Organizations folder that builds a two-unit tree with a budget, publishes two revisions, rolls back, and reads the chart and spend; the OrgUnit freeze and memory requests now expect 404 and NotFound for an unknown unit (AA7.16).
 - Docs: `docs/MESSAGING.md` covers lines, delivery and coalescing, and the loop guards with a worked ping-pong, with the REST, MCP, WebSocket, configuration, prompt, security, keeper, and escalation docs updated to match (AA6.15).
 
 ### Fixed

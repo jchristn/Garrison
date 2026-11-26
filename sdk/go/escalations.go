@@ -29,8 +29,8 @@ const (
 	EscalationModeBlocking    = "Blocking"
 )
 
-// Escalation target kinds (Escalation.TargetKind, MandateRevision.EscalationTargetKind). Manager is refused until
-// organizations exist.
+// Escalation target kinds (Escalation.TargetKind, MandateRevision.EscalationTargetKind). Manager targets the raising
+// agent's manager in a live organization; an agent that holds no position is refused with ManagerUnavailable.
 const (
 	EscalationTargetUser    = "User"
 	EscalationTargetRole    = "Role"

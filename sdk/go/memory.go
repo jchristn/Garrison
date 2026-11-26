@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// Memory scope kinds (MemoryEntry.ScopeKind). OrgUnit and Organization are refused until organizations exist.
+// Memory scope kinds (MemoryEntry.ScopeKind). OrgUnit and Organization hold an organization's shared memory.
 const (
 	MemoryScopeAgent        = "Agent"
 	MemoryScopeApp          = "App"

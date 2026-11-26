@@ -29,6 +29,14 @@ const (
 	PromotionOutcomeRolledBack = "RolledBack"
 )
 
+// Promotion subjects (PromotionRecord.SubjectKind): Organization when OrganizationID is set, App when AppID is set,
+// otherwise Agent.
+const (
+	PromotionSubjectAgent        = "Agent"
+	PromotionSubjectApp          = "App"
+	PromotionSubjectOrganization = "Organization"
+)
+
 // AgentRevisionPromptPin pins a prompt role to a template; PinnedVersion nil follows the latest template version.
 type AgentRevisionPromptPin struct {
 	Role          string `json:"role"`
@@ -142,11 +150,15 @@ type PromotionRecord struct {
 	// Kind is PromotionKindPromote or PromotionKindRollback.
 	Kind string `json:"kind"`
 	// Outcome is PromotionOutcomeApplied, or PromotionOutcomeRolledBack once a later rollback reverted it.
-	Outcome             string          `json:"outcome"`
-	AgentID             *string         `json:"agentId"`
-	AppID               *string         `json:"appId"`
-	AppRevisionID       *string         `json:"appRevisionId"`
-	AgentRevisionID     *string         `json:"agentRevisionId"`
+	Outcome         string  `json:"outcome"`
+	AgentID         *string `json:"agentId"`
+	AppID           *string `json:"appId"`
+	AppRevisionID   *string `json:"appRevisionId"`
+	AgentRevisionID *string `json:"agentRevisionId"`
+	OrganizationID  *string `json:"organizationId"`
+	OrgRevisionID   *string `json:"orgRevisionId"`
+	// SubjectKind is a PromotionSubject* constant. Read only.
+	SubjectKind         string          `json:"subjectKind"`
 	SourceEnvironment   string          `json:"sourceEnvironment"`
 	TargetEnvironment   string          `json:"targetEnvironment"`
 	SkippedEnvironments bool            `json:"skippedEnvironments"`

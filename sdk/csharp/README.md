@@ -252,6 +252,25 @@ EnumerationResult<AgentMessage> rejected = await client.Messages.ListAsync(new A
 List<AgentMessage> thread = await client.Messages.ThreadAsync(sent.ThreadId);
 ```
 
+## Organizations
+
+An organization is a tree of units in one tenant: a mission, a root unit whose lead is the CEO agent, child units with a lead, members, an optional app, peer lines, and budgets that cap the whole subtree's spend. An agent holds at most one position in an organization. Unit edits change the working tree only. The chain of command, lines, and budgets follow the live revision, so draft a revision and publish it to make edits take effect; a rollback publishes a copy of an earlier live revision. The chart shows the live revision, or the working tree before the first publish. Reading needs Read on Organization; units, publishing, and rollback need Update. A refused change raises a `GarrisonException` with status 409 and a code such as `OneRoot`, `Cycle`, `LeadsTwoUnits`, `PositionTaken`, `BudgetExceedsParent`, `UnitHasChildren`, `NameConflict`, `RevisionPublished`, or `NothingToRollBack`. Organizations and units are addressed by identifier or name.
+
+```csharp
+Organization org = await client.Organizations.CreateAsync(new Organization { Name = "acme", Mission = "Ship the product." });
+OrgUnit board = await client.Organizations.CreateUnitAsync(org.Id, new OrgUnit { Name = "board", LeadAgentId = "ceo-agent", LeadTitle = "CEO" });
+OrgUnit engineering = new OrgUnit { Name = "engineering", ParentUnitId = board.Id, LeadAgentId = "eng-lead" };
+engineering.Budgets.Add(new OrgUnitBudget { Period = BudgetPeriodEnum.Day, AmountUsd = 25 });
+await client.Organizations.CreateUnitAsync(org.Id, engineering);
+OrgRevision draft = await client.Organizations.CreateRevisionAsync(org.Id, new OrgRevisionRequest { Note = "First chart" });
+await client.Organizations.PublishAsync(org.Id, draft.Id);
+OrgChart chart = await client.Organizations.ChartAsync(org.Id);
+List<OrgUnitSpend> spend = await client.Organizations.SpendAsync(org.Id);
+await client.Organizations.RollbackAsync(org.Id, new OrgRollbackRequest { Note = "Undo" });
+```
+
+`OrgUnitSpend.Exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept `FreezeTargetKindEnum.OrgUnit` and `Organization`, memory accepts the `OrgUnit` and `Organization` scopes, `UsageQuotaScopeEnum.OrgUnit` tracks a unit's subtree, `CapabilityDescriptor.Org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `SubjectKind` `Organization`, `OrganizationId`, and `OrgRevisionId`.
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

@@ -700,6 +700,55 @@ await check("messages", async () => {
   try { await client.messages.get("amg_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
   require(status === 404, `an unknown message is not found (${status})`);
 });
+await check("organizations", async () => {
+  // Unit edits change the working tree; publishing a revision makes it live.
+  const member = await client.agents.create({ name: `sdk-js-${suffix}-org-member`, description: "JavaScript SDK harness org unit lead." });
+  let org = null;
+  try {
+    org = await client.organizations.create({ name: `sdk-js-org-${suffix}`, mission: "Exercise the JavaScript SDK." });
+    require(org.id.startsWith("org_") && org.status === "Draft", "create an organization");
+    const root = await client.organizations.createUnit(org.id, { name: "board", leadAgentId: state.agent, leadTitle: "CEO" });
+    require(root.id.startsWith("oun_") && root.parentUnitId == null && root.leadAgentId === state.agent, "add the root unit");
+    const child = await client.organizations.createUnit(org.id, { name: "engineering", parentUnitId: root.id, leadAgentId: member.name, leadTitle: "Head of engineering", budgets: [{ period: "Day", amountUsd: 5 }] });
+    require(child.parentUnitId === root.id && child.leadAgentId === member.id && child.budgets.length === 1, "add a child unit with a budget");
+    const read = await client.organizations.get(org.name);
+    require(read.rootUnitId === root.id && read.units.length === 2, "read an organization with its units");
+    require((await client.organizations.listUnits(org.id)).length === 2, "list units");
+    require((await client.organizations.getUnit(org.id, "engineering")).id === child.id, "read a unit by name");
+    const working = await client.organizations.chart(org.id);
+    require(working.source === "Working" && working.units.length === 2, `chart of the working tree (${working.source})`);
+
+    const first = await client.organizations.createRevision(org.id, "First");
+    require(first.state === "Draft" && first.number === 1, "draft a revision");
+    const published = await client.organizations.publish(org.id, first.id);
+    require(published.state === "Published", "publish a revision");
+    const live = await client.organizations.chart(org.id);
+    require(live.source === "Live" && live.revisionId === first.id && live.units.some((u) => u.id === child.id && u.parentUnitId === root.id && u.lead?.agentId === member.id), "chart of the live revision");
+
+    child.description = "Builds things.";
+    await client.organizations.updateUnit(org.id, child.id, child);
+    const second = await client.organizations.createRevision(org.id, "Second");
+    await client.organizations.publish(org.id, second.id);
+    const rolledBack = await client.organizations.rollback(org.id, { note: "Back to the first" });
+    require(rolledBack.rollbackOfRevisionId === first.id && rolledBack.state === "Published", "roll back to the first revision");
+    const revisions = await client.organizations.listRevisions(org.id);
+    require(revisions.length === 3 && revisions[0].id === rolledBack.id, "list revisions newest first");
+    require((await client.organizations.getRevision(org.id, first.id)).units.length === 2, "read a revision with its snapshot");
+
+    const spend = await client.organizations.spend(org.id);
+    require(spend.some((e) => e.unitId === child.id && e.period === "Day" && e.amountUsd === 5 && !e.exhausted), "spend against the unit budget");
+
+    let status = 0;
+    try { await client.organizations.get("org_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 404, `an unknown organization is not found (${status})`);
+
+    await client.organizations.delete(org.id);
+    org = null;
+  } finally {
+    if (org) await client.organizations.delete(org.id);
+    await client.agents.delete(member.id);
+  }
+});
 
 await check("freezes", async () => {
   // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.

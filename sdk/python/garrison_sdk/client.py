@@ -314,6 +314,19 @@ class CapabilityHints(TypedDict, total=False):
     computedUtc: Optional[str]
 
 
+class CapabilityOrgPlacement(TypedDict, total=False):
+    """CapabilityDescriptor["org"]: the unit, title, and mandate summary of an Agent capability whose agent holds a
+    position in a live organization."""
+    organizationId: str
+    organizationName: str
+    unitId: str
+    unitName: str
+    isLead: bool
+    title: Optional[str]
+    mandateName: Optional[str]
+    mandateSummary: Optional[str]
+
+
 class CapabilityDescriptor(TypedDict, total=False):
     """One capability catalog entry. kind is one of CAPABILITY_KINDS, origin one of CAPABILITY_ORIGINS. tenantId is None
     for descriptors every tenant shares. Schemas are JSON Schema documents as JSON values (usually dicts), None when there is none."""
@@ -336,6 +349,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     requirements: List[CapabilityRequirement]
     hints: CapabilityHints
     refreshWarning: Optional[str]
+    org: Optional[CapabilityOrgPlacement]
     lastRefreshedUtc: Optional[str]
     createdUtc: str
     lastUpdateUtc: str
@@ -923,7 +937,8 @@ class PromotionItem(TypedDict):
 
 
 class PromotionRecord(TypedDict, total=False):
-    """A promotion or rollback. kind is one of PROMOTION_KINDS and outcome one of PROMOTION_OUTCOMES."""
+    """A promotion or rollback. kind is one of PROMOTION_KINDS, outcome one of PROMOTION_OUTCOMES, and subjectKind (read
+    only) one of PROMOTION_SUBJECT_KINDS."""
     id: str
     tenantId: str
     kind: str
@@ -932,6 +947,9 @@ class PromotionRecord(TypedDict, total=False):
     appId: Optional[str]
     appRevisionId: Optional[str]
     agentRevisionId: Optional[str]
+    organizationId: Optional[str]
+    orgRevisionId: Optional[str]
+    subjectKind: str
     sourceEnvironment: str
     targetEnvironment: str
     skippedEnvironments: List[str]
@@ -1040,10 +1058,10 @@ ESCALATION_MODES = ("NonBlocking", "Blocking")
 ESCALATION_TARGET_KINDS = ("User", "Role", "Agent", "Manager")
 ESCALATION_TIMEOUT_ACTIONS = ("UseDefaultAnswer", "Cancel", "EscalateUp")
 ESCALATION_RESOLUTION_SOURCES = ("User", "Agent", "Timeout", "Raiser", "System")
-# Freezes: Freeze["targetKind"]. OrgUnit and Organization are refused until organizations exist; TenantAutonomy is the
+# Freezes: Freeze["targetKind"]. OrgUnit freezes a unit's subtree, Organization a whole organization; TenantAutonomy is the
 # kill switch, set with client.freezes.set_kill_switch.
 FREEZE_TARGET_KINDS = ("Agent", "Deployment", "Mandate", "App", "OrgUnit", "Organization", "TenantAutonomy")
-# Scoped memory: MemoryEntry["scopeKind"]. OrgUnit and Organization are refused until organizations exist.
+# Scoped memory: MemoryEntry["scopeKind"]. OrgUnit and Organization hold an organization's shared memory.
 MEMORY_SCOPE_KINDS = ("Agent", "App", "OrgUnit", "Organization")
 # Reports: Report["kind"], ["health"], ["audience"], and an issue's "severity".
 REPORT_KINDS = ("Status", "Incident", "Decision", "Handoff", "Brief")
@@ -1054,6 +1072,12 @@ REPORT_ISSUE_SEVERITIES = ("Low", "Medium", "High")
 MESSAGE_URGENCIES = ("Normal", "Urgent")
 MESSAGE_STATUSES = ("Queued", "Delivered", "Acknowledged", "Expired", "Rejected")
 MESSAGE_REJECTIONS = ("HopLimit", "LineRate", "ThreadBudget", "NoLine", "Frozen")
+# Organizations: Organization["status"], OrgRevision["state"], and OrgUnitBudget["period"]. UsageQuota["scope"] is one
+# of USAGE_QUOTA_SCOPES; OrgUnit quotas track a unit's subtree.
+ORGANIZATION_STATUSES = ("Draft", "Active", "Frozen", "Retired")
+ORG_REVISION_STATES = ("Draft", "Published", "Superseded")
+BUDGET_PERIODS = ("Day", "Month")
+USAGE_QUOTA_SCOPES = ("Tenant", "Agent", "Deployment", "Mandate", "OrgUnit")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -1066,6 +1090,7 @@ AGENT_REVISION_STATES = ("Draft", "Published")
 REVISION_CHANGE_TYPES = ("Changed", "Added", "Removed")
 PROMOTION_KINDS = ("Promote", "Rollback")
 PROMOTION_OUTCOMES = ("Applied", "RolledBack")
+PROMOTION_SUBJECT_KINDS = ("Agent", "App", "Organization")
 DEFAULT_ENVIRONMENTS = ("dev", "staging", "prod")
 # Agent assets. AgentAsset["kind"]; a run whose pinned asset file fails its SHA-256 check ends with outcome
 # RUN_OUTCOME_ASSET_INTEGRITY_FAILED.
@@ -1351,6 +1376,145 @@ def _enum(max_results: Optional[int] = None, skip: Optional[int] = None, orderin
           search: Optional[str] = None, active_only: Optional[bool] = None, include_built_in: Optional[bool] = None) -> Dict[str, Any]:
     return {"maxResults": max_results, "skip": skip, "ordering": ordering, "search": search,
             "activeOnly": active_only, "includeBuiltIn": include_built_in}
+
+
+class OrgUnitMember(TypedDict, total=False):
+    """OrgUnit["members"] item. agentId and mandateId take an identifier or a name in a request."""
+    agentId: str
+    agentName: Optional[str]
+    title: Optional[str]
+    mandateId: Optional[str]
+
+
+class OrgUnitPeerLine(TypedDict, total=False):
+    """OrgUnit["peerLines"] item: a line to another unit of the same organization, both directions."""
+    peerUnitId: str
+    peerUnitName: Optional[str]
+
+
+class OrgUnitBudget(TypedDict, total=False):
+    """OrgUnit["budgets"] item: a cap on the subtree's spend. period is one of BUDGET_PERIODS; amountUsd is greater than 0
+    and at most 10,000,000, and at most the nearest ancestor's budget for the same period."""
+    period: str
+    amountUsd: float
+
+
+class OrgUnit(TypedDict, total=False):
+    """A unit of an organization's working tree or of a revision's snapshot. parentUnitId is None for the root. In a
+    request, parentUnitId, leadAgentId, leadMandateId, and appId take an identifier or a name."""
+    id: str
+    tenantId: str
+    organizationId: str
+    parentUnitId: Optional[str]
+    name: str
+    description: Optional[str]
+    leadAgentId: Optional[str]
+    leadAgentName: Optional[str]
+    leadTitle: Optional[str]
+    leadMandateId: Optional[str]
+    appId: Optional[str]
+    members: List[OrgUnitMember]
+    peerLines: List[OrgUnitPeerLine]
+    budgets: List[OrgUnitBudget]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class Organization(TypedDict, total=False):
+    """An organization. status is one of ORGANIZATION_STATUSES. units is the working tree, root first, when one
+    organization is read; None on lists."""
+    id: str
+    tenantId: str
+    name: str
+    description: Optional[str]
+    mission: Optional[str]
+    status: str
+    rootUnitId: Optional[str]
+    currentRevisionId: Optional[str]
+    currentRevisionNumber: int
+    createdBy: Optional[str]
+    units: Optional[List[OrgUnit]]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class OrgRevisionMandate(TypedDict, total=False):
+    """OrgRevision["mandates"] item: the mandate revision a revision pins."""
+    mandateId: str
+    mandateName: Optional[str]
+    mandateRevisionId: str
+    mandateRevisionNumber: Optional[int]
+
+
+class OrgRevision(TypedDict, total=False):
+    """A snapshot of an organization's tree. state is one of ORG_REVISION_STATES. units and mandates are empty on lists."""
+    id: str
+    tenantId: str
+    organizationId: str
+    number: int
+    state: str
+    note: Optional[str]
+    rollbackOfRevisionId: Optional[str]
+    authorType: str
+    authorId: Optional[str]
+    authorName: Optional[str]
+    units: List[OrgUnit]
+    mandates: List[OrgRevisionMandate]
+    publishedUtc: Optional[str]
+    createdUtc: str
+
+
+class OrgChartMember(TypedDict, total=False):
+    """A lead or member on the organization chart."""
+    agentId: str
+    agentName: Optional[str]
+    title: Optional[str]
+    unitId: str
+    unitName: Optional[str]
+    mandateId: Optional[str]
+    mandateName: Optional[str]
+    mandateSummary: Optional[str]
+
+
+class OrgChartUnit(TypedDict, total=False):
+    """A unit on the organization chart."""
+    id: str
+    name: str
+    description: Optional[str]
+    parentUnitId: Optional[str]
+    depth: int
+    appId: Optional[str]
+    lead: Optional[OrgChartMember]
+    members: List[OrgChartMember]
+    peerUnitIds: List[str]
+    childUnitIds: List[str]
+    budgets: List[OrgUnitBudget]
+
+
+class OrgChart(TypedDict, total=False):
+    """The organization chart. source is "Live" (the live revision) or "Working" (the working tree before the first
+    publish)."""
+    organizationId: str
+    name: str
+    mission: Optional[str]
+    revisionId: Optional[str]
+    revisionNumber: int
+    source: str
+    units: List[OrgChartUnit]
+
+
+class OrgUnitSpend(TypedDict, total=False):
+    """A unit's subtree spend in the current window of one period. amountUsd and fraction are None without a budget;
+    exhausted is True when new runs in the subtree are refused with BudgetExhausted."""
+    unitId: str
+    unitName: str
+    period: str
+    amountUsd: Optional[float]
+    spentUsd: float
+    fraction: Optional[float]
+    exhausted: bool
+    windowStartUtc: str
+    windowEndUtc: str
 
 
 class Resource:
@@ -2698,6 +2862,64 @@ class Messages:
         return self._t.request("POST", self._t.tenant_path("/messages"), body=request)
 
 
+class Organizations(Resource):
+    """Organizations: trees of org units with a mission, per-unit budgets, and revisions. get, update, and delete take an
+    identifier or a name. Unit edits change the working tree; the chain of command, lines, and budgets follow the live
+    revision only, so publish a revision to make edits take effect. Reading needs Read on Organization; units,
+    publishing, and rollback need Update. A refused change raises GarrisonError 409 with a code such as OneRoot, Cycle,
+    LeadsTwoUnits, BudgetExceedsParent, or NothingToRollBack."""
+
+    def list_units(self, organization: str) -> List[Dict[str, Any]]:
+        """The units of the working tree, root first."""
+        return self._t.request("GET", self._item(organization) + "/units")
+
+    def get_unit(self, organization: str, unit: str) -> Dict[str, Any]:
+        """Read a unit of the working tree by identifier or name."""
+        return self._t.request("GET", self._item(organization) + f"/units/{_seg(unit)}")
+
+    def create_unit(self, organization: str, unit: Dict[str, Any]) -> Dict[str, Any]:
+        """Add a unit (see OrgUnit). The first unit without a parent is the root; a second raises 409 OneRoot."""
+        return self._t.request("POST", self._item(organization) + "/units", body=unit)
+
+    def update_unit(self, organization: str, unit: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        """Replace a unit of the working tree."""
+        return self._t.request("PUT", self._item(organization) + f"/units/{_seg(unit)}", body=body)
+
+    def delete_unit(self, organization: str, unit: str) -> Any:
+        """Remove a unit without children, with the peer lines that point at it. Raises 409 UnitHasChildren otherwise."""
+        return self._t.request("DELETE", self._item(organization) + f"/units/{_seg(unit)}")
+
+    def chart(self, organization: str) -> Dict[str, Any]:
+        """The organization chart (see OrgChart) of the live revision, or of the working tree before the first publish."""
+        return self._t.request("GET", self._item(organization) + "/chart")
+
+    def list_revisions(self, organization: str) -> List[Dict[str, Any]]:
+        """Revisions, newest first, without snapshots."""
+        return self._t.request("GET", self._item(organization) + "/revisions")
+
+    def get_revision(self, organization: str, revision_id: str) -> Dict[str, Any]:
+        """Read a revision with its snapshot."""
+        return self._t.request("GET", self._item(organization) + f"/revisions/{_seg(revision_id)}")
+
+    def create_revision(self, organization: str, note: Optional[str] = None) -> Dict[str, Any]:
+        """Snapshot the working tree as a Draft revision, pinning the current revision of every mandate it names."""
+        return self._t.request("POST", self._item(organization) + "/revisions", body={"note": note})
+
+    def publish(self, organization: str, revision_id: str) -> Dict[str, Any]:
+        """Make a Draft revision live and write a promotion record with subject Organization. Raises 409
+        RevisionPublished when the revision is not a draft."""
+        return self._t.request("POST", self._item(organization) + f"/revisions/{_seg(revision_id)}/publish")
+
+    def rollback(self, organization: str, revision_id: Optional[str] = None, note: Optional[str] = None) -> Dict[str, Any]:
+        """Return to an earlier live revision (revision_id, or the one live before the current one) by publishing a copy
+        of its snapshot. Raises 409 NothingToRollBack or AlreadyLive."""
+        return self._t.request("POST", self._item(organization) + "/rollback", body={"revisionId": revision_id, "note": note})
+
+    def spend(self, organization: str) -> List[Dict[str, Any]]:
+        """Spend of each unit's subtree against its budgets in the current day and month windows (see OrgUnitSpend)."""
+        return self._t.request("GET", self._item(organization) + "/spend")
+
+
 class Reports:
     """Reports: list and read the reports runs filed upward, chart a metric over time, and file a report as a person.
     Agents file through the garrison_file_report MCP tool. Reading needs Read on Report; filing needs Create. Reports
@@ -2961,6 +3183,7 @@ class GarrisonClient:
         self.memory = Memory(t)
         self.reports = Reports(t)
         self.messages = Messages(t)
+        self.organizations = Organizations(t, "organizations")
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

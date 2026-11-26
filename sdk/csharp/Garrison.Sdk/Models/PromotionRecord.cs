@@ -72,6 +72,22 @@ namespace Garrison.Sdk.Models
         public string? AgentRevisionId { get; set; } = null;
 
         /// <summary>
+        /// Organization published or rolled back, for an organization record (AA7).
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
+        /// Organization revision made live, for an organization record (AA7).
+        /// </summary>
+        public string? OrgRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// What was promoted or rolled back: Organization when OrganizationId is set, App when AppId is set, otherwise
+        /// Agent. Set by the server.
+        /// </summary>
+        public PromotionSubjectKindEnum SubjectKind { get; set; } = PromotionSubjectKindEnum.Agent;
+
+        /// <summary>
         /// Source environment.
         /// </summary>
         public string? SourceEnvironment { get; set; } = null;

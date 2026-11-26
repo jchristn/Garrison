@@ -127,6 +127,9 @@ export type RevisionChangeType = "Changed" | "Added" | "Removed";
 export type PromotionKind = "Promote" | "Rollback";
 /** Promotion record outcome; RolledBack once a later rollback reversed it. */
 export type PromotionOutcome = "Applied" | "RolledBack";
+/** What a promotion record covers: Organization when organizationId is set, App when appId is set, otherwise Agent. */
+export type PromotionSubjectKind = "Agent" | "App" | "Organization";
+export const PROMOTION_SUBJECT_KINDS: readonly PromotionSubjectKind[] = ["Agent", "App", "Organization"] as const;
 
 /** A prompt template pinned by a revision. pinnedVersion null follows the latest template version. */
 export interface AgentRevisionPromptPin { role: string; templateId: string; pinnedVersion: number | null; }
@@ -205,12 +208,21 @@ export interface CapabilityHints {
  * One capability catalog entry: an agent, an MCP tool, or a harness built-in. tenantId is null for descriptors every
  * tenant shares. inputSchema and outputSchema are JSON Schema documents as JSON values (usually objects), null when none.
  */
+/** The unit, title, and mandate summary of an Agent capability whose agent holds a position in a live organization. */
+export interface CapabilityOrgPlacement {
+  organizationId: string; organizationName: string; unitId: string; unitName: string; isLead: boolean;
+  title?: string | null; mandateName?: string | null; mandateSummary?: string | null;
+}
+
 export interface CapabilityDescriptor extends Json {
   id: string; tenantId?: string | null; name: string; kind: CapabilityKind; origin: CapabilityOrigin; sourceKey: string;
   sourceAgentId?: string | null; sourceRevisionId?: string | null; sourceMcpServerId?: string | null; sourceToolName?: string | null;
   sourceHarnessProfileId?: string | null; sourceHarnessType?: string | null; summary?: string | null;
   inputSchema?: unknown; outputSchema?: unknown; tags: string[]; requirements: CapabilityRequirement[];
-  hints: CapabilityHints; refreshWarning?: string | null; lastRefreshedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
+  hints: CapabilityHints; refreshWarning?: string | null;
+  /** Set for an Agent capability whose agent holds a position in a live organization. */
+  org?: CapabilityOrgPlacement | null;
+  lastRefreshedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
 }
 
 /**
@@ -551,6 +563,10 @@ export interface PromotionItem {
 export interface PromotionRecord extends Json {
   id: string; tenantId: string; kind: PromotionKind; outcome: PromotionOutcome;
   agentId?: string | null; appId?: string | null; appRevisionId?: string | null; agentRevisionId?: string | null;
+  /** Set for an organization publish or rollback. */
+  organizationId?: string | null; orgRevisionId?: string | null;
+  /** Read only. */
+  subjectKind?: PromotionSubjectKind;
   sourceEnvironment?: string | null; targetEnvironment: string; skippedEnvironments?: boolean;
   rollbackOfId?: string | null; rolledBackById?: string | null;
   actorType?: string | null; actorId?: string | null; actorName?: string | null; note?: string | null;
@@ -922,7 +938,7 @@ export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "
 export type EscalationSeverity = "Info" | "Warning" | "Urgent";
 /** NonBlocking lets the run continue; Blocking suspends it until the escalation is resolved. */
 export type EscalationMode = "NonBlocking" | "Blocking";
-/** Who an escalation is addressed to. Manager is refused until organizations exist. */
+/** Who an escalation is addressed to. Manager is the raising agent's manager in a live organization. */
 export type EscalationTargetKind = "User" | "Role" | "Agent" | "Manager";
 /** What happens when nobody answers in time. */
 export type EscalationTimeoutAction = "UseDefaultAnswer" | "Cancel" | "EscalateUp";
@@ -964,7 +980,7 @@ export interface EscalationFilter {
 
 /** An answer: choice is one of the option keys when the escalation has options, otherwise text is required (at most 8000 characters). */
 export interface EscalationAnswerRequest { choice?: string; text?: string; }
-/** What a freeze stops. OrgUnit and Organization are refused until organizations exist; TenantAutonomy is the kill switch. */
+/** What a freeze stops. OrgUnit stops a unit's subtree, Organization a whole organization; TenantAutonomy is the kill switch. */
 export type FreezeTargetKind = "Agent" | "Deployment" | "Mandate" | "App" | "OrgUnit" | "Organization" | "TenantAutonomy";
 export const FREEZE_TARGET_KINDS: readonly FreezeTargetKind[] = ["Agent", "Deployment", "Mandate", "App", "OrgUnit", "Organization", "TenantAutonomy"] as const;
 
@@ -987,7 +1003,7 @@ export interface FreezeRequest { targetKind: FreezeTargetKind; targetId: string;
 /** Filter for listing freezes; active ones come first, then the newest. */
 export interface FreezeFilter { targetKind?: FreezeTargetKind; targetId?: string; active?: boolean; maxResults?: number; skip?: number; }
 
-/** Where a memory entry lives. OrgUnit and Organization are refused until organizations exist. */
+/** Where a memory entry lives. OrgUnit and Organization hold an organization's shared memory. */
 export type MemoryScopeKind = "Agent" | "App" | "OrgUnit" | "Organization";
 export const MEMORY_SCOPE_KINDS: readonly MemoryScopeKind[] = ["Agent", "App", "OrgUnit", "Organization"] as const;
 
@@ -2185,8 +2201,8 @@ export interface UsageQuota extends Json {
   /** False by default. Limits apply only when this and active are true. */
   enforcementEnabled?: boolean;
   id: string; tenantId: string; name: string; description?: string | null;
-  /** Mandate counts every tick run of one keeper; a keeper's budgetPerDayUsd is tracked through it. */
-  scope: "Tenant" | "Agent" | "Deployment" | "Mandate"; resourceId: string;
+  /** Mandate counts every tick run of one keeper; a keeper's budgetPerDayUsd is tracked through it. OrgUnit counts the runs of a unit's subtree. */
+  scope: "Tenant" | "Agent" | "Deployment" | "Mandate" | "OrgUnit"; resourceId: string;
   dailyRunLimit?: number | null; dailyTokenLimit?: number | null;
   dailyCostUsdLimit?: number | null; maxConcurrentRuns?: number | null;
   active: boolean; isProtected: boolean; createdUtc: string; lastUpdateUtc: string;
@@ -2561,6 +2577,97 @@ export class Messages {
   send(request: AgentMessageSendRequest): Promise<AgentMessage> { return this.t.request("POST", this.t.tenantPath("/messages"), undefined, request); }
 }
 
+/** Lifecycle of an organization. The first publish makes a Draft organization Active. */
+export type OrganizationStatus = "Draft" | "Active" | "Frozen" | "Retired";
+export const ORGANIZATION_STATUSES: readonly OrganizationStatus[] = ["Draft", "Active", "Frozen", "Retired"] as const;
+/** State of an organization revision. Publishing one supersedes the revision that was live. */
+export type OrgRevisionState = "Draft" | "Published" | "Superseded";
+export const ORG_REVISION_STATES: readonly OrgRevisionState[] = ["Draft", "Published", "Superseded"] as const;
+/** Period an org unit budget covers. */
+export type BudgetPeriod = "Day" | "Month";
+export const BUDGET_PERIODS: readonly BudgetPeriod[] = ["Day", "Month"] as const;
+
+/** A member of an org unit other than its lead. agentId and mandateId take an identifier or name in a request. */
+export interface OrgUnitMember { agentId: string; agentName?: string | null; title?: string | null; mandateId?: string | null; }
+/** A line to another unit of the same organization; it works in both directions. */
+export interface OrgUnitPeerLine { peerUnitId: string; peerUnitName?: string | null; }
+/** A cap on the spend of a unit's subtree, greater than 0 and at most 10,000,000, and at most the nearest ancestor's budget for the period. */
+export interface OrgUnitBudget { period: BudgetPeriod; amountUsd: number; }
+/** A unit of the working tree or of a revision's snapshot. In a request, parentUnitId, leadAgentId, leadMandateId, and appId take an identifier or name. */
+export interface OrgUnit extends Json {
+  id: string; tenantId: string; organizationId: string; parentUnitId?: string | null; name: string; description?: string | null;
+  leadAgentId?: string | null; leadAgentName?: string | null; leadTitle?: string | null; leadMandateId?: string | null; appId?: string | null;
+  members: OrgUnitMember[]; peerLines: OrgUnitPeerLine[]; budgets: OrgUnitBudget[]; createdUtc?: string; lastUpdateUtc?: string;
+}
+/** A tree of org units. units holds the working tree, root first, when one organization is read; null on lists. */
+export interface Organization extends Json {
+  id: string; tenantId: string; name: string; description?: string | null; mission?: string | null; status: OrganizationStatus;
+  rootUnitId?: string | null; currentRevisionId?: string | null; currentRevisionNumber: number; createdBy?: string | null;
+  units?: OrgUnit[] | null; createdUtc?: string; lastUpdateUtc?: string;
+}
+/** The mandate revision an organization revision pins. */
+export interface OrgRevisionMandate { mandateId: string; mandateName?: string | null; mandateRevisionId: string; mandateRevisionNumber?: number | null; }
+/** A snapshot of an organization's tree. units and mandates are empty on lists. */
+export interface OrgRevision extends Json {
+  id: string; tenantId: string; organizationId: string; number: number; state: OrgRevisionState; note?: string | null;
+  rollbackOfRevisionId?: string | null; authorType?: string; authorId?: string | null; authorName?: string | null;
+  units: OrgUnit[]; mandates: OrgRevisionMandate[]; publishedUtc?: string | null; createdUtc?: string;
+}
+/** A lead or member on the organization chart. */
+export interface OrgChartMember {
+  agentId: string; agentName?: string | null; title?: string | null; unitId: string; unitName?: string | null;
+  mandateId?: string | null; mandateName?: string | null; mandateSummary?: string | null;
+}
+/** A unit on the organization chart. */
+export interface OrgChartUnit {
+  id: string; name: string; description?: string | null; parentUnitId?: string | null; depth: number; appId?: string | null;
+  lead?: OrgChartMember | null; members: OrgChartMember[]; peerUnitIds: string[]; childUnitIds: string[]; budgets: OrgUnitBudget[];
+}
+/** The organization chart. source is Live (the live revision) or Working (the working tree before the first publish). */
+export interface OrgChart extends Json {
+  organizationId: string; name: string; mission?: string | null; revisionId?: string | null; revisionNumber: number;
+  source: "Live" | "Working"; units: OrgChartUnit[];
+}
+/** A unit's subtree spend in the current window of one period. amountUsd and fraction are null without a budget. */
+export interface OrgUnitSpend extends Json {
+  unitId: string; unitName: string; period: BudgetPeriod; amountUsd?: number | null; spentUsd: number; fraction?: number | null;
+  exhausted: boolean; windowStartUtc: string; windowEndUtc: string;
+}
+
+/**
+ * Organizations: trees of org units with a mission, per-unit budgets, and revisions. get, update, and delete take an
+ * identifier or a name. Unit edits change the working tree; the chain of command, lines, and budgets follow the live
+ * revision only, so publish a revision to make edits take effect. Reading needs Read on Organization; units, publishing,
+ * and rollback need Update. A refused change fails with status 409 and a code such as OneRoot, Cycle, LeadsTwoUnits,
+ * BudgetExceedsParent, or NothingToRollBack.
+ */
+export class Organizations extends Resource<Organization> {
+  /** The units of the working tree, root first. */
+  listUnits(organization: string): Promise<OrgUnit[]> { return this.t.request("GET", `${this.item(organization)}/units`); }
+  /** Read a unit of the working tree by identifier or name. */
+  getUnit(organization: string, unit: string): Promise<OrgUnit> { return this.t.request("GET", `${this.item(organization)}/units/${seg(unit)}`); }
+  /** Add a unit. The first unit without a parent is the root; a second fails with 409 OneRoot. */
+  createUnit(organization: string, unit: Partial<OrgUnit> | Json): Promise<OrgUnit> { return this.t.request("POST", `${this.item(organization)}/units`, undefined, unit); }
+  /** Replace a unit of the working tree. */
+  updateUnit(organization: string, unit: string, body: Partial<OrgUnit> | Json): Promise<OrgUnit> { return this.t.request("PUT", `${this.item(organization)}/units/${seg(unit)}`, undefined, body); }
+  /** Remove a unit without children, with the peer lines that point at it. Fails with 409 UnitHasChildren otherwise. */
+  deleteUnit(organization: string, unit: string): Promise<unknown> { return this.t.request("DELETE", `${this.item(organization)}/units/${seg(unit)}`); }
+  /** The chart of the live revision, or of the working tree before the first publish. */
+  chart(organization: string): Promise<OrgChart> { return this.t.request("GET", `${this.item(organization)}/chart`); }
+  /** Revisions, newest first, without snapshots. */
+  listRevisions(organization: string): Promise<OrgRevision[]> { return this.t.request("GET", `${this.item(organization)}/revisions`); }
+  /** Read a revision with its snapshot. */
+  getRevision(organization: string, revisionId: string): Promise<OrgRevision> { return this.t.request("GET", `${this.item(organization)}/revisions/${seg(revisionId)}`); }
+  /** Snapshot the working tree as a Draft revision, pinning the current revision of every mandate it names. */
+  createRevision(organization: string, note?: string): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/revisions`, undefined, { note: note ?? null }); }
+  /** Make a Draft revision live and write a promotion record with subject Organization. Fails with 409 RevisionPublished for a revision that is not a draft. */
+  publish(organization: string, revisionId: string): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/revisions/${seg(revisionId)}/publish`); }
+  /** Return to an earlier live revision (revisionId, or the one live before the current one) by publishing a copy of its snapshot. Fails with 409 NothingToRollBack or AlreadyLive. */
+  rollback(organization: string, request: { revisionId?: string; note?: string } = {}): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/rollback`, undefined, request); }
+  /** Spend of each unit's subtree against its budgets in the current day and month windows. */
+  spend(organization: string): Promise<OrgUnitSpend[]> { return this.t.request("GET", `${this.item(organization)}/spend`); }
+}
+
 /** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
 export class Reports {
   constructor(private readonly t: Transport) {}
@@ -2850,6 +2957,7 @@ export class GarrisonClient {
   readonly memory: Memory;
   readonly reports: Reports;
   readonly messages: Messages;
+  readonly organizations: Organizations;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2902,6 +3010,7 @@ export class GarrisonClient {
     this.memory = new Memory(t);
     this.reports = new Reports(t);
     this.messages = new Messages(t);
+    this.organizations = new Organizations(t, "organizations");
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

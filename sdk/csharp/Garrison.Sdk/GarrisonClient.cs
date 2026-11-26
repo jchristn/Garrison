@@ -204,6 +204,11 @@ namespace Garrison.Sdk
         public MessagesClient Messages { get; }
 
         /// <summary>
+        /// Organizations (AA7): org units, the chart, revisions, publish and rollback, and spend against unit budgets.
+        /// </summary>
+        public OrganizationsClient Organizations { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -334,6 +339,7 @@ namespace Garrison.Sdk
             Memory = new MemoryClient(Transport);
             Reports = new ReportsClient(Transport);
             Messages = new MessagesClient(Transport);
+            Organizations = new OrganizationsClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

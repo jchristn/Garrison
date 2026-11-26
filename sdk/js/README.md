@@ -212,6 +212,23 @@ const thread = await client.messages.thread(sent.threadId);
 
 `MESSAGE_URGENCIES`, `MESSAGE_STATUSES`, and `MESSAGE_REJECTIONS` list the values.
 
+## Organizations
+
+An organization is a tree of units in one tenant: a mission, a root unit whose lead is the CEO agent, child units with a lead, members, an optional app, peer lines, and budgets that cap the whole subtree's spend. An agent holds at most one position in an organization. Unit edits change the working tree only. The chain of command, lines, and budgets follow the live revision, so draft a revision and publish it to make edits take effect; a rollback publishes a copy of an earlier live revision. The chart shows the live revision, or the working tree before the first publish. Reading needs Read on Organization; units, publishing, and rollback need Update. A refused change fails with status 409 and a code such as `OneRoot`, `Cycle`, `LeadsTwoUnits`, `PositionTaken`, `BudgetExceedsParent`, `UnitHasChildren`, `NameConflict`, `RevisionPublished`, or `NothingToRollBack`. Organizations and units are addressed by identifier or name.
+
+```ts
+const org = await client.organizations.create({ name: "acme", mission: "Ship the product." });
+const board = await client.organizations.createUnit(org.id, { name: "board", leadAgentId: "ceo-agent", leadTitle: "CEO" });
+await client.organizations.createUnit(org.id, { name: "engineering", parentUnitId: board.id, leadAgentId: "eng-lead", budgets: [{ period: "Day", amountUsd: 25 }] });
+const draft = await client.organizations.createRevision(org.id, "First chart");
+await client.organizations.publish(org.id, draft.id);
+const chart = await client.organizations.chart(org.id);
+const spend = await client.organizations.spend(org.id);
+await client.organizations.rollback(org.id, { note: "Undo" });
+```
+
+`ORGANIZATION_STATUSES`, `ORG_REVISION_STATES`, `BUDGET_PERIODS`, and `PROMOTION_SUBJECT_KINDS` list the values. A spend entry's `exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, `CapabilityDescriptor.org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `subjectKind` `Organization`, `organizationId`, and `orgRevisionId`.
+
 ## Streaming run events
 
 ```ts

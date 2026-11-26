@@ -26,12 +26,12 @@ namespace Garrison.Sdk.Enums
         App,
 
         /// <summary>
-        /// An org unit and everything beneath it. Refused until organizations exist.
+        /// An org unit and everything beneath it. The target identifier is the unit identifier.
         /// </summary>
         OrgUnit,
 
         /// <summary>
-        /// A whole organization. Refused until organizations exist.
+        /// A whole organization. The target identifier is the organization identifier.
         /// </summary>
         Organization,
 

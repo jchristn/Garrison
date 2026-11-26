@@ -21,7 +21,7 @@ namespace Garrison.Sdk.Enums
         Agent,
 
         /// <summary>
-        /// The raising agent's manager in its organization. Unavailable until organizations land (AA7.5).
+        /// The raising agent's manager in its organization. Refused with ManagerUnavailable for an agent that holds no position.
         /// </summary>
         Manager
     }

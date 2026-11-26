@@ -1729,6 +1729,144 @@ func main() {
 		return nil
 	})
 
+	check("organizations", func(ctx context.Context) error {
+		// Unit edits change the working tree; publishing a revision makes it live.
+		str := func(v string) *string { return &v }
+		var member garrison.Agent
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-" + suffix + "-org-member", Description: "Go SDK harness org unit lead."}, &member); err != nil {
+			return err
+		}
+		defer client.Agents.Delete(ctx, member.ID)
+		org, err := client.Organizations.Create(ctx, garrison.Organization{Name: "sdk-go-org-" + suffix, Mission: str("Exercise the Go SDK.")})
+		if err != nil {
+			return err
+		}
+		deleted := false
+		defer func() {
+			if !deleted {
+				_ = client.Organizations.Delete(ctx, org.ID)
+			}
+		}()
+		if !strings.HasPrefix(org.ID, "org_") || org.Status != garrison.OrganizationStatusDraft {
+			return errors.New("create an organization")
+		}
+		root, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: str(agentID), LeadTitle: str("CEO")})
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(root.ID, "oun_") || root.ParentUnitID != nil || root.LeadAgentID == nil || *root.LeadAgentID != agentID {
+			return errors.New("add the root unit")
+		}
+		child, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "engineering", ParentUnitID: str(root.ID), LeadAgentID: str(member.Name), LeadTitle: str("Head of engineering"),
+			Budgets: []garrison.OrgUnitBudget{{Period: garrison.BudgetPeriodDay, AmountUSD: 5}}})
+		if err != nil {
+			return err
+		}
+		if child.ParentUnitID == nil || *child.ParentUnitID != root.ID || child.LeadAgentID == nil || *child.LeadAgentID != member.ID || len(child.Budgets) != 1 {
+			return errors.New("add a child unit with a budget")
+		}
+		read, err := client.Organizations.Get(ctx, org.Name)
+		if err != nil {
+			return err
+		}
+		if read.RootUnitID == nil || *read.RootUnitID != root.ID || len(read.Units) != 2 {
+			return errors.New("read an organization with its units")
+		}
+		units, err := client.Organizations.ListUnits(ctx, org.ID)
+		if err != nil || len(units) != 2 {
+			return fmt.Errorf("list units: %v", err)
+		}
+		byName, err := client.Organizations.GetUnit(ctx, org.ID, "engineering")
+		if err != nil || byName.ID != child.ID {
+			return fmt.Errorf("read a unit by name: %v", err)
+		}
+		working, err := client.Organizations.Chart(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		if working.Source != garrison.OrgChartSourceWorking || len(working.Units) != 2 {
+			return fmt.Errorf("chart of the working tree: %s", working.Source)
+		}
+
+		first, err := client.Organizations.CreateRevision(ctx, org.ID, "First")
+		if err != nil {
+			return err
+		}
+		if first.State != garrison.OrgRevisionStateDraft || first.Number != 1 {
+			return errors.New("draft a revision")
+		}
+		published, err := client.Organizations.Publish(ctx, org.ID, first.ID)
+		if err != nil {
+			return err
+		}
+		if published.State != garrison.OrgRevisionStatePublished {
+			return errors.New("publish a revision")
+		}
+		live, err := client.Organizations.Chart(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, u := range live.Units {
+			found = found || (u.ID == child.ID && u.ParentUnitID != nil && *u.ParentUnitID == root.ID && u.Lead != nil && u.Lead.AgentID == member.ID)
+		}
+		if live.Source != garrison.OrgChartSourceLive || live.RevisionID == nil || *live.RevisionID != first.ID || !found {
+			return errors.New("chart of the live revision")
+		}
+
+		child.Description = str("Builds things.")
+		if _, err := client.Organizations.UpdateUnit(ctx, org.ID, child.ID, *child); err != nil {
+			return err
+		}
+		second, err := client.Organizations.CreateRevision(ctx, org.ID, "Second")
+		if err != nil {
+			return err
+		}
+		if _, err := client.Organizations.Publish(ctx, org.ID, second.ID); err != nil {
+			return err
+		}
+		rolledBack, err := client.Organizations.Rollback(ctx, org.ID, garrison.OrgRollbackRequest{Note: "Back to the first"})
+		if err != nil {
+			return err
+		}
+		if rolledBack.RollbackOfRevisionID == nil || *rolledBack.RollbackOfRevisionID != first.ID || rolledBack.State != garrison.OrgRevisionStatePublished {
+			return errors.New("roll back to the first revision")
+		}
+		revisions, err := client.Organizations.ListRevisions(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		if len(revisions) != 3 || revisions[0].ID != rolledBack.ID {
+			return errors.New("list revisions newest first")
+		}
+		snapshot, err := client.Organizations.GetRevision(ctx, org.ID, first.ID)
+		if err != nil || len(snapshot.Units) != 2 {
+			return fmt.Errorf("read a revision with its snapshot: %v", err)
+		}
+
+		spend, err := client.Organizations.Spend(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		found = false
+		for _, e := range spend {
+			found = found || (e.UnitID == child.ID && e.Period == garrison.BudgetPeriodDay && e.AmountUSD != nil && *e.AmountUSD == 5 && !e.Exhausted)
+		}
+		if !found {
+			return errors.New("spend against the unit budget")
+		}
+
+		var apiErr *garrison.Error
+		if _, err := client.Organizations.Get(ctx, "org_sdk_missing"); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("an unknown organization is not found: %v", err)
+		}
+		if err := client.Organizations.Delete(ctx, org.ID); err != nil {
+			return err
+		}
+		deleted = true
+		return nil
+	})
+
 	check("notification endpoints", func(ctx context.Context) error {
 		var refused garrison.NotificationEndpoint
 		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)

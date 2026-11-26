@@ -20946,7 +20946,7 @@
           ]
         },
         {
-          "name": "Organization freezes are not available yet",
+          "name": "Freeze an unknown org unit",
           "request": {
             "method": "POST",
             "header": [
@@ -20968,7 +20968,7 @@
                 "freezes"
               ]
             },
-            "description": "OrgUnit and Organization freezes arrive with organizations; until then they answer 409 OrganizationsUnavailable.",
+            "description": "An OrgUnit freeze stops every lead and member of the unit's subtree in the live revision. A unit that does not exist answers 404.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"targetKind\": \"OrgUnit\",\n  \"targetId\": \"anything\"\n}",
@@ -20986,8 +20986,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
-                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
-                  "pm.test('code is OrganizationsUnavailable', function () { pm.expect(json.code).to.eql('OrganizationsUnavailable'); });"
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
                 ]
               }
             }
@@ -21428,7 +21427,7 @@
           ]
         },
         {
-          "name": "List an OrgUnit scope is refused (MCP)",
+          "name": "List an unknown OrgUnit scope (MCP)",
           "request": {
             "method": "POST",
             "header": [
@@ -21451,7 +21450,7 @@
                 "{{mcpUrl}}"
               ]
             },
-            "description": "OrgUnit and Organization memory scopes arrive with organizations; until then they answer OrganizationsUnavailable.",
+            "description": "OrgUnit and Organization scopes hold an organization's shared memory. A person naming a unit that does not exist gets NotFound; a run outside the organization gets Forbidden.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 103,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_memory_list\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"scope\": \"OrgUnit\",\n      \"scopeId\": \"oun_postman\"\n    }\n  }\n}",
@@ -21489,7 +21488,7 @@
                   "var result = json.result || {};",
                   "var text = ((result.content || [])[0] || {}).text || '';",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "if (pm.collectionVariables.get('memoryEnabled') === 'true') pm.test('OrganizationsUnavailable', function () { pm.expect(result.isError).to.eql(true); pm.expect(text).to.include('OrganizationsUnavailable'); });"
+                  "if (pm.collectionVariables.get('memoryEnabled') === 'true') pm.test('NotFound', function () { pm.expect(result.isError).to.eql(true); pm.expect(text).to.include('NotFound'); });"
                 ]
               }
             },
@@ -22696,6 +22695,802 @@
               ]
             },
             "description": "An unknown message, or another tenant's, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "description": "Organizations (AA7): a tree of org units with a mission, leads, members, peer lines, and budgets on each unit's subtree. Unit edits change the working tree; publishing a revision makes it live, and the chain of command, lines, and budgets follow the live revision only. A rollback publishes a copy of an earlier live revision. Runs read their organization with garrison_org_chart and garrison_org_whoami. The organization and its member agent are deleted in Cleanup.",
+      "item": [
+        {
+          "name": "Create an org member agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "description": "Creates an agent to lead the child unit. An agent holds at most one position in an organization, so the child unit needs an agent other than the CEO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-org-member-{{suffix}}\",\n  \"description\": \"Org unit lead created by Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('orgMemberAgentId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create an organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations"
+              ]
+            },
+            "description": "Creates an organization. It starts as Draft with no units; the first publish makes it Active.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-org-{{suffix}}\",\n  \"description\": \"Organization created by Postman\",\n  \"mission\": \"Keep the Postman fixtures healthy.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a Draft organization', function () { pm.expect(json.id).to.match(/^org_/); pm.expect(json.status).to.eql('Draft'); pm.expect(json.currentRevisionNumber).to.eql(0); });",
+                  "if (json.id) { pm.collectionVariables.set('orgId', json.id); pm.collectionVariables.set('orgName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create with a duplicate name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations"
+              ]
+            },
+            "description": "Organization names are unique in the tenant.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{orgName}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is NameConflict', function () { pm.expect(json.code).to.eql('NameConflict'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add the root unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units"
+              ]
+            },
+            "description": "The first unit without a parent is the root; its lead is the organization's CEO. leadAgentId takes an identifier or a name.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"board\",\n  \"description\": \"The board\",\n  \"leadAgentId\": \"{{agentName}}\",\n  \"leadTitle\": \"CEO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('the root, led by the agent', function () { pm.expect(json.id).to.match(/^oun_/); pm.expect(json.parentUnitId == null).to.eql(true); pm.expect(json.leadAgentId).to.eql(pm.collectionVariables.get('agentId')); });",
+                  "if (json.id) pm.collectionVariables.set('orgRootUnitId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A second root is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units"
+              ]
+            },
+            "description": "An organization has exactly one root unit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"second-board\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is OneRoot', function () { pm.expect(json.code).to.eql('OneRoot'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add a child unit with a budget",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units"
+              ]
+            },
+            "description": "parentUnitId takes an identifier or a name. A budget caps the spend of the unit's whole subtree for its period, and may not exceed the nearest ancestor's budget for the same period.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"engineering\",\n  \"parentUnitId\": \"board\",\n  \"leadAgentId\": \"{{orgMemberAgentId}}\",\n  \"leadTitle\": \"Head of engineering\",\n  \"budgets\": [\n    {\n      \"period\": \"Day\",\n      \"amountUsd\": 5\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a child of the root with a daily budget', function () { pm.expect(json.parentUnitId).to.eql(pm.collectionVariables.get('orgRootUnitId')); pm.expect(json.leadAgentId).to.eql(pm.collectionVariables.get('orgMemberAgentId')); pm.expect(json.budgets).to.eql([{ period: 'Day', amountUsd: 5 }]); });",
+                  "if (json.id) pm.collectionVariables.set('orgChildUnitId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get the organization with its units",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}"
+              ]
+            },
+            "description": "Reads an organization by identifier or name with its working tree of units, root first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two units, root first', function () { pm.expect(json.rootUnitId).to.eql(pm.collectionVariables.get('orgRootUnitId')); pm.expect(json.units.length).to.eql(2); pm.expect(json.units[0].id).to.eql(json.rootUnitId); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chart before the first publish",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/chart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "chart"
+              ]
+            },
+            "description": "Before the first publish the chart shows the working tree, with source Working."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('source is Working', function () { pm.expect(json.source).to.eql('Working'); pm.expect(json.units.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft a revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "revisions"
+              ]
+            },
+            "description": "Snapshots the working tree as a Draft revision, pinning the current revision of every mandate it names.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"First chart\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Draft revision 1 with the snapshot', function () { pm.expect(json.state).to.eql('Draft'); pm.expect(json.number).to.eql(1); pm.expect(json.units.length).to.eql(2); });",
+                  "if (json.id) pm.collectionVariables.set('orgRevisionId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish the revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/revisions/{{orgRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "revisions",
+                "{{orgRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Makes the revision live. The chain of command, lines, and budgets follow it, and a promotion record with subject Organization is written."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Published', function () { pm.expect(json.state).to.eql('Published'); pm.expect(json.publishedUtc).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chart of the live revision",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/chart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "chart"
+              ]
+            },
+            "description": "After a publish the chart shows the live revision, with source Live."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('source is Live', function () { pm.expect(json.source).to.eql('Live'); pm.expect(json.revisionId).to.eql(pm.collectionVariables.get('orgRevisionId')); pm.expect(json.revisionNumber).to.eql(1); });",
+                  "pm.test('the child reports to the root', function () { var child = json.units.find(function (u) { return u.id === pm.collectionVariables.get('orgChildUnitId'); }); pm.expect(child.parentUnitId).to.eql(pm.collectionVariables.get('orgRootUnitId')); pm.expect(child.lead.agentId).to.eql(pm.collectionVariables.get('orgMemberAgentId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Spend against unit budgets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/spend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "spend"
+              ]
+            },
+            "description": "Spend of each unit's subtree against its budgets in the current day and month windows of the live revision."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the child unit has its daily budget', function () { var day = json.find(function (s) { return s.unitId === pm.collectionVariables.get('orgChildUnitId') && s.period === 'Day'; }); pm.expect(day.amountUsd).to.eql(5); pm.expect(day.exhausted).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change the child unit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units/{{orgChildUnitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units",
+                "{{orgChildUnitId}}"
+              ]
+            },
+            "description": "Replaces a unit of the working tree. The live revision does not change until another revision is published.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"engineering\",\n  \"description\": \"Builds and ships.\",\n  \"parentUnitId\": \"{{orgRootUnitId}}\",\n  \"leadAgentId\": \"{{orgMemberAgentId}}\",\n  \"leadTitle\": \"Head of engineering\",\n  \"budgets\": [\n    {\n      \"period\": \"Day\",\n      \"amountUsd\": 5\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the description changed', function () { pm.expect(json.description).to.eql('Builds and ships.'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft a second revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "revisions"
+              ]
+            },
+            "description": "Snapshots the changed working tree.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Describe engineering\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Draft revision 2', function () { pm.expect(json.number).to.eql(2); });",
+                  "if (json.id) pm.collectionVariables.set('orgSecondRevisionId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish the second revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/revisions/{{orgSecondRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "revisions",
+                "{{orgSecondRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Makes revision 2 live; revision 1 is superseded."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Roll back",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/rollback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "rollback"
+              ]
+            },
+            "description": "Without a revisionId, returns to the revision that was live before the current one: publishes a copy of its snapshot, restores the working tree and pinned mandate revisions, and records the rollback.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Back to the first chart\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('revision 3 copies revision 1', function () { pm.expect(json.number).to.eql(3); pm.expect(json.state).to.eql('Published'); pm.expect(json.rollbackOfRevisionId).to.eql(pm.collectionVariables.get('orgRevisionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List revisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "revisions"
+              ]
+            },
+            "description": "Revisions newest first, without snapshots."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('three revisions, newest first', function () { pm.expect(json.length).to.eql(3); pm.expect(json[0].number).to.eql(3); pm.expect(json[1].state).to.eql('Superseded'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/org_postman_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "org_postman_missing"
+              ]
+            },
+            "description": "An organization that does not exist, or belongs to another tenant, answers 404."
           },
           "event": [
             {
@@ -24273,6 +25068,74 @@
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
+        {
+          "name": "Delete organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}"
+              ]
+            },
+            "description": "Deletes the Postman organization with its units, revisions, and unit and organization memory."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete org member agent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{orgMemberAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{orgMemberAgentId}}"
+              ]
+            },
+            "description": "Deletes the agent that led the Postman organization's child unit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Delete keeper",
           "request": {
@@ -26196,6 +27059,34 @@
     },
     {
       "key": "messageKey",
+      "value": ""
+    },
+    {
+      "key": "orgId",
+      "value": ""
+    },
+    {
+      "key": "orgName",
+      "value": ""
+    },
+    {
+      "key": "orgMemberAgentId",
+      "value": ""
+    },
+    {
+      "key": "orgRootUnitId",
+      "value": ""
+    },
+    {
+      "key": "orgChildUnitId",
+      "value": ""
+    },
+    {
+      "key": "orgRevisionId",
+      "value": ""
+    },
+    {
+      "key": "orgSecondRevisionId",
       "value": ""
     }
   ]

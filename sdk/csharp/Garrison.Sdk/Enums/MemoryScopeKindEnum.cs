@@ -16,12 +16,12 @@ namespace Garrison.Sdk.Enums
         App,
 
         /// <summary>
-        /// Memory of one organization unit. Refused until organizations exist.
+        /// Memory of one organization unit. The scope identifier is the unit identifier.
         /// </summary>
         OrgUnit,
 
         /// <summary>
-        /// Memory of one organization. Refused until organizations exist.
+        /// Memory of one organization. The scope identifier is the organization identifier.
         /// </summary>
         Organization
     }

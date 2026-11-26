@@ -1043,21 +1043,22 @@ type ModelPrice struct {
 
 // UsageQuota is a tenant-owned limit. Null limits are unlimited; zero disallows usage only when enforcement is enabled.
 type UsageQuota struct {
-	EnforcementEnabled bool     `json:"enforcementEnabled"`
-	ID                 string   `json:"id"`
-	TenantID           string   `json:"tenantId"`
-	Name               string   `json:"name"`
-	Description        *string  `json:"description,omitempty"`
-	Scope              string   `json:"scope"`
-	ResourceID         string   `json:"resourceId"`
-	DailyRunLimit      *int64   `json:"dailyRunLimit,omitempty"`
-	DailyTokenLimit    *int64   `json:"dailyTokenLimit,omitempty"`
-	DailyCostUSDLimit  *float64 `json:"dailyCostUsdLimit,omitempty"`
-	MaxConcurrentRuns  *int     `json:"maxConcurrentRuns,omitempty"`
-	Active             bool     `json:"active"`
-	IsProtected        bool     `json:"isProtected"`
-	CreatedUTC         string   `json:"createdUtc"`
-	LastUpdateUTC      string   `json:"lastUpdateUtc"`
+	EnforcementEnabled bool    `json:"enforcementEnabled"`
+	ID                 string  `json:"id"`
+	TenantID           string  `json:"tenantId"`
+	Name               string  `json:"name"`
+	Description        *string `json:"description,omitempty"`
+	// Scope is Tenant, Agent, Deployment, Mandate, or OrgUnit (the runs of a unit's subtree).
+	Scope             string   `json:"scope"`
+	ResourceID        string   `json:"resourceId"`
+	DailyRunLimit     *int64   `json:"dailyRunLimit,omitempty"`
+	DailyTokenLimit   *int64   `json:"dailyTokenLimit,omitempty"`
+	DailyCostUSDLimit *float64 `json:"dailyCostUsdLimit,omitempty"`
+	MaxConcurrentRuns *int     `json:"maxConcurrentRuns,omitempty"`
+	Active            bool     `json:"active"`
+	IsProtected       bool     `json:"isProtected"`
+	CreatedUTC        string   `json:"createdUtc"`
+	LastUpdateUTC     string   `json:"lastUpdateUtc"`
 }
 
 // UsageQuotaUsage reports a daily UTC window, current concurrency, and known-cost coverage.
