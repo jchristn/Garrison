@@ -266,7 +266,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA6 | Mailboxes and wake-on-message | AA1, AA3 | Done | 16 / 16 |
 | AA7 | Organizations | AA2, AA4, AA5, AA6 | Done | 18 / 18 |
 | AA8 | Executive authority and pre-authorized change | AA7 | Done | 14 / 14 |
-| AA9 | Evaluation, shadow, and canary (absorbs AD11) | AA1, AA3 (AA9.10 needs AA8) | In progress | 11 / 18 |
+| AA9 | Evaluation, shadow, and canary (absorbs AD11) | AA1, AA3 (AA9.10 needs AA8) | In progress | 12 / 18 |
 | AA10 | The board | AA7 (AA10.4 needs AA8 and AA9) | Not started | 0 / 12 |
 | AA11 | Performance signals and org-scale brakes | AA7, AA9 | Not started | 0 / 10 |
 | AA12 | Reference examples, trials, and validation | AA1 to AA11 | Not started | 0 / 8 |
