@@ -66,6 +66,10 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/promotions" \
 
 Promotions and rollbacks are audited, and `GET .../promotions?agentId=` lists them newest first.
 
+### Organization records
+
+[Organizations](ORGANIZATIONS.md#revisions-publish-and-rollback) keep their own revisions and have no environments. Publishing an organization revision writes a promotion record whose `subjectKind` is `Organization`, with `organizationId`, `orgRevisionId`, source environment `draft`, and target environment `live`, and no deployment items. Rolling an organization back writes a `Rollback` record from `live` to `live` and marks the record that published the replaced revision `RolledBack`. The records list with the others in `GET .../promotions`. Undo an organization change with `POST .../organizations/{id}/rollback`; the promotion rollback route above repins deployments and leaves the organization as it is.
+
 ## Permissions
 
 | Action | Permission |

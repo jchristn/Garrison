@@ -204,7 +204,7 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Autonomy.TickInputRecentTicks` | `5` | 0 to 100 | Most recent tick summaries included, newest first, in a tick's input. `0` leaves them out; the keeper can still call `garrison_keeper_context` |
 | `Escalations.DefaultTimeoutSeconds` | `86400` | 60 to 2592000 | Timeout of an escalation raised without one. When it passes, the escalation's timeout action runs: answer with its default answer, cancel it, or pass it up. See `docs/ESCALATIONS.md` |
 | `Escalations.MaxQuestionBytes` | `8192` | 256 to 65536 | Most UTF-8 bytes in an escalation's question and context together. Longer escalations are refused |
-| `Memory.Scoped.Enabled` | `true` | | Whether the shared memory scopes (App, and OrgUnit and Organization once organizations exist) may be used. Off leaves only each agent's private Agent scope. Memory itself is turned on by `AgentMemory.Enabled` |
+| `Memory.Scoped.Enabled` | `true` | | Whether the shared memory scopes (App, OrgUnit, and Organization) may be used. Off leaves only each agent's private Agent scope. Memory itself is turned on by `AgentMemory.Enabled` |
 | `Memory.Scoped.MaxValueBytes` | `65536` | 1 to 1048576 | Most UTF-8 bytes in one memory entry. `AgentMemory.MaxValueBytes` bounds what the content store accepts, so the smaller of the two applies |
 | `Memory.Scoped.MaxEntriesPerScope` | `10000` | 10 to 1000000 | Most entries one memory scope may hold. A new key in a full scope is refused with `MemoryScopeFull`; replacing an existing key is always allowed |
 | `Reports.MaxBodyBytes` | `32768` | 256 to 262144 | Most UTF-8 bytes in a report body. A larger body is refused with a validation error |

@@ -6,9 +6,10 @@ Agent memory is persistent text that agents keep between runs. Each entry lives 
 |---|---|---|
 | `Agent` | The agent's identifier | The agent's own runs. This is private memory, as in 0.2 |
 | `App` | The agentic app's identifier | Runs of every agent that is a member of the app |
-| `OrgUnit`, `Organization` | Unit or organization identifier | Refused with `OrganizationsUnavailable` until organizations exist |
+| `OrgUnit` | The org unit's identifier | Runs of the unit's lead and members. Units above read it, and see [Who may use which scope](#who-may-use-which-scope) |
+| `Organization` | The organization's identifier | Runs of every agent in the organization read it; only the CEO writes it |
 
-Memory is independent of harness session checkpoints: a later run of the same agent, or another member of the same app, can read what an earlier run saved. Other agents and other tenants cannot. Recalled text is untrusted data, never an instruction, and never a place to store credentials.
+Memory is independent of harness session checkpoints: a later run of the same agent, or another member of the same app or unit, can read what an earlier run saved. Other agents and other tenants cannot. Recalled text is untrusted data, never an instruction, and never a place to store credentials.
 
 ## Enable
 
@@ -41,7 +42,7 @@ Garrison stores the new text under a new handle first, then points the entry at 
 
 ## Tools
 
-Runs and people use the same MCP tools. `scope` is `Agent` (the default) or `App`; `scopeId` names the agent or app by identifier or name. A run may leave `scopeId` out for its own agent, or for its app when its agent belongs to exactly one.
+Runs and people use the same MCP tools. `scope` is `Agent` (the default), `App`, `OrgUnit`, or `Organization`; `scopeId` names the agent, app, unit, or organization by identifier or name. A run may leave `scopeId` out for its own agent, for its app when its agent belongs to exactly one, and for its own unit or organization when its agent holds a position in exactly one live organization. People must pass `scopeId` for the `OrgUnit` and `Organization` scopes.
 
 | Tool | Arguments | Returns |
 |---|---|---|
@@ -57,7 +58,9 @@ Run-token writes and deletes pass through the epoch-fenced effect journal, so a 
 
 ## Who may use which scope
 
-A run reads and writes its own agent's `Agent` scope and the `App` scopes of the apps its agent is a member of. Asking for another agent's scope or another app's scope answers `Forbidden`. When organizations arrive, a run will also read and write its unit's scope, read its ancestors' unit scopes and its organization's scope, and unit leads will read the scopes of the units below them. Nobody writes upward.
+A run reads and writes its own agent's `Agent` scope and the `App` scopes of the apps its agent is a member of. Asking for another agent's scope or another app's scope answers `Forbidden`.
+
+In a live [organization](ORGANIZATIONS.md#memory), a run also reads and writes its own unit's `OrgUnit` scope and reads the unit scopes above it, up to the root. A run whose agent leads its unit also reads the unit scopes of its subtree. Every member reads the `Organization` scope, and only the lead of the root unit (the CEO) writes it. Nobody writes upward or into another unit, and an agent with no position in the organization gets `Forbidden`. Only the live revision counts: an agent that moves to another unit keeps the old unit's scope until the revision that moves it is published. With `Memory.Scoped.Enabled` off, the `App`, `OrgUnit`, and `Organization` scopes all answer `ScopedMemoryDisabled`.
 
 People need the Memory permission for the operation:
 
@@ -97,7 +100,7 @@ Shared scopes collect duplicates and stale notes. `builtin/memory-curator-system
 
 ## Deletion and retention
 
-Deleting an agent deletes its `Agent` scope, metadata and text, including files from before 0.3.0. Deleting an app deletes its `App` scope. Deleting a tenant deletes its rows with the rest of the tenant and removes its directory under the memory root. Entries with `ttlSeconds` are deleted by the leader's sweep once they expire. See [BACKUP.md](BACKUP.md) for backing up the text, which lives outside the database.
+Deleting an agent deletes its `Agent` scope, metadata and text, including files from before 0.3.0. Deleting an app deletes its `App` scope. Deleting an organization deletes the `OrgUnit` scope of every unit that ever appeared in it and its `Organization` scope. Deleting a tenant deletes its rows with the rest of the tenant and removes its directory under the memory root. Entries with `ttlSeconds` are deleted by the leader's sweep once they expire. See [BACKUP.md](BACKUP.md) for backing up the text, which lives outside the database.
 
 ## Replacing the provider
 

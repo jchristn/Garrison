@@ -36,12 +36,13 @@ Start with the workflow you need, then use the configuration and protocol refere
 | Schedule work and react to external events | [Cron/webhook triggers](TRIGGERS.md), [signed notifications](NOTIFICATIONS.md) |
 | Give an agent a standing job it checks on by itself | [Keepers](KEEPERS.md) |
 | Let an agent ask a person, a role, or another agent for a decision | [Escalations](ESCALATIONS.md) |
-| Stop an agent, deployment, keeper, or app, cap a keeper's spending, or stop every keeper at once | [Brakes](BRAKES.md) |
+| Stop an agent, deployment, keeper, app, or organization unit, cap a keeper's or a unit's spending, or stop every keeper at once | [Brakes](BRAKES.md) |
 | Retain deliverables and inspect conversations | [Artifacts](ARTIFACTS.md), [transcript exports](TRANSCRIPTS.md) |
 | Release slots during supported approval/child waits | [Durable continuation and workspace caches](CONTINUATION.md) |
 | Recall information across runs, privately or shared by an app's agents | [Agent memory](AGENT_MEMORY.md), [optional external NotDory example](NOTDORY.md) |
 | Have agents report status, metrics, issues, and decisions to the agents and people above them | [Reports](REPORTS.md) |
 | Let agents message each other, wake each other for urgent work, and stop loops | [Messaging](MESSAGING.md) |
+| Arrange agents into an organization with leads, reporting and peer lines, shared unit memory, and budgets | [Organizations](ORGANIZATIONS.md) |
 | Invoke work hosted elsewhere | [Remote A2A/MCP agents](REMOTE_AGENTS.md) |
 | Execute through a compatible model API | [Provider API harness](PROVIDER_API.md) |
 

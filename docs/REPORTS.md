@@ -16,6 +16,7 @@ A report has:
 | `issues` | At most 50, each a `severity` (`Low`, `Medium`, `High`) and `text` (1 to 2000 characters) |
 | `decisions` | At most 50, each `text` (1 to 2000 characters) |
 | `appId` | Optional app the report is filed within; the author must be a member |
+| `orgUnitId` | Set by Garrison: the organization unit the author held a position in when it filed, or empty outside organizations |
 
 Garrison adds the author agent and its name, the run, keeper, and tick that filed it, who filed it, and when.
 
@@ -47,10 +48,13 @@ People and API credentials with Create on Report file with `POST /reports` or th
 People and credentials with Read on Report see every report in their tenant. Runs see less:
 
 - A run reads its own agent's reports.
-- Until organizations exist (AA7), an agent's manager is the entry agent of an app the agent belongs to. The entry agent reads the reports of its app's members. A report filed within an app reaches only that app's entry agent; one filed without an app reaches the entry agents of every app the author belongs to.
+- In a live [organization](ORGANIZATIONS.md), the audience decides how far up a report travels. `Manager` reaches the author's manager and stops there. `Chain` and `Board` reach every lead in the author's chain, up to the CEO. A manager reads every report of its direct reports whatever the audience; leads further up read only the `Chain` and `Board` ones.
+- The entry agent of an app reads the reports of its app's members, whatever the audience. A report filed within an app reaches only that app's entry agent; one filed without an app reaches the entry agents of every app the author belongs to (AA-056). The two rules add up: an agent that leads a unit and is an app's entry agent reads both sets.
 - A peer never reads another peer's report, and an entry agent never reads the reports of an app it does not lead.
 
-The audience does not change this yet: `Manager`, `Chain`, and `Board` reach the same agents until AA7 gives each its own reach up the chain of command.
+`Board` reaches the same agents as `Chain` for now. People with Read on Report, the board included, see every report whatever its audience.
+
+When the author holds a position in a live organization, Garrison stamps the report with its unit in `orgUnitId` at filing time. `GET /reports?unit=` filters on it, and the organization's WebSocket channel sends the reports its members file.
 
 `garrison_list_reports` lists what the run may see, newest first, with optional `kind`, `health`, `agent`, `since`, `includeOwn` (default true), `skip`, and `maxResults`. `garrison_get_report` reads one; a report the run may not see answers `NotFound`.
 

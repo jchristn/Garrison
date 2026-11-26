@@ -37,6 +37,8 @@ Only a run can raise an escalation, and only with its run token. Every run gets 
 
 A run that has already finished is refused with 409 `RunNotActive`.
 
+The one exception is a notice Garrison raises itself. When an organization unit spends its budget, the unit's manager gets an `Urgent`, non-blocking notice with no raising run, asking whether to wait for the window to reset or have a person raise the budget. See [Organizations](ORGANIZATIONS.md#budgets).
+
 ## Who gets the question
 
 | `targetKind` | `targetId` | What happens |
@@ -44,7 +46,7 @@ A run that has already finished is refused with 409 `RunNotActive`.
 | `User` | A user identifier or email | The escalation waits for that person. It shows in the dashboard and in notifications |
 | `Role` | A role identifier or name | The same, for the people who hold the role |
 | `Agent` | An agent identifier or name | Garrison sends the agent an urgent message from the raising agent, linked by `escalationId` (see [Messaging](MESSAGING.md)). A keeper wakes and reads it with its next tick; an agent without a keeper gets a `Message` run of its default active deployment. The agent answers with `garrison_answer_escalation`, and the run the message woke appears as `routedRunId`. Without messaging, Garrison starts the run directly with `builtin/escalation-received` |
-| `Manager` | None | Refused with 409 `ManagerUnavailable` until organizations exist |
+| `Manager` | None | The raising agent's manager in a live [organization](ORGANIZATIONS.md#the-chain-of-command), reached like an `Agent` target. When no agent is above it, the board: Garrison asks the user the raising keeper runs as, or else the user who started the raising run. The stored escalation names whoever was chosen, as an `Agent` or `User` target. An agent with no position in a live organization, or a board with no person behind the run, is refused with 409 `ManagerUnavailable` |
 
 When the run names no target, Garrison picks one. A keeper's question goes to the default target on its current revision (`escalationTargetKind` and `escalationTargetId`, see [Keepers](KEEPERS.md)). Any other run's question goes to the user who started the run. When neither exists, the raise is refused with 400 and field code `TargetRequired`.
 
@@ -85,7 +87,7 @@ A leader replica sweeps open escalations whose `expiresUtc` has passed, as part 
 |---|---|
 | `UseDefaultAnswer` | Answers with `defaultAnswer` (`resolutionSource` `Timeout`). Without a default answer the escalation expires |
 | `Cancel` | Cancels it, and the run if it was blocked on it |
-| `EscalateUp` | Passes it up: a new escalation with the same question, options, and default answer goes to the keeper's default target, and the old one points at it with `escalatedToId`. When the new one is resolved, the old one takes its answer. Escalations not raised by a keeper, and ones already addressed to the keeper's default, have nowhere to go, so they expire |
+| `EscalateUp` | Passes it up: a new escalation with the same question, options, and default answer goes one step higher, and the old one points at it with `escalatedToId`. When the new one is resolved, the old one takes its answer. If the current target is an agent that holds a position in a live organization, one step higher is that agent's manager, and above the CEO the board's person, chosen as for a `Manager` target. Otherwise it is the keeper's default target. Escalations with neither, and ones already addressed to the keeper's default, have nowhere to go, so they expire |
 
 A passed-up escalation stays `Open` but is not counted as waiting for an answer, and answering it directly is refused with 409 `EscalatedUp`. Answer the one in `escalatedToId` instead. The new escalation is non-blocking. A blocked run stays suspended until the chain is resolved.
 

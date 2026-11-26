@@ -23,9 +23,11 @@ Garrison adds the sender (agent, run, or person), the run it was delivered to, a
 An agent may write to another only along an allowed line:
 
 - an app edge between the two agents, in either direction (the entry agent and the member it calls may write to each other);
+- a reporting line in a live [organization](ORGANIZATIONS.md): the recipient is the sender's manager, or reports directly to it;
+- a peer line in a live organization: the two agents sit in units joined by a peer line, as leads or members;
 - a reply to the agent that wrote to it, within the same thread.
 
-Reporting lines and peer lines join this list when organizations arrive (AA7). An agent may not write to itself. A message without a line is refused with `NoLine` and stored, so you can see who tried to reach whom.
+Two members of the same unit have no line between them unless they share an app edge; they reach each other through their manager. An agent may not write to itself. A message without a line is refused with `NoLine` and stored, so you can see who tried to reach whom.
 
 People and API credentials with Create on AgentMessage may write to any agent. The line policy does not apply to them; the other guards do.
 

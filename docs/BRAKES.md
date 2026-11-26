@@ -1,12 +1,13 @@
 # Brakes
 
-Keepers act on their own, so Garrison needs ways to stop them that do not depend on the agent cooperating. There are three:
+Keepers act on their own, so Garrison needs ways to stop them that do not depend on the agent cooperating. There are four:
 
-- A **freeze** stops one agent, deployment, keeper, or app until someone lifts it.
+- A **freeze** stops one agent, deployment, keeper, app, organization unit, or organization until someone lifts it.
 - A **spend cap** stops a keeper that has spent its budget for the tick or the day.
+- A **unit budget** stops every agent in an organization unit's subtree once the subtree has spent its budget for the day or month.
 - The **kill switch** stops every keeper in the tenant at once.
 
-All three take effect in the control plane: a refused run is never created and a skipped wake never starts a tick, so the agent has nothing to argue with. Run tokens never hold the Freeze permissions, so an agent cannot lift a freeze on itself or turn the kill switch off.
+All four take effect in the control plane: a refused run is never created and a skipped wake never starts a tick, so the agent has nothing to argue with. Run tokens never hold the Freeze permissions, so an agent cannot lift a freeze on itself or turn the kill switch off.
 
 ## Freezes
 
@@ -19,7 +20,8 @@ A freeze names a target:
 | `Mandate` | The keeper's ticks. The mandate shows status `Frozen` until the freeze is lifted |
 | `App` | Every run that users of the agentic app start through the app gateway |
 | `TenantAutonomy` | Every keeper in the tenant. This is the kill switch; see [below](#the-kill-switch) |
-| `OrgUnit`, `Organization` | Refused with 409 `OrganizationsUnavailable` until organizations exist |
+| `OrgUnit` | Every lead and member of the unit's subtree in the organization's live revision, as if each agent were frozen |
+| `Organization` | Every agent in the organization's live revision. The organization shows status `Frozen` until the freeze is lifted |
 
 `targetId` takes an identifier or a name. Garrison stores the identifier and keeps the name as `targetName`, so the freeze still reads well after a rename. Each target has at most one active freeze; a second one is refused with 409 `AlreadyFrozen`, which names the freeze already in place.
 
@@ -30,6 +32,8 @@ While a freeze is active:
 - Runs that were already running keep going, unless the freeze was applied with `cancelActiveRuns: true`. Then Garrison cancels them through the normal cancellation path and records how many it cancelled in `cancelledRunCount` (at most 10000 per freeze).
 
 A freeze on an agent or a deployment does not change a keeper's status; only a `Mandate` freeze shows `Frozen` on the keeper. The keeper's ticks still show the freeze as their skip reason.
+
+An `OrgUnit` or `Organization` freeze covers the agents that hold positions in the live revision when the freeze cache loads. Publishing a revision, rolling back, or deleting the organization drops the cache, so an agent moved into a frozen unit stops and one moved out starts again. See [ORGANIZATIONS.md](ORGANIZATIONS.md#freezes).
 
 Lifting a freeze is the only way to undo it. Lifted freezes stay in the list with who lifted them, when, and why. A lifted `Mandate` freeze returns the keeper to `Active` with its next wake spread over up to 60 seconds (never more than its current interval), so lifting many freezes together does not start every tick at once. Lifting a freeze that is already lifted answers 409 `FreezeLifted`.
 
@@ -65,6 +69,12 @@ The daily budget is tracked through a usage quota scope, `Mandate`, over the kee
 The scheduler's sweep returns the keeper to `Active` once the window has reset. To let it continue sooner, publish a revision with a larger `budgetPerDayUsd` and resume it.
 
 A usage quota with scope `Mandate` can also be created by hand for any keeper, with the same limits as other quotas. See [Usage quotas](../REST_API.md#usage-quotas).
+
+## Unit budgets
+
+An organization unit can carry a `Day` and a `Month` budget in US dollars. Each caps the known cost of every run by the agents in the unit's subtree, keepers or not. Once a subtree has spent its budget, a new run by any of those agents is refused with 409 `BudgetExhausted`, and a keeper among them records each due wake as a `Skipped` tick with error code `BudgetExhausted`. The unit's manager gets one `Urgent` escalation per window, and everything resumes when the UTC day or month turns over. A child unit's budget may not exceed its parent's.
+
+Unit budgets are set on the organization and take effect when a revision is published; a usage quota with scope `OrgUnit` cannot be created by hand. A keeper inside a unit with money left still stops at its own `budgetPerDayUsd`. See [ORGANIZATIONS.md](ORGANIZATIONS.md#budgets).
 
 ## The kill switch
 
@@ -104,7 +114,7 @@ Every freeze, lift, and kill switch change is written to the audit log as `Freez
 | MCP | `garrison_list_freezes`, `garrison_freeze`, and `garrison_lift_freeze` for people and API credentials. See [MCP_API.md](../MCP_API.md) |
 | WebSocket | The `freezes` channel: `freezes.active` on subscribe, then `freeze.applied`, `freeze.lifted`, and `killswitch.changed`. See [WEBSOCKETS_API.md](../WEBSOCKETS_API.md) |
 | Notifications | `FreezeApplied` (including the kill switch turning on) and `MandateCapReached`. See [NOTIFICATIONS.md](NOTIFICATIONS.md) |
-| Metrics | `garrison.freezes` by target kind and action (`applied`, `lifted`, `refused`, `skipped`, `cancelled`) and `garrison.spend.cap.hits` by scope (`mandate_tick`, `mandate_day`). See [TELEMETRY.md](TELEMETRY.md) |
+| Metrics | `garrison.freezes` by target kind and action (`applied`, `lifted`, `refused`, `skipped`, `cancelled`), `garrison.spend.cap.hits` by scope (`mandate_tick`, `mandate_day`, `org_unit_day`, `org_unit_month`), and the `garrison.org.budgets.exhausted` gauge by period. See [TELEMETRY.md](TELEMETRY.md) |
 | SDKs | A Freezes client in C#, Python, JavaScript/TypeScript, and Go |
 
 ## How it works across replicas

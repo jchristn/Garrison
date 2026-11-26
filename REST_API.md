@@ -2042,7 +2042,7 @@ Usage quotas limit a tenant, an agent across its deployments, or a single deploy
 }
 ```
 
-The target must belong to the tenant. `scope` is `Tenant`, `Agent`, `Deployment`, or `Mandate` (every tick run of one keeper; a keeper's `budgetPerDayUsd` is tracked through this scope); a tenant quota with an empty `resourceId` targets the route's tenant. Names and scope/target pairs are unique within a tenant, including inactive entries. Duplicate names answer 409 `NameConflict`, duplicate targets 409 `UsageQuotaExists`, and invalid or cross-tenant targets 404. IDs start with `uqt_`. The record also has `description`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
+The target must belong to the tenant. `scope` is `Tenant`, `Agent`, `Deployment`, or `Mandate` (every tick run of one keeper; a keeper's `budgetPerDayUsd` is tracked through this scope). `OrgUnit` is reserved for organization unit budgets, which are set on the organization ([docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md#budgets)); creating a quota with it answers 400 with field `scope`; a tenant quota with an empty `resourceId` targets the route's tenant. Names and scope/target pairs are unique within a tenant, including inactive entries. Duplicate names answer 409 `NameConflict`, duplicate targets 409 `UsageQuotaExists`, and invalid or cross-tenant targets 404. IDs start with `uqt_`. The record also has `description`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
 
 Daily windows begin at midnight UTC. `dailyRunLimit` counts distinct admissions, including delegated children and retries that create a new run; idempotent replays do not consume another admission. Tokens and cost count on the UTC completion day. Tokens are reported input plus output, adding Claude Code's separately reported cache reads. Reasoning already included in output is not counted twice. Negative token counts and negative cost do not reduce usage. Run/token limits accept whole numbers from 0 to 9,007,199,254,740,991; USD limits accept finite values from 0 to 1,000,000,000,000; concurrency accepts 0 to 2,147,483,647.
 
@@ -3886,7 +3886,7 @@ Cancel an open escalation with an optional `EscalationCancelRequest` (`reason`, 
 
 ### Freezes and the kill switch
 
-A freeze (AA3) stops an agent, a deployment, a keeper, or an app until someone lifts it: new runs in scope are refused with 409 `Frozen` and keepers in scope skip their wakes. The autonomy kill switch stops every keeper in the tenant while ordinary invocations keep working. [docs/BRAKES.md](docs/BRAKES.md) covers scope, spend caps, and how lifting resumes keepers.
+A freeze (AA3) stops an agent, a deployment, a keeper, an app, an organization unit's subtree, or a whole organization until someone lifts it: new runs in scope are refused with 409 `Frozen` and keepers in scope skip their wakes. The autonomy kill switch stops every keeper in the tenant while ordinary invocations keep working. [docs/BRAKES.md](docs/BRAKES.md) covers scope, spend caps, and how lifting resumes keepers.
 
 | Route | Permission | Response |
 |---|---|---|
@@ -3905,13 +3905,13 @@ List freezes, active ones first and then newest first, with `maxResults` and `sk
 
 #### `POST /v1.0/api/tenants/{tenantId}/freezes`
 
-Apply a freeze. The body is a `Freeze` with `targetKind` (`Agent`, `Deployment`, `Mandate`, `App`, or `TenantAutonomy`), `targetId` (identifier or name; for `TenantAutonomy`, empty or the tenant identifier), an optional `reason` (at most 2000 characters), and `cancelActiveRuns`. With `cancelActiveRuns`, the runs already in scope are cancelled and the response carries `cancelledRunCount`. A `Mandate` freeze sets the keeper's status to `Frozen`.
+Apply a freeze. The body is a `Freeze` with `targetKind` (`Agent`, `Deployment`, `Mandate`, `App`, `OrgUnit`, `Organization`, or `TenantAutonomy`), `targetId` (identifier or name; for `TenantAutonomy`, empty or the tenant identifier), an optional `reason` (at most 2000 characters), and `cancelActiveRuns`. With `cancelActiveRuns`, the runs already in scope are cancelled and the response carries `cancelledRunCount`. A `Mandate` freeze sets the keeper's status to `Frozen`, and an `Organization` freeze sets the organization's. `OrgUnit` and `Organization` freezes cover the agents in the organization's live revision.
 
 | | |
 |---|---|
 | Request body | `Freeze` |
 | Response | `Freeze`, 201 |
-| Errors | 400 `ValidationFailed` (missing target, reason too long); 404 (unknown target); 409 `AlreadyFrozen` (the target already has an active freeze), `OrganizationsUnavailable` (`OrgUnit` or `Organization`) |
+| Errors | 400 `ValidationFailed` (missing target, reason too long); 404 (unknown target); 409 `AlreadyFrozen` (the target already has an active freeze) |
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/freezes" \
@@ -3931,7 +3931,7 @@ A new run refused by a freeze answers 409 with code `Frozen`; the message names 
 
 ### Memory
 
-Scoped memory (AA4) is the text agents keep between runs, in each agent's private `Agent` scope and in the `App` scope its app's members share. Agents write it with the `garrison_memory_*` MCP tools; these routes let people browse, read, and delete it. [docs/AGENT_MEMORY.md](docs/AGENT_MEMORY.md) covers scopes, the access policy, provenance, and recall.
+Scoped memory (AA4) is the text agents keep between runs, in each agent's private `Agent` scope, in the `App` scope its app's members share, and in an organization's `OrgUnit` and `Organization` scopes. Agents write it with the `garrison_memory_*` MCP tools; these routes let people browse, read, and delete it. [docs/AGENT_MEMORY.md](docs/AGENT_MEMORY.md) covers scopes, the access policy, provenance, and recall.
 
 | Route | Permission | Response |
 |---|---|---|
@@ -3982,7 +3982,7 @@ Paths are relative to `/v1.0/api/tenants/{tenantId}`. Reports of another tenant 
 
 #### `GET /v1.0/api/tenants/{tenantId}/reports`
 
-List reports newest first, with their metrics, issues, and decisions, using `maxResults`, `skip`, and `search` (case-insensitive, over titles) from the [enumeration](#enumeration) parameters and the optional filters `author` (agent identifier or name), `unit` (organization unit, from AA7), `app` (identifier or name), `kind`, `health`, `runId`, `from`, and `to` (filing time, ISO 8601).
+List reports newest first, with their metrics, issues, and decisions, using `maxResults`, `skip`, and `search` (case-insensitive, over titles) from the [enumeration](#enumeration) parameters and the optional filters `author` (agent identifier or name), `unit` (org unit identifier; see [docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md#reports)), `app` (identifier or name), `kind`, `health`, `runId`, `from`, and `to` (filing time, ISO 8601).
 
 #### `POST /v1.0/api/tenants/{tenantId}/reports`
 
@@ -4033,6 +4033,74 @@ curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/messages?status=Rejected
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/messages" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"recipient": "nightly-import", "subject": "Skip tonight", "body": "The source is down for maintenance.", "urgency": "Urgent", "idempotencyKey": "skip-2026-11-26"}'
+```
+
+### Organizations
+
+An organization (AA7) is a tree of units with lead agents, members, peer lines, and budgets. People edit its working tree through the unit routes; a revision snapshots the tree with the current revision of every mandate it names, and publishing a revision makes it live. The chain of command, message lines, report audiences, memory scopes, freezes, and budgets follow the live revision only. [docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md) covers the rules and a worked example.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /organizations` | Read on `Organization` | `EnumerationResult<Organization>`, 200 |
+| `POST /organizations` | Create on `Organization` | `Organization`, 201 |
+| `GET /organizations/{id}` | Read on `Organization` | `Organization` with `units`, 200 |
+| `PUT /organizations/{id}` | Update on `Organization` | `Organization`, 200 |
+| `DELETE /organizations/{id}` | Delete on `Organization` | 204 |
+| `GET /organizations/{id}/units` | Read on `Organization` | `OrgUnit[]`, root first, 200 |
+| `POST /organizations/{id}/units` | Update on `Organization` | `OrgUnit`, 201 |
+| `GET /organizations/{id}/units/{unitId}` | Read on `Organization` | `OrgUnit`, 200 |
+| `PUT /organizations/{id}/units/{unitId}` | Update on `Organization` | `OrgUnit`, 200 |
+| `DELETE /organizations/{id}/units/{unitId}` | Update on `Organization` | 204 |
+| `GET /organizations/{id}/chart` | Read on `Organization` | `OrgChart`, 200 |
+| `GET /organizations/{id}/revisions` | Read on `Organization` | `OrgRevision[]`, newest first, without snapshots, 200 |
+| `POST /organizations/{id}/revisions` | Update on `Organization` | `OrgRevision`, 201 |
+| `GET /organizations/{id}/revisions/{revId}` | Read on `Organization` | `OrgRevision` with its snapshot, 200 |
+| `POST /organizations/{id}/revisions/{revId}/publish` | Update on `Organization` | `OrgRevision`, 200 |
+| `POST /organizations/{id}/rollback` | Update on `Organization` | `OrgRevision` (the new copy), 200 |
+| `GET /organizations/{id}/spend` | Read on `Organization` | `OrgUnitSpend[]`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. `{id}` takes an identifier or a name, and `{unitId}` an identifier or a unit name. Organizations of another tenant answer 404. Structural refusals answer 409 with the codes listed in [docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md#validation), for example `OneRoot`, `Cycle`, `LeadsTwoUnits`, `PositionTaken`, `BudgetExceedsParent`, `AgentInactive`, and `OrganizationRetired`.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations`
+
+Create an organization from an `Organization` body: `name` is required; `description` and `mission` are optional. It starts as `Draft` with no units. Errors: 400 `ValidationFailed` (`name`, `description`, `mission` lengths); 409 `NameConflict`.
+
+#### `PUT /v1.0/api/tenants/{tenantId}/organizations/{id}`
+
+Change `name`, `description`, and `mission`. `status` moves to `Retired` (from `Draft` or `Active`), or from `Retired` back to `Active` (or `Draft` if it was never published); leave it out to keep the status. Any other change answers 409 `StatusNotSettable`. Units are not changed here.
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/organizations/{id}`
+
+Delete the organization with its units, revisions, and the `OrgUnit` and `Organization` memory scopes of its units. Agents, mandates, apps, reports, and promotion records stay.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/units`
+
+Add a unit to the working tree. The body is an `OrgUnit`; `parentUnitId`, `leadAgentId`, `leadMandateId`, `appId`, `members[].agentId`, `members[].mandateId`, and `peerLines[].peerUnitId` take identifiers or names. A unit without `parentUnitId` becomes the root. `PUT .../units/{unitId}` replaces a unit the same way. Nothing changes at run time until a revision is published. Errors: 400 `ValidationFailed` (lengths, an unknown agent, mandate, or app, `leadMandateId` without a lead); 409 with the structural codes above, `AgentInactive`, `MandateMismatch`, or `OrganizationRetired`. `DELETE .../units/{unitId}` answers 409 `UnitHasChildren` while units sit below it, and removes the peer lines that point at it.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/revisions`
+
+Snapshot the working tree as a `Draft` revision, with an optional `OrgRevisionRequest` (`note`, at most 2000 characters). The snapshot pins the current revision of every mandate a lead or member names. The tree must have exactly one root (409 `OneRoot`).
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/revisions/{revId}/publish`
+
+Make a draft live. The previous live revision becomes `Superseded`, a `Draft` organization becomes `Active`, pinned mandate revisions become current again, and a `PromotionRecord` with `subjectKind` `Organization` is written from `draft` to `live`. Errors: 409 `RevisionPublished` (already published, or published by a concurrent request), `RevisionMismatch`, `AgentInactive`, or a structural code.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/rollback`
+
+Return to an earlier live revision with an optional `OrgRollbackRequest`: `revisionId`, or by default the revision live before the current one, and `note`. Garrison publishes a new revision that copies the earlier snapshot (`rollbackOfRevisionId`), restores its pinned mandate revisions, replaces the working tree with its units, and writes a `Rollback` promotion record that marks the replaced publish `RolledBack`. Errors: 404 (unknown revision); 409 `RevisionNeverPublished`, `AlreadyLive`, or `NothingToRollBack`.
+
+#### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/spend`
+
+Each unit of the live revision with its subtree's known spend in the current UTC day or month window, one entry per budget; a unit without budgets reports its day. Empty before the first publish.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/units" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "dependencies", "parentUnitId": "reliability", "leadAgentId": "dependency-keeper", "members": [{"agentId": "driver-auditor", "title": "Driver auditor"}], "peerLines": [{"peerUnitId": "latency"}], "budgets": [{"period": "Day", "amountUsd": 20}]}'
+
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/rollback" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"note": "The new dependencies budget starved the driver audit"}'
 ```
 
 ### Agent revisions
@@ -5936,7 +6004,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`, `Memory`, `Report`, `AgentMessage`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`, `Memory`, `Report`, `AgentMessage`, `Organization`
 
 #### `OperationTypeEnum`
 
@@ -7078,7 +7146,7 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `tenantId` | `string` | Tenant identifier. |
 | `authorAgentId`, `authorAgentName` | `string?` | The agent the report is from and its name when filed; `null` for a person's report in their own name. |
 | `runId`, `mandateId`, `mandateTickId` | `string?` | The run, keeper, and tick that filed it; `null` when a person filed it. |
-| `orgUnitId` | `string?` | The author's organization unit, from AA7. |
+| `orgUnitId` | `string?` | The org unit the author held a position in when it filed, in the oldest live organization it belongs to; `null` outside organizations. Set by the server. |
 | `appId`, `appName` | `string?` | The app it was filed within. |
 | `audience` | `ReportAudienceEnum` | `Manager`, `Chain`, or `Board`. |
 | `kind` | `ReportKindEnum` | `Status`, `Incident`, `Decision`, `Handoff`, or `Brief`. |
@@ -7197,6 +7265,167 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 #### `MessageRejectionEnum`
 
 `HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, `Frozen`
+
+#### `Organization`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`org_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | 1 to 128 characters, unique in the tenant. |
+| `description` | `string?` | At most 2000 characters. |
+| `mission` | `string?` | At most 8000 characters. Member runs see it through `builtin/org-context`. |
+| `status` | `OrganizationStatusEnum` | `Draft` until the first publish, then `Active`; `Frozen` under an Organization freeze; `Retired`. |
+| `rootUnitId` | `string?` | Root unit of the working tree. Set by the server. |
+| `currentRevisionId`, `currentRevisionNumber` | `string?`, `int` | The live revision, or `null` and 0 before the first publish. Set by the server. |
+| `createdBy` | `string?` | Who created it. |
+| `units` | `OrgUnit[]?` | The working tree, root first, when one organization is read; `null` on lists. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
+
+#### `OrgUnit`
+
+The same shape holds a unit of the working tree and a unit in a revision's snapshot. A unit keeps its identifier across revisions.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`oun_`). |
+| `tenantId`, `organizationId` | `string` | Tenant and organization. |
+| `parentUnitId` | `string?` | Parent unit, or `null` for the root. A request may name the unit. |
+| `name` | `string` | 1 to 128 characters, unique in the organization, ignoring case. |
+| `description` | `string?` | At most 2000 characters. |
+| `leadAgentId`, `leadAgentName` | `string?` | The lead agent (a request may name it) and its name, filled in on read. The root's lead is the CEO. |
+| `leadTitle` | `string?` | At most 128 characters. |
+| `leadMandateId` | `string?` | The lead's keeper; must belong to the lead agent. A request may name it. |
+| `appId` | `string?` | Agentic app the unit runs. A request may name it. |
+| `members` | `OrgUnitMember[]` | Members other than the lead, at most 200. |
+| `peerLines` | `OrgUnitPeerLine[]` | Peer lines to other units, at most 50. Each works in both directions. |
+| `budgets` | `OrgUnitBudget[]` | At most one per period. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
+
+#### `OrgUnitMember`
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId`, `agentName` | `string`, `string?` | An active agent (a request may name it) and its name, filled in on read. |
+| `title` | `string?` | At most 128 characters. |
+| `mandateId` | `string?` | The member's keeper; must belong to the member agent. A request may name it. |
+
+#### `OrgUnitPeerLine`
+
+| Field | Type | Description |
+|---|---|---|
+| `peerUnitId`, `peerUnitName` | `string`, `string?` | Another unit of the same organization (a request may name it) and its name, filled in on read. |
+
+#### `OrgUnitBudget`
+
+| Field | Type | Description |
+|---|---|---|
+| `period` | `BudgetPeriodEnum` | `Day` (default) or `Month`, in UTC. |
+| `amountUsd` | `double` | Above 0 and at most 10,000,000. No more than the nearest ancestor's budget for the same period. |
+
+#### `OrgRevision`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`orv_`). |
+| `tenantId`, `organizationId` | `string` | Tenant and organization. |
+| `number` | `int` | From 1, unique in the organization. |
+| `state` | `OrgRevisionStateEnum` | `Draft`, `Published` (live), or `Superseded`. |
+| `note` | `string?` | At most 2000 characters. |
+| `rollbackOfRevisionId` | `string?` | For a rollback, the revision this one copies. |
+| `authorType`, `authorId`, `authorName` | `PrincipalTypeEnum`, `string?`, `string?` | Who made it. |
+| `units` | `OrgUnit[]` | The snapshot, root first. Empty on lists. |
+| `mandates` | `OrgRevisionMandate[]` | Pinned mandate revisions. Empty on lists. |
+| `publishedUtc` | `DateTime?` | When it went live, or `null` for a draft. |
+| `createdUtc` | `DateTime` | UTC timestamp. |
+
+#### `OrgRevisionMandate`
+
+| Field | Type | Description |
+|---|---|---|
+| `mandateId`, `mandateName` | `string`, `string?` | The mandate. |
+| `mandateRevisionId`, `mandateRevisionNumber` | `string`, `int?` | The pinned revision; publishing or rolling back to this organization revision makes it current. |
+
+#### `OrgRevisionRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `note` | `string?` | Why the revision was made, at most 2000 characters. |
+
+#### `OrgRollbackRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `revisionId` | `string?` | Earlier live revision to return to; default the one live before the current one. |
+| `note` | `string?` | At most 2000 characters. |
+
+#### `OrgChart`
+
+| Field | Type | Description |
+|---|---|---|
+| `organizationId`, `name`, `mission` | `string`, `string`, `string?` | The organization. |
+| `revisionId`, `revisionNumber` | `string?`, `int` | The live revision shown, or `null` and 0 for the working tree. |
+| `source` | `string` | `Live`, or `Working` before the first publish. |
+| `units` | `OrgChartUnit[]` | Root first, then breadth first. |
+
+#### `OrgChartUnit`
+
+| Field | Type | Description |
+|---|---|---|
+| `id`, `name`, `description` | `string`, `string`, `string?` | The unit. |
+| `parentUnitId` | `string?` | `null` for the root. |
+| `depth` | `int` | 0 for the root. |
+| `appId` | `string?` | The unit's app. |
+| `lead` | `OrgChartMember?` | `null` for a unit without a lead. |
+| `members` | `OrgChartMember[]` | Members other than the lead. |
+| `peerUnitIds`, `childUnitIds` | `string[]` | Units joined by a peer line in either direction, and direct children. |
+| `budgets` | `OrgUnitBudget[]` | Budgets on the unit's subtree. |
+
+#### `OrgChartMember`
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId`, `agentName` | `string`, `string?` | The agent; the name is `null` when the agent no longer exists. |
+| `title` | `string?` | Title. |
+| `unitId`, `unitName` | `string`, `string?` | The unit it sits in. |
+| `mandateId`, `mandateName` | `string?` | Its keeper in this position. |
+| `mandateSummary` | `string?` | First line of the mandate's current objective, at most 200 characters. Data written by people or agents. |
+
+#### `OrgWhoAmI`
+
+| Field | Type | Description |
+|---|---|---|
+| `organizationId`, `organizationName` | `string` | The organization. |
+| `me` | `OrgChartMember` | The agent with its unit, title, and mandate. |
+| `isLead` | `bool` | `true` when it leads its unit. |
+| `manager` | `OrgChartMember?` | Its manager, or `null` when the board is. |
+| `managerIsBoard` | `bool` | `true` when no agent is above it. |
+| `directReports` | `OrgChartMember[]` | Agents that report directly to it. |
+| `peerUnitNames` | `string[]` | Units joined to its unit by a peer line. |
+
+#### `OrgUnitSpend`
+
+| Field | Type | Description |
+|---|---|---|
+| `unitId`, `unitName` | `string` | The unit. |
+| `period` | `BudgetPeriodEnum` | `Day` or `Month`. |
+| `amountUsd` | `double?` | The budget, or `null` for a unit without one (its spend is still reported). |
+| `spentUsd` | `double` | Known spend of the subtree's agents in the window; runs of unknown cost count as 0. |
+| `fraction` | `double?` | Spend divided by the budget; above 1 when over. `null` without a budget. |
+| `exhausted` | `bool` | `true` when spend has reached the budget and new runs in the subtree are refused with `BudgetExhausted`. |
+| `windowStartUtc`, `windowEndUtc` | `DateTime` | The window; the budget resets at its end. |
+
+#### `OrganizationStatusEnum`
+
+`Draft`, `Active`, `Frozen`, `Retired`
+
+#### `OrgRevisionStateEnum`
+
+`Draft`, `Published`, `Superseded`
+
+#### `BudgetPeriodEnum`
+
+`Day` (the UTC day), `Month` (the UTC calendar month)
 
 #### `MandateRevision`
 
@@ -7348,7 +7577,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `EscalationTargetKindEnum`
 
-`User`, `Role`, `Agent`, `Manager` (refused with `ManagerUnavailable` until organizations exist)
+`User`, `Role`, `Agent`, `Manager` (the raising agent's manager in a live organization, or the person behind the run above the root; stored as the resolved `Agent` or `User` target, and refused with `ManagerUnavailable` for an agent with no position)
 
 #### `EscalationTimeoutActionEnum`
 
@@ -7360,11 +7589,11 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `FreezeTargetKindEnum`
 
-`Agent`, `Deployment`, `Mandate`, `App`, `OrgUnit` and `Organization` (refused with `OrganizationsUnavailable` until organizations exist), `TenantAutonomy` (the kill switch)
+`Agent`, `Deployment`, `Mandate`, `App`, `OrgUnit` (a unit's whole subtree), `Organization` (every agent in it), `TenantAutonomy` (the kill switch)
 
 #### `MemoryScopeKindEnum`
 
-`Agent`, `App`, `OrgUnit` and `Organization` (refused with `OrganizationsUnavailable` until organizations exist)
+`Agent`, `App`, `OrgUnit` (one organization unit), `Organization` (one organization)
 
 #### `NotificationEventEnum`
 
@@ -8254,6 +8483,9 @@ A promotion or rollback (AD1.4): which revision moved from which environment to 
 | `agentId` | `string?` | Agent promoted, for an agent promotion. |
 | `appId` | `string?` | Agentic app promoted, for an app promotion (AD6.4). |
 | `appRevisionId` | `string?` | App revision promoted, for an app promotion (AD6.4). |
+| `organizationId` | `string?` | Organization published or rolled back, for an organization record (AA7.4). |
+| `orgRevisionId` | `string?` | Organization revision made live, for an organization record. |
+| `subjectKind` | `PromotionSubjectKindEnum` | `Organization` when `organizationId` is set, `App` when `appId` is set, otherwise `Agent`. Read-only. |
 | `agentRevisionId` | `string?` | Agent revision promoted, for an agent promotion. |
 | `sourceEnvironment` | `string` | Environment the revision came from. |
 | `targetEnvironment` | `string` | Environment whose deployments were repinned. |
@@ -8370,10 +8602,28 @@ One entry in the capability catalog (AD4, AD-006, AD-022): an agent, an MCP tool
 | `tags` | `string[]` | Tags for filtering. At most 32, each 1 to 64 characters. |
 | `requirements` | `CapabilityRequirement[]` | Node labels a run needs when its agent uses this capability. HarnessBuiltIn descriptors require their tool label; other kinds usually require nothing. At most 16. |
 | `hints` | `CapabilityHintegers` | Cost and latency hints. Never null. |
+| `org` | `CapabilityOrgPlacement?` | For an Agent descriptor whose agent holds a position in a live organization: where it sits. Filled in on read; `null` otherwise. |
 | `refreshWarning` | `string?` | Why the last refresh of the source failed, while the descriptor keeps its last good content, or null. |
 | `lastRefreshedUtc` | `DateTime?` | When the descriptor was last refreshed from its source (UTC), or null for manual descriptors. |
 | `createdUtc` | `DateTime` | Creation time (UTC). |
 | `lastUpdateUtc` | `DateTime` | Last update time (UTC). |
+
+#### `CapabilityOrgPlacement`
+
+Where an Agent capability's agent sits in a live organization (AA7.8). The oldest organization wins when the agent belongs to several.
+
+| Field | Type | Description |
+|---|---|---|
+| `organizationId`, `organizationName` | `string` | The organization. |
+| `unitId`, `unitName` | `string` | The agent's unit. |
+| `isLead` | `bool` | `true` when the agent leads the unit. |
+| `title` | `string?` | The agent's title. |
+| `mandateName` | `string?` | The agent's mandate in this position. |
+| `mandateSummary` | `string?` | First line of the mandate's current objective, at most 200 characters. Data written by people or agents. |
+
+#### `PromotionSubjectKindEnum`
+
+`Agent`, `App`, `Organization` (an organization revision published or rolled back; source environment `draft` or `live`, target `live`)
 
 #### `CapabilityKindEnum`
 
