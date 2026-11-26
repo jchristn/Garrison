@@ -202,7 +202,9 @@ namespace Garrison.Server.Runtime
             if (body.Description != null && body.Description.Length > 2000) throw Invalid("description", "TooLong", "description is at most 2000 characters.");
             OrgUnit unit = await _Organizations.FindUnitAsync(organization, body.UnitId, token).ConfigureAwait(false)
                 ?? throw Invalid("unitId", "UnitNotFound", "unitId names no unit of organization " + organization.Name + ".");
-            if (body.ExpiresUtc.HasValue && body.ExpiresUtc.Value <= DateTime.UtcNow) throw Invalid("expiresUtc", "ExpiryInPast", "expiresUtc must be in the future, or left out for no expiry.");
+            // An expiry already stored may stay as it is, so an expired rule can still be renamed or turned off.
+            bool unchangedExpiry = body.ExpiresUtc.HasValue && target.ExpiresUtc.HasValue && body.ExpiresUtc.Value == target.ExpiresUtc.Value;
+            if (body.ExpiresUtc.HasValue && body.ExpiresUtc.Value <= DateTime.UtcNow && !unchangedExpiry) throw Invalid("expiresUtc", "ExpiryInPast", "expiresUtc must be in the future, or left out for no expiry.");
             if (body.Classes.Count == 0) throw Invalid("classes", "Required", "List at least one change class: " + String.Join(", ", Enum.GetNames(typeof(ChangeClassEnum))) + ".");
             List<ChangeClassEnum> classes = body.Classes.Select(c => c.Class).ToList();
             if (classes.Distinct().Count() != classes.Count) throw Invalid("classes", "Duplicate", "Each class appears once.");

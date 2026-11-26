@@ -503,6 +503,8 @@ namespace Garrison.Server.Services
             if (ctx.PrincipalType != PrincipalTypeEnum.Run) return true;
             Owner(ctx, out string? owner, out string? _);
             if (draft.OwnerUserId != owner) return false;
+            // A revert draft (organization set, no executive) belongs to rollback; no run reads or edits it (AA-073).
+            if (!String.IsNullOrEmpty(draft.OrganizationId) && String.IsNullOrEmpty(draft.ExecutiveUnitId)) return false;
             Deployment? deployment = await RunDeploymentAsync(ctx, draft.TenantId, token).ConfigureAwait(false);
             if (deployment == null) return false;
             if (deployment.ManagementAccess != ManagementAccessEnum.OrgSubtree) return String.IsNullOrEmpty(draft.ExecutiveUnitId);
@@ -840,7 +842,7 @@ namespace Garrison.Server.Services
         {
             // AA8.6: the records an executive's apply changes, as they are now, so a rollback past its revision puts them back.
             // The organization itself comes back through the revision snapshot; records the apply creates are deleted.
-            StudioDraft revert = new StudioDraft { TenantId = draft.TenantId, OwnerUserId = draft.OwnerUserId, OwnerName = draft.OwnerName, PublishOnApply = draft.PublishOnApply };
+            StudioDraft revert = new StudioDraft { TenantId = draft.TenantId, OwnerUserId = draft.OwnerUserId, OwnerName = draft.OwnerName, PublishOnApply = draft.PublishOnApply, OrganizationId = draft.OrganizationId };
             string title = "Undo: " + draft.Title;
             revert.Title = title.Length > 256 ? title.Substring(0, 256) : title;
             foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert && i.Kind != "Organization"))

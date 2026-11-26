@@ -7,8 +7,8 @@ namespace Garrison.Core.Enums
     public enum ChangeClassEnum
     {
         /// <summary>
-        /// Prompt material: a prompt template or agent asset used only inside the subtree, a deployment's prompt bindings,
-        /// or an agent's instructions.
+        /// Prompt material: a prompt template or agent asset used only inside the subtree, a deployment's prompt bindings
+        /// or description, or an agent's display name, description, skills, tags, or pinned assets.
         /// </summary>
         PromptRetune,
 
@@ -33,7 +33,7 @@ namespace Garrison.Core.Enums
         RemoveWorker,
 
         /// <summary>
-        /// A deployment's or agent's model, fallback model, effort, or inference endpoint.
+        /// A deployment's model, fallback model, effort, or inference endpoint.
         /// </summary>
         ModelChange,
 

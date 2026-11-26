@@ -110,7 +110,7 @@ A change rule is a standing yes from a person. It names an organization, a unit,
 | `name` | 1 to 128 characters |
 | `description` | Why the rule exists, at most 2000 characters |
 | `active` | Default `true`. An inactive rule never matches |
-| `expiresUtc` | When the rule stops matching. Optional, and there is no default expiry. It must be in the future when you set it (`ExpiryInPast`) |
+| `expiresUtc` | When the rule stops matching. Optional, and there is no default expiry. It must be in the future when you set or change it (`ExpiryInPast`); an update that keeps an expiry already past is allowed, so an expired rule can still be renamed or turned off |
 | `classes` | At least one class, each once |
 | `limits` | Up to 32 numeric bounds, each with `class` (which the rule must list), `name`, and a `minimum`, a `maximum`, or both. Bounds are inclusive and zero or more |
 | `createdByType`, `createdById`, `createdByName`, `updatedByName` | Who wrote and last changed it. Set by the server |
@@ -168,7 +168,7 @@ Every executive apply, by rule or by a person, ends in a new published revision 
 
 The Organization document inside an executive draft is applied with `publish: false`, and the recorded revision is what publishes the tree. So one apply makes exactly one revision, whatever the draft held. The revert draft covers the records the revision snapshot does not: agents, deployments, mandates, templates, and assets. A record the apply created is listed in the revert draft as a delete when its kind can be deleted from a draft (agents and deployments). Mandates, templates, and assets the apply created stay after a rollback, for a person to remove.
 
-Rolling the organization back to a revision before one or more executive applies does two things. It restores the tree and the pinned mandate revisions as any rollback does, and then it applies the revert drafts of every executive revision published after the target, newest first. Each revert draft is used once; it moves to `Applied`, and a second rollback past the same revision does not apply it again. The rollback's audit entry says how many executive applies it undid.
+Rolling the organization back to a revision before one or more executive applies does two things. It restores the tree and the pinned mandate revisions as any rollback does, and then it applies the revert drafts of every executive revision published after the target, newest first. Revert drafts belong to rollback: no run token can read or edit one, while people see them among their drafts. Each revert draft is used once; it moves to `Applied`, and a second rollback past the same revision does not apply it again. The rollback's audit entry says how many executive applies it undid.
 
 If the organization cannot take a new revision when an executive draft applies (for example because it was retired in the meantime), the change stays live and the audit log says why no revision recorded it.
 
