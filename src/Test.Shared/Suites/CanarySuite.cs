@@ -48,7 +48,8 @@ namespace Test.Shared.Suites
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "rollback", "A failing candidate rolls back at step one before its minimum time, the weights return to where they started, and a signed CanaryRolledBack notification arrives (" + provider + ")", ct => RollbackAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "promote", "A healthy candidate advances step by step to 100 percent and is promoted; shadow and eval runs do not count (" + provider + ")", ct => PromoteAsync(provider, ct)));
-                cases.Add(new TestCaseDescriptor(id, "eval-gate", "A release with an eval gate waits for a completed eval run and rolls back on a low score (" + provider + ")", ct => EvalGateAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "eval-gate", "A gated step whose minimums are met starts one eval run as the release creator, waits for it, cancels duplicates, advances on a passing score, needs a new run per step, and rolls back when the run cannot start or fails; clamps are echoed (" + provider + ")", ct => EvalGateAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "eval-gate-runner", "Nobody runs the eval: the sweep starts it, the runner scores the candidate on the fake harness, and the release is promoted (" + provider + ")", ct => EvalGateRunnerAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "POST /canary-releases validation and 409, GET list and one, POST abort restores weights and conflicts the second time, cross-tenant 404, Viewer reads only, MCP tools (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Canary releases (" + provider + ")", cases));
             }
@@ -184,26 +185,123 @@ namespace Test.Shared.Suites
         {
             await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
             {
+                // The eval runner is stopped, so the gate's eval runs stay Pending and the test decides how they end.
+                await host.Server.Context.Get<EvalRunner>().StopAsync().ConfigureAwait(false);
+                CanaryService canaries = host.Server.Context.Get<CanaryService>();
                 Agent agent = await AgentAsync(host, "canary-gated", token).ConfigureAwait(false);
                 Deployment baseline = await DeploymentAsync(host, agent, "canary-gated-stable", 100, token).ConfigureAwait(false);
                 Deployment candidate = await DeploymentAsync(host, agent, "canary-gated-next", 100, token).ConfigureAwait(false);
-                EvalSet set = await host.Server.Context.Database.EvalSets.CreateAsync(new EvalSet { TenantId = host.TenantId, Name = "canary-gate" }, token).ConfigureAwait(false);
-                CanaryRelease body = Body(agent, candidate, baseline, 10, Step(100, 0, 0));
-                body.MinEvalScore = 0.8;
-                body.EvalSetId = set.Id;
-                CanaryRelease started = await HttpTestHelpers.SendAsync<CanaryRelease>(host.AdminClient, HttpMethod.Post, T(host) + "/canary-releases", body, 201, token).ConfigureAwait(false);
-                CanaryService canaries = host.Server.Context.Get<CanaryService>();
-                CanaryStepDecision waiting = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
-                Assert.True(waiting.Decision == CanaryDecisionEnum.Wait && waiting.Reason.Contains(set.Id, StringComparison.Ordinal), "Without an eval run the release waits: " + waiting.Reason);
 
-                await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = 1, TargetType = EvalRunTargetEnum.Deployment, AgentId = agent.Id, DeploymentId = baseline.Id, Status = EvalRunStatusEnum.Completed, Score = 0.1, CompletedUtc = DateTime.UtcNow }, token).ConfigureAwait(false);
-                Assert.Equal(CanaryDecisionEnum.Wait, (await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false)).Decision, "An eval run of the baseline does not gate the candidate");
-                await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = 1, TargetType = EvalRunTargetEnum.Deployment, AgentId = agent.Id, DeploymentId = candidate.Id, Status = EvalRunStatusEnum.Completed, Score = 0.5, CompletedUtc = DateTime.UtcNow.AddSeconds(1) }, token).ConfigureAwait(false);
-                Assert.True(await canaries.SweepAsync(token).ConfigureAwait(false), "A low score rolls the release back");
-                CanaryRelease rolledBack = await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false);
-                Assert.True(rolledBack.Status == CanaryStatusEnum.RolledBack && rolledBack.RollbackReason!.Contains("0.5", StringComparison.Ordinal), "Rolled back on the eval score: " + rolledBack.RollbackReason);
+                // A set without cases cannot gate: its eval run cannot start, so the release rolls back instead of waiting.
+                EvalSet empty = await host.Server.Context.Database.EvalSets.CreateAsync(new EvalSet { TenantId = host.TenantId, Name = "canary-gate-empty" }, token).ConfigureAwait(false);
+                CanaryRelease emptyRelease = await GatedAsync(host, agent, candidate, baseline, empty, 0.8, token, Step(100, 0, 0)).ConfigureAwait(false);
+                CanaryStepDecision cannot = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, emptyRelease.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                Assert.True(cannot.Decision == CanaryDecisionEnum.RollBack && cannot.Reason.Contains("could not start", StringComparison.Ordinal), "An eval run that cannot start rolls back: " + cannot.Reason);
+                Assert.Equal(CanaryStatusEnum.RolledBack, (await canaries.ReadAsync(host.TenantId, emptyRelease.Id, token).ConfigureAwait(false)).Status, "Rolled back");
                 await WeightsAsync(host, candidate, baseline, 100, 100, "Weights restored", token).ConfigureAwait(false);
+
+                EvalSet set = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "canary-gate", Cases = new List<EvalCase> { new EvalCase { InputText = "gate alpha", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "alpha" } } } } }, 201, token).ConfigureAwait(false);
+                CanaryRelease started = await GatedAsync(host, agent, candidate, baseline, set, 0.8, token, Step(50, 0, 0), Step(100, 0, 0)).ConfigureAwait(false);
+
+                // Once the step's minimums are met the sweep starts one eval run as the release's creator.
+                CanaryStepDecision first = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                Assert.True(first.Decision == CanaryDecisionEnum.Wait && first.Reason.StartsWith("Started eval run", StringComparison.Ordinal) && first.Reason.Contains(set.Id, StringComparison.Ordinal), "The sweep starts the step's eval run: " + first.Reason);
+                List<EvalRun> runs = await GateRunsAsync(host, set, candidate, token).ConfigureAwait(false);
+                Assert.Equal(1, runs.Count, "One eval run for the step");
+                EvalRun gate = runs[0];
+                Assert.True(gate.Status == EvalRunStatusEnum.Pending && gate.TargetType == EvalRunTargetEnum.Deployment && gate.DeploymentId == candidate.Id && gate.Threshold == 0.8 && gate.TotalCases == 1, "Against the candidate with minEvalScore as the threshold: " + Serializer.Serialize(gate));
+                Assert.True(gate.StartedByName == "canary:" + started.Id && gate.StartedById == started.CreatedById && gate.StartedByType == started.CreatedByType, "Started as the release's creator, named for the release: " + Serializer.Serialize(gate));
+
+                // Later sweeps wait for it instead of starting another.
+                CanaryStepDecision second = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                Assert.True(second.Decision == CanaryDecisionEnum.Wait && second.Reason.StartsWith("Waiting for eval run " + gate.Id, StringComparison.Ordinal), "The next sweep waits: " + second.Reason);
+                Assert.Equal(1, (await GateRunsAsync(host, set, candidate, token).ConfigureAwait(false)).Count, "No second eval run");
+
+                // A duplicate, as a second replica's sweep would start, is cancelled; the oldest is kept.
+                await Task.Delay(20, token).ConfigureAwait(false);
+                EvalRun duplicate = await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = set.Version, TargetType = EvalRunTargetEnum.Deployment, AgentId = agent.Id, DeploymentId = candidate.Id, Threshold = 0.8, TotalCases = 1, StartedByName = "canary:" + started.Id }, token).ConfigureAwait(false);
+                Assert.Equal(CanaryDecisionEnum.Wait, (await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false)).Decision, "Still waiting");
+                Assert.Equal(EvalRunStatusEnum.Cancelled, (await host.Server.Context.Database.EvalRuns.ReadAsync(host.TenantId, duplicate.Id, token).ConfigureAwait(false))!.Status, "The duplicate is cancelled");
+                Assert.Equal(EvalRunStatusEnum.Pending, (await host.Server.Context.Database.EvalRuns.ReadAsync(host.TenantId, gate.Id, token).ConfigureAwait(false))!.Status, "The oldest is kept");
+
+                // A passing score advances the step; the next step needs an eval run of its own.
+                await FinishEvalRunAsync(host, gate, EvalRunStatusEnum.Completed, 0.9, token).ConfigureAwait(false);
+                CanaryStepDecision advanced = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                Assert.Equal(CanaryDecisionEnum.Advance, advanced.Decision, "A passing eval run advances: " + advanced.Reason);
+                await WeightsAsync(host, candidate, baseline, 1000, 0, "Step two is 100 percent", token).ConfigureAwait(false);
+                await Task.Delay(20, token).ConfigureAwait(false);
+                CanaryStepDecision stepTwo = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                Assert.True(stepTwo.Decision == CanaryDecisionEnum.Wait && stepTwo.Reason.StartsWith("Started eval run", StringComparison.Ordinal) && stepTwo.Reason.Contains("step 2", StringComparison.Ordinal), "Step two starts its own eval run: " + stepTwo.Reason);
+                EvalRun next = (await GateRunsAsync(host, set, candidate, token).ConfigureAwait(false)).Single(r => r.Status == EvalRunStatusEnum.Pending);
+                Assert.True(next.Id != gate.Id, "A new eval run for step two");
+
+                // A failed eval run cannot pass the gate: the release rolls back.
+                await FinishEvalRunAsync(host, next, EvalRunStatusEnum.Failed, null, token).ConfigureAwait(false);
+                CanaryStepDecision failed = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                Assert.True(failed.Decision == CanaryDecisionEnum.RollBack && failed.Reason.Contains(next.Id, StringComparison.Ordinal) && failed.Reason.Contains("Failed", StringComparison.Ordinal), "A failed eval run rolls back: " + failed.Reason);
+                await WeightsAsync(host, candidate, baseline, 100, 100, "Weights restored", token).ConfigureAwait(false);
+
+                // Clamped values are echoed in the create response.
+                object clamped = new { agentId = agent.Id, candidateDeploymentId = candidate.Id, baselineDeploymentId = baseline.Id, maxErrorRatePercent = 150, steps = new[] { new { weightPercent = 100, minimumRuns = 0, minimumMinutes = 0 } } };
+                WarningsEnvelope echoed = await HttpTestHelpers.SendAsync<WarningsEnvelope>(host.AdminClient, HttpMethod.Post, T(host) + "/canary-releases", clamped, 201, token).ConfigureAwait(false);
+                FieldWarning? warning = (echoed.Warnings ?? new List<FieldWarning>()).FirstOrDefault(w => w.Field == "maxErrorRatePercent");
+                Assert.True(warning != null && warning.Code == "ValueClamped" && warning.Given == "150" && warning.Stored == "100", "The clamp is echoed in the create response: " + Serializer.Serialize(echoed));
             }
+        }
+
+        private static async Task EvalGateRunnerAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                Agent agent = await cluster.CreateAgentAsync("canary-evald", "builtin/fake", null, token).ConfigureAwait(false);
+                Deployment baseline = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "canary-evald-default", token).ConfigureAwait(false), "Baseline");
+                Deployment candidate = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { AgentId = agent.Id, Name = "canary-evald-next", HarnessProfileId = baseline.HarnessProfileId, TimeoutSeconds = 120, Weight = 0 }, 201, token).ConfigureAwait(false);
+                EvalSet set = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "canary-evald-set", Cases = new List<EvalCase> { new EvalCase { InputText = "gate alpha", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "alpha" } } }, new EvalCase { InputText = "gate beta", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "beta" } } } } }, 201, token).ConfigureAwait(false);
+                CanaryRelease started = await GatedAsync(host, agent, candidate, baseline, set, 0.9, token, Step(100, 0, 0)).ConfigureAwait(false);
+                CanaryService canaries = host.Server.Context.Get<CanaryService>();
+
+                // Nobody runs the eval: the sweep starts it, the runner runs it on the fake harness, and its score promotes.
+                DateTime deadline = DateTime.UtcNow.AddSeconds(120);
+                CanaryRelease current = started;
+                while (current.Status == CanaryStatusEnum.Running)
+                {
+                    if (DateTime.UtcNow > deadline) throw new TestAssertionException("The gated release did not finish: " + Serializer.Serialize(current));
+                    await canaries.EvaluateAsync(current, token).ConfigureAwait(false);
+                    await Task.Delay(200, token).ConfigureAwait(false);
+                    current = await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false);
+                }
+                Assert.Equal(CanaryStatusEnum.Promoted, current.Status, "Promoted on the eval score: " + current.RollbackReason);
+                List<EvalRun> runs = await GateRunsAsync(host, set, candidate, token).ConfigureAwait(false);
+                Assert.True(runs.Count == 1 && runs[0].Status == EvalRunStatusEnum.Completed && runs[0].Score == 1 && runs[0].Passed == true, "One eval run, completed by the runner: " + Serializer.Serialize(runs));
+                EnumerationResult<Run> caseRuns = await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, EvalRunId = runs[0].Id }, token).ConfigureAwait(false);
+                Assert.True(caseRuns.Objects.Count == 2 && caseRuns.Objects.All(r => r.DeploymentId == candidate.Id && r.Kind == RunKindEnum.Eval), "Its cases ran on the candidate");
+                await WeightsAsync(host, candidate, baseline, 1000, 0, "The candidate takes all of the traffic", token).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task<CanaryRelease> GatedAsync(TestServerHost host, Agent agent, Deployment candidate, Deployment baseline, EvalSet set, double minEvalScore, CancellationToken token, params CanaryReleaseStep[] steps)
+        {
+            CanaryRelease body = Body(agent, candidate, baseline, 10, steps);
+            body.MinEvalScore = minEvalScore;
+            body.EvalSetId = set.Id;
+            return await HttpTestHelpers.SendAsync<CanaryRelease>(host.AdminClient, HttpMethod.Post, T(host) + "/canary-releases", body, 201, token).ConfigureAwait(false);
+        }
+
+        private static async Task<List<EvalRun>> GateRunsAsync(TestServerHost host, EvalSet set, Deployment candidate, CancellationToken token)
+        {
+            EnumerationResult<EvalRun> page = await host.Server.Context.Database.EvalRuns.EnumerateAsync(host.TenantId, set.Id, candidate.Id, null, null, new EnumerationQuery { MaxResults = 100 }, token).ConfigureAwait(false);
+            return page.Objects.Where(r => r.Status != EvalRunStatusEnum.Cancelled).ToList();
+        }
+
+        private static async Task FinishEvalRunAsync(TestServerHost host, EvalRun run, EvalRunStatusEnum status, double? score, CancellationToken token)
+        {
+            await host.Server.Context.Database.EvalRuns.TransitionAsync(host.TenantId, run.Id, EvalRunStatusEnum.Pending, EvalRunStatusEnum.Running, null, token).ConfigureAwait(false);
+            EvalRun stored = Assert.NotNull(await host.Server.Context.Database.EvalRuns.ReadAsync(host.TenantId, run.Id, token).ConfigureAwait(false), "Eval run");
+            stored.Score = score;
+            stored.CompletedCases = stored.TotalCases;
+            await host.Server.Context.Database.EvalRuns.UpdateAsync(stored, token).ConfigureAwait(false);
+            Assert.True(await host.Server.Context.Database.EvalRuns.TransitionAsync(host.TenantId, run.Id, EvalRunStatusEnum.Running, status, status == EvalRunStatusEnum.Failed ? "Budget exhausted." : null, token).ConfigureAwait(false), "Eval run " + run.Id + " moved to " + status);
         }
 
         private static async Task RoutesAsync(DatabaseTypeEnum provider, CancellationToken token)

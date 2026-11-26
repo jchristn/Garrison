@@ -25,7 +25,17 @@ namespace Garrison.Server.Runtime
     /// step it is promoted (candidate 1000, baseline 0). When the candidate's error rate or eval score crosses a threshold
     /// the release rolls back to the weights it started with and CanaryRolledBack is notified. Every move is a
     /// compare-and-set on the release's status or step index, so two replicas or a concurrent abort never apply weights
-    /// twice. Thread-safe.
+    /// twice.
+    /// <para>
+    /// An eval-gated step (evalSetId and minEvalScore) needs an eval run of the candidate on that set created since the
+    /// step started. Once the step's minimums are met and it has none, the sweep starts one (target the candidate
+    /// deployment, threshold minEvalScore) as the person who started the release, named canary:{releaseId}; later sweeps
+    /// wait for it and then use its score. Eval runs anyone else starts on the same set and candidate during the step
+    /// count too. A failed eval run, or one that cannot start (empty set, missing judge agent, the person lost Execute or
+    /// is inactive), rolls the release back, since the gate cannot pass. Duplicates started by two replicas at once
+    /// converge: every sweep keeps the oldest of the release's own pending or running eval runs and cancels the rest.
+    /// Thread-safe.
+    /// </para>
     /// </summary>
     public class CanaryService
     {
@@ -219,7 +229,18 @@ namespace Garrison.Server.Runtime
             GarrisonMetrics.Count(GarrisonMetricCatalog.CanaryTransitions, "result", "started");
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "CanaryRelease", release.Id, "Started canary release " + release.Id + " of agent " + agent.Name + ": " + candidate.Name + " against " + baseline.Name + " in " + release.Steps.Count + " steps (" + String.Join(", ", release.Steps.Select(s => s.WeightPercent + "%")) + "); initial weights " + candidate.Weight + " and " + baseline.Weight + ".", tenantId, token).ConfigureAwait(false);
             _Server.Logging.Info(_Header + "release " + release.Id + " started for agent " + agent.Name + " at " + release.Steps[0].WeightPercent + " percent");
-            return await ReadAsync(tenantId, release.Id, token).ConfigureAwait(false);
+            CanaryRelease stored = await ReadAsync(tenantId, release.Id, token).ConfigureAwait(false);
+            // The body's ValueClamped warnings (maxErrorRatePercent, minEvalScore, each step's weightPercent) are echoed in
+            // the create response.
+            stored.AddWarnings(body.Warnings);
+            for (int i = 0; i < body.Steps.Count; i++)
+            {
+                foreach (FieldWarning warning in body.Steps[i].Warnings ?? new List<FieldWarning>())
+                {
+                    stored.AddWarnings(new List<FieldWarning> { new FieldWarning("steps[" + i.ToString(CultureInfo.InvariantCulture) + "]." + warning.Field, warning.Code, warning.Given, warning.Stored, warning.Message) });
+                }
+            }
+            return stored;
         }
 
         /// <summary>
@@ -298,9 +319,14 @@ namespace Garrison.Server.Runtime
                     DateTime now = _Clock.GetUtcNow().UtcDateTime;
                     DateTime from = release.StepStartedUtc ?? release.CreatedUtc;
                     CanaryWindowCount window = await CountWindowAsync(release, from, token).ConfigureAwait(false);
-                    double? score = null;
-                    if (release.MinEvalScore.HasValue && !String.IsNullOrEmpty(release.EvalSetId)) score = await LatestEvalScoreAsync(release, token).ConfigureAwait(false);
-                    CanaryStepDecision decision = CanaryStepEvaluator.Evaluate(release, window.Finished, window.Failed, score, now);
+                    CanaryStepDecision decision = CanaryStepEvaluator.Evaluate(release, window.Finished, window.Failed, null, now);
+                    bool gated = release.MinEvalScore.HasValue && !String.IsNullOrEmpty(release.EvalSetId);
+                    if (gated && decision.Decision == CanaryDecisionEnum.Wait && CanaryStepEvaluator.StepReady(release, window.Finished, now))
+                    {
+                        // The step's minimums are met and only the eval gate is left: use the step's eval run, starting it
+                        // when there is none yet.
+                        decision = await StepEvalAsync(release, window, from, now, token).ConfigureAwait(false);
+                    }
                     span?.SetTag("garrison.canary.decision", decision.Decision.ToString());
                     CanaryStepDecision applied = await ApplyAsync(release, decision, now, token).ConfigureAwait(false);
                     GarrisonTracing.Ok(span);
@@ -387,15 +413,122 @@ namespace Garrison.Server.Runtime
             return count;
         }
 
-        private async Task<double?> LatestEvalScoreAsync(CanaryRelease release, CancellationToken token)
+        private async Task<CanaryStepDecision> StepEvalAsync(CanaryRelease release, CanaryWindowCount window, DateTime fromUtc, DateTime now, CancellationToken token)
         {
-            // The newest completed eval run of the candidate on the release's eval set since the release started.
+            // The step's eval runs: those of the candidate on the release's eval set created since the step started, by
+            // anyone. The newest completed one decides; a pending or running one is waited for; when every one failed the
+            // gate cannot pass and the release rolls back. With none (or only cancelled ones) the sweep starts one as the
+            // person who started the release.
+            string where = "step " + (release.CurrentStepIndex + 1).ToString(CultureInfo.InvariantCulture) + " of " + release.Steps.Count.ToString(CultureInfo.InvariantCulture);
+            List<EvalRun> live = (await StepEvalRunsAsync(release, fromUtc, token).ConfigureAwait(false)).Where(r => r.Status != EvalRunStatusEnum.Cancelled).ToList();
+            string? startedId = null;
+            if (live.Count == 0)
+            {
+                RequestContext? creator = await CreatorContextAsync(release, token).ConfigureAwait(false);
+                if (creator == null) return new CanaryStepDecision(CanaryDecisionEnum.RollBack, "The eval gate could not start an eval run at " + where + ": " + (release.CreatedByName ?? release.CreatedById ?? "the person") + " who started the release is no longer active.");
+                try
+                {
+                    EvalRunRequest request = new EvalRunRequest();
+                    request.SetId = release.EvalSetId;
+                    request.TargetType = EvalRunTargetEnum.Deployment;
+                    request.DeploymentId = release.CandidateDeploymentId;
+                    request.Threshold = release.MinEvalScore;
+                    startedId = (await _Server.Get<EvalRunService>().CreateAsync(creator, release.TenantId, request, token).ConfigureAwait(false)).Id;
+                }
+                catch (Exception e) when (e is ValidationException || e is NotFoundException || e is AppAccessException || e is ConflictException)
+                {
+                    return new CanaryStepDecision(CanaryDecisionEnum.RollBack, "The eval gate could not start an eval run of eval set " + release.EvalSetId + " on the candidate at " + where + ": " + e.Message);
+                }
+                _Server.Logging.Info(_Header + "release " + release.Id + " started eval run " + startedId + " for " + where);
+                live = (await StepEvalRunsAsync(release, fromUtc, token).ConfigureAwait(false)).Where(r => r.Status != EvalRunStatusEnum.Cancelled).ToList();
+            }
+
+            // Two replicas' sweeps may each have started one: every sweep keeps the oldest of the release's own pending or
+            // running eval runs and cancels the rest, so they converge on one.
+            List<EvalRun> ours = live
+                .Where(r => (r.Status == EvalRunStatusEnum.Pending || r.Status == EvalRunStatusEnum.Running) && String.Equals(r.StartedByName, CanaryPrincipalName(release), StringComparison.Ordinal))
+                .OrderBy(r => r.CreatedUtc).ThenBy(r => r.Id, StringComparer.Ordinal).ToList();
+            if (ours.Count > 1)
+            {
+                RequestContext system = new RequestContext { TenantId = release.TenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = CanaryPrincipalName(release) };
+                foreach (EvalRun duplicate in ours.Skip(1))
+                {
+                    try
+                    {
+                        await _Server.Get<EvalRunService>().CancelAsync(system, duplicate, "A duplicate of eval run " + ours[0].Id + " for canary release " + release.Id + ".", token).ConfigureAwait(false);
+                    }
+                    catch (ConflictException)
+                    {
+                        // It finished meanwhile; it stays among the step's eval runs.
+                        continue;
+                    }
+                    live.RemoveAll(r => r.Id == duplicate.Id);
+                    _Server.Logging.Info(_Header + "release " + release.Id + " cancelled duplicate eval run " + duplicate.Id);
+                }
+            }
+
+            EvalRun? completed = live.Where(r => r.Status == EvalRunStatusEnum.Completed && r.Score.HasValue).OrderByDescending(r => r.CompletedUtc ?? r.CreatedUtc).FirstOrDefault();
+            if (completed != null) return CanaryStepEvaluator.Evaluate(release, window.Finished, window.Failed, completed.Score, now);
+            EvalRun? active = live.Where(r => r.Status == EvalRunStatusEnum.Pending || r.Status == EvalRunStatusEnum.Running).OrderBy(r => r.CreatedUtc).ThenBy(r => r.Id, StringComparer.Ordinal).FirstOrDefault();
+            if (active != null)
+            {
+                string verb = startedId != null ? "Started" : "Waiting for";
+                return new CanaryStepDecision(CanaryDecisionEnum.Wait, verb + " eval run " + active.Id + " of the candidate on eval set " + release.EvalSetId + " at " + where + " (" + active.CompletedCases + " of " + active.TotalCases + " cases done); the step advances when it completes with a score of at least " + release.MinEvalScore!.Value.ToString("0.##", CultureInfo.InvariantCulture) + ".");
+            }
+            if (live.Count == 0) return new CanaryStepDecision(CanaryDecisionEnum.Wait, "Waiting for an eval run of the candidate on eval set " + release.EvalSetId + " at " + where + ".");
+            EvalRun last = live.OrderByDescending(r => r.CreatedUtc).First();
+            return new CanaryStepDecision(CanaryDecisionEnum.RollBack, "Eval run " + last.Id + " of the candidate on eval set " + release.EvalSetId + " ended " + last.Status + " at " + where + (String.IsNullOrEmpty(last.FailureReason) ? String.Empty : ": " + last.FailureReason) + "; the eval gate cannot pass.");
+        }
+
+        private async Task<List<EvalRun>> StepEvalRunsAsync(CanaryRelease release, DateTime fromUtc, CancellationToken token)
+        {
             EnumerationQuery query = new EnumerationQuery();
-            query.MaxResults = 25;
+            query.MaxResults = 100;
             query.Ordering = EnumerationOrderEnum.CreatedDescending;
-            EnumerationResult<EvalRun> page = await _Server.Database.EvalRuns.EnumerateAsync(release.TenantId, release.EvalSetId, release.CandidateDeploymentId, null, EvalRunStatusEnum.Completed, query, token).ConfigureAwait(false);
-            EvalRun? latest = page.Objects.Where(r => r.Score.HasValue && (r.CompletedUtc ?? r.CreatedUtc) >= release.CreatedUtc).OrderByDescending(r => r.CompletedUtc ?? r.CreatedUtc).FirstOrDefault();
-            return latest?.Score;
+            EnumerationResult<EvalRun> page = await _Server.Database.EvalRuns.EnumerateAsync(release.TenantId, release.EvalSetId, release.CandidateDeploymentId, null, null, query, token).ConfigureAwait(false);
+            return page.Objects.Where(r => r.TenantId == release.TenantId && r.CreatedUtc >= fromUtc).ToList();
+        }
+
+        private async Task<RequestContext?> CreatorContextAsync(CanaryRelease release, CancellationToken token)
+        {
+            // The step's eval run is started as the person who started the release, with what they may do today.
+            RequestContext ctx = new RequestContext();
+            ctx.IsAuthenticated = true;
+            ctx.TenantId = release.TenantId;
+            ctx.PrincipalType = release.CreatedByType;
+            ctx.PrincipalName = CanaryPrincipalName(release);
+            if (release.CreatedByType == PrincipalTypeEnum.Administrator)
+            {
+                ctx.IsAdmin = true;
+                ctx.UserId = release.CreatedById;
+                return ctx;
+            }
+            if (String.IsNullOrEmpty(release.CreatedById)) return null;
+            // A credential's release records the credential's owner as its creator (the request carried both), so an
+            // identifier that names no credential is read as that owner.
+            Credential? credential = release.CreatedByType == PrincipalTypeEnum.Credential ? await _Server.Database.Credentials.ReadAsync(release.TenantId, release.CreatedById, token).ConfigureAwait(false) : null;
+            if (credential != null)
+            {
+                if (!credential.Active) return null;
+                User? owner = await _Server.Database.Users.ReadAsync(release.TenantId, credential.UserId, token).ConfigureAwait(false);
+                ctx.CredentialId = credential.Id;
+                ctx.UserId = credential.UserId;
+                ctx.IsAdmin = owner != null && owner.IsAdmin;
+                ctx.IsTenantAdmin = owner != null && owner.IsTenantAdmin;
+                return ctx;
+            }
+            User? user = await _Server.Database.Users.ReadAsync(release.TenantId, release.CreatedById, token).ConfigureAwait(false);
+            if (user == null || !user.Active) return null;
+            ctx.PrincipalType = PrincipalTypeEnum.User;
+            ctx.UserId = user.Id;
+            ctx.IsAdmin = user.IsAdmin;
+            ctx.IsTenantAdmin = user.IsTenantAdmin;
+            return ctx;
+        }
+
+        private static string CanaryPrincipalName(CanaryRelease release)
+        {
+            return "canary:" + release.Id;
         }
 
         private async Task ApplyStepWeightsAsync(CanaryRelease release, int weightPercent, CancellationToken token)

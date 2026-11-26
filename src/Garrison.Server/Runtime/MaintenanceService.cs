@@ -950,7 +950,11 @@ namespace Garrison.Server.Runtime
             run.Status = transition.ToStatus;
             if (transition.Outcome.HasValue) run.Outcome = transition.Outcome.Value;
             run.CompletedUtc = Now;
+            if (transition.ErrorMessage != null) run.ErrorMessage = transition.ErrorMessage;
             await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
+            // Called only after this pass's transition won, so a shadow run that timed out, lost its lease, or failed
+            // blocked counts once as a candidate failure (AA9.7).
+            ShadowTrials?.OnRunFinished(run);
         }
 
         private async Task<bool> EnforceDeadlinesAsync(CancellationToken token)

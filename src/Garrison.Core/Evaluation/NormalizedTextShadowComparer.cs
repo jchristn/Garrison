@@ -36,6 +36,21 @@ namespace Garrison.Core.Evaluation
         #region Public-Methods
 
         /// <inheritdoc />
+        public Task<ShadowComparison> CompareAsync(ShadowComparisonRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return CompareAsync(request.Trial, request.SourceOutput, request.CandidateOutput, token);
+        }
+
+        /// <summary>
+        /// Compare two outputs.
+        /// </summary>
+        /// <param name="trial">Trial (not consulted by this comparer).</param>
+        /// <param name="sourceOutput">Source output, or null.</param>
+        /// <param name="candidateOutput">Candidate output, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Whether the outputs agree, with a note; never null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when trial is null.</exception>
         public Task<ShadowComparison> CompareAsync(ShadowTrial trial, string? sourceOutput, string? candidateOutput, CancellationToken token = default)
         {
             if (trial == null) throw new ArgumentNullException(nameof(trial));

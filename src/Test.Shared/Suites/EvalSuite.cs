@@ -175,8 +175,11 @@ namespace Test.Shared.Suites
             Assert.True(hidden.InputText.Length == 0 && hidden.ExpectedText == null && hidden.Checks.Single().Argument == null && hidden.Checks.Single().Scorer == EvalScorerEnum.Contains, "A hidden case keeps its scorers only");
             EvalCase shown = EvalRedaction.Case(new EvalCase { InputText = "open", ExpectedText = "yes" });
             Assert.True(shown.InputText == "open" && shown.ExpectedText == "yes", "A visible case is untouched");
-            List<EvalCaseResult> results = EvalRedaction.Results(new List<EvalCaseResult> { new EvalCaseResult { CaseId = "evc_h", OutputText = "secret", Score = 1, CheckResults = new List<EvalCaseCheckResult> { new EvalCaseCheckResult { Note = "quotes secret", Score = 1 } } }, new EvalCaseResult { CaseId = "evc_v", OutputText = "fine" } }, new HashSet<string> { "evc_h" });
+            List<EvalCaseResult> results = EvalRedaction.Results(new List<EvalCaseResult> { new EvalCaseResult { CaseId = "evc_h", OutputText = "secret", Score = 1, RunId = "run_h", SourceRunId = "run_s", CheckResults = new List<EvalCaseCheckResult> { new EvalCaseCheckResult { Note = "quotes secret", Score = 1, JudgeRunId = "run_j" } } }, new EvalCaseResult { CaseId = "evc_v", OutputText = "fine", RunId = "run_v" } }, new HashSet<string> { "evc_h" });
             Assert.True(results[0].OutputText == null && results[0].CheckResults[0].Note == null && results[0].Score == 1 && results[1].OutputText == "fine", "Hidden results keep scores only");
+            Assert.True(results[0].RunId == null && results[0].SourceRunId == null && results[0].CheckResults[0].JudgeRunId == null && results[1].RunId == "run_v", "Hidden results name no case, source, or judge run, whose input holds the case");
+            Assert.True(HiddenEvalRunPolicy.CaseOrder("evr_1", "eval:evr_1:3") == 3 && HiddenEvalRunPolicy.CaseOrder("evr_1", "eval:evr_1:12:judge:0") == 12, "Case and judge run keys name the case order");
+            Assert.True(HiddenEvalRunPolicy.CaseOrder("evr_1", "eval:evr_2:3") == null && HiddenEvalRunPolicy.CaseOrder("evr_1", "eval:evr_1:x") == null && HiddenEvalRunPolicy.CaseOrder("evr_1", null) == null, "Other keys name none");
             return Task.CompletedTask;
         }
 
@@ -429,6 +432,7 @@ namespace Test.Shared.Suites
                     EvalCaseResult hidden = detail.Results!.Single(r => r.Order == 1);
                     Assert.True(visible.OutputText != null && visible.OutputText.Contains("visible question", StringComparison.Ordinal), "The visible case's output is shown");
                     Assert.True(hidden.OutputText == null && hidden.Passed && hidden.Score == 1 && hidden.CheckResults.All(c => c.Note == null), "The hidden case comes back as scores only: " + Serializer.Serialize(hidden));
+                    Assert.True(hidden.RunId == null && hidden.SourceRunId == null && hidden.CheckResults.All(c => c.JudgeRunId == null) && visible.RunId != null, "The hidden case names no run to read: " + Serializer.Serialize(hidden));
                     Assert.True(detail.EvalRun.Score == 1, "The score is shown");
                     EvalRun adminRun = await HttpTestHelpers.SendAsync<EvalRun>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-runs", new EvalRunRequest { SetId = set.Id, AgentId = worker.Name }, 201, token).ConfigureAwait(false);
                     await client.ExpectErrorAsync("garrison_get_eval_run", new { evalRunId = adminRun.Id }, "NotFound", token).ConfigureAwait(false);
@@ -436,6 +440,31 @@ namespace Test.Shared.Suites
                 }
                 List<EvalCaseResult> full = await HttpTestHelpers.SendAsync<List<EvalCaseResult>>(host.AdminClient, HttpMethod.Get, T(host) + "/eval-runs/" + draftRunId + "/results", null, 200, token).ConfigureAwait(false);
                 Assert.True(full.Single(r => r.Order == 1).OutputText!.Contains("hidden secret", StringComparison.Ordinal), "People see the hidden case's output");
+
+                // The hidden case's run holds its input, so no run token can read it by identifier, list, events,
+                // transcript, or WebSocket; the visible case's run stays readable, and people read both.
+                string hiddenRunId = full.Single(r => r.Order == 1).RunId!;
+                string visibleRunId = full.Single(r => r.Order == 0).RunId!;
+                Assert.Equal(200, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/runs/" + hiddenRunId, null, token).ConfigureAwait(false)).StatusCode, "People read the hidden case's run");
+                using (HttpClient agentClient = new HttpClient { BaseAddress = new Uri(host.BaseUrl) })
+                {
+                    agentClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+                    Assert.Equal(200, (await HttpTestHelpers.SendAsync(agentClient, HttpMethod.Get, T(host) + "/runs/" + visibleRunId, null, token).ConfigureAwait(false)).StatusCode, "A run token reads the visible case's run");
+                    foreach (string suffix in new[] { String.Empty, "/events", "/transcript", "/children" })
+                    {
+                        TestResponse refused = await HttpTestHelpers.SendAsync(agentClient, HttpMethod.Get, T(host) + "/runs/" + hiddenRunId + suffix, null, token).ConfigureAwait(false);
+                        Assert.True(refused.StatusCode == 404 && !refused.Body.Contains("hidden secret", StringComparison.Ordinal), "GET /runs/{hidden}" + suffix + " answers 404 to a run token: " + refused.StatusCode + " " + refused.Body);
+                    }
+                    EnumerationResult<Run> listed = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(agentClient, HttpMethod.Get, T(host) + "/runs?agentId=" + worker.Id + "&maxResults=1000", null, 200, token).ConfigureAwait(false);
+                    Assert.True(listed.Objects.Any(r => r.Id == visibleRunId) && !listed.Objects.Any(r => r.Id == hiddenRunId) && !listed.Objects.Any(r => (r.InputText ?? String.Empty).Contains("hidden secret", StringComparison.Ordinal)), "The run list leaves the hidden case's run out for a run token");
+                }
+                using (ClientWebSocket socket = new ClientWebSocket())
+                {
+                    await socket.ConnectAsync(new Uri(host.BaseUrl.Replace("http://", "ws://", StringComparison.Ordinal) + "/v1.0/ws?token=" + Uri.EscapeDataString(bearer)), token).ConfigureAwait(false);
+                    await socket.SendAsync(Encoding.UTF8.GetBytes("{\"type\":\"subscribe\",\"channel\":\"run:" + hiddenRunId + "\"}"), WebSocketMessageType.Text, true, token).ConfigureAwait(false);
+                    List<string> replies = await CollectAsync(socket, "error", token).ConfigureAwait(false);
+                    Assert.True(replies.Last().Contains("Run not found", StringComparison.Ordinal) && !replies.Any(m => m.Contains("subscribed", StringComparison.Ordinal)), "The run channel of the hidden case's run is refused to a run token: " + String.Join(" | ", replies));
+                }
             }
         }
 

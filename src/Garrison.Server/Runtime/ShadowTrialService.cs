@@ -28,8 +28,10 @@ namespace Garrison.Server.Runtime
         #region Public-Members
 
         /// <summary>
-        /// Compares a shadow run's output with its source's. Default <see cref="NormalizedTextShadowComparer"/>. Setting
-        /// null restores the default.
+        /// Compares a shadow run's output with its source's. Default <see cref="NormalizedTextShadowComparer"/>; the
+        /// runtime module sets <see cref="EvalSetShadowComparer"/>, which scores with the trial's comparison eval set and
+        /// judge and falls back to normalized text. Setting null restores the default. A comparer that throws leaves the
+        /// shadow run uncounted (logged as a warning, comparison metric result error).
         /// </summary>
         public IShadowComparer Comparer
         {
@@ -172,7 +174,7 @@ namespace Garrison.Server.Runtime
         /// <param name="tenantId">Tenant identifier.</param>
         /// <param name="body">Trial: sourceDeploymentId and candidateDeploymentId (identifiers or names), samplePercent, optional name, endsUtc, comparisonEvalSetId, useJudge.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>The stored trial; samplePercent outside 1 to 100 is clamped.</returns>
+        /// <returns>The stored trial; samplePercent outside 1 to 100 is clamped and the clamp is echoed in Warnings.</returns>
         /// <exception cref="ArgumentNullException">Thrown when ctx or body is null.</exception>
         /// <exception cref="AppAccessException">Thrown with 403 PeopleOnly for a run token, or Forbidden when the caller may not execute the agent.</exception>
         /// <exception cref="ValidationException">Thrown when a field is invalid.</exception>
@@ -194,8 +196,27 @@ namespace Garrison.Server.Runtime
             if (!String.IsNullOrWhiteSpace(body.AgentId) && body.AgentId.Trim() != source.AgentId) throw Invalid("agentId", "AgentMismatch", "agentId must be the source deployment's agent, or left out.");
             if (body.EndsUtc.HasValue && body.EndsUtc.Value <= _Clock.GetUtcNow().UtcDateTime) throw Invalid("endsUtc", "EndsInPast", "endsUtc must be in the future, or left out to run until stopped.");
             string? evalSetId = String.IsNullOrWhiteSpace(body.ComparisonEvalSetId) ? null : body.ComparisonEvalSetId.Trim();
-            if (evalSetId != null && await _Server.Database.EvalSets.ReadAsync(tenantId, evalSetId, token).ConfigureAwait(false) == null)
+            EvalSet? comparisonSet = evalSetId == null ? null : await _Server.Database.EvalSets.ReadAsync(tenantId, evalSetId, token).ConfigureAwait(false);
+            if (evalSetId != null && comparisonSet == null)
                 throw Invalid("comparisonEvalSetId", "EvalSetNotFound", "comparisonEvalSetId names no eval set in this tenant.");
+            if (body.UseJudge || comparisonSet != null)
+            {
+                // A judge comparison runs the set's judge agent; check it exists now rather than failing every comparison.
+                bool judged = body.UseJudge;
+                if (comparisonSet != null && !judged)
+                {
+                    List<EvalCase> cases = await _Server.Database.EvalCases.ListBySetAsync(tenantId, comparisonSet.Id, token).ConfigureAwait(false);
+                    judged = cases.SelectMany(c => c.Checks).Any(c => c.Scorer == EvalScorerEnum.Judge);
+                }
+                if (judged)
+                {
+                    if (comparisonSet == null) throw Invalid("useJudge", "JudgeAgentRequired", "useJudge runs the comparison eval set's judge agent; set comparisonEvalSetId to an eval set with a judgeAgent.");
+                    if (String.IsNullOrWhiteSpace(comparisonSet.JudgeAgent)) throw Invalid("comparisonEvalSetId", "JudgeAgentRequired", "Eval set " + comparisonSet.Name + " has no judgeAgent, but the comparison needs a judge (useJudge, or the set's Judge checks); set its judgeAgent.");
+                    Agent? judgeAgent = await _Server.Database.Agents.ReadAsync(tenantId, comparisonSet.JudgeAgent, token).ConfigureAwait(false)
+                        ?? await _Server.Database.Agents.ReadByNameAsync(tenantId, comparisonSet.JudgeAgent, token).ConfigureAwait(false);
+                    if (judgeAgent == null) throw Invalid("comparisonEvalSetId", "JudgeAgentNotFound", "Judge agent " + comparisonSet.JudgeAgent + " of eval set " + comparisonSet.Name + " was not found.");
+                }
+            }
             AuthorizationDecision execute = await _Server.Authorization.AuthorizeAsync(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, source.AgentId, token).ConfigureAwait(false);
             if (!execute.Permitted) throw new AppAccessException(403, "Forbidden", "Starting a shadow trial runs the agent, which needs Agent.Execute: " + execute.Reason);
             List<ShadowTrial> running = await _Server.Database.ShadowTrials.ListRunningBySourceDeploymentAsync(tenantId, source.Id, token).ConfigureAwait(false);
@@ -219,7 +240,10 @@ namespace Garrison.Server.Runtime
             await _Server.Database.ShadowTrials.CreateAsync(trial, token).ConfigureAwait(false);
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "ShadowTrial", trial.Id, "Started shadow trial " + trial.Id + ": " + trial.SamplePercent + " percent of deployment " + source.Name + "'s runs copied to " + candidate.Name + (trial.EndsUtc.HasValue ? " until " + trial.EndsUtc.Value.ToString("u", System.Globalization.CultureInfo.InvariantCulture) : String.Empty) + ".", tenantId, token).ConfigureAwait(false);
             _Server.Logging.Info(_Header + "trial " + trial.Id + " started: " + source.Name + " to " + candidate.Name + " at " + trial.SamplePercent + " percent");
-            return await ReadAsync(tenantId, trial.Id, token).ConfigureAwait(false);
+            ShadowTrial stored = await ReadAsync(tenantId, trial.Id, token).ConfigureAwait(false);
+            // The body's ValueClamped warnings (samplePercent outside 1 to 100) are echoed in the create response.
+            stored.AddWarnings(body.Warnings);
+            return stored;
         }
 
         /// <summary>
@@ -361,7 +385,11 @@ namespace Garrison.Server.Runtime
                         GarrisonTracing.Fail(span, "The source run of shadow run " + shadow.Id + " is gone.");
                         return null;
                     }
-                    ShadowComparison comparison = await _Comparer.CompareAsync(trial, ShadowSampling.Output(source), ShadowSampling.Output(shadow), token).ConfigureAwait(false)
+                    ShadowComparisonRequest request = new ShadowComparisonRequest(trial, ShadowSampling.Output(source), ShadowSampling.Output(shadow));
+                    request.Input = source.InputText;
+                    request.SourceRunId = source.Id;
+                    request.ShadowRunId = shadow.Id;
+                    ShadowComparison comparison = await _Comparer.CompareAsync(request, token).ConfigureAwait(false)
                         ?? new ShadowComparison(false, "The comparer returned nothing.");
                     await _Server.Database.ShadowTrials.IncrementCountsAsync(trial.TenantId, trial.Id, 1, comparison.Agreed ? 1 : 0, comparison.Agreed ? 0 : 1, 0, token).ConfigureAwait(false);
                     GarrisonMetrics.Count(GarrisonMetricCatalog.ShadowComparisons, "result", comparison.Agreed ? "agreed" : "diverged");

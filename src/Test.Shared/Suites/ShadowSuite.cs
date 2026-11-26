@@ -48,6 +48,8 @@ namespace Test.Shared.Suites
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "refusals", "A shadow run's token is refused an effectful tool, a message, a memory write, a report, an escalation, and file write-back with ShadowRunRefused; its permission prompt is denied; its tool list hides them (" + provider + ")", ct => RefusalsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "trial", "A source run on the fake harness finishes unaffected; its input is copied once to three candidates as Shadow runs that agree, diverge, and fail (" + provider + ")", ct => TrialAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "comparison", "A trial with a comparison eval set is scored with the set's checks against the source output; useJudge runs the set's judge agent with eval-judge; a judge without a judge agent is refused at start (" + provider + ")", ct => ComparisonAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "terminal", "A shadow run cancelled in the queue or timed out by the maintenance pass counts once as a candidate failure; a clamped samplePercent is echoed (" + provider + ")", ct => TerminalAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "sweep", "The leader's sweep completes a trial at its end time and leaves an open-ended one running (" + provider + ")", ct => SweepAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "POST /shadow-trials validation and 409, GET list filters and one, POST stop and stop again, cross-tenant 404, Viewer reads but cannot start, MCP tools for people only (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Shadow trials (" + provider + ")", cases));
@@ -312,6 +314,130 @@ namespace Test.Shared.Suites
                     await person.ExpectErrorAsync("garrison_get_shadow_trial", new { trialId = foreign.Id }, "NotFound", token).ConfigureAwait(false);
                 }
             }
+        }
+
+        private static async Task ComparisonAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                Agent agent = await cluster.CreateAgentAsync("shadow-scored", "builtin/fake", null, token).ConfigureAwait(false);
+                await cluster.CreateAgentAsync("shadow-judge", "builtin/fake", null, token, d => d.Parameters.Add(new DeploymentParameter { Name = "answer", Value = "{\"score\": 0.9, \"passed\": true, \"reason\": \"Says the same thing.\"}" })).ConfigureAwait(false);
+                Deployment source = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "shadow-scored-default", token).ConfigureAwait(false), "Source deployment");
+                Deployment schemaCandidate = await CandidateAsync(host, agent, "shadow-scored-schema", "builtin/fake", token).ConfigureAwait(false);
+                Deployment judgedCandidate = await CandidateAsync(host, agent, "shadow-scored-judged", "builtin/fake", token).ConfigureAwait(false);
+
+                EvalSet schemaSet = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "shadow-schema", Cases = new List<EvalCase> { new EvalCase { InputText = "anything", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.JsonSchemaValid, Argument = "{\"type\":\"object\"}" } } } } }, 201, token).ConfigureAwait(false);
+                EvalSet judgedSet = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "shadow-judged", JudgeAgent = "shadow-judge", Cases = new List<EvalCase> { new EvalCase { InputText = "anything", ExpectedText = "anything" } } }, 201, token).ConfigureAwait(false);
+                EvalSet judgeless = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "shadow-judgeless", Cases = new List<EvalCase> { new EvalCase { InputText = "anything", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Judge, Argument = "Same meaning?" } } } } }, 201, token).ConfigureAwait(false);
+
+                // A judge needs a set with a judge agent, checked when the trial starts.
+                await ExpectAsync(host, new ShadowTrial { SourceDeploymentId = source.Id, CandidateDeploymentId = schemaCandidate.Id, UseJudge = true }, 400, "JudgeAgentRequired", token).ConfigureAwait(false);
+                await ExpectAsync(host, new ShadowTrial { SourceDeploymentId = source.Id, CandidateDeploymentId = schemaCandidate.Id, ComparisonEvalSetId = judgeless.Id }, 400, "JudgeAgentRequired", token).ConfigureAwait(false);
+                await ExpectAsync(host, new ShadowTrial { SourceDeploymentId = source.Id, CandidateDeploymentId = schemaCandidate.Id, ComparisonEvalSetId = schemaSet.Id, UseJudge = true }, 400, "JudgeAgentRequired", token).ConfigureAwait(false);
+
+                ShadowTrial schemaTrial = await HttpTestHelpers.SendAsync<ShadowTrial>(host.AdminClient, HttpMethod.Post, T(host) + "/shadow-trials", new ShadowTrial { SourceDeploymentId = source.Id, CandidateDeploymentId = schemaCandidate.Id, SamplePercent = 100, ComparisonEvalSetId = schemaSet.Id }, 201, token).ConfigureAwait(false);
+                ShadowTrial judgedTrial = await HttpTestHelpers.SendAsync<ShadowTrial>(host.AdminClient, HttpMethod.Post, T(host) + "/shadow-trials", new ShadowTrial { SourceDeploymentId = source.Id, CandidateDeploymentId = judgedCandidate.Id, SamplePercent = 100, ComparisonEvalSetId = judgedSet.Id, UseJudge = true }, 201, token).ConfigureAwait(false);
+
+                Run started = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/" + agent.Id + "/invoke", new InvokeRequest { Input = "Describe the scored trial.", Wait = false }, 202, token).ConfigureAwait(false);
+                Run sourceRun = await WaitTerminalAsync(host, started.Id, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Succeeded, sourceRun.Status, "The source run succeeded");
+                ShadowTrialService service = host.Server.Context.Get<ShadowTrialService>();
+                Run schemaShadow = await ShadowRunAsync(host, service, schemaTrial, token).ConfigureAwait(false);
+                Run judgedShadow = await ShadowRunAsync(host, service, judgedTrial, token).ConfigureAwait(false);
+                Assert.True(schemaShadow.Status == RunStatusEnum.Succeeded && judgedShadow.Status == RunStatusEnum.Succeeded, "Both shadow runs succeeded");
+
+                // The same harness gives the same text, but the set's JsonSchemaValid check fails plain text: the set decides.
+                ShadowTrial schemaCounts = await CountsAsync(host, service, schemaTrial, t => t.ComparedCount == 1, token).ConfigureAwait(false);
+                Assert.True(schemaCounts.DivergedCount == 1 && schemaCounts.AgreedCount == 0, "Scored with the set's checks, not text equality: " + Serializer.Serialize(schemaCounts));
+                Assert.True((await service.Comparer.CompareAsync(new ShadowComparisonRequest(schemaTrial, "{\"a\":1}", "{\"b\":2}"), token).ConfigureAwait(false)).Agreed, "Two different JSON objects agree on a schema-only set");
+
+                // UseJudge runs the set's judge agent with the eval-judge prompt; its verdict passes, so the outputs agree.
+                ShadowTrial judgedCounts = await CountsAsync(host, service, judgedTrial, t => t.ComparedCount == 1, token).ConfigureAwait(false);
+                Assert.True(judgedCounts.AgreedCount == 1 && judgedCounts.DivergedCount == 0, "The judge's verdict decides: " + Serializer.Serialize(judgedCounts));
+                Agent judge = Assert.NotNull(await host.Server.Context.Database.Agents.ReadByNameAsync(host.TenantId, "shadow-judge", token).ConfigureAwait(false), "Judge agent");
+                EnumerationResult<Run> judgeRuns = await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, AgentId = judge.Id }, token).ConfigureAwait(false);
+                Run judgeRun = judgeRuns.Objects.Single();
+                Assert.True(judgeRun.Kind == RunKindEnum.Eval && judgeRun.IdempotencyKey != null && judgeRun.IdempotencyKey.StartsWith("shadow:" + judgedTrial.Id + ":" + judgedShadow.Id + ":judge", StringComparison.Ordinal), "One Eval run of the judge, keyed by the shadow run: " + judgeRun.IdempotencyKey);
+                string judgeInput = judgeRun.InputText ?? String.Empty;
+                Assert.True(judgeInput.StartsWith("You are grading one answer", StringComparison.Ordinal) && judgeInput.Contains("Describe the scored trial.", StringComparison.Ordinal) && judgeInput.Contains(sourceRun.ResultText ?? "missing", StringComparison.Ordinal), "The judge's input comes from builtin/eval-judge with the input and the source output as the reference: " + judgeInput);
+                EnumerationResult<Run> judgedTrialRuns = await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, ShadowTrialId = judgedTrial.Id }, token).ConfigureAwait(false);
+                Assert.Equal(1, judgedTrialRuns.Objects.Count, "The judge run is not a shadow run of the trial");
+            }
+        }
+
+        private static async Task TerminalAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                Agent agent = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "shadow-ends" }, token).ConfigureAwait(false);
+                Deployment source = await DeploymentAsync(host, agent, "shadow-ends-a", token).ConfigureAwait(false);
+                Deployment candidate = await DeploymentAsync(host, agent, "shadow-ends-b", token).ConfigureAwait(false);
+
+                // samplePercent outside 1 to 100 is clamped, and the create response says so.
+                WarningsEnvelope echoed = await HttpTestHelpers.SendAsync<WarningsEnvelope>(host.AdminClient, HttpMethod.Post, T(host) + "/shadow-trials", new { sourceDeploymentId = source.Id, candidateDeploymentId = candidate.Id, samplePercent = 150 }, 201, token).ConfigureAwait(false);
+                FieldWarning? warning = (echoed.Warnings ?? new List<FieldWarning>()).FirstOrDefault(w => w.Field == "samplePercent");
+                Assert.True(warning != null && warning.Code == "ValueClamped" && warning.Given == "150" && warning.Stored == "100", "The clamp is echoed in the create response: " + Serializer.Serialize(echoed));
+                ShadowTrialService service = host.Server.Context.Get<ShadowTrialService>();
+                ShadowTrial trial = await service.ReadAsync(host.TenantId, echoed.Id, token).ConfigureAwait(false);
+                Assert.Equal(100, trial.SamplePercent, "Stored clamped");
+
+                // No worker runs here: the shadow run waits in the queue, and a cancel there ends it without a worker report.
+                Run queuedShadow = await CopiedAsync(host, service, trial, agent, source, "cancel me", token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Queued, queuedShadow.Status, "The shadow run is queued");
+                await host.Server.Context.Get<RunService>().CancelAsync(queuedShadow, token).ConfigureAwait(false);
+                ShadowTrial afterCancel = await CountsAsync(host, service, trial, t => t.CandidateFailureCount >= 1, token).ConfigureAwait(false);
+                Assert.True(afterCancel.CandidateFailureCount == 1 && afterCancel.ComparedCount == 0, "A cancelled shadow run counts as a candidate failure: " + Serializer.Serialize(afterCancel));
+                try
+                {
+                    await host.Server.Context.Get<RunService>().CancelAsync((await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, queuedShadow.Id, token).ConfigureAwait(false))!, token).ConfigureAwait(false);
+                    throw new TestAssertionException("Cancelling a finished run succeeded.");
+                }
+                catch (ConflictException)
+                {
+                }
+
+                // A shadow run past its deadline without a result from its node times out in the maintenance pass.
+                Run lateShadow = await CopiedAsync(host, service, trial, agent, source, "too slow", token).ConfigureAwait(false);
+                Run late = (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, lateShadow.Id, token).ConfigureAwait(false))!;
+                RunTransition running = new RunTransition();
+                running.RunId = late.Id;
+                running.FromStatuses.Add(RunStatusEnum.Queued);
+                running.ToStatus = RunStatusEnum.Running;
+                Assert.True(await host.Server.Context.Database.Runs.TransitionAsync(running, token).ConfigureAwait(false), "Marked running");
+                late = (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, late.Id, token).ConfigureAwait(false))!;
+                late.DeadlineUtc = DateTime.UtcNow.AddMinutes(-1);
+                late.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(10);
+                await host.Server.Context.Database.Runs.UpdateAsync(late, token).ConfigureAwait(false);
+                MaintenanceService maintenance = host.Server.Context.Get<MaintenanceService>();
+                await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.TimedOut, (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, late.Id, token).ConfigureAwait(false))!.Status, "The late shadow run timed out");
+                ShadowTrial afterDeadline = await CountsAsync(host, service, trial, t => t.CandidateFailureCount >= 2, token).ConfigureAwait(false);
+                await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                await service.DrainAsync(5000, token).ConfigureAwait(false);
+                ShadowTrial settled = await service.ReadAsync(host.TenantId, trial.Id, token).ConfigureAwait(false);
+                Assert.True(afterDeadline.CandidateFailureCount == 2 && settled.CandidateFailureCount == 2 && settled.ComparedCount == 0, "Each ended shadow run counts once: " + Serializer.Serialize(settled));
+            }
+        }
+
+        private static async Task<Run> CopiedAsync(TestServerHost host, ShadowTrialService service, ShadowTrial trial, Agent agent, Deployment source, string input, CancellationToken token)
+        {
+            Run run = new Run();
+            run.Id = IdGenerator.NewRunId();
+            run.TenantId = host.TenantId;
+            run.AgentId = agent.Id;
+            run.AgentName = agent.Name;
+            run.DeploymentId = source.Id;
+            run.Kind = RunKindEnum.Invoke;
+            run.Status = RunStatusEnum.Succeeded;
+            run.InputText = input;
+            run.ResultText = "done: " + input;
+            run.CompletedUtc = DateTime.UtcNow;
+            run.CallerType = PrincipalTypeEnum.Administrator;
+            run = await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+            Assert.Equal(1, await service.CopyAsync(run, token).ConfigureAwait(false), "Copied to the candidate");
+            EnumerationResult<Run> shadows = await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, ShadowTrialId = trial.Id, MaxResults = 100 }, token).ConfigureAwait(false);
+            return shadows.Objects.Single(r => ShadowSampling.SourceRunId(r) == run.Id);
         }
 
         private static async Task ExpectAsync(TestServerHost host, ShadowTrial body, int status, string code, CancellationToken token)

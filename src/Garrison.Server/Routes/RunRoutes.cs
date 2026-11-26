@@ -179,7 +179,7 @@ namespace Garrison.Server.Routes
             filter.Skip = query.Skip;
             filter.MaxResults = query.MaxResults;
             filter.Ordering = query.Ordering;
-            EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
+            EnumerationResult<Run> page = await VisibleAsync(context, await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false)).ConfigureAwait(false);
             await _Blocked.AnnotateManyAsync(page.Objects, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, page).ConfigureAwait(false);
         }
@@ -361,7 +361,7 @@ namespace Garrison.Server.Routes
             filter.ParentRunId = run.Id;
             filter.MaxResults = 1000;
             filter.Ordering = EnumerationOrderEnum.CreatedAscending;
-            EnumerationResult<Run> children = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
+            EnumerationResult<Run> children = await VisibleAsync(context, await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false)).ConfigureAwait(false);
             await _Blocked.AnnotateManyAsync(children.Objects, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, children).ConfigureAwait(false);
         }
@@ -398,7 +398,26 @@ namespace Garrison.Server.Routes
         {
             string tenantId = RouteHelpers.Tenant(context);
             string id = RouteHelpers.Param(context, "id") ?? String.Empty;
-            return await _Context.Database.Runs.ReadAsync(tenantId, id, context.Token).ConfigureAwait(false) ?? throw new NotFoundException("Run " + id + " not found.");
+            Run run = await _Context.Database.Runs.ReadAsync(tenantId, id, context.Token).ConfigureAwait(false) ?? throw new NotFoundException("Run " + id + " not found.");
+            // AA-024: the runs of hidden eval cases hold the case, so run tokens are answered as if they did not exist.
+            if (await HiddenRuns().HiddenAsync(RouteHelpers.Context(context), run, context.Token).ConfigureAwait(false)) throw new NotFoundException("Run " + id + " not found.");
+            return run;
+        }
+
+        private HiddenEvalRunPolicy HiddenRuns()
+        {
+            return _Context.TryGet<HiddenEvalRunPolicy>() ?? new HiddenEvalRunPolicy(_Context.Database);
+        }
+
+        private async Task<EnumerationResult<Run>> VisibleAsync(HttpContextBase context, EnumerationResult<Run> page)
+        {
+            List<Run> visible = await HiddenRuns().VisibleAsync(RouteHelpers.Context(context), page.Objects, context.Token).ConfigureAwait(false);
+            if (visible.Count != page.Objects.Count)
+            {
+                page.TotalRecords = Math.Max(0, page.TotalRecords - (page.Objects.Count - visible.Count));
+                page.Objects = visible;
+            }
+            return page;
         }
 
         private async Task<Agent> ResolveAgentAsync(string tenantId, string? agentId, string? agentName, HttpContextBase context)

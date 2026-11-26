@@ -66,6 +66,13 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public PipelineService? Pipelines { get; set; } = null;
 
+        /// <summary>
+        /// Shadow trials (AA9.7). When set, a run the scheduler ends itself (it failed to compile, or was rejected at
+        /// lease time) is reported to the trials, so such a shadow run counts as a candidate failure. Reported only when
+        /// the scheduler's transition won, so each run once. Default null.
+        /// </summary>
+        public ShadowTrialService? ShadowTrials { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -610,14 +617,16 @@ namespace Garrison.Server.Runtime
                 failed.ErrorMessage = e.Code + ": " + e.Message;
                 failed.ClearLease = true;
                 failed.SetCompleted = true;
-                await _Database.Runs.TransitionAsync(failed, token).ConfigureAwait(false);
+                bool ended = await _Database.Runs.TransitionAsync(failed, token).ConfigureAwait(false);
                 await _Database.Sessions.RevokeByRunAsync(run.Id, "Run failed to compile.", token).ConfigureAwait(false);
                 if (CredentialBroker != null) await CredentialBroker.RevokeRunAsync(run.TenantId, run.Id, epoch, token).ConfigureAwait(false);
                 _Signals.Complete(run.Id);
                 run.Status = failed.ToStatus;
                 run.Outcome = failed.Outcome ?? RunOutcomeEnum.CompileFailed;
+                run.ErrorMessage = failed.ErrorMessage;
                 run.CompletedUtc = DateTime.UtcNow;
                 await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
+                if (ended) ShadowTrials?.OnRunFinished(run);
                 return null;
             }
         }
@@ -635,13 +644,14 @@ namespace Garrison.Server.Runtime
             rejected.ErrorMessage = reason;
             rejected.ClearLease = true;
             rejected.SetCompleted = true;
-            await _Database.Runs.TransitionAsync(rejected, token).ConfigureAwait(false);
+            bool ended = await _Database.Runs.TransitionAsync(rejected, token).ConfigureAwait(false);
             await _Database.Sessions.RevokeByRunAsync(run.Id, "Run rejected.", token).ConfigureAwait(false);
             _Signals.Complete(run.Id);
             run.Status = RunStatusEnum.Rejected;
             run.Outcome = RunOutcomeEnum.Rejected;
             run.CompletedUtc = DateTime.UtcNow;
             await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
+            if (ended) ShadowTrials?.OnRunFinished(run);
         }
 
         #endregion

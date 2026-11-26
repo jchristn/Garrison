@@ -7,8 +7,9 @@ namespace Garrison.Core.Evaluation
 
     /// <summary>
     /// Hides hidden cases from run tokens (AA9.5, AA-024): a run sees a hidden case's name, order, checks' scorers and
-    /// weights, and its scores, never its input, expected text, check arguments, file contents, the target's output, or
-    /// the judge's notes (which may quote the input). Mutates the objects passed in. Thread-safe for distinct objects.
+    /// weights, and its scores, never its input, expected text, check arguments, file contents, the target's output, the
+    /// judge's notes (which may quote the input), or the identifiers of the case and judge runs (whose input holds the
+    /// case). Mutates the objects passed in. Thread-safe for distinct objects.
     /// </summary>
     public static class EvalRedaction
     {
@@ -46,7 +47,14 @@ namespace Garrison.Core.Evaluation
             {
                 result.OutputText = null;
                 result.ErrorMessage = result.ErrorMessage == null ? null : "The case is hidden.";
-                foreach (EvalCaseCheckResult check in result.CheckResults) check.Note = null;
+                // The case run and judge runs carry the hidden input, so their identifiers are withheld too.
+                result.RunId = null;
+                result.SourceRunId = null;
+                foreach (EvalCaseCheckResult check in result.CheckResults)
+                {
+                    check.Note = null;
+                    check.JudgeRunId = null;
+                }
             }
             return results;
         }

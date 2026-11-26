@@ -3124,6 +3124,12 @@ namespace Garrison.Server.Protocols
             filter.MaxResults = (int)Math.Clamp(args?.GetInt64("maxResults") ?? 25, 1, 100);
             if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId)) filter.RootRunId = await RootOfAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
+            List<Run> visible = await HiddenRuns().VisibleAsync(ctx, page.Objects, token).ConfigureAwait(false);
+            if (visible.Count != page.Objects.Count)
+            {
+                page.TotalRecords = Math.Max(0, page.TotalRecords - (page.Objects.Count - visible.Count));
+                page.Objects = visible;
+            }
             McpRunList list = new McpRunList();
             BlockedRunService? blocked = _Context.TryGet<BlockedRunService>();
             if (blocked != null) await blocked.AnnotateManyAsync(page.Objects, token).ConfigureAwait(false);
@@ -3251,9 +3257,16 @@ namespace Garrison.Server.Protocols
             {
                 string root = await RootOfAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
                 if (run.Id != root && run.RootRunId != root) throw ToolError("NotFound", "Run " + runId + " not found.");
+                // AA-024: the runs of hidden eval cases hold the case, so they are never shown to run tokens.
+                if (await HiddenRuns().HiddenAsync(ctx, run, token).ConfigureAwait(false)) throw ToolError("NotFound", "Run " + runId + " not found.");
             }
             await Require(ctx, tenantId, ResourceTypeEnum.Run, operation, run.Id, token).ConfigureAwait(false);
             return run;
+        }
+
+        private HiddenEvalRunPolicy HiddenRuns()
+        {
+            return _Context.TryGet<HiddenEvalRunPolicy>() ?? new HiddenEvalRunPolicy(_Context.Database);
         }
 
         private async Task<string> RootOfAsync(string tenantId, string runId, CancellationToken token)

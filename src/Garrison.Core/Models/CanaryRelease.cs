@@ -260,5 +260,25 @@ namespace Garrison.Core.Models
         private double? _MinEvalScore = null;
 
         #endregion
+
+        #region Public-Methods
+
+        /// <summary>
+        /// Carry warnings from the request that created this record (for example the body's ValueClamped warnings), so
+        /// the create response echoes them. A warning for a field already warned about replaces the earlier one.
+        /// </summary>
+        /// <param name="warnings">Warnings, or null for none.</param>
+        public void AddWarnings(IEnumerable<FieldWarning>? warnings)
+        {
+            if (warnings == null) return;
+            foreach (FieldWarning warning in warnings)
+            {
+                if (warning == null) continue;
+                _ClampWarnings.RemoveAll(w => String.Equals(w.Field, warning.Field, StringComparison.Ordinal));
+                _ClampWarnings.Add(warning);
+            }
+        }
+
+        #endregion
     }
 }

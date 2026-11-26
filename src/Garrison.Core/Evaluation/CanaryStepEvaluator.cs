@@ -36,6 +36,26 @@ namespace Garrison.Core.Evaluation
         }
 
         /// <summary>
+        /// Whether the current step has met its minimums: at least its minimum finished runs and its minimum minutes. An
+        /// eval-gated release starts the step's eval run once this is true (AA9.8).
+        /// </summary>
+        /// <param name="release">Release (its current step is checked).</param>
+        /// <param name="finished">Candidate runs that finished in the step. Minimum 0.</param>
+        /// <param name="nowUtc">Current time (UTC).</param>
+        /// <returns>True when both minimums are met.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when release is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the release has no step at its current index.</exception>
+        public static bool StepReady(CanaryRelease release, long finished, DateTime nowUtc)
+        {
+            if (release == null) throw new ArgumentNullException(nameof(release));
+            if (release.CurrentStepIndex < 0 || release.CurrentStepIndex >= release.Steps.Count) throw new ArgumentException("Canary release " + release.Id + " has no step " + release.CurrentStepIndex + ".", nameof(release));
+            CanaryReleaseStep step = release.Steps[release.CurrentStepIndex];
+            if (Math.Max(0, finished) < step.MinimumRuns) return false;
+            DateTime started = release.StepStartedUtc ?? release.CreatedUtc;
+            return (nowUtc - started).TotalMinutes >= step.MinimumMinutes;
+        }
+
+        /// <summary>
         /// Decide what a running release does with its current step. The error rate is checked first and may roll the
         /// release back before the step's minimum time has passed, once the step has at least its minimum runs (and at
         /// least one). The step advances when it has its minimum runs, its minimum minutes have passed, and, when the

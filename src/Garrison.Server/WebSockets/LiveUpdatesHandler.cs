@@ -369,7 +369,13 @@ namespace Garrison.Server.WebSockets
             if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, eval-run:{id}, approvals, escalations, freezes, reports, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
-            if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
+            if (runId != null)
+            {
+                Run? target = await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false);
+                if (target == null) return "Run not found.";
+                // AA-024: the runs of hidden eval cases hold the case, so run tokens are answered as if they did not exist.
+                if (await HiddenRuns().HiddenAsync(ctx, target, token).ConfigureAwait(false)) return "Run not found.";
+            }
             return null;
         }
 
@@ -410,12 +416,18 @@ namespace Garrison.Server.WebSockets
             }
         }
 
+        private HiddenEvalRunPolicy HiddenRuns()
+        {
+            return _Context.TryGet<HiddenEvalRunPolicy>() ?? new HiddenEvalRunPolicy(_Context.Database);
+        }
+
         private async Task PumpRunsAsync(WebSocketSession session, RequestContext ctx, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
         {
             RunFilter filter = new RunFilter();
             filter.TenantId = ctx.TenantId;
             filter.MaxResults = 25;
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
+            page.Objects = await HiddenRuns().VisibleAsync(ctx, page.Objects, token).ConfigureAwait(false);
             string fingerprint = String.Join("|", page.Objects.Select(r => r.Id + ":" + r.Status + ":" + r.LastEventSequence + ":" + r.PendingApprovals));
             await _Blocked.AnnotateManyAsync(page.Objects, token).ConfigureAwait(false);
             fingerprint += "|" + String.Join(",", page.Objects.Where(r => r.BlockedReason != null).Select(r => r.Id + ":" + r.BlockedReason));

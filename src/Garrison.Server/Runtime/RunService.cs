@@ -104,6 +104,13 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public OrgBudgetGuard? OrgBudgets { get; set; } = null;
 
+        /// <summary>
+        /// Shadow trials (AA9.7). When set, a run this service finishes itself (a queued or pending run cancelled before a
+        /// worker took it) is reported to the trials, so a cancelled shadow run counts as a candidate failure. Called only
+        /// by the call whose transition won, so each run is reported once. Null (the default) reports nothing.
+        /// </summary>
+        public ShadowTrialService? ShadowTrials { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -450,6 +457,7 @@ namespace Garrison.Server.Runtime
                 run.Outcome = RunOutcomeEnum.Cancelled;
                 run.CompletedUtc = DateTime.UtcNow;
                 await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
+                ShadowTrials?.OnRunFinished(run);
             }
             else
             {

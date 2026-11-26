@@ -240,8 +240,15 @@ namespace Garrison.Server.Modules
             // AA9.7, AA9.8: shadow trials copy a source deployment's finished runs to a candidate as Shadow runs; canary
             // releases move deployment weights step by step. The leader sweeps both.
             ShadowTrialService shadowTrials = new ShadowTrialService(context, _Runs);
+            // Outputs are compared through the eval scorers when a trial names a comparison eval set or a judge.
+            shadowTrials.Comparer = new EvalSetShadowComparer(context, _Runs, _Signals);
             CanaryService canaries = new CanaryService(context);
+            // Every terminal transition reports to the trials: the worker's report (RunEventService), a cancel before a
+            // worker took the run (RunService), a compile failure or rejection (SchedulerService), and deadlines, lost
+            // leases, and blocked runs (MaintenanceService). Each reports only when its transition won.
             _Events.ShadowTrials = shadowTrials;
+            _Runs.ShadowTrials = shadowTrials;
+            _Scheduler.ShadowTrials = shadowTrials;
             _Maintenance.ShadowTrials = shadowTrials;
             _Maintenance.Canaries = canaries;
             context.Register(shadowTrials);
@@ -256,6 +263,8 @@ namespace Garrison.Server.Modules
             context.Register(_EvalRunner);
             context.Register(new EvalRunService(context, _EvalRunner));
             context.Register(new EvalGateService(context, chain));
+            // AA-024: run reads by run tokens never reach the runs of hidden eval cases.
+            context.Register(new HiddenEvalRunPolicy(context.Database));
 
             // AA6: messages between agents; keeper ticks drain their inbox, urgent mail wakes the recipient, and
             // escalations to agents arrive as urgent messages.
