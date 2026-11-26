@@ -35,6 +35,7 @@ Start with the workflow you need, then use the configuration and protocol refere
 | Chain stages with human review | [Pipelines](PIPELINES.md) |
 | Schedule work and react to external events | [Cron/webhook triggers](TRIGGERS.md), [signed notifications](NOTIFICATIONS.md) |
 | Give an agent a standing job it checks on by itself | [Keepers](KEEPERS.md) |
+| Let an agent ask a person, a role, or another agent for a decision | [Escalations](ESCALATIONS.md) |
 | Retain deliverables and inspect conversations | [Artifacts](ARTIFACTS.md), [transcript exports](TRANSCRIPTS.md) |
 | Release slots during supported approval/child waits | [Durable continuation and workspace caches](CONTINUATION.md) |
 | Recall information across runs | [Replaceable agent memory](AGENT_MEMORY.md), [optional external NotDory example](NOTDORY.md) |

@@ -202,6 +202,8 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Autonomy.MaxDueClaimsPerSweep` | `100` | 1 to 10000 | Most due keepers the leader starts ticks for in one sweep; the rest start on the next sweep |
 | `Autonomy.TickHistoryRetentionDays` | `30` | 1 to 3650 | How long finished keeper tick history is kept. The runs of those ticks follow the normal run retention |
 | `Autonomy.TickInputRecentTicks` | `5` | 0 to 100 | Most recent tick summaries included, newest first, in a tick's input. `0` leaves them out; the keeper can still call `garrison_keeper_context` |
+| `Escalations.DefaultTimeoutSeconds` | `86400` | 60 to 2592000 | Timeout of an escalation raised without one. When it passes, the escalation's timeout action runs: answer with its default answer, cancel it, or pass it up. See `docs/ESCALATIONS.md` |
+| `Escalations.MaxQuestionBytes` | `8192` | 256 to 65536 | Most UTF-8 bytes in an escalation's question and context together. Longer escalations are refused |
 | `Notifications.AllowPrivateDestinations` | `false` | | Let notification endpoints deliver to loopback and private addresses (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, 100.64/10, ::1, fc00::/7). Off by default to prevent server-side request forgery. Link-local addresses (169.254.0.0/16, which includes cloud metadata services, and fe80::/10), multicast, and reserved addresses stay refused either way. See `docs/NOTIFICATIONS.md` |
 | `Notifications.MaxAttempts` | `8` | 1 to 20 | Most delivery attempts for one notification before it is marked `Failed`. Read when the notification is queued |
 | `Notifications.InitialBackoffSeconds` | `10` | 1 to 3600 | Delay before the second attempt; each later delay doubles |

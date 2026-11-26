@@ -47,6 +47,11 @@ namespace Garrison.Core.Manifests
         public int? ResultTextMaxChars { get; set; } = null;
 
         /// <summary>
+        /// Lowest escalation severity sent for EscalationRaised and EscalationExpired (AA2.10); null sends every severity.
+        /// </summary>
+        public EscalationSeverityEnum? EscalationMinimumSeverity { get; set; } = null;
+
+        /// <summary>
         /// Whether events are delivered; null means true.
         /// </summary>
         public bool? Active { get; set; } = null;

@@ -28,6 +28,7 @@ The mandate record says which agent keeps it and where its ticks run. Its revisi
 | `healthyDefinition` | What good looks like, so the keeper can tell a quiet tick from one that needs action |
 | `autonomy` | What the keeper may change on its own. Left empty, the keeper is told to observe and report only |
 | `escalationPolicy` | When the keeper should stop and ask for a decision |
+| `escalationTargetKind`, `escalationTargetId` | Who the keeper's escalations go to when a tick names no one: a `User`, `Role`, or `Agent` and its identifier or name. A timed-out escalation with `EscalateUp` is passed up to this target too. Left empty, escalations go to the user the keeper runs as |
 | `direction` | Short-term guidance that changes often, such as this week's focus |
 | `signals` | Up to 50 named measurements to check each tick, each with an optional description |
 | `wakeMode` | `Backoff` (the default) or `Fixed` |
@@ -112,6 +113,12 @@ Jitter spreads keepers out so that a hundred of them created together do not all
 A mandate never has two ticks running. When the timer comes due while a tick is still running, Garrison records a `Skipped` tick (error code `PreviousTickRunning`) and moves the timer on by one interval. A manual wake that arrives during a tick is not skipped: it waits and starts as soon as the running tick finishes.
 
 Deleting a mandate while a tick runs answers 409 `MandateActive`. Wait, pause it first, or delete with `force=true`, which cancels the tick's run.
+
+## Asking for a decision
+
+When a tick reaches something its `autonomy` does not cover, it calls `garrison_escalate` with the question, reports `Escalated`, and ends. The keeper does not wait. Whoever the escalation is addressed to answers it in the dashboard, over REST, or as an agent, and the answer wakes the keeper once with wake source `EscalationAnswer`. That tick's input carries every answer the keeper has not seen yet, after the usual tick input, rendered through `builtin/escalation-answered`. An answer counts as delivered once a tick has carried it, so no answer is shown twice.
+
+A tick can also look up its own escalations with `garrison_list_my_escalations` and `garrison_get_escalation`, and withdraw one that no longer matters. It sees escalations raised by earlier ticks of the same keeper. See [Escalations](ESCALATIONS.md).
 
 ## Watching a keeper
 

@@ -1706,6 +1706,7 @@ namespace Garrison.Core.Manifests
             if (!String.IsNullOrWhiteSpace(spec.Deployment)) endpoint.DeploymentId = await resolver.RequireAsync("Deployment", spec.Deployment, "spec.deployment", token).ConfigureAwait(false);
             endpoint.IncludeResultText = spec.IncludeResultText ?? false;
             endpoint.ResultTextMaxChars = spec.ResultTextMaxChars ?? 1000;
+            endpoint.EscalationMinimumSeverity = spec.EscalationMinimumSeverity;
             endpoint.Active = spec.Active ?? true;
 
             NotificationEndpoint? existing = await _Database.NotificationEndpoints.ReadByNameAsync(tenantId, endpoint.Name, token).ConfigureAwait(false);
@@ -1773,6 +1774,7 @@ namespace Garrison.Core.Manifests
             if (!String.IsNullOrEmpty(endpoint.DeploymentId)) tree["deployment"] = await resolver.NameAsync("Deployment", endpoint.DeploymentId, token).ConfigureAwait(false) ?? endpoint.DeploymentId;
             if (endpoint.IncludeResultText) tree["includeResultText"] = true;
             if (endpoint.ResultTextMaxChars != 1000) tree["resultTextMaxChars"] = (long)endpoint.ResultTextMaxChars;
+            if (endpoint.EscalationMinimumSeverity.HasValue) tree["escalationMinimumSeverity"] = endpoint.EscalationMinimumSeverity.Value.ToString();
             if (!endpoint.Active) tree["active"] = false;
             return tree;
         }

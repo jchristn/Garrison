@@ -488,6 +488,7 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_resume_mandate` | Mandate.Execute on the resolved ID | `mandate` |
 | `garrison_wake_mandate` | Mandate.Execute on the resolved ID | `mandate` |
 | `garrison_list_mandate_ticks` | Mandate.Read on the resolved ID | `mandate`; optional `outcome`, `maxResults` |
+| `garrison_list_escalations` | Escalation.Read | none; optional `status`, `severity`, `agent` (raising agent ID), `mandate` (mandate ID), `maxResults` (1 to 100, default 25); open first, then newest first |
 | `garrison_list_notification_endpoints` | NotificationEndpoint.Read | none; optional `search`, `maxResults` |
 | `garrison_get_notification_endpoint` | NotificationEndpoint.Read on the resolved ID | `endpoint` (name or ID) |
 | `garrison_create_notification_endpoint` | NotificationEndpoint.Create | `configuration` |
@@ -513,6 +514,20 @@ The run of a keeper's tick (kind `Keeper`) always has the `garrison` MCP server,
 | `garrison_keeper_complete_tick` | `outcome` (`Quiet`, `Acted`, `Attention`, or `Escalated`); optional `summary` (at most 4000 characters) and `nextWakeSeconds` | `{ "tickId", "outcome", "accepted", "message" }`. The first report wins; a repeated call answers `accepted: false` and changes nothing |
 
 The tools act only on the token's own mandate and tick; there is no argument to name another. `nextWakeSeconds` is kept within the revision's minimum and maximum interval and applies to the next wake only. A tick whose run ends without calling `garrison_keeper_complete_tick` is recorded as `Unreported`. See [docs/KEEPERS.md](docs/KEEPERS.md).
+
+## Escalations
+
+A run asks a person, a role, or another agent for a decision with `garrison_escalate`. The run tools need a run token; `garrison_get_escalation` and `garrison_answer_escalation` also work for users, with Read and Update on `Escalation`. See [docs/ESCALATIONS.md](docs/ESCALATIONS.md) for targets, blocking, and timeouts.
+
+| Tool | Who | Arguments | Result |
+|---|---|---|---|
+| `garrison_escalate` | Runs only | `question`; optional `context`, `options` (up to 20 of `key` and `label`), `severity` (`Info`, `Warning`, `Urgent`), `mode` (`NonBlocking`, `Blocking`), `targetKind` (`User`, `Role`, `Agent`, `Manager`) and `targetId`, `defaultAnswer`, `timeoutSeconds` (60 to 2592000), `timeoutAction` (`UseDefaultAnswer`, `Cancel`, `EscalateUp`) | `{ "escalation", "message", "continuationInstruction" }`. `continuationInstruction` is present for a `Blocking` escalation and carries the `GARRISON_CONTINUATION_WAIT` marker; the harness must follow it and finish its turn |
+| `garrison_get_escalation` | Runs and users | `escalationId` | The escalation with its status and answer |
+| `garrison_list_my_escalations` | Runs only | optional `status`, `maxResults` (1 to 100, default 25) | `{ "escalations", "totalCount" }`, open first |
+| `garrison_withdraw_escalation` | Runs only | `escalationId`; optional `reason` | The withdrawn escalation. A blocked run resumes |
+| `garrison_answer_escalation` | Runs of the target agent, and users | `escalationId`; `choice` (an option key) or `text` (at most 8000 characters) | The answered escalation |
+
+A run sees the escalations it raised, those raised by earlier ticks of its keeper, and those addressed to its agent; any other identifier answers as not found. Without `targetKind`, a keeper tick's escalation goes to its mandate's default target and any other run's to the user who started it. Asking the same question again from the same run returns the first escalation. `Blocking` is refused with `BlockingUnsupported` unless the run can suspend (see [continuation](docs/CONTINUATION.md)). Raise, withdraw, and answer go through the effect journal, so a retried call after a worker crash does not raise a second escalation.
 
 ## Execution and recovery behavior
 

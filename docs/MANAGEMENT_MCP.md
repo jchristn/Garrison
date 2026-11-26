@@ -45,6 +45,10 @@ Mandate tools are `garrison_list_mandates`, `garrison_get_mandate`, `garrison_cr
 
 The two keeper run tools, `garrison_keeper_context` and `garrison_keeper_complete_tick`, are not management tools: they appear only to the run of a keeper's tick, for its own mandate.
 
+## Escalations
+
+`garrison_list_escalations` lists the tenant's escalations, open first, with optional `status`, `severity`, `agent`, and `mandate` filters; it needs Read on `Escalation`. `garrison_get_escalation` reads one and `garrison_answer_escalation` answers one, with Update on `Escalation`. Raising, listing your own, and withdrawing are run tools that only runs see. See [ESCALATIONS.md](ESCALATIONS.md).
+
 ## Revisions and promotion
 
 `garrison_list_agent_revisions`, `garrison_get_agent_revision`, and `garrison_publish_agent_revision` read an agent's revisions and publish its open draft. `garrison_promote` moves a revision from one environment to the next, and `garrison_rollback_promotion` restores the pins a promotion replaced. Promotion needs Execute on `Promotion` for the target environment, so a `Releaser` assigned to `staging` can promote there and nowhere else ([REVISIONS.md](REVISIONS.md)).

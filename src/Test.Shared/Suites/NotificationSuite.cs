@@ -548,21 +548,22 @@ namespace Test.Shared.Suites
                     "  name: manifest-endpoint",
                     "spec:",
                     "  url: https://hooks.example.com/garrison",
-                    "  events: [RunFailed, PipelineFailed]",
+                    "  events: [RunFailed, PipelineFailed, EscalationRaised]",
+                    "  escalationMinimumSeverity: Urgent",
                     "  agent: manifest-notified",
                     "  includeResultText: true",
                     "  signingSecret: " + secret);
                 ManifestApply applied = await HttpTestHelpers.SendAsync<ManifestApply>(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/apply?allowSecretValues=true", yaml, 200, token).ConfigureAwait(false);
                 Assert.Equal(1, applied.CreatedCount, "Apply creates the endpoint");
                 NotificationEndpoint stored = (await host.Server.Context.Database.NotificationEndpoints.ReadByNameAsync(host.TenantId, "manifest-endpoint", token).ConfigureAwait(false))!;
-                Assert.True(stored.Events.Count == 2 && stored.IncludeResultText && stored.SigningSecretLast4 == "3210" && SigningSecrets.Read(stored, host.Server.Context.Cipher) == secret, "Endpoint from the manifest with its secret");
+                Assert.True(stored.Events.Count == 3 && stored.EscalationMinimumSeverity == EscalationSeverityEnum.Urgent && stored.IncludeResultText && stored.SigningSecretLast4 == "3210" && SigningSecrets.Read(stored, host.Server.Context.Cipher) == secret, "Endpoint from the manifest with its secret");
                 ManifestApply again = await HttpTestHelpers.SendAsync<ManifestApply>(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/apply?allowSecretValues=true", yaml, 200, token).ConfigureAwait(false);
                 Assert.Equal(1, again.UnchangedCount, "Re-apply is unchanged");
                 string blocked = yaml.Replace("https://hooks.example.com/garrison", "http://169.254.169.254/latest", StringComparison.Ordinal);
                 TestResponse refused = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/apply?allowSecretValues=true", blocked, token).ConfigureAwait(false);
                 Assert.True(refused.StatusCode == 400 && refused.Body.Contains("refused URL (LinkLocal)", StringComparison.Ordinal) && refused.Body.Contains("spec.url", StringComparison.Ordinal), "Manifests are checked against the SSRF rules: " + refused.Body);
                 TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
-                Assert.True(export.Body.Contains("kind: NotificationEndpoint", StringComparison.Ordinal) && export.Body.Contains("manifest-endpoint", StringComparison.Ordinal) && !export.Body.Contains(secret, StringComparison.Ordinal) && !export.Body.Contains("signingSecret", StringComparison.Ordinal), "Export carries the endpoint without its secret");
+                Assert.True(export.Body.Contains("kind: NotificationEndpoint", StringComparison.Ordinal) && export.Body.Contains("manifest-endpoint", StringComparison.Ordinal) && !export.Body.Contains(secret, StringComparison.Ordinal) && !export.Body.Contains("signingSecret", StringComparison.Ordinal) && export.Body.Contains("escalationMinimumSeverity: Urgent", StringComparison.Ordinal), "Export carries the endpoint and its minimum escalation severity without its secret");
 
                 await client.ConnectAsync(host, null, token).ConfigureAwait(false);
                 List<string> names = new List<string> { "garrison_list_notification_endpoints", "garrison_get_notification_endpoint", "garrison_create_notification_endpoint", "garrison_update_notification_endpoint", "garrison_delete_notification_endpoint", "garrison_list_notification_deliveries", "garrison_rotate_notification_endpoint_secret", "garrison_test_notification_endpoint" };

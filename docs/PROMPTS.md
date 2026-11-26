@@ -304,6 +304,24 @@ The tick input sees `mandate.*` (`id`, `name`, `description`, `revisionNumber`) 
 
 The built-in input fences earlier summaries and labels them as data. If you replace it, keep that framing: a summary is text the agent wrote, and the agent may have copied text from a web page or an email into it.
 
+## Escalations
+
+Two `Task` templates carry [escalations](ESCALATIONS.md) to agents. A tenant `Task` template with the same name replaces either one.
+
+`builtin/escalation-received` is the input of the run Garrison starts when an escalation is addressed to an agent. It sees `escalation.*`:
+
+| Variable | Value |
+|---|---|
+| `escalation.id`, `escalation.severity`, `escalation.expiresUtc` | Which escalation, how urgent, and when it times out |
+| `escalation.raisingAgent` | The agent that asked |
+| `escalation.question`, `escalation.context` | What it asked and why |
+| `escalation.options`, `escalation.hasOptions` | The choices (`key`, `label`) in order |
+| `escalation.defaultAnswer` | The answer used if it times out with `UseDefaultAnswer` |
+
+`builtin/escalation-answered` renders answers back to the agent that asked: after a keeper tick's input when an answer woke it, and after `builtin/continuation-resume` when a blocking escalation resumes its run. It sees `answers`, a list where each item has `id`, `question`, `status` (in lower case), `resolvedBy`, `choice`, `choiceLabel`, `text`, and `unanswered` (true unless it was answered).
+
+Both built-ins fence the question, context, and answer between markers and tell the agent they are data. If you replace them, keep that framing: the question was written by another agent, and the answer by whoever resolved it, and neither may widen what the reader is allowed to do.
+
 ## Template language
 
 The language is small on purpose. It has variables, filters, conditionals, loops, includes, comments, and raw blocks, and nothing that can call out of the renderer.

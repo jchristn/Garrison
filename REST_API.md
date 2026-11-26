@@ -3847,6 +3847,43 @@ List the mandate's ticks, newest first, with the [enumeration](#enumeration) par
 #### `GET /v1.0/api/tenants/{tenantId}/mandate-ticks/{tickId}`
 
 Read one tick by identifier. It is authorized as Read on the tick's mandate.
+### Escalations
+
+An escalation (AA2) is a question a run raises for a person, a role, or another agent when it should not decide alone. Runs raise and withdraw escalations over MCP (`garrison_escalate`, `garrison_withdraw_escalation`; see [MCP_API.md](MCP_API.md#escalations)). These routes list, read, answer, and cancel them. [docs/ESCALATIONS.md](docs/ESCALATIONS.md) covers targets, blocking, and timeouts.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /escalations` | Read on `Escalation` | `EnumerationResult<Escalation>`, 200 |
+| `GET /escalations/{id}` | Read on `Escalation` | `Escalation`, 200 |
+| `POST /escalations/{id}/answer` | Update on `Escalation` | `Escalation`, 200 |
+| `POST /escalations/{id}/cancel` | Update on `Escalation` | `Escalation`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Escalations of another tenant answer 404.
+
+#### `GET /v1.0/api/tenants/{tenantId}/escalations`
+
+List escalations, open ones first and then newest first, with `maxResults`, `skip`, and `search` (matches the question and context) from the [enumeration](#enumeration) parameters and the optional filters `status`, `severity`, `targetKind`, `targetId`, `agentId`, `mandateId`, and `raisingRunId`. An escalation that was passed up to another one still lists as `Open`, with `escalatedToId` set. To count the ones waiting for an answer, leave those out.
+
+#### `POST /v1.0/api/tenants/{tenantId}/escalations/{id}/answer`
+
+Answer an open escalation with an `EscalationAnswerRequest`. With options, `choice` must be one of their keys and `text` may explain it. Without options, `text` is required and a `choice` is refused with `UnknownOption`. A run blocked on the escalation is queued to resume, and a keeper that raised it wakes with the answer in its next tick.
+
+| | |
+|---|---|
+| Request body | `EscalationAnswerRequest` |
+| Response | `Escalation`, 200 |
+| Errors | 400 `ValidationFailed` with field codes `ChoiceRequired`, `UnknownOption`, or `AnswerRequired`, or a `text` length error; 404; 409 `EscalationNotOpen` (already resolved) or `EscalatedUp` (passed up; answer the escalation in `escalatedToId`) |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/escalations/esc_mx0b7q1d_Rk2LwT7xZb3VmRnPq/answer" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"choice": "refund", "text": "Two captures 40 seconds apart. Refund one."}'
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/escalations/{id}/cancel`
+
+Cancel an open escalation with an optional `EscalationCancelRequest` (`reason`, at most 8000 characters). A run blocked on it is cancelled too. Errors: 404; 409 `EscalationNotOpen`.
+
 ### Agent revisions
 
 An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
@@ -5748,7 +5785,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`
 
 #### `OperationTypeEnum`
 
@@ -6360,6 +6397,7 @@ One invocation of one deployment.
 | `pipelineExecution` | `int` | Execution number of that stage, starting at 1 (retries, revisions, and resumes increase it); 0 outside a pipeline. |
 | `triggerId` | `string?` | Trigger that started the run (also set on the stage runs of a pipeline run a trigger started), or `null`. See [Triggers](#triggers). |
 | `mandateId`, `mandateTickId` | `string?` | Mandate and tick a `Keeper` run belongs to, or `null`. See [Mandates](#mandates). |
+| `escalationId` | `string?` | The blocking escalation a `Suspended` run waits on, or `null`. See [Escalations](#escalations). |
 | `traceId` | `string?` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in; the server's `run:create`, `run:claim`, and `run:compile` spans and the worker's `harness <type> exec` span share it, and delegated runs join their parent's trace. Use it to open the trace in Tempo or search logs (`trace=<traceId>`). `null` for runs created before schema migration 5. Always present. See `docs/TELEMETRY.md`. |
 | `exitCode` | `int?` | Process exit code. |
 | `stderrTail` | `string?` | Stderr tail (scrubbed). |
@@ -6741,6 +6779,60 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
 | `warnings` | `FieldWarning[]?` | Values the server adjusted on this request (`ValueClamped`). |
 
+#### `Escalation`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`esc_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `raisingRunId` | `string?` | The run that raised it; `null` for one created by passing another up. |
+| `leaseEpoch` | `long` | The raising run's lease epoch. A blocking wait belongs to that epoch. |
+| `agentId`, `agentName` | `string?` | The raising run's agent. |
+| `mandateId`, `mandateTickId` | `string?` | Keeper and tick that raised it, or `null`. |
+| `targetKind` | `EscalationTargetKindEnum` | Who it is addressed to. |
+| `targetId`, `targetName` | `string?` | User, role, or agent identifier, and its display name. `null` for `Manager`. |
+| `severity` | `EscalationSeverityEnum` | Default `Warning`. |
+| `mode` | `EscalationModeEnum` | `NonBlocking` (default) or `Blocking`. |
+| `status` | `EscalationStatusEnum` | `Open` until resolved. |
+| `question` | `string` | Required. Question and context together hold at most `Escalations.MaxQuestionBytes` UTF-8 bytes. |
+| `context` | `string?` | What the run saw and tried. |
+| `options` | `EscalationOption[]` | Up to 20 choices; empty when the answer is free text. |
+| `defaultAnswer` | `string?` | An option key, or text without options; at most 4000 characters. |
+| `timeoutSeconds` | `int` | 60 to 2592000 (clamped); `Escalations.DefaultTimeoutSeconds` when not given. |
+| `expiresUtc` | `DateTime?` | When the timeout action runs. |
+| `timeoutAction` | `EscalationTimeoutActionEnum` | Default `EscalateUp`. |
+| `parentEscalationId` | `string?` | The escalation that timed out and was passed up to this one. |
+| `escalatedToId` | `string?` | The escalation this one was passed up to. |
+| `routedRunId` | `string?` | Run started so a target agent could answer. |
+| `answerChoice`, `answerText` | `string?` | The answer. |
+| `resolvedBy` | `string?` | Who answered, cancelled, or withdrew it (`timeout` for the sweep). |
+| `resolutionSource` | `EscalationResolutionSourceEnum?` | What resolved it. |
+| `resolvedUtc` | `DateTime?` | When it was resolved. |
+| `deliveredTickId` | `string?` | Keeper tick whose input carried the answer. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+| `warnings` | `FieldWarning[]?` | Values the server adjusted when the escalation was raised, for example a timeout outside its range. |
+
+#### `EscalationOption`
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `string` | 1 to 64 characters, unique ignoring case. Answers name it as their `choice`. |
+| `label` | `string?` | Text shown to whoever answers; at most 512 characters. |
+| `order` | `int` | Position, from 0. Set by the server. |
+
+#### `EscalationAnswerRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `choice` | `string?` | One of the option keys. Required when the escalation has options. |
+| `text` | `string?` | The answer, or an explanation of the choice. Required without options. At most 8000 characters. |
+
+#### `EscalationCancelRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `reason` | `string?` | Why it was cancelled; at most 8000 characters. |
+
 #### `MandateRevision`
 
 | Field | Type | Description |
@@ -6751,6 +6843,7 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `state` | `MandateRevisionStateEnum` | `Draft` or `Published`. Published revisions never change. |
 | `objective` | `string` | Required, at most 8000 characters. |
 | `healthyDefinition`, `autonomy`, `escalationPolicy`, `direction` | `string?` | At most 8000 characters each. An empty `autonomy` tells the keeper to observe and report only. |
+| `escalationTargetKind`, `escalationTargetId` | `EscalationTargetKindEnum?`, `string?` | Default escalation target: where the keeper's escalations go when it names none, and where timed-out ones are passed up. `null` sends them to the user who started the run, when there is one. Every kind except `Manager` needs an identifier (400 `TargetRequired`). |
 | `signals` | `MandateRevisionSignal[]` | Up to 50 signals to check each tick, in order. |
 | `wakeMode` | `WakeModeEnum` | `Backoff` (default) or `Fixed`. |
 | `minIntervalSeconds` | `int` | 10 to 2592000, default 900; raised to `Autonomy.MinIntervalSeconds`. |
@@ -6807,6 +6900,7 @@ A webhook subscription to tenant events (P12.14). See [docs/NOTIFICATIONS.md](do
 | `agentId`, `deploymentId` | `string?` | Optional filters. With either set, pipeline events are not sent. |
 | `includeResultText` | `bool` | Include run result text in run notifications. Default false. |
 | `resultTextMaxChars` | `int` | Result text limit, 1 to 16000 (clamped), default 1000. |
+| `escalationMinimumSeverity` | `EscalationSeverityEnum?` | Lowest escalation severity sent for `EscalationRaised` and `EscalationExpired`; `null` sends every severity. |
 | `active` | `bool` | Default true. |
 | `signingSecret` | `string?` | Only in the responses to create and rotate-secret. |
 | `signingSecretLast4` | `string?` | Last four characters of the current secret. |
@@ -6875,9 +6969,33 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 `Quiet`, `Acted`, `Attention`, `Escalated` (reported by the keeper), `Failed`, `Skipped`, `Unreported` (set by Garrison)
 
+#### `EscalationStatusEnum`
+
+`Open`, `Answered`, `Expired` (timed out with nothing to fall back on), `Cancelled`, `Withdrawn` (by the raising run)
+
+#### `EscalationSeverityEnum`
+
+`Info`, `Warning`, `Urgent`
+
+#### `EscalationModeEnum`
+
+`NonBlocking`, `Blocking`
+
+#### `EscalationTargetKindEnum`
+
+`User`, `Role`, `Agent`, `Manager` (refused with `ManagerUnavailable` until organizations exist)
+
+#### `EscalationTimeoutActionEnum`
+
+`UseDefaultAnswer`, `Cancel`, `EscalateUp`
+
+#### `EscalationResolutionSourceEnum`
+
+`User`, `Agent`, `Timeout`, `Raiser`, `System`
+
 #### `NotificationEventEnum`
 
-`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `Test` (test sends only)
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `Test` (test sends only)
 
 #### `NotificationDeliveryStatusEnum`
 
