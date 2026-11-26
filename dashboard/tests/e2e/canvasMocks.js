@@ -53,6 +53,32 @@ const deploymentYaml = (name, environment, timeout) =>
     ''
   ].join('\n');
 
+// AA7.10: an organization the draft can hold. Leadership (led by planner) is the root; Research (led by researcher,
+// with writer as a member) and Publishing (led by editor) report to it, with a peer line between them.
+const ORG = [
+  'apiVersion: garrison/v1',
+  'kind: Organization',
+  'metadata:',
+  '  name: research-org',
+  'spec:',
+  '  mission: Publish sound research overviews',
+  '  units:',
+  '    - name: Leadership',
+  '      lead: planner',
+  '      leadTitle: Chief executive',
+  '      units:',
+  '        - name: Research',
+  '          lead: researcher',
+  '          members:',
+  '            - agent: writer',
+  '              title: Writer',
+  '          peers:',
+  '            - Publishing',
+  '        - name: Publishing',
+  '          lead: editor',
+  ''
+].join('\n');
+
 /** Tenant agents the Add agent field offers. */
 export const CANVAS_AGENTS = ['planner', 'researcher', 'writer', 'editor', 'reviewer'].map((name, i) => ({
   id: `agt_${name}`,
@@ -86,7 +112,27 @@ export function canvasState() {
   };
 }
 
+/** drf_0001 at version 3 that also holds the research-org organization (live as written), for the AA7.10 tests. */
+export function orgCanvasState() {
+  const state = canvasState();
+  const org = item('Organization', 'research-org', ORG);
+  state.items.push(org);
+  state.live.set('Organization/research-org', ORG);
+  return state;
+}
+
 const value = (text) => parseDocument(text || '').toJS() || {};
+
+/** Every unit of an organization spec, depth first, each with its parent's name. */
+function allUnits(units, parent = null, out = []) {
+  for (const u of units || []) {
+    out.push({ unit: u, parent });
+    allUnits(u.units, u.name, out);
+  }
+  return out;
+}
+
+const findUnit = (spec, name) => allUnits(spec.units).find((x) => String(x.unit.name).toLowerCase() === String(name || '').toLowerCase()) || null;
 
 /** The draft as GET /studio/drafts/drf_0001 answers it. */
 export function draftOf(state) {
@@ -128,6 +174,25 @@ export function graphOf(state) {
     const caps = value(i.document).spec?.capabilities;
     if (Array.isArray(caps)) node('Agent', i.name).capabilities = caps.map(String);
   }
+  // AA7.10: an Organization node, an OrgUnit node per unit (organization, parentUnit, lead), unitOf on agents, and a
+  // Peer edge per peer line, as StudioService.Graph draws them.
+  for (const i of state.items.filter((x) => x.kind === 'Organization')) {
+    const o = node('Organization', i.name);
+    o.inDraft = true;
+    o.deleted = i.operation === 'Delete';
+    if (i.operation !== 'Upsert') continue;
+    for (const { unit, parent } of allUnits(value(i.document).spec?.units)) {
+      const u = node('OrgUnit', `${i.name}/${unit.name}`);
+      Object.assign(u, { inDraft: true, organization: i.name, parentUnit: parent, lead: unit.lead || null });
+      for (const agent of [unit.lead, ...(unit.members || []).map((m) => m.agent)].filter(Boolean)) {
+        const a = node('Agent', agent);
+        a.unitOf = a.unitOf || [];
+        if (!a.unitOf.includes(`${i.name}/${unit.name}`)) a.unitOf.push(`${i.name}/${unit.name}`);
+      }
+      for (const peer of unit.peers || []) edges.push({ kind: 'Peer', organization: i.name, from: unit.name, to: peer, fanOut: false, depth: 0 });
+    }
+  }
+  for (const e of edges) if (!e.kind) e.kind = 'Call';
   for (const p of state.layout) {
     const n = nodes.get(p.nodeKey);
     if (n) {
@@ -180,6 +245,7 @@ function applyOperation(state, body) {
     state.layout = [...state.layout.filter((n) => n.nodeKey !== body.nodeKey), { nodeKey: body.nodeKey, x: body.x, y: body.y }];
     return null;
   }
+  if (['AddUnit', 'RemoveUnit', 'AddUnitMember', 'RemoveUnitMember', 'ConnectUnits', 'DisconnectUnits'].includes(body.operation)) return applyUnitOperation(state, body);
   const appName = body.app || 'research';
   const app = state.items.find((i) => i.kind === 'AgenticApp' && i.name === appName);
   const doc = value(app.document);
@@ -222,6 +288,87 @@ function applyOperation(state, body) {
   }
   app.document = stringify(doc);
   app.lastUpdateUtc = new Date().toISOString();
+  return null;
+}
+
+/** Unit operations (AA7.10), rewriting the Organization item the way StudioService.ApplyUnitOperationAsync does. */
+function applyUnitOperation(state, body) {
+  const name = body.organization;
+  if (!name) return invalid('organization', 'Required', `organization is required for ${body.operation}.`);
+  let org = state.items.find((i) => i.kind === 'Organization' && i.name === name);
+  if (org?.operation === 'Delete') return invalid('organization', 'OrganizationDeleted', `The draft deletes organization ${name}; put it back first.`);
+  const fresh = !org;
+  if (fresh) org = item('Organization', name, `apiVersion: garrison/v1\nkind: Organization\nmetadata:\n  name: ${name}\nspec: {}\n`);
+  const doc = value(org.document);
+  const spec = doc.spec || (doc.spec = {});
+  spec.units = spec.units || [];
+  const need = (field) => (body[field] ? null : invalid(field, 'Required', `${field} is required for ${body.operation}.`));
+  const unit = (n, field) => findUnit(spec, n) || { missing: invalid(field, 'UnitNotFound', `Organization ${name} has no unit ${n}.`) };
+  switch (body.operation) {
+    case 'AddUnit': {
+      const missing = need('unit');
+      if (missing) return missing;
+      if (findUnit(spec, body.unit)) return invalid('unit', 'UnitNameTaken', `Organization ${name} already has a unit ${body.unit}.`);
+      const added = { name: body.unit };
+      if (body.agent) added.lead = body.agent;
+      if (body.role) added.leadTitle = body.role;
+      if (!body.parent) {
+        if (spec.units.length) return invalid('parent', 'OneRoot', `Organization ${name} already has a root unit; name a parent.`);
+        spec.units.push(added);
+      } else {
+        const p = unit(body.parent, 'parent');
+        if (p.missing) return p.missing;
+        p.unit.units = [...(p.unit.units || []), added];
+      }
+      break;
+    }
+    case 'RemoveUnit': {
+      const u = unit(body.unit, 'unit');
+      if (u.missing) return u.missing;
+      if ((u.unit.units || []).length) return invalid('unit', 'UnitHasChildren', `Unit ${body.unit} has units below it; remove them first.`);
+      const parent = u.parent ? findUnit(spec, u.parent).unit : null;
+      if (parent) parent.units = parent.units.filter((x) => x !== u.unit);
+      else spec.units = spec.units.filter((x) => x !== u.unit);
+      for (const { unit: other } of allUnits(spec.units)) if (other.peers) other.peers = other.peers.filter((p) => p.toLowerCase() !== body.unit.toLowerCase());
+      break;
+    }
+    case 'AddUnitMember': {
+      const u = unit(body.unit, 'unit');
+      if (u.missing) return u.missing;
+      u.unit.members = u.unit.members || [];
+      if (!u.unit.members.some((m) => m.agent === body.agent)) u.unit.members.push(body.role ? { agent: body.agent, title: body.role } : { agent: body.agent });
+      break;
+    }
+    case 'RemoveUnitMember': {
+      const u = unit(body.unit, 'unit');
+      if (u.missing) return u.missing;
+      const before = (u.unit.members || []).length;
+      u.unit.members = (u.unit.members || []).filter((m) => m.agent !== body.agent);
+      if (u.unit.members.length === before) return invalid('agent', 'NotAMember', `${body.agent} is not a member of unit ${u.unit.name}.`);
+      break;
+    }
+    case 'ConnectUnits': {
+      const a = unit(body.from, 'from');
+      const b = unit(body.to, 'to');
+      if (a.missing || b.missing) return a.missing || b.missing;
+      if (a.unit === b.unit) return invalid('to', 'PeerNotFound', 'A unit has no peer line to itself.');
+      if (!(a.unit.peers || []).includes(b.unit.name) && !(b.unit.peers || []).includes(a.unit.name)) a.unit.peers = [...(a.unit.peers || []), b.unit.name];
+      break;
+    }
+    case 'DisconnectUnits': {
+      const a = unit(body.from, 'from');
+      const b = unit(body.to, 'to');
+      if (a.missing || b.missing) return a.missing || b.missing;
+      const before = (a.unit.peers || []).length + (b.unit.peers || []).length;
+      a.unit.peers = (a.unit.peers || []).filter((p) => p !== b.unit.name);
+      b.unit.peers = (b.unit.peers || []).filter((p) => p !== a.unit.name);
+      if (a.unit.peers.length + b.unit.peers.length === before) return invalid('to', 'NoSuchPeerLine', `Units ${a.unit.name} and ${b.unit.name} have no peer line.`);
+      break;
+    }
+  }
+  org.document = stringify(doc);
+  org.lastUpdateUtc = new Date().toISOString();
+  if (fresh) state.items.push(org);
   return null;
 }
 

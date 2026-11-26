@@ -18,12 +18,19 @@ import AgentPanel from './AgentPanel';
 import EdgePanel from './EdgePanel';
 import AppPanel from './AppPanel';
 import RuntimePanel from './RuntimePanel';
+import OrgCanvas from './OrgCanvas';
+import { UNIT_OPERATIONS, canvasOrganizations } from '../../../utils/orgCanvas';
 
 const NODE_TYPES = { agent: CanvasAgentNode };
 
 /** localStorage key of the app the canvas last showed for one draft. */
 function appStorageKey(draftId) {
   return `garrison.studio.canvasApp.${draftId}`;
+}
+
+/** localStorage key of whether the canvas last showed apps or organizations for one draft (AA7.10). */
+function viewStorageKey(draftId) {
+  return `garrison.studio.canvasView.${draftId}`;
 }
 
 /**
@@ -80,8 +87,18 @@ function CanvasInner({ draft, graph, diff, blocked = '', deployments = [], onGra
   const addInputRef = useRef(null);
   const wrapperRef = useRef(null);
 
+  const [chosenView, setChosenView] = useState(() => readStored(viewStorageKey(draft.id)));
   const app = defaultCanvasApp(graph, draft, chosenApp);
   const apps = canvasApps(graph, draft);
+  // Apps or organizations (AA7.10): the remembered choice, else apps unless the draft holds only organizations.
+  const organizations = canvasOrganizations(graph);
+  const view = chosenView === 'organizations' || chosenView === 'apps' ? chosenView : !apps.length && organizations.length ? 'organizations' : 'apps';
+  const chooseView = (next) => {
+    setChosenView(next);
+    writeStored(viewStorageKey(draft.id), next);
+    setSelection(null);
+    setConnectFrom(null);
+  };
   const flow = useMemo(() => graphToFlow(graph, app), [graph, app]);
   const choices = useMemo(() => agentChoices(agents, graph, draft, app), [agents, graph, draft, app]);
   const members = flow.nodes.map((n) => n.id);
@@ -133,7 +150,7 @@ function CanvasInner({ draft, graph, diff, blocked = '', deployments = [], onGra
   const runOperation = useCallback(
     (operation, fields = {}, { quiet = false } = {}) =>
       enqueue(async () => {
-        const send = (version) => apiClient.studioGraphOperation(tenantId, draftRef.current.id, operationBody(version, operation, operation === 'MoveNode' ? fields : { app, ...fields }));
+        const send = (version) => apiClient.studioGraphOperation(tenantId, draftRef.current.id, operationBody(version, operation, operation === 'MoveNode' || UNIT_OPERATIONS.includes(operation) ? fields : { app, ...fields }));
         setBusy((n) => n + 1);
         try {
           let next;
@@ -443,7 +460,22 @@ function CanvasInner({ draft, graph, diff, blocked = '', deployments = [], onGra
         <h3 className="section-title" {...tip(t('tips.studio.canvas.title'))}>
           {t('components.studio.canvas.title')}
         </h3>
-        {apps.length > 1 && (
+        <div className="range-group segmented" role="group" aria-label={t('components.studio.canvas.view.label')} data-testid="studio-canvas-view">
+          {['apps', 'organizations'].map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              className={`range-btn ${view === v ? 'active' : ''}`}
+              onClick={() => chooseView(v)}
+              data-testid={`studio-canvas-view-${v}`}
+              {...tip(t(`tips.studio.canvas.view.${v}`))}
+            >
+              {t(`components.studio.canvas.view.${v}`)}
+            </button>
+          ))}
+        </div>
+        {view === 'apps' && apps.length > 1 && (
           <div className="flex gap-sm items-center">
             <label htmlFor="studio-canvas-app" {...tip(t('tips.studio.canvas.appPicker'))}>
               {t('components.studio.canvas.appPicker')}
@@ -465,6 +497,8 @@ function CanvasInner({ draft, graph, diff, blocked = '', deployments = [], onGra
       <CanvasOperationError failure={opError} onDismiss={() => setOpError(null)} />
       {!graph ? (
         <div className="text-muted">{t('common.generic.loading')}</div>
+      ) : view === 'organizations' ? (
+        <OrgCanvas draft={draft} graph={graph} blocked={blocked} agents={agents} runOperation={runOperation} say={say} />
       ) : !app ? (
         <div className="text-muted" data-testid="studio-graph-empty">
           {t('components.studio.canvas.noApp')}

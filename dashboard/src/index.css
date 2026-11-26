@@ -1493,6 +1493,21 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .studio-canvas-panel-actions { flex-wrap: wrap; }
 .studio-canvas-form .field > button, .studio-canvas-props > div > button { align-self: flex-start; }
 .studio-canvas-bring { display: flex; flex-direction: column; gap: var(--spacing-xs); align-items: flex-start; }
+/* Organizations on the canvas (AA7.10): each unit is a box sized by the layout, holding its child units under its own
+   header; peer lines are dotted and drawn above the boxes. */
+.studio-org-canvas { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.studio-org-add select { inline-size: auto; max-inline-size: 12rem; }
+.studio-canvas-unit { box-sizing: border-box; inline-size: 100%; block-size: 100%; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-surface-alt) 60%, transparent); color: var(--color-text); }
+.studio-canvas-unit.is-root { border-color: var(--color-primary); border-width: 2px; }
+.studio-canvas-unit.is-selected { box-shadow: 0 0 0 3px var(--color-primary-soft); border-color: var(--color-primary); }
+.studio-canvas-unit.is-connecting { box-shadow: 0 0 0 3px var(--color-primary); }
+.studio-canvas-unit.is-target { cursor: crosshair; }
+.studio-canvas-unit-head { block-size: var(--unit-header); padding: var(--spacing-xs) var(--spacing-sm); box-sizing: border-box; overflow: hidden; background: var(--color-surface); border-radius: var(--radius-md) var(--radius-md) 0 0; border-block-end: 1px solid var(--color-border); }
+.studio-canvas-unit-head .studio-canvas-node-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.studio-canvas-unit-people { list-style: none; margin: 4px 0 0; padding: 0; font-size: var(--font-size-xs); line-height: 20px; }
+.studio-canvas-unit-people li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text-secondary); }
+.studio-canvas-unit-people li.is-lead { color: var(--color-text); font-weight: 600; }
+.studio-canvas-flow .react-flow__edge.is-peer .react-flow__edge-path { stroke-dasharray: 2 4; stroke-width: 2; }
 @media (max-width: 1100px) {
   .studio-canvas-layout { grid-template-columns: minmax(0, 1fr); }
 }

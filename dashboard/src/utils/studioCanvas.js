@@ -7,7 +7,7 @@ import { draftItems, graphApps } from './studio';
 import { manifestValue, readDeploymentFields } from './manifestYaml';
 
 /** Graph operations of POST .../graph-operations. */
-export const GRAPH_OPERATIONS = ['AddMember', 'RemoveMember', 'Connect', 'Disconnect', 'SetEntry', 'MoveNode'];
+export const GRAPH_OPERATIONS = ['AddMember', 'RemoveMember', 'Connect', 'Disconnect', 'SetEntry', 'MoveNode', 'AddUnit', 'RemoveUnit', 'AddUnitMember', 'RemoveUnitMember', 'ConnectUnits', 'DisconnectUnits'];
 
 /** How long (ms) the canvas waits after the last drag or arrow-key move of a node before it saves the position. */
 export const MOVE_DEBOUNCE_MS = 400;
@@ -98,7 +98,7 @@ export function samePosition(a, b) {
 /** Body of POST .../graph-operations: the version read, the operation, and only the fields it uses. */
 export function operationBody(version, operation, fields = {}) {
   const body = { version, operation };
-  for (const key of ['app', 'agent', 'role', 'from', 'to', 'fanOut', 'nodeKey', 'x', 'y']) {
+  for (const key of ['app', 'organization', 'unit', 'parent', 'agent', 'role', 'from', 'to', 'fanOut', 'nodeKey', 'x', 'y']) {
     if (fields[key] !== undefined && fields[key] !== null && fields[key] !== '') body[key] = fields[key];
   }
   if (operation === 'MoveNode') {

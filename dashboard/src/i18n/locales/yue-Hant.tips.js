@@ -4179,3 +4179,55 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   "p3": "預算限制一個單位同佢下面所有單位喺一個 UTC 日或者月可以用幾多錢。預算用晒嘅時候，嗰個子樹入面代理程式嘅新執行會被拒絕，單位嘅上司亦會收到通知。"
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "顯示草稿嘅應用程式：代理程式同佢哋之間嘅呼叫。",
+    "organizations": "顯示草稿嘅組織：單位會擺喺佢上層單位入面，仲會顯示負責人、成員同同級線路。"
+   },
+   "org": {
+    "unit": "組織入面嘅一個單位。揀佢就可以改佢嘅成員同同級線路；向佢匯報嘅單位都喺佢入面。",
+    "unitReadOnly": "組織入面嘅一個單位。呢份草稿已經關咗編輯。",
+    "picker": "畫布顯示草稿入面邊個組織。",
+    "addUnit": "新單位嘅名，喺組織入面唔可以重複。撳 Enter 就會加入。",
+    "parent": "新單位要向邊個單位匯報。冇上層單位嘅話佢就會變成根單位，一個組織只可以有一個根單位。",
+    "leadAgent": "帶領新單位嘅代理程式。可以唔填；每個組織入面，一個代理程式最多只可以帶領一個單位。",
+    "leadTitle": "負責人嘅職銜，例如帳務主管。可以唔填。",
+    "organization": "要加單位嘅組織。留空就加去而家顯示緊嗰個，輸入新名就會開一個新組織。",
+    "add": "即刻將單位加入草稿嘅組織。套用草稿之前乜都唔會生效。",
+    "connectTo": "同級線路另一端嘅單位。",
+    "connectConfirm": "即刻喺兩個單位之間加同級線路。",
+    "peers": "可以直接互相發訊息、唔使經共同上司嘅單位。",
+    "peerLine": "兩個單位之間嘅同級線路。Enter 揀佢；Delete 移除佢。",
+    "orgTitle": "畫布上面顯示緊嘅組織。",
+    "units": "呢份草稿入面個組織有幾多個單位。",
+    "root": "組織最高層嘅單位，由其他人最終都向佢匯報嘅代理程式帶領。",
+    "unitTitle": "揀中嘅單位。",
+    "reportsTo": "呢個單位向邊個單位匯報；嗰個單位嘅負責人就係呢個單位負責人嘅上司。",
+    "lead": "帶領呢個單位嘅代理程式。",
+    "members": "喺呢個單位做嘢、向佢負責人匯報嘅代理程式。",
+    "removeMember": "即刻將呢個代理程式由單位移除。",
+    "memberAgent": "要加做成員嘅代理程式。佢唔可以喺呢個組織擔任其他職位。",
+    "memberTitle": "成員嘅職銜，會喺組織圖上面顯示。可以唔填。",
+    "addMember": "即刻將代理程式加入單位 {{unit}}。",
+    "disconnect": "即刻移除呢條同級線路。",
+    "addChild": "用呢個單位做上層單位，填好「加單位」表格。",
+    "startPeer": "由呢個單位開始一條同級線路，再揀另一個單位。",
+    "removeUnit": "確認之後將單位由草稿嘅組織移除。下面仲有單位嘅單位移除唔到。",
+    "peerTitle": "揀中嘅同級線路。"
+   }
+  }
+ }
+});

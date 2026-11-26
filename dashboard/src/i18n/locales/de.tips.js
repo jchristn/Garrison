@@ -4179,3 +4179,55 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "p3": "Ein Budget begrenzt, was eine Einheit und alle Einheiten darunter an einem UTC-Tag oder in einem UTC-Monat ausgeben dürfen. Ist ein Budget aufgebraucht, werden neue Läufe von Agenten in diesem Teilbaum abgelehnt, und der Vorgesetzte der Einheit wird benachrichtigt."
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "Die Apps des Entwurfs zeigen: Agenten und die Aufrufe zwischen ihnen.",
+    "organizations": "Die Organisationen des Entwurfs zeigen: Einheiten innerhalb der Einheit, der sie unterstehen, mit Leitungen, Mitgliedern und Querverbindungen."
+   },
+   "org": {
+    "unit": "Eine Einheit der Organisation. Wählen Sie sie, um ihre Mitglieder und Querverbindungen zu bearbeiten; sie enthält die Einheiten, die ihr unterstehen.",
+    "unitReadOnly": "Eine Einheit der Organisation. Bearbeiten ist für diesen Entwurf ausgeschaltet.",
+    "picker": "Welche Organisation des Entwurfs die Zeichenfläche zeigt.",
+    "addUnit": "Der Name der neuen Einheit, eindeutig in der Organisation. Drücken Sie die Eingabetaste, um sie hinzuzufügen.",
+    "parent": "Die Einheit, der die neue Einheit untersteht. Ohne übergeordnete Einheit wird sie zur Stammeinheit, von der eine Organisation nur eine hat.",
+    "leadAgent": "Der Agent, der die neue Einheit leitet. Optional; ein Agent leitet höchstens eine Einheit pro Organisation.",
+    "leadTitle": "Der Titel der Leitung, etwa Leitung Abrechnung. Optional.",
+    "organization": "Die Organisation, zu der die Einheit hinzugefügt wird. Lassen Sie das Feld für die angezeigte leer, oder geben Sie einen neuen Namen ein, um eine neue Organisation zu beginnen.",
+    "add": "Die Einheit jetzt zur Organisation des Entwurfs hinzufügen. Nichts wird live, bis der Entwurf angewendet wird.",
+    "connectTo": "Die Einheit am anderen Ende der Querverbindung.",
+    "connectConfirm": "Die Querverbindung zwischen den beiden Einheiten jetzt hinzufügen.",
+    "peers": "Einheiten, die einander direkt Nachrichten senden dürfen, ohne Umweg über eine gemeinsame Führungskraft.",
+    "peerLine": "Eine Querverbindung zwischen zwei Einheiten. Die Eingabetaste wählt sie aus; Entf entfernt sie.",
+    "orgTitle": "Die auf der Zeichenfläche gezeigte Organisation.",
+    "units": "Wie viele Einheiten die Organisation in diesem Entwurf hat.",
+    "root": "Die Einheit an der Spitze der Organisation, geleitet von dem Agenten, an den alle anderen letztlich berichten.",
+    "unitTitle": "Die ausgewählte Einheit.",
+    "reportsTo": "Die Einheit, der diese untersteht; ihre Leitung ist die Führungskraft der Leitung dieser Einheit.",
+    "lead": "Der Agent, der diese Einheit leitet.",
+    "members": "Agenten, die in dieser Einheit arbeiten und an ihre Leitung berichten.",
+    "removeMember": "Diesen Agenten jetzt aus der Einheit entfernen.",
+    "memberAgent": "Der Agent, der als Mitglied hinzugefügt wird. Er darf keine andere Position in dieser Organisation haben.",
+    "memberTitle": "Der Titel des Mitglieds, im Organigramm angezeigt. Optional.",
+    "addMember": "Den Agenten jetzt zur Einheit {{unit}} hinzufügen.",
+    "disconnect": "Diese Querverbindung jetzt entfernen.",
+    "addChild": "Das Formular Einheit hinzufügen mit dieser Einheit als übergeordneter Einheit ausfüllen.",
+    "startPeer": "Eine Querverbindung von dieser Einheit aus beginnen und dann die andere Einheit wählen.",
+    "removeUnit": "Die Einheit nach einer Bestätigung aus der Organisation des Entwurfs entfernen. Eine Einheit mit Einheiten darunter kann nicht entfernt werden.",
+    "peerTitle": "Die ausgewählte Querverbindung."
+   }
+  }
+ }
+});

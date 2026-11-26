@@ -4181,3 +4181,55 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "p3": "Un budget limita quanto un'unità e tutte le unità sotto di essa possono spendere in un giorno o in un mese UTC. Quando un budget si esaurisce, le nuove esecuzioni degli agenti di quel sottoalbero vengono rifiutate e il responsabile dell'unità ne viene informato."
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "Mostra le app della bozza: gli agenti e le chiamate tra loro.",
+    "organizations": "Mostra le organizzazioni della bozza: unità annidate dentro l'unità a cui riportano, con capi, membri e linee tra pari."
+   },
+   "org": {
+    "unit": "Un'unità dell'organizzazione. Selezionala per modificarne i membri e le linee tra pari; contiene le unità che riportano a essa.",
+    "unitReadOnly": "Un'unità dell'organizzazione. La modifica è disattivata per questa bozza.",
+    "picker": "Quale organizzazione della bozza mostra l'area di disegno.",
+    "addUnit": "Il nome della nuova unità, univoco nell'organizzazione. Premi Invio per aggiungerla.",
+    "parent": "L'unità a cui riporta la nuova unità. Senza unità superiore diventa la radice, che in un'organizzazione è una sola.",
+    "leadAgent": "L'agente che guida la nuova unità. Facoltativo; un agente guida al massimo un'unità per organizzazione.",
+    "leadTitle": "Il titolo del capo, ad esempio Responsabile fatturazione. Facoltativo.",
+    "organization": "L'organizzazione a cui aggiungere l'unità. Lascia vuoto per quella mostrata, oppure scrivi un nuovo nome per iniziare una nuova organizzazione.",
+    "add": "Aggiungi subito l'unità all'organizzazione della bozza. Nulla entra in vigore finché la bozza non viene applicata.",
+    "connectTo": "L'unità all'altro capo della linea tra pari.",
+    "connectConfirm": "Aggiungi subito la linea tra pari tra le due unità.",
+    "peers": "Unità che possono scambiarsi messaggi direttamente, senza passare da un responsabile comune.",
+    "peerLine": "Una linea tra pari tra due unità. Invio la seleziona; Canc la rimuove.",
+    "orgTitle": "L'organizzazione mostrata nell'area di disegno.",
+    "units": "Quante unità ha l'organizzazione in questa bozza.",
+    "root": "L'unità al vertice dell'organizzazione, guidata dall'agente a cui tutti gli altri riportano risalendo la catena.",
+    "unitTitle": "L'unità selezionata.",
+    "reportsTo": "L'unità a cui riporta questa; il suo capo è il responsabile del capo di questa unità.",
+    "lead": "L'agente che guida questa unità.",
+    "members": "Agenti che lavorano in questa unità e riportano al suo capo.",
+    "removeMember": "Rimuovi subito questo agente dall'unità.",
+    "memberAgent": "L'agente da aggiungere come membro. Non può occupare un'altra posizione in questa organizzazione.",
+    "memberTitle": "Il titolo del membro, mostrato nell'organigramma. Facoltativo.",
+    "addMember": "Aggiungi subito l'agente all'unità {{unit}}.",
+    "disconnect": "Rimuovi subito questa linea tra pari.",
+    "addChild": "Compila il modulo Aggiungi unità con questa unità come unità superiore.",
+    "startPeer": "Inizia una linea tra pari da questa unità, poi scegli l'altra unità.",
+    "removeUnit": "Rimuovi l'unità dall'organizzazione della bozza, dopo una conferma. Un'unità con unità sotto non può essere rimossa.",
+    "peerTitle": "La linea tra pari selezionata."
+   }
+  }
+ }
+});

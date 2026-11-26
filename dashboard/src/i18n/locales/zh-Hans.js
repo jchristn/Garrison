@@ -6889,3 +6889,137 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "该组织已有根单元。请为此单元选择一个上级单元。",
+   "UnitNameTaken": "该组织已有同名单元。",
+   "UnitNotFound": "该组织中没有此名称的单元。",
+   "UnitHasChildren": "请先移除此单元下方的单元。",
+   "NoSuchPeerLine": "这两个单元之间没有对等线路。",
+   "OrganizationDeleted": "草稿会删除此组织。请先将其恢复。",
+   "PeerNotFound": "单元不能与自身建立对等线路。"
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "画布显示内容",
+     "apps": "应用",
+     "organizations": "组织"
+    },
+    "operations": {
+     "AddUnit": "添加单元",
+     "RemoveUnit": "移除单元",
+     "AddUnitMember": "添加成员",
+     "RemoveUnitMember": "移除成员",
+     "ConnectUnits": "添加对等线路",
+     "DisconnectUnits": "移除对等线路"
+    },
+    "org": {
+     "none": "草稿中还没有组织。在上方输入组织名称和单元名称即可创建一个；第一个单元就是根单元。",
+     "flowLabel": "组织 {{organization}}",
+     "picker": "组织",
+     "units": "单元",
+     "root": "根单元",
+     "peers": "对等线路",
+     "orgTitle": "组织 {{name}}",
+     "orgHint": "选中一个单元即可编辑其成员和对等线路。单元位于其汇报对象单元之内。",
+     "deleted": "草稿会删除此组织。在恢复之前，其单元无法更改。",
+     "unitTitle": "单元 {{name}}",
+     "reportsTo": "汇报对象",
+     "lead": "负责人",
+     "members": "成员（{{count}}）",
+     "noMembers": "除负责人外没有其他成员。",
+     "memberAgent": "智能体",
+     "memberTitle": "头衔（可选）",
+     "addMember": "添加成员",
+     "removeMember": "移除",
+     "noPeers": "没有对等线路。",
+     "disconnect": "断开",
+     "addChild": "在下方添加单元",
+     "startPeer": "开始对等线路",
+     "removeUnit": "移除单元",
+     "peerTitle": "对等线路 {{from}} 与 {{to}}",
+     "peerHint": "{{from}} 与 {{to}} 可以直接互发消息，无需经过共同的上级。",
+     "peerList": "对等线路（{{total}}）",
+     "noPeerLines": "还没有对等线路。选中一个单元并开始一条，或从单元的右侧手柄拖到另一个单元。",
+     "removeTitle": "移除单元",
+     "removeMessage": "要在此草稿中从组织 {{organization}} 移除单元 {{name}} 吗？涉及它的对等线路也会一并移除。下方还有单元的单元无法移除。",
+     "toolbar": {
+      "label": "组织工具",
+      "addUnit": "添加单元",
+      "unitPlaceholder": "单元名称",
+      "parent": "汇报对象",
+      "noParent": "无上级（根单元）",
+      "under": "位于 {{name}} 之下",
+      "lead": "负责人智能体",
+      "leadPlaceholder": "负责人智能体（可选）",
+      "leadTitle": "负责人头衔（可选）",
+      "organization": "组织",
+      "add": "添加"
+     },
+     "connectBar": {
+      "message": "正在从 {{name}} 绘制对等线路。"
+     },
+     "keys": {
+      "tab": "Tab 在单元之间移动，每个单元排在其下方单元之前。",
+      "select": "Enter 或 Space 选中当前聚焦的单元并打开其属性。",
+      "peer": "在一个单元上按 C 从它开始一条对等线路；在另一个单元上按 C 或 Enter 完成。",
+      "remove": "Delete 在确认后移除当前聚焦的单元。",
+      "add": "N 跳转到“添加单元”输入框。",
+      "peers": "在对等线路列表中，Enter 选中线路，Delete 移除它。",
+      "escape": "Escape 取消你开始的对等线路。"
+     },
+     "node": {
+      "root": "根",
+      "reportsTo": "汇报给 {{name}}",
+      "lead": "负责人：{{name}}",
+      "noLead": "无负责人",
+      "members": "成员 {{list}}"
+     },
+     "summary": {
+      "none": "没有可描述的组织。",
+      "units_one": "组织 {{organization}} 有 {{count}} 个单元。",
+      "units_other": "组织 {{organization}} 有 {{count}} 个单元。",
+      "root": "根单元是 {{name}}。",
+      "peerCount_one": "有 {{count}} 条对等线路。",
+      "peerCount_other": "有 {{count}} 条对等线路。",
+      "unitRoot": "{{name}} 是根单元，{{lead}}。",
+      "unitChild": "{{name}} 汇报给 {{parent}}，{{lead}}。",
+      "ledBy": "负责人是 {{name}}",
+      "noLead": "没有负责人",
+      "peer": "{{from}} 与 {{to}} 之间有对等线路。"
+     },
+     "a11y": {
+      "unit": "按 Enter 或 Space 选中此单元。按 C 开始对等线路，按 Delete 移除此单元。",
+      "peer": "两个单元之间的对等线路。",
+      "handle": "拖到另一个单元以绘制对等线路"
+     },
+     "announce": {
+      "added": "已将单元 {{name}} 添加到 {{organization}}。",
+      "peerStart": "正在从 {{name}} 绘制对等线路。移到另一个单元上按 Enter，或按 Escape 取消。",
+      "connected": "{{from}} 与 {{to}} 现在有对等线路。",
+      "disconnected": "{{from}} 与 {{to}} 之间不再有对等线路。",
+      "memberAdded": "已将 {{name}} 添加到单元 {{unit}}。",
+      "memberRemoved": "已从单元 {{unit}} 移除 {{name}}。",
+      "removed": "已从 {{organization}} 移除单元 {{name}}。"
+     }
+    }
+   }
+  }
+ }
+});

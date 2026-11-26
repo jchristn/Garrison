@@ -6939,3 +6939,137 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "Die Organisation hat bereits eine Stammeinheit. Wählen Sie eine übergeordnete Einheit für diese Einheit.",
+   "UnitNameTaken": "Die Organisation hat bereits eine Einheit mit diesem Namen.",
+   "UnitNotFound": "Die Organisation hat keine Einheit mit diesem Namen.",
+   "UnitHasChildren": "Entfernen Sie zuerst die Einheiten unter dieser.",
+   "NoSuchPeerLine": "Diese beiden Einheiten haben keine Querverbindung.",
+   "OrganizationDeleted": "Der Entwurf löscht diese Organisation. Stellen Sie sie zuerst wieder her.",
+   "PeerNotFound": "Eine Einheit kann keine Querverbindung zu sich selbst haben."
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "Was die Zeichenfläche zeigt",
+     "apps": "Apps",
+     "organizations": "Organisationen"
+    },
+    "operations": {
+     "AddUnit": "Hinzufügen einer Einheit",
+     "RemoveUnit": "Entfernen einer Einheit",
+     "AddUnitMember": "Hinzufügen eines Mitglieds",
+     "RemoveUnitMember": "Entfernen eines Mitglieds",
+     "ConnectUnits": "Hinzufügen einer Querverbindung",
+     "DisconnectUnits": "Entfernen einer Querverbindung"
+    },
+    "org": {
+     "none": "Der Entwurf enthält noch keine Organisation. Geben Sie oben einen Organisationsnamen und einen Einheitennamen ein, um eine zu beginnen; ihre erste Einheit ist die Stammeinheit.",
+     "flowLabel": "Organisation {{organization}}",
+     "picker": "Organisation",
+     "units": "Einheiten",
+     "root": "Stammeinheit",
+     "peers": "Querverbindungen",
+     "orgTitle": "Organisation {{name}}",
+     "orgHint": "Wählen Sie eine Einheit, um ihre Mitglieder und Querverbindungen zu bearbeiten. Einheiten liegen innerhalb der Einheit, der sie unterstehen.",
+     "deleted": "Der Entwurf löscht diese Organisation. Ihre Einheiten können sich erst ändern, wenn sie wiederhergestellt ist.",
+     "unitTitle": "Einheit {{name}}",
+     "reportsTo": "Untersteht",
+     "lead": "Leitung",
+     "members": "Mitglieder ({{count}})",
+     "noMembers": "Keine Mitglieder außer der Leitung.",
+     "memberAgent": "Agent",
+     "memberTitle": "Titel (optional)",
+     "addMember": "Mitglied hinzufügen",
+     "removeMember": "Entfernen",
+     "noPeers": "Keine Querverbindungen.",
+     "disconnect": "Trennen",
+     "addChild": "Einheit darunter hinzufügen",
+     "startPeer": "Querverbindung beginnen",
+     "removeUnit": "Einheit entfernen",
+     "peerTitle": "Querverbindung {{from}} und {{to}}",
+     "peerHint": "{{from}} und {{to}} dürfen einander direkt Nachrichten senden, ohne Umweg über eine gemeinsame Führungskraft.",
+     "peerList": "Querverbindungen ({{total}})",
+     "noPeerLines": "Noch keine Querverbindungen. Wählen Sie eine Einheit und beginnen Sie eine, oder ziehen Sie vom rechten Punkt einer Einheit zu einer anderen Einheit.",
+     "removeTitle": "Einheit entfernen",
+     "removeMessage": "Einheit {{name}} in diesem Entwurf aus der Organisation {{organization}} entfernen? Querverbindungen, die sie nennen, werden mit entfernt. Eine Einheit mit Einheiten darunter kann nicht entfernt werden.",
+     "toolbar": {
+      "label": "Organisationswerkzeuge",
+      "addUnit": "Einheit hinzufügen",
+      "unitPlaceholder": "Name der Einheit",
+      "parent": "Untersteht",
+      "noParent": "Keine übergeordnete Einheit (Stammeinheit)",
+      "under": "Unter {{name}}",
+      "lead": "Leitender Agent",
+      "leadPlaceholder": "Leitender Agent (optional)",
+      "leadTitle": "Titel der Leitung (optional)",
+      "organization": "Organisation",
+      "add": "Hinzufügen"
+     },
+     "connectBar": {
+      "message": "Querverbindung von {{name}} aus."
+     },
+     "keys": {
+      "tab": "Tab wechselt durch die Einheiten, jede Einheit vor den Einheiten darunter.",
+      "select": "Eingabetaste oder Leertaste wählt die fokussierte Einheit aus und öffnet ihre Eigenschaften.",
+      "peer": "C auf einer Einheit beginnt eine Querverbindung von ihr aus; C oder die Eingabetaste auf einer anderen Einheit schließt sie ab.",
+      "remove": "Entf entfernt die fokussierte Einheit nach einer Bestätigung.",
+      "add": "N springt zum Feld Einheit hinzufügen.",
+      "peers": "In der Liste der Querverbindungen wählt die Eingabetaste eine Verbindung aus, und Entf entfernt sie.",
+      "escape": "Escape bricht eine begonnene Querverbindung ab."
+     },
+     "node": {
+      "root": "Stamm",
+      "reportsTo": "untersteht {{name}}",
+      "lead": "Leitung: {{name}}",
+      "noLead": "Keine Leitung",
+      "members": "Mitglieder {{list}}"
+     },
+     "summary": {
+      "none": "Es gibt keine Organisation zu beschreiben.",
+      "units_one": "Die Organisation {{organization}} hat {{count}} Einheit.",
+      "units_other": "Die Organisation {{organization}} hat {{count}} Einheiten.",
+      "root": "Die Stammeinheit ist {{name}}.",
+      "peerCount_one": "Es gibt {{count}} Querverbindung.",
+      "peerCount_other": "Es gibt {{count}} Querverbindungen.",
+      "unitRoot": "{{name}} ist die Stammeinheit und {{lead}}.",
+      "unitChild": "{{name}} untersteht {{parent}} und {{lead}}.",
+      "ledBy": "wird von {{name}} geleitet",
+      "noLead": "hat keine Leitung",
+      "peer": "{{from}} und {{to}} haben eine Querverbindung."
+     },
+     "a11y": {
+      "unit": "Drücken Sie die Eingabetaste oder die Leertaste, um diese Einheit auszuwählen. Drücken Sie C, um eine Querverbindung zu beginnen, oder Entf, um die Einheit zu entfernen.",
+      "peer": "Eine Querverbindung zwischen zwei Einheiten.",
+      "handle": "Zu einer anderen Einheit ziehen, um eine Querverbindung zu zeichnen"
+     },
+     "announce": {
+      "added": "Einheit {{name}} zu {{organization}} hinzugefügt.",
+      "peerStart": "Querverbindung von {{name}} aus. Gehen Sie zur anderen Einheit und drücken Sie die Eingabetaste, oder drücken Sie Escape zum Abbrechen.",
+      "connected": "{{from}} und {{to}} haben jetzt eine Querverbindung.",
+      "disconnected": "{{from}} und {{to}} haben keine Querverbindung mehr.",
+      "memberAdded": "{{name}} zur Einheit {{unit}} hinzugefügt.",
+      "memberRemoved": "{{name}} aus der Einheit {{unit}} entfernt.",
+      "removed": "Einheit {{name}} aus {{organization}} entfernt."
+     }
+    }
+   }
+  }
+ }
+});

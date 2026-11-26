@@ -6927,3 +6927,137 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "The organization already has a root unit. Pick a parent for this unit.",
+   "UnitNameTaken": "The organization already has a unit with this name.",
+   "UnitNotFound": "The organization has no unit with this name.",
+   "UnitHasChildren": "Remove the units below this one first.",
+   "NoSuchPeerLine": "These two units have no peer line.",
+   "OrganizationDeleted": "The draft deletes this organization. Put it back first.",
+   "PeerNotFound": "A unit cannot have a peer line to itself."
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "What the canvas shows",
+     "apps": "Apps",
+     "organizations": "Organizations"
+    },
+    "operations": {
+     "AddUnit": "Adding a unit",
+     "RemoveUnit": "Removing a unit",
+     "AddUnitMember": "Adding a member",
+     "RemoveUnitMember": "Removing a member",
+     "ConnectUnits": "Adding a peer line",
+     "DisconnectUnits": "Removing a peer line"
+    },
+    "org": {
+     "none": "The draft holds no organization yet. Type an organization name and a unit name above to start one; its first unit is the root.",
+     "flowLabel": "Organization {{organization}}",
+     "picker": "Organization",
+     "units": "Units",
+     "root": "Root unit",
+     "peers": "Peer lines",
+     "orgTitle": "Organization {{name}}",
+     "orgHint": "Select a unit to edit its members and peer lines. Units sit inside the unit they report to.",
+     "deleted": "The draft deletes this organization. Its units cannot change until it is put back.",
+     "unitTitle": "Unit {{name}}",
+     "reportsTo": "Reports to",
+     "lead": "Lead",
+     "members": "Members ({{count}})",
+     "noMembers": "No members besides the lead.",
+     "memberAgent": "Agent",
+     "memberTitle": "Title (optional)",
+     "addMember": "Add member",
+     "removeMember": "Remove",
+     "noPeers": "No peer lines.",
+     "disconnect": "Disconnect",
+     "addChild": "Add unit below",
+     "startPeer": "Start peer line",
+     "removeUnit": "Remove unit",
+     "peerTitle": "Peer line {{from}} and {{to}}",
+     "peerHint": "{{from}} and {{to}} may message each other directly, without going through a shared manager.",
+     "peerList": "Peer lines ({{total}})",
+     "noPeerLines": "No peer lines yet. Select a unit and start one, or drag from a unit's right handle to another unit.",
+     "removeTitle": "Remove unit",
+     "removeMessage": "Remove unit {{name}} from organization {{organization}} in this draft? Peer lines that name it go too. A unit with units below it cannot be removed.",
+     "toolbar": {
+      "label": "Organization tools",
+      "addUnit": "Add unit",
+      "unitPlaceholder": "Unit name",
+      "parent": "Reports to",
+      "noParent": "No parent (root)",
+      "under": "Under {{name}}",
+      "lead": "Lead agent",
+      "leadPlaceholder": "Lead agent (optional)",
+      "leadTitle": "Lead title (optional)",
+      "organization": "Organization",
+      "add": "Add"
+     },
+     "connectBar": {
+      "message": "Drawing a peer line from {{name}}."
+     },
+     "keys": {
+      "tab": "Tab moves through the units, each unit before the units below it.",
+      "select": "Enter or Space selects the focused unit and opens its properties.",
+      "peer": "C on a unit starts a peer line from it; C or Enter on another unit finishes it.",
+      "remove": "Delete removes the focused unit, after a confirmation.",
+      "add": "N jumps to the Add unit field.",
+      "peers": "In the list of peer lines, Enter selects a line and Delete removes it.",
+      "escape": "Escape cancels a peer line you started."
+     },
+     "node": {
+      "root": "Root",
+      "reportsTo": "reports to {{name}}",
+      "lead": "Lead: {{name}}",
+      "noLead": "No lead",
+      "members": "members {{list}}"
+     },
+     "summary": {
+      "none": "There is no organization to describe.",
+      "units_one": "Organization {{organization}} has {{count}} unit.",
+      "units_other": "Organization {{organization}} has {{count}} units.",
+      "root": "The root unit is {{name}}.",
+      "peerCount_one": "There is {{count}} peer line.",
+      "peerCount_other": "There are {{count}} peer lines.",
+      "unitRoot": "{{name}} is the root unit and {{lead}}.",
+      "unitChild": "{{name}} reports to {{parent}} and {{lead}}.",
+      "ledBy": "is led by {{name}}",
+      "noLead": "has no lead",
+      "peer": "{{from}} and {{to}} have a peer line."
+     },
+     "a11y": {
+      "unit": "Press Enter or Space to select this unit. Press C to start a peer line, Delete to remove the unit.",
+      "peer": "A peer line between two units.",
+      "handle": "Drag to another unit to draw a peer line"
+     },
+     "announce": {
+      "added": "Added unit {{name}} to {{organization}}.",
+      "peerStart": "Drawing a peer line from {{name}}. Move to the other unit and press Enter, or press Escape to cancel.",
+      "connected": "{{from}} and {{to}} now have a peer line.",
+      "disconnected": "{{from}} and {{to}} no longer have a peer line.",
+      "memberAdded": "Added {{name}} to unit {{unit}}.",
+      "memberRemoved": "Removed {{name}} from unit {{unit}}.",
+      "removed": "Removed unit {{name}} from {{organization}}."
+     }
+    }
+   }
+  }
+ }
+});

@@ -4179,3 +4179,55 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "p3": "A budget caps what a unit and every unit below it may spend in a UTC day or month. When a budget runs out, new runs of agents in that subtree are refused and the unit's manager hears about it."
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "Show the draft's apps: agents and the calls between them.",
+    "organizations": "Show the draft's organizations: units nested inside the unit they report to, with leads, members, and peer lines."
+   },
+   "org": {
+    "unit": "A unit of the organization. Select it to edit its members and peer lines; it holds the units that report to it.",
+    "unitReadOnly": "A unit of the organization. Editing is off for this draft.",
+    "picker": "Which of the draft's organizations the canvas shows.",
+    "addUnit": "The new unit's name, unique in the organization. Press Enter to add it.",
+    "parent": "The unit the new unit reports to. With no parent it becomes the root, which an organization has only one of.",
+    "leadAgent": "The agent that leads the new unit. Optional; an agent leads at most one unit per organization.",
+    "leadTitle": "The lead's title, such as Head of billing. Optional.",
+    "organization": "The organization to add the unit to. Leave it empty for the one shown, or type a new name to start a new organization.",
+    "add": "Add the unit to the draft's organization now. Nothing goes live until the draft is applied.",
+    "connectTo": "The unit at the other end of the peer line.",
+    "connectConfirm": "Add the peer line between the two units now.",
+    "peers": "Units that may message each other directly, without going through a shared manager.",
+    "peerLine": "A peer line between two units. Enter selects it; Delete removes it.",
+    "orgTitle": "The organization shown on the canvas.",
+    "units": "How many units the organization has in this draft.",
+    "root": "The unit at the top of the organization, led by the agent everyone else reports up to.",
+    "unitTitle": "The selected unit.",
+    "reportsTo": "The unit this one reports to; its lead is this unit lead's manager.",
+    "lead": "The agent that leads this unit.",
+    "members": "Agents that work in this unit and report to its lead.",
+    "removeMember": "Remove this agent from the unit now.",
+    "memberAgent": "The agent to add as a member. It cannot hold another position in this organization.",
+    "memberTitle": "The member's title, shown on the chart. Optional.",
+    "addMember": "Add the agent to unit {{unit}} now.",
+    "disconnect": "Remove this peer line now.",
+    "addChild": "Fill in the Add unit form with this unit as the parent.",
+    "startPeer": "Start a peer line from this unit, then pick the other unit.",
+    "removeUnit": "Remove the unit from the draft's organization, after a confirmation. A unit with units below it cannot be removed.",
+    "peerTitle": "The selected peer line."
+   }
+  }
+ }
+});

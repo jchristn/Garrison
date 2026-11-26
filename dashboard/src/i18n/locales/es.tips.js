@@ -4181,3 +4181,55 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "p3": "Un presupuesto limita lo que pueden gastar una unidad y todas las que dependen de ella en un día o un mes UTC. Cuando se agota un presupuesto, se rechazan las nuevas ejecuciones de los agentes de ese subárbol y se avisa al responsable de la unidad."
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "Mostrar las aplicaciones del borrador: los agentes y las llamadas entre ellos.",
+    "organizations": "Mostrar las organizaciones del borrador: unidades anidadas dentro de la unidad de la que dependen, con líderes, miembros y líneas entre pares."
+   },
+   "org": {
+    "unit": "Una unidad de la organización. Selecciónela para editar sus miembros y sus líneas entre pares; contiene las unidades que dependen de ella.",
+    "unitReadOnly": "Una unidad de la organización. La edición está desactivada para este borrador.",
+    "picker": "Qué organización del borrador muestra el lienzo.",
+    "addUnit": "El nombre de la nueva unidad, único en la organización. Pulse Intro para añadirla.",
+    "parent": "La unidad de la que depende la nueva unidad. Sin unidad superior se convierte en la raíz, y una organización solo tiene una.",
+    "leadAgent": "El agente que lidera la nueva unidad. Opcional; un agente lidera como máximo una unidad por organización.",
+    "leadTitle": "El cargo del líder, por ejemplo Jefe de facturación. Opcional.",
+    "organization": "La organización a la que se añade la unidad. Déjelo vacío para la que se muestra, o escriba un nombre nuevo para empezar una organización nueva.",
+    "add": "Añadir ahora la unidad a la organización del borrador. Nada entra en vigor hasta que se aplique el borrador.",
+    "connectTo": "La unidad en el otro extremo de la línea entre pares.",
+    "connectConfirm": "Añadir ahora la línea entre pares entre las dos unidades.",
+    "peers": "Unidades que pueden enviarse mensajes directamente, sin pasar por un superior común.",
+    "peerLine": "Una línea entre pares entre dos unidades. Intro la selecciona; Supr la quita.",
+    "orgTitle": "La organización que se muestra en el lienzo.",
+    "units": "Cuántas unidades tiene la organización en este borrador.",
+    "root": "La unidad en la cima de la organización, liderada por el agente ante el que responden en última instancia todos los demás.",
+    "unitTitle": "La unidad seleccionada.",
+    "reportsTo": "La unidad de la que depende esta; su líder es el superior del líder de esta unidad.",
+    "lead": "El agente que lidera esta unidad.",
+    "members": "Agentes que trabajan en esta unidad y responden ante su líder.",
+    "removeMember": "Quitar ahora este agente de la unidad.",
+    "memberAgent": "El agente que se añade como miembro. No puede ocupar otro puesto en esta organización.",
+    "memberTitle": "El cargo del miembro, que se muestra en el organigrama. Opcional.",
+    "addMember": "Añadir ahora el agente a la unidad {{unit}}.",
+    "disconnect": "Quitar ahora esta línea entre pares.",
+    "addChild": "Rellenar el formulario Añadir unidad con esta unidad como unidad superior.",
+    "startPeer": "Empezar una línea entre pares desde esta unidad y después elegir la otra unidad.",
+    "removeUnit": "Quitar la unidad de la organización del borrador, tras una confirmación. No se puede quitar una unidad que tiene unidades dependientes.",
+    "peerTitle": "La línea entre pares seleccionada."
+   }
+  }
+ }
+});

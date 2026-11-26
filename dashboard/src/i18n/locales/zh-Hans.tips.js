@@ -4178,3 +4178,55 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "p3": "预算限制一个单元及其所有下属单元在一个 UTC 日或月内可支出的金额。预算用完后，该子树中智能体的新运行会被拒绝，并通知该单元的上级。"
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "显示草稿中的应用：智能体及其之间的调用。",
+    "organizations": "显示草稿中的组织：单元嵌套在其汇报对象单元之内，并显示负责人、成员和对等线路。"
+   },
+   "org": {
+    "unit": "组织中的一个单元。选中它即可编辑其成员和对等线路；它包含向它汇报的单元。",
+    "unitReadOnly": "组织中的一个单元。此草稿已关闭编辑。",
+    "picker": "画布显示草稿中的哪个组织。",
+    "addUnit": "新单元的名称，在组织内必须唯一。按 Enter 添加。",
+    "parent": "新单元的汇报对象单元。没有上级时它会成为根单元，一个组织只能有一个根单元。",
+    "leadAgent": "领导新单元的智能体。可选；每个组织中一个智能体最多领导一个单元。",
+    "leadTitle": "负责人的头衔，例如计费主管。可选。",
+    "organization": "要添加单元的组织。留空则添加到当前显示的组织，输入新名称则创建新组织。",
+    "add": "立即将单元添加到草稿的组织中。在应用草稿之前不会生效。",
+    "connectTo": "对等线路另一端的单元。",
+    "connectConfirm": "立即在两个单元之间添加对等线路。",
+    "peers": "可以直接互发消息、无需经过共同上级的单元。",
+    "peerLine": "两个单元之间的对等线路。Enter 选中它；Delete 移除它。",
+    "orgTitle": "画布上显示的组织。",
+    "units": "此草稿中该组织拥有的单元数量。",
+    "root": "组织最顶层的单元，由所有人最终汇报到的智能体领导。",
+    "unitTitle": "选中的单元。",
+    "reportsTo": "此单元的汇报对象单元；其负责人是此单元负责人的上级。",
+    "lead": "领导此单元的智能体。",
+    "members": "在此单元工作并向其负责人汇报的智能体。",
+    "removeMember": "立即将此智能体从单元中移除。",
+    "memberAgent": "要添加为成员的智能体。它不能在此组织中担任其他职位。",
+    "memberTitle": "成员的头衔，显示在组织图上。可选。",
+    "addMember": "立即将智能体添加到单元 {{unit}}。",
+    "disconnect": "立即移除此对等线路。",
+    "addChild": "以此单元为上级填写“添加单元”表单。",
+    "startPeer": "从此单元开始一条对等线路，然后选择另一个单元。",
+    "removeUnit": "确认后将单元从草稿的组织中移除。下方还有单元的单元无法移除。",
+    "peerTitle": "选中的对等线路。"
+   }
+  }
+ }
+});

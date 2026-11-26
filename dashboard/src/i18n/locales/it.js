@@ -6953,3 +6953,137 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "L'organizzazione ha già un'unità radice. Scegli un'unità superiore per questa unità.",
+   "UnitNameTaken": "L'organizzazione ha già un'unità con questo nome.",
+   "UnitNotFound": "L'organizzazione non ha nessuna unità con questo nome.",
+   "UnitHasChildren": "Rimuovi prima le unità sotto questa.",
+   "NoSuchPeerLine": "Queste due unità non hanno una linea tra pari.",
+   "OrganizationDeleted": "La bozza elimina questa organizzazione. Ripristinala prima.",
+   "PeerNotFound": "Un'unità non può avere una linea tra pari con sé stessa."
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "Cosa mostra l'area di disegno",
+     "apps": "Applicazioni",
+     "organizations": "Organizzazioni"
+    },
+    "operations": {
+     "AddUnit": "Aggiunta di un'unità",
+     "RemoveUnit": "Rimozione di un'unità",
+     "AddUnitMember": "Aggiunta di un membro",
+     "RemoveUnitMember": "Rimozione di un membro",
+     "ConnectUnits": "Aggiunta di una linea tra pari",
+     "DisconnectUnits": "Rimozione di una linea tra pari"
+    },
+    "org": {
+     "none": "La bozza non contiene ancora un'organizzazione. Scrivi qui sopra un nome di organizzazione e un nome di unità per iniziarne una; la sua prima unità è la radice.",
+     "flowLabel": "Organizzazione {{organization}}",
+     "picker": "Organizzazione",
+     "units": "Unità",
+     "root": "Unità radice",
+     "peers": "Linee tra pari",
+     "orgTitle": "Organizzazione {{name}}",
+     "orgHint": "Seleziona un'unità per modificarne i membri e le linee tra pari. Le unità stanno dentro l'unità a cui riportano.",
+     "deleted": "La bozza elimina questa organizzazione. Le sue unità non possono cambiare finché non viene ripristinata.",
+     "unitTitle": "Unità {{name}}",
+     "reportsTo": "Riporta a",
+     "lead": "Capo",
+     "members": "Membri ({{count}})",
+     "noMembers": "Nessun membro oltre al capo.",
+     "memberAgent": "Agente",
+     "memberTitle": "Titolo (facoltativo)",
+     "addMember": "Aggiungi membro",
+     "removeMember": "Rimuovi",
+     "noPeers": "Nessuna linea tra pari.",
+     "disconnect": "Scollega",
+     "addChild": "Aggiungi unità sotto",
+     "startPeer": "Inizia linea tra pari",
+     "removeUnit": "Rimuovi unità",
+     "peerTitle": "Linea tra pari {{from}} e {{to}}",
+     "peerHint": "{{from}} e {{to}} possono scambiarsi messaggi direttamente, senza passare da un responsabile comune.",
+     "peerList": "Linee tra pari ({{total}})",
+     "noPeerLines": "Ancora nessuna linea tra pari. Seleziona un'unità e iniziane una, oppure trascina dal punto destro di un'unità a un'altra unità.",
+     "removeTitle": "Rimuovi unità",
+     "removeMessage": "Rimuovere l'unità {{name}} dall'organizzazione {{organization}} in questa bozza? Vengono rimosse anche le linee tra pari che la nominano. Un'unità con unità sotto non può essere rimossa.",
+     "toolbar": {
+      "label": "Strumenti dell'organizzazione",
+      "addUnit": "Aggiungi unità",
+      "unitPlaceholder": "Nome dell'unità",
+      "parent": "Riporta a",
+      "noParent": "Nessuna unità superiore (radice)",
+      "under": "Sotto {{name}}",
+      "lead": "Agente capo",
+      "leadPlaceholder": "Agente capo (facoltativo)",
+      "leadTitle": "Titolo del capo (facoltativo)",
+      "organization": "Organizzazione",
+      "add": "Aggiungi"
+     },
+     "connectBar": {
+      "message": "Tracciamento di una linea tra pari da {{name}}."
+     },
+     "keys": {
+      "tab": "Tab scorre le unità, ogni unità prima delle unità sotto di essa.",
+      "select": "Invio o Spazio seleziona l'unità con il focus e ne apre le proprietà.",
+      "peer": "C su un'unità avvia una linea tra pari da essa; C o Invio su un'altra unità la completa.",
+      "remove": "Canc rimuove l'unità con il focus, dopo una conferma.",
+      "add": "N porta al campo Aggiungi unità.",
+      "peers": "Nell'elenco delle linee tra pari, Invio seleziona una linea e Canc la rimuove.",
+      "escape": "Esc annulla una linea tra pari che hai iniziato."
+     },
+     "node": {
+      "root": "Radice",
+      "reportsTo": "riporta a {{name}}",
+      "lead": "Capo: {{name}}",
+      "noLead": "Nessun capo",
+      "members": "membri {{list}}"
+     },
+     "summary": {
+      "none": "Non c'è nessuna organizzazione da descrivere.",
+      "units_one": "L'organizzazione {{organization}} ha {{count}} unità.",
+      "units_other": "L'organizzazione {{organization}} ha {{count}} unità.",
+      "root": "L'unità radice è {{name}}.",
+      "peerCount_one": "C'è {{count}} linea tra pari.",
+      "peerCount_other": "Ci sono {{count}} linee tra pari.",
+      "unitRoot": "{{name}} è l'unità radice e {{lead}}.",
+      "unitChild": "{{name}} riporta a {{parent}} e {{lead}}.",
+      "ledBy": "è guidata da {{name}}",
+      "noLead": "non ha un capo",
+      "peer": "{{from}} e {{to}} hanno una linea tra pari."
+     },
+     "a11y": {
+      "unit": "Premi Invio o Spazio per selezionare questa unità. Premi C per iniziare una linea tra pari, oppure Canc per rimuovere l'unità.",
+      "peer": "Una linea tra pari tra due unità.",
+      "handle": "Trascina su un'altra unità per tracciare una linea tra pari"
+     },
+     "announce": {
+      "added": "Unità {{name}} aggiunta a {{organization}}.",
+      "peerStart": "Tracciamento di una linea tra pari da {{name}}. Spostati sull'altra unità e premi Invio, oppure premi Esc per annullare.",
+      "connected": "Ora {{from}} e {{to}} hanno una linea tra pari.",
+      "disconnected": "{{from}} e {{to}} non hanno più una linea tra pari.",
+      "memberAdded": "{{name}} aggiunto all'unità {{unit}}.",
+      "memberRemoved": "{{name}} rimosso dall'unità {{unit}}.",
+      "removed": "Unità {{name}} rimossa da {{organization}}."
+     }
+    }
+   }
+  }
+ }
+});

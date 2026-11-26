@@ -6888,3 +6888,137 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "この組織にはすでにルート単位があります。この組織単位の親を選んでください。",
+   "UnitNameTaken": "この組織にはすでに同じ名前の組織単位があります。",
+   "UnitNotFound": "この組織にはこの名前の組織単位がありません。",
+   "UnitHasChildren": "先にこの組織単位の下にある組織単位を削除してください。",
+   "NoSuchPeerLine": "この 2 つの組織単位の間にピアラインはありません。",
+   "OrganizationDeleted": "この下書きはこの組織を削除します。先に元に戻してください。",
+   "PeerNotFound": "組織単位は自分自身とのピアラインを持てません。"
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "キャンバスの表示内容",
+     "apps": "アプリ",
+     "organizations": "組織"
+    },
+    "operations": {
+     "AddUnit": "組織単位の追加",
+     "RemoveUnit": "組織単位の削除",
+     "AddUnitMember": "メンバーの追加",
+     "RemoveUnitMember": "メンバーの削除",
+     "ConnectUnits": "ピアラインの追加",
+     "DisconnectUnits": "ピアラインの削除"
+    },
+    "org": {
+     "none": "下書きにはまだ組織がありません。上で組織名と組織単位名を入力して作成してください。最初の組織単位がルートになります。",
+     "flowLabel": "組織 {{organization}}",
+     "picker": "組織",
+     "units": "組織単位",
+     "root": "ルート単位",
+     "peers": "ピアライン",
+     "orgTitle": "組織 {{name}}",
+     "orgHint": "組織単位を選択すると、メンバーとピアラインを編集できます。組織単位は報告先の組織単位の中に配置されます。",
+     "deleted": "この下書きはこの組織を削除します。元に戻すまで組織単位は変更できません。",
+     "unitTitle": "組織単位 {{name}}",
+     "reportsTo": "報告先",
+     "lead": "責任者",
+     "members": "メンバー ({{count}})",
+     "noMembers": "責任者以外のメンバーはいません。",
+     "memberAgent": "エージェント",
+     "memberTitle": "役職（任意）",
+     "addMember": "メンバーを追加",
+     "removeMember": "削除",
+     "noPeers": "ピアラインはありません。",
+     "disconnect": "切断",
+     "addChild": "下に組織単位を追加",
+     "startPeer": "ピアラインを開始",
+     "removeUnit": "組織単位を削除",
+     "peerTitle": "ピアライン {{from}} と {{to}}",
+     "peerHint": "{{from}} と {{to}} は、共通の上司を経由せずに直接メッセージをやり取りできます。",
+     "peerList": "ピアライン（{{total}}）",
+     "noPeerLines": "まだピアラインはありません。組織単位を選択して開始するか、組織単位の右端のハンドルから別の組織単位へドラッグしてください。",
+     "removeTitle": "組織単位を削除",
+     "removeMessage": "この下書きで、組織単位 {{name}} を組織 {{organization}} から削除しますか？この組織単位を含むピアラインも削除されます。下に組織単位がある組織単位は削除できません。",
+     "toolbar": {
+      "label": "組織の操作",
+      "addUnit": "組織単位を追加",
+      "unitPlaceholder": "組織単位名",
+      "parent": "報告先",
+      "noParent": "親なし（ルート）",
+      "under": "{{name}} の下",
+      "lead": "責任者エージェント",
+      "leadPlaceholder": "責任者エージェント（任意）",
+      "leadTitle": "責任者の役職（任意）",
+      "organization": "組織",
+      "add": "追加"
+     },
+     "connectBar": {
+      "message": "{{name}} からピアラインを引いています。"
+     },
+     "keys": {
+      "tab": "Tab で組織単位間を移動します。各組織単位はその下の組織単位より先に移動します。",
+      "select": "Enter または Space でフォーカス中の組織単位を選択し、プロパティを開きます。",
+      "peer": "組織単位で C を押すとそこからピアラインを始め、別の組織単位で C または Enter を押すと完了します。",
+      "remove": "Delete で確認の後、フォーカス中の組織単位を削除します。",
+      "add": "N で「組織単位を追加」の入力欄に移動します。",
+      "peers": "ピアラインの一覧では、Enter でラインを選択、Delete で削除します。",
+      "escape": "Escape で始めたピアラインを取り消します。"
+     },
+     "node": {
+      "root": "ルート",
+      "reportsTo": "報告先 {{name}}",
+      "lead": "責任者：{{name}}",
+      "noLead": "責任者なし",
+      "members": "メンバー {{list}}"
+     },
+     "summary": {
+      "none": "説明する組織がありません。",
+      "units_one": "組織 {{organization}} には {{count}} 個の組織単位があります。",
+      "units_other": "組織 {{organization}} には {{count}} 個の組織単位があります。",
+      "root": "ルート単位は {{name}} です。",
+      "peerCount_one": "ピアラインは {{count}} 本です。",
+      "peerCount_other": "ピアラインは {{count}} 本です。",
+      "unitRoot": "{{name}} はルート単位で、{{lead}}。",
+      "unitChild": "{{name}} は {{parent}} に報告し、{{lead}}。",
+      "ledBy": "責任者は {{name}} です",
+      "noLead": "責任者はいません",
+      "peer": "{{from}} と {{to}} の間にピアラインがあります。"
+     },
+     "a11y": {
+      "unit": "Enter または Space でこの組織単位を選択します。C でピアラインを開始、Delete で組織単位を削除します。",
+      "peer": "2 つの組織単位間のピアラインです。",
+      "handle": "別の組織単位へドラッグしてピアラインを引きます"
+     },
+     "announce": {
+      "added": "組織単位 {{name}} を {{organization}} に追加しました。",
+      "peerStart": "{{name}} からピアラインを引いています。もう一方の組織単位に移動して Enter を押すか、Escape で取り消してください。",
+      "connected": "{{from}} と {{to}} の間にピアラインができました。",
+      "disconnected": "{{from}} と {{to}} の間のピアラインがなくなりました。",
+      "memberAdded": "{{name}} を組織単位 {{unit}} に追加しました。",
+      "memberRemoved": "{{name}} を組織単位 {{unit}} から削除しました。",
+      "removed": "組織単位 {{name}} を {{organization}} から削除しました。"
+     }
+    }
+   }
+  }
+ }
+});

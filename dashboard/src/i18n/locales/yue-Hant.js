@@ -6888,3 +6888,137 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "呢個組織已經有根單位。請幫呢個單位揀個上層單位。",
+   "UnitNameTaken": "呢個組織已經有同名嘅單位。",
+   "UnitNotFound": "呢個組織冇呢個名嘅單位。",
+   "UnitHasChildren": "請先移除呢個單位下面嘅單位。",
+   "NoSuchPeerLine": "呢兩個單位之間冇同級線路。",
+   "OrganizationDeleted": "草稿會刪除呢個組織。請先將佢還原。",
+   "PeerNotFound": "單位唔可以同自己有同級線路。"
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "畫布顯示咩",
+     "apps": "應用程式",
+     "organizations": "組織"
+    },
+    "operations": {
+     "AddUnit": "加單位",
+     "RemoveUnit": "移除單位",
+     "AddUnitMember": "加成員",
+     "RemoveUnitMember": "移除成員",
+     "ConnectUnits": "加同級線路",
+     "DisconnectUnits": "移除同級線路"
+    },
+    "org": {
+     "none": "草稿入面仲未有組織。喺上面輸入組織名同單位名就可以開一個；第一個單位就係根單位。",
+     "flowLabel": "組織 {{organization}}",
+     "picker": "組織",
+     "units": "單位",
+     "root": "根單位",
+     "peers": "同級線路",
+     "orgTitle": "組織 {{name}}",
+     "orgHint": "揀一個單位就可以改佢嘅成員同同級線路。單位會擺喺佢上層單位入面。",
+     "deleted": "草稿會刪除呢個組織。還原之前，佢嘅單位都改唔到。",
+     "unitTitle": "單位 {{name}}",
+     "reportsTo": "上層單位",
+     "lead": "負責人",
+     "members": "成員（{{count}}）",
+     "noMembers": "除咗負責人之外冇其他成員。",
+     "memberAgent": "代理程式",
+     "memberTitle": "職銜（可以唔填）",
+     "addMember": "新增成員",
+     "removeMember": "移除",
+     "noPeers": "冇同級線路。",
+     "disconnect": "斷開連接",
+     "addChild": "喺下面加單位",
+     "startPeer": "開始同級線路",
+     "removeUnit": "移除單位",
+     "peerTitle": "同級線路 {{from}} 同 {{to}}",
+     "peerHint": "{{from}} 同 {{to}} 可以直接互相發訊息，唔使經共同嘅上司。",
+     "peerList": "同級線路（{{total}}）",
+     "noPeerLines": "仲未有同級線路。揀一個單位再開始一條，或者由單位右邊嘅控點拖去另一個單位。",
+     "removeTitle": "移除單位",
+     "removeMessage": "要喺呢份草稿由組織 {{organization}} 移除單位 {{name}} 嗎？提到佢嘅同級線路都會一齊移除。下面仲有單位嘅單位移除唔到。",
+     "toolbar": {
+      "label": "組織工具",
+      "addUnit": "加單位",
+      "unitPlaceholder": "單位名稱",
+      "parent": "上層單位",
+      "noParent": "冇上層單位（根單位）",
+      "under": "喺 {{name}} 下面",
+      "lead": "負責人代理程式",
+      "leadPlaceholder": "負責人代理程式（可以唔填）",
+      "leadTitle": "負責人職銜（可以唔填）",
+      "organization": "組織",
+      "add": "加入"
+     },
+     "connectBar": {
+      "message": "由 {{name}} 畫緊同級線路。"
+     },
+     "keys": {
+      "tab": "Tab 會喺單位之間移動，每個單位都排喺佢下面嘅單位之前。",
+      "select": "Enter 或者 Space 會揀中焦點所在嘅單位，並打開佢嘅屬性。",
+      "peer": "喺單位度撳 C 就由佢開始一條同級線路；喺另一個單位度撳 C 或者 Enter 就完成。",
+      "remove": "Delete 會喺確認之後移除焦點所在嘅單位。",
+      "add": "N 會跳去「加單位」欄位。",
+      "peers": "喺同級線路清單度，Enter 揀線路，Delete 移除佢。",
+      "escape": "Escape 會取消你開始咗嘅同級線路。"
+     },
+     "node": {
+      "root": "根",
+      "reportsTo": "向 {{name}} 匯報",
+      "lead": "負責人：{{name}}",
+      "noLead": "冇負責人",
+      "members": "成員 {{list}}"
+     },
+     "summary": {
+      "none": "冇組織可以描述。",
+      "units_one": "組織 {{organization}} 有 {{count}} 個單位。",
+      "units_other": "組織 {{organization}} 有 {{count}} 個單位。",
+      "root": "根單位係 {{name}}。",
+      "peerCount_one": "有 {{count}} 條同級線路。",
+      "peerCount_other": "有 {{count}} 條同級線路。",
+      "unitRoot": "{{name}} 係根單位，{{lead}}。",
+      "unitChild": "{{name}} 向 {{parent}} 匯報，{{lead}}。",
+      "ledBy": "負責人係 {{name}}",
+      "noLead": "冇負責人",
+      "peer": "{{from}} 同 {{to}} 之間有同級線路。"
+     },
+     "a11y": {
+      "unit": "撳 Enter 或者 Space 揀呢個單位。撳 C 開始同級線路，撳 Delete 移除呢個單位。",
+      "peer": "兩個單位之間嘅同級線路。",
+      "handle": "拖去另一個單位就可以畫同級線路"
+     },
+     "announce": {
+      "added": "已經將單位 {{name}} 加入 {{organization}}。",
+      "peerStart": "由 {{name}} 畫緊同級線路。移去另一個單位再撳 Enter，或者撳 Escape 取消。",
+      "connected": "{{from}} 同 {{to}} 而家有同級線路。",
+      "disconnected": "{{from}} 同 {{to}} 之間已經冇同級線路。",
+      "memberAdded": "已經將 {{name}} 加入單位 {{unit}}。",
+      "memberRemoved": "已經由單位 {{unit}} 移除 {{name}}。",
+      "removed": "已經由 {{organization}} 移除單位 {{name}}。"
+     }
+    }
+   }
+  }
+ }
+});

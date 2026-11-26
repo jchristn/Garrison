@@ -4181,3 +4181,55 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "p3": "Un budget plafonne ce qu'une unité et toutes les unités en dessous peuvent dépenser sur un jour ou un mois UTC. Quand un budget est épuisé, les nouvelles exécutions des agents de ce sous-arbre sont refusées et le responsable de l'unité en est averti."
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "Afficher les applications du brouillon : les agents et les appels entre eux.",
+    "organizations": "Afficher les organisations du brouillon : les unités imbriquées dans l'unité à laquelle elles sont rattachées, avec responsables, membres et lignes transversales."
+   },
+   "org": {
+    "unit": "Une unité de l'organisation. Sélectionnez-la pour modifier ses membres et ses lignes transversales ; elle contient les unités qui lui sont rattachées.",
+    "unitReadOnly": "Une unité de l'organisation. La modification est désactivée pour ce brouillon.",
+    "picker": "L'organisation du brouillon que montre le canevas.",
+    "addUnit": "Le nom de la nouvelle unité, unique dans l'organisation. Appuyez sur Entrée pour l'ajouter.",
+    "parent": "L'unité à laquelle la nouvelle unité est rattachée. Sans parent, elle devient la racine, dont une organisation n'a qu'une seule.",
+    "leadAgent": "L'agent qui dirige la nouvelle unité. Facultatif ; un agent dirige au plus une unité par organisation.",
+    "leadTitle": "Le titre du responsable, par exemple Responsable de la facturation. Facultatif.",
+    "organization": "L'organisation à laquelle ajouter l'unité. Laissez le champ vide pour celle affichée, ou saisissez un nouveau nom pour commencer une nouvelle organisation.",
+    "add": "Ajouter maintenant l'unité à l'organisation du brouillon. Rien n'entre en service tant que le brouillon n'est pas appliqué.",
+    "connectTo": "L'unité à l'autre extrémité de la ligne transversale.",
+    "connectConfirm": "Ajouter maintenant la ligne transversale entre les deux unités.",
+    "peers": "Unités qui peuvent s'envoyer des messages directement, sans passer par un responsable commun.",
+    "peerLine": "Une ligne transversale entre deux unités. Entrée la sélectionne ; Suppr la retire.",
+    "orgTitle": "L'organisation affichée sur le canevas.",
+    "units": "Le nombre d'unités de l'organisation dans ce brouillon.",
+    "root": "L'unité au sommet de l'organisation, dirigée par l'agent auquel tous les autres rendent compte en remontant.",
+    "unitTitle": "L'unité sélectionnée.",
+    "reportsTo": "L'unité à laquelle celle-ci est rattachée ; son responsable est le supérieur du responsable de cette unité.",
+    "lead": "L'agent qui dirige cette unité.",
+    "members": "Agents qui travaillent dans cette unité et rendent compte à son responsable.",
+    "removeMember": "Retirer maintenant cet agent de l'unité.",
+    "memberAgent": "L'agent à ajouter comme membre. Il ne peut pas occuper un autre poste dans cette organisation.",
+    "memberTitle": "Le titre du membre, affiché sur l'organigramme. Facultatif.",
+    "addMember": "Ajouter maintenant l'agent à l'unité {{unit}}.",
+    "disconnect": "Retirer maintenant cette ligne transversale.",
+    "addChild": "Remplir le formulaire Ajouter une unité avec cette unité comme parent.",
+    "startPeer": "Commencer une ligne transversale depuis cette unité, puis choisir l'autre unité.",
+    "removeUnit": "Retirer l'unité de l'organisation du brouillon, après confirmation. Une unité ayant des unités en dessous ne peut pas être retirée.",
+    "peerTitle": "La ligne transversale sélectionnée."
+   }
+  }
+ }
+});

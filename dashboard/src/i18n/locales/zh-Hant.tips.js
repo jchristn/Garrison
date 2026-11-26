@@ -4178,3 +4178,55 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "p3": "預算限制一個單位及其底下所有單位在一個 UTC 日或月內可支出的金額。預算用盡時，該子樹中代理程式的新執行會被拒絕，並通知該單位的主管。"
  }
 });
+
+// Organizations on the studio canvas (AA7.10): tooltips of the view switch, the organization canvas, and its panels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "apps": "顯示草稿中的應用程式：代理程式及其之間的呼叫。",
+    "organizations": "顯示草稿中的組織：單位巢狀位於其上層單位之內，並顯示負責人、成員和同級線路。"
+   },
+   "org": {
+    "unit": "組織中的一個單位。選取它即可編輯其成員和同級線路；它包含向它回報的單位。",
+    "unitReadOnly": "組織中的一個單位。此草稿已關閉編輯。",
+    "picker": "畫布要顯示草稿中的哪一個組織。",
+    "addUnit": "新單位的名稱，在組織中不可重複。按 Enter 即可新增。",
+    "parent": "新單位要回報的單位。沒有上層單位時它會成為根單位，一個組織只能有一個根單位。",
+    "leadAgent": "帶領新單位的代理程式。選填；在每個組織中，一個代理程式最多只能帶領一個單位。",
+    "leadTitle": "負責人的職稱，例如帳務主管。選填。",
+    "organization": "要新增單位的組織。留空則新增到目前顯示的組織，輸入新名稱則建立新組織。",
+    "add": "立即將單位新增到草稿的組織。套用草稿之前都不會生效。",
+    "connectTo": "同級線路另一端的單位。",
+    "connectConfirm": "立即在兩個單位之間新增同級線路。",
+    "peers": "可以直接互傳訊息、不必經過共同主管的單位。",
+    "peerLine": "兩個單位之間的同級線路。Enter 選取它；Delete 移除它。",
+    "orgTitle": "畫布上顯示的組織。",
+    "units": "此草稿中組織擁有的單位數量。",
+    "root": "組織最上層的單位，由其他所有人最終回報的代理程式帶領。",
+    "unitTitle": "選取的單位。",
+    "reportsTo": "此單位回報的單位；其負責人就是此單位負責人的主管。",
+    "lead": "帶領此單位的代理程式。",
+    "members": "在此單位工作並向其負責人回報的代理程式。",
+    "removeMember": "立即將此代理程式從單位移除。",
+    "memberAgent": "要新增為成員的代理程式。它不能在此組織中擔任其他職位。",
+    "memberTitle": "成員的職稱，會顯示在組織圖上。選填。",
+    "addMember": "立即將代理程式新增到單位 {{unit}}。",
+    "disconnect": "立即移除此同級線路。",
+    "addChild": "以此單位為上層單位填寫「新增單位」表單。",
+    "startPeer": "從此單位開始一條同級線路，然後選擇另一個單位。",
+    "removeUnit": "確認後將單位從草稿的組織移除。下方還有單位的單位無法移除。",
+    "peerTitle": "選取的同級線路。"
+   }
+  }
+ }
+});

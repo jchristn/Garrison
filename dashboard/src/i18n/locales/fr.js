@@ -6953,3 +6953,137 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "L'organisation a déjà une unité racine. Choisissez une unité parente pour cette unité.",
+   "UnitNameTaken": "L'organisation a déjà une unité portant ce nom.",
+   "UnitNotFound": "L'organisation n'a aucune unité portant ce nom.",
+   "UnitHasChildren": "Retirez d'abord les unités situées sous celle-ci.",
+   "NoSuchPeerLine": "Ces deux unités n'ont pas de ligne transversale.",
+   "OrganizationDeleted": "Le brouillon supprime cette organisation. Rétablissez-la d'abord.",
+   "PeerNotFound": "Une unité ne peut pas avoir de ligne transversale vers elle-même."
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "Ce que montre le canevas",
+     "apps": "Applications",
+     "organizations": "Organisations"
+    },
+    "operations": {
+     "AddUnit": "Ajout d'une unité",
+     "RemoveUnit": "Retrait d'une unité",
+     "AddUnitMember": "Ajout d'un membre",
+     "RemoveUnitMember": "Retrait d'un membre",
+     "ConnectUnits": "Ajout d'une ligne transversale",
+     "DisconnectUnits": "Retrait d'une ligne transversale"
+    },
+    "org": {
+     "none": "Le brouillon ne contient encore aucune organisation. Saisissez un nom d'organisation et un nom d'unité ci-dessus pour en commencer une ; sa première unité est la racine.",
+     "flowLabel": "Organisation {{organization}}",
+     "picker": "Organisation",
+     "units": "Unités",
+     "root": "Unité racine",
+     "peers": "Lignes transversales",
+     "orgTitle": "Organisation {{name}}",
+     "orgHint": "Sélectionnez une unité pour modifier ses membres et ses lignes transversales. Les unités se trouvent à l'intérieur de l'unité à laquelle elles sont rattachées.",
+     "deleted": "Le brouillon supprime cette organisation. Ses unités ne peuvent pas changer tant qu'elle n'est pas rétablie.",
+     "unitTitle": "Unité {{name}}",
+     "reportsTo": "Rattachée à",
+     "lead": "Responsable",
+     "members": "Membres ({{count}})",
+     "noMembers": "Aucun membre en dehors du responsable.",
+     "memberAgent": "Agent",
+     "memberTitle": "Titre (facultatif)",
+     "addMember": "Ajouter un membre",
+     "removeMember": "Retirer",
+     "noPeers": "Aucune ligne transversale.",
+     "disconnect": "Déconnecter",
+     "addChild": "Ajouter une unité en dessous",
+     "startPeer": "Commencer une ligne transversale",
+     "removeUnit": "Retirer l'unité",
+     "peerTitle": "Ligne transversale {{from}} et {{to}}",
+     "peerHint": "{{from}} et {{to}} peuvent s'envoyer des messages directement, sans passer par un responsable commun.",
+     "peerList": "Lignes transversales ({{total}})",
+     "noPeerLines": "Aucune ligne transversale pour l'instant. Sélectionnez une unité et commencez-en une, ou faites glisser depuis la poignée droite d'une unité vers une autre unité.",
+     "removeTitle": "Retirer l'unité",
+     "removeMessage": "Retirer l'unité {{name}} de l'organisation {{organization}} dans ce brouillon ? Les lignes transversales qui la mentionnent partent aussi. Une unité ayant des unités en dessous ne peut pas être retirée.",
+     "toolbar": {
+      "label": "Outils d'organisation",
+      "addUnit": "Ajouter une unité",
+      "unitPlaceholder": "Nom de l'unité",
+      "parent": "Rattachée à",
+      "noParent": "Aucun parent (racine)",
+      "under": "Sous {{name}}",
+      "lead": "Agent responsable",
+      "leadPlaceholder": "Agent responsable (facultatif)",
+      "leadTitle": "Titre du responsable (facultatif)",
+      "organization": "Organisation",
+      "add": "Ajouter"
+     },
+     "connectBar": {
+      "message": "Tracé d'une ligne transversale depuis {{name}}."
+     },
+     "keys": {
+      "tab": "Tab parcourt les unités, chaque unité avant les unités situées en dessous.",
+      "select": "Entrée ou Espace sélectionne l'unité qui a le focus et ouvre ses propriétés.",
+      "peer": "C sur une unité commence une ligne transversale depuis celle-ci ; C ou Entrée sur une autre unité la termine.",
+      "remove": "Suppr retire l'unité qui a le focus, après confirmation.",
+      "add": "N mène au champ Ajouter une unité.",
+      "peers": "Dans la liste des lignes transversales, Entrée sélectionne une ligne et Suppr la retire.",
+      "escape": "Échap annule une ligne transversale que vous avez commencée."
+     },
+     "node": {
+      "root": "Racine",
+      "reportsTo": "rattachée à {{name}}",
+      "lead": "Responsable : {{name}}",
+      "noLead": "Aucun responsable",
+      "members": "membres {{list}}"
+     },
+     "summary": {
+      "none": "Il n'y a aucune organisation à décrire.",
+      "units_one": "L'organisation {{organization}} a {{count}} unité.",
+      "units_other": "L'organisation {{organization}} a {{count}} unités.",
+      "root": "L'unité racine est {{name}}.",
+      "peerCount_one": "Il y a {{count}} ligne transversale.",
+      "peerCount_other": "Il y a {{count}} lignes transversales.",
+      "unitRoot": "{{name}} est l'unité racine et {{lead}}.",
+      "unitChild": "{{name}} est rattachée à {{parent}} et {{lead}}.",
+      "ledBy": "est dirigée par {{name}}",
+      "noLead": "n'a pas de responsable",
+      "peer": "{{from}} et {{to}} ont une ligne transversale."
+     },
+     "a11y": {
+      "unit": "Appuyez sur Entrée ou Espace pour sélectionner cette unité. Appuyez sur C pour commencer une ligne transversale, ou sur Suppr pour retirer l'unité.",
+      "peer": "Une ligne transversale entre deux unités.",
+      "handle": "Faites glisser vers une autre unité pour tracer une ligne transversale"
+     },
+     "announce": {
+      "added": "Unité {{name}} ajoutée à {{organization}}.",
+      "peerStart": "Tracé d'une ligne transversale depuis {{name}}. Allez sur l'autre unité et appuyez sur Entrée, ou appuyez sur Échap pour annuler.",
+      "connected": "{{from}} et {{to}} ont maintenant une ligne transversale.",
+      "disconnected": "{{from}} et {{to}} n'ont plus de ligne transversale.",
+      "memberAdded": "{{name}} ajouté à l'unité {{unit}}.",
+      "memberRemoved": "{{name}} retiré de l'unité {{unit}}.",
+      "removed": "Unité {{name}} retirée de {{organization}}."
+     }
+    }
+   }
+  }
+ }
+});

@@ -6957,3 +6957,137 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Organizations on the studio canvas (AA7.10): the Apps and Organizations switch, the organization canvas, its
+// toolbar, panels, outline, and keyboard help, the unit operations, and their field codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "common": {
+  "fieldCodes": {
+   "OneRoot": "La organización ya tiene una unidad raíz. Elija una unidad superior para esta unidad.",
+   "UnitNameTaken": "La organización ya tiene una unidad con este nombre.",
+   "UnitNotFound": "La organización no tiene ninguna unidad con este nombre.",
+   "UnitHasChildren": "Primero quite las unidades que dependen de esta.",
+   "NoSuchPeerLine": "Estas dos unidades no tienen ninguna línea entre pares.",
+   "OrganizationDeleted": "El borrador elimina esta organización. Restáurela primero.",
+   "PeerNotFound": "Una unidad no puede tener una línea entre pares consigo misma."
+  }
+ },
+ "components": {
+  "studio": {
+   "canvas": {
+    "view": {
+     "label": "Qué muestra el lienzo",
+     "apps": "Aplicaciones",
+     "organizations": "Organizaciones"
+    },
+    "operations": {
+     "AddUnit": "Añadir una unidad",
+     "RemoveUnit": "Quitar una unidad",
+     "AddUnitMember": "Añadir un miembro",
+     "RemoveUnitMember": "Quitar un miembro",
+     "ConnectUnits": "Añadir una línea entre pares",
+     "DisconnectUnits": "Quitar una línea entre pares"
+    },
+    "org": {
+     "none": "El borrador todavía no contiene ninguna organización. Escriba arriba un nombre de organización y un nombre de unidad para empezar una; su primera unidad es la raíz.",
+     "flowLabel": "Organización {{organization}}",
+     "picker": "Organización",
+     "units": "Unidades",
+     "root": "Unidad raíz",
+     "peers": "Líneas entre pares",
+     "orgTitle": "Organización {{name}}",
+     "orgHint": "Seleccione una unidad para editar sus miembros y sus líneas entre pares. Las unidades se sitúan dentro de la unidad de la que dependen.",
+     "deleted": "El borrador elimina esta organización. Sus unidades no pueden cambiar hasta que se restaure.",
+     "unitTitle": "Unidad {{name}}",
+     "reportsTo": "Depende de",
+     "lead": "Líder",
+     "members": "Miembros ({{count}})",
+     "noMembers": "No hay miembros aparte del líder.",
+     "memberAgent": "Agente",
+     "memberTitle": "Cargo (opcional)",
+     "addMember": "Añadir miembro",
+     "removeMember": "Quitar",
+     "noPeers": "No hay líneas entre pares.",
+     "disconnect": "Desconectar",
+     "addChild": "Añadir unidad dependiente",
+     "startPeer": "Empezar línea entre pares",
+     "removeUnit": "Quitar unidad",
+     "peerTitle": "Línea entre pares {{from}} y {{to}}",
+     "peerHint": "{{from}} y {{to}} pueden enviarse mensajes directamente, sin pasar por un superior común.",
+     "peerList": "Líneas entre pares ({{total}})",
+     "noPeerLines": "Todavía no hay líneas entre pares. Seleccione una unidad y empiece una, o arrastre desde el punto derecho de una unidad hasta otra unidad.",
+     "removeTitle": "Quitar unidad",
+     "removeMessage": "¿Quitar la unidad {{name}} de la organización {{organization}} en este borrador? Las líneas entre pares que la nombran también se quitan. No se puede quitar una unidad que tiene unidades dependientes.",
+     "toolbar": {
+      "label": "Herramientas de organización",
+      "addUnit": "Añadir unidad",
+      "unitPlaceholder": "Nombre de la unidad",
+      "parent": "Depende de",
+      "noParent": "Sin unidad superior (raíz)",
+      "under": "Bajo {{name}}",
+      "lead": "Agente líder",
+      "leadPlaceholder": "Agente líder (opcional)",
+      "leadTitle": "Cargo del líder (opcional)",
+      "organization": "Organización",
+      "add": "Añadir"
+     },
+     "connectBar": {
+      "message": "Trazando una línea entre pares desde {{name}}."
+     },
+     "keys": {
+      "tab": "Tab recorre las unidades, cada unidad antes de las unidades que dependen de ella.",
+      "select": "Intro o Espacio selecciona la unidad enfocada y abre sus propiedades.",
+      "peer": "C en una unidad empieza una línea entre pares desde ella; C o Intro en otra unidad la termina.",
+      "remove": "Supr quita la unidad enfocada, tras una confirmación.",
+      "add": "N salta al campo Añadir unidad.",
+      "peers": "En la lista de líneas entre pares, Intro selecciona una línea y Supr la quita.",
+      "escape": "Escape cancela una línea entre pares que haya empezado."
+     },
+     "node": {
+      "root": "Raíz",
+      "reportsTo": "depende de {{name}}",
+      "lead": "Líder: {{name}}",
+      "noLead": "Sin líder",
+      "members": "miembros {{list}}"
+     },
+     "summary": {
+      "none": "No hay ninguna organización que describir.",
+      "units_one": "La organización {{organization}} tiene {{count}} unidad.",
+      "units_other": "La organización {{organization}} tiene {{count}} unidades.",
+      "root": "La unidad raíz es {{name}}.",
+      "peerCount_one": "Hay {{count}} línea entre pares.",
+      "peerCount_other": "Hay {{count}} líneas entre pares.",
+      "unitRoot": "{{name}} es la unidad raíz y {{lead}}.",
+      "unitChild": "{{name}} depende de {{parent}} y {{lead}}.",
+      "ledBy": "la lidera {{name}}",
+      "noLead": "no tiene líder",
+      "peer": "{{from}} y {{to}} tienen una línea entre pares."
+     },
+     "a11y": {
+      "unit": "Pulse Intro o Espacio para seleccionar esta unidad. Pulse C para empezar una línea entre pares, o Supr para quitar la unidad.",
+      "peer": "Una línea entre pares entre dos unidades.",
+      "handle": "Arrastre hasta otra unidad para trazar una línea entre pares"
+     },
+     "announce": {
+      "added": "Se añadió la unidad {{name}} a {{organization}}.",
+      "peerStart": "Trazando una línea entre pares desde {{name}}. Vaya a la otra unidad y pulse Intro, o pulse Escape para cancelar.",
+      "connected": "{{from}} y {{to}} tienen ahora una línea entre pares.",
+      "disconnected": "{{from}} y {{to}} ya no tienen una línea entre pares.",
+      "memberAdded": "Se añadió {{name}} a la unidad {{unit}}.",
+      "memberRemoved": "Se quitó {{name}} de la unidad {{unit}}.",
+      "removed": "Se quitó la unidad {{name}} de {{organization}}."
+     }
+    }
+   }
+  }
+ }
+});
