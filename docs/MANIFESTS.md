@@ -21,7 +21,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | Always `garrison/v1` |
-| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
+| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, `Mandate`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
 | `metadata.name` | The record's name, which is also how other documents refer to it. Names starting with `builtin/` are reserved |
 | `metadata.description` | Optional; becomes the record's description |
 | `spec` | The record's fields in camelCase, as in the REST API, with the conveniences listed below |
@@ -138,10 +138,11 @@ With `followReferences=true` the bundle carries everything the selection needs:
 
 | Selected | Also exported |
 |---|---|
-| Agent | Its deployments, the triggers and notification endpoints that target it, the agents in its delegation allow list, and its tool and skill description templates |
+| Agent | Its deployments, the triggers, mandates, and notification endpoints that target it, the agents in its delegation allow list, and its tool and skill description templates |
 | Deployment | Its agent, harness profile, prompt templates, workspace template, and MCP servers |
 | Pipeline | Its stage agents (with their own dependencies), pinned deployments, handoff templates, and the triggers that target it |
 | Trigger | Its agent or pipeline, deployment, and input template |
+| Mandate | Its agent and deployment |
 | NotificationEndpoint | Its agent and deployment |
 
 Secret values are never exported, and secrets are not documents in a bundle at all. Neither are artifact stores. Both are listed as requirements instead, in a header comment and in the first document, `kind: Bundle`:
@@ -235,7 +236,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/team-b/manifests/apply \
 
 The dashboard does the same under Configuration, Manifests: choose what to export and download the bundle, then paste or upload it in the target tenant and use **Dry run** and **Apply**. Over MCP, `garrison_export_manifest` takes the same selectors (see [MANAGEMENT_MCP.md](MANAGEMENT_MCP.md)).
 
-A webhook trigger or notification endpoint applied from a bundle gets a new signing secret in the target tenant; rotate it there to read it. Triggers run as the principal that applied the bundle.
+A webhook trigger or notification endpoint applied from a bundle gets a new signing secret in the target tenant; rotate it there to read it. Triggers and mandates run as the principal that applied the bundle.
 
 ## Kinds
 
@@ -640,6 +641,41 @@ spec:
 | `signingSecret` | Webhook triggers only, and only in an apply with `allowSecretValues=true` (which also needs `Secret.Create`) |
 
 A trigger that the apply creates or changes runs as the principal that applied the manifest; an `Unchanged` trigger keeps its run-as principal. A new webhook trigger without `signingSecret` gets a generated secret that the apply result does not show (its message says so); read it by rotating it with `POST .../triggers/{id}/rotate-secret`. Export writes `type`, the target, the template, the schedule, and non-default fields, and never the secret.
+
+### Mandate
+
+A mandate is a keeper's standing job: Garrison wakes the agent on a schedule to look after it (see [KEEPERS.md](KEEPERS.md)). Mandates are applied after triggers, so they can name agents and deployments from the same manifest.
+
+```yaml
+apiVersion: garrison/v1
+kind: Mandate
+metadata:
+  name: support-queue
+  description: Watches the support inbox
+spec:
+  agent: support-agent
+  deployment: support-agent-prod
+  revision:
+    objective: Keep the support queue under 20 open tickets.
+    healthyDefinition: Fewer than 20 open tickets and none older than a day.
+    autonomy: Answer password resets and close duplicates.
+    escalationPolicy: Ask a person before refunding anything.
+    signals:
+      - name: open tickets
+        description: Count in the support inbox
+    wakeMode: Backoff
+    minIntervalSeconds: 900
+    maxIntervalSeconds: 14400
+    backoffFactor: 2
+```
+
+| Field | Meaning |
+|---|---|
+| `agent`, `deployment` | The hosted agent that keeps the mandate and the active deployment its ticks run on, by name. Applying a document with a different agent to an existing mandate fails with `Immutable`; delete it first |
+| `paused` | `true` to create it paused, or to pause it. `false` or absent means active, so applying a document without it resumes a paused mandate |
+| `revision` | Required, with at least an `objective`. The other fields are those of a `MandateRevision` in the REST API, including `direction`, `jitterPercent`, the budgets, and `changeNote` |
+
+An apply compares `revision` with the mandate's current revision. When they differ it publishes a new revision, so the keeper wakes at once with its interval reset; when they match, the revision is `Unchanged` and nothing wakes. Interval values outside the cluster bounds are adjusted before the comparison, as over REST, so a manifest asking for a 30 second minimum stays `Unchanged` on the second apply. A mandate the apply creates or changes runs as the principal that applied the manifest. A revision written by an apply has source `Human`, or `Architect` when Agent Studio applies a draft. Export writes the agent, deployment, `paused` when it is paused, and the current revision's non-default fields.
 
 ### NotificationEndpoint
 

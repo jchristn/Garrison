@@ -2184,7 +2184,7 @@ Delete an agent, addressed by identifier or name (identifier first). Its deploym
 |---|---|
 | Permission | Delete on `Agent` |
 | Success | 204 (no body) |
-| Errors | 404 when the agent does not exist in the tenant. 409 `Protected` for a protected agent (the seeded `agent-architect`). 409 `AgentInUse` while the agent is a member of an agentic app, `ReferencedByPipeline` while a pipeline stage runs it, and `ReferencedByTrigger` or `ReferencedByNotificationEndpoint` while a trigger or notification endpoint names the agent or one of its deployments; each message names what to change first. |
+| Errors | 404 when the agent does not exist in the tenant. 409 `Protected` for a protected agent (the seeded `agent-architect`). 409 `AgentInUse` while the agent is a member of an agentic app, `ReferencedByPipeline` while a pipeline stage runs it, `ReferencedByTrigger` or `ReferencedByNotificationEndpoint` while a trigger or notification endpoint names the agent or one of its deployments, and `ReferencedByMandate` while a mandate names it; each message names what to change first. |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
@@ -3749,6 +3749,104 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers/trg_mv8
   -H "X-Garrison-Signature: t=$TS,v1=$SIG" --data-binary "$BODY"
 ```
 
+
+### Mandates
+
+A mandate (AA1) is a standing job an agent keeps: Garrison wakes it on a schedule, and each wake (a tick) is a run of kind `Keeper` on the mandate's deployment. The dashboard calls them keepers. [docs/KEEPERS.md](docs/KEEPERS.md) covers the tick protocol, backoff, and single-flight; this section is the route reference.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /mandates` | Read on `Mandate` | `EnumerationResult<Mandate>`, 200 |
+| `POST /mandates` | Create on `Mandate`, and Execute on the agent | `Mandate`, 201 |
+| `GET /mandates/{idOrName}` | Read on `Mandate` | `Mandate` with `currentRevision`, 200 |
+| `PUT /mandates/{idOrName}` | Update on `Mandate`, and Execute on the agent | `Mandate`, 200 |
+| `DELETE /mandates/{idOrName}` | Delete on `Mandate` | Empty, 204 |
+| `GET /mandates/{idOrName}/revisions` | Read on `Mandate` | `EnumerationResult<MandateRevision>`, 200 |
+| `POST /mandates/{idOrName}/revisions` | Update on `Mandate` | `MandateRevision`, 201 |
+| `GET /mandates/{idOrName}/revisions/{revId}` | Read on `Mandate` | `MandateRevision`, 200 |
+| `POST /mandates/{idOrName}/revisions/{revId}/publish` | Update on `Mandate` | `Mandate`, 200 |
+| `POST /mandates/{idOrName}/pause` | Execute on `Mandate` | `Mandate`, 200 |
+| `POST /mandates/{idOrName}/resume` | Execute on `Mandate` | `Mandate`, 200 |
+| `POST /mandates/{idOrName}/wake` | Execute on `Mandate` | `Mandate`, 202 |
+| `GET /mandates/{idOrName}/ticks` | Read on `Mandate` | `EnumerationResult<MandateTick>`, 200 |
+| `GET /mandate-ticks/{tickId}` | Read on the tick's `Mandate` | `MandateTick`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Mandates of another tenant answer 404. Ticks run as the principal that last created or updated the mandate, so those two routes also need Execute on its agent; when it is missing the save answers 403 and nothing changes.
+
+#### `GET /v1.0/api/tenants/{tenantId}/mandates`
+
+List mandates with the [enumeration](#enumeration) parameters (`search` matches the name) and the optional filters `status`, `agentId`, and `deploymentId`. List entries do not carry `currentRevision`; read one mandate for it.
+
+#### `POST /v1.0/api/tenants/{tenantId}/mandates`
+
+Create a mandate. `agentId` and `deploymentId` accept identifiers or names and are stored as identifiers. With `currentRevision`, that revision is published as number 1 and the mandate starts `Active` with its first wake due now (or `Paused` when the body's `status` is `Paused`); without it the mandate is `Draft` and does not wake until a revision is published. The caller becomes the run-as principal. Interval values outside the cluster bounds are adjusted and listed in `warnings`.
+
+| | |
+|---|---|
+| Request body | `Mandate` |
+| Response | `Mandate`, 201 |
+| Errors | 400 `ValidationFailed` with field codes `ReferenceNotFound`, `RemoteAgentUnsupported`, `DeploymentAgentMismatch`, `DeploymentInactive`, and revision field errors (`objective`, `signals[n].name`, intervals); 403 when the caller may not run the agent; 409 `NameConflict` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/mandates" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "support-queue", "agentId": "support-agent", "deploymentId": "support-agent-prod",
+       "currentRevision": {"objective": "Keep the support queue under 20 open tickets.", "minIntervalSeconds": 30}}'
+```
+
+```json
+{
+  "warnings": [
+    { "field": "minIntervalSeconds", "code": "ValueClamped", "given": "30", "stored": "60", "message": "minIntervalSeconds 30 is below Autonomy.MinIntervalSeconds; 60 was stored." }
+  ],
+  "id": "mdt_mwwqts4c_ge3ZZWMjR9P4DDIrDeT",
+  "tenantId": "default",
+  "name": "support-queue",
+  "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm",
+  "deploymentId": "dep_mv1a0c5f_7tLwQ2xZbK9VmRnP",
+  "status": "Active",
+  "currentRevisionId": "mdr_mwwqts4u_TzkrQjMq0ZswhAj0tJb",
+  "currentRevisionNumber": 1,
+  "currentRevision": { "number": 1, "state": "Published", "objective": "Keep the support queue under 20 open tickets.", "wakeMode": "Backoff", "minIntervalSeconds": 60, "maxIntervalSeconds": 86400, "backoffFactor": 2, "source": "Human" },
+  "nextWakeUtc": "2026-11-25T15:02:11.402118Z",
+  "currentIntervalSeconds": 60,
+  "consecutiveQuietTicks": 0,
+  "tickCount": 0,
+  "runAsType": "User",
+  "runAsId": "usr_mv1a0b9z_Kq2LwT7xZb3VmRn",
+  "runAsName": "admin@garrison",
+  "createdUtc": "2026-11-25T15:02:11.402118Z",
+  "lastUpdateUtc": "2026-11-25T15:02:11.402118Z"
+}
+```
+
+#### `PUT /v1.0/api/tenants/{tenantId}/mandates/{idOrName}`
+
+Change the name, description, and deployment. A blank `name` or `deploymentId` keeps the current value; `description` is replaced, so send it again to keep it. The agent cannot change (400 with field code `Immutable`), and the objective and schedule change only through revisions. The caller becomes the run-as principal.
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/mandates/{idOrName}`
+
+Delete a mandate with its revisions and tick history; the runs of its ticks are kept. While a tick runs this answers 409 `MandateActive`, unless `force=true`, which cancels that tick's run first.
+
+#### `POST /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/revisions`
+
+Save a new revision (a `MandateRevision` body) as a draft, numbered after the latest revision. Drafts change nothing until published. The same interval bounds and `warnings` apply as on create.
+
+#### `POST /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/revisions/{revId}/publish`
+
+Publish a draft revision. It becomes current, the interval resets to its minimum, a `Draft` mandate becomes `Active`, and an `Active` mandate wakes now. Publishing a draft older than the current revision marks it published without making it current. A published revision answers 409 `RevisionPublished`, and a revision of another mandate 409 `RevisionMismatch`.
+
+#### `POST /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/pause`, `/resume`, `/wake`
+
+Pause stops further wakes; a running tick finishes. Only an `Active` or `CapReached` mandate can be paused (409 `MandateNotActive`), and pausing a paused one changes nothing. Resume makes a `Paused` mandate `Active` and wakes it now with the interval reset (409 `MandateNotPaused` otherwise). Wake sets the next wake of an `Active` mandate to now with `pendingWakeSource: Manual` and answers 202; when a tick is running, the woken tick starts as soon as that one finishes (409 `MandateNotActive` for other statuses).
+
+#### `GET /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/ticks`
+
+List the mandate's ticks, newest first, with the [enumeration](#enumeration) parameters and an optional `outcome`. Finished ticks are kept for `Autonomy.TickHistoryRetentionDays` (30). The runs of a mandate's ticks are also listed by `GET .../runs?mandateId={id}`.
+
+#### `GET /v1.0/api/tenants/{tenantId}/mandate-ticks/{tickId}`
+
+Read one tick by identifier. It is authorized as Read on the tick's mandate.
 ### Agent revisions
 
 An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
@@ -3951,7 +4049,7 @@ For Mux, `endpointName` is the configured endpoint **name** on the execution wor
 
 `ArchitectRequest` fields: `name` (required, unique among the tenant's deployments), `description`, `harnessProfileId` (required), `model` (null for the harness profile's default), `active` (default true), `credentialSecretId` (a secret ID or name the harness signs in with, bound as alias `credential`; null on create binds none, null on update keeps it, an empty string removes it), `architectPromptTemplateId` (a `System` template ID or name; null on create binds `builtin/agent-architect`), and `architectPromptVersion` (minimum 1, given with `architectPromptTemplateId`; null follows the current version). `Architect` fields: `id`, `tenantId`, `name`, `description`, `agentId`, `agentName`, `harnessProfileId`, `model`, `active`, `credentialSecretId`, `credentialSecretName`, `credentialSecretKind`, `architectPromptTemplateId`, `architectPromptName`, `architectPromptVersion`, `architectPromptCurrentVersion`, `configVersion`, `isProtected`, `createdUtc`, `lastUpdateUtc`.
 
-Errors: 400 `ValidationFailed` (missing `name` or `harnessProfileId`), 400 `InvalidArchitectPrompt`, 400 `InvalidCredentialSecret` (unknown or inactive secret); 409 `NameConflict`, `ArchitectAgentMissing` (create, when the tenant has no built-in `agent-architect`), `Protected`; on delete also 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, `ReferencedByPipeline`. A `DraftApply` approval is decided with `POST /approvals/{id}/decide`, which then needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request.
+Errors: 400 `ValidationFailed` (missing `name` or `harnessProfileId`), 400 `InvalidArchitectPrompt`, 400 `InvalidCredentialSecret` (unknown or inactive secret); 409 `NameConflict`, `ArchitectAgentMissing` (create, when the tenant has no built-in `agent-architect`), `Protected`; on delete also 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, `ReferencedByPipeline`, `ReferencedByMandate`. A `DraftApply` approval is decided with `POST /approvals/{id}/decide`, which then needs Create on `Manifest` (403 `ApproverLacksPermission`) and answers 409 `DraftStale` when live configuration moved since the request.
 
 ### Fan-out groups
 
@@ -4827,7 +4925,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 Trigger agent targets apply the same schema check to the rendered trigger input; a rejected input is recorded as a failed fire with `InputNotJson` or `InputSchemaViolation`. Pipeline stages validate the fully rendered handoff task during compilation, before the system prompt is added. Their stored input remains the original caller input. An invalid handoff fails the receiving run with outcome `CompileFailed` and an error message starting with the same schema code, rather than returning an invocation-time HTTP 400. Compile preview exposes the same error. See [pipeline handoffs](docs/PIPELINES.md#the-handoff-between-stages).
 
-**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
+**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `mandateId` (the tick runs of a keeper), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
@@ -6261,6 +6359,7 @@ One invocation of one deployment.
 | `pipelinePosition` | `int` | Position of the pipeline stage this run executes, starting at 1; 0 outside a pipeline. |
 | `pipelineExecution` | `int` | Execution number of that stage, starting at 1 (retries, revisions, and resumes increase it); 0 outside a pipeline. |
 | `triggerId` | `string?` | Trigger that started the run (also set on the stage runs of a pipeline run a trigger started), or `null`. See [Triggers](#triggers). |
+| `mandateId`, `mandateTickId` | `string?` | Mandate and tick a `Keeper` run belongs to, or `null`. See [Mandates](#mandates). |
 | `traceId` | `string?` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in; the server's `run:create`, `run:claim`, and `run:compile` spans and the worker's `harness <type> exec` span share it, and delegated runs join their parent's trace. Use it to open the trace in Tempo or search logs (`trace=<traceId>`). `null` for runs created before schema migration 5. Always present. See `docs/TELEMETRY.md`. |
 | `exitCode` | `int?` | Process exit code. |
 | `stderrTail` | `string?` | Stderr tail (scrubbed). |
@@ -6287,7 +6386,7 @@ One invocation of one deployment.
 
 #### `RunKindEnum`
 
-`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire)
+`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire), `Playground` (a studio playground run), `Keeper` (one tick of a mandate)
 
 #### `RunStatusEnum`
 
@@ -6615,6 +6714,84 @@ A cron schedule or signed webhook that starts runs (P12.5). See [docs/TRIGGERS.m
 | `body` | `string?` | Payload text for the input template (`webhook.body`). |
 | `contentType` | `string?` | Payload media type (`webhook.contentType`). |
 
+#### `Mandate`
+
+A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](docs/KEEPERS.md).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`mdt_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | Unique per tenant; 1 to 64 lowercase letters, digits, and hyphens. |
+| `description` | `string?` | At most 4000 characters. Not shown to the keeper. |
+| `agentId` | `string` | Hosted agent that keeps the mandate (identifier or name on input). Cannot change. |
+| `deploymentId` | `string` | Active deployment of that agent each tick runs on. |
+| `status` | `MandateStatusEnum` | Read-only; changed by publish, pause, and resume. |
+| `currentRevisionId`, `currentRevisionNumber` | `string?`, `int` | The published revision in force. |
+| `currentRevision` | `MandateRevision?` | On input to create, the first revision to publish. On read, the current revision (not on list entries). |
+| `nextWakeUtc` | `DateTime?` | When the next tick starts; `null` unless `Active`. |
+| `pendingWakeSource` | `WakeSourceEnum?` | What asked for the next wake when it was not the timer. |
+| `currentIntervalSeconds` | `int` | Interval the schedule grows from (see backoff). |
+| `consecutiveQuietTicks` | `int` | `Quiet` ticks in a row. |
+| `lastTickUtc`, `lastTickOutcome` | `DateTime?`, `TickOutcomeEnum?` | The last finished tick. |
+| `activeTickId`, `activeRunId` | `string?` | The tick in progress and its run. |
+| `tickCount` | `long` | Ticks recorded, including skipped ones. |
+| `runAsType`, `runAsId`, `runAsName` | `PrincipalTypeEnum`, `string?`, `string?` | Principal ticks run as: whoever last created or updated the mandate. Read-only. |
+| `createdBy` | `string?` | Who created it. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+| `warnings` | `FieldWarning[]?` | Values the server adjusted on this request (`ValueClamped`). |
+
+#### `MandateRevision`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`mdr_`). |
+| `tenantId`, `mandateId` | `string` | Tenant and mandate. |
+| `number` | `int` | 1, 2, 3, and so on per mandate. |
+| `state` | `MandateRevisionStateEnum` | `Draft` or `Published`. Published revisions never change. |
+| `objective` | `string` | Required, at most 8000 characters. |
+| `healthyDefinition`, `autonomy`, `escalationPolicy`, `direction` | `string?` | At most 8000 characters each. An empty `autonomy` tells the keeper to observe and report only. |
+| `signals` | `MandateRevisionSignal[]` | Up to 50 signals to check each tick, in order. |
+| `wakeMode` | `WakeModeEnum` | `Backoff` (default) or `Fixed`. |
+| `minIntervalSeconds` | `int` | 10 to 2592000, default 900; raised to `Autonomy.MinIntervalSeconds`. |
+| `maxIntervalSeconds` | `int` | 10 to 2592000, default 86400; lowered to `Autonomy.MaxIntervalSeconds` and raised to the minimum. |
+| `backoffFactor` | `double` | 1 to 10, default 2. |
+| `jitterPercent` | `int?` | 0 to 50; `null` uses `Autonomy.DefaultJitterPercent`. |
+| `budgetPerTickUsd`, `budgetPerDayUsd` | `double?` | 0 to 1000000, or `null` for no limit. Enforced from AA3. |
+| `maxTokensPerTick` | `long?` | 0 to 100000000, or `null` for no limit. Enforced from AA3. |
+| `source` | `MandateRevisionSourceEnum` | Who wrote it. Set by the server. |
+| `author` | `string?` | Principal that saved it. |
+| `changeNote` | `string?` | At most 1024 characters. |
+| `createdUtc`, `publishedUtc` | `DateTime`, `DateTime?` | Timestamps (UTC). |
+| `warnings` | `FieldWarning[]?` | Values the server adjusted on this request. |
+
+#### `MandateRevisionSignal`
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | 1 to 128 characters, unique (ignoring case) in the revision. |
+| `description` | `string?` | At most 2000 characters. |
+| `order` | `int` | Position, set from list order. |
+
+#### `MandateTick`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`mtk_`). |
+| `tenantId`, `mandateId` | `string` | Tenant and mandate. |
+| `revisionId`, `revisionNumber` | `string?`, `int` | Revision in force when the tick started. |
+| `wakeSource` | `WakeSourceEnum` | What woke the keeper. |
+| `scheduledUtc`, `startedUtc`, `finishedUtc` | `DateTime`, `DateTime`, `DateTime?` | When it was due, started, and finished. |
+| `runId` | `string?` | The tick's run (none for a skipped tick). |
+| `outcome` | `TickOutcomeEnum?` | `null` while running. |
+| `reported` | `bool` | Whether the keeper reported the outcome itself. |
+| `summary` | `string?` | The keeper's report, at most 4000 characters. |
+| `requestedNextWakeSeconds`, `appliedIntervalSeconds` | `int?` | What the keeper asked for and the wait applied (before jitter). |
+| `costUsd` | `double?` | Cost of the tick's run. |
+| `templateName`, `templateVersion` | `string?`, `int` | The prompt template that rendered the input. |
+| `errorCode`, `errorMessage` | `string?` | Why it failed or was skipped (`PreviousTickRunning`, `StartInterrupted`, `RunMissing`, `TemplateRenderFailed`, `RunAsNotAuthorized`). |
+| `createdUtc` | `DateTime` | Timestamp (UTC). |
+
 #### `NotificationEndpoint`
 
 A webhook subscription to tenant events (P12.14). See [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md).
@@ -6673,6 +6850,30 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 #### `TriggerFireOutcomeEnum`
 
 `Started`, `Failed`, `Skipped`
+
+#### `MandateStatusEnum`
+
+`Draft`, `Active`, `Paused`, `Frozen`, `CapReached`, `Retired`
+
+#### `MandateRevisionStateEnum`
+
+`Draft`, `Published`
+
+#### `MandateRevisionSourceEnum`
+
+`Human`, `Board`, `Executive`, `Architect`
+
+#### `WakeModeEnum`
+
+`Fixed`, `Backoff`
+
+#### `WakeSourceEnum`
+
+`Timer`, `Manual`, `Message`, `EscalationAnswer`, `Webhook`, `Report`
+
+#### `TickOutcomeEnum`
+
+`Quiet`, `Acted`, `Attention`, `Escalated` (reported by the keeper), `Failed`, `Skipped`, `Unreported` (set by Garrison)
 
 #### `NotificationEventEnum`
 

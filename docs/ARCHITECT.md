@@ -60,7 +60,7 @@ Errors:
 - 400 `InvalidCredentialSecret` when the credential secret does not exist in the tenant or is inactive.
 - 409 `NameConflict` when another deployment has the name.
 - 409 `ArchitectAgentMissing` on create when the tenant has no built-in `agent-architect`. Restarting the server seeds it.
-- 409 `Protected` on update or delete when the deployment is protected, and on delete 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, or `ReferencedByPipeline` when something still names it.
+- 409 `Protected` on update or delete when the deployment is protected, and on delete 409 `ReferencedByTrigger`, `ReferencedByNotificationEndpoint`, `ReferencedByPipeline`, or `ReferencedByMandate` when something still names it.
 
 Deleting an architect removes its deployment. Drafts are kept; only their conversations with that architect end.
 

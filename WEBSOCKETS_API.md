@@ -44,6 +44,7 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `studio-draft:{draftId}` | Read on StudioDraft (a run token: only drafts of the person it works for) | `studio-draft.changed` each time the draft's version or status moves: `draftId`, `version`, `status`, `changed` (items added, edited, or removed: `kind`, `name`, `operation`, `removed`), and the whole `graph` (`StudioGraph`). See [docs/STUDIO.md](docs/STUDIO.md) |
 | `conversation-files:{conversationId}` | Read on Conversation for that conversation | `files.changed` with the files that changed whenever a turn, a delegated child, or a user writes or deletes a file in the conversation's file space |
 | `pipeline-run:{pipelineRunId}` | Read on PipelineRun for that pipeline run | `pipeline-run.status` with the whole pipeline run (stages, stage run summaries, and reviews) each time its status, a stage, a stage run, or a review changes |
+| `mandate:{mandateId}` | Read on Mandate for that mandate (a keeper, AA1) | `tick.started` when one of its ticks starts a run, and `tick.completed` when a tick finishes, with the outcome, the interval applied, the next wake, and the mandate's status. Nothing is sent at subscribe time; read the mandate and its ticks over REST for the current state |
 
 A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `pipeline-run:{pipelineRunId}` sends the pipeline run, `conversation-files:{conversationId}` sends every current file as changed, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
 
@@ -96,6 +97,8 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `nodes` | `nodes` |
 | `approvals.changed` | `pending`, `reviewsPending`, `approvals` |
 | `pipeline-run.status` | `pipelineRun` |
+| `tick.started` | `mandateId`, `tickId`, `runId` |
+| `tick.completed` | `mandateId`, `tickId`, `runId`, `outcome`, `appliedIntervalSeconds`, `nextWakeUtc`, `status` |
 | `fan-out.status` | `fanOutGroup` |
 | `studio-draft.changed` | `draftId`, `version`, `status`, `changed`, `graph` |
 | `files.changed` | `conversationId`, `fileSpaceId`, `changed` (each `path`, `version`, `deleted`, `sha256`, `sizeBytes`) |
@@ -107,7 +110,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 |---|---|
 | `InvalidJson` | The message is not a JSON object with a `type` |
 | `AuthenticationRequired` | The token is invalid, or the connection is not authenticated yet |
-| `SubscriptionDenied` | Unknown channel, missing permission, a run, pipeline run, conversation, fan-out group, or studio draft that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
+| `SubscriptionDenied` | Unknown channel, missing permission, a run, pipeline run, conversation, fan-out group, studio draft, or mandate that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
 | `TooManySubscriptions` | The session already holds 64 subscriptions, each of which polls the database. Unsubscribe from one first |
 
 Errors never close the connection.

@@ -35,6 +35,8 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/pipeline-stage` | Task | Task prompt of a pipeline stage run (P12.9): wraps the stage run's own task prompt (`pipeline.task`) and hands it the previous stage's output, structured output, artifact references, reviewer notes, and revision feedback |
 | `builtin/pipeline-revision` | Fragment | Review feedback wording that `builtin/pipeline-stage` includes when a reviewer requested changes and the stage runs again |
 | `builtin/trigger-input` | Task | Run input of a trigger fire (P12.5): describes the cron occurrence, the webhook delivery and its payload, or the manual fire (see [Trigger input](#trigger-input)). A trigger's `inputTemplateId` replaces it, and a tenant `Task` template named `trigger-input` replaces it for that tenant's triggers that set none |
+| `builtin/keeper-system` | Fragment | Appended to the system prompt of a keeper's tick (AA1): the mandate's objective, healthy definition, signals, autonomy, escalation policy, direction, and how to end a tick (see [Keepers](#keepers)). A tenant `Fragment` template named `keeper-system` replaces it for that tenant, and a deployment binding for the `KeeperSystem` role replaces it for that deployment |
+| `builtin/keeper-tick` | Task | Run input of a keeper's tick: why it woke, how the last tick ended, and recent tick summaries framed as the keeper's own notes. A tenant `Task` template named `keeper-tick` replaces it |
 | `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool (`exposeMcpTool`, see `MCP_API.md`) |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
 | `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
@@ -277,6 +279,31 @@ A [trigger](TRIGGERS.md) fire has no caller to write the input, so the input com
 
 The run variables (`agent`, `deployment`, `run`, and so on) are not available here: the run does not exist yet when its input is rendered. A webhook payload is untrusted text. Quote it, cut it down, or pick the fields you need from `webhook.json` rather than pasting a whole document into an instruction.
 
+## Keepers
+
+A [keeper](KEEPERS.md) tick has no caller either. Its run gets two templates. `builtin/keeper-system` is appended to the deployment's system prompt and tells the agent what its mandate is and how a tick works; it is a `Fragment` with the prompt role `KeeperSystem`, so a deployment binding for that role replaces it for one deployment, and a tenant `Fragment` template named `keeper-system` replaces it for the tenant. `builtin/keeper-tick` renders the run input; a tenant `Task` template named `keeper-tick` replaces it. The tick records which template and version rendered its input (`templateName`, `templateVersion`).
+
+The system fragment sees `keeper.*`:
+
+| Variable | Value |
+|---|---|
+| `keeper.mandateId`, `keeper.mandateName`, `keeper.revisionNumber` | Which mandate and revision |
+| `keeper.objective`, `keeper.healthyDefinition`, `keeper.autonomy`, `keeper.escalationPolicy`, `keeper.direction` | The current revision's text |
+| `keeper.signals`, `keeper.hasSignals` | The signals (`name`, `description`) in order |
+| `keeper.wakeMode`, `keeper.minIntervalSeconds`, `keeper.maxIntervalSeconds` | The schedule, so the keeper knows the range `nextWakeSeconds` is kept within |
+
+The tick input sees `mandate.*` (`id`, `name`, `description`, `revisionNumber`) and `tick.*`:
+
+| Variable | Value |
+|---|---|
+| `tick.id`, `tick.number` | The tick and how many ticks came before it |
+| `tick.wakeSource`, `tick.isTimer`, `tick.isManual`, `tick.isOther` | What woke the keeper |
+| `tick.scheduledUtc` | When the wake was due |
+| `tick.lastTickUtc`, `tick.lastOutcome` | How the previous tick ended, or empty for the first |
+| `tick.recent`, `tick.hasRecent` | Up to `Autonomy.TickInputRecentTicks` earlier ticks, newest first, each with `startedUtc`, `outcome`, and `summary` |
+
+The built-in input fences earlier summaries and labels them as data. If you replace it, keep that framing: a summary is text the agent wrote, and the agent may have copied text from a web page or an email into it.
+
 ## Template language
 
 The language is small on purpose. It has variables, filters, conditionals, loops, includes, comments, and raw blocks, and nothing that can call out of the renderer.
@@ -326,6 +353,7 @@ The variables available when a run is compiled (`tenant`, `agent`, `deployment`,
 | `repair.error`, `repair.schema`, `repair.previousOutput` | Only during a structured output repair (see above) |
 | `pipeline.task`, `pipeline.previous.output`, `pipeline.reviewNotes`, `pipeline.revision.feedback` | Only meaningful in a pipeline stage run (see [Pipeline stages](#pipeline-stages)) |
 | `trigger.*`, `webhook.*` | Only in a trigger input template (see [Trigger input](#trigger-input)) |
+| `keeper.*`, `mandate.*`, `tick.*` | Only in the keeper templates (see [Keepers](#keepers)) |
 | `garrison.delegationEnabled`, `garrison.mcpServerName` | Whether this run can delegate, and the MCP server name to tell it about |
 | `harness.type`, `harness.nativeSchema` | Which harness will run the prompt |
 | `tool.name`, `tool.defaultDescription` | Only in tool description templates: the tool being described and its built-in description |

@@ -479,6 +479,15 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_list_trigger_fires` | Trigger.Read on the resolved ID | `trigger`; optional `outcome` (`Started`, `Failed`, `Skipped`), `maxResults` |
 | `garrison_fire_trigger` | Trigger.Execute on the resolved ID | `trigger`; optional `body` (payload, at most `Triggers.WebhookMaxBodyBytes`), `contentType` |
 | `garrison_rotate_trigger_secret` | Trigger.Update on the resolved ID | `trigger`; returns the new `signingSecret` once |
+| `garrison_list_mandates` | Mandate.Read | none; optional `search`, `status`, `agent`, `maxResults` |
+| `garrison_get_mandate` | Mandate.Read on the resolved ID | `mandate` (name or ID); returns it with its current revision |
+| `garrison_create_mandate` | Mandate.Create, and Execute on the agent | `configuration`; a `currentRevision` in it is published and the keeper starts |
+| `garrison_update_mandate` | Mandate.Update on the resolved ID, and Execute on the agent | `mandate`, `configuration` (name, description, deployment) |
+| `garrison_publish_mandate_revision` | Mandate.Update on the resolved ID | `mandate`, `revision`; drafts and publishes it, so the keeper wakes now |
+| `garrison_pause_mandate` | Mandate.Execute on the resolved ID | `mandate` |
+| `garrison_resume_mandate` | Mandate.Execute on the resolved ID | `mandate` |
+| `garrison_wake_mandate` | Mandate.Execute on the resolved ID | `mandate` |
+| `garrison_list_mandate_ticks` | Mandate.Read on the resolved ID | `mandate`; optional `outcome`, `maxResults` |
 | `garrison_list_notification_endpoints` | NotificationEndpoint.Read | none; optional `search`, `maxResults` |
 | `garrison_get_notification_endpoint` | NotificationEndpoint.Read on the resolved ID | `endpoint` (name or ID) |
 | `garrison_create_notification_endpoint` | NotificationEndpoint.Create | `configuration` |
@@ -493,6 +502,17 @@ Configuration uses the REST agent, deployment, and pipeline fields; a pipeline `
 Trigger and notification endpoint `configuration` objects use the REST models (see [docs/TRIGGERS.md](docs/TRIGGERS.md) and [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)). A trigger created or updated over MCP runs as the calling credential. The `signingSecret` of a new webhook trigger or notification endpoint is in the create result and nowhere else; `garrison_get_*` never returns it. Rotating secrets, firing a trigger by hand, and sending a test notification are also available through the management MCP tools listed above, as well as REST and the dashboard.
 
 Asset tools (AD2) follow [docs/ASSETS.md](docs/ASSETS.md): the read tools are ordinary tools that permission decides, and the write tools are management tools, so run tokens cannot write assets. Revision and promotion tools (AD1) follow the REST rules in [docs/REVISIONS.md](docs/REVISIONS.md): publishing an unchanged draft fails with `RevisionUnchanged`, publishing twice with `RevisionPublished`, and a promotion that skips an environment without `allowSkip` with `PromotionOrderViolation`. Like every management tool, they are hidden from and refused for run and node tokens.
+
+## Keeper ticks
+
+The run of a keeper's tick (kind `Keeper`) always has the `garrison` MCP server, authenticated with its run token, and two tools that no other caller sees:
+
+| Tool | Arguments | Result |
+|---|---|---|
+| `garrison_keeper_context` | optional `recentTicks` (1 to 100, default 10) | The mandate and its current revision (objective, signals, autonomy, escalation policy, interval limits), the tick in progress, and recent finished ticks with their summaries, newest first |
+| `garrison_keeper_complete_tick` | `outcome` (`Quiet`, `Acted`, `Attention`, or `Escalated`); optional `summary` (at most 4000 characters) and `nextWakeSeconds` | `{ "tickId", "outcome", "accepted", "message" }`. The first report wins; a repeated call answers `accepted: false` and changes nothing |
+
+The tools act only on the token's own mandate and tick; there is no argument to name another. `nextWakeSeconds` is kept within the revision's minimum and maximum interval and applies to the next wake only. A tick whose run ends without calling `garrison_keeper_complete_tick` is recorded as `Unreported`. See [docs/KEEPERS.md](docs/KEEPERS.md).
 
 ## Execution and recovery behavior
 
