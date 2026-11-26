@@ -144,6 +144,16 @@ namespace Garrison.Server.Runtime
         public string? MandateTickId { get; set; } = null;
 
         /// <summary>
+        /// Eval run the new run is a case of (AA9.3), or null. Set with Kind Eval.
+        /// </summary>
+        public string? EvalRunId { get; set; } = null;
+
+        /// <summary>
+        /// Shadow trial the new run belongs to (AA9.7), or null. Set with Kind Shadow.
+        /// </summary>
+        public string? ShadowTrialId { get; set; } = null;
+
+        /// <summary>
         /// Identifier to give the new run, or null (the default) to generate one. The delegation wait handshake (P12.38)
         /// records the parent's wait on this identifier before the run exists. An idempotent retry still returns the
         /// existing run with its own identifier.

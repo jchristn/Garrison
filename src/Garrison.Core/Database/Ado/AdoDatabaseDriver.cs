@@ -153,6 +153,13 @@ namespace Garrison.Core.Database.Ado
             AgentMessages = new AdoAgentMessageMethods(this);
             Organizations = new AdoOrganizationMethods(this);
             ChangeRules = new AdoChangeRuleMethods(this);
+            AdoEvalCaseMethods evalCases = new AdoEvalCaseMethods(this);
+            EvalCases = evalCases;
+            EvalSets = new AdoEvalSetMethods(this, evalCases);
+            EvalRuns = new AdoEvalRunMethods(this);
+            EvalCaseResults = new AdoEvalCaseResultMethods(this);
+            ShadowTrials = new AdoShadowTrialMethods(this);
+            CanaryReleases = new AdoCanaryReleaseMethods(this);
             NotificationEndpoints = new AdoNotificationEndpointMethods(this);
             NotificationDeliveries = new AdoNotificationDeliveryMethods(this);
             AgentRevisions = new AdoAgentRevisionMethods(this);

@@ -297,6 +297,36 @@ namespace Garrison.Core.Database
         public IChangeRuleMethods ChangeRules { get; protected set; } = null!;
 
         /// <summary>
+        /// Eval set versions and their tags (AA9). Approved versions are immutable.
+        /// </summary>
+        public IEvalSetMethods EvalSets { get; protected set; } = null!;
+
+        /// <summary>
+        /// Eval cases with their checks and files (AA9). Cases of Approved sets are immutable.
+        /// </summary>
+        public IEvalCaseMethods EvalCases { get; protected set; } = null!;
+
+        /// <summary>
+        /// Eval runs (AA9).
+        /// </summary>
+        public IEvalRunMethods EvalRuns { get; protected set; } = null!;
+
+        /// <summary>
+        /// Eval case results with their check results (AA9). Insert-only.
+        /// </summary>
+        public IEvalCaseResultMethods EvalCaseResults { get; protected set; } = null!;
+
+        /// <summary>
+        /// Shadow trials (AA9).
+        /// </summary>
+        public IShadowTrialMethods ShadowTrials { get; protected set; } = null!;
+
+        /// <summary>
+        /// Canary releases with their steps (AA9).
+        /// </summary>
+        public ICanaryReleaseMethods CanaryReleases { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;

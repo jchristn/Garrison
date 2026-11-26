@@ -994,6 +994,8 @@ namespace Garrison.Core.Database.Ado
             if (!String.IsNullOrEmpty(filter.PipelineRunId)) clauses.Add("pipelinerunid = @pipelinerunid");
             if (!String.IsNullOrEmpty(filter.TriggerId)) clauses.Add("triggerid = @triggerid");
             if (!String.IsNullOrEmpty(filter.MandateId)) clauses.Add("mandateid = @mandateid");
+            if (!String.IsNullOrEmpty(filter.EvalRunId)) clauses.Add("evalrunid = @evalrunid");
+            if (!String.IsNullOrEmpty(filter.ShadowTrialId)) clauses.Add("shadowtrialid = @shadowtrialid");
             if (filter.Outcome.HasValue) clauses.Add("outcome = @outcome");
             if (!String.IsNullOrEmpty(filter.CallerId)) clauses.Add("callerid = @callerid");
             if (filter.FromUtc.HasValue) clauses.Add("createdutc >= @fromutc");
@@ -1014,6 +1016,8 @@ namespace Garrison.Core.Database.Ado
                 if (!String.IsNullOrEmpty(filter.PipelineRunId)) AdoDatabaseDriver.Add(command, "pipelinerunid", filter.PipelineRunId);
                 if (!String.IsNullOrEmpty(filter.TriggerId)) AdoDatabaseDriver.Add(command, "triggerid", filter.TriggerId);
                 if (!String.IsNullOrEmpty(filter.MandateId)) AdoDatabaseDriver.Add(command, "mandateid", filter.MandateId);
+                if (!String.IsNullOrEmpty(filter.EvalRunId)) AdoDatabaseDriver.Add(command, "evalrunid", filter.EvalRunId);
+                if (!String.IsNullOrEmpty(filter.ShadowTrialId)) AdoDatabaseDriver.Add(command, "shadowtrialid", filter.ShadowTrialId);
                 if (filter.Outcome.HasValue) AdoDatabaseDriver.Add(command, "outcome", filter.Outcome.Value.ToString());
                 if (!String.IsNullOrEmpty(filter.CallerId)) AdoDatabaseDriver.Add(command, "callerid", filter.CallerId);
                 if (filter.FromUtc.HasValue) AdoDatabaseDriver.Add(command, "fromutc", filter.FromUtc.Value);
@@ -1389,7 +1393,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Run obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, trustlevel, effectpolicy, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, lasteventsequence, active, agentrevisionid, filespaceid, fanoutgroupid, isprotected, traceid, traceparent, conversationid, conversationturn, resumesessionid, affinitynodeid, affinityuntilutc, conversationfallbackreason, pipelinerunid, pipelineposition, pipelineexecution, triggerid, mandateid, mandatetickid, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @trustlevel, @effectpolicy, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @delegationwaitms, @ttftexcldelegationms, @lasteventsequence, @active, @agentrevisionid, @filespaceid, @fanoutgroupid, @isprotected, @traceid, @traceparent, @conversationid, @conversationturn, @resumesessionid, @affinitynodeid, @affinityuntilutc, @conversationfallbackreason, @pipelinerunid, @pipelineposition, @pipelineexecution, @triggerid, @mandateid, @mandatetickid, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, trustlevel, effectpolicy, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, lasteventsequence, active, agentrevisionid, filespaceid, fanoutgroupid, isprotected, traceid, traceparent, conversationid, conversationturn, resumesessionid, affinitynodeid, affinityuntilutc, conversationfallbackreason, pipelinerunid, pipelineposition, pipelineexecution, triggerid, mandateid, mandatetickid, evalrunid, shadowtrialid, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @trustlevel, @effectpolicy, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @delegationwaitms, @ttftexcldelegationms, @lasteventsequence, @active, @agentrevisionid, @filespaceid, @fanoutgroupid, @isprotected, @traceid, @traceparent, @conversationid, @conversationturn, @resumesessionid, @affinitynodeid, @affinityuntilutc, @conversationfallbackreason, @pipelinerunid, @pipelineposition, @pipelineexecution, @triggerid, @mandateid, @mandatetickid, @evalrunid, @shadowtrialid, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -1444,6 +1448,8 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "triggerid", obj.TriggerId);
                 AdoDatabaseDriver.Add(command, "mandateid", obj.MandateId);
                 AdoDatabaseDriver.Add(command, "mandatetickid", obj.MandateTickId);
+                AdoDatabaseDriver.Add(command, "evalrunid", obj.EvalRunId);
+                AdoDatabaseDriver.Add(command, "shadowtrialid", obj.ShadowTrialId);
                 AdoDatabaseDriver.Add(command, "exitcode", obj.ExitCode);
                 AdoDatabaseDriver.Add(command, "stderrtail", obj.StderrTail);
                 AdoDatabaseDriver.Add(command, "errormessage", obj.ErrorMessage);
@@ -1602,6 +1608,8 @@ namespace Garrison.Core.Database.Ado
             obj.MandateId = AdoConverters.NullableStr(reader, "mandateid");
             obj.MandateTickId = AdoConverters.NullableStr(reader, "mandatetickid");
             obj.EscalationId = AdoConverters.NullableStr(reader, "escalationid");
+            obj.EvalRunId = AdoConverters.NullableStr(reader, "evalrunid");
+            obj.ShadowTrialId = AdoConverters.NullableStr(reader, "shadowtrialid");
         }
 
         private static void MapTelemetry(DbDataReader reader, Run obj)

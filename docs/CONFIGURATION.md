@@ -215,6 +215,8 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Messaging.UrgentWakesPerHour` | `12` | 0 to 3600 | Most urgent wakes per recipient agent in any hour. Above it, and at 0, urgent mail waits like normal mail |
 | `Messaging.MaxMessagesPerDelivery` | `50` | 1 to 500 | Most messages one run receives in its input or from one `garrison_read_inbox` call, oldest first. The rest stay queued |
 | `Messaging.MaxBodyBytes` | `16384` | 256 to 262144 | Most UTF-8 bytes in a message body. A larger body is refused with a validation error |
+| `Evaluation.MaxConcurrentCases` | `4` | 1 to 64 | Most cases of one eval run that run at the same time; the rest wait for a free slot |
+| `Evaluation.MaxCasesPerSet` | `500` | 1 to 10000 | Most cases one eval set version may hold. Adding a case to a full set is refused |
 | `Notifications.AllowPrivateDestinations` | `false` | | Let notification endpoints deliver to loopback and private addresses (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, 100.64/10, ::1, fc00::/7). Off by default to prevent server-side request forgery. Link-local addresses (169.254.0.0/16, which includes cloud metadata services, and fe80::/10), multicast, and reserved addresses stay refused either way. See `docs/NOTIFICATIONS.md` |
 | `Notifications.MaxAttempts` | `8` | 1 to 20 | Most delivery attempts for one notification before it is marked `Failed`. Read when the notification is queued |
 | `Notifications.InitialBackoffSeconds` | `10` | 1 to 3600 | Delay before the second attempt; each later delay doubles |

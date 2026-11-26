@@ -202,6 +202,17 @@ namespace Garrison.Core.Database
                 "change_rules",
                 "change_rule_classes",
                 "change_rule_limits",
+                "eval_sets",
+                "eval_set_tags",
+                "eval_cases",
+                "eval_case_checks",
+                "eval_case_files",
+                "eval_runs",
+                "eval_case_results",
+                "eval_case_check_results",
+                "shadow_trials",
+                "canary_releases",
+                "canary_release_steps",
         };
 
         private readonly SqlDialect _Dialect;

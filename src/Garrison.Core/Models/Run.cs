@@ -439,6 +439,16 @@ namespace Garrison.Core.Models
         public string? EscalationId { get; set; } = null;
 
         /// <summary>
+        /// Eval run this run is a case of (AA9.3), or null. Set only on runs of kind Eval.
+        /// </summary>
+        public string? EvalRunId { get; set; } = null;
+
+        /// <summary>
+        /// Shadow trial this run is a shadow copy for (AA9.7), or null. Set only on runs of kind Shadow.
+        /// </summary>
+        public string? ShadowTrialId { get; set; } = null;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.

@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 53).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 54).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2689,3 +2689,204 @@ CREATE TABLE IF NOT EXISTS "change_rule_limits" (
 );
 CREATE INDEX IF NOT EXISTS "idx_studio_drafts_org" ON "studio_drafts" ("tenantid", "organizationid");
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 53, 'Change rules and executive drafts', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 53);
+
+-- Migration 54: Evaluation, shadow trials, and canary releases
+ALTER TABLE "runs" ADD COLUMN evalrunid VARCHAR(64);
+ALTER TABLE "runs" ADD COLUMN shadowtrialid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "eval_sets" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description VARCHAR(2000),
+    version INTEGER NOT NULL,
+    previousversionid VARCHAR(64),
+    state VARCHAR(16) NOT NULL,
+    origin VARCHAR(16) NOT NULL,
+    approvedbyid VARCHAR(64),
+    approvedbyname VARCHAR(256),
+    approvedutc TEXT,
+    authoringorgunitid VARCHAR(64),
+    authoredbytype VARCHAR(32) NOT NULL,
+    authoredbyid VARCHAR(64),
+    authoredbyname VARCHAR(256),
+    authoredbyagentid VARCHAR(64),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_eval_sets_name" ON "eval_sets" ("tenantid", "name", "version");
+CREATE INDEX IF NOT EXISTS "idx_eval_sets_tenant" ON "eval_sets" ("tenantid", "createdutc");
+CREATE TABLE IF NOT EXISTS "eval_set_tags" (
+    setid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    tag VARCHAR(64) NOT NULL,
+    PRIMARY KEY (setid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_eval_set_tags_tag" ON "eval_set_tags" ("tenantid", "tag");
+CREATE TABLE IF NOT EXISTS "eval_cases" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    setid VARCHAR(64) NOT NULL,
+    caseorder INTEGER NOT NULL,
+    name VARCHAR(128),
+    inputtext TEXT NOT NULL,
+    hidden INTEGER NOT NULL,
+    expectedtext TEXT,
+    sourcerunid VARCHAR(64),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_eval_cases_set" ON "eval_cases" ("tenantid", "setid", "caseorder");
+CREATE TABLE IF NOT EXISTS "eval_case_checks" (
+    caseid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    scorer VARCHAR(32) NOT NULL,
+    argument TEXT,
+    weight REAL NOT NULL,
+    PRIMARY KEY (caseid, position)
+);
+CREATE TABLE IF NOT EXISTS "eval_case_files" (
+    caseid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    path VARCHAR(512) NOT NULL,
+    mediatype VARCHAR(128),
+    contenttext TEXT,
+    assetid VARCHAR(64),
+    assetpath VARCHAR(512),
+    PRIMARY KEY (caseid, position)
+);
+CREATE TABLE IF NOT EXISTS "eval_runs" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    setid VARCHAR(64) NOT NULL,
+    setname VARCHAR(128) NOT NULL,
+    setversion INTEGER NOT NULL,
+    targettype VARCHAR(32) NOT NULL,
+    agentid VARCHAR(64),
+    agentrevisionid VARCHAR(64),
+    deploymentid VARCHAR(64),
+    studiodraftid VARCHAR(64),
+    status VARCHAR(16) NOT NULL,
+    inputmode VARCHAR(16) NOT NULL,
+    recentinputcount INTEGER NOT NULL,
+    score REAL,
+    threshold REAL,
+    passed INTEGER,
+    budgetusd REAL,
+    costusd REAL NOT NULL,
+    totalcases INTEGER NOT NULL,
+    completedcases INTEGER NOT NULL,
+    passedcases INTEGER NOT NULL,
+    erroredcases INTEGER NOT NULL,
+    failurereason VARCHAR(2000),
+    startedbytype VARCHAR(32) NOT NULL,
+    startedbyid VARCHAR(64),
+    startedbyname VARCHAR(256),
+    originrunid VARCHAR(64),
+    createdutc TEXT NOT NULL,
+    startedutc TEXT,
+    completedutc TEXT,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_tenant" ON "eval_runs" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_set" ON "eval_runs" ("tenantid", "setid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_deployment" ON "eval_runs" ("tenantid", "deploymentid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_revision" ON "eval_runs" ("tenantid", "agentrevisionid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_draft" ON "eval_runs" ("tenantid", "studiodraftid");
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_status" ON "eval_runs" ("status", "createdutc");
+CREATE TABLE IF NOT EXISTS "eval_case_results" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    evalrunid VARCHAR(64) NOT NULL,
+    caseid VARCHAR(64),
+    resultorder INTEGER NOT NULL,
+    sourcerunid VARCHAR(64),
+    runid VARCHAR(64),
+    outputtext TEXT,
+    score REAL NOT NULL,
+    passed INTEGER NOT NULL,
+    errormessage VARCHAR(2000),
+    costusd REAL NOT NULL,
+    createdutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_eval_case_results_run" ON "eval_case_results" ("tenantid", "evalrunid", "resultorder");
+CREATE TABLE IF NOT EXISTS "eval_case_check_results" (
+    resultid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    scorer VARCHAR(32) NOT NULL,
+    weight REAL NOT NULL,
+    score REAL NOT NULL,
+    passed INTEGER NOT NULL,
+    judgerunid VARCHAR(64),
+    note VARCHAR(4000),
+    PRIMARY KEY (resultid, position)
+);
+CREATE TABLE IF NOT EXISTS "shadow_trials" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128),
+    agentid VARCHAR(64),
+    sourcedeploymentid VARCHAR(64) NOT NULL,
+    candidatedeploymentid VARCHAR(64) NOT NULL,
+    samplepercent INTEGER NOT NULL,
+    endsutc TEXT,
+    comparisonevalsetid VARCHAR(64),
+    usejudge INTEGER NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    stopreason VARCHAR(2000),
+    comparedcount BIGINT NOT NULL,
+    agreedcount BIGINT NOT NULL,
+    divergedcount BIGINT NOT NULL,
+    candidatefailurecount BIGINT NOT NULL,
+    createdbytype VARCHAR(32) NOT NULL,
+    createdbyid VARCHAR(64),
+    createdbyname VARCHAR(256),
+    createdutc TEXT NOT NULL,
+    completedutc TEXT,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_shadow_trials_tenant" ON "shadow_trials" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_shadow_trials_source" ON "shadow_trials" ("tenantid", "sourcedeploymentid", "status");
+CREATE INDEX IF NOT EXISTS "idx_shadow_trials_status" ON "shadow_trials" ("status", "createdutc");
+CREATE TABLE IF NOT EXISTS "canary_releases" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    candidatedeploymentid VARCHAR(64) NOT NULL,
+    baselinedeploymentid VARCHAR(64) NOT NULL,
+    baselineinitialweight INTEGER NOT NULL,
+    candidateinitialweight INTEGER NOT NULL,
+    currentstepindex INTEGER NOT NULL,
+    stepstartedutc TEXT,
+    maxerrorratepercent REAL NOT NULL,
+    minevalscore REAL,
+    evalsetid VARCHAR(64),
+    status VARCHAR(16) NOT NULL,
+    rollbackreason VARCHAR(2000),
+    createdbytype VARCHAR(32) NOT NULL,
+    createdbyid VARCHAR(64),
+    createdbyname VARCHAR(256),
+    createdutc TEXT NOT NULL,
+    completedutc TEXT,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_canary_releases_tenant" ON "canary_releases" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_canary_releases_agent" ON "canary_releases" ("tenantid", "agentid", "status");
+CREATE INDEX IF NOT EXISTS "idx_canary_releases_candidate" ON "canary_releases" ("tenantid", "candidatedeploymentid", "status");
+CREATE INDEX IF NOT EXISTS "idx_canary_releases_status" ON "canary_releases" ("status", "createdutc");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_canary_releases_running" ON "canary_releases" ("tenantid", "agentid") WHERE status = 'Running';
+CREATE TABLE IF NOT EXISTS "canary_release_steps" (
+    releaseid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    weightpercent INTEGER NOT NULL,
+    minimumruns INTEGER NOT NULL,
+    minimumminutes INTEGER NOT NULL,
+    PRIMARY KEY (releaseid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_runs_evalrun" ON "runs" ("tenantid", "evalrunid") WHERE evalrunid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "idx_runs_shadowtrial" ON "runs" ("tenantid", "shadowtrialid") WHERE shadowtrialid IS NOT NULL;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 54, 'Evaluation, shadow trials, and canary releases', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 54);

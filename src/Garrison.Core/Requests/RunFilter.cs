@@ -70,6 +70,16 @@ namespace Garrison.Core.Requests
         public string? MandateId { get; set; } = null;
 
         /// <summary>
+        /// Eval run filter (the case runs of an eval run, AA9).
+        /// </summary>
+        public string? EvalRunId { get; set; } = null;
+
+        /// <summary>
+        /// Shadow trial filter (the shadow runs of a trial, AA9).
+        /// </summary>
+        public string? ShadowTrialId { get; set; } = null;
+
+        /// <summary>
         /// Outcome filter.
         /// </summary>
         public RunOutcomeEnum? Outcome { get; set; } = null;

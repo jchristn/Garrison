@@ -167,6 +167,8 @@ namespace Garrison.Server.Services
                 Int("Messaging.UrgentWakesPerHour", 12, 0, 3600, "Most urgent wakes per recipient agent in any hour. Above it, and at 0, urgent mail waits for the next tick like normal mail."),
                 Int("Messaging.MaxMessagesPerDelivery", 50, 1, 500, "Most messages one run receives in its input or from one garrison_read_inbox call, oldest first. The rest stay queued."),
                 Int("Messaging.MaxBodyBytes", 16384, 256, 262144, "Most UTF-8 bytes in a message body. A larger body is refused with a validation error."),
+                Int("Evaluation.MaxConcurrentCases", 4, 1, 64, "Most cases of one eval run that run at the same time. The rest wait for a free slot."),
+                Int("Evaluation.MaxCasesPerSet", 500, 1, 10000, "Most cases one eval set version may hold. Adding a case to a full set is refused."),
                 Bool("Notifications.AllowPrivateDestinations", false, "Whether notification endpoints may deliver to loopback and private addresses (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, 100.64/10, ::1, fc00::/7). Off by default to prevent server-side request forgery. Link-local addresses (169.254.0.0/16, including cloud metadata services, and fe80::/10), multicast, and reserved addresses are always refused."),
                 Int("Notifications.MaxAttempts", 8, 1, 20, "Most delivery attempts for one notification before it is marked Failed."),
                 Int("Notifications.InitialBackoffSeconds", 10, 1, 3600, "Delay before the second attempt of a notification; each later delay doubles, up to Notifications.MaxBackoffSeconds."),

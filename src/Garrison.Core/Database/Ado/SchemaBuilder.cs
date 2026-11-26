@@ -410,6 +410,12 @@ namespace Garrison.Core.Database.Ado
             v53.BuildVersion53();
             migrations.Add(new SchemaMigration(53, "Change rules and executive drafts", v53._Statements, v53._Columns));
 
+            // AA9: eval sets with versioned cases, eval runs and their case results, shadow trials, and canary releases;
+            // the eval run or shadow trial a run belongs to.
+            SchemaBuilder v54 = new SchemaBuilder(catalog, dialect);
+            v54.BuildVersion54();
+            migrations.Add(new SchemaMigration(54, "Evaluation, shadow trials, and canary releases", v54._Statements, v54._Columns));
+
             return migrations;
         }
 
@@ -473,6 +479,209 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion54()
+        {
+            SqlDialect d = _Dialect;
+            Table("eval_sets",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description VARCHAR(2000)",
+                "version " + d.TypeInt + " NOT NULL",
+                "previousversionid " + d.TypeId,
+                "state VARCHAR(16) NOT NULL",
+                "origin VARCHAR(16) NOT NULL",
+                "approvedbyid " + d.TypeId,
+                "approvedbyname VARCHAR(256)",
+                "approvedutc " + d.TypeTimestamp,
+                "authoringorgunitid " + d.TypeId,
+                "authoredbytype VARCHAR(32) NOT NULL",
+                "authoredbyid " + d.TypeId,
+                "authoredbyname VARCHAR(256)",
+                "authoredbyagentid " + d.TypeId,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("eval_sets", "name", true, "tenantid", "name", "version");
+            Index("eval_sets", "tenant", false, "tenantid", "createdutc");
+
+            Table("eval_set_tags",
+                "setid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "tag VARCHAR(64) NOT NULL",
+                "PRIMARY KEY (setid, position)");
+            Index("eval_set_tags", "tag", false, "tenantid", "tag");
+
+            Table("eval_cases",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "setid " + d.TypeId + " NOT NULL",
+                "caseorder " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(128)",
+                "inputtext " + d.TypeText + " NOT NULL",
+                "hidden " + d.TypeBool + " NOT NULL",
+                "expectedtext " + d.TypeText,
+                "sourcerunid " + d.TypeId,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("eval_cases", "set", false, "tenantid", "setid", "caseorder");
+
+            Table("eval_case_checks",
+                "caseid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "scorer VARCHAR(32) NOT NULL",
+                "argument " + d.TypeText,
+                "weight " + d.TypeDouble + " NOT NULL",
+                "PRIMARY KEY (caseid, position)");
+
+            Table("eval_case_files",
+                "caseid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "path VARCHAR(512) NOT NULL",
+                "mediatype VARCHAR(128)",
+                "contenttext " + d.TypeText,
+                "assetid " + d.TypeId,
+                "assetpath VARCHAR(512)",
+                "PRIMARY KEY (caseid, position)");
+
+            Table("eval_runs",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "setid " + d.TypeId + " NOT NULL",
+                "setname VARCHAR(128) NOT NULL",
+                "setversion " + d.TypeInt + " NOT NULL",
+                "targettype VARCHAR(32) NOT NULL",
+                "agentid " + d.TypeId,
+                "agentrevisionid " + d.TypeId,
+                "deploymentid " + d.TypeId,
+                "studiodraftid " + d.TypeId,
+                "status VARCHAR(16) NOT NULL",
+                "inputmode VARCHAR(16) NOT NULL",
+                "recentinputcount " + d.TypeInt + " NOT NULL",
+                "score " + d.TypeDouble,
+                "threshold " + d.TypeDouble,
+                "passed " + d.TypeBool,
+                "budgetusd " + d.TypeDouble,
+                "costusd " + d.TypeDouble + " NOT NULL",
+                "totalcases " + d.TypeInt + " NOT NULL",
+                "completedcases " + d.TypeInt + " NOT NULL",
+                "passedcases " + d.TypeInt + " NOT NULL",
+                "erroredcases " + d.TypeInt + " NOT NULL",
+                "failurereason VARCHAR(2000)",
+                "startedbytype VARCHAR(32) NOT NULL",
+                "startedbyid " + d.TypeId,
+                "startedbyname VARCHAR(256)",
+                "originrunid " + d.TypeId,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "startedutc " + d.TypeTimestamp,
+                "completedutc " + d.TypeTimestamp,
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("eval_runs", "tenant", false, "tenantid", "createdutc");
+            Index("eval_runs", "set", false, "tenantid", "setid", "createdutc");
+            Index("eval_runs", "deployment", false, "tenantid", "deploymentid", "createdutc");
+            Index("eval_runs", "revision", false, "tenantid", "agentrevisionid", "createdutc");
+            Index("eval_runs", "draft", false, "tenantid", "studiodraftid");
+            Index("eval_runs", "status", false, "status", "createdutc");
+
+            Table("eval_case_results",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "evalrunid " + d.TypeId + " NOT NULL",
+                "caseid " + d.TypeId,
+                "resultorder " + d.TypeInt + " NOT NULL",
+                "sourcerunid " + d.TypeId,
+                "runid " + d.TypeId,
+                "outputtext " + d.TypeText,
+                "score " + d.TypeDouble + " NOT NULL",
+                "passed " + d.TypeBool + " NOT NULL",
+                "errormessage VARCHAR(2000)",
+                "costusd " + d.TypeDouble + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("eval_case_results", "run", true, "tenantid", "evalrunid", "resultorder");
+
+            Table("eval_case_check_results",
+                "resultid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "scorer VARCHAR(32) NOT NULL",
+                "weight " + d.TypeDouble + " NOT NULL",
+                "score " + d.TypeDouble + " NOT NULL",
+                "passed " + d.TypeBool + " NOT NULL",
+                "judgerunid " + d.TypeId,
+                "note VARCHAR(4000)",
+                "PRIMARY KEY (resultid, position)");
+
+            Table("shadow_trials",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128)",
+                "agentid " + d.TypeId,
+                "sourcedeploymentid " + d.TypeId + " NOT NULL",
+                "candidatedeploymentid " + d.TypeId + " NOT NULL",
+                "samplepercent " + d.TypeInt + " NOT NULL",
+                "endsutc " + d.TypeTimestamp,
+                "comparisonevalsetid " + d.TypeId,
+                "usejudge " + d.TypeBool + " NOT NULL",
+                "status VARCHAR(16) NOT NULL",
+                "stopreason VARCHAR(2000)",
+                "comparedcount " + d.TypeBigInt + " NOT NULL",
+                "agreedcount " + d.TypeBigInt + " NOT NULL",
+                "divergedcount " + d.TypeBigInt + " NOT NULL",
+                "candidatefailurecount " + d.TypeBigInt + " NOT NULL",
+                "createdbytype VARCHAR(32) NOT NULL",
+                "createdbyid " + d.TypeId,
+                "createdbyname VARCHAR(256)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "completedutc " + d.TypeTimestamp,
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("shadow_trials", "tenant", false, "tenantid", "createdutc");
+            Index("shadow_trials", "source", false, "tenantid", "sourcedeploymentid", "status");
+            Index("shadow_trials", "status", false, "status", "createdutc");
+
+            Table("canary_releases",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "candidatedeploymentid " + d.TypeId + " NOT NULL",
+                "baselinedeploymentid " + d.TypeId + " NOT NULL",
+                "baselineinitialweight " + d.TypeInt + " NOT NULL",
+                "candidateinitialweight " + d.TypeInt + " NOT NULL",
+                "currentstepindex " + d.TypeInt + " NOT NULL",
+                "stepstartedutc " + d.TypeTimestamp,
+                "maxerrorratepercent " + d.TypeDouble + " NOT NULL",
+                "minevalscore " + d.TypeDouble,
+                "evalsetid " + d.TypeId,
+                "status VARCHAR(16) NOT NULL",
+                "rollbackreason VARCHAR(2000)",
+                "createdbytype VARCHAR(32) NOT NULL",
+                "createdbyid " + d.TypeId,
+                "createdbyname VARCHAR(256)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "completedutc " + d.TypeTimestamp,
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("canary_releases", "tenant", false, "tenantid", "createdutc");
+            Index("canary_releases", "agent", false, "tenantid", "agentid", "status");
+            Index("canary_releases", "candidate", false, "tenantid", "candidatedeploymentid", "status");
+            Index("canary_releases", "status", false, "status", "createdutc");
+            PartialIndex("canary_releases", "running", true, "status = 'Running'", "tenantid", "agentid");
+
+            Table("canary_release_steps",
+                "releaseid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "weightpercent " + d.TypeInt + " NOT NULL",
+                "minimumruns " + d.TypeInt + " NOT NULL",
+                "minimumminutes " + d.TypeInt + " NOT NULL",
+                "PRIMARY KEY (releaseid, position)");
+
+            Column("runs", "evalrunid", d.TypeId);
+            Column("runs", "shadowtrialid", d.TypeId);
+            PartialIndex("runs", "evalrun", false, "evalrunid IS NOT NULL", "tenantid", "evalrunid");
+            PartialIndex("runs", "shadowtrial", false, "shadowtrialid IS NOT NULL", "tenantid", "shadowtrialid");
         }
 
         private void BuildVersion53()

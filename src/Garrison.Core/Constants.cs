@@ -153,6 +153,24 @@ namespace Garrison.Core
         /// <summary>Change rule identifier prefix (AA8, AA-030; chr_ is taken by child rows).</summary>
         public const string ChangeRuleIdPrefix = "cru_";
 
+        /// <summary>Eval set identifier prefix (AA9).</summary>
+        public const string EvalSetIdPrefix = "evs_";
+
+        /// <summary>Eval case identifier prefix (AA9).</summary>
+        public const string EvalCaseIdPrefix = "evc_";
+
+        /// <summary>Eval run identifier prefix (AA9).</summary>
+        public const string EvalRunIdPrefix = "evr_";
+
+        /// <summary>Eval case result identifier prefix (AA9).</summary>
+        public const string EvalCaseResultIdPrefix = "evx_";
+
+        /// <summary>Shadow trial identifier prefix (AA9).</summary>
+        public const string ShadowTrialIdPrefix = "shd_";
+
+        /// <summary>Canary release identifier prefix (AA9).</summary>
+        public const string CanaryReleaseIdPrefix = "cnr_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

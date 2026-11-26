@@ -5,6 +5,7 @@ namespace Garrison.Server.Modules
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
+    using Garrison.Core.Evaluation;
     using Garrison.Core.Manifests;
     using Garrison.Core.Memory;
     using Garrison.Core.Services;
@@ -72,6 +73,7 @@ namespace Garrison.Server.Modules
         private EscalationOptions? _EscalationOptions = null;
         private MemoryOptions? _MemoryOptions = null;
         private ReportOptions? _ReportOptions = null;
+        private EvaluationOptions? _EvaluationOptions = null;
         private MessagingOptions? _MessagingOptions = null;
         private EscalationService? _Escalations = null;
         private FreezeService? _Freezes = null;
@@ -227,6 +229,12 @@ namespace Garrison.Server.Modules
             context.Register(_ReportOptions);
             context.Register(reportVisibility);
             context.Register(reports);
+
+            // AA9: evaluation options and eval set versioning; the eval runner, shadow trials, and canary releases build
+            // on them.
+            _EvaluationOptions = new EvaluationOptions();
+            context.Register(_EvaluationOptions);
+            context.Register(new EvalSetVersioning(context.Database));
 
             // AA6: messages between agents; keeper ticks drain their inbox, urgent mail wakes the recipient, and
             // escalations to agents arrive as urgent messages.
@@ -521,6 +529,11 @@ namespace Garrison.Server.Modules
             {
                 _ReportOptions.MaxBodyBytes = cluster.GetInt("Reports.MaxBodyBytes");
                 _ReportOptions.DigestMaxReports = cluster.GetInt("Reports.DigestMaxReports");
+            }
+            if (_EvaluationOptions != null)
+            {
+                _EvaluationOptions.MaxConcurrentCases = cluster.GetInt("Evaluation.MaxConcurrentCases");
+                _EvaluationOptions.MaxCasesPerSet = cluster.GetInt("Evaluation.MaxCasesPerSet");
             }
             if (_MessagingOptions != null)
             {

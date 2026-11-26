@@ -226,6 +226,8 @@ namespace Garrison.Server.Runtime
             run.TriggerId = create.TriggerId;
             run.MandateId = create.MandateId;
             run.MandateTickId = create.MandateTickId;
+            run.EvalRunId = create.EvalRunId;
+            run.ShadowTrialId = create.ShadowTrialId;
             run.MaxAttempts = deployment.MaxAttempts;
             run.Attempt = 1;
 

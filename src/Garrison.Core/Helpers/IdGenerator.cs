@@ -371,6 +371,60 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New eval set identifier (prefix evs_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewEvalSetId()
+        {
+            return New(Constants.EvalSetIdPrefix);
+        }
+
+        /// <summary>
+        /// New eval case identifier (prefix evc_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewEvalCaseId()
+        {
+            return New(Constants.EvalCaseIdPrefix);
+        }
+
+        /// <summary>
+        /// New eval run identifier (prefix evr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewEvalRunId()
+        {
+            return New(Constants.EvalRunIdPrefix);
+        }
+
+        /// <summary>
+        /// New eval case result identifier (prefix evx_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewEvalCaseResultId()
+        {
+            return New(Constants.EvalCaseResultIdPrefix);
+        }
+
+        /// <summary>
+        /// New shadow trial identifier (prefix shd_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewShadowTrialId()
+        {
+            return New(Constants.ShadowTrialIdPrefix);
+        }
+
+        /// <summary>
+        /// New canary release identifier (prefix cnr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewCanaryReleaseId()
+        {
+            return New(Constants.CanaryReleaseIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

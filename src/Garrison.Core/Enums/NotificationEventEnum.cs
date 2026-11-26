@@ -69,6 +69,11 @@ namespace Garrison.Core.Enums
         OrgProposalApplied,
 
         /// <summary>
+        /// A canary release crossed a threshold and its deployment weights were rolled back (AA9.8).
+        /// </summary>
+        CanaryRolledBack,
+
+        /// <summary>
         /// A test notification sent by the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test
