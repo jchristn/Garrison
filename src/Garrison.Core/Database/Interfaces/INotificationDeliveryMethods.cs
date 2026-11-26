@@ -190,6 +190,18 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Approval>> ListRuleAppliedProposalsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Canary releases rolled back in the given tenants, ordered by (completedutc, id), after a position (AA9.8).
+        /// </summary>
+        /// <param name="tenantIds">Tenants; empty returns nothing.</param>
+        /// <param name="afterUtc">Position timestamp (UTC).</param>
+        /// <param name="afterId">Position identifier; empty starts at the timestamp.</param>
+        /// <param name="untilUtc">Upper bound (UTC), inclusive.</param>
+        /// <param name="limit">Most records. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Releases without their steps.</returns>
+        Task<List<CanaryRelease>> ListRolledBackCanariesAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Keeper ticks that recorded a daily cap (error code CapReached) in the given tenants, ordered by (startedutc, id),
         /// after a position (AA3.6).
         /// </summary>

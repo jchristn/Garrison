@@ -190,7 +190,7 @@ namespace Garrison.Server.Services
         /// <param name="token">Cancellation token.</param>
         /// <returns>Result.</returns>
         /// <exception cref="NotFoundException">Thrown when the run does not exist.</exception>
-        /// <exception cref="ConflictException">Thrown with StaleFileUpload when the node no longer holds the lease.</exception>
+        /// <exception cref="ConflictException">Thrown with StaleFileUpload when the node no longer holds the lease, or ShadowRunRefused for a shadow run (AA-027).</exception>
         public async Task<FileSpaceUploadResult> WriteFromNodeAsync(string tenantId, string runId, string nodeId, long epoch, int repairAttempt, string path, int baseVersion, byte[] content, CancellationToken token = default)
         {
             Run run = await _Server.Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false) ?? throw new NotFoundException("Run not found.");
@@ -199,6 +199,8 @@ namespace Garrison.Server.Services
             {
                 throw new ConflictException("StaleFileUpload", "File space upload no longer belongs to the current execution of run " + runId + ".");
             }
+            // AA-027: a shadow run never writes back to a file space.
+            if (run.Kind == RunKindEnum.Shadow) throw new ConflictException("ShadowRunRefused", "Run " + runId + " is a shadow run; shadow runs do not write back to file spaces.");
             ConversationFileSpace space = await ForRunAsync(run, token).ConfigureAwait(false);
             return await WriteAsync(space, path, content, null, baseVersion, run.Id, epoch, run.AgentName, token).ConfigureAwait(false);
         }

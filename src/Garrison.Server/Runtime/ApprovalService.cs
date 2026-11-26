@@ -205,6 +205,12 @@ namespace Garrison.Server.Runtime
             string? cwd = WorkingDirectory(run.Id, typed);
             ApprovalRuleMatch match = ApprovalRuleMatcher.Evaluate(deployment?.ApprovalRules, toolName, typed, inputJson, cwd);
             ApprovalRuleActionEnum action = match.Action ?? deployment?.ApprovalDefaultAction ?? ApprovalRuleActionEnum.Ask;
+            if (run.Kind == RunKindEnum.Shadow)
+            {
+                // AA-027: a shadow run's approvals default to Deny and no rule or person can allow an effect.
+                match = new ApprovalRuleMatch();
+                action = ApprovalRuleActionEnum.Deny;
+            }
             ApprovalRedactor redactor = await RedactorAsync(run, deployment, token).ConfigureAwait(false);
 
             Approval approval = new Approval();

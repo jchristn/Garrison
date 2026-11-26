@@ -229,6 +229,13 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<CanaryRelease>> ListRolledBackCanariesAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<CanaryRelease>();
+            return await KeysetAsync(_Driver.Table("canary_releases"), "completedutc", "status = 'RolledBack'", tenantIds, afterUtc, afterId, untilUtc, limit, AdoCanaryReleaseMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<MandateTick>> ListCapReachedTicksAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
         {
             if (tenantIds == null || tenantIds.Count == 0) return new List<MandateTick>();

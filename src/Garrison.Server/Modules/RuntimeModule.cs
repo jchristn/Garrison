@@ -148,6 +148,8 @@ namespace Garrison.Server.Modules
             {
                 assets.ApplyDownloadUrls(run, spec, assetBaseUrl);
                 await fileSpaces.ApplyAsync(run, spec, assetBaseUrl, ct).ConfigureAwait(false);
+                // AA-027: a shadow run neither reads nor writes back a file space.
+                if (ShadowRunPolicy.IsShadow(run)) spec.FileSpace = null;
                 if (spec.FileSpace != null)
                 {
                     spec.FileSpace.MaxFileBytes = context.Settings.FileSpaces.MaxFileBytes;
@@ -235,6 +237,15 @@ namespace Garrison.Server.Modules
             _EvaluationOptions = new EvaluationOptions();
             context.Register(_EvaluationOptions);
             context.Register(new EvalSetVersioning(context.Database));
+            // AA9.7, AA9.8: shadow trials copy a source deployment's finished runs to a candidate as Shadow runs; canary
+            // releases move deployment weights step by step. The leader sweeps both.
+            ShadowTrialService shadowTrials = new ShadowTrialService(context, _Runs);
+            CanaryService canaries = new CanaryService(context);
+            _Events.ShadowTrials = shadowTrials;
+            _Maintenance.ShadowTrials = shadowTrials;
+            _Maintenance.Canaries = canaries;
+            context.Register(shadowTrials);
+            context.Register(canaries);
 
             // AA6: messages between agents; keeper ticks drain their inbox, urgent mail wakes the recipient, and
             // escalations to agents arrive as urgent messages.
@@ -342,6 +353,8 @@ namespace Garrison.Server.Modules
             new MessageRoutes(context, context.Get<MessageService>()).Register(routes);
             new OrganizationRoutes(context, context.Get<OrganizationService>()).Register(routes);
             new ChangeRuleRoutes(context, context.Get<ChangeRuleService>(), context.Get<OrgProposalService>()).Register(routes);
+            new ShadowTrialRoutes(context.Get<ShadowTrialService>()).Register(routes);
+            new CanaryRoutes(context.Get<CanaryService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);

@@ -179,6 +179,16 @@ namespace Garrison.Server.Runtime
         public MessageService? Messages { get; set; } = null;
 
         /// <summary>
+        /// Shadow trials (AA9.7), whose end-time sweep the leader runs every pass; null when not wired.
+        /// </summary>
+        public ShadowTrialService? ShadowTrials { get; set; } = null;
+
+        /// <summary>
+        /// Canary releases (AA9.8), whose step evaluation the leader runs every pass; null when not wired.
+        /// </summary>
+        public CanaryService? Canaries { get; set; } = null;
+
+        /// <summary>
         /// Scoped memory (AA4), whose expiry, import, and orphan sweep the leader runs every pass (the service limits how
         /// often it does work); null when agent memory is turned off.
         /// </summary>
@@ -572,6 +582,24 @@ namespace Garrison.Server.Runtime
                     if (messageService != null && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         await GarrisonTracing.BackgroundAsync("maintenance", "messages", messageService.SweepAsync, token).ConfigureAwait(false);
+                    }
+                    ShadowTrialService? shadowTrials = ShadowTrials;
+                    if (shadowTrials != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        await GarrisonTracing.BackgroundAsync("maintenance", "shadow_trials", shadowTrials.SweepAsync, token).ConfigureAwait(false);
+                    }
+                    CanaryService? canaries = Canaries;
+                    if (canaries != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "canaries", canaries.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Counting a step's runs can take a while; that work is not a pause.
+                            _Pause.Touch();
+                        }
                     }
                     MemoryService? memory = Memory;
                     if (memory != null && await AwakeAsync(token).ConfigureAwait(false))

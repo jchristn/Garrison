@@ -52,7 +52,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// Event sources the leader sweeps, in order: runs, pipeline_runs, approvals, pipeline_reviews.
         /// </summary>
-        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports", "org_proposals" };
+        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports", "org_proposals", "canary_rollbacks" };
 
         /// <summary>
         /// Resolves a destination host name to addresses when a delivery connects. Default: the system resolver
@@ -615,6 +615,15 @@ namespace Garrison.Server.Runtime
                                 Advance(approval.DecidedUtc ?? approval.CreatedUtc, approval.Id, ref lastUtc, ref lastId);
                             }
                             break;
+                        case "canary_rollbacks":
+                            List<CanaryRelease> rolledBack = await _Database.NotificationDeliveries.ListRolledBackCanariesAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = rolledBack.Count;
+                            foreach (CanaryRelease release in rolledBack)
+                            {
+                                queued += await QueueCanaryAsync(release, interested, token).ConfigureAwait(false);
+                                Advance(release.CompletedUtc ?? release.LastUpdateUtc, release.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
                         case "mandate_caps":
                             List<MandateTick> caps = await _Database.NotificationDeliveries.ListCapReachedTicksAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
                             read = caps.Count;
@@ -676,6 +685,8 @@ namespace Garrison.Server.Runtime
                     return source == "reports";
                 case NotificationEventEnum.OrgProposalApplied:
                     return source == "org_proposals";
+                case NotificationEventEnum.CanaryRolledBack:
+                    return source == "canary_rollbacks";
                 default:
                     return false;
             }
@@ -729,6 +740,8 @@ namespace Garrison.Server.Runtime
         {
             NotificationEventEnum? value = RunEvent(run.Status);
             if (!value.HasValue || !run.CompletedUtc.HasValue) return 0;
+            // AA9.7: a shadow run's result never reaches the caller, triggers, pipelines, apps, or run notifications.
+            if (run.Kind == RunKindEnum.Shadow) return 0;
             int queued = 0;
             foreach (NotificationEndpoint endpoint in endpoints)
             {
@@ -910,6 +923,41 @@ namespace Garrison.Server.Runtime
                 NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.OrgProposalApplied, applied, "/organizations/" + summary.OrganizationId + "/proposals/" + draft.Id);
                 payload.Proposal = summary;
                 if (await QueueAsync(endpoint, NotificationEventEnum.OrgProposalApplied, "proposal:" + approval.Id, "Approval", approval.Id, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        private async Task<int> QueueCanaryAsync(CanaryRelease release, List<NotificationEndpoint> endpoints, CancellationToken token)
+        {
+            // AA9.8: a canary crossed a threshold and its weights went back. An endpoint filtered to an agent hears about
+            // that agent's releases; one filtered to a deployment hears about releases where it is the candidate or baseline.
+            DateTime rolledBack = release.CompletedUtc ?? release.LastUpdateUtc;
+            NotificationCanarySummary? summary = null;
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                if (!Subscribed(endpoint, release.TenantId, NotificationEventEnum.CanaryRolledBack, rolledBack)) continue;
+                if (!Matches(endpoint, release.AgentId, null)) continue;
+                if (!String.IsNullOrEmpty(endpoint.DeploymentId) && endpoint.DeploymentId != release.CandidateDeploymentId && endpoint.DeploymentId != release.BaselineDeploymentId) continue;
+                if (summary == null)
+                {
+                    CanaryRelease? full = await _Database.CanaryReleases.ReadAsync(release.TenantId, release.Id, token).ConfigureAwait(false);
+                    summary = new NotificationCanarySummary();
+                    summary.ReleaseId = release.Id;
+                    summary.AgentId = release.AgentId;
+                    summary.AgentName = (await _Database.Agents.ReadAsync(release.TenantId, release.AgentId, token).ConfigureAwait(false))?.Name;
+                    summary.CandidateDeploymentId = release.CandidateDeploymentId;
+                    summary.CandidateDeploymentName = (await _Database.Deployments.ReadAsync(release.TenantId, release.CandidateDeploymentId, token).ConfigureAwait(false))?.Name;
+                    summary.BaselineDeploymentId = release.BaselineDeploymentId;
+                    summary.BaselineDeploymentName = (await _Database.Deployments.ReadAsync(release.TenantId, release.BaselineDeploymentId, token).ConfigureAwait(false))?.Name;
+                    summary.Step = release.CurrentStepIndex + 1;
+                    summary.StepCount = Math.Max(full?.Steps.Count ?? 0, summary.Step);
+                    summary.Reason = release.RollbackReason;
+                    summary.RolledBackUtc = rolledBack;
+                }
+                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.CanaryRolledBack, rolledBack, "/canary-releases/" + release.Id);
+                payload.Canary = summary;
+                if (await QueueAsync(endpoint, NotificationEventEnum.CanaryRolledBack, "canary:" + release.Id, "CanaryRelease", release.Id, payload, token).ConfigureAwait(false)) queued++;
             }
             return queued;
         }

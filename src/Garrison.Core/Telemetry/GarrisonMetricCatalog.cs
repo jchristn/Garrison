@@ -212,6 +212,16 @@ namespace Garrison.Core.Telemetry
         /// </summary>
         public static readonly MetricDescriptor OrgProposals = new MetricDescriptor("garrison.org.proposals", MetricKindEnum.Counter, "{proposal}", "source, outcome", "Executive drafts that asked to apply, by decision source (rule, user) and outcome (applied, waiting, denied, refused, failed); carries no organization, unit, or agent identifiers", "server", "Autonomy", "garrison-autonomy");
 
+        /// <summary>
+        /// Shadow comparisons recorded, by result (AA9.14).
+        /// </summary>
+        public static readonly MetricDescriptor ShadowComparisons = new MetricDescriptor("garrison.shadow.comparisons", MetricKindEnum.Counter, "{comparison}", "result", "Shadow runs compared with their source runs, by result (agreed, diverged, candidate_failed, error); carries no trial, deployment, or run identifiers", "server", "Autonomy", "garrison-autonomy");
+
+        /// <summary>
+        /// Canary release transitions, by result (AA9.14).
+        /// </summary>
+        public static readonly MetricDescriptor CanaryTransitions = new MetricDescriptor("garrison.canary.transitions", MetricKindEnum.Counter, "{transition}", "result", "Canary release transitions, by result (started, advanced, promoted, rolled_back, aborted); carries no release, agent, or deployment identifiers", "server", "Autonomy", "garrison-autonomy");
+
         /// <summary>Keeper intervals applied after ticks (AA1).</summary>
         public static readonly MetricDescriptor KeeperInterval = new MetricDescriptor("garrison.keeper.interval", MetricKindEnum.Histogram, "s", "mode", "Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
 
@@ -506,6 +516,7 @@ namespace Garrison.Core.Telemetry
             BackplanePublished, BackplaneReceived, BackplaneLag, BackgroundDuration, BackgroundIterations, BuildInfo,
             GatewayOverheadDuration, ApplicationOperations, ApplicationOperationDuration, DbDuration, DbErrors, DbConnections, DbWriteLockWait, DbRetries, RetentionDeleted, RequestHistoryCaptured, ArchiveRuns,
             OutboundRequests, OutboundDuration, ObservabilityReachable,
+            ShadowComparisons, CanaryTransitions,
             WorkspaceCacheRequests, WorkerLeases, WorkerRuns, WorkerRunDuration, WorkerRunTtft, WorkerRunStreaming, WorkerRunStage,
             WorkerTokens, WorkerCost, WorkerGuardTrips, WorkerCompletionReports, WorkerConversationsSwept, WorkerEvents, WorkerHeartbeats, WorkerPauses, WorkerProbes,
             WorkerRunsActive, WorkerSlotsFree,

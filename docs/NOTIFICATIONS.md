@@ -39,6 +39,7 @@ An endpoint only ever receives events that happened after it was created. Creati
 | `MandateCapReached` | A keeper reached its daily spend cap and stopped ticking until the next UTC day |
 | `ReportUnhealthy` | A run or a person filed a report with health `Unhealthy` |
 | `OrgProposalApplied` | Change rules applied an executive's proposal without a person. See [Executives](EXECUTIVES.md) |
+| `CanaryRolledBack` | A canary release crossed its error rate or eval score threshold and both deployments went back to their weights from before it started |
 
 Every run counts, including delegated child runs and pipeline stage runs, so an endpoint that subscribes to `RunFailed` for a busy agent should expect traffic. `ApprovalRequested` skips permission requests that a deployment rule or the deployment default decided on the spot; those never waited for anyone. The additional value `Test` is used by the test action and cannot be subscribed to.
 
@@ -73,7 +74,7 @@ Most timeouts do not send `EscalationExpired`. With `UseDefaultAnswer` and a def
 }
 ```
 
-Exactly one of `run`, `pipelineRun`, `approval`, `escalation`, `freeze`, `mandateCap`, `report`, or `proposal` is present, except in a test notification, which has none. Fields that are null are left out. `link` is built from `Rest.ExternalBaseUrl` and points at the API resource.
+Exactly one of `run`, `pipelineRun`, `approval`, `escalation`, `freeze`, `mandateCap`, `report`, `proposal`, or `canary` is present, except in a test notification, which has none. Fields that are null are left out. `link` is built from `Rest.ExternalBaseUrl` and points at the API resource.
 
 What the payload leaves out matters as much as what it holds. It never contains secrets, run input, error text, tool input, or run output. The one exception is the run's result text, which is included (as `run.resultText`, with `run.resultTruncated`) only when the endpoint sets `includeResultText`, and is cut to `resultTextMaxChars`. Turn it on only for receivers you would trust with the output itself.
 
@@ -88,6 +89,8 @@ What the payload leaves out matters as much as what it holds. It never contains 
 `report` carries the report identifier, its author (`authorAgentId`, `authorAgentName`), the keeper that filed it (`mandateId`), the `appId`, `kind`, `health`, `title`, and `createdUtc`. The title is text the agent wrote, so treat it as untrusted input; the body, issues, and decisions stay in the report. An endpoint filtered to an agent receives only that agent's reports; one filtered to a deployment receives none, because a report belongs to an agent. See [REPORTS.md](REPORTS.md).
 
 `proposal` carries the executive draft's `draftId` and `title`, the `organizationId` and `organizationName`, the unit the executive leads (`unitId`, `unitName`), the executive (`agentId`, `agentName`), the `approvalId` the rules decided, the `ruleIds` that covered it, and `appliedUtc`. `link` points at the proposal under `/organizations/{id}/proposals/`. The title is text the agent wrote, so treat it as untrusted input. Only proposals that change rules applied send the event; one a person approved does not, because a person already saw it. An endpoint filtered to an agent receives only that executive's proposals; one filtered to a deployment receives none. A rollback of the organization undoes the change ([EXECUTIVES.md](EXECUTIVES.md#revisions-revert-drafts-and-rollback)).
+
+`canary` carries the release's `releaseId`, the agent (`agentId`, `agentName`), the candidate and baseline deployments (`candidateDeploymentId`, `candidateDeploymentName`, `baselineDeploymentId`, `baselineDeploymentName`), the `step` it was on (from 1) out of `stepCount`, the `reason` it rolled back, and `rolledBackUtc`. `link` points at the release under `/canary-releases/`. An endpoint filtered to an agent receives that agent's releases; one filtered to a deployment receives releases where that deployment is the candidate or the baseline. Shadow runs never send run events.
 
 ## Headers and verification
 

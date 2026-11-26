@@ -403,9 +403,11 @@ namespace Garrison.Server.Protocols
             bool administrator = SeesAdministratorArguments(ctx);
             string? tenantId = ctx.IsAuthenticated ? ctx.TenantId : null;
             bool studio = ctx.PrincipalType != PrincipalTypeEnum.Run || await DraftGrantAsync(ctx, token).ConfigureAwait(false);
+            bool shadow = ctx.PrincipalType == PrincipalTypeEnum.Run && await ShadowRunAsync(ctx, token).ConfigureAwait(false);
             List<ToolDefinition> tools = new List<ToolDefinition>();
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
+                if (shadow && ShadowRunPolicy.Refuses(tool)) continue;
                 if (tool.Name.StartsWith("garrison_memory_", StringComparison.Ordinal) && !_Context.Settings.AgentMemory.Enabled) continue;
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
@@ -416,7 +418,7 @@ namespace Garrison.Server.Protocols
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
-            if (!String.IsNullOrEmpty(tenantId))
+            if (!String.IsNullOrEmpty(tenantId) && !shadow)
             {
                 AgentCardService cards = _Context.Get<AgentCardService>();
                 foreach (Agent agent in await AgentToolsAsync(ctx, tenantId, token).ConfigureAwait(false))
@@ -429,6 +431,14 @@ namespace Garrison.Server.Protocols
             result.Tools = tools;
             result.CacheScope = "private";
             return result;
+        }
+
+        private async Task<bool> ShadowRunAsync(RequestContext ctx, CancellationToken token)
+        {
+            // AA-027: a shadow run is shown only the tools it may call.
+            if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return false;
+            Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
+            return ShadowRunPolicy.IsShadow(run);
         }
 
         private async Task<bool> DraftGrantAsync(RequestContext ctx, CancellationToken token)
@@ -642,6 +652,8 @@ namespace Garrison.Server.Protocols
                 || run == null || run.TenantId != ctx.TenantId || session.LeaseEpoch.Value != run.LeaseEpoch || !run.LeaseExpiresUtc.HasValue || run.LeaseExpiresUtc.Value <= DateTime.UtcNow
                 || run.CancelRequested || (run.Status != RunStatusEnum.Running && run.Status != RunStatusEnum.Leased))
                 throw ToolError("LeaseExpired", "The run session no longer holds an active lease.");
+            // AA-027: a shadow run's token refuses every effect, checked on the run row read for this call.
+            if (ShadowRunPolicy.IsShadow(run) && ShadowRunPolicy.Refuses(tool)) throw ToolError(ShadowRunPolicy.RefusalCode, ShadowRunPolicy.RefusalMessage(tool.Name));
             // Read operations cannot cause external effects. Every other tool is conservatively journaled.
             if (!EffectClassificationRules.RequiresJournal(tool.Operation, tool.AgentTool, tool.Annotations)) return await GatewayOperation.DispatchAsync(ct => DispatchCoreAsync(tool, args, call, ct), token).ConfigureAwait(false);
             EffectOperation operation = new EffectOperation
@@ -913,6 +925,18 @@ namespace Garrison.Server.Protocols
                     case "garrison_freeze":
                     case "garrison_lift_freeze":
                         result = await FreezeToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_shadow_trials":
+                    case "garrison_get_shadow_trial":
+                    case "garrison_start_shadow_trial":
+                    case "garrison_stop_shadow_trial":
+                        result = await ShadowTrialToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_canary_releases":
+                    case "garrison_get_canary_release":
+                    case "garrison_start_canary":
+                    case "garrison_abort_canary":
+                        result = await CanaryToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_memory_read":
                     case "garrison_memory_write":
@@ -1919,6 +1943,76 @@ namespace Garrison.Server.Protocols
                 default:
                     if (!arguments.Allow.HasValue) throw ToolError("ValidationFailed", "allow is required: true to apply the proposal, false to send it back.");
                     return await ToolCallAsync(() => proposals.DecideAsync(caller, organization, arguments.DraftId, arguments.Allow.Value, arguments.Reason, token)).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<object> ShadowTrialToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // Run tokens never see these tools; the check stays here in case a caller names one anyway.
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw ToolError("Forbidden", tool.Name + " is available only to people and API credentials.");
+            await Require(ctx, tenantId, tool.ResourceType, tool.Operation, null, token).ConfigureAwait(false);
+            ShadowTrialService trials = _Context.Get<ShadowTrialService>();
+            McpShadowTrialArguments arguments = ManagementArguments<McpShadowTrialArguments>(args);
+            switch (tool.Name)
+            {
+                case "garrison_list_shadow_trials":
+                {
+                    EnumerationQuery query = new EnumerationQuery { Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    ShadowTrialStatusEnum? status = String.IsNullOrWhiteSpace(arguments.Status) ? null : ParseOr(arguments.Status, ShadowTrialStatusEnum.Running, "status");
+                    return await trials.EnumerateAsync(tenantId, arguments.SourceDeployment, arguments.CandidateDeployment, status, query, token).ConfigureAwait(false);
+                }
+                case "garrison_get_shadow_trial":
+                    return await ToolCallAsync(() => trials.ReadAsync(tenantId, arguments.TrialId, token)).ConfigureAwait(false);
+                case "garrison_start_shadow_trial":
+                {
+                    ShadowTrial body = new ShadowTrial
+                    {
+                        Name = arguments.Name, SourceDeploymentId = arguments.SourceDeployment ?? String.Empty, CandidateDeploymentId = arguments.CandidateDeployment ?? String.Empty,
+                        EndsUtc = arguments.EndsUtc, ComparisonEvalSetId = arguments.ComparisonEvalSetId, UseJudge = arguments.UseJudge ?? false
+                    };
+                    if (arguments.SamplePercent.HasValue) body.SamplePercent = arguments.SamplePercent.Value;
+                    return await ToolCallAsync(() => trials.CreateAsync(ctx, tenantId, body, token)).ConfigureAwait(false);
+                }
+                default:
+                {
+                    ShadowTrial existing = await ToolCallAsync(() => trials.ReadAsync(tenantId, arguments.TrialId, token)).ConfigureAwait(false);
+                    return await ToolCallAsync(() => trials.StopAsync(ctx, existing, arguments.Reason, token)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task<object> CanaryToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // Run tokens never see these tools; the check stays here in case a caller names one anyway.
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw ToolError("Forbidden", tool.Name + " is available only to people and API credentials.");
+            await Require(ctx, tenantId, tool.ResourceType, tool.Operation, null, token).ConfigureAwait(false);
+            CanaryService canaries = _Context.Get<CanaryService>();
+            McpCanaryArguments arguments = ManagementArguments<McpCanaryArguments>(args);
+            switch (tool.Name)
+            {
+                case "garrison_list_canary_releases":
+                {
+                    EnumerationQuery query = new EnumerationQuery { Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    CanaryStatusEnum? status = String.IsNullOrWhiteSpace(arguments.Status) ? null : ParseOr(arguments.Status, CanaryStatusEnum.Running, "status");
+                    return await canaries.EnumerateAsync(tenantId, arguments.Agent, status, query, token).ConfigureAwait(false);
+                }
+                case "garrison_get_canary_release":
+                    return await ToolCallAsync(() => canaries.ReadAsync(tenantId, arguments.ReleaseId, token)).ConfigureAwait(false);
+                case "garrison_start_canary":
+                {
+                    CanaryRelease body = new CanaryRelease
+                    {
+                        AgentId = arguments.Agent ?? String.Empty, CandidateDeploymentId = arguments.CandidateDeployment ?? String.Empty, BaselineDeploymentId = arguments.BaselineDeployment ?? String.Empty,
+                        Steps = arguments.Steps ?? new List<CanaryReleaseStep>(), MinEvalScore = arguments.MinEvalScore, EvalSetId = arguments.EvalSetId
+                    };
+                    if (arguments.MaxErrorRatePercent.HasValue) body.MaxErrorRatePercent = arguments.MaxErrorRatePercent.Value;
+                    return await ToolCallAsync(() => canaries.StartAsync(ctx, tenantId, body, token)).ConfigureAwait(false);
+                }
+                default:
+                {
+                    CanaryRelease existing = await ToolCallAsync(() => canaries.ReadAsync(tenantId, arguments.ReleaseId, token)).ConfigureAwait(false);
+                    return await ToolCallAsync(() => canaries.AbortAsync(ctx, existing, arguments.Reason, token)).ConfigureAwait(false);
+                }
             }
         }
 

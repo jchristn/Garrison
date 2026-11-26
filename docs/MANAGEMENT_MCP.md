@@ -57,6 +57,10 @@ The two keeper run tools, `garrison_keeper_context` and `garrison_keeper_complet
 
 `garrison_create_change_rule`, `garrison_update_change_rule`, `garrison_delete_change_rule`, `garrison_get_change_rule`, and `garrison_list_change_rules` manage the rules that let executives apply narrow classes of change without waiting for a person. `garrison_list_org_proposals`, `garrison_get_org_proposal`, and `garrison_decide_org_proposal` show what executives proposed and decide the ones that wait. Only people use these; the single exception is `garrison_list_change_rules`, which an executive run calls to read the rules on its own subtree. See [EXECUTIVES.md](EXECUTIVES.md).
 
+## Shadow trials and canary releases
+
+`garrison_start_shadow_trial` copies a share of the runs a source deployment finishes to another deployment of the same agent as shadow runs and compares their outputs; `garrison_list_shadow_trials`, `garrison_get_shadow_trial`, and `garrison_stop_shadow_trial` read and stop trials. Starting one needs Create on `ShadowTrial` and Execute on the agent. `garrison_start_canary` moves an agent's traffic from a baseline deployment to a candidate in steps of weight and rolls the weights back when the candidate's error rate or eval score crosses a threshold; `garrison_list_canary_releases`, `garrison_get_canary_release`, and `garrison_abort_canary` read and abort releases. Starting one needs Create on `CanaryRelease` and Update on both deployments. Only people use these tools; run tokens never see them.
+
 ## Revisions and promotion
 
 `garrison_list_agent_revisions`, `garrison_get_agent_revision`, and `garrison_publish_agent_revision` read an agent's revisions and publish its open draft. `garrison_promote` moves a revision from one environment to the next, and `garrison_rollback_promotion` restores the pins a promotion replaced. Promotion needs Execute on `Promotion` for the target environment, so a `Releaser` assigned to `staging` can promote there and nowhere else ([REVISIONS.md](REVISIONS.md)).

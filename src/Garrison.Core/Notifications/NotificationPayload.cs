@@ -84,6 +84,11 @@ namespace Garrison.Core.Notifications
         /// </summary>
         public NotificationProposalSummary? Proposal { get; set; } = null;
 
+        /// <summary>
+        /// The canary release, for CanaryRolledBack (AA9.8).
+        /// </summary>
+        public NotificationCanarySummary? Canary { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories

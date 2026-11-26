@@ -652,6 +652,15 @@ namespace Garrison.Core.Compilation
                 throw new CompilationException("ApprovalsUnsupported", "Deployment " + deployment.Name + " has approvals enabled, but harness profile " + profile.Name + " cannot relay permission requests (Claude Code, CodexAppServer, and ProviderApi support this hook).");
             }
             bool approvalsEnabled = deployment.ApprovalsEnabled && !String.IsNullOrEmpty(runToken);
+            // AA-027: a shadow run asks Garrison before every tool that needs permission, where its harness can relay the
+            // question, and the approval service answers Deny, so its harness tools cannot cause effects.
+            bool shadow = run.Kind == RunKindEnum.Shadow;
+            if (shadow && !String.IsNullOrEmpty(runToken) && Garrison.Core.Services.ConfigurationValidator.SupportsApprovals(profile)) approvalsEnabled = true;
+            if (shadow && approvalsEnabled && profile.HarnessType == HarnessTypeEnum.ClaudeCode)
+            {
+                parameters["permissionMode"] = "default";
+                parameters["allowedTools"] = "mcp__" + Constants.McpServerName;
+            }
             if (approvalsEnabled && profile.HarnessType == HarnessTypeEnum.ClaudeCode)
             {
                 // With approvals, Claude Code must ask before every tool that needs permission, so the defaults move to

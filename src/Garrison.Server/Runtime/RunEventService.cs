@@ -89,6 +89,12 @@ namespace Garrison.Server.Runtime
         public KeeperScheduler? Keepers { get; set; } = null;
 
         /// <summary>
+        /// Shadow trials (AA9.7): told about every run that finishes, after it is recorded, and does its copy or comparison
+        /// in the background so the finishing run is never delayed. Null when not wired.
+        /// </summary>
+        public ShadowTrialService? ShadowTrials { get; set; } = null;
+
+        /// <summary>
         /// Cancels a keeper tick run whose known cost reached its per-tick or daily budget when it suspended (AA3.3), through
         /// the normal cancellation path. Null (the default) leaves the budget to the next compilation, which refuses it.
         /// </summary>
@@ -509,6 +515,7 @@ namespace Garrison.Server.Runtime
             if (FanOuts != null && !String.IsNullOrEmpty(run.FanOutGroupId)) await FanOuts.OnRunFinishedAsync(run, token).ConfigureAwait(false);
             if (Continuations != null && !String.IsNullOrEmpty(run.ParentRunId)) await Continuations.ResumeAsync(run.TenantId, run.ParentRunId, token).ConfigureAwait(false);
             if (Keepers != null && run.Kind == RunKindEnum.Keeper) await Keepers.OnRunFinishedAsync(run, token).ConfigureAwait(false);
+            ShadowTrials?.OnRunFinished(run);
             _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId)
                 + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", labels.Deployment, "model", run.ServedModel, "node", run.LeaseNodeName ?? request.NodeId, "outcome", run.Outcome.ToString()));
 

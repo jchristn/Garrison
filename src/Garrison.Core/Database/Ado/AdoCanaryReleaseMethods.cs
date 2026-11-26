@@ -242,7 +242,12 @@ namespace Garrison.Core.Database.Ado
 
         #region Private-Methods
 
-        private static CanaryRelease Map(DbDataReader reader)
+        /// <summary>
+        /// Map a canary_releases row, without its steps.
+        /// </summary>
+        /// <param name="reader">Reader positioned on a row.</param>
+        /// <returns>Release.</returns>
+        public static CanaryRelease Map(DbDataReader reader)
         {
             CanaryRelease obj = new CanaryRelease();
             obj.Id = AdoConverters.Str(reader, "id");

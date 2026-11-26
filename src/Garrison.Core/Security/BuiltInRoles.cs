@@ -174,6 +174,11 @@ namespace Garrison.Core.Security
             p_auditor_read.ResourceTypes = new List<string> { "User", "Credential", "Session", "Role", "Permission", "Assignment", "Audit", "Tenant", "RequestHistory", "Run", "Conversation", "Agent", "Deployment", "ModelPrice", "UsageQuota", "Approval", "Escalation", "Freeze", "Memory", "Report", "AgentMessage", "Organization", "ChangeRule", "Pipeline", "PipelineRun", "Trigger", "Mandate", "NotificationEndpoint", "AgentRevision", "Promotion", "AgentAsset", "Capability", "FanOutGroup", "AgenticApp", "StudioDraft" };
             p_auditor_read.Operations = new List<string> { "Read" };
             auditor.Permissions.Add(p_auditor_read);
+            BuiltInPermission p_auditor_releases = new BuiltInPermission();
+            p_auditor_releases.Name = "Auditor.Releases";
+            p_auditor_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
+            p_auditor_releases.Operations = new List<string> { "Read" };
+            auditor.Permissions.Add(p_auditor_releases);
             roles.Add(auditor);
 
             BuiltInRole resourceadmin = new BuiltInRole();
@@ -201,6 +206,11 @@ namespace Garrison.Core.Security
             p_editor_quota.ResourceTypes = new List<string> { "UsageQuota" };
             p_editor_quota.Operations = new List<string> { "Read" };
             editor.Permissions.Add(p_editor_quota);
+            BuiltInPermission p_editor_releases = new BuiltInPermission();
+            p_editor_releases.Name = "Editor.Releases";
+            p_editor_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
+            p_editor_releases.Operations = new List<string> { "Read", "Write" };
+            editor.Permissions.Add(p_editor_releases);
             roles.Add(editor);
 
             BuiltInRole viewer = new BuiltInRole();
@@ -212,6 +222,11 @@ namespace Garrison.Core.Security
             p_viewer_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "ArtifactStore", "ModelPrice", "UsageQuota", "Run", "Manifest", "Node", "NodePool", "Conversation", "Artifact", "Approval", "Escalation", "Freeze", "Memory", "Report", "AgentMessage", "Organization", "ChangeRule", "Pipeline", "PipelineRun", "Trigger", "Mandate", "NotificationEndpoint", "AgentRevision", "Promotion", "AgentAsset", "Capability", "FanOutGroup", "AgenticApp", "StudioDraft" };
             p_viewer_read.Operations = new List<string> { "Read" };
             viewer.Permissions.Add(p_viewer_read);
+            BuiltInPermission p_viewer_releases = new BuiltInPermission();
+            p_viewer_releases.Name = "Viewer.Releases";
+            p_viewer_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
+            p_viewer_releases.Operations = new List<string> { "Read" };
+            viewer.Permissions.Add(p_viewer_releases);
             roles.Add(viewer);
 
             BuiltInRole tenantmember = new BuiltInRole();
@@ -306,6 +321,17 @@ namespace Garrison.Core.Security
             p_agentoperator_changerules.ResourceTypes = new List<string> { "ChangeRule" };
             p_agentoperator_changerules.Operations = new List<string> { "Read" };
             agentoperator.Permissions.Add(p_agentoperator_changerules);
+            // AA9: shadow trials and canary releases. Developers start them; operators read, stop, and abort them.
+            BuiltInPermission p_agentdeveloper_releases = new BuiltInPermission();
+            p_agentdeveloper_releases.Name = "AgentDeveloper.Releases";
+            p_agentdeveloper_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
+            p_agentdeveloper_releases.Operations = new List<string> { "Create", "Read", "Update" };
+            agentdeveloper.Permissions.Add(p_agentdeveloper_releases);
+            BuiltInPermission p_agentoperator_releases = new BuiltInPermission();
+            p_agentoperator_releases.Name = "AgentOperator.Releases";
+            p_agentoperator_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
+            p_agentoperator_releases.Operations = new List<string> { "Read", "Update" };
+            agentoperator.Permissions.Add(p_agentoperator_releases);
             roles.Add(agentoperator);
 
             BuiltInRole agentinvoker = new BuiltInRole();
