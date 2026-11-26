@@ -335,6 +335,33 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New organization identifier (prefix org_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewOrganizationId()
+        {
+            return New(Constants.OrganizationIdPrefix);
+        }
+
+        /// <summary>
+        /// New org unit identifier (prefix oun_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewOrgUnitId()
+        {
+            return New(Constants.OrgUnitIdPrefix);
+        }
+
+        /// <summary>
+        /// New organization revision identifier (prefix orv_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewOrgRevisionId()
+        {
+            return New(Constants.OrgRevisionIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

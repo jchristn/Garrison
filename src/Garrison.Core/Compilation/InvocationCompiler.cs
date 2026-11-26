@@ -211,6 +211,7 @@ namespace Garrison.Core.Compilation
             await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(run.ConversationId)) inputs.StudioDraft = await _Database.StudioDrafts.ReadByConversationAsync(run.TenantId, run.ConversationId, token).ConfigureAwait(false);
             if (run.Kind == RunKindEnum.Keeper && !String.IsNullOrEmpty(run.MandateId)) await LoadKeeperAsync(inputs, run, token).ConfigureAwait(false);
+            await LoadOrgAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -715,6 +716,13 @@ namespace Garrison.Core.Compilation
                 context.Set("keeper", KeeperContext(inputs.Keeper));
                 string keeper = RenderPrompt(inputs, Garrison.Core.Keepers.KeeperTemplateResolver.SystemRole, context, includes, usedIncludes).Trim();
                 if (keeper.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + keeper : keeper;
+            }
+            if (inputs.Org != null && inputs.Prompts.ContainsKey(Garrison.Core.Organizations.OrgContextLoader.Role))
+            {
+                // AA7.8: a member of a live organization learns its place in it, whatever system template it binds.
+                context.Set("org", OrgContextMap(inputs.Org));
+                string org = RenderPrompt(inputs, Garrison.Core.Organizations.OrgContextLoader.Role, context, includes, usedIncludes).Trim();
+                if (org.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + org : org;
             }
             string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
             if (repair != null)
@@ -1742,6 +1750,40 @@ namespace Garrison.Core.Compilation
                 inputs.Prompts[role] = bound;
                 if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
             }
+        }
+
+        private async Task LoadOrgAsync(CompilationInputs inputs, Run run, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(run.AgentId)) return;
+            inputs.Org = await new Garrison.Core.Organizations.OrgContextLoader(_Database).LoadAsync(run.TenantId, run.AgentId, token).ConfigureAwait(false);
+            if (inputs.Org == null) return;
+            string role = Garrison.Core.Organizations.OrgContextLoader.Role;
+            if (inputs.Prompts.ContainsKey(role)) return;
+            PromptTemplate template = await new Garrison.Core.Keepers.KeeperTemplateResolver(_Database).ResolveAsync(run.TenantId, Garrison.Core.Organizations.OrgContextLoader.TemplateName, PromptTemplateKindEnum.Fragment, token).ConfigureAwait(false);
+            BoundPrompt bound = new BoundPrompt();
+            bound.Role = role;
+            bound.TemplateId = template.Id;
+            bound.TemplateName = template.Name;
+            bound.Version = template.CurrentVersion;
+            bound.Content = template.Content;
+            inputs.Prompts[role] = bound;
+            if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
+        }
+
+        private static Dictionary<string, object?> OrgContextMap(CompilationOrgContext org)
+        {
+            Dictionary<string, object?> map = TemplateContext.NewMap();
+            map["name"] = org.OrganizationName;
+            map["mission"] = org.Mission;
+            map["unitName"] = org.UnitName;
+            map["title"] = org.Title;
+            map["isLead"] = org.IsLead;
+            map["managerName"] = org.ManagerName;
+            map["directReports"] = org.DirectReports.Cast<object?>().ToList();
+            map["hasDirectReports"] = org.DirectReports.Count > 0;
+            map["peerUnits"] = org.PeerUnits.Cast<object?>().ToList();
+            map["hasPeerUnits"] = org.PeerUnits.Count > 0;
+            return map;
         }
 
         private static Dictionary<string, object?> KeeperContext(CompilationKeeper keeper)

@@ -71,6 +71,15 @@ namespace Garrison.Core.Database.Ado
                 + "WHERE u.tenantid = @tenantid AND u." + column + " = @resourceid;";
         }
 
+        internal static string AgentSpendQuery(AdoDatabaseDriver driver, string agentParameters)
+        {
+            string completed = Live("completedutc");
+            string cost = Live("costusd");
+            return "SELECT COALESCE(SUM(CASE WHEN " + cost + " > 0 THEN " + cost + " ELSE 0 END), 0) AS costusd "
+                + "FROM " + driver.Table("quota_usage_source") + " u LEFT JOIN " + driver.Table("runs") + " r ON r.id = u.runid AND r.tenantid = u.tenantid "
+                + "WHERE u.tenantid = @tenantid AND u.agentid IN (" + agentParameters + ") AND " + completed + " >= @start AND " + completed + " < @end;";
+        }
+
         internal static void BindUsage(DbCommand command, UsageQuota quota, DateTime utc)
         {
             AdoDatabaseDriver.Add(command, "tenantid", quota.TenantId);

@@ -21,7 +21,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, kind, outcome, agentid, appid, apprevisionid, agentrevisionid, sourceenvironment, targetenvironment, skippedenvironments, rollbackofid, rolledbackbyid, actortype, actorid, actorname, note, createdutc";
+        private static readonly string _Columns = "id, tenantid, kind, outcome, agentid, appid, apprevisionid, organizationid, orgrevisionid, agentrevisionid, sourceenvironment, targetenvironment, skippedenvironments, rollbackofid, rolledbackbyid, actortype, actorid, actorname, note, createdutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
@@ -123,6 +123,19 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<PromotionRecord?> ReadLatestForOrgRevisionAsync(string tenantId, string orgRevisionId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(orgRevisionId)) throw new ArgumentNullException(nameof(orgRevisionId));
+            List<PromotionRecord> rows = await _Driver.QueryAsync("SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND orgrevisionid = @revisionid ORDER BY createdutc DESC, id DESC;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "revisionid", orgRevisionId);
+            }, Map, token).ConfigureAwait(false);
+            return rows.Count > 0 ? rows[0] : null;
+        }
+
+        /// <inheritdoc />
         public async Task<EnumerationResult<PromotionRecord>> EnumerateAsync(string tenantId, string? agentId, string? appId, EnumerationQuery query, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
@@ -164,6 +177,8 @@ namespace Garrison.Core.Database.Ado
             obj.AgentId = AdoConverters.NullableStr(reader, "agentid");
             obj.AppId = AdoConverters.NullableStr(reader, "appid");
             obj.AppRevisionId = AdoConverters.NullableStr(reader, "apprevisionid");
+            obj.OrganizationId = AdoConverters.NullableStr(reader, "organizationid");
+            obj.OrgRevisionId = AdoConverters.NullableStr(reader, "orgrevisionid");
             obj.AgentRevisionId = AdoConverters.NullableStr(reader, "agentrevisionid");
             obj.SourceEnvironment = AdoConverters.Str(reader, "sourceenvironment");
             obj.TargetEnvironment = AdoConverters.Str(reader, "targetenvironment");
@@ -191,6 +206,8 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "agentid", obj.AgentId);
             AdoDatabaseDriver.Add(command, "appid", obj.AppId);
             AdoDatabaseDriver.Add(command, "apprevisionid", obj.AppRevisionId);
+            AdoDatabaseDriver.Add(command, "organizationid", obj.OrganizationId);
+            AdoDatabaseDriver.Add(command, "orgrevisionid", obj.OrgRevisionId);
             AdoDatabaseDriver.Add(command, "agentrevisionid", obj.AgentRevisionId);
             AdoDatabaseDriver.Add(command, "sourceenvironment", obj.SourceEnvironment);
             AdoDatabaseDriver.Add(command, "targetenvironment", obj.TargetEnvironment);

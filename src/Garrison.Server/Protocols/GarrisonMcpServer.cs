@@ -19,6 +19,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Models;
     using Garrison.Core.Manifests;
     using Garrison.Core.Memory;
+    using Garrison.Core.Organizations;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
@@ -410,6 +411,7 @@ namespace Garrison.Server.Protocols
                 if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
                 if (tool.Name.StartsWith("garrison_keeper_", StringComparison.Ordinal) && await KeeperRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
                 if ((RunOnlyEscalationTool(tool.Name) || RunOnlyMessageTool(tool.Name)) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
+                if (tool.Name.StartsWith("garrison_org_", StringComparison.Ordinal) && ctx.PrincipalType == PrincipalTypeEnum.Run && !await OrgMemberRunAsync(ctx, token).ConfigureAwait(false)) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -885,6 +887,16 @@ namespace Garrison.Server.Protocols
                     case "garrison_read_inbox":
                     case "garrison_ack_message":
                         result = await MessageToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_org_chart":
+                    case "garrison_org_whoami":
+                    case "garrison_list_organizations":
+                    case "garrison_get_organization":
+                    case "garrison_create_organization":
+                    case "garrison_update_organization":
+                    case "garrison_publish_org_revision":
+                    case "garrison_rollback_organization":
+                        result = await OrganizationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_freezes":
                     case "garrison_freeze":
@@ -1522,8 +1534,6 @@ namespace Garrison.Server.Protocols
             {
                 if (!Enum.TryParse<MemoryScopeKindEnum>(arguments.Scope.Trim(), true, out kind) || !Enum.IsDefined(kind)) throw ToolError("ValidationFailed", "scope must be Agent, App, OrgUnit, or Organization.");
             }
-            if (kind == MemoryScopeKindEnum.OrgUnit || kind == MemoryScopeKindEnum.Organization)
-                throw ToolError("OrganizationsUnavailable", kind + " memory scopes arrive with organizations; use the Agent or App scope instead.");
             if (kind != MemoryScopeKindEnum.Agent && !memory.Options.ScopedEnabled)
                 throw ToolError("ScopedMemoryDisabled", "Shared memory scopes are turned off on this server (Memory.Scoped.Enabled).");
 
@@ -1542,9 +1552,13 @@ namespace Garrison.Server.Protocols
                     if (named != null && named != agent.Id && named != agent.Name) throw ToolError("Forbidden", "A run uses only its own agent's Agent scope.");
                     scopeId = agent.Id;
                 }
-                else
+                else if (kind == MemoryScopeKindEnum.App)
                 {
                     scopeId = await RunAppScopeAsync(tenantId, agent, arguments.ScopeId, token).ConfigureAwait(false);
+                }
+                else
+                {
+                    scopeId = await RunOrgScopeAsync(tenantId, agent, kind, arguments.ScopeId, token).ConfigureAwait(false);
                 }
                 MemoryAccessDecision decision = await policy.CheckRunAsync(tenantId, agent.Id, kind, scopeId, mutation, memory.Options.ScopedEnabled, token).ConfigureAwait(false);
                 if (!decision.Permitted) throw ToolError(decision.Code, decision.Reason);
@@ -1563,6 +1577,10 @@ namespace Garrison.Server.Protocols
                     Agent agent = await _Invoker.ResolveAgentAsync(tenantId, reference, token).ConfigureAwait(false);
                     await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
                     scopeId = agent.Id;
+                }
+                else if (kind != MemoryScopeKindEnum.App)
+                {
+                    scopeId = await UserOrgScopeAsync(tenantId, kind, arguments.ScopeId, token).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1656,6 +1674,54 @@ namespace Garrison.Server.Protocols
             if (apps.Contains(trimmed)) return trimmed;
             AgenticApp? app = await _Context.Database.Apps.ReadByNameAsync(tenantId, trimmed, token).ConfigureAwait(false);
             return app?.Id ?? trimmed;
+        }
+
+        private async Task<string> RunOrgScopeAsync(string tenantId, Agent agent, MemoryScopeKindEnum kind, string? named, CancellationToken token)
+        {
+            ChainOfCommand chain = _Context.Get<ChainOfCommand>();
+            List<OrgTree> trees = await chain.LiveTreesAsync(tenantId, token).ConfigureAwait(false);
+            List<OrgTree> mine = trees.Where(t => t.PositionOf(agent.Id) != null).ToList();
+            if (String.IsNullOrWhiteSpace(named))
+            {
+                if (mine.Count == 1) return kind == MemoryScopeKindEnum.Organization ? mine[0].Organization.Id : mine[0].PositionOf(agent.Id)!.UnitId;
+                throw ToolError("ValidationFailed", mine.Count == 0
+                    ? "Your agent holds no position in a live organization, so it has no " + kind + " scope."
+                    : "Your agent holds positions in " + mine.Count + " organizations; pass scopeId with the " + (kind == MemoryScopeKindEnum.Organization ? "organization" : "unit") + "'s identifier or name.");
+            }
+            string trimmed = named.Trim();
+            foreach (OrgTree tree in mine)
+            {
+                if (kind == MemoryScopeKindEnum.Organization)
+                {
+                    if (tree.Organization.Id == trimmed || String.Equals(tree.Organization.Name, trimmed, StringComparison.OrdinalIgnoreCase)) return tree.Organization.Id;
+                }
+                else
+                {
+                    OrgUnit? unit = tree.Unit(trimmed) ?? tree.UnitByName(trimmed);
+                    if (unit != null) return unit.Id;
+                }
+            }
+            return trimmed;
+        }
+
+        private async Task<string> UserOrgScopeAsync(string tenantId, MemoryScopeKindEnum kind, string? named, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(named)) throw ToolError("ValidationFailed", "scopeId is required for the " + kind + " scope: the " + (kind == MemoryScopeKindEnum.Organization ? "organization" : "unit") + " identifier or name.");
+            string trimmed = named.Trim();
+            if (kind == MemoryScopeKindEnum.Organization)
+            {
+                Organization organization = await _Context.Get<OrganizationService>().FindAsync(tenantId, trimmed, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotFound", "Organization " + trimmed + " not found.");
+                return organization.Id;
+            }
+            OrgUnit? unit = await _Context.Database.Organizations.ReadUnitAsync(tenantId, trimmed, token).ConfigureAwait(false);
+            if (unit != null) return unit.Id;
+            foreach (OrgTree tree in await _Context.Get<ChainOfCommand>().LiveTreesAsync(tenantId, token).ConfigureAwait(false))
+            {
+                OrgUnit? live = tree.Unit(trimmed) ?? tree.UnitByName(trimmed);
+                if (live != null) return live.Id;
+            }
+            throw ToolError("NotFound", "Unit " + trimmed + " not found.");
         }
 
         private async Task<object> MandateToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
@@ -1764,6 +1830,165 @@ namespace Garrison.Server.Protocols
         private static bool RunOnlyMessageTool(string name)
         {
             return name == "garrison_reply_message" || name == "garrison_ack_message";
+        }
+
+        private async Task<bool> OrgMemberRunAsync(RequestContext ctx, CancellationToken token)
+        {
+            // Runs see the organization tools only while their agent holds a position in a live organization (AA7.8).
+            if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return false;
+            Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
+            if (run == null) return false;
+            return (await _Context.Get<ChainOfCommand>().PositionsAsync(ctx.TenantId, run.AgentId, token).ConfigureAwait(false)).Count > 0;
+        }
+
+        private async Task<object> OrganizationToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            OrganizationService organizations = _Context.Get<OrganizationService>();
+            ChainOfCommand chain = _Context.Get<ChainOfCommand>();
+            McpOrganizationArguments arguments = ManagementArguments<McpOrganizationArguments>(args);
+            if (tool.Name == "garrison_org_chart" || tool.Name == "garrison_org_whoami")
+            {
+                string agentId;
+                if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+                {
+                    Run run = (String.IsNullOrEmpty(ctx.RunId) ? null : await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false))
+                        ?? throw ToolError("Forbidden", tool.Name + " needs a run token.");
+                    agentId = run.AgentId;
+                    List<OrgTree> mine = (await chain.LiveTreesAsync(tenantId, token).ConfigureAwait(false)).Where(t => t.PositionOf(agentId) != null).ToList();
+                    if (mine.Count == 0) throw ToolError("NotAMember", "Your agent holds no position in a live organization.");
+                    OrgTree? chosen = mine.Count == 1 && String.IsNullOrWhiteSpace(arguments.Organization) ? mine[0]
+                        : mine.FirstOrDefault(t => t.Organization.Id == arguments.Organization?.Trim() || String.Equals(t.Organization.Name, arguments.Organization?.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (chosen == null)
+                    {
+                        throw ToolError(String.IsNullOrWhiteSpace(arguments.Organization) ? "ValidationFailed" : "NotAMember", String.IsNullOrWhiteSpace(arguments.Organization)
+                            ? "Your agent belongs to " + mine.Count + " organizations; pass organization with the identifier or name of one."
+                            : "Your agent holds no position in organization " + arguments.Organization + ".");
+                    }
+                    if (tool.Name == "garrison_org_chart") return await organizations.ChartAsync(chosen.Organization, token).ConfigureAwait(false);
+                    return await organizations.WhoAmIAsync(tenantId, agentId, chosen.Organization.Id, token).ConfigureAwait(false)
+                        ?? throw ToolError("NotAMember", "Your agent holds no position in organization " + chosen.Organization.Name + ".");
+                }
+                await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                if (tool.Name == "garrison_org_chart")
+                {
+                    Organization named = await organizations.FindAsync(tenantId, arguments.Organization, token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "Organization " + (arguments.Organization ?? String.Empty) + " not found.");
+                    return await organizations.ChartAsync(named, token).ConfigureAwait(false);
+                }
+                if (String.IsNullOrWhiteSpace(arguments.Agent)) throw ToolError("ValidationFailed", "agent is required for people: the agent to describe.");
+                Agent agent = await _Invoker.ResolveAgentAsync(tenantId, arguments.Agent, token).ConfigureAwait(false);
+                string? organizationId = null;
+                if (!String.IsNullOrWhiteSpace(arguments.Organization))
+                {
+                    Organization named = await organizations.FindAsync(tenantId, arguments.Organization, token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "Organization " + arguments.Organization + " not found.");
+                    organizationId = named.Id;
+                }
+                return await organizations.WhoAmIAsync(tenantId, agent.Id, organizationId, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotAMember", "Agent " + agent.Name + " holds no position in a live organization.");
+            }
+
+            RequestContext caller = ctx;
+            switch (tool.Name)
+            {
+                case "garrison_list_organizations":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    EnumerationQuery query = new EnumerationQuery { Search = arguments.Search, Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    return await organizations.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
+                }
+                case "garrison_get_organization":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+                    await organizations.AttachUnitsAsync(organization, token).ConfigureAwait(false);
+                    return organization;
+                }
+                case "garrison_create_organization":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    if (arguments.Units != null && arguments.Units.Count > 0) await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    Organization body = new Organization { Name = arguments.Name ?? String.Empty, Description = arguments.Description, Mission = arguments.Mission };
+                    Organization organization = await ToolCallAsync(() => organizations.CreateAsync(caller, tenantId, body, token)).ConfigureAwait(false);
+                    if (arguments.Units != null && arguments.Units.Count > 0)
+                    {
+                        await ToolCallAsync(() => organizations.ReplaceTreeAsync(caller, organization, arguments.Units, token)).ConfigureAwait(false);
+                    }
+                    await organizations.AttachUnitsAsync(organization, token).ConfigureAwait(false);
+                    return organization;
+                }
+                case "garrison_update_organization":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+                    Organization body = new Organization
+                    {
+                        Name = arguments.Name ?? organization.Name,
+                        Description = arguments.Description ?? organization.Description,
+                        Mission = arguments.Mission ?? organization.Mission,
+                        Status = String.IsNullOrWhiteSpace(arguments.Status) ? organization.Status : ParseOr(arguments.Status, organization.Status, "status")
+                    };
+                    organization = await ToolCallAsync(() => organizations.UpdateAsync(caller, organization, body, token)).ConfigureAwait(false);
+                    if (arguments.Units != null)
+                    {
+                        Organization target = organization;
+                        await ToolCallAsync(() => organizations.ReplaceTreeAsync(caller, target, arguments.Units, token)).ConfigureAwait(false);
+                    }
+                    await organizations.AttachUnitsAsync(organization, token).ConfigureAwait(false);
+                    return organization;
+                }
+                case "garrison_publish_org_revision":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+                    OrgRevision revision;
+                    if (String.IsNullOrWhiteSpace(arguments.RevisionId))
+                    {
+                        revision = await ToolCallAsync(() => organizations.CreateRevisionAsync(caller, organization, arguments.Note, token)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        OrgRevision? named = await _Context.Database.Organizations.ReadRevisionAsync(tenantId, arguments.RevisionId.Trim(), token).ConfigureAwait(false);
+                        if (named == null || named.OrganizationId != organization.Id) throw ToolError("NotFound", "Revision " + arguments.RevisionId + " not found in organization " + organization.Name + ".");
+                        revision = named;
+                    }
+                    OrgRevision draft = revision;
+                    return await ToolCallAsync(() => organizations.PublishAsync(caller, organization, draft, token)).ConfigureAwait(false);
+                }
+                default:
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+                    return await ToolCallAsync(() => organizations.RollbackAsync(caller, organization, arguments.RevisionId, arguments.Note, token)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task<Organization> LoadOrganizationAsync(OrganizationService organizations, string tenantId, string? reference, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(reference)) throw ToolError("ValidationFailed", "organization is required: the organization identifier or name.");
+            return await organizations.FindAsync(tenantId, reference, token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "Organization " + reference + " not found.");
+        }
+
+        private static async Task<T> ToolCallAsync<T>(Func<Task<T>> call)
+        {
+            try
+            {
+                return await call().ConfigureAwait(false);
+            }
+            catch (ConflictException e)
+            {
+                throw ToolError(e.Code, e.Message);
+            }
+            catch (ValidationException e)
+            {
+                throw ToolError("ValidationFailed", e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty));
+            }
+            catch (NotFoundException e)
+            {
+                throw ToolError("NotFound", e.Message);
+            }
         }
 
         private async Task<object> MessageToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

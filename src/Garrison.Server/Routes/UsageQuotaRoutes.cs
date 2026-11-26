@@ -123,7 +123,7 @@ namespace Garrison.Server.Routes
         {
             System.Collections.Generic.Dictionary<string, string> errors = new System.Collections.Generic.Dictionary<string, string>();
             ConfigurationValidator.Name(store.Name, errors);
-            if (!Enum.IsDefined(store.Scope)) errors["scope"] = "Use Tenant, Agent, Deployment, or Mandate.";
+            if (!Enum.IsDefined(store.Scope) || store.Scope == UsageQuotaScopeEnum.OrgUnit) errors["scope"] = store.Scope == UsageQuotaScopeEnum.OrgUnit ? "Set an org unit budget on the organization instead." : "Use Tenant, Agent, Deployment, or Mandate.";
             if (store.Scope == UsageQuotaScopeEnum.Tenant && String.IsNullOrEmpty(store.ResourceId)) store.ResourceId = tenantId;
             if (String.IsNullOrEmpty(store.ResourceId)) errors["resourceId"] = "A target resource ID is required.";
             if (errors.Count > 0) throw new ValidationException("The usage quota is invalid.", errors);

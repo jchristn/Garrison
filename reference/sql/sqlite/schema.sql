@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 51).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 52).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2514,3 +2514,134 @@ CREATE TABLE IF NOT EXISTS "agent_message_artifacts" (
     PRIMARY KEY (messageid, position)
 );
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 51, 'Agent messages', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 51);
+
+-- Migration 52: Organizations
+ALTER TABLE "promotion_records" ADD COLUMN organizationid VARCHAR(64);
+ALTER TABLE "promotion_records" ADD COLUMN orgrevisionid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "organizations" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description VARCHAR(2000),
+    mission TEXT,
+    status VARCHAR(32) NOT NULL,
+    rootunitid VARCHAR(64),
+    currentrevisionid VARCHAR(64),
+    currentrevisionnumber INTEGER NOT NULL DEFAULT 0,
+    createdby VARCHAR(256),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_organizations_name" ON "organizations" ("tenantid", "name");
+CREATE TABLE IF NOT EXISTS "org_units" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    organizationid VARCHAR(64) NOT NULL,
+    parentunitid VARCHAR(64),
+    name VARCHAR(128) NOT NULL,
+    description VARCHAR(2000),
+    leadagentid VARCHAR(64),
+    leadtitle VARCHAR(128),
+    leadmandateid VARCHAR(64),
+    appid VARCHAR(64),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_org_units_name" ON "org_units" ("organizationid", "name");
+CREATE INDEX IF NOT EXISTS "idx_org_units_org" ON "org_units" ("tenantid", "organizationid");
+CREATE INDEX IF NOT EXISTS "idx_org_units_lead" ON "org_units" ("tenantid", "leadagentid");
+CREATE TABLE IF NOT EXISTS "org_unit_members" (
+    unitid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    organizationid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    title VARCHAR(128),
+    mandateid VARCHAR(64),
+    PRIMARY KEY (unitid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_org_unit_members_agent" ON "org_unit_members" ("tenantid", "agentid");
+CREATE INDEX IF NOT EXISTS "idx_org_unit_members_org" ON "org_unit_members" ("organizationid");
+CREATE TABLE IF NOT EXISTS "org_unit_peer_lines" (
+    unitid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    organizationid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    peerunitid VARCHAR(64) NOT NULL,
+    PRIMARY KEY (unitid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_org_unit_peer_lines_org" ON "org_unit_peer_lines" ("organizationid");
+CREATE TABLE IF NOT EXISTS "org_unit_budgets" (
+    unitid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    organizationid VARCHAR(64) NOT NULL,
+    period VARCHAR(32) NOT NULL,
+    amountusd REAL NOT NULL,
+    PRIMARY KEY (unitid, period)
+);
+CREATE INDEX IF NOT EXISTS "idx_org_unit_budgets_org" ON "org_unit_budgets" ("organizationid");
+CREATE TABLE IF NOT EXISTS "org_revisions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    organizationid VARCHAR(64) NOT NULL,
+    number INTEGER NOT NULL,
+    state VARCHAR(32) NOT NULL,
+    note VARCHAR(2000),
+    rollbackofrevisionid VARCHAR(64),
+    authortype VARCHAR(32) NOT NULL,
+    authorid VARCHAR(64),
+    authorname VARCHAR(256),
+    publishedutc TEXT,
+    createdutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_org_revisions_number" ON "org_revisions" ("organizationid", "number");
+CREATE INDEX IF NOT EXISTS "idx_org_revisions_tenant" ON "org_revisions" ("tenantid", "organizationid");
+CREATE TABLE IF NOT EXISTS "org_revision_units" (
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    unitid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    parentunitid VARCHAR(64),
+    name VARCHAR(128) NOT NULL,
+    description VARCHAR(2000),
+    leadagentid VARCHAR(64),
+    leadtitle VARCHAR(128),
+    leadmandateid VARCHAR(64),
+    appid VARCHAR(64),
+    PRIMARY KEY (revisionid, unitid)
+);
+CREATE TABLE IF NOT EXISTS "org_revision_members" (
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    unitid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    title VARCHAR(128),
+    mandateid VARCHAR(64),
+    PRIMARY KEY (revisionid, unitid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_org_revision_members_agent" ON "org_revision_members" ("tenantid", "agentid");
+CREATE TABLE IF NOT EXISTS "org_revision_peer_lines" (
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    unitid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    peerunitid VARCHAR(64) NOT NULL,
+    PRIMARY KEY (revisionid, unitid, position)
+);
+CREATE TABLE IF NOT EXISTS "org_revision_budgets" (
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    unitid VARCHAR(64) NOT NULL,
+    period VARCHAR(32) NOT NULL,
+    amountusd REAL NOT NULL,
+    PRIMARY KEY (revisionid, unitid, period)
+);
+CREATE TABLE IF NOT EXISTS "org_revision_mandates" (
+    revisionid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    mandateid VARCHAR(64) NOT NULL,
+    mandaterevisionid VARCHAR(64) NOT NULL,
+    PRIMARY KEY (revisionid, mandateid)
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 52, 'Organizations', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 52);

@@ -62,6 +62,22 @@ namespace Garrison.Server.WebSockets
             }
         }
 
+        /// <summary>
+        /// Seconds between spend recomputations for an organization subscription (spend.updated). Minimum 5, maximum 3600,
+        /// default 30.
+        /// </summary>
+        public int OrganizationSpendSeconds
+        {
+            get
+            {
+                return _OrganizationSpendSeconds;
+            }
+            set
+            {
+                _OrganizationSpendSeconds = Math.Clamp(value, 5, 3600);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -71,6 +87,7 @@ namespace Garrison.Server.WebSockets
         private readonly BlockedRunService _Blocked;
         private int _PollMs = 1000;
         private int _MaxSubscriptionsPerSession = 64;
+        private int _OrganizationSpendSeconds = 30;
 
         #endregion
 
@@ -248,8 +265,8 @@ namespace Garrison.Server.WebSockets
             }
             if (channel == "reports")
             {
-                // Reports filed in the tenant (AA5.8): report.filed for each, in order. The organization channel (AA7) will
-                // carry the same event for its members.
+                // Reports filed in the tenant (AA5.8): report.filed for each, in order. The organization channel carries the
+                // same event for its members' reports.
                 AuthorizationDecision reports = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Report, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
                 return reports.Permitted ? null : reports.Reason;
             }
@@ -311,6 +328,16 @@ namespace Garrison.Server.WebSockets
                 if (String.IsNullOrEmpty(mandateId) || await _Context.Database.Mandates.ReadAsync(ctx.TenantId!, mandateId, token).ConfigureAwait(false) == null) return "Mandate not found.";
                 return null;
             }
+            if (channel.StartsWith("organization:", StringComparison.Ordinal))
+            {
+                // One organization (AA7.12): org.changed when it or its tree changes, report.filed for reports by its
+                // members, and spend.updated when its units' spend against their budgets moves.
+                string organizationId = channel.Substring("organization:".Length);
+                AuthorizationDecision organizations = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                if (!organizations.Permitted) return organizations.Reason;
+                if (String.IsNullOrEmpty(organizationId) || await _Context.Database.Organizations.ReadAsync(ctx.TenantId, organizationId, token).ConfigureAwait(false) == null) return "Organization not found.";
+                return null;
+            }
             if (channel.StartsWith("agent-inbox:", StringComparison.Ordinal))
             {
                 // One agent's inbox (AA6.10): message.queued, message.delivered, message.acknowledged, message.expired, and
@@ -322,7 +349,7 @@ namespace Garrison.Server.WebSockets
                 return null;
             }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, approvals, escalations, freezes, reports, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, approvals, escalations, freezes, reports, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -346,6 +373,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key == "escalations") await PumpEscalationsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "freezes") await PumpFreezesAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "reports") await PumpReportsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("organization:", StringComparison.Ordinal)) await PumpOrganizationAsync(session, ctx, subscription.Key.Substring("organization:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("agent-inbox:", StringComparison.Ordinal)) await PumpAgentInboxAsync(session, ctx, subscription.Key.Substring("agent-inbox:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
@@ -460,6 +488,59 @@ namespace Garrison.Server.WebSockets
                 state.Fingerprint = report.CreatedUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + report.Id;
                 await SendAsync(session, sendLock, new { type = "report.filed", report = report }, token).ConfigureAwait(false);
             }
+        }
+
+        private async Task PumpOrganizationAsync(WebSocketSession session, RequestContext ctx, string organizationId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // Fingerprint: the organization's last update. SecondaryFingerprint: the report cursor (createdutc, id).
+            // SummaryFingerprint: the spend last sent, recomputed at most every OrganizationSpendSeconds.
+            Organization? organization = await _Context.Database.Organizations.ReadAsync(ctx.TenantId!, organizationId, token).ConfigureAwait(false);
+            if (organization == null)
+            {
+                if (state.Fingerprint != "deleted")
+                {
+                    state.Fingerprint = "deleted";
+                    await SendAsync(session, sendLock, new { type = "org.changed", organizationId = organizationId, deleted = true }, token).ConfigureAwait(false);
+                }
+                return;
+            }
+            string changed = organization.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (state.SecondaryFingerprint == null)
+            {
+                state.Fingerprint = changed;
+                state.SecondaryFingerprint = DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|";
+                await SendAsync(session, sendLock, new { type = "organization.subscribed", organization = organization }, token).ConfigureAwait(false);
+                return;
+            }
+            if (state.Fingerprint != changed)
+            {
+                state.Fingerprint = changed;
+                await SendAsync(session, sendLock, new { type = "org.changed", organization = organization }, token).ConfigureAwait(false);
+            }
+
+            HashSet<string> units = new HashSet<string>(StringComparer.Ordinal);
+            foreach (OrgUnit unit in await _Context.Database.Organizations.ListUnitsAsync(ctx.TenantId!, organizationId, token).ConfigureAwait(false)) units.Add(unit.Id);
+            Garrison.Core.Organizations.OrgTree? live = await _Context.Get<ChainOfCommand>().TreeAsync(organization, token).ConfigureAwait(false);
+            if (live != null) foreach (OrgUnit unit in live.Units) units.Add(unit.Id);
+            string[] cursor = state.SecondaryFingerprint.Split('|');
+            DateTime afterUtc = new DateTime(Int64.Parse(cursor[0], System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            List<Report> filed = await _Context.Database.Reports.ListFiledAfterAsync(ctx.TenantId!, afterUtc, cursor.Length > 1 ? cursor[1] : String.Empty, 100, token).ConfigureAwait(false);
+            foreach (Report report in filed)
+            {
+                state.SecondaryFingerprint = report.CreatedUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + report.Id;
+                if (String.IsNullOrEmpty(report.OrgUnitId) || !units.Contains(report.OrgUnitId)) continue;
+                await SendAsync(session, sendLock, new { type = "report.filed", organizationId = organizationId, report = report }, token).ConfigureAwait(false);
+            }
+
+            DateTime now = DateTime.UtcNow;
+            if (live == null || (now - state.SummaryCheckedUtc).TotalSeconds < OrganizationSpendSeconds) return;
+            state.SummaryCheckedUtc = now;
+            List<OrgUnitSpend> spend = await _Context.Get<OrganizationService>().SpendAsync(organization, now, token).ConfigureAwait(false);
+            string fingerprint = String.Join(";", spend.Select(s => s.UnitId + ":" + s.Period + ":" + s.WindowStartUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + s.SpentUsd.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)));
+            if (fingerprint == state.SummaryFingerprint) return;
+            bool first = state.SummaryFingerprint == null;
+            state.SummaryFingerprint = fingerprint;
+            if (!first || spend.Any(s => s.SpentUsd > 0)) await SendAsync(session, sendLock, new { type = "spend.updated", organizationId = organizationId, spend = spend }, token).ConfigureAwait(false);
         }
 
         private async Task PumpAgentInboxAsync(WebSocketSession session, RequestContext ctx, string agentId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)

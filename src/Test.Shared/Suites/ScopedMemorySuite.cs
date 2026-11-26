@@ -50,7 +50,7 @@ namespace Test.Shared.Suites
                     new TestCaseDescriptor(id, "metadata", "memory_entries and memory_entry_tags: create, lookups by key and key hash, filters, compare-and-set update, scopes, deletion, and tenant isolation (" + provider + ")", ct => MetadataAsync(provider, ct)),
                     new TestCaseDescriptor(id, "compare-and-set", "expectedVersion writes and deletes, MemoryVersionConflict, MemoryScopeFull, and concurrent writers (" + provider + ")", ct => CompareAndSetAsync(provider, ct)),
                     new TestCaseDescriptor(id, "crash-consistency", "A crash between content and metadata leaves the previous version visible and only unreferenced content, which the sweep removes (" + provider + ")", ct => CrashAsync(provider, ct)),
-                    new TestCaseDescriptor(id, "policy-matrix", "Runs use their agent's scope and their apps' scopes only; OrgUnit and Organization are refused; each built-in role reads, writes, and deletes as section 9 says (" + provider + ")", ct => PolicyAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "policy-matrix", "Runs use their agent's scope and their apps' scopes only; OrgUnit and Organization scopes outside their organization are refused; each built-in role reads, writes, and deletes as section 9 says (" + provider + ")", ct => PolicyAsync(provider, ct)),
                     new TestCaseDescriptor(id, "mcp-tools", "garrison_memory_* with scope, tags, ttl, version, list, and search over keys, tags, and text (" + provider + ")", ct => McpToolsAsync(provider, ct)),
                     new TestCaseDescriptor(id, "legacy-import", "Agent memory written before scopes appears in listings after the import and learns its key on first use (" + provider + ")", ct => LegacyAsync(provider, ct)),
                     new TestCaseDescriptor(id, "recall-template", "Hostile memory text reaches a keeper tick only framed as data with provenance and a random marker (" + provider + ")", ct => RecallAsync(provider, ct)),
@@ -303,15 +303,15 @@ namespace Test.Shared.Suites
                             await run.CallAsync<McpMemorySearchResult>("garrison_memory_search", Merge(scope, new { query = "v" }), token).ConfigureAwait(false);
                             await run.CallAsync<AgentMemoryResult>("garrison_memory_delete", Merge(scope, new { key = "k" }), token).ConfigureAwait(false);
                         }
-                        // Refused: other agents, apps the agent is not in, and the organization scopes.
+                        // Refused: other agents, apps the agent is not in, and organization scopes it holds no position in.
                         foreach (string tool in new[] { "garrison_memory_read", "garrison_memory_write", "garrison_memory_delete", "garrison_memory_list", "garrison_memory_search" })
                         {
                             object extra = new { key = "k", value = "v", query = "v" };
                             await run.ExpectErrorAsync(tool, Merge(new { scope = "Agent", scopeId = other.Id }, extra), "Forbidden", token).ConfigureAwait(false);
                             await run.ExpectErrorAsync(tool, Merge(new { agent = other.Name }, extra), "Forbidden", token).ConfigureAwait(false);
                             await run.ExpectErrorAsync(tool, Merge(new { scope = "App", scopeId = stranger.Id }, extra), "Forbidden", token).ConfigureAwait(false);
-                            await run.ExpectErrorAsync(tool, Merge(new { scope = "OrgUnit", scopeId = "oun_x" }, extra), "OrganizationsUnavailable", token).ConfigureAwait(false);
-                            await run.ExpectErrorAsync(tool, Merge(new { scope = "Organization", scopeId = "org_x" }, extra), "OrganizationsUnavailable", token).ConfigureAwait(false);
+                            await run.ExpectErrorAsync(tool, Merge(new { scope = "OrgUnit", scopeId = "oun_x" }, extra), "Forbidden", token).ConfigureAwait(false);
+                            await run.ExpectErrorAsync(tool, Merge(new { scope = "Organization", scopeId = "org_x" }, extra), "Forbidden", token).ConfigureAwait(false);
                         }
                     }
 

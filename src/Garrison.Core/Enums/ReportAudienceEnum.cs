@@ -2,8 +2,9 @@ namespace Garrison.Core.Enums
 {
     /// <summary>
     /// Who above the author a report is addressed to (AA5). People with Read on Report see every report whatever its
-    /// audience. Before organizations exist (AA7), every audience reaches the same agents: the entry agents of the apps the
-    /// author is a member of (AA-056).
+    /// audience. In a live organization (AA7.5), Manager reaches the author's manager, and Chain and Board reach every lead
+    /// above the author. Outside organizations, every audience reaches the entry agents of the apps the author is a member
+    /// of (AA-056).
     /// </summary>
     public enum ReportAudienceEnum
     {

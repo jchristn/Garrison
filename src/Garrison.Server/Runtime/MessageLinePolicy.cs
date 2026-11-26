@@ -5,19 +5,21 @@ namespace Garrison.Server.Runtime
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
+    using Garrison.Core.Enums;
     using Garrison.Core.Models;
 
     /// <summary>
     /// Which agents may write to which (AA6.3, AA-020). An agent may message another when an app edge connects them in
-    /// either direction, or when it replies within a thread to the agent that wrote to it. Reporting and peer lines join
-    /// when organizations arrive (AA7). People with Create on AgentMessage may write to any agent and are not checked here.
-    /// Thread-safe.
+    /// either direction, when a reporting line joins them in a live organization (one is the other's manager), when their
+    /// units share a peer line (AA7.5), or when it replies within a thread to the agent that wrote to it. People with Create
+    /// on AgentMessage may write to any agent and are not checked here. Thread-safe.
     /// </summary>
     public class MessageLinePolicy
     {
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
+        private readonly ChainOfCommand? _Chain;
 
         #endregion
 
@@ -27,10 +29,12 @@ namespace Garrison.Server.Runtime
         /// Instantiate.
         /// </summary>
         /// <param name="database">Database.</param>
+        /// <param name="chain">Chain of command for reporting and peer lines, or null for app edges and replies only.</param>
         /// <exception cref="ArgumentNullException">Thrown when database is null.</exception>
-        public MessageLinePolicy(DatabaseDriverBase database)
+        public MessageLinePolicy(DatabaseDriverBase database, ChainOfCommand? chain = null)
         {
             _Database = database ?? throw new ArgumentNullException(nameof(database));
+            _Chain = chain;
         }
 
         #endregion
@@ -45,7 +49,9 @@ namespace Garrison.Server.Runtime
         /// <param name="recipientAgentId">Recipient agent.</param>
         /// <param name="parent">The message being replied to, or null.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>"reply" for a reply to the parent's sender, "app:" and the app identifier for an app edge, or null.</returns>
+        /// <returns>"reply" for a reply to the parent's sender, "app:" and the app identifier for an app edge, "manager" or
+        /// "report" for a reporting line (the recipient is the sender's manager, or reports to it), "peer" for a peer line,
+        /// or null.</returns>
         /// <exception cref="ArgumentNullException">Thrown when tenantId, senderAgentId, or recipientAgentId is null or empty.</exception>
         public async Task<string?> LineAsync(string tenantId, string senderAgentId, string recipientAgentId, AgentMessage? parent, CancellationToken token = default)
         {
@@ -59,6 +65,13 @@ namespace Garrison.Server.Runtime
                 return "reply";
             List<string> apps = await _Database.Apps.AppIdsWithEdgeBetweenAsync(tenantId, senderAgentId, recipientAgentId, token).ConfigureAwait(false);
             if (apps.Count > 0) return "app:" + apps[0];
+            if (_Chain != null)
+            {
+                OrgRelationEnum relation = await _Chain.RelationAsync(tenantId, senderAgentId, recipientAgentId, token).ConfigureAwait(false);
+                if (relation == OrgRelationEnum.Manager) return "manager";
+                if (relation == OrgRelationEnum.DirectReport) return "report";
+                if (relation == OrgRelationEnum.Peer) return "peer";
+            }
             return null;
         }
 

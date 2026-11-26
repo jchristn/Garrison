@@ -30,6 +30,20 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class ReportService
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Chain of command that stamps a report with its author's org unit (AA7.5), or null to leave it empty.
+        /// </summary>
+        public ChainOfCommand? Chain { get; set; } = null;
+
+        /// <summary>
+        /// Called after a report is stored, for the organization channel (AA7.12). Null to skip.
+        /// </summary>
+        public Func<Report, CancellationToken, Task>? FiledAsync { get; set; } = null;
+
+        #endregion
+
         #region Private-Members
 
         private static readonly string _Header = "[Reports] ";
@@ -241,6 +255,11 @@ namespace Garrison.Server.Runtime
                 if (earlier != null) return earlier;
             }
             ReportValidator.Validate(report, _Options.MaxBodyBytes);
+            if (Chain != null && !String.IsNullOrEmpty(report.AuthorAgentId))
+            {
+                List<OrgPosition> positions = await Chain.PositionsAsync(report.TenantId, report.AuthorAgentId, token).ConfigureAwait(false);
+                if (positions.Count > 0) report.OrgUnitId = positions[0].UnitId;
+            }
             report.AppName = null;
             if (!String.IsNullOrEmpty(report.AppId))
             {
@@ -275,6 +294,17 @@ namespace Garrison.Server.Runtime
             // Titles and bodies are written by agents and never go to the audit log or the server log.
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Report", report.Id, "Filed report " + report.Id + " (" + report.Kind + ", " + report.Health + ")" + (report.AuthorAgentId != null ? " from agent " + report.AuthorAgentId : String.Empty) + ".", report.TenantId, token).ConfigureAwait(false);
             _Logging.Info(_Header + report.Id + " filed by " + report.FiledByPrincipalType + " " + (report.FiledByPrincipalId ?? "unknown") + ", " + report.Kind + ", " + report.Health + ", " + report.Metrics.Count.ToString(CultureInfo.InvariantCulture) + " metrics");
+            if (FiledAsync != null)
+            {
+                try
+                {
+                    await FiledAsync(report, token).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    _Logging.Warn(_Header + "report " + report.Id + " was filed but its organization notice failed: " + e.Message);
+                }
+            }
             return report;
         }
 

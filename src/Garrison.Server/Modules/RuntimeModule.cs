@@ -206,6 +206,7 @@ namespace Garrison.Server.Modules
             _Freezes.CancelRunAsync = cancelRun;
             _Runs.Freezes = _Freezes;
             _Keepers.Freezes = _Freezes;
+            ChainOfCommand chain = new ChainOfCommand(context.Database);
             _MemoryOptions = new MemoryOptions();
             MemoryService memory = new MemoryService(context.Database, () => context.TryGet<IScopedMemoryStore>(), context.Audit, _MemoryOptions, context.Logging);
             if (context.Settings.AgentMemory.Enabled)
@@ -215,12 +216,13 @@ namespace Garrison.Server.Modules
             }
             context.Register(_MemoryOptions);
             context.Register(memory);
-            context.Register(new MemoryAccessPolicy(context.Database));
+            context.Register(new MemoryAccessPolicy(context.Database, chain));
 
             // AA5: reports filed upward; keeper ticks receive their subordinates' new reports through report-digest.
             _ReportOptions = new ReportOptions();
-            ReportVisibility reportVisibility = new ReportVisibility(context.Database);
+            ReportVisibility reportVisibility = new ReportVisibility(context.Database, chain);
             ReportService reports = new ReportService(context.Database, context.Audit, _ReportOptions, reportVisibility, context.Logging);
+            reports.Chain = chain;
             _Keepers.Reports = reports;
             context.Register(_ReportOptions);
             context.Register(reportVisibility);
@@ -229,7 +231,7 @@ namespace Garrison.Server.Modules
             // AA6: messages between agents; keeper ticks drain their inbox, urgent mail wakes the recipient, and
             // escalations to agents arrive as urgent messages.
             _MessagingOptions = new MessagingOptions();
-            MessageLinePolicy messageLines = new MessageLinePolicy(context.Database);
+            MessageLinePolicy messageLines = new MessageLinePolicy(context.Database, chain);
             MessageService messages = new MessageService(context.Database, context.Audit, _MessagingOptions, messageLines, _Runs, new RunAsAuthorization(context.Database, context.Authorization), context.Logging);
             messages.Freezes = _Freezes;
             _Keepers.Messages = messages;
@@ -238,6 +240,30 @@ namespace Garrison.Server.Modules
             context.Register(_MessagingOptions);
             context.Register(messageLines);
             context.Register(messages);
+
+            // AA7: organizations and the chain of command every autonomy feature resolves managers, lines, and subtrees with.
+            OrganizationService organizations = new OrganizationService(context.Database, context.Audit, _Mandates, chain);
+            _Escalations.Chain = chain;
+            _Freezes.Chain = chain;
+            OrgBudgetGuard orgBudgets = new OrgBudgetGuard(context.Database, chain, organizations, context.Logging);
+            orgBudgets.Escalations = _Escalations;
+            _Runs.OrgBudgets = orgBudgets;
+            _Keepers.OrgBudgets = orgBudgets;
+            context.Register(orgBudgets);
+            FreezeService freezes = _Freezes;
+            organizations.ChangedAsync = (tenantId, organizationId, change, ct) =>
+            {
+                // Publishing, rolling back, or deleting moves agents in and out of organization freezes.
+                if (change == "Published" || change == "RolledBack" || change == "Deleted")
+                {
+                    freezes.OrganizationChanged(tenantId);
+                    orgBudgets.Invalidate();
+                }
+                return Task.CompletedTask;
+            };
+            organizations.DeleteMemoryScopeAsync = async (tenantId, kind, scopeId, ct) => await memory.DeleteScopeAsync(tenantId, kind, scopeId, ct).ConfigureAwait(false);
+            context.Register(chain);
+            context.Register(organizations);
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -301,10 +327,11 @@ namespace Garrison.Server.Modules
             new MemoryRoutes(context, context.Get<MemoryService>()).Register(routes);
             new ReportRoutes(context, context.Get<ReportService>()).Register(routes);
             new MessageRoutes(context, context.Get<MessageService>()).Register(routes);
+            new OrganizationRoutes(context, context.Get<OrganizationService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, freezes, nodes)", "Live updates");
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, approvals, escalations, freezes, reports, nodes)", "Live updates");
         }
 
         /// <inheritdoc />

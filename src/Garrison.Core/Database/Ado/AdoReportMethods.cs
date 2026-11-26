@@ -310,8 +310,10 @@ namespace Garrison.Core.Database.Ado
 
         private static string VisibilityClause(ReportVisibilityScope scope)
         {
-            // Own reports, plus subordinates' reports filed without an app or within an app the viewer manages.
-            string clause = "authoragentid = @vown";
+            // Own reports; app members' reports filed without an app or within an app the viewer manages; every report of
+            // the viewer's direct reports in an organization; Chain and Board reports of agents further below.
+            List<string> parts = new List<string>();
+            if (scope.IncludeOwn) parts.Add("authoragentid = @vown");
             if (scope.SubordinateAgentIds.Count > 0)
             {
                 List<string> subs = new List<string>();
@@ -319,14 +321,22 @@ namespace Garrison.Core.Database.Ado
                 List<string> apps = new List<string>();
                 for (int i = 0; i < scope.ManagedAppIds.Count; i++) apps.Add("@vp" + i);
                 string app = apps.Count == 0 ? "appid IS NULL" : "(appid IS NULL OR appid IN (" + String.Join(", ", apps) + "))";
-                string others = "(authoragentid IN (" + String.Join(", ", subs) + ") AND " + app + ")";
-                clause = scope.IncludeOwn ? "(" + clause + " OR " + others + ")" : others;
+                parts.Add("(authoragentid IN (" + String.Join(", ", subs) + ") AND " + app + ")");
             }
-            else if (!scope.IncludeOwn)
+            if (scope.DirectReportAgentIds.Count > 0)
             {
-                clause = "1 = 0";
+                List<string> direct = new List<string>();
+                for (int i = 0; i < scope.DirectReportAgentIds.Count; i++) direct.Add("@vd" + i);
+                parts.Add("authoragentid IN (" + String.Join(", ", direct) + ")");
             }
-            return clause;
+            if (scope.ChainAgentIds.Count > 0)
+            {
+                List<string> chain = new List<string>();
+                for (int i = 0; i < scope.ChainAgentIds.Count; i++) chain.Add("@vc" + i);
+                parts.Add("(authoragentid IN (" + String.Join(", ", chain) + ") AND audience IN ('Chain', 'Board'))");
+            }
+            if (parts.Count == 0) return "1 = 0";
+            return parts.Count == 1 ? parts[0] : "(" + String.Join(" OR ", parts) + ")";
         }
 
         private static void BindVisibility(DbCommand command, ReportVisibilityScope scope)
@@ -334,6 +344,8 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "vown", scope.AgentId);
             for (int i = 0; i < scope.SubordinateAgentIds.Count; i++) AdoDatabaseDriver.Add(command, "vs" + i, scope.SubordinateAgentIds[i]);
             for (int i = 0; i < scope.ManagedAppIds.Count; i++) AdoDatabaseDriver.Add(command, "vp" + i, scope.ManagedAppIds[i]);
+            for (int i = 0; i < scope.DirectReportAgentIds.Count; i++) AdoDatabaseDriver.Add(command, "vd" + i, scope.DirectReportAgentIds[i]);
+            for (int i = 0; i < scope.ChainAgentIds.Count; i++) AdoDatabaseDriver.Add(command, "vc" + i, scope.ChainAgentIds[i]);
         }
 
         private async Task LoadChildrenAsync(List<Report> reports, CancellationToken token)

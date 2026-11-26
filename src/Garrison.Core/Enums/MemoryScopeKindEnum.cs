@@ -17,14 +17,14 @@ namespace Garrison.Core.Enums
         App,
 
         /// <summary>
-        /// Shared memory of one organization unit (AA7). The scope identifier is the unit identifier. Refused until
-        /// organizations exist.
+        /// Shared memory of one organization unit (AA7). The scope identifier is the unit identifier. A run reads and
+        /// writes its own unit's scope, reads the units above it, and reads the units below it when it leads its unit.
         /// </summary>
         OrgUnit,
 
         /// <summary>
-        /// Shared memory of one organization (AA7). The scope identifier is the organization identifier. Refused until
-        /// organizations exist.
+        /// Shared memory of one organization (AA7). The scope identifier is the organization identifier. Every member
+        /// run reads it; only the lead of the root unit writes it.
         /// </summary>
         Organization
     }

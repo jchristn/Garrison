@@ -75,6 +75,30 @@ namespace Garrison.Core.Models
         public string? AgentRevisionId { get; set; } = null;
 
         /// <summary>
+        /// Organization published or rolled back, for an organization record (AA7.4).
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
+        /// Organization revision made live, for an organization record (AA7.4).
+        /// </summary>
+        public string? OrgRevisionId { get; set; } = null;
+
+        /// <summary>
+        /// What was promoted or rolled back: Organization when <see cref="OrganizationId"/> is set, App when
+        /// <see cref="AppId"/> is set, otherwise Agent. Read-only.
+        /// </summary>
+        public PromotionSubjectKindEnum SubjectKind
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(OrganizationId)) return PromotionSubjectKindEnum.Organization;
+                if (!String.IsNullOrEmpty(AppId)) return PromotionSubjectKindEnum.App;
+                return PromotionSubjectKindEnum.Agent;
+            }
+        }
+
+        /// <summary>
         /// Environment the revision came from.
         /// </summary>
         public string SourceEnvironment { get; set; } = String.Empty;

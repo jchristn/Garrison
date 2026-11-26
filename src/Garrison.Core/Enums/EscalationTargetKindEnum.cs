@@ -21,7 +21,9 @@ namespace Garrison.Core.Enums
         Agent,
 
         /// <summary>
-        /// The raising agent's manager in its organization. Unavailable until organizations land (AA7.5).
+        /// The raising agent's manager in a live organization (AA7.5): the stored escalation targets that agent, or, above the
+        /// root unit, the person behind the keeper or the raising run. Refused with ManagerUnavailable for an agent that
+        /// holds no position.
         /// </summary>
         Manager
     }

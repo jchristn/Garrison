@@ -87,5 +87,10 @@ namespace Garrison.Core.Compilation
         /// Keeper inputs when the run is a keeper tick (AA1.9), or null.
         /// </summary>
         public CompilationKeeper? Keeper { get; set; } = null;
+
+        /// <summary>
+        /// Where the run's agent sits in a live organization (AA7.8), or null.
+        /// </summary>
+        public CompilationOrgContext? Org { get; set; } = null;
     }
 }

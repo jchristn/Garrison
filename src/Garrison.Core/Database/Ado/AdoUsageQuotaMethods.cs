@@ -3,6 +3,7 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
@@ -130,6 +131,26 @@ namespace Garrison.Core.Database.Ado
         {
             if (quota == null) throw new ArgumentNullException(nameof(quota));
             return await _Driver.QuerySingleAsync(QuotaAccountingSql.UsageQuery(_Driver, quota), c => QuotaAccountingSql.BindUsage(c, quota, utc), r => QuotaAccountingSql.MapUsage(r, quota, utc), token).ConfigureAwait(false) ?? new UsageQuotaUsage();
+        }
+
+        /// <inheritdoc />
+        public async Task<double> ReadAgentSpendAsync(string tenantId, IReadOnlyCollection<string> agentIds, DateTime startUtc, DateTime endUtc, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (agentIds == null) throw new ArgumentNullException(nameof(agentIds));
+            if (agentIds.Count == 0) return 0;
+            List<string> ids = agentIds.Distinct(StringComparer.Ordinal).ToList();
+            List<string> names = new List<string>();
+            for (int i = 0; i < ids.Count; i++) names.Add("@a" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            string sql = QuotaAccountingSql.AgentSpendQuery(_Driver, String.Join(", ", names));
+            object? value = await _Driver.ScalarAsync(sql, command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "start", startUtc);
+                AdoDatabaseDriver.Add(command, "end", endUtc);
+                for (int i = 0; i < ids.Count; i++) AdoDatabaseDriver.Add(command, "a" + i.ToString(System.Globalization.CultureInfo.InvariantCulture), ids[i]);
+            }, token).ConfigureAwait(false);
+            return value == null || value is DBNull ? 0 : Math.Max(0, Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture));
         }
 
         /// <inheritdoc />

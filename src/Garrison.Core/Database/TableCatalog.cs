@@ -188,6 +188,17 @@ namespace Garrison.Core.Database
                 "report_decisions",
                 "agent_messages",
                 "agent_message_artifacts",
+                "organizations",
+                "org_units",
+                "org_unit_members",
+                "org_unit_peer_lines",
+                "org_unit_budgets",
+                "org_revisions",
+                "org_revision_units",
+                "org_revision_members",
+                "org_revision_peer_lines",
+                "org_revision_budgets",
+                "org_revision_mandates",
         };
 
         private readonly SqlDialect _Dialect;

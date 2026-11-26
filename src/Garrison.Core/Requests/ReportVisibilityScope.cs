@@ -4,8 +4,9 @@ namespace Garrison.Core.Requests
     using System.Collections.Generic;
 
     /// <summary>
-    /// The reports a run's agent may see (AA5.3): its own, and before organizations exist (AA7) those of the members of the
-    /// apps it is the entry agent of, filed without an app or within one of those apps.
+    /// The reports a run's agent may see (AA5.3, AA7.5): its own; those of the members of the apps it is the entry agent of,
+    /// filed without an app or within one of those apps; every report of its direct reports in an organization; and the
+    /// Chain and Board reports of the agents further below it.
     /// </summary>
     public class ReportVisibilityScope
     {
@@ -61,6 +62,37 @@ namespace Garrison.Core.Requests
             }
         }
 
+        /// <summary>
+        /// Agents that report directly to the viewer in a live organization: all of their reports are visible.
+        /// </summary>
+        public List<string> DirectReportAgentIds
+        {
+            get
+            {
+                return _DirectReportAgentIds;
+            }
+            set
+            {
+                _DirectReportAgentIds = value ?? new List<string>();
+            }
+        }
+
+        /// <summary>
+        /// Agents further below the viewer in a live organization: their Chain and Board reports are visible, their
+        /// Manager reports are not.
+        /// </summary>
+        public List<string> ChainAgentIds
+        {
+            get
+            {
+                return _ChainAgentIds;
+            }
+            set
+            {
+                _ChainAgentIds = value ?? new List<string>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -68,6 +100,8 @@ namespace Garrison.Core.Requests
         private string _AgentId = String.Empty;
         private List<string> _SubordinateAgentIds = new List<string>();
         private List<string> _ManagedAppIds = new List<string>();
+        private List<string> _DirectReportAgentIds = new List<string>();
+        private List<string> _ChainAgentIds = new List<string>();
 
         #endregion
     }

@@ -129,8 +129,8 @@ namespace Garrison.Core.Models
         public string? Direction { get; set; } = null;
 
         /// <summary>
-        /// Where this keeper's escalations go when the keeper names no target (AA2, AA-043), or null for none. Manager is
-        /// accepted once organizations land (AA7.5).
+        /// Where this keeper's escalations go when the keeper names no target (AA2, AA-043), or null for none. Manager follows
+        /// the chain of command (AA7.5).
         /// </summary>
         public EscalationTargetKindEnum? EscalationTargetKind { get; set; } = null;
 

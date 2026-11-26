@@ -187,7 +187,7 @@ namespace Garrison.Core.Telemetry
         public static readonly MetricDescriptor Freezes = new MetricDescriptor("garrison.freezes", MetricKindEnum.Counter, "{freeze}", "target_kind, action", "Freezes by target kind (agent, deployment, mandate, app, tenantautonomy) and action (applied, lifted, refused, skipped, cancelled): refused counts runs a freeze turned away, skipped counts keeper wakes it skipped, cancelled counts runs applying it cancelled", "server", "Autonomy", "garrison-autonomy");
 
         /// <summary>Keeper spend caps reached (AA3).</summary>
-        public static readonly MetricDescriptor SpendCapHits = new MetricDescriptor("garrison.spend.cap.hits", MetricKindEnum.Counter, "{hit}", "scope", "Spend caps reached, by scope (mandate_tick for a tick over its per-tick budget, mandate_day for a keeper over its daily budget)", "server", "Autonomy", "garrison-autonomy");
+        public static readonly MetricDescriptor SpendCapHits = new MetricDescriptor("garrison.spend.cap.hits", MetricKindEnum.Counter, "{hit}", "scope", "Spend caps reached, by scope (mandate_tick for a tick over its per-tick budget, mandate_day for a keeper over its daily budget, org_unit_day and org_unit_month for a run refused because an org unit spent its budget)", "server", "Autonomy", "garrison-autonomy");
 
         /// <summary>Scoped memory operations (AA4).</summary>
         public static readonly MetricDescriptor MemoryOperations = new MetricDescriptor("garrison.memory.operations", MetricKindEnum.Counter, "{operation}", "scope_kind, operation, outcome", "Scoped memory operations by scope kind (agent, app, orgunit, organization), operation (read, write, delete, list, search, expire, recall), and outcome (ok, not_found, conflict, denied, refused, failed)", "server", "Autonomy", "garrison-autonomy");
@@ -203,6 +203,9 @@ namespace Garrison.Core.Telemetry
 
         /// <summary>Messages refused by line policy and loop guards (AA6).</summary>
         public static readonly MetricDescriptor MessageLoopGuard = new MetricDescriptor("garrison.message.loop.guard", MetricKindEnum.Counter, "{message}", "reason", "Messages refused when sent, by reason (hop_limit, line_rate, thread_budget, no_line, frozen)", "server", "Autonomy", "garrison-autonomy");
+
+        /// <summary>Org unit budgets exhausted in their current window (AA7.13).</summary>
+        public static readonly MetricDescriptor OrgBudgetsExhausted = new MetricDescriptor("garrison.org.budgets.exhausted", MetricKindEnum.ObservableGauge, "{budget}", "period", "Org unit budgets this replica has seen exhausted in their current window, by period (day, month); carries no organization or unit identifiers; aggregate with max", "server", "Autonomy", "garrison-autonomy");
 
         /// <summary>Keeper intervals applied after ticks (AA1).</summary>
         public static readonly MetricDescriptor KeeperInterval = new MetricDescriptor("garrison.keeper.interval", MetricKindEnum.Histogram, "s", "mode", "Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
@@ -489,7 +492,7 @@ namespace Garrison.Core.Telemetry
             SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

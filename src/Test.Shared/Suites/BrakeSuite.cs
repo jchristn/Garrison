@@ -88,7 +88,7 @@ namespace Test.Shared.Suites
 
                 // Validation and unknown targets.
                 KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/freezes", new Freeze { TargetKind = FreezeTargetKindEnum.Deployment }, token).ConfigureAwait(false), 400, "Required", "A freeze without a target");
-                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/freezes", new Freeze { TargetKind = FreezeTargetKindEnum.OrgUnit, TargetId = "unit" }, token).ConfigureAwait(false), 409, "OrganizationsUnavailable", "OrgUnit freezes wait for organizations");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/freezes", new Freeze { TargetKind = FreezeTargetKindEnum.OrgUnit, TargetId = "unit" }, token).ConfigureAwait(false), 404, "NotFound", "An unknown unit cannot be frozen");
                 KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/freezes", new Freeze { TargetKind = FreezeTargetKindEnum.Agent, TargetId = other.Id, Reason = new string('r', 2001) }, token).ConfigureAwait(false), 400, "TooLong", "A reason over 2000 characters");
                 Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/freezes", new Freeze { TargetKind = FreezeTargetKindEnum.Agent, TargetId = "no-such-agent" }, token).ConfigureAwait(false)).StatusCode, "An unknown agent");
                 Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/freezes/mfz_missing", null, token).ConfigureAwait(false)).StatusCode, "An unknown freeze");

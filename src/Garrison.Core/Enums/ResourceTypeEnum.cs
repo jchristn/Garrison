@@ -260,6 +260,11 @@ namespace Garrison.Core.Enums
         /// Messages between agents (AA6). Read lists messages and threads; Create lets a person write to any agent. Runs
         /// send and read mail through the line policy of their own agent, never through these permissions.
         /// </summary>
-        AgentMessage
+        AgentMessage,
+
+        /// <summary>
+        /// Organizations, their units, revisions, chart, and spend (AA7). Update covers units, publishing, and rollback.
+        /// </summary>
+        Organization
     }
 }

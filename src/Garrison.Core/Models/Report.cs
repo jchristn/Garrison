@@ -71,7 +71,7 @@ namespace Garrison.Core.Models
         public string? MandateTickId { get; set; } = null;
 
         /// <summary>
-        /// The organization unit the author belonged to (AA7). Null until organizations exist.
+        /// The org unit the author held a position in when it filed (AA7.5), or null outside organizations. Set by the server.
         /// </summary>
         public string? OrgUnitId { get; set; } = null;
 

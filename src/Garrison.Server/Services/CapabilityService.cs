@@ -9,6 +9,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Organizations;
     using Garrison.Core.Responses;
     using Garrison.Core.Services;
     using Garrison.Server.Runtime;
@@ -67,7 +68,63 @@ namespace Garrison.Server.Services
                 string text = search.Trim();
                 list = list.Where(d => d.Name.Contains(text, StringComparison.OrdinalIgnoreCase) || (d.Summary ?? String.Empty).Contains(text, StringComparison.OrdinalIgnoreCase)).ToList();
             }
+            await AttachOrgAsync(tenantId, list, token).ConfigureAwait(false);
             return list;
+        }
+
+        /// <summary>
+        /// Fill in where each Agent descriptor's agent sits in a live organization (AA7.8).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="descriptors">Descriptors.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or descriptors is null.</exception>
+        public async Task AttachOrgAsync(string tenantId, List<CapabilityDescriptor> descriptors, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (descriptors == null) throw new ArgumentNullException(nameof(descriptors));
+            ChainOfCommand? chain = _Context.TryGet<ChainOfCommand>();
+            if (chain == null || !descriptors.Any(d => d.Kind == CapabilityKindEnum.Agent && !String.IsNullOrEmpty(d.SourceAgentId))) return;
+            List<OrgTree> trees = await chain.LiveTreesAsync(tenantId, token).ConfigureAwait(false);
+            if (trees.Count == 0) return;
+            Dictionary<string, CapabilityOrgPlacement?> mandates = new Dictionary<string, CapabilityOrgPlacement?>(StringComparer.Ordinal);
+            foreach (CapabilityDescriptor descriptor in descriptors)
+            {
+                if (descriptor.Kind != CapabilityKindEnum.Agent || String.IsNullOrEmpty(descriptor.SourceAgentId)) continue;
+                foreach (OrgTree tree in trees)
+                {
+                    OrgPosition? position = tree.PositionOf(descriptor.SourceAgentId);
+                    if (position == null) continue;
+                    CapabilityOrgPlacement placement = new CapabilityOrgPlacement();
+                    placement.OrganizationId = tree.Organization.Id;
+                    placement.OrganizationName = tree.Organization.Name;
+                    placement.UnitId = position.UnitId;
+                    placement.UnitName = position.UnitName;
+                    placement.IsLead = position.IsLead;
+                    placement.Title = position.Title;
+                    if (!String.IsNullOrEmpty(position.MandateId))
+                    {
+                        if (!mandates.TryGetValue(position.MandateId, out CapabilityOrgPlacement? summary))
+                        {
+                            summary = null;
+                            Mandate? mandate = await _Context.Database.Mandates.ReadAsync(tenantId, position.MandateId, token).ConfigureAwait(false);
+                            if (mandate != null)
+                            {
+                                MandateRevision? revision = String.IsNullOrEmpty(mandate.CurrentRevisionId) ? null : await _Context.Database.MandateRevisions.ReadAsync(tenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false);
+                                string? text = revision?.Objective ?? mandate.Description;
+                                string? line = String.IsNullOrWhiteSpace(text) ? null : text.Trim().Split('\n')[0].Trim();
+                                summary = new CapabilityOrgPlacement { MandateName = mandate.Name, MandateSummary = line != null && line.Length > 200 ? line.Substring(0, 197) + "..." : line };
+                            }
+                            mandates[position.MandateId] = summary;
+                        }
+                        placement.MandateName = summary?.MandateName;
+                        placement.MandateSummary = summary?.MandateSummary;
+                    }
+                    descriptor.Org = placement;
+                    break;
+                }
+            }
         }
 
         /// <summary>
@@ -86,7 +143,11 @@ namespace Garrison.Server.Services
             if (idOrName.StartsWith(Garrison.Core.Constants.CapabilityIdPrefix, StringComparison.Ordinal))
             {
                 CapabilityDescriptor? byId = await _Context.Database.Capabilities.ReadAsync(tenantId, idOrName, token).ConfigureAwait(false);
-                if (byId != null) return byId;
+                if (byId != null)
+                {
+                    await AttachOrgAsync(tenantId, new List<CapabilityDescriptor> { byId }, token).ConfigureAwait(false);
+                    return byId;
+                }
             }
             List<CapabilityDescriptor> all = await ListAsync(tenantId, null, null, null, token).ConfigureAwait(false);
             return all.Where(d => String.Equals(d.Name, idOrName, StringComparison.Ordinal))

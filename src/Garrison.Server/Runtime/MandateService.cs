@@ -294,6 +294,35 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Make an already published revision the mandate's current one again (AA7.4): an organization publish or rollback
+        /// restores the mandate revisions it pins. A Draft mandate becomes Active; an Active one wakes under the restored
+        /// revision with its interval reset. Does nothing when the revision is already current.
+        /// </summary>
+        /// <param name="ctx">Authorized caller (Organization Update).</param>
+        /// <param name="mandate">Mandate.</param>
+        /// <param name="revision">Published or superseded revision of this mandate.</param>
+        /// <param name="reason">What caused the restore, for the audit record.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the current revision changed.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        /// <exception cref="ConflictException">Thrown with RevisionMismatch when the revision belongs to another mandate, or RevisionNotPublished when it is still a draft.</exception>
+        public async Task<bool> RestoreRevisionAsync(RequestContext ctx, Mandate mandate, MandateRevision revision, string reason, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (mandate == null) throw new ArgumentNullException(nameof(mandate));
+            if (revision == null) throw new ArgumentNullException(nameof(revision));
+            if (revision.MandateId != mandate.Id) throw new ConflictException("RevisionMismatch", "Revision " + revision.Id + " does not belong to mandate " + mandate.Name + ".");
+            if (revision.State == MandateRevisionStateEnum.Draft) throw new ConflictException("RevisionNotPublished", "Revision " + revision.Number + " of mandate " + mandate.Name + " is a draft and cannot be restored.");
+            if (mandate.CurrentRevisionId == revision.Id) return false;
+            MandateStatusEnum status = mandate.Status == MandateStatusEnum.Draft ? MandateStatusEnum.Active : mandate.Status;
+            StartSchedule(mandate, revision, status);
+            await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
+            await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Restored revision " + revision.Number + " of mandate " + mandate.Name + " (" + (reason ?? String.Empty) + ").", token).ConfigureAwait(false);
+            await AttachRevisionAsync(mandate, token).ConfigureAwait(false);
+            return true;
+        }
+
+        /// <summary>
         /// Pause a mandate: no further wakes are scheduled. A tick in flight finishes.
         /// </summary>
         /// <param name="ctx">Authorized caller (Mandate Execute).</param>

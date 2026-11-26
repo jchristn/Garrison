@@ -35,6 +35,12 @@ namespace Garrison.Server.Runtime
         #region Public-Members
 
         /// <summary>
+        /// Org unit budgets (AA7.6). When set, a due wake of a keeper whose agent sits in a capped subtree is recorded as
+        /// Skipped (BudgetExhausted) and the capped unit's manager is told. Null to skip the check.
+        /// </summary>
+        public OrgBudgetGuard? OrgBudgets { get; set; } = null;
+
+        /// <summary>
         /// Options, refreshed from the Autonomy.* cluster settings.
         /// </summary>
         public KeeperOptions Options
@@ -301,6 +307,17 @@ namespace Garrison.Server.Runtime
                 bool skippedFrozen = await SkipAsync(mandate, source, expected, nowUtc, killSwitch ? "KillSwitch" : "Frozen", why, token).ConfigureAwait(false);
                 if (skippedFrozen) Freezes!.Skipped(freeze);
                 return skippedFrozen;
+            }
+
+            if (OrgBudgets != null)
+            {
+                OrgBudgetBreach? breach = await OrgBudgets.FindBreachAsync(mandate.TenantId, mandate.AgentId, nowUtc, token).ConfigureAwait(false);
+                if (breach != null)
+                {
+                    bool skippedBudget = await SkipAsync(mandate, source, expected, nowUtc, "BudgetExhausted", OrgBudgetGuard.Message(breach) + " This wake was skipped.", token).ConfigureAwait(false);
+                    if (skippedBudget) await OrgBudgets.NotifyAsync(mandate.TenantId, mandate.AgentId, breach, mandate.RunAsType, mandate.RunAsId, "keeper:" + mandate.Name, token).ConfigureAwait(false);
+                    return skippedBudget;
+                }
             }
 
             if (!String.IsNullOrEmpty(mandate.ActiveTickId))

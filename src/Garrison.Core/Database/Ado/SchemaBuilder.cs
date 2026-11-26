@@ -400,6 +400,11 @@ namespace Garrison.Core.Database.Ado
             v51.BuildVersion51();
             migrations.Add(new SchemaMigration(51, "Agent messages", v51._Statements, v51._Columns));
 
+            // AA7: organizations, their working tree, revisions with snapshots, and organization promotion records.
+            SchemaBuilder v52 = new SchemaBuilder(catalog, dialect);
+            v52.BuildVersion52();
+            migrations.Add(new SchemaMigration(52, "Organizations", v52._Statements, v52._Columns));
+
             return migrations;
         }
 
@@ -463,6 +468,139 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion52()
+        {
+            SqlDialect d = _Dialect;
+            Table("organizations",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description VARCHAR(2000)",
+                "mission " + d.TypeText,
+                "status VARCHAR(32) NOT NULL",
+                "rootunitid " + d.TypeId,
+                "currentrevisionid " + d.TypeId,
+                "currentrevisionnumber " + d.TypeInt + " NOT NULL DEFAULT 0",
+                "createdby VARCHAR(256)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("organizations", "name", true, "tenantid", "name");
+
+            Table("org_units",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "organizationid " + d.TypeId + " NOT NULL",
+                "parentunitid " + d.TypeId,
+                "name VARCHAR(128) NOT NULL",
+                "description VARCHAR(2000)",
+                "leadagentid " + d.TypeId,
+                "leadtitle VARCHAR(128)",
+                "leadmandateid " + d.TypeId,
+                "appid " + d.TypeId,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("org_units", "name", true, "organizationid", "name");
+            Index("org_units", "org", false, "tenantid", "organizationid");
+            Index("org_units", "lead", false, "tenantid", "leadagentid");
+
+            Table("org_unit_members",
+                "unitid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "organizationid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "title VARCHAR(128)",
+                "mandateid " + d.TypeId,
+                "PRIMARY KEY (unitid, position)");
+            Index("org_unit_members", "agent", false, "tenantid", "agentid");
+            Index("org_unit_members", "org", false, "organizationid");
+
+            Table("org_unit_peer_lines",
+                "unitid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "organizationid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "peerunitid " + d.TypeId + " NOT NULL",
+                "PRIMARY KEY (unitid, position)");
+            Index("org_unit_peer_lines", "org", false, "organizationid");
+
+            Table("org_unit_budgets",
+                "unitid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "organizationid " + d.TypeId + " NOT NULL",
+                "period VARCHAR(32) NOT NULL",
+                "amountusd " + d.TypeDouble + " NOT NULL",
+                "PRIMARY KEY (unitid, period)");
+            Index("org_unit_budgets", "org", false, "organizationid");
+
+            Table("org_revisions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "organizationid " + d.TypeId + " NOT NULL",
+                "number " + d.TypeInt + " NOT NULL",
+                "state VARCHAR(32) NOT NULL",
+                "note VARCHAR(2000)",
+                "rollbackofrevisionid " + d.TypeId,
+                "authortype VARCHAR(32) NOT NULL",
+                "authorid " + d.TypeId,
+                "authorname VARCHAR(256)",
+                "publishedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("org_revisions", "number", true, "organizationid", "number");
+            Index("org_revisions", "tenant", false, "tenantid", "organizationid");
+
+            Table("org_revision_units",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "unitid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "parentunitid " + d.TypeId,
+                "name VARCHAR(128) NOT NULL",
+                "description VARCHAR(2000)",
+                "leadagentid " + d.TypeId,
+                "leadtitle VARCHAR(128)",
+                "leadmandateid " + d.TypeId,
+                "appid " + d.TypeId,
+                "PRIMARY KEY (revisionid, unitid)");
+
+            Table("org_revision_members",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "unitid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "title VARCHAR(128)",
+                "mandateid " + d.TypeId,
+                "PRIMARY KEY (revisionid, unitid, position)");
+            Index("org_revision_members", "agent", false, "tenantid", "agentid");
+
+            Table("org_revision_peer_lines",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "unitid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "peerunitid " + d.TypeId + " NOT NULL",
+                "PRIMARY KEY (revisionid, unitid, position)");
+
+            Table("org_revision_budgets",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "unitid " + d.TypeId + " NOT NULL",
+                "period VARCHAR(32) NOT NULL",
+                "amountusd " + d.TypeDouble + " NOT NULL",
+                "PRIMARY KEY (revisionid, unitid, period)");
+
+            Table("org_revision_mandates",
+                "revisionid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "mandateid " + d.TypeId + " NOT NULL",
+                "mandaterevisionid " + d.TypeId + " NOT NULL",
+                "PRIMARY KEY (revisionid, mandateid)");
+
+            Column("promotion_records", "organizationid", d.TypeId);
+            Column("promotion_records", "orgrevisionid", d.TypeId);
         }
 
         private void BuildVersion51()

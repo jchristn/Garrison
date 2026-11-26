@@ -215,6 +215,12 @@ namespace Garrison.Core.Models
         public string? RefreshWarning { get; set; } = null;
 
         /// <summary>
+        /// For an Agent capability whose agent holds a position in a live organization, its unit, title, and mandate
+        /// summary (AA7.8); otherwise null. Filled in on read.
+        /// </summary>
+        public CapabilityOrgPlacement? Org { get; set; } = null;
+
+        /// <summary>
         /// When the descriptor was last refreshed from its source (UTC), or null for manual descriptors.
         /// </summary>
         public DateTime? LastRefreshedUtc { get; set; } = null;

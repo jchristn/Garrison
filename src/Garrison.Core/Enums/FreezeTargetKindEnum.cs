@@ -27,12 +27,13 @@ namespace Garrison.Core.Enums
         App,
 
         /// <summary>
-        /// An org unit and everything beneath it. Refused until organizations exist (AA7).
+        /// An org unit and everything beneath it (AA7.7): every lead and member of the unit's subtree in the live revision.
         /// </summary>
         OrgUnit,
 
         /// <summary>
-        /// A whole organization. Refused until organizations exist (AA7).
+        /// A whole organization (AA7.7): every lead and member in its live revision. The organization's status becomes
+        /// Frozen until the freeze is lifted.
         /// </summary>
         Organization,
 

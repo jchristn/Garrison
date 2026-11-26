@@ -98,6 +98,12 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public FreezeService? Freezes { get; set; } = null;
 
+        /// <summary>
+        /// Org unit budgets (AA7.6). When set, a new run of an agent whose unit, or a unit above it, has spent its budget
+        /// for the window is refused with 409 BudgetExhausted. Null (the default) admits every run.
+        /// </summary>
+        public OrgBudgetGuard? OrgBudgets { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -146,6 +152,7 @@ namespace Garrison.Server.Runtime
         /// <exception cref="IdempotencyConflictException">Thrown when the idempotency key belongs to a run with different content.</exception>
         /// <exception cref="ConflictException">Thrown with ConversationBusy when the requested conversation's previous turn is unfinished, or with ConversationAgentMismatch, ConversationDeploymentMismatch, or ConversationDeploymentUnavailable.</exception>
         /// <exception cref="FrozenException">Thrown with Frozen when an active freeze covers the run (AA3.2).</exception>
+        /// <exception cref="ConflictException">Thrown with BudgetExhausted when an org unit budget caps the agent (AA7.6).</exception>
         public async Task<Run> CreateAsync(RunCreateContext create, CancellationToken token = default)
         {
             return await RunDatabaseTelemetry.MeasureCreatedAsync(_Database, create?.TenantId ?? string.Empty, ct => CreateMeasuredCoreAsync(create!, token), token).ConfigureAwait(false);
@@ -182,6 +189,7 @@ namespace Garrison.Server.Runtime
                 string? appId = create.AppId ?? plan?.Conversation.AppId;
                 await Freezes.RequireNotFrozenAsync(create.TenantId, create.Agent.Id, remote ? null : deployment.Id, create.MandateId, appId, create.Kind == RunKindEnum.Keeper || create.Kind == RunKindEnum.Message, token).ConfigureAwait(false);
             }
+            if (OrgBudgets != null) await OrgBudgets.RequireWithinBudgetAsync(create.TenantId, create.Agent.Id, create.CallerType, create.CallerId, create.CallerName, token).ConfigureAwait(false);
             HarnessProfile profile = remote ? new HarnessProfile { HarnessType = HarnessTypeEnum.Generic } : await _Database.HarnessProfiles.ReadAsync(create.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Harness profile " + deployment.HarnessProfileId + " for deployment " + deployment.Name + " was not found.");
 

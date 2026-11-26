@@ -9,6 +9,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Organizations;
     using Garrison.Core.Requests;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
@@ -37,6 +38,12 @@ namespace Garrison.Server.Runtime
         /// freeze asks for it.
         /// </summary>
         public Func<Run, CancellationToken, Task>? CancelRunAsync { get; set; } = null;
+
+        /// <summary>
+        /// Chain of command that expands OrgUnit and Organization freezes to the agents below them (AA7.7), or null to
+        /// refuse those targets with OrganizationsUnavailable.
+        /// </summary>
+        public ChainOfCommand? Chain { get; set; } = null;
 
         /// <summary>
         /// Seconds a tenant's cached active freezes are trusted without a backplane message. Minimum 1, maximum 300,
@@ -143,11 +150,7 @@ namespace Garrison.Server.Runtime
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             DateTime now = DateTime.UtcNow;
-            if (_Cache.TryGetValue(tenantId, out FreezeSnapshot? cached) && (now - cached.LoadedUtc).TotalSeconds < _CacheSeconds) return cached.Freezes;
-            List<Freeze> active = await _Database.Freezes.ListActiveAsync(tenantId, token).ConfigureAwait(false);
-            FreezeSnapshot snapshot = new FreezeSnapshot(active, now);
-            _Cache[tenantId] = snapshot;
-            return snapshot.Freezes;
+            return (await SnapshotAsync(tenantId, token).ConfigureAwait(false)).Freezes;
         }
 
         /// <summary>
@@ -165,7 +168,8 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
         public async Task<Freeze?> FindAsync(string tenantId, string? agentId, string? deploymentId, string? mandateId, string? appId, bool keeper, CancellationToken token = default)
         {
-            IReadOnlyList<Freeze> active = await ActiveAsync(tenantId, token).ConfigureAwait(false);
+            FreezeSnapshot snapshot = await SnapshotAsync(tenantId, token).ConfigureAwait(false);
+            IReadOnlyList<Freeze> active = snapshot.Freezes;
             if (active.Count == 0) return null;
             foreach (Freeze freeze in active)
             {
@@ -188,6 +192,7 @@ namespace Garrison.Server.Runtime
                         break;
                 }
             }
+            if (!String.IsNullOrEmpty(agentId) && snapshot.OrgAgents.TryGetValue(agentId, out Freeze? org)) return org;
             return null;
         }
 
@@ -236,15 +241,15 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ArgumentNullException">Thrown when ctx or request is null.</exception>
         /// <exception cref="ValidationException">Thrown when the target is missing or the reason is too long.</exception>
         /// <exception cref="NotFoundException">Thrown when the target does not exist in the tenant.</exception>
-        /// <exception cref="ConflictException">Thrown with AlreadyFrozen when an active freeze already covers the target, or OrganizationsUnavailable for OrgUnit and Organization.</exception>
+        /// <exception cref="ConflictException">Thrown with AlreadyFrozen when an active freeze already covers the target, or OrganizationsUnavailable for OrgUnit and Organization when organizations are not wired.</exception>
         public async Task<Freeze> ApplyAsync(RequestContext ctx, string tenantId, Freeze request, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             if (request == null) throw new ArgumentNullException(nameof(request));
-            if (!Enum.IsDefined(request.TargetKind)) throw Invalid("targetKind", "InvalidValue", "targetKind must be Agent, Deployment, Mandate, App, or TenantAutonomy.");
-            if (request.TargetKind == FreezeTargetKindEnum.OrgUnit || request.TargetKind == FreezeTargetKindEnum.Organization)
-                throw new ConflictException("OrganizationsUnavailable", request.TargetKind + " freezes arrive with organizations; freeze an agent, deployment, mandate, or app instead.");
+            if (!Enum.IsDefined(request.TargetKind)) throw Invalid("targetKind", "InvalidValue", "targetKind must be Agent, Deployment, Mandate, App, OrgUnit, Organization, or TenantAutonomy.");
+            if ((request.TargetKind == FreezeTargetKindEnum.OrgUnit || request.TargetKind == FreezeTargetKindEnum.Organization) && Chain == null)
+                throw new ConflictException("OrganizationsUnavailable", request.TargetKind + " freezes need organizations, which are not wired on this server; freeze an agent, deployment, mandate, or app instead.");
             string? reason = Reason(request.Reason, "reason");
 
             Freeze freeze = new Freeze();
@@ -264,6 +269,7 @@ namespace Garrison.Server.Runtime
             Changed(tenantId);
             GarrisonMetrics.Count(GarrisonMetricCatalog.Freezes, "target_kind", Label(freeze.TargetKind), "action", "applied");
             if (freeze.TargetKind == FreezeTargetKindEnum.Mandate) await FreezeMandateAsync(tenantId, freeze.TargetId, token).ConfigureAwait(false);
+            if (freeze.TargetKind == FreezeTargetKindEnum.Organization) await SetOrganizationStatusAsync(tenantId, freeze.TargetId, OrganizationStatusEnum.Active, OrganizationStatusEnum.Frozen, token).ConfigureAwait(false);
 
             AuditEventTypeEnum eventType = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy ? AuditEventTypeEnum.KillSwitchChanged : AuditEventTypeEnum.FreezeApplied;
             string what = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy ? "Turned the autonomy kill switch on (" + freeze.Id + ")" : "Froze " + Describe(freeze) + " (" + freeze.Id + ")";
@@ -303,6 +309,7 @@ namespace Garrison.Server.Runtime
             Changed(freeze.TenantId);
             GarrisonMetrics.Count(GarrisonMetricCatalog.Freezes, "target_kind", Label(freeze.TargetKind), "action", "lifted");
             if (freeze.TargetKind == FreezeTargetKindEnum.Mandate) await ThawMandateAsync(freeze.TenantId, freeze.TargetId, token).ConfigureAwait(false);
+            if (freeze.TargetKind == FreezeTargetKindEnum.Organization) await SetOrganizationStatusAsync(freeze.TenantId, freeze.TargetId, OrganizationStatusEnum.Frozen, OrganizationStatusEnum.Active, token).ConfigureAwait(false);
 
             AuditEventTypeEnum eventType = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy ? AuditEventTypeEnum.KillSwitchChanged : AuditEventTypeEnum.FreezeLifted;
             string what = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy ? "Turned the autonomy kill switch off (" + freeze.Id + ")" : "Lifted freeze " + freeze.Id + " on " + Describe(freeze);
@@ -391,6 +398,17 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// An organization was published, rolled back, or deleted: organization freezes may now cover other agents, so the
+        /// tenant's cache is dropped here and on every replica.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        public void OrganizationChanged(string? tenantId)
+        {
+            if (String.IsNullOrEmpty(tenantId)) return;
+            Changed(tenantId);
+        }
+
+        /// <summary>
         /// Drop every cached tenant (after the backplane resynchronizes).
         /// </summary>
         public void InvalidateAll()
@@ -414,6 +432,44 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private async Task<FreezeSnapshot> SnapshotAsync(string tenantId, CancellationToken token)
+        {
+            DateTime now = DateTime.UtcNow;
+            if (_Cache.TryGetValue(tenantId, out FreezeSnapshot? cached) && (now - cached.LoadedUtc).TotalSeconds < _CacheSeconds) return cached;
+            List<Freeze> active = await _Database.Freezes.ListActiveAsync(tenantId, token).ConfigureAwait(false);
+            Dictionary<string, Freeze> orgAgents = new Dictionary<string, Freeze>(StringComparer.Ordinal);
+            if (Chain != null && active.Any(f => f.TargetKind == FreezeTargetKindEnum.OrgUnit || f.TargetKind == FreezeTargetKindEnum.Organization))
+            {
+                foreach (Freeze freeze in active)
+                {
+                    if (freeze.TargetKind != FreezeTargetKindEnum.OrgUnit && freeze.TargetKind != FreezeTargetKindEnum.Organization) continue;
+                    foreach (string agentId in await OrgAgentsAsync(freeze, token).ConfigureAwait(false))
+                    {
+                        if (!orgAgents.ContainsKey(agentId)) orgAgents[agentId] = freeze;
+                    }
+                }
+            }
+            FreezeSnapshot snapshot = new FreezeSnapshot(active, now, orgAgents);
+            _Cache[tenantId] = snapshot;
+            return snapshot;
+        }
+
+        private async Task<HashSet<string>> OrgAgentsAsync(Freeze freeze, CancellationToken token)
+        {
+            if (Chain == null) return new HashSet<string>(StringComparer.Ordinal);
+            if (freeze.TargetKind == FreezeTargetKindEnum.OrgUnit) return await Chain.SubtreeAgentIdsAsync(freeze.TenantId, freeze.TargetId, token).ConfigureAwait(false);
+            OrgTree? tree = await Chain.LiveTreeAsync(freeze.TenantId, freeze.TargetId, token).ConfigureAwait(false);
+            return tree == null ? new HashSet<string>(StringComparer.Ordinal) : tree.AgentIds();
+        }
+
+        private async Task SetOrganizationStatusAsync(string tenantId, string organizationId, OrganizationStatusEnum from, OrganizationStatusEnum to, CancellationToken token)
+        {
+            Organization? organization = await _Database.Organizations.ReadAsync(tenantId, organizationId, token).ConfigureAwait(false);
+            if (organization == null || organization.Status != from) return;
+            organization.Status = to;
+            await _Database.Organizations.UpdateAsync(organization, token).ConfigureAwait(false);
+        }
 
         private void Changed(string tenantId)
         {
@@ -458,8 +514,28 @@ namespace Garrison.Server.Runtime
                     freeze.TargetId = app.Id;
                     freeze.TargetName = app.Name;
                     return;
+                case FreezeTargetKindEnum.Organization:
+                    Organization? organization = await _Database.Organizations.ReadAsync(tenantId, value, token).ConfigureAwait(false) ?? await _Database.Organizations.ReadByNameAsync(tenantId, value, token).ConfigureAwait(false);
+                    if (organization == null) throw new NotFoundException("Organization " + value + " not found.");
+                    freeze.TargetId = organization.Id;
+                    freeze.TargetName = organization.Name;
+                    return;
+                case FreezeTargetKindEnum.OrgUnit:
+                    OrgUnit? unit = await _Database.Organizations.ReadUnitAsync(tenantId, value, token).ConfigureAwait(false);
+                    if (unit == null && Chain != null)
+                    {
+                        foreach (OrgTree tree in await Chain.LiveTreesAsync(tenantId, token).ConfigureAwait(false))
+                        {
+                            unit = tree.Unit(value) ?? tree.UnitByName(value);
+                            if (unit != null) break;
+                        }
+                    }
+                    if (unit == null) throw new NotFoundException("Unit " + value + " not found.");
+                    freeze.TargetId = unit.Id;
+                    freeze.TargetName = unit.Name;
+                    return;
                 default:
-                    throw Invalid("targetKind", "InvalidValue", "targetKind must be Agent, Deployment, Mandate, App, or TenantAutonomy.");
+                    throw Invalid("targetKind", "InvalidValue", "targetKind must be Agent, Deployment, Mandate, App, OrgUnit, Organization, or TenantAutonomy.");
             }
         }
 
@@ -488,7 +564,19 @@ namespace Garrison.Server.Runtime
         {
             Func<Run, CancellationToken, Task>? cancel = CancelRunAsync;
             if (cancel == null) return 0;
-            List<Run> runs = await _Database.Runs.ListActiveInScopeAsync(freeze.TenantId, freeze.TargetKind, freeze.TargetId, _MaxCancelledRuns, token).ConfigureAwait(false);
+            List<Run> runs = new List<Run>();
+            if (freeze.TargetKind == FreezeTargetKindEnum.OrgUnit || freeze.TargetKind == FreezeTargetKindEnum.Organization)
+            {
+                foreach (string agentId in await OrgAgentsAsync(freeze, token).ConfigureAwait(false))
+                {
+                    if (runs.Count >= _MaxCancelledRuns) break;
+                    runs.AddRange(await _Database.Runs.ListActiveInScopeAsync(freeze.TenantId, FreezeTargetKindEnum.Agent, agentId, _MaxCancelledRuns - runs.Count, token).ConfigureAwait(false));
+                }
+            }
+            else
+            {
+                runs = await _Database.Runs.ListActiveInScopeAsync(freeze.TenantId, freeze.TargetKind, freeze.TargetId, _MaxCancelledRuns, token).ConfigureAwait(false);
+            }
             int cancelled = 0;
             foreach (Run run in runs)
             {

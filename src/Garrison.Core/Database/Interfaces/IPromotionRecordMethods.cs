@@ -37,6 +37,16 @@ namespace Garrison.Core.Database.Interfaces
         Task<PromotionRecord?> ReadAsync(string tenantId, string id, CancellationToken token = default);
 
         /// <summary>
+        /// The newest record that made an organization revision live (AA7.4), or null.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="orgRevisionId">Organization revision identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Record without items, or null.</returns>
+        /// <exception cref="System.ArgumentNullException">Thrown when tenantId or orgRevisionId is null or empty.</exception>
+        Task<PromotionRecord?> ReadLatestForOrgRevisionAsync(string tenantId, string orgRevisionId, CancellationToken token = default);
+
+        /// <summary>
         /// Enumerate a tenant's records, newest first, with items. Optional filters on agent and app.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

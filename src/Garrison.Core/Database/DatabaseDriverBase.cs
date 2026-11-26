@@ -287,6 +287,11 @@ namespace Garrison.Core.Database
         public IAgentMessageMethods AgentMessages { get; protected set; } = null!;
 
         /// <summary>
+        /// Organizations, org units, and organization revisions (AA7).
+        /// </summary>
+        public IOrganizationMethods Organizations { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;

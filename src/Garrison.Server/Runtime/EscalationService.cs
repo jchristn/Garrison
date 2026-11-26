@@ -32,6 +32,12 @@ namespace Garrison.Server.Runtime
         #region Public-Members
 
         /// <summary>
+        /// Chain of command that resolves the Manager target and escalate-up (AA7.5), or null to refuse Manager with
+        /// ManagerUnavailable.
+        /// </summary>
+        public ChainOfCommand? Chain { get; set; } = null;
+
+        /// <summary>
         /// Raised after every change (raise, answer, cancel, withdraw, escalate up, expire) for the escalations channel and
         /// notifications. Listener failures are logged and do not affect the change.
         /// </summary>
@@ -242,6 +248,79 @@ namespace Garrison.Server.Runtime
             await AuditAsync(system, escalation, "Raised escalation " + escalation.Id + " (" + escalation.Severity + ") for mandate " + mandate.Name + " to " + Describe(escalation) + ".", token).ConfigureAwait(false);
             _Logging.Info(_Header + escalation.Id + " raised for mandate " + mandate.Id + " (" + mandate.Name + ") to " + Describe(escalation) + ", " + escalation.Severity);
             Raise(escalation, "escalation.raised");
+            return escalation;
+        }
+
+        /// <summary>
+        /// Raise a notice without a raising run (AA7.6): an org unit reached its budget. It goes to the given agent (the
+        /// capped unit's manager), or, with no agent above, to the given person. It is routed like any escalation, so an
+        /// agent target receives it as an urgent message.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="subjectAgentId">The agent the notice is about (the capped unit's lead or the refused run's agent), or null.</param>
+        /// <param name="targetAgentId">The manager agent to ask, or null for the person.</param>
+        /// <param name="fallbackUserId">The person to ask when no agent is above, or null.</param>
+        /// <param name="request">Question, context, options, severity, and timeout.</param>
+        /// <param name="callerType">Principal a routed agent run executes as.</param>
+        /// <param name="callerId">Identifier of that principal, or null.</param>
+        /// <param name="callerName">Name of that principal, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The escalation, or null when there is nobody to ask.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or request is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the request is invalid.</exception>
+        public async Task<Escalation?> RaiseNoticeAsync(string tenantId, string? subjectAgentId, string? targetAgentId, string? fallbackUserId, Escalation request, PrincipalTypeEnum callerType, string? callerId, string? callerName, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            Escalation escalation = request;
+            escalation.Id = String.Empty;
+            escalation.TenantId = tenantId;
+            escalation.RaisingRunId = null;
+            escalation.LeaseEpoch = 0;
+            escalation.AgentId = subjectAgentId;
+            Agent? subject = String.IsNullOrEmpty(subjectAgentId) ? null : await _Database.Agents.ReadAsync(tenantId, subjectAgentId, token).ConfigureAwait(false);
+            escalation.AgentName = subject?.Name;
+            escalation.MandateId = null;
+            escalation.MandateTickId = null;
+            escalation.Mode = EscalationModeEnum.NonBlocking;
+            escalation.Status = EscalationStatusEnum.Open;
+            escalation.ParentEscalationId = null;
+            escalation.EscalatedToId = null;
+            escalation.RoutedRunId = null;
+            ClearResolution(escalation);
+            if (!String.IsNullOrEmpty(targetAgentId))
+            {
+                escalation.TargetKind = EscalationTargetKindEnum.Agent;
+                escalation.TargetId = targetAgentId;
+            }
+            else if (!String.IsNullOrEmpty(fallbackUserId))
+            {
+                escalation.TargetKind = EscalationTargetKindEnum.User;
+                escalation.TargetId = fallbackUserId;
+            }
+            else
+            {
+                _Logging.Warn(_Header + "notice about agent " + (subjectAgentId ?? "none") + " has nobody to ask: " + escalation.Question);
+                return null;
+            }
+            ApplyTimeout(escalation);
+            EscalationValidator.ValidateRaise(escalation, _Options.MaxQuestionBytes);
+            try
+            {
+                await ResolveTargetAsync(escalation, token).ConfigureAwait(false);
+            }
+            catch (ValidationException e)
+            {
+                _Logging.Warn(_Header + "notice target " + escalation.TargetKind + " " + escalation.TargetId + " is unusable: " + e.Message);
+                return null;
+            }
+            escalation.ExpiresUtc = _Now().AddSeconds(escalation.TimeoutSeconds);
+            await _Database.Escalations.CreateAsync(escalation, token).ConfigureAwait(false);
+            RequestContext system = new RequestContext { TenantId = tenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = "garrison" };
+            await AuditAsync(system, escalation, "Raised notice " + escalation.Id + " (" + escalation.Severity + ") to " + Describe(escalation) + ".", token).ConfigureAwait(false);
+            _Logging.Info(_Header + escalation.Id + " notice raised to " + Describe(escalation) + ", " + escalation.Severity);
+            Raise(escalation, "escalation.raised");
+            await RouteAsync(escalation, callerType, callerId, callerName, token).ConfigureAwait(false);
             return escalation;
         }
 
@@ -636,7 +715,8 @@ namespace Garrison.Server.Runtime
             switch (escalation.TargetKind)
             {
                 case EscalationTargetKindEnum.Manager:
-                    throw new ConflictException("ManagerUnavailable", "Escalating to a manager needs an organization (AA7); address a user, role, or agent instead.");
+                    await ResolveManagerAsync(escalation, escalation.AgentId, escalation.MandateId, escalation.RaisingRunId, token).ConfigureAwait(false);
+                    return;
                 case EscalationTargetKindEnum.User:
                     User? user = await _Database.Users.ReadAsync(escalation.TenantId, id, token).ConfigureAwait(false)
                         ?? await _Database.Users.ReadByEmailAsync(escalation.TenantId, id, token).ConfigureAwait(false);
@@ -672,8 +752,79 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        private async Task ResolveManagerAsync(Escalation escalation, string? subjectAgentId, string? mandateId, string? raisingRunId, CancellationToken token)
+        {
+            // The manager is the agent directly above the subject in a live organization; above the root it is the board,
+            // which is asked through a person: the keeper's run-as user, or the user who started the raising run.
+            if (Chain == null) throw new ConflictException("ManagerUnavailable", "Escalating to a manager needs organizations, which are not wired on this server; address a user, role, or agent instead.");
+            if (String.IsNullOrEmpty(subjectAgentId)) throw new ConflictException("ManagerUnavailable", "Only an agent has a manager; address a user, role, or agent instead.");
+            List<string> managers = await Chain.ManagersAsync(escalation.TenantId, subjectAgentId, token).ConfigureAwait(false);
+            if (managers.Count > 0)
+            {
+                Agent? manager = await _Database.Agents.ReadAsync(escalation.TenantId, managers[0], token).ConfigureAwait(false);
+                if (manager == null) throw new ConflictException("ManagerUnavailable", "The manager of agent " + subjectAgentId + " no longer exists.");
+                escalation.TargetKind = EscalationTargetKindEnum.Agent;
+                escalation.TargetId = manager.Id;
+                escalation.TargetName = manager.Name;
+                return;
+            }
+            if (!await Chain.BoardManagesAsync(escalation.TenantId, subjectAgentId, token).ConfigureAwait(false))
+            {
+                throw new ConflictException("ManagerUnavailable", "Agent " + subjectAgentId + " holds no position in a live organization, so it has no manager; address a user, role, or agent instead.");
+            }
+            string? person = null;
+            if (!String.IsNullOrEmpty(mandateId))
+            {
+                Mandate? mandate = await _Database.Mandates.ReadAsync(escalation.TenantId, mandateId, token).ConfigureAwait(false);
+                if (mandate != null && mandate.RunAsType == PrincipalTypeEnum.User) person = mandate.RunAsId;
+            }
+            if (String.IsNullOrEmpty(person) && !String.IsNullOrEmpty(raisingRunId))
+            {
+                Run? raising = await _Database.Runs.ReadAsync(escalation.TenantId, raisingRunId, token).ConfigureAwait(false);
+                if (raising != null && raising.CallerType == PrincipalTypeEnum.User) person = raising.CallerId;
+            }
+            if (String.IsNullOrEmpty(person))
+            {
+                throw new ConflictException("ManagerUnavailable", "The board is above agent " + subjectAgentId + ", but no person behind this run can be asked; address a user or role instead.");
+            }
+            User? user = await _Database.Users.ReadAsync(escalation.TenantId, person, token).ConfigureAwait(false);
+            if (user == null) throw new ConflictException("ManagerUnavailable", "The person behind this run no longer exists; address a user or role instead.");
+            escalation.TargetKind = EscalationTargetKindEnum.User;
+            escalation.TargetId = user.Id;
+            escalation.TargetName = user.Email;
+        }
+
         private async Task<Escalation?> NextTargetAsync(Escalation escalation, CancellationToken token)
         {
+            // In an organization, an escalation to an agent goes up to that agent's manager, and finally to the board.
+            if (Chain != null && escalation.TargetKind == EscalationTargetKindEnum.Agent && !String.IsNullOrEmpty(escalation.TargetId)
+                && (await Chain.PositionsAsync(escalation.TenantId, escalation.TargetId, token).ConfigureAwait(false)).Count > 0)
+            {
+                Escalation up = ChildOf(escalation);
+                up.TargetKind = EscalationTargetKindEnum.Manager;
+                up.TargetId = null;
+                try
+                {
+                    string? rootMandate = escalation.MandateId;
+                    string? rootRun = escalation.RaisingRunId;
+                    if (!String.IsNullOrEmpty(escalation.ParentEscalationId) && (String.IsNullOrEmpty(rootMandate) || String.IsNullOrEmpty(rootRun)))
+                    {
+                        Escalation? parent = await _Database.Escalations.ReadAsync(escalation.TenantId, escalation.ParentEscalationId, token).ConfigureAwait(false);
+                        rootMandate ??= parent?.MandateId;
+                        rootRun ??= parent?.RaisingRunId;
+                    }
+                    await ResolveManagerAsync(up, escalation.TargetId, rootMandate, rootRun, token).ConfigureAwait(false);
+                    if (up.TargetKind != escalation.TargetKind || !String.Equals(up.TargetId, escalation.TargetId, StringComparison.Ordinal))
+                    {
+                        up.ExpiresUtc = _Now().AddSeconds(up.TimeoutSeconds);
+                        return up;
+                    }
+                }
+                catch (ConflictException e)
+                {
+                    _Logging.Warn(_Header + escalation.Id + " has no manager above agent " + escalation.TargetId + ": " + e.Message);
+                }
+            }
             if (String.IsNullOrEmpty(escalation.MandateId) && String.IsNullOrEmpty(escalation.ParentEscalationId)) return null;
             string? mandateId = escalation.MandateId;
             if (String.IsNullOrEmpty(mandateId) && !String.IsNullOrEmpty(escalation.ParentEscalationId))
@@ -688,21 +839,9 @@ namespace Garrison.Server.Runtime
             if (revision?.EscalationTargetKind == null || revision.EscalationTargetKind == EscalationTargetKindEnum.Manager) return null;
             if (revision.EscalationTargetKind == escalation.TargetKind && String.Equals(revision.EscalationTargetId, escalation.TargetId, StringComparison.Ordinal)) return null;
 
-            Escalation next = new Escalation();
-            next.TenantId = escalation.TenantId;
-            next.AgentId = escalation.AgentId;
-            next.AgentName = escalation.AgentName;
-            next.ParentEscalationId = escalation.Id;
+            Escalation next = ChildOf(escalation);
             next.TargetKind = revision.EscalationTargetKind.Value;
             next.TargetId = revision.EscalationTargetId;
-            next.Severity = escalation.Severity;
-            next.Mode = EscalationModeEnum.NonBlocking;
-            next.Question = escalation.Question;
-            next.Context = escalation.Context;
-            next.Options = escalation.Options.Select(o => new EscalationOption { Key = o.Key, Label = o.Label, Order = o.Order }).ToList();
-            next.DefaultAnswer = escalation.DefaultAnswer;
-            next.TimeoutSeconds = escalation.TimeoutSeconds;
-            next.TimeoutAction = escalation.TimeoutAction;
             try
             {
                 await ResolveTargetAsync(next, token).ConfigureAwait(false);
@@ -713,6 +852,24 @@ namespace Garrison.Server.Runtime
                 return null;
             }
             next.ExpiresUtc = _Now().AddSeconds(next.TimeoutSeconds);
+            return next;
+        }
+
+        private static Escalation ChildOf(Escalation escalation)
+        {
+            Escalation next = new Escalation();
+            next.TenantId = escalation.TenantId;
+            next.AgentId = escalation.AgentId;
+            next.AgentName = escalation.AgentName;
+            next.ParentEscalationId = escalation.Id;
+            next.Severity = escalation.Severity;
+            next.Mode = EscalationModeEnum.NonBlocking;
+            next.Question = escalation.Question;
+            next.Context = escalation.Context;
+            next.Options = escalation.Options.Select(o => new EscalationOption { Key = o.Key, Label = o.Label, Order = o.Order }).ToList();
+            next.DefaultAnswer = escalation.DefaultAnswer;
+            next.TimeoutSeconds = escalation.TimeoutSeconds;
+            next.TimeoutAction = escalation.TimeoutAction;
             return next;
         }
 

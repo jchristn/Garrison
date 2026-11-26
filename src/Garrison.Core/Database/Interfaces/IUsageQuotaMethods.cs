@@ -99,5 +99,16 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation.</param>
         /// <returns>Usage.</returns>
         Task<UsageQuotaUsage> ReadUsageAsync(UsageQuota quota, System.DateTime utc, CancellationToken token = default);
+
+        /// <summary>Known spend of a set of agents' runs completed in a window (AA7.6, scope OrgUnit), retaining deleted runs.
+        /// Runs whose cost is unknown count as 0.</summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agentIds">Agents whose runs count; an empty set spends 0.</param>
+        /// <param name="startUtc">Window start, inclusive.</param>
+        /// <param name="endUtc">Window end, exclusive.</param>
+        /// <param name="token">Cancellation.</param>
+        /// <returns>Spend in US dollars.</returns>
+        /// <exception cref="System.ArgumentNullException">Thrown when tenantId or agentIds is null.</exception>
+        Task<double> ReadAgentSpendAsync(string tenantId, IReadOnlyCollection<string> agentIds, System.DateTime startUtc, System.DateTime endUtc, CancellationToken token = default);
     }
 }
