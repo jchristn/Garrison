@@ -234,6 +234,8 @@ namespace Test.Shared.Suites
                 Assert.True(promote != null && promote.SubjectKind == PromotionSubjectKindEnum.Organization && promote.Outcome == PromotionOutcomeEnum.RolledBack, "The publish record is marked rolled back: " + Serializer.Serialize(promote));
                 Assert.True(rollback != null && rollback.Kind == PromotionKindEnum.Rollback && rollback.RollbackOfId == promote!.Id && rollback.OrganizationId == org.Id, "A rollback record with subject Organization: " + Serializer.Serialize(rollback));
                 Assert.Equal("AlreadyLive", await CodeAsync(() => service.RollbackAsync(admin, org, rolled.Id, null, token)).ConfigureAwait(false), "Rolling back to the live revision is refused");
+                PromotionRecord? firstPublish = await host.Server.Context.Database.Promotions.ReadLatestForOrgRevisionAsync(host.TenantId, first.Id, token).ConfigureAwait(false);
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/promotions/" + firstPublish!.Id + "/rollback", new { }, token).ConfigureAwait(false), 409, "UseOrganizationRollback", "The promotions route refuses an organization record");
             }
         }
 

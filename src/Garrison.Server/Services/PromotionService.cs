@@ -299,6 +299,7 @@ namespace Garrison.Server.Services
             if (note != null && note.Length > 2000) throw new ValidationException("The note is too long.", new Dictionary<string, string> { ["note"] = "At most 2000 characters." });
             PromotionRecord original = await _Server.Database.Promotions.ReadAsync(tenantId, promotionId ?? String.Empty, token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Promotion " + promotionId + " not found.");
+            if (original.SubjectKind == PromotionSubjectKindEnum.Organization) throw new ConflictException("UseOrganizationRollback", "Record " + original.Id + " belongs to an organization; roll organizations back with POST /organizations/{id}/rollback or garrison_rollback_organization.");
             if (original.Kind != PromotionKindEnum.Promote) throw new ConflictException("NotAPromotion", "Record " + original.Id + " is a rollback; only promotions can be rolled back.");
             if (!String.IsNullOrEmpty(original.RolledBackById)) throw new ConflictException("AlreadyRolledBack", "Promotion " + original.Id + " was already rolled back by " + original.RolledBackById + ".");
             if (!await authorizeTarget(original.TargetEnvironment).ConfigureAwait(false)) return null;
