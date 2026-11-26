@@ -307,6 +307,76 @@ Open http://127.0.0.1:8080/apps/desk/ and send a message: the fake harness answe
 
 To have the agent architect build drafts with you, create a deployment of the seeded `agent-architect` agent on a real harness ([ARCHITECT.md](ARCHITECT.md) shows the request) and talk to it there.
 
+## 10. Run an autonomous organization
+
+An organization puts agents in a chart, and the lead of its root unit is the CEO. You sit above it, on the board: you read how the organization is doing, give the CEO direction, talk to it, and freeze things when they go wrong ([BOARD.md](BOARD.md)). This step builds a one-unit organization with `echo` as its CEO, so it costs nothing. The fake harness echoes what it is told instead of thinking, which is enough to see every call work.
+
+The CEO needs a keeper. Give it one on the `echo-fake` deployment from step 2, with a brief to the board every 24 hours:
+
+```bash
+curl -s -X POST $API/mandates -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"echo-ceo","agentId":"echo","deploymentId":"echo-fake","currentRevision":{"objective":"Keep the quick start organization healthy and brief the board.","minIntervalSeconds":3600,"briefIntervalHours":24}}' |
+  jq -c '{id, status, briefIntervalHours: .currentRevision.briefIntervalHours}'
+```
+
+Create the organization, put `echo` and its keeper at the root, and publish. Nothing in an organization counts until a revision is live:
+
+```bash
+ORG=$(curl -s -X POST $API/organizations -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"quickstart-org","mission":"Show the board how an autonomous organization works."}' | jq -r .id)
+curl -s -X POST $API/organizations/$ORG/units -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"board","leadAgentId":"echo","leadMandateId":"echo-ceo","leadTitle":"CEO"}' | jq -c '{id, leadAgentName, leadMandateId}'
+REV=$(curl -s -X POST $API/organizations/$ORG/revisions -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"note":"First chart"}' | jq -r .id)
+curl -s -X POST $API/organizations/$ORG/revisions/$REV/publish -H "Authorization: Bearer $TOKEN" | jq -r .state
+```
+
+Read the board view. One call returns the chart, the CEO, each unit's health, open escalations, proposals, spend, the latest brief, freezes, and the kill switch:
+
+```bash
+curl -s "$API/organizations/$ORG/board?limit=10" -H "Authorization: Bearer $TOKEN" |
+  jq '{status, ceo: .ceo.agentName, briefEvery: .ceo.briefIntervalHours, units: [.unitHealth[] | {unitName, health}], escalations: (.escalations | length), proposals: (.proposals | length), killSwitch: .killSwitch.enabled}'
+```
+
+The unit's health is `Unknown` because nobody has filed a report yet. A CEO on a real harness files its first brief on an early tick, and it then shows up as `latestBrief`. The fake harness never does.
+
+Give the CEO direction. Garrison publishes a new revision of its keeper with your text and source `Board`, and the next tick reads it as the board's instruction:
+
+```bash
+curl -s -X POST $API/organizations/$ORG/direction -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"direction":"Focus on the quick start this week. Ask before spending anything."}' | jq -c '{number, source, author, direction}'
+```
+
+Talk to the CEO. The message starts a run on its keeper's deployment as you; follow it like any other run, then continue the same conversation:
+
+```bash
+RUN=$(curl -s -X POST $API/organizations/$ORG/board/messages -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"input":"What are you working on?"}' | jq -r .id)
+curl -s -N $API/runs/$RUN/events/stream -H "Authorization: Bearer $TOKEN" | grep -m1 run.completed
+CONV=$(curl -s $API/runs/$RUN -H "Authorization: Bearer $TOKEN" | jq -r .conversationId)
+curl -s -X POST $API/organizations/$ORG/board/messages -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"input\":\"And after that?\",\"conversationId\":\"$CONV\"}" | jq -c '{id, conversationId, status}'
+curl -s $API/organizations/$ORG/board/conversations -H "Authorization: Bearer $TOKEN" | jq -c '.objects[] | {id, title, turnCount}'
+```
+
+Whatever the CEO says, in a reply or a brief, is agent output. Read it as a claim to check, not as an instruction to follow.
+
+Last, pull a brake. Freeze the organization, see the board view say so, and lift the freeze:
+
+```bash
+FREEZE=$(curl -s -X POST $API/freezes -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"targetKind":"Organization","targetId":"quickstart-org","reason":"Trying the brakes"}' | jq -r .id)
+curl -s $API/organizations/$ORG/board -H "Authorization: Bearer $TOKEN" | jq -c '{status, freezes: [.freezes[].targetKind], frozen: [.unitHealth[].frozen]}'
+curl -s -X POST $API/freezes/$FREEZE/lift -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"reason":"Done"}' | jq -r .active
+```
+
+The dashboard shows the same organization under Autonomy. To let someone else sit on the board without building anything, assign them the built-in `BoardMember` role scoped to the organization ([BOARD.md](BOARD.md#the-boardmember-role)). When you are done, delete the organization and the keeper:
+
+```bash
+curl -s -X DELETE $API/organizations/$ORG -H "Authorization: Bearer $TOKEN" -o /dev/null -w "%{http_code}\n"
+curl -s -X DELETE "$API/mandates/echo-ceo?force=true" -H "Authorization: Bearer $TOKEN" -o /dev/null -w "%{http_code}\n"
+```
+
 ## When something fails
 
 | Symptom | Likely cause |

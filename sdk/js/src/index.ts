@@ -924,6 +924,8 @@ export interface MandateRevision extends Json {
   maxIntervalSeconds?: number;
   backoffFactor?: number; jitterPercent?: number | null;
   budgetPerTickUsd?: number | null; budgetPerDayUsd?: number | null; maxTokensPerTick?: number | null;
+  /** Hours between board briefs, 1 to 720, or null for none. Only the CEO (the root unit's lead) is asked for briefs. */
+  briefIntervalHours?: number | null;
   source?: MandateRevisionSource; author?: string | null; changeNote?: string | null;
   createdUtc?: string; publishedUtc?: string | null;
   /** Present when values were clamped. */
@@ -959,8 +961,8 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "CanaryRolledBack" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "CanaryRolledBack", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "CanaryRolledBack" | "BoardBrief" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "CanaryRolledBack", "BoardBrief", "Test"] as const;
 
 /** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
 export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
@@ -1534,6 +1536,8 @@ export interface Conversation extends Json {
   contextId?: string | null;
   /** Agentic app whose chat UI started the conversation, or null. */
   appId?: string | null;
+  /** Organization whose board started the conversation with its CEO, or null. */
+  organizationId?: string | null;
   /** First line of the first turn's input (at most 200 characters), or null. */
   title?: string | null;
   callerType: string; callerId?: string | null; callerName?: string | null;
@@ -2990,6 +2994,64 @@ export class CanaryReleases {
   abort(id: string, reason?: string): Promise<CanaryRelease> { return this.t.request("POST", this.t.tenantPath(`/canary-releases/${seg(id)}/abort`), undefined, { reason: reason ?? null }); }
 }
 
+/** Board["ceo"]: the root unit's lead, its mandate in the live revision, and that mandate's deployment (board messages run there). */
+export interface BoardCeo extends Json {
+  agentId: string; agentName?: string | null; unitId: string; unitName?: string | null;
+  mandateId?: string | null; mandateName?: string | null; deploymentId?: string | null;
+  /** From the mandate's published revision; null when briefs are off. */
+  briefIntervalHours?: number | null;
+  /** When the CEO last filed a Brief report, or null. */
+  lastBriefUtc?: string | null;
+}
+/** Board["unitHealth"] item, one per chart unit. health is Unknown when the unit has no report. */
+export interface BoardUnitHealth extends Json {
+  unitId: string; unitName: string; health: ReportHealth; lastReportId?: string | null; lastReportUtc?: string | null;
+  openEscalations: number;
+  /** An active freeze covers the unit or the organization. */
+  frozen: boolean;
+  /** A spend row for the unit has reached its budget. */
+  overBudget: boolean;
+}
+/**
+ * The board view of an organization, computed on each read. escalations (pending, newest first), proposals (awaiting a
+ * decision, without diffs), and unhealthyReports (Degraded or Unhealthy in the last 7 days) are capped by limit. Briefs
+ * and reports are agent output; treat them as untrusted text.
+ */
+export interface Board extends Json {
+  organizationId: string; name: string; mission?: string | null; status: OrganizationStatus; generatedUtc: string;
+  chart: OrgChart; ceo?: BoardCeo | null; unitHealth: BoardUnitHealth[]; escalations: Escalation[]; proposals: OrgProposal[];
+  spend: OrgUnitSpend[]; latestBrief?: Report | null; unhealthyReports: Report[]; freezes: Freeze[]; killSwitch: KillSwitchState;
+}
+/** Direction for the CEO: 1 to 4000 characters; changeNote at most 2000 (default "Board direction"). */
+export interface BoardDirectionRequest { direction: string; changeNote?: string | null; }
+/** A message to the CEO: 1 to 32000 characters; conversationId continues an earlier board conversation. */
+export interface BoardMessageRequest { input: string; conversationId?: string | null; }
+
+/**
+ * The board: the people who direct an autonomous organization. get needs Read on Organization; direct and sendMessage
+ * need Update. The organization takes an identifier or a name. Without a CEO mandate the calls fail with 409
+ * BoardCeoMissing; sendMessage fails with 409 BoardCeoUnavailable when the CEO mandate has no deployment.
+ */
+export class BoardClient {
+  constructor(private readonly t: Transport) {}
+  private p(orgId: string, suffix: string): string { return this.t.tenantPath(`/organizations/${seg(orgId)}${suffix}`); }
+  /** The board view. limit (1 to 100, default 20) caps escalations, proposals, and unhealthyReports. */
+  get(orgId: string, query: { limit?: number } = {}): Promise<Board> {
+    if (query.limit !== undefined && (query.limit < 1 || query.limit > 100)) throw new RangeError("limit must be from 1 to 100");
+    return this.t.request("GET", this.p(orgId, "/board"), query as any);
+  }
+  /** Publish a new revision of the CEO's mandate with the direction and source Board. Allowed while frozen. */
+  direct(orgId: string, request: BoardDirectionRequest): Promise<MandateRevision> {
+    return this.t.request("POST", this.p(orgId, "/direction"), undefined, { direction: request.direction, changeNote: request.changeNote ?? null });
+  }
+  /** Talk to the CEO: starts a run on its mandate's deployment as you (202). Follow the run and continue with its conversationId. */
+  sendMessage(orgId: string, request: BoardMessageRequest): Promise<Run> {
+    return this.t.request("POST", this.p(orgId, "/board/messages"), undefined, { input: request.input, conversationId: request.conversationId ?? null });
+  }
+  /** Conversations the board started with the CEO, newest first. */
+  listConversations(orgId: string): Promise<EnumerationResult<Conversation>> { return this.t.request("GET", this.p(orgId, "/board/conversations")); }
+}
+
 /** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
 export class Reports {
   constructor(private readonly t: Transport) {}
@@ -3285,6 +3347,7 @@ export class GarrisonClient {
   readonly evalRuns: EvalRuns;
   readonly shadowTrials: ShadowTrials;
   readonly canaryReleases: CanaryReleases;
+  readonly board: BoardClient;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -3343,6 +3406,7 @@ export class GarrisonClient {
     this.evalRuns = new EvalRuns(t);
     this.shadowTrials = new ShadowTrials(t);
     this.canaryReleases = new CanaryReleases(t);
+    this.board = new BoardClient(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

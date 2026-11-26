@@ -108,6 +108,12 @@ namespace Garrison.Sdk.Models
         public string? AppId { get; set; } = null;
 
         /// <summary>
+        /// Organization whose board started the conversation by talking to its CEO (AA10), or null for a conversation
+        /// started any other way.
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
         /// Short title: the first line of the first turn's input, at most 200 characters. Null until the first turn.
         /// </summary>
         public string? Title { get; set; } = null;

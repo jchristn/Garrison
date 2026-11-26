@@ -25411,6 +25411,587 @@
       ]
     },
     {
+      "name": "Board",
+      "description": "The board (AA10): the people who direct an autonomous organization. One read returns the board view, direction publishes a Board revision of the CEO's mandate, and messages start conversations with the CEO. Briefs and CEO replies are agent output and untrusted. This folder makes its own organization and CEO mandate and deletes both at the end.",
+      "item": [
+        {
+          "name": "Create the CEO mandate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates"
+              ]
+            },
+            "description": "Creates a keeper for the Agents folder's agent on the Deployments folder's deployment, with briefIntervalHours 24, so the agent can lead the board organization's root unit as its CEO. briefIntervalHours (1 to 720, null for none) asks the CEO for a Brief report to the board that often.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-ceo-{{suffix}}\",\n  \"agentId\": \"{{agentId}}\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"currentRevision\": {\n    \"objective\": \"Run the Postman organization and brief the board.\",\n    \"minIntervalSeconds\": 3600,\n    \"briefIntervalHours\": 24\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('briefIntervalHours round-trips', function () { pm.expect(json.id).to.match(/^mdt_/); pm.expect(json.currentRevision.briefIntervalHours).to.eql(24); });",
+                  "if (json.id) pm.collectionVariables.set('boardMandateId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create the board organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations"
+              ]
+            },
+            "description": "Creates an organization for the board requests. The Organizations folder's organization has a CEO without a mandate, so this folder makes its own.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-board-{{suffix}}\",\n  \"mission\": \"Exercise the board from Postman.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) { pm.collectionVariables.set('boardOrgId', json.id); pm.collectionVariables.set('boardOrgName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add the CEO unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "units"
+              ]
+            },
+            "description": "Adds the root unit, led by the agent with the CEO mandate. The lead of the root unit is the CEO the board talks to.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"board\",\n  \"leadAgentId\": \"{{agentId}}\",\n  \"leadMandateId\": \"{{boardMandateId}}\",\n  \"leadTitle\": \"CEO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('the root, led by the CEO mandate', function () { pm.expect(json.parentUnitId == null).to.eql(true); pm.expect(json.leadMandateId).to.eql(pm.collectionVariables.get('boardMandateId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft the board revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "revisions"
+              ]
+            },
+            "description": "Snapshots the working tree, pinning the CEO mandate's current revision.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Board chart\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('boardRevisionId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish the board revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/revisions/{{boardRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "revisions",
+                "{{boardRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Makes the chart live. The board view reads the live revision."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the board",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/board?limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "board"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "The board view in one call: the live chart, the CEO, health per unit, pending escalations, proposals awaiting a decision (without diffs), spend, the latest brief, unhealthy reports from the last 7 days, active freezes, and the tenant kill switch. limit (1 to 100, default 20) caps the escalation, proposal, and report lists. Needs Read on Organization."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the aggregate has every part', function () { pm.expect(json.organizationId).to.eql(pm.collectionVariables.get('boardOrgId')); pm.expect(json.generatedUtc).to.be.a('string'); pm.expect(json.chart).to.be.an('object'); pm.expect(json.unitHealth).to.be.an('array').with.lengthOf(1); ['escalations', 'proposals', 'spend', 'unhealthyReports', 'freezes'].forEach(function (k) { pm.expect(json[k], k).to.be.an('array'); }); pm.expect(json.killSwitch).to.be.an('object'); });",
+                  "pm.test('the CEO and its mandate', function () { pm.expect(json.ceo.agentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(json.ceo.mandateId).to.eql(pm.collectionVariables.get('boardMandateId')); pm.expect(json.ceo.deploymentId).to.eql(pm.collectionVariables.get('deploymentId')); pm.expect(json.ceo.briefIntervalHours).to.eql(24); });",
+                  "pm.test('a unit without reports has Unknown health', function () { var u = json.unitHealth[0]; pm.expect(u.health).to.eql('Unknown'); pm.expect(u.openEscalations).to.be.a('number'); pm.expect(u.frozen).to.be.a('boolean'); pm.expect(u.overBudget).to.be.a('boolean'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Give the CEO direction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/direction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "direction"
+              ]
+            },
+            "description": "Publishes a new revision of the CEO's mandate that copies the current one with direction set, source Board, and the caller as author. The CEO's next tick reads it as the board's instruction. Allowed while the organization is frozen. Audited as BoardDirectionGiven. 409 BoardCeoMissing when the root unit has no lead or the lead has no mandate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direction\": \"Hold spend flat until the Postman review is done.\",\n  \"changeNote\": \"Postman direction\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a published Board revision with the direction', function () { pm.expect(json.mandateId).to.eql(pm.collectionVariables.get('boardMandateId')); pm.expect(json.direction).to.eql('Hold spend flat until the Postman review is done.'); pm.expect(json.source).to.eql('Board'); pm.expect(json.state).to.eql('Published'); pm.expect(json.changeNote).to.eql('Postman direction'); pm.expect(json.briefIntervalHours).to.eql(24); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Empty direction is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/direction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "direction"
+              ]
+            },
+            "description": "direction is 1 to 4000 characters: 400 ValidationFailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direction\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Talk to the CEO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/board/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "board",
+                "messages"
+              ]
+            },
+            "description": "Starts a run on the CEO mandate's deployment as the caller, framed so the CEO knows the board is speaking, and answers 202 with the run. Follow it with the run stream and continue with its conversationId. 409 BoardCeoUnavailable when the CEO mandate has no deployment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"What is the state of the organization?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 202, or 409 without a CEO deployment', function () { pm.expect(pm.response.code).to.be.oneOf([202, 409]); });",
+                  "if (pm.response.code === 202) { pm.test('a run in a new conversation', function () { pm.expect(json.id).to.match(/^run_/); pm.expect(json.conversationId).to.be.a('string'); }); pm.collectionVariables.set('boardRunId', json.id); pm.collectionVariables.set('boardConversationId', json.conversationId); } else { pm.collectionVariables.set('boardConversationId', ''); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List board conversations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}/board/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}",
+                "board",
+                "conversations"
+              ]
+            },
+            "description": "Conversations started through the board message route for this organization, newest first. Each carries organizationId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('board conversations of this organization', function () { pm.expect(json.objects).to.be.an('array'); json.objects.forEach(function (c) { pm.expect(c.organizationId).to.eql(pm.collectionVariables.get('boardOrgId')); }); var id = pm.collectionVariables.get('boardConversationId'); if (id) pm.expect(json.objects.map(function (c) { return c.id; })).to.include(id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the board of an unknown organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/org_postman_missing/board",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "org_postman_missing",
+                "board"
+              ]
+            },
+            "description": "An unknown organization, or one in another tenant, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the board organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}"
+              ]
+            },
+            "description": "Deletes the board organization."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the CEO mandate",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{boardMandateId}}?force=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{boardMandateId}}"
+              ],
+              "query": [
+                {
+                  "key": "force",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Deletes the CEO mandate with its revisions, including the Board revision."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -27040,6 +27621,40 @@
           ]
         },
         {
+          "name": "Delete board organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{boardOrgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{boardOrgId}}"
+              ]
+            },
+            "description": "Deletes the Board folder's organization if the folder stopped early; 404 when the folder already deleted it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('deleted, or already gone', function () { pm.expect(pm.response.code).to.be.oneOf([204, 404]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete org member agent",
           "request": {
             "method": "DELETE",
@@ -27108,6 +27723,46 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete CEO mandate",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{boardMandateId}}?force=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{boardMandateId}}"
+              ],
+              "query": [
+                {
+                  "key": "force",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Deletes the Board folder's CEO mandate if the folder stopped early; 404 when the folder already deleted it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('deleted, or already gone', function () { pm.expect(pm.response.code).to.be.oneOf([204, 404]); });"
                 ]
               }
             }
@@ -29200,6 +29855,30 @@
     },
     {
       "key": "candidateInitialWeight",
+      "value": ""
+    },
+    {
+      "key": "boardMandateId",
+      "value": ""
+    },
+    {
+      "key": "boardOrgId",
+      "value": ""
+    },
+    {
+      "key": "boardOrgName",
+      "value": ""
+    },
+    {
+      "key": "boardRevisionId",
+      "value": ""
+    },
+    {
+      "key": "boardRunId",
+      "value": ""
+    },
+    {
+      "key": "boardConversationId",
       "value": ""
     }
   ]

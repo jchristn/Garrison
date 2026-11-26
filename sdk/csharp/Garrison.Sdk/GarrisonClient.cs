@@ -234,6 +234,11 @@ namespace Garrison.Sdk
         public CanaryReleasesClient CanaryReleases { get; }
 
         /// <summary>
+        /// Board (AA10): the board view of an organization, direction to its CEO, and conversations with the CEO.
+        /// </summary>
+        public BoardClient Board { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -370,6 +375,7 @@ namespace Garrison.Sdk
             EvalRuns = new EvalRunsClient(Transport);
             ShadowTrials = new ShadowTrialsClient(Transport);
             CanaryReleases = new CanaryReleasesClient(Transport);
+            Board = new BoardClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

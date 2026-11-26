@@ -55,6 +55,7 @@ const (
 	NotificationEventReportUnhealthy    = "ReportUnhealthy"
 	NotificationEventOrgProposalApplied = "OrgProposalApplied"
 	NotificationEventCanaryRolledBack   = "CanaryRolledBack"
+	NotificationEventBoardBrief         = "BoardBrief"
 	NotificationEventTest               = "Test"
 )
 

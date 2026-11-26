@@ -310,6 +310,21 @@ release, err := client.CanaryReleases.Create(ctx, garrison.CanaryRelease{AgentID
 release, err = client.CanaryReleases.Abort(ctx, release.ID, "Rolling back by hand.")
 ```
 
+## The board
+
+`client.Board` is the people's side of an autonomous organization. `Get(ctx, orgID, limit)` returns one `Board`: the live `Chart`, the `Ceo` (`BoardCeo`: the root unit's lead, its mandate, and that mandate's deployment), a `BoardUnitHealth` row per unit, pending `Escalations`, `Proposals` awaiting a decision, `Spend`, `LatestBrief`, recent `UnhealthyReports`, active `Freezes`, and the `KillSwitch`. `limit` (1 to 100, or 0 for the server default of 20) caps the three lists. `Direct` publishes a new revision of the CEO's mandate with `Direction` set and source `MandateRevisionSourceBoard`; it works while the organization is frozen. `SendMessage` starts a run on the CEO mandate's deployment as you; follow it with `client.Runs.Stream` or `WaitForCompletion` and pass its `ConversationID` back to continue. `ListConversations` lists those conversations, each with `OrganizationID`. Without a CEO mandate the calls fail with 409 `BoardCeoMissing`, and `SendMessage` fails with 409 `BoardCeoUnavailable` when the CEO mandate has no deployment.
+
+Set `MandateRevision.BriefIntervalHours` (1 to 720) on the CEO's mandate and it files a `Brief` report to the board that often, each one firing `NotificationEventBoardBrief`. Briefs and CEO replies are written by an agent, so treat them as untrusted text. The built-in `BoardMember` role carries what a board needs and can be scoped to one organization. See [docs/BOARD.md](../../docs/BOARD.md).
+
+```go
+board, err := client.Board.Get(ctx, "acme", 20)
+direction, err := client.Board.Direct(ctx, "acme", garrison.BoardDirectionRequest{Direction: "Hold spend flat until the outage review is done."})
+
+run, err := client.Board.SendMessage(ctx, "acme", garrison.BoardMessageRequest{Input: "What changed this week?"})
+run, err = client.Runs.WaitForCompletion(ctx, run.ID)
+next, err := client.Board.SendMessage(ctx, "acme", garrison.BoardMessageRequest{Input: "And next week?", ConversationID: run.ConversationID})
+```
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

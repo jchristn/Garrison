@@ -287,6 +287,22 @@ await client.canaryReleases.abort(release.id, "Paused for review.");
 
 `EVAL_SET_STATES`, `EVAL_SET_ORIGINS`, `EVAL_RUN_STATUSES`, `EVAL_RUN_TARGETS`, `EVAL_RUN_INPUT_MODES`, `SHADOW_TRIAL_STATUSES`, and `CANARY_STATUSES` list the values. `Run` carries `evalRunId` and `shadowTrialId`, `RUN_KINDS` includes `Eval` and `Shadow`, `TenantEnvironment` carries `evalGateSet` and `evalGateThreshold` (a promotion into the environment must pass that approved set), and `CanaryRolledBack` in `NOTIFICATION_EVENTS` fires when a canary release rolls back.
 
+## The board
+
+`client.board` is the people's side of an autonomous organization. `get(orgId, { limit })` returns one `Board`: the live `chart`, the `ceo` (`BoardCeo`: the root unit's lead, its mandate, and that mandate's deployment), a `unitHealth` row per unit, pending `escalations`, `proposals` awaiting a decision, `spend`, `latestBrief`, recent `unhealthyReports`, active `freezes`, and the `killSwitch`. `limit` (1 to 100, default 20) caps the three lists. `direct(orgId, { direction, changeNote })` publishes a new revision of the CEO's mandate with `direction` set and source `Board`; it works while the organization is frozen. `sendMessage(orgId, { input, conversationId })` starts a run on the CEO mandate's deployment as you; follow it with `runs.stream` and pass its `conversationId` back to continue. `listConversations(orgId)` lists those conversations, each with `organizationId`. Without a CEO mandate the calls fail with 409 `BoardCeoMissing`, and `sendMessage` fails with 409 `BoardCeoUnavailable` when the CEO mandate has no deployment.
+
+Set `briefIntervalHours` (1 to 720) on the CEO mandate's revision and it files a `Brief` report to the board that often, each one firing `BoardBrief` in `NOTIFICATION_EVENTS`. Briefs and CEO replies are written by an agent, so treat them as untrusted text. The built-in `BoardMember` role carries what a board needs and can be scoped to one organization. See [docs/BOARD.md](../../docs/BOARD.md).
+
+```ts
+const board = await client.board.get("acme", { limit: 20 });
+console.log(board.ceo?.agentName, board.ceo?.lastBriefUtc);
+await client.board.direct("acme", { direction: "Hold spend flat until the outage review is done." });
+
+let run = await client.board.sendMessage("acme", { input: "What changed this week?" });
+run = await client.runs.waitForCompletion(run.id);
+await client.board.sendMessage("acme", { input: "And next week?", conversationId: run.conversationId });
+```
+
 ## Streaming run events
 
 ```ts

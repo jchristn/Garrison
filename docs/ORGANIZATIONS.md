@@ -1,6 +1,6 @@
 # Organizations
 
-An organization gives a group of agents a shape: who leads whom, who may talk to whom, what they share, and how much they may spend. It is a tree of units. Each unit has a lead agent, members, and optionally an app, peer lines to other units, and budgets. The lead of the root unit is the organization's CEO, and above the CEO sits the board: the people who run the organization.
+An organization gives a group of agents a shape: who leads whom, who may talk to whom, what they share, and how much they may spend. It is a tree of units. Each unit has a lead agent, members, and optionally an app, peer lines to other units, and budgets. The lead of the root unit is the organization's CEO, and above the CEO sits the board: the people who run the organization ([BOARD.md](BOARD.md)).
 
 Escalations, reports, memory, messaging, freezes, and budgets all read the same structure, so an agent's manager is the same agent whichever feature asks. Nothing in an organization takes effect until a person publishes a revision of it.
 

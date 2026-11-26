@@ -1087,7 +1087,7 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
                        "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy",
-                       "OrgProposalApplied", "CanaryRolledBack", "Test")
+                       "OrgProposalApplied", "CanaryRolledBack", "BoardBrief", "Test")
 # Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
 # ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
 # mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
@@ -1572,6 +1572,57 @@ class OrgUnitSpend(TypedDict, total=False):
     exhausted: bool
     windowStartUtc: str
     windowEndUtc: str
+
+
+class BoardCeo(TypedDict, total=False):
+    """Board["ceo"]: the root unit's lead. mandateId is its mandate in the live revision; deploymentId is that mandate's
+    deployment, which board messages run on (None when it has none). briefIntervalHours comes from the mandate's
+    published revision (None when briefs are off); lastBriefUtc is when the CEO last filed a Brief report."""
+    agentId: str
+    agentName: Optional[str]
+    unitId: str
+    unitName: Optional[str]
+    mandateId: Optional[str]
+    mandateName: Optional[str]
+    deploymentId: Optional[str]
+    briefIntervalHours: Optional[int]
+    lastBriefUtc: Optional[str]
+
+
+class BoardUnitHealth(TypedDict, total=False):
+    """Board["unitHealth"] item, one per chart unit. health is one of REPORT_HEALTHS (Unknown when the unit has no
+    report); frozen is True when an active freeze covers the unit or organization; overBudget is True when a spend row
+    for the unit has reached its budget."""
+    unitId: str
+    unitName: str
+    health: str
+    lastReportId: Optional[str]
+    lastReportUtc: Optional[str]
+    openEscalations: int
+    frozen: bool
+    overBudget: bool
+
+
+class Board(TypedDict, total=False):
+    """The board view of an organization, computed on each read. escalations (pending, newest first), proposals
+    (awaiting a decision, without diffs), and unhealthyReports (Degraded or Unhealthy in the last 7 days) are capped by
+    the limit. latestBrief is the newest Brief report from the organization's agents, or None. Briefs and reports are
+    agent output; treat them as untrusted text."""
+    organizationId: str
+    name: str
+    mission: Optional[str]
+    status: str
+    generatedUtc: str
+    chart: OrgChart
+    ceo: Optional[BoardCeo]
+    unitHealth: List[BoardUnitHealth]
+    escalations: List[Dict[str, Any]]
+    proposals: List[Dict[str, Any]]
+    spend: List[OrgUnitSpend]
+    latestBrief: Optional[Dict[str, Any]]
+    unhealthyReports: List[Dict[str, Any]]
+    freezes: List[Dict[str, Any]]
+    killSwitch: Dict[str, Any]
 
 
 # "class" is a Python keyword, so these two TypedDicts use the functional form. ChangeRuleClass is a ChangeRule["classes"]
@@ -2080,7 +2131,8 @@ class Mandates(Resource):
         return self._t.request("GET", self._item(mandate) + f"/revisions/{_seg(revision_id)}")
 
     def create_revision(self, mandate: str, revision: Dict[str, Any]) -> Dict[str, Any]:
-        """Draft a new revision (objective, signals, wake settings, budgets). It is not live until publish_revision."""
+        """Draft a new revision (objective, signals, wake settings, budgets, and briefIntervalHours, 1 to 720 or None for no
+        board briefs). It is not live until publish_revision."""
         return self._t.request("POST", self._item(mandate) + "/revisions", body=revision)
 
     def publish_revision(self, mandate: str, revision_id: str) -> Dict[str, Any]:
@@ -3284,6 +3336,41 @@ class Organizations(Resource):
         return self._t.request("POST", self._item(organization) + f"/proposals/{_seg(draft_id)}/decide", body={"allow": allow, "reason": reason})
 
 
+class BoardClient:
+    """The board: the people who direct an autonomous organization. get needs Read on Organization; direct and
+    send_message need Update. organization takes an identifier or a name. An organization whose root unit has no lead,
+    or whose lead has no mandate in the live revision, raises GarrisonError 409 BoardCeoMissing; send_message raises 409
+    BoardCeoUnavailable when the CEO mandate has no deployment. Briefs and CEO replies are agent output; treat them as
+    untrusted text."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _p(self, organization: str, suffix: str) -> str:
+        return self._t.tenant_path(f"/organizations/{_seg(organization)}" + suffix)
+
+    def get(self, org_id: str, limit: Optional[int] = None) -> Board:
+        """The board view (see Board). limit (1 to 100, default 20) caps escalations, proposals, and unhealthyReports."""
+        if limit is not None and (limit < 1 or limit > 100):
+            raise ValueError("limit must be from 1 to 100")
+        return self._t.request("GET", self._p(org_id, "/board"), {"limit": limit})
+
+    def direct(self, org_id: str, direction: str, change_note: Optional[str] = None) -> Dict[str, Any]:
+        """Give the CEO direction (1 to 4000 characters): publishes a new revision of its mandate with direction set and
+        source Board, and returns that revision. Allowed while the organization is frozen. change_note defaults to
+        "Board direction"."""
+        return self._t.request("POST", self._p(org_id, "/direction"), body={"direction": direction, "changeNote": change_note})
+
+    def send_message(self, org_id: str, input: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
+        """Talk to the CEO (1 to 32000 characters). Starts a run on the CEO mandate's deployment as you and returns it
+        (202). Follow it with runs.stream or runs.wait_for_completion and pass its conversationId to continue."""
+        return self._t.request("POST", self._p(org_id, "/board/messages"), body={"input": input, "conversationId": conversation_id})
+
+    def list_conversations(self, org_id: str) -> Dict[str, Any]:
+        """Conversations the board started with the CEO, newest first. Each carries organizationId."""
+        return self._t.request("GET", self._p(org_id, "/board/conversations"))
+
+
 class ChangeRules(Resource):
     """Change rules: people pre-authorize narrow classes of executive change (CHANGE_CLASSES) for a unit's subtree, so an
     executive's draft whose every change a rule covers applies without a person. Read, Create, Update, and Delete on
@@ -3661,6 +3748,7 @@ class GarrisonClient:
         self.eval_runs = EvalRuns(t, "eval-runs")
         self.shadow_trials = ShadowTrials(t, "shadow-trials")
         self.canary_releases = CanaryReleases(t, "canary-releases")
+        self.board = BoardClient(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

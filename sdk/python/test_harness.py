@@ -919,6 +919,56 @@ def t_change_rules():
             client.organizations.delete(org["id"])
 
 
+def t_board():
+    # The board reads the organization in one call, directs the CEO through its mandate, and talks to it.
+    org = None
+    mandate = None
+    try:
+        mandate = client.mandates.create({"name": f"sdk-py-ceo-{SUFFIX}", "agentId": state["agent"], "deploymentId": state["deployment"],
+                                          "currentRevision": {"objective": "Run the SDK organization.", "minIntervalSeconds": 3600, "briefIntervalHours": 24}})
+        require(mandate["currentRevision"].get("briefIntervalHours") == 24, f"briefIntervalHours round-trips: {mandate['currentRevision']}")
+        org = client.organizations.create({"name": f"sdk-py-board-{SUFFIX}", "mission": "Exercise the Python SDK board."})
+        client.organizations.create_unit(org["id"], {"name": "board", "leadAgentId": state["agent"], "leadMandateId": mandate["id"], "leadTitle": "CEO"})
+        first = client.organizations.create_revision(org["id"], "First")
+        client.organizations.publish(org["id"], first["id"])
+
+        board = client.board.get(org["id"], limit=10)
+        require(board["organizationId"] == org["id"] and "chart" in board and len(board["unitHealth"]) == 1 and "killSwitch" in board
+                and isinstance(board["escalations"], list) and isinstance(board["proposals"], list) and isinstance(board["freezes"], list), f"read the board: {board}")
+        ceo = board.get("ceo") or {}
+        require(ceo.get("agentId") == state["agent"] and ceo.get("mandateId") == mandate["id"], f"the board names the CEO: {ceo}")
+
+        directed = client.board.direct(org["name"], "Focus on reliability this week.", change_note="SDK harness direction")
+        require(directed["mandateId"] == mandate["id"] and directed["direction"] == "Focus on reliability this week." and directed["source"] == "Board"
+                and directed["state"] == "Published", f"give the CEO direction: {directed}")
+        try:
+            client.board.direct(org["id"], "")
+            require(False, "an empty direction is refused")
+        except GarrisonError as e:
+            require(e.status_code == 400, f"status {e.status_code}")
+
+        try:
+            run = client.board.send_message(org["id"], "What is the state of the organization?")
+            require(run["id"].startswith("run_") and run.get("conversationId"), f"message the CEO: {run}")
+        except GarrisonError as e:
+            if e.status_code != 409:
+                raise
+            print(f"  (board message skipped: {e})")
+
+        conversations = client.board.list_conversations(org["id"])
+        require(all(c.get("organizationId") == org["id"] for c in conversations["objects"]), f"list board conversations: {conversations}")
+        try:
+            client.board.get("org_sdk_missing")
+            require(False, "an unknown organization has no board")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"status {e.status_code}")
+    finally:
+        if org is not None:
+            client.organizations.delete(org["id"])
+        if mandate is not None:
+            client.mandates.delete(mandate["id"], force=True)
+
+
 def t_evaluation():
     # An eval set is versioned and approved by a person, an eval run grades a deployment case by case, a shadow trial
     # copies a deployment's runs to a candidate, and a canary release moves traffic to it in steps.
@@ -1561,7 +1611,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("board", t_board), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

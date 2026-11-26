@@ -907,9 +907,9 @@ Touches: roles, aggregate route, mandates, conversations, notifications, dashboa
 - [ ] AA10.6 Talk to the CEO: a board conversation panel backed by an ordinary conversation with the CEO deployment and `builtin/board-conversation`.  Accept: e2e sends a message and sees the reply stream.
 - [ ] AA10.7 Dashboard `BoardView`: chart with health, attention column (escalations, unhealthy reports, cap hits), proposals, spend chart, brief, brakes panel (freeze unit or org, rollback, kill switch) with confirms; responsive at 390 pixels; i18n; a11y pass; tests; QA.  Accept: e2e covers every panel's empty and populated states; QA recorded.
 - [ ] AA10.8 Guided tour steps for Autonomy and a setup wizard path "create your first keeper".  Accept: tour replays; wizard creates a keeper on the fake harness.
-- [ ] AA10.9 SDK board client (four).  Accept: harnesses pass.
-- [ ] AA10.10 Postman folder Board.  Accept: Newman passes.
-- [ ] AA10.11 Docs `docs/BOARD.md` and a "Run an autonomous organization" section in `docs/QUICKSTART.md`.  Accept: docs check; quickstart steps run as written.
+- [ ] AA10.9 SDK board client (four).  Accept: harnesses pass.  | claude 2026-11-26 in progress: board clients in C#, Python, JS/TS, and Go (Go: board.go) with Board, BoardCeo, BoardUnitHealth, BoardDirectionRequest, BoardMessageRequest, MandateRevision briefIntervalHours, Conversation organizationId, and BoardBrief; harness board checks and README sections written; all four build clean (dotnet 0 warnings, py_compile, tsc, go build and vet). Harness and Newman pending server
+- [ ] AA10.10 Postman folder Board.  Accept: Newman passes.  | claude 2026-11-26 in progress: Board folder (13 requests) after Canary releases covering every contract route with status and shape tests, plus two Cleanup entries; collection JSON validates. Harness and Newman pending server
+- [ ] AA10.11 Docs `docs/BOARD.md` and a "Run an autonomous organization" section in `docs/QUICKSTART.md`.  Accept: docs check; quickstart steps run as written.  | claude 2026-11-26 in progress: docs/BOARD.md written, QUICKSTART.md step 10 "Run an autonomous organization" on the fake harness, docs index and ORGANIZATIONS.md link it; em-dash check passes. Harness and Newman pending server (quickstart steps not yet run against a live server)
 - [ ] AA10.12 `BoardSuite` registered (aggregate correctness, direction, briefs, permissions).  Accept: suite passes on both providers.
 
 ### Phase AA11: Performance signals and org-scale brakes

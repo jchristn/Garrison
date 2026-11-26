@@ -285,6 +285,22 @@ client.canary_releases.abort(release["id"], reason="Holding for review")  # rest
 
 `EVAL_SET_STATES`, `EVAL_SET_ORIGINS`, `EVAL_RUN_STATUSES`, `EVAL_RUN_INPUT_MODES`, `SHADOW_TRIAL_STATUSES`, and `CANARY_STATUSES` list the values, and `EVALUATION_RESOURCE_TYPES` names the resource types for permissions. A tenant environment's `evalGateSet` and `evalGateThreshold` require a passing eval run of that set before a promotion into the environment.
 
+## The board
+
+`client.board` is the people's side of an autonomous organization. `get` returns one `Board` dict: the live `chart`, the `ceo` (`BoardCeo`: the root unit's lead, its mandate, and that mandate's deployment), a `unitHealth` row per unit, pending `escalations`, `proposals` awaiting a decision, `spend`, `latestBrief`, recent `unhealthyReports`, active `freezes`, and the `killSwitch`. `limit` (1 to 100, default 20) caps the three lists. `direct` publishes a new revision of the CEO's mandate with `direction` set and source `Board`, and works while the organization is frozen. `send_message` starts a run on the CEO mandate's deployment as you; follow it with `runs.stream` and pass its `conversationId` back to continue. `list_conversations` lists those conversations, each with `organizationId`. Without a CEO mandate the calls raise 409 `BoardCeoMissing`; a CEO mandate without a deployment makes `send_message` raise 409 `BoardCeoUnavailable`.
+
+Put `briefIntervalHours` (1 to 720) on the CEO mandate's revision and it files a `Brief` report to the board that often, each one firing `BoardBrief` (in `NOTIFICATION_EVENTS`). Briefs and CEO replies are written by an agent, so treat them as untrusted text. The built-in `BoardMember` role has what a board needs and can be scoped to one organization. See [docs/BOARD.md](../../docs/BOARD.md).
+
+```python
+board = client.board.get("acme", limit=20)
+print(board["ceo"]["agentName"], board["ceo"].get("lastBriefUtc"))
+client.board.direct("acme", "Hold spend flat until the outage review is done.")
+
+run = client.board.send_message("acme", "What changed this week?")
+run = client.runs.wait_for_completion(run["id"])
+client.board.send_message("acme", "And next week?", conversation_id=run["conversationId"])
+```
+
 ## Streaming run events
 
 ```python

@@ -330,6 +330,22 @@ release = await client.CanaryReleases.CreateAsync(release);
 await client.CanaryReleases.AbortAsync(release.Id, "Rolling back by hand.");
 ```
 
+## The board
+
+`Board` is the people's side of an autonomous organization. `GetAsync` returns one `Board` aggregate: the live chart, the CEO (`BoardCeo`, the root unit's lead and its mandate), a `BoardUnitHealth` row per unit, pending escalations, proposals awaiting a decision, spend, the latest brief, recent unhealthy reports, active freezes, and the kill switch. The optional `limit` (1 to 100, default 20) caps the escalation, proposal, and report lists. `DirectAsync` publishes a new revision of the CEO's mandate with `Direction` set and `MandateRevisionSourceEnum.Board`; it works while the organization is frozen. `SendMessageAsync` starts a run on the CEO mandate's deployment as you and returns it (follow it with `Runs.StreamAsync` or `Runs.WaitForCompletionAsync`, and pass its `ConversationId` to continue). `ListConversationsAsync` lists those conversations; each `Conversation` carries `OrganizationId`. An organization without a CEO mandate answers 409 `BoardCeoMissing`, and a CEO mandate without a deployment answers 409 `BoardCeoUnavailable` to messages.
+
+Set `MandateRevision.BriefIntervalHours` (1 to 720) on the CEO's mandate to have it file a `ReportKindEnum.Brief` report to the board that often; each brief fires `NotificationEventEnum.BoardBrief`. Briefs and CEO replies are agent output, so read them as untrusted text. The built-in `BoardMember` role carries the grants a board needs and can be assigned with a resource scope of one organization. See [docs/BOARD.md](../../docs/BOARD.md).
+
+```csharp
+Board board = await client.Board.GetAsync("acme", 20);
+Console.WriteLine(board.Ceo?.AgentName + " last briefed " + board.Ceo?.LastBriefUtc);
+await client.Board.DirectAsync("acme", new BoardDirectionRequest { Direction = "Hold spend flat until the outage review is done." });
+
+Run turn = await client.Board.SendMessageAsync("acme", new BoardMessageRequest { Input = "What changed this week?" });
+turn = await client.Runs.WaitForCompletionAsync(turn.Id, TimeSpan.FromMinutes(5));
+Run next = await client.Board.SendMessageAsync("acme", new BoardMessageRequest { Input = "And next week?", ConversationId = turn.ConversationId });
+```
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

@@ -795,6 +795,49 @@ await check("change rules", async () => {
     if (org) await client.organizations.delete(org.id);
   }
 });
+await check("board", async () => {
+  // The board reads the organization in one call, directs the CEO through its mandate, and talks to it.
+  let org = null;
+  let mandate = null;
+  try {
+    mandate = await client.mandates.create({ name: `sdk-js-ceo-${suffix}`, agentId: state.agent, deploymentId: state.deployment,
+      currentRevision: { objective: "Run the SDK organization.", minIntervalSeconds: 3600, briefIntervalHours: 24 } });
+    require(mandate.currentRevision.briefIntervalHours === 24, `briefIntervalHours round-trips: ${JSON.stringify(mandate.currentRevision)}`);
+    org = await client.organizations.create({ name: `sdk-js-board-${suffix}`, mission: "Exercise the JavaScript SDK board." });
+    await client.organizations.createUnit(org.id, { name: "board", leadAgentId: state.agent, leadMandateId: mandate.id, leadTitle: "CEO" });
+    const first = await client.organizations.createRevision(org.id, "First");
+    await client.organizations.publish(org.id, first.id);
+
+    const board = await client.board.get(org.id, { limit: 10 });
+    require(board.organizationId === org.id && board.chart && board.unitHealth.length === 1 && board.killSwitch
+      && Array.isArray(board.escalations) && Array.isArray(board.proposals) && Array.isArray(board.freezes), `read the board: ${JSON.stringify(board)}`);
+    require(board.ceo && board.ceo.agentId === state.agent && board.ceo.mandateId === mandate.id, `the board names the CEO: ${JSON.stringify(board.ceo)}`);
+
+    const directed = await client.board.direct(org.name, { direction: "Focus on reliability this week.", changeNote: "SDK harness direction" });
+    require(directed.mandateId === mandate.id && directed.direction === "Focus on reliability this week." && directed.source === "Board" && directed.state === "Published",
+      `give the CEO direction: ${JSON.stringify(directed)}`);
+    let status = 0;
+    try { await client.board.direct(org.id, { direction: "" }); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 400, `an empty direction is refused (${status})`);
+
+    try {
+      const run = await client.board.sendMessage(org.id, { input: "What is the state of the organization?" });
+      require(run.id.startsWith("run_") && run.conversationId, `message the CEO: ${JSON.stringify(run)}`);
+    } catch (e) {
+      if (!(e instanceof GarrisonError) || e.statusCode !== 409) throw e;
+      console.log(`  (board message skipped: ${e.message})`);
+    }
+
+    const conversations = await client.board.listConversations(org.id);
+    require(conversations.objects.every((c) => c.organizationId === org.id), `list board conversations: ${JSON.stringify(conversations)}`);
+    status = 0;
+    try { await client.board.get("org_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 404, `an unknown organization has no board (${status})`);
+  } finally {
+    if (org) await client.organizations.delete(org.id);
+    if (mandate) await client.mandates.delete(mandate.id, { force: true });
+  }
+});
 await check("eval sets, eval runs, shadow trials, and canary releases", async () => {
   // Grade a deployment on the fake harness with an approved eval set, then shadow and canary a second deployment of the same agent.
   let agent = null;

@@ -45,6 +45,7 @@ Start with the workflow you need, then use the configuration and protocol refere
 | Let agents message each other, wake each other for urgent work, and stop loops | [Messaging](MESSAGING.md) |
 | Arrange agents into an organization with leads, reporting and peer lines, shared unit memory, and budgets | [Organizations](ORGANIZATIONS.md) |
 | Let a unit lead propose changes to the units below it, and pre-authorize routine ones with change rules | [Executives](EXECUTIVES.md) |
+| Sit on an organization's board: read its health in one call, give the CEO direction, get briefs, and talk to the CEO | [The board](BOARD.md) |
 | Invoke work hosted elsewhere | [Remote A2A/MCP agents](REMOTE_AGENTS.md) |
 | Execute through a compatible model API | [Provider API harness](PROVIDER_API.md) |
 

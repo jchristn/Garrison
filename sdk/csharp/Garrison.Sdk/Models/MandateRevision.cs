@@ -176,6 +176,12 @@ namespace Garrison.Sdk.Models
         public long? MaxTokensPerTick { get; set; } = null;
 
         /// <summary>
+        /// Hours between board briefs (AA10), 1 to 720, or null for no briefs. Only the CEO (the root unit's lead) is asked
+        /// for briefs: once the newest Brief report by its agent is older than this, its tick input asks for one.
+        /// </summary>
+        public int? BriefIntervalHours { get; set; } = null;
+
+        /// <summary>
         /// Who authored it. Default Human.
         /// </summary>
         public MandateRevisionSourceEnum Source { get; set; } = MandateRevisionSourceEnum.Human;

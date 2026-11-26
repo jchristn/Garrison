@@ -92,6 +92,8 @@ type MandateRevision struct {
 	BudgetPerTickUsd   *float64 `json:"budgetPerTickUsd,omitempty"`
 	BudgetPerDayUsd    *float64 `json:"budgetPerDayUsd,omitempty"`
 	MaxTokensPerTick   *int64   `json:"maxTokensPerTick,omitempty"`
+	// BriefIntervalHours is the hours between board briefs (1 to 720), nil for none. Only the CEO is asked for briefs.
+	BriefIntervalHours *int `json:"briefIntervalHours,omitempty"`
 	// Source is a MandateRevisionSource* constant (default Human).
 	Source       string         `json:"source,omitempty"`
 	Author       *string        `json:"author,omitempty"`

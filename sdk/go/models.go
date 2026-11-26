@@ -738,6 +738,8 @@ type Conversation struct {
 	ContextID *string `json:"contextId"`
 	// AppID is the agentic app whose chat UI started the conversation; nil otherwise.
 	AppID *string `json:"appId,omitempty"`
+	// OrganizationID is the organization whose board started the conversation with its CEO; nil otherwise.
+	OrganizationID *string `json:"organizationId,omitempty"`
 	// Title is the first line of the first turn's input (at most 200 characters); nil before the first turn.
 	Title      *string `json:"title"`
 	CallerType string  `json:"callerType"`

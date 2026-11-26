@@ -1386,6 +1386,59 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("board", async () =>
+                {
+                    // The board reads the organization in one call, directs the CEO through its mandate, and talks to it.
+                    Organization? organization = null;
+                    Mandate? ceoMandate = null;
+                    try
+                    {
+                        ceoMandate = await client.Mandates.CreateAsync(new Mandate { Name = "sdk-cs-ceo-" + suffix, AgentId = agentId!, DeploymentId = deploymentId!, CurrentRevision = new MandateRevision { Objective = "Run the SDK organization.", MinIntervalSeconds = 3600, BriefIntervalHours = 24 } }, token).ConfigureAwait(false);
+                        Require(ceoMandate.CurrentRevision != null && ceoMandate.CurrentRevision.BriefIntervalHours == 24, "briefIntervalHours round-trips on a mandate revision");
+                        organization = await client.Organizations.CreateAsync(new Organization { Name = "sdk-cs-board-" + suffix, Mission = "Exercise the C# SDK board." }, token).ConfigureAwait(false);
+                        await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "board", LeadAgentId = agentId, LeadMandateId = ceoMandate.Id, LeadTitle = "CEO" }, token).ConfigureAwait(false);
+                        OrgRevision first = await client.Organizations.CreateRevisionAsync(organization.Id, new OrgRevisionRequest { Note = "First" }, token).ConfigureAwait(false);
+                        await client.Organizations.PublishAsync(organization.Id, first.Id, token).ConfigureAwait(false);
+
+                        Board board = await client.Board.GetAsync(organization.Id, 10, token).ConfigureAwait(false);
+                        Require(board.OrganizationId == organization.Id && board.Chart != null && board.UnitHealth.Count == 1 && board.KillSwitch != null, "read the board");
+                        Require(board.Ceo != null && board.Ceo.AgentId == agentId && board.Ceo.MandateId == ceoMandate.Id, "the board names the CEO");
+
+                        MandateRevision directed = await client.Board.DirectAsync(organization.Name, new BoardDirectionRequest { Direction = "Focus on reliability this week.", ChangeNote = "SDK harness direction" }, token).ConfigureAwait(false);
+                        Require(directed.MandateId == ceoMandate.Id && directed.Direction == "Focus on reliability this week." && directed.Source == MandateRevisionSourceEnum.Board && directed.State == MandateRevisionStateEnum.Published, "give the CEO direction");
+
+                        int emptyStatus = 0;
+                        try { await client.Board.DirectAsync(organization.Id, new BoardDirectionRequest { Direction = "" }, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) { emptyStatus = e.StatusCode; }
+                        Require(emptyStatus == 400, "empty direction is refused, got " + emptyStatus);
+
+                        try
+                        {
+                            Run run = await client.Board.SendMessageAsync(organization.Id, new BoardMessageRequest { Input = "What is the state of the organization?" }, token).ConfigureAwait(false);
+                            Require(run.Id.StartsWith("run_", StringComparison.Ordinal) && !String.IsNullOrEmpty(run.ConversationId), "message the CEO");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409)
+                        {
+                            Console.WriteLine("  (board message skipped: " + e.Message + ")");
+                        }
+
+                        EnumerationResult<Conversation> conversations = await client.Board.ListConversationsAsync(organization.Id, token).ConfigureAwait(false);
+                        Require(conversations.Objects != null && conversations.Objects.All(c => c.OrganizationId == organization.Id), "list board conversations");
+
+                        try
+                        {
+                            await client.Board.GetAsync("org_sdk_missing", null, token).ConfigureAwait(false);
+                            Require(false, "an unknown organization has no board");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { }
+                    }
+                    finally
+                    {
+                        if (organization != null) await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
+                        if (ceoMandate != null) await client.Mandates.DeleteAsync(ceoMandate.Id, true, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

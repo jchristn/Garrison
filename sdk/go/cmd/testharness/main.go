@@ -1959,6 +1959,82 @@ func main() {
 		return nil
 	})
 
+	check("board", func(ctx context.Context) error {
+		// The board reads the organization in one call, directs the CEO through its mandate, and talks to it.
+		str := func(v string) *string { return &v }
+		hours := 24
+		first := garrison.MandateRevision{Objective: "Run the SDK organization.", MinIntervalSeconds: 3600, BriefIntervalHours: &hours}
+		mandate, err := client.Mandates.Create(ctx, garrison.Mandate{Name: "sdk-go-ceo-" + suffix, AgentID: agentID, DeploymentID: deploymentID, CurrentRevision: &first})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.Mandates.DeleteForce(ctx, mandate.ID, true) }()
+		if mandate.CurrentRevision == nil || mandate.CurrentRevision.BriefIntervalHours == nil || *mandate.CurrentRevision.BriefIntervalHours != 24 {
+			return fmt.Errorf("briefIntervalHours round-trips: %+v", mandate.CurrentRevision)
+		}
+		org, err := client.Organizations.Create(ctx, garrison.Organization{Name: "sdk-go-board-" + suffix, Mission: str("Exercise the Go SDK board.")})
+		if err != nil {
+			return err
+		}
+		defer client.Organizations.Delete(ctx, org.ID)
+		if _, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: str(agentID), LeadMandateID: str(mandate.ID), LeadTitle: str("CEO")}); err != nil {
+			return err
+		}
+		revision, err := client.Organizations.CreateRevision(ctx, org.ID, "First")
+		if err != nil {
+			return err
+		}
+		if _, err := client.Organizations.Publish(ctx, org.ID, revision.ID); err != nil {
+			return err
+		}
+
+		board, err := client.Board.Get(ctx, org.ID, 10)
+		if err != nil {
+			return err
+		}
+		if board.OrganizationID != org.ID || len(board.UnitHealth) != 1 || board.Escalations == nil || board.Proposals == nil || board.Freezes == nil {
+			return fmt.Errorf("read the board: %+v", board)
+		}
+		if board.Ceo == nil || board.Ceo.AgentID != agentID || board.Ceo.MandateID == nil || *board.Ceo.MandateID != mandate.ID {
+			return fmt.Errorf("the board names the CEO: %+v", board.Ceo)
+		}
+
+		directed, err := client.Board.Direct(ctx, org.Name, garrison.BoardDirectionRequest{Direction: "Focus on reliability this week.", ChangeNote: str("SDK harness direction")})
+		if err != nil {
+			return err
+		}
+		if directed.MandateID != mandate.ID || directed.Direction == nil || *directed.Direction != "Focus on reliability this week." || directed.Source != garrison.MandateRevisionSourceBoard || directed.State != garrison.MandateRevisionStatePublished {
+			return fmt.Errorf("give the CEO direction: %+v", directed)
+		}
+		if _, err := client.Board.Direct(ctx, org.ID, garrison.BoardDirectionRequest{Direction: ""}); !garrison.IsStatus(err, http.StatusBadRequest) {
+			return fmt.Errorf("an empty direction is refused: %v", err)
+		}
+
+		run, err := client.Board.SendMessage(ctx, org.ID, garrison.BoardMessageRequest{Input: "What is the state of the organization?"})
+		switch {
+		case garrison.IsStatus(err, http.StatusConflict):
+			fmt.Printf("      (board message skipped: %v)\n", err)
+		case err != nil:
+			return err
+		case !strings.HasPrefix(run.ID, "run_") || run.ConversationID == nil:
+			return fmt.Errorf("message the CEO: %+v", run)
+		}
+
+		conversations, err := client.Board.ListConversations(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		for _, c := range conversations.Objects {
+			if c.OrganizationID == nil || *c.OrganizationID != org.ID {
+				return fmt.Errorf("list board conversations: %+v", c)
+			}
+		}
+		if _, err := client.Board.Get(ctx, "org_sdk_missing", 0); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("an unknown organization has no board: %v", err)
+		}
+		return nil
+	})
+
 	check("eval sets, eval runs, shadow trials, and canary releases", func(ctx context.Context) error {
 		// An eval set is written, approved, and run against a fake deployment; a shadow trial and a canary release use a
 		// second deployment of the same agent.

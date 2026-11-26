@@ -76,6 +76,11 @@ namespace Garrison.Sdk.Enums
         CanaryRolledBack,
 
         /// <summary>
+        /// A report of kind Brief was filed, usually the CEO's brief to the board (AA10).
+        /// </summary>
+        BoardBrief,
+
+        /// <summary>
         /// A test notification from the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test
