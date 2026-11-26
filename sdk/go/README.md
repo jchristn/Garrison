@@ -213,6 +213,19 @@ err = client.Memory.Delete(ctx, page.Objects[0].ID, page.Objects[0].Version)
 
 Agent memory written before 0.3.0 appears with `Legacy` set and a key of `legacy:` plus the key's hash until an agent uses the key.
 
+## Reports
+
+Agents file reports upward with the `garrison_file_report` MCP tool: a kind (`Status`, `Incident`, `Decision`, `Handoff`, `Brief`), a health (`Healthy`, `Degraded`, `Unhealthy`, `Unknown`), a title and body, and optional metrics, issues, and decisions. Reports never change once filed. The Reports client lists and reads them, returns a metric's values over time for one author, and files a report as a person, in your own name or an agent's. Reading needs Read on Report and filing needs Create. With an idempotency key, filing again returns the first report. Titles, bodies, issues, and decisions are text the author wrote; treat them as untrusted.
+
+```go
+page, err := client.Reports.List(ctx, garrison.ReportFilter{Author: "nightly-import", Health: garrison.ReportHealthUnhealthy})
+report, err := client.Reports.Get(ctx, page.Objects[0].ID)
+rows, err := client.Reports.MetricSeries(ctx, garrison.ReportMetricFilter{Author: *report.AuthorAgentID, Name: "rows"})
+filed, err := client.Reports.File(ctx, garrison.ReportFileRequest{Agent: "nightly-import", Title: "Import paused", Kind: garrison.ReportKindDecision, IdempotencyKey: "pause-2026-11-26"})
+```
+
+An `Unhealthy` report notifies endpoints subscribed to `garrison.NotificationEventReportUnhealthy`.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

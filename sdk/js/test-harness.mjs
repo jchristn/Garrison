@@ -668,6 +668,23 @@ await check("memory", async () => {
   }
 });
 
+await check("reports", async () => {
+  // People file reports with an idempotency key; agents file through garrison_file_report.
+  const request = { agent: state.agent, title: "SDK status", kind: "Status", health: "Healthy", idempotencyKey: `sdk-${Date.now()}-${Math.random()}`, metrics: [{ name: "sdk_checks", value: 3, unit: "count" }] };
+  const filed = await client.reports.file(request);
+  const again = await client.reports.file(request);
+  require(filed.id.startsWith("rpt_") && again.id === filed.id && filed.authorAgentId === state.agent, "file a report once per idempotency key");
+  const page = await client.reports.list({ author: state.agent, health: "Healthy", maxResults: 10 });
+  require(page.objects.some((r) => r.id === filed.id), "list reports by author and health");
+  const read = await client.reports.get(filed.id);
+  require(read.metrics.length === 1 && read.metrics[0].name === "sdk_checks", "read a report with its metrics");
+  const series = await client.reports.metricSeries({ author: state.agent, name: "sdk_checks" });
+  require(series.some((p) => p.reportId === filed.id && p.value === 3), "metric series");
+  let status = 0;
+  try { await client.reports.get("rpt_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+  require(status === 404, `an unknown report is not found (${status})`);
+});
+
 await check("freezes", async () => {
   // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
   let mandate;

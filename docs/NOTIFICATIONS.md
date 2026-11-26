@@ -37,6 +37,7 @@ An endpoint only ever receives events that happened after it was created. Creati
 | `EscalationExpired` | An escalation timed out with nothing to fall back on: `UseDefaultAnswer` without a default answer, or `EscalateUp` with no target left to pass it to |
 | `FreezeApplied` | Someone froze an agent, deployment, keeper, or app, or turned the autonomy kill switch on. See [Brakes](BRAKES.md) |
 | `MandateCapReached` | A keeper reached its daily spend cap and stopped ticking until the next UTC day |
+| `ReportUnhealthy` | A run or a person filed a report with health `Unhealthy` |
 
 Every run counts, including delegated child runs and pipeline stage runs, so an endpoint that subscribes to `RunFailed` for a busy agent should expect traffic. `ApprovalRequested` skips permission requests that a deployment rule or the deployment default decided on the spot; those never waited for anyone. The additional value `Test` is used by the test action and cannot be subscribed to.
 
@@ -71,7 +72,7 @@ Most timeouts do not send `EscalationExpired`. With `UseDefaultAnswer` and a def
 }
 ```
 
-Exactly one of `run`, `pipelineRun`, `approval`, `escalation`, `freeze`, or `mandateCap` is present, except in a test notification, which has none. Fields that are null are left out. `link` is built from `Rest.ExternalBaseUrl` and points at the API resource.
+Exactly one of `run`, `pipelineRun`, `approval`, `escalation`, `freeze`, `mandateCap`, or `report` is present, except in a test notification, which has none. Fields that are null are left out. `link` is built from `Rest.ExternalBaseUrl` and points at the API resource.
 
 What the payload leaves out matters as much as what it holds. It never contains secrets, run input, error text, tool input, or run output. The one exception is the run's result text, which is included (as `run.resultText`, with `run.resultTruncated`) only when the endpoint sets `includeResultText`, and is cut to `resultTextMaxChars`. Turn it on only for receivers you would trust with the output itself.
 
@@ -82,6 +83,8 @@ What the payload leaves out matters as much as what it holds. It never contains 
 `freeze` carries the freeze identifier, `targetKind`, `targetId`, `targetName`, the `reason` (cut to 2000 characters), `cancelActiveRuns`, `createdByName`, and `createdUtc`. An endpoint filtered to an agent or a deployment receives only freezes of that agent or deployment; the kill switch and keeper, app, and other freezes reach unfiltered endpoints only.
 
 `mandateCap` carries the keeper's `mandateId` and `mandateName`, its `agentId` and `deploymentId`, the `tickId` that recorded the cap, `budgetPerDayUsd`, `reachedUtc`, and `resetsUtc` (when the keeper ticks again). The agent and deployment filters apply as they do for runs. The keeper also raises an `Urgent` escalation to its human default, which sends its own `EscalationRaised`.
+
+`report` carries the report identifier, its author (`authorAgentId`, `authorAgentName`), the keeper that filed it (`mandateId`), the `appId`, `kind`, `health`, `title`, and `createdUtc`. The title is text the agent wrote, so treat it as untrusted input; the body, issues, and decisions stay in the report. An endpoint filtered to an agent receives only that agent's reports; one filtered to a deployment receives none, because a report belongs to an agent. See [REPORTS.md](REPORTS.md).
 
 ## Headers and verification
 

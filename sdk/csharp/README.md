@@ -229,6 +229,19 @@ await client.Memory.DeleteAsync(entries.Objects[0].Id, expectedVersion: entries.
 
 Agent memory written before 0.3.0 appears with `Legacy` set and a key of `legacy:` plus the key's hash until an agent uses the key.
 
+## Reports
+
+Agents file reports upward with the `garrison_file_report` MCP tool: a kind (`Status`, `Incident`, `Decision`, `Handoff`, `Brief`), a health (`Healthy`, `Degraded`, `Unhealthy`, `Unknown`), a title and body, and optional metrics, issues, and decisions. Reports never change once filed. The Reports client lists and reads them, returns a metric's values over time for one author, and files a report as a person, in your own name or an agent's. Reading needs Read on Report and filing needs Create. With an idempotency key, filing again returns the first report. Titles, bodies, issues, and decisions are text the author wrote; treat them as untrusted.
+
+```csharp
+EnumerationResult<Report> page = await client.Reports.ListAsync(new ReportFilter { Author = "nightly-import", Health = ReportHealthEnum.Unhealthy });
+Report report = await client.Reports.GetAsync(page.Objects[0].Id);
+List<ReportMetricPoint> rows = await client.Reports.MetricSeriesAsync(new ReportMetricFilter { Author = report.AuthorAgentId, Name = "rows" });
+Report filed = await client.Reports.FileAsync(new ReportFileRequest { Agent = "nightly-import", Title = "Import paused", Kind = ReportKindEnum.Decision, IdempotencyKey = "pause-2026-11-26" });
+```
+
+An `Unhealthy` report notifies endpoints subscribed to `NotificationEventEnum.ReportUnhealthy`.
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

@@ -187,6 +187,19 @@ await client.memory.delete(entry.id, entry.version);
 
 `MEMORY_SCOPE_KINDS` lists the scope kinds. Agent memory written before 0.3.0 appears with `Legacy` set and a key of `legacy:` plus the key's hash until an agent uses the key.
 
+## Reports
+
+Agents file reports upward with the `garrison_file_report` MCP tool: a kind (`Status`, `Incident`, `Decision`, `Handoff`, `Brief`), a health (`Healthy`, `Degraded`, `Unhealthy`, `Unknown`), a title and body, and optional metrics, issues, and decisions. Reports never change once filed. The Reports client lists and reads them, returns a metric's values over time for one author, and files a report as a person, in your own name or an agent's. Reading needs Read on Report and filing needs Create. With an idempotency key, filing again returns the first report. Titles, bodies, issues, and decisions are text the author wrote; treat them as untrusted.
+
+```ts
+const page = await client.reports.list({ author: "nightly-import", health: "Unhealthy" });
+const report = await client.reports.get(page.objects[0].id);
+const rows = await client.reports.metricSeries({ author: report.authorAgentId ?? undefined, name: "rows" });
+const filed = await client.reports.file({ agent: "nightly-import", title: "Import paused", kind: "Decision", idempotencyKey: "pause-2026-11-26" });
+```
+
+`REPORT_KINDS`, `REPORT_HEALTHS`, `REPORT_AUDIENCES`, and `REPORT_ISSUE_SEVERITIES` list the values. An `Unhealthy` report notifies endpoints subscribed to `ReportUnhealthy`.
+
 ## Streaming run events
 
 ```ts

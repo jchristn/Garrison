@@ -3967,6 +3967,40 @@ curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/memory/entries
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### Reports
+
+Reports (AA5) are immutable status records that runs file upward with `garrison_file_report`. These routes let people read them, chart a metric per author, and file their own. [docs/REPORTS.md](docs/REPORTS.md) covers who reads which report and how a manager keeper receives them.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /reports` | Read on `Report` | `EnumerationResult<Report>`, 200 |
+| `POST /reports` | Create on `Report` | `Report`, 201 |
+| `GET /reports/metrics` | Read on `Report` | `ReportMetricPoint[]`, 200 |
+| `GET /reports/{id}` | Read on `Report` | `Report`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Reports of another tenant answer 404. There is no update or delete.
+
+#### `GET /v1.0/api/tenants/{tenantId}/reports`
+
+List reports newest first, with their metrics, issues, and decisions, using `maxResults`, `skip`, and `search` (case-insensitive, over titles) from the [enumeration](#enumeration) parameters and the optional filters `author` (agent identifier or name), `unit` (organization unit, from AA7), `app` (identifier or name), `kind`, `health`, `runId`, `from`, and `to` (filing time, ISO 8601).
+
+#### `POST /v1.0/api/tenants/{tenantId}/reports`
+
+File a report as a person or credential. The body is a `ReportFileRequest`; `title` is required. With `agent` the report is from that agent; without it, from you. With `idempotencyKey`, filing again with the same key returns the first report with 201. Errors: 400 `ValidationFailed` with fields such as `title`, `body` (`TooLarge` over `Reports.MaxBodyBytes`), `metrics`, `periodEndUtc`, `agent` and `app` (`ReferenceNotFound`), and `appId` (`NotAMember` when the agent is not a member of the app).
+
+#### `GET /v1.0/api/tenants/{tenantId}/reports/metrics`
+
+A metric series, oldest first, with the optional filters `author` (agent identifier or name), `name` (exact metric name), `from`, `to`, and `maxPoints` (1 to 5000, default 500; the newest are kept).
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/reports?author=nightly-import&health=Unhealthy" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/reports" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"agent": "nightly-import", "title": "Import paused", "kind": "Decision", "health": "Degraded", "decisions": [{"text": "Paused until the source is fixed."}], "idempotencyKey": "pause-2026-11-26"}'
+```
+
 ### Agent revisions
 
 An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
@@ -7001,6 +7035,75 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `found` | `bool` | `true` when the entry and its text were found. |
 | `entry` | `MemoryEntry?` | The entry's metadata. |
 | `value` | `string?` | The text. |
+
+#### `Report`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`rpt_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `authorAgentId`, `authorAgentName` | `string?` | The agent the report is from and its name when filed; `null` for a person's report in their own name. |
+| `runId`, `mandateId`, `mandateTickId` | `string?` | The run, keeper, and tick that filed it; `null` when a person filed it. |
+| `orgUnitId` | `string?` | The author's organization unit, from AA7. |
+| `appId`, `appName` | `string?` | The app it was filed within. |
+| `audience` | `ReportAudienceEnum` | `Manager`, `Chain`, or `Board`. |
+| `kind` | `ReportKindEnum` | `Status`, `Incident`, `Decision`, `Handoff`, or `Brief`. |
+| `health` | `ReportHealthEnum` | `Healthy`, `Degraded`, `Unhealthy`, or `Unknown`. |
+| `title` | `string` | 1 to 256 characters. |
+| `body` | `string` | Plain text or Markdown, at most `Reports.MaxBodyBytes` UTF-8 bytes. |
+| `periodStartUtc`, `periodEndUtc` | `DateTime?` | The period covered. |
+| `metrics` | `ReportMetric[]` | At most 50, in order. |
+| `issues` | `ReportIssue[]` | At most 50, in order. |
+| `decisions` | `ReportDecision[]` | At most 50, in order. |
+| `filedByPrincipalType` | `PrincipalTypeEnum` | `Run`, `User`, `Credential`, or `Administrator`. |
+| `filedByPrincipalId`, `filedByName` | `string?` | Who filed it. |
+| `filingKey` | `string?` | Digest that makes a replayed filing return this report. |
+| `createdUtc` | `DateTime` | When it was filed (UTC). |
+
+#### `ReportMetric`
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | 1 to 64 characters. |
+| `value` | `double` | A finite number. |
+| `unit` | `string?` | At most 32 characters. |
+
+#### `ReportIssue`
+
+| Field | Type | Description |
+|---|---|---|
+| `severity` | `ReportIssueSeverityEnum` | `Low`, `Medium` (default), or `High`. |
+| `text` | `string` | 1 to 2000 characters. |
+
+#### `ReportDecision`
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `string` | 1 to 2000 characters. |
+
+#### `ReportMetricPoint`
+
+| Field | Type | Description |
+|---|---|---|
+| `reportId` | `string` | The report the value comes from. |
+| `authorAgentId`, `authorAgentName` | `string?` | The author. |
+| `name` | `string` | Metric name. |
+| `value` | `double` | Value. |
+| `unit` | `string?` | Unit. |
+| `timestampUtc` | `DateTime` | The report's period end, or its filing time when it has no period. |
+
+#### `ReportFileRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | `string` | Required, 1 to 256 characters. |
+| `agent` | `string?` | Agent identifier or name the report is from; omit to file in your own name. |
+| `app` | `string?` | App identifier or name to file within; the agent must be a member. |
+| `audience`, `kind`, `health` | enums | Default `Manager`, `Status`, `Unknown`. |
+| `body` | `string?` | Body text. |
+| `periodStartUtc`, `periodEndUtc` | `DateTime?` | The period covered. |
+| `metrics`, `issues`, `decisions` | arrays | As in `Report`. |
+| `idempotencyKey` | `string?` | At most 256 characters; filing again with it returns the first report. |
 
 #### `MandateRevision`
 

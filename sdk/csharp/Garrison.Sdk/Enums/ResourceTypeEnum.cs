@@ -245,6 +245,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Scoped memory entries (AA4). Read lists and reads entries and their text; Update writes; Delete removes.
         /// </summary>
-        Memory
+        Memory,
+
+        /// <summary>
+        /// Reports filed upward (AA5). Read lists and reads reports; Create files one.
+        /// </summary>
+        Report
     }
 }

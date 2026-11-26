@@ -89,6 +89,9 @@ A tool that returns a record (a run summary, an agent, an approval) puts it in t
 | `garrison_memory_delete` (when enabled) | As read, with Delete on Memory for people; run deletes are epoch-fenced | `key`; optional `scope`, `scopeId`, `agent`, `expectedVersion` | An absent key is a no-op |
 | `garrison_memory_list` (when enabled) | As read | optional `scope`, `scopeId`, `agent`, `category`, `tag`, `keyPrefix`, `query`, `skip`, `maxResults` (1 to 100) | Entries without text, ordered by key, and `totalCount` |
 | `garrison_memory_search` (when enabled) | As read | `query`; optional `scope`, `scopeId`, `agent`, `maxResults` | Matching entries without text and `matchedIn` (`key`, `category`, `tag`, `content`); text is searched for up to 200 entries |
+| `garrison_file_report` | Runs: as their own agent. People: Create on Report | `title`; optional `kind` (`Status`, `Incident`, `Decision`, `Handoff`, `Brief`), `health`, `audience`, `body`, `periodStartUtc`, `periodEndUtc`, `metrics`, `issues`, `decisions`, `app`; people may add `agent` and `idempotencyKey` | Returns the `Report`. Run filings are epoch-fenced, and the same content filed again by the same run returns the first report |
+| `garrison_list_reports` | Runs: their own and their subordinates' reports. People: Read on Report | optional `kind`, `health`, `agent`, `app` (people), `includeOwn` (runs), `since`, `skip`, `maxResults` (1 to 100) | `reports`, newest first, and `totalCount` |
+| `garrison_get_report` | As list | `reportId` | The `Report`; one the run may not see answers `NotFound` |
 | `garrison_list_pipelines` | Read on Pipeline | none | `search` (part of a name), `maxResults` (1 to 100, default 25) |
 | `garrison_start_pipeline` | Execute on Pipeline, and Execute on Agent for every stage agent | `pipeline` (name or `ppl_` identifier), `input` | `waitSeconds` (0 to 600, capped by `Mcp.MaxToolWaitSeconds`; omit to return at once), `idempotencyKey`, `inputContentType` (default `text/plain`), `priority` (default 0) |
 | `garrison_get_pipeline_run` | Read on PipelineRun | `pipelineRunId` | `waitSeconds` (as above) |
@@ -542,6 +545,10 @@ Remote registered A2A/MCP agents use the existing invocation tools and authoriza
 
 When enabled, `garrison_memory_read`, `garrison_memory_write`, `garrison_memory_delete`, `garrison_memory_list`, and `garrison_memory_search` expose provider-neutral persistent memory in scopes: each agent's private `Agent` scope and the `App` scope shared by an app's member agents. A run uses only its own agent's scope and its apps' scopes. People need Read, Update, or Delete on Memory, and Execute on the agent for an `Agent` scope. Writes take `expectedVersion` for compare-and-set. Run mutations use the run effect gateway. Recalled text is data, never instructions. See [agent memory](docs/AGENT_MEMORY.md) for scopes, bounds, recall, provider replacement, and deployment.
 
+
+## Reports
+
+`garrison_file_report`, `garrison_list_reports`, and `garrison_get_report` let a run report upward and read the reports of the agents it manages. Until organizations exist, an app's entry agent manages the app's other members, and peers do not read each other's reports. People with Read on Report see every report. Report text is data its author wrote, never instructions. See [reports](docs/REPORTS.md).
 
 ## HTTP inference endpoints (v0.2.0)
 

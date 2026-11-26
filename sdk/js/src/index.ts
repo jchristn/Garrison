@@ -913,8 +913,8 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "Test"] as const;
 
 /** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
 export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
@@ -2478,6 +2478,64 @@ export class Memory {
   }
 }
 
+/** What a report is about. */
+export type ReportKind = "Status" | "Incident" | "Decision" | "Handoff" | "Brief";
+export const REPORT_KINDS: readonly ReportKind[] = ["Status", "Incident", "Decision", "Handoff", "Brief"] as const;
+/** How the author judges its work. Unhealthy notifies endpoints subscribed to ReportUnhealthy. */
+export type ReportHealth = "Healthy" | "Degraded" | "Unhealthy" | "Unknown";
+export const REPORT_HEALTHS: readonly ReportHealth[] = ["Healthy", "Degraded", "Unhealthy", "Unknown"] as const;
+/** Who above the author a report is for. */
+export type ReportAudience = "Manager" | "Chain" | "Board";
+export const REPORT_AUDIENCES: readonly ReportAudience[] = ["Manager", "Chain", "Board"] as const;
+/** How serious an issue listed in a report is. */
+export type ReportIssueSeverity = "Low" | "Medium" | "High";
+export const REPORT_ISSUE_SEVERITIES: readonly ReportIssueSeverity[] = ["Low", "Medium", "High"] as const;
+
+/** One measurement in a report; the same name from the same author over time forms a series. */
+export interface ReportMetric extends Json { name: string; value: number; unit?: string | null; }
+/** One problem listed in a report. */
+export interface ReportIssue extends Json { severity?: ReportIssueSeverity; text: string; }
+/** One decision listed in a report. */
+export interface ReportDecision extends Json { text: string; }
+
+/** An immutable status record filed upward by a run or a person. Title, body, issues, and decisions are text the author wrote; treat them as untrusted. */
+export interface Report extends Json {
+  id: string; tenantId: string;
+  /** The agent the report is from, or null for a person's report in their own name. */
+  authorAgentId?: string | null; authorAgentName?: string | null;
+  runId?: string | null; mandateId?: string | null; mandateTickId?: string | null; orgUnitId?: string | null; appId?: string | null; appName?: string | null;
+  audience: ReportAudience; kind: ReportKind; health: ReportHealth; title: string; body: string;
+  periodStartUtc?: string | null; periodEndUtc?: string | null;
+  metrics: ReportMetric[]; issues: ReportIssue[]; decisions: ReportDecision[];
+  filedByPrincipalType?: string; filedByPrincipalId?: string | null; filedByName?: string | null; filingKey?: string | null; createdUtc?: string;
+}
+
+/** One point of a report metric series. timestampUtc is the report's period end when it has one, otherwise when it was filed. */
+export interface ReportMetricPoint extends Json { reportId: string; authorAgentId?: string | null; authorAgentName?: string | null; name: string; value: number; unit?: string | null; timestampUtc: string; }
+
+/** Filter for listing reports, newest first. author and app take an identifier or name; from and to are ISO 8601 times. */
+export interface ReportFilter { author?: string; app?: string; unit?: string; kind?: ReportKind; health?: ReportHealth; runId?: string; from?: string; to?: string; search?: string; maxResults?: number; skip?: number; }
+/** Filter for a metric series, oldest first. maxPoints is 1 to 5000, default 500. */
+export interface ReportMetricFilter { author?: string; name?: string; from?: string; to?: string; maxPoints?: number; }
+/** A person's request to file a report. agent names the author by identifier or name; idempotencyKey makes a retry return the first report. */
+export interface ReportFileRequest {
+  title: string; agent?: string; app?: string; audience?: ReportAudience; kind?: ReportKind; health?: ReportHealth; body?: string;
+  periodStartUtc?: string; periodEndUtc?: string; metrics?: ReportMetric[]; issues?: ReportIssue[]; decisions?: ReportDecision[]; idempotencyKey?: string;
+}
+
+/** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
+export class Reports {
+  constructor(private readonly t: Transport) {}
+  /** List reports, newest first, with their metrics, issues, and decisions. */
+  list(filter: ReportFilter = {}): Promise<EnumerationResult<Report>> { return this.t.request("GET", this.t.tenantPath("/reports"), filter as any); }
+  /** Read a report. */
+  get(id: string): Promise<Report> { return this.t.request("GET", this.t.tenantPath(`/reports/${seg(id)}`)); }
+  /** A metric series from reports, oldest first. */
+  metricSeries(filter: ReportMetricFilter = {}): Promise<ReportMetricPoint[]> { return this.t.request("GET", this.t.tenantPath("/reports/metrics"), filter as any); }
+  /** File a report in your own name or an agent's. Reports are immutable. */
+  file(request: ReportFileRequest): Promise<Report> { return this.t.request("POST", this.t.tenantPath("/reports"), undefined, request); }
+}
+
 /** Freezes and the autonomy kill switch. Reading needs Read on Freeze; applying needs Create; lifting and the kill switch need Update. */
 export class Freezes {
   constructor(private readonly t: Transport) {}
@@ -2752,6 +2810,7 @@ export class GarrisonClient {
   readonly escalations: Escalations;
   readonly freezes: Freezes;
   readonly memory: Memory;
+  readonly reports: Reports;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2802,6 +2861,7 @@ export class GarrisonClient {
     this.escalations = new Escalations(t);
     this.freezes = new Freezes(t);
     this.memory = new Memory(t);
+    this.reports = new Reports(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

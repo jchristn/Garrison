@@ -61,6 +61,11 @@ namespace Garrison.Sdk.Enums
         MandateCapReached,
 
         /// <summary>
+        /// A report was filed with health Unhealthy (AA5).
+        /// </summary>
+        ReportUnhealthy,
+
+        /// <summary>
         /// A test notification from the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

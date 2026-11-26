@@ -1560,6 +1560,57 @@ func main() {
 		return nil
 	})
 
+	check("reports", func(ctx context.Context) error {
+		// People file reports with an idempotency key; agents file through garrison_file_report.
+		unit := "count"
+		request := garrison.ReportFileRequest{Agent: agentID, Title: "SDK status", Kind: garrison.ReportKindStatus, Health: garrison.ReportHealthHealthy, IdempotencyKey: fmt.Sprintf("sdk-%d", time.Now().UnixNano()), Metrics: []garrison.ReportMetric{{Name: "sdk_checks", Value: 3, Unit: &unit}}}
+		filed, err := client.Reports.File(ctx, request)
+		if err != nil {
+			return err
+		}
+		again, err := client.Reports.File(ctx, request)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(filed.ID, "rpt_") || again.ID != filed.ID || filed.AuthorAgentID == nil || *filed.AuthorAgentID != agentID {
+			return errors.New("file a report once per idempotency key")
+		}
+		page, err := client.Reports.List(ctx, garrison.ReportFilter{Author: agentID, Health: garrison.ReportHealthHealthy, MaxResults: 10})
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, r := range page.Objects {
+			found = found || r.ID == filed.ID
+		}
+		if !found {
+			return errors.New("list reports by author and health")
+		}
+		read, err := client.Reports.Get(ctx, filed.ID)
+		if err != nil {
+			return err
+		}
+		if len(read.Metrics) != 1 || read.Metrics[0].Name != "sdk_checks" {
+			return errors.New("read a report with its metrics")
+		}
+		series, err := client.Reports.MetricSeries(ctx, garrison.ReportMetricFilter{Author: agentID, Name: "sdk_checks"})
+		if err != nil {
+			return err
+		}
+		found = false
+		for _, p := range series {
+			found = found || (p.ReportID == filed.ID && p.Value == 3)
+		}
+		if !found {
+			return errors.New("metric series")
+		}
+		var apiErr *garrison.Error
+		if _, err := client.Reports.Get(ctx, "rpt_sdk_missing"); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("an unknown report is not found: %v", err)
+		}
+		return nil
+	})
+
 	check("freezes", func(ctx context.Context) error {
 		// Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
 		before, err := client.Freezes.GetKillSwitch(ctx)

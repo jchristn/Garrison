@@ -52,6 +52,7 @@ const (
 	NotificationEventEscalationExpired = "EscalationExpired"
 	NotificationEventFreezeApplied     = "FreezeApplied"
 	NotificationEventMandateCapReached = "MandateCapReached"
+	NotificationEventReportUnhealthy   = "ReportUnhealthy"
 	NotificationEventTest              = "Test"
 )
 

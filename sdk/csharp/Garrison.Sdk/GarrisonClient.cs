@@ -194,6 +194,11 @@ namespace Garrison.Sdk
         public MemoryClient Memory { get; }
 
         /// <summary>
+        /// Reports (AA5): list and read reports, chart a metric over time, and file a report as a person.
+        /// </summary>
+        public ReportsClient Reports { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -322,6 +327,7 @@ namespace Garrison.Sdk
             Escalations = new EscalationsClient(Transport);
             Freezes = new FreezesClient(Transport);
             Memory = new MemoryClient(Transport);
+            Reports = new ReportsClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

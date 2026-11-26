@@ -1099,6 +1099,28 @@ namespace Garrison.Sdk.Test
                     catch (GarrisonException e) when (e.StatusCode == 404) { }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("reports", async () =>
+                {
+                    // People file reports with an idempotency key; agents file through garrison_file_report.
+                    string key = "sdk-" + Guid.NewGuid().ToString("N");
+                    ReportFileRequest request = new ReportFileRequest { Agent = agentId, Title = "SDK status", Kind = ReportKindEnum.Status, Health = ReportHealthEnum.Healthy, IdempotencyKey = key, Metrics = new List<ReportMetric> { new ReportMetric { Name = "sdk_checks", Value = 3, Unit = "count" } } };
+                    Report filed = await client.Reports.FileAsync(request, token).ConfigureAwait(false);
+                    Report again = await client.Reports.FileAsync(request, token).ConfigureAwait(false);
+                    Require(filed.Id.StartsWith("rpt_", StringComparison.Ordinal) && again.Id == filed.Id && filed.AuthorAgentId == agentId, "file a report once per idempotency key");
+                    EnumerationResult<Report> page = await client.Reports.ListAsync(new ReportFilter { Author = agentId, Health = ReportHealthEnum.Healthy, MaxResults = 10 }, token).ConfigureAwait(false);
+                    Require(page.Objects.Exists(r => r.Id == filed.Id), "list reports by author and health");
+                    Report read = await client.Reports.GetAsync(filed.Id, token).ConfigureAwait(false);
+                    Require(read.Metrics.Count == 1 && read.Metrics[0].Name == "sdk_checks", "read a report with its metrics");
+                    List<ReportMetricPoint> series = await client.Reports.MetricSeriesAsync(new ReportMetricFilter { Author = agentId, Name = "sdk_checks" }, token).ConfigureAwait(false);
+                    Require(series.Exists(p => p.ReportId == filed.Id && p.Value == 3), "metric series");
+                    try
+                    {
+                        await client.Reports.GetAsync("rpt_sdk_missing", token).ConfigureAwait(false);
+                        Require(false, "an unknown report is not found");
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404) { }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

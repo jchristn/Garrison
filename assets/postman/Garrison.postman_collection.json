@@ -21842,6 +21842,388 @@
       ]
     },
     {
+      "name": "Reports",
+      "description": "Reports (AA5): runs file immutable status records upward with garrison_file_report; people read them, chart a metric per author, and file their own. An app's entry agent reads its members' reports; peers do not read each other's. See docs/REPORTS.md.",
+      "item": [
+        {
+          "name": "File a report as a person",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports"
+              ]
+            },
+            "description": "People and API credentials file reports with Report.Create, in their own name or an agent's (agent). Agents file with the garrison_file_report MCP tool instead. Reports never change once filed. idempotencyKey makes a retried filing return the first report.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent\": \"{{agentName}}\",\n  \"title\": \"Postman nightly import\",\n  \"kind\": \"Status\",\n  \"health\": \"Degraded\",\n  \"audience\": \"Manager\",\n  \"body\": \"Two of five feeds arrived late. The import finished at 02:40 UTC.\",\n  \"metrics\": [\n    {\n      \"name\": \"rows\",\n      \"value\": 1200,\n      \"unit\": \"count\"\n    },\n    {\n      \"name\": \"late_feeds\",\n      \"value\": 2\n    }\n  ],\n  \"issues\": [\n    {\n      \"severity\": \"Medium\",\n      \"text\": \"Feed B arrives after the window.\"\n    }\n  ],\n  \"decisions\": [\n    {\n      \"text\": \"Retried feed B once.\"\n    }\n  ],\n  \"idempotencyKey\": \"{{reportKey}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('reportKey', 'postman-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('filed for the agent with its metrics, issues, and decisions', function () { pm.expect(json.id).to.match(/^rpt_/); pm.expect(json.authorAgentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(json.health).to.eql('Degraded'); pm.expect(json.metrics.length).to.eql(2); pm.expect(json.issues[0].severity).to.eql('Medium'); pm.expect(json.decisions.length).to.eql(1); pm.expect(json.runId == null).to.eql(true); });",
+                  "if (json.id) pm.collectionVariables.set('reportId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "File again with the same idempotency key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports"
+              ]
+            },
+            "description": "The same idempotencyKey from the same caller returns the first report instead of filing another.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent\": \"{{agentName}}\",\n  \"title\": \"Postman nightly import\",\n  \"kind\": \"Status\",\n  \"health\": \"Degraded\",\n  \"audience\": \"Manager\",\n  \"body\": \"Two of five feeds arrived late. The import finished at 02:40 UTC.\",\n  \"metrics\": [\n    {\n      \"name\": \"rows\",\n      \"value\": 1200,\n      \"unit\": \"count\"\n    },\n    {\n      \"name\": \"late_feeds\",\n      \"value\": 2\n    }\n  ],\n  \"issues\": [\n    {\n      \"severity\": \"Medium\",\n      \"text\": \"Feed B arrives after the window.\"\n    }\n  ],\n  \"decisions\": [\n    {\n      \"text\": \"Retried feed B once.\"\n    }\n  ],\n  \"idempotencyKey\": \"{{reportKey}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('the first report comes back', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('reportId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "File a report without a title",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports"
+              ]
+            },
+            "description": "A title of 1 to 256 characters is required.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"Status\",\n  \"body\": \"No title.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "File an Unhealthy report (MCP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpAdminSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "garrison_file_report is the tool runs use; a run files as its own agent, and a replayed call returns the first report. People may call it too with Report.Create and name an agent (tenantId is required with the administrator API key). An Unhealthy report notifies endpoints subscribed to ReportUnhealthy.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 111,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_file_report\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{agentName}}\",\n      \"title\": \"Postman import failing\",\n      \"kind\": \"Incident\",\n      \"health\": \"Unhealthy\",\n      \"issues\": [\n        {\n          \"severity\": \"High\",\n          \"text\": \"The source database refuses connections.\"\n        }\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key"
+                },
+                {
+                  "key": "value",
+                  "value": "{{adminApiKey}}"
+                },
+                {
+                  "key": "in",
+                  "value": "header"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var result = json.result || {};",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('an Unhealthy Incident for the agent', function () { var s = result.structuredContent || {}; pm.expect(result.isError || false).to.eql(false); pm.expect(s.id).to.match(/^rpt_/); pm.expect(s.kind).to.eql('Incident'); pm.expect(s.health).to.eql('Unhealthy'); pm.expect(s.authorAgentId).to.eql(pm.collectionVariables.get('agentId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List reports by author and health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports?author={{agentName}}&health=Degraded",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "author",
+                  "value": "{{agentName}}"
+                },
+                {
+                  "key": "health",
+                  "value": "Degraded"
+                }
+              ]
+            },
+            "description": "Newest first, with metrics, issues, and decisions. Filters: author (agent identifier or name), unit, app, kind, health, runId, from, to, search, maxResults, skip. Needs Report.Read (Viewer, Auditor, AgentOperator, AgentDeveloper, Editor, admins)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the Degraded report is listed', function () { pm.expect(json.objects.some(function (r) { return r.id === pm.collectionVariables.get('reportId'); })).to.eql(true); pm.expect(json.objects.every(function (r) { return r.health === 'Degraded'; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports",
+                "{{reportId}}"
+              ]
+            },
+            "description": "One report with its metrics, issues, and decisions. The text is data the author wrote."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('metrics in order', function () { pm.expect(json.metrics[0].name).to.eql('rows'); pm.expect(json.metrics[0].value).to.eql(1200); pm.expect(json.metrics[0].unit).to.eql('count'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Metric series for the agent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports/metrics?author={{agentId}}&name=rows",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "author",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "name",
+                  "value": "rows"
+                }
+              ]
+            },
+            "description": "Values of one metric over time for one author, oldest first. Each point carries the report, the value, the unit, and the report's period end or filing time. maxPoints is 1 to 5000 (default 500)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the report\\'s rows value is a point', function () { pm.expect(json).to.be.an('array'); pm.expect(json.some(function (p) { return p.reportId === pm.collectionVariables.get('reportId') && p.value === 1200 && p.name === 'rows'; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/reports/rpt_postman_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "reports",
+                "rpt_postman_missing"
+              ]
+            },
+            "description": "A report that does not exist, or belongs to another tenant, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -25309,6 +25691,14 @@
     },
     {
       "key": "memoryEnabled",
+      "value": ""
+    },
+    {
+      "key": "reportId",
+      "value": ""
+    },
+    {
+      "key": "reportKey",
       "value": ""
     }
   ]

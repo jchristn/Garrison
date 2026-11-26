@@ -1030,7 +1030,7 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # Notification endpoints. NotificationEndpoint["events"] items (Test is only sent by the test action and cannot be
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
-                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "Test")
+                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "Test")
 # Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
 # ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
 # mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
@@ -1045,6 +1045,11 @@ ESCALATION_RESOLUTION_SOURCES = ("User", "Agent", "Timeout", "Raiser", "System")
 FREEZE_TARGET_KINDS = ("Agent", "Deployment", "Mandate", "App", "OrgUnit", "Organization", "TenantAutonomy")
 # Scoped memory: MemoryEntry["scopeKind"]. OrgUnit and Organization are refused until organizations exist.
 MEMORY_SCOPE_KINDS = ("Agent", "App", "OrgUnit", "Organization")
+# Reports: Report["kind"], ["health"], ["audience"], and an issue's "severity".
+REPORT_KINDS = ("Status", "Incident", "Decision", "Handoff", "Brief")
+REPORT_HEALTHS = ("Healthy", "Degraded", "Unhealthy", "Unknown")
+REPORT_AUDIENCES = ("Manager", "Chain", "Board")
+REPORT_ISSUE_SEVERITIES = ("Low", "Medium", "High")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -2652,6 +2657,42 @@ class Memory:
         return self._t.request("DELETE", self._t.tenant_path(f"/memory/entries/{_seg(id)}"), {"expectedVersion": expected_version})
 
 
+class Reports:
+    """Reports: list and read the reports runs filed upward, chart a metric over time, and file a report as a person.
+    Agents file through the garrison_file_report MCP tool. Reading needs Read on Report; filing needs Create. Reports
+    are immutable, so there is no update or delete. Titles, bodies, issues, and decisions are text the author wrote;
+    treat them as untrusted."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list(self, author: Optional[str] = None, app: Optional[str] = None, unit: Optional[str] = None,
+             kind: Optional[str] = None, health: Optional[str] = None, run_id: Optional[str] = None,
+             from_utc: Optional[str] = None, to_utc: Optional[str] = None, search: Optional[str] = None,
+             max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """GET /v1.0/api/tenants/{tenantId}/reports, newest first. author and app take an identifier or name; kind is one
+        of REPORT_KINDS and health one of REPORT_HEALTHS; from_utc and to_utc are ISO 8601 times."""
+        return self._t.request("GET", self._t.tenant_path("/reports"), {
+            "author": author, "app": app, "unit": unit, "kind": kind, "health": health, "runId": run_id,
+            "from": from_utc, "to": to_utc, "search": search, "maxResults": max_results, "skip": skip})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        """Read a report with its metrics, issues, and decisions."""
+        return self._t.request("GET", self._t.tenant_path(f"/reports/{_seg(id)}"))
+
+    def metric_series(self, author: Optional[str] = None, name: Optional[str] = None, from_utc: Optional[str] = None,
+                      to_utc: Optional[str] = None, max_points: Optional[int] = None) -> List[Dict[str, Any]]:
+        """GET /v1.0/api/tenants/{tenantId}/reports/metrics: points (reportId, authorAgentId, name, value, unit,
+        timestampUtc), oldest first; the newest max_points (1 to 5000, default 500) when there are more."""
+        return self._t.request("GET", self._t.tenant_path("/reports/metrics"), {
+            "author": author, "name": name, "from": from_utc, "to": to_utc, "maxPoints": max_points})
+
+    def file(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """POST /v1.0/api/tenants/{tenantId}/reports: file a report as a person, in your own name or an agent's
+        (request["agent"]). Required: title. With idempotencyKey, filing again returns the first report."""
+        return self._t.request("POST", self._t.tenant_path("/reports"), body=request)
+
+
 class Approvals:
     """Permission approvals: list, read, decide, and evaluate a deployment's approval rules (approval check)."""
 
@@ -2877,6 +2918,7 @@ class GarrisonClient:
         self.escalations = Escalations(t)
         self.freezes = Freezes(t)
         self.memory = Memory(t)
+        self.reports = Reports(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
