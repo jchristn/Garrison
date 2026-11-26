@@ -27,6 +27,11 @@ namespace Garrison.Core.Organizations
         public string? Detail { get; set; } = null;
 
         /// <summary>
+        /// What the change is about; count limits count distinct subjects.
+        /// </summary>
+        public string Subject { get; set; } = String.Empty;
+
+        /// <summary>
         /// Classes of the change.
         /// </summary>
         public List<ChangeClassEnum> Classes { get; set; } = new List<ChangeClassEnum>();

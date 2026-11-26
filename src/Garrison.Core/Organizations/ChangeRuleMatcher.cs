@@ -10,7 +10,8 @@ namespace Garrison.Core.Organizations
     /// <summary>
     /// Matches an executive's classified changes against change rules (AA8.6, AA-023). A change is covered by the oldest
     /// in-force rule whose unit contains the change's unit, which lists every class of the change, and whose value limits
-    /// the change's new values meet; then each rule's count limits are checked across the draft. Changes with unclassified
+    /// the change's new values meet; then each rule's count limits are checked across the draft, counting each subject (an
+    /// agent with its deployment, mandate, and unit place, or another record) once. Changes with unclassified
     /// fields are never covered. Stateless and thread-safe.
     /// </summary>
     public static class ChangeRuleMatcher
@@ -58,7 +59,7 @@ namespace Garrison.Core.Organizations
             Dictionary<ChangeRuleMatchItem, ChangeRule> assigned = new Dictionary<ChangeRuleMatchItem, ChangeRule>();
             foreach (ChangeClassification change in changes)
             {
-                ChangeRuleMatchItem item = new ChangeRuleMatchItem { Kind = change.Kind, Name = change.Name, Detail = change.Detail, Classes = change.Classes.ToList() };
+                ChangeRuleMatchItem item = new ChangeRuleMatchItem { Kind = change.Kind, Name = change.Name, Detail = change.Detail, Subject = change.Subject, Classes = change.Classes.ToList() };
                 match.Items.Add(item);
                 if (change.Unclassified.Count > 0)
                 {
@@ -91,8 +92,9 @@ namespace Garrison.Core.Organizations
                 ChangeRule rule = byRule.First().Value;
                 foreach (ChangeRuleLimit limit in rule.Limits.Where(l => String.Equals(l.Name, CountLimit, StringComparison.OrdinalIgnoreCase)))
                 {
+                    // One subject counts once, so a new worker's agent, deployment, mandate, and unit place are one AddWorker.
                     List<ChangeRuleMatchItem> ofClass = byRule.Select(a => a.Key).Where(i => i.Classes.Contains(limit.Class)).ToList();
-                    int count = ofClass.Count;
+                    int count = ofClass.Select(i => i.Subject).Distinct(StringComparer.OrdinalIgnoreCase).Count();
                     if (count == 0) continue;
                     if ((limit.Maximum.HasValue && count > limit.Maximum.Value) || (limit.Minimum.HasValue && count < limit.Minimum.Value))
                     {

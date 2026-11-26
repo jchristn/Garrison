@@ -56,6 +56,7 @@ namespace Garrison.Core.Organizations
                 List<ManifestFieldChange> changes = SpecDiff.Compare(item.Live?.Spec, item.Document?.Spec);
                 if (item.Live != null && changes.Count == 0) continue;
                 ChangeClassification change = New(item, Location(context, item));
+                change.Subject = Subject(context, item);
                 if (item.Live == null)
                 {
                     bool asset = item.Kind == "PromptTemplate" || item.Kind == "AgentAsset";
@@ -116,7 +117,13 @@ namespace Garrison.Core.Organizations
 
         private static ChangeClassification New(ExecutiveDraftItem item, string unitId)
         {
-            return new ChangeClassification { Kind = item.Kind, Name = item.Name, UnitId = unitId };
+            return new ChangeClassification { Kind = item.Kind, Name = item.Name, UnitId = unitId, Subject = item.Kind + "/" + item.Name };
+        }
+
+        private static string Subject(ExecutiveDraftContext context, ExecutiveDraftItem item)
+        {
+            string? agent = item.Kind == "Agent" ? item.Name : item.Kind == "Deployment" ? context.AgentOfDeployment(item.Name) : item.Kind == "Mandate" ? context.AgentOfMandate(item.Name) : null;
+            return agent == null ? item.Kind + "/" + item.Name : "Agent/" + agent.Trim().ToLowerInvariant();
         }
 
         private static string Location(ExecutiveDraftContext context, ExecutiveDraftItem item)
@@ -149,6 +156,7 @@ namespace Garrison.Core.Organizations
                 {
                     ChangeClassification structural = New(item, unitId);
                     structural.Detail = (was == null ? "adds unit " : "removes unit ") + name;
+                    structural.Subject = "Unit/" + name.ToLowerInvariant();
                     structural.Unclassified.Add("units." + name);
                     result.Add(structural);
                     continue;
@@ -159,6 +167,7 @@ namespace Garrison.Core.Organizations
                 {
                     ChangeClassification join = New(item, unitId);
                     join.Detail = "adds agent " + added + " to unit " + name;
+                    join.Subject = "Agent/" + added.ToLowerInvariant();
                     join.Classes.Add(ChangeClassEnum.AddWorker);
                     result.Add(join);
                 }
@@ -166,6 +175,7 @@ namespace Garrison.Core.Organizations
                 {
                     ChangeClassification leave = New(item, unitId);
                     leave.Detail = "removes agent " + removed + " from unit " + name;
+                    leave.Subject = "Agent/" + removed.ToLowerInvariant();
                     leave.Classes.Add(ChangeClassEnum.RemoveWorker);
                     result.Add(leave);
                 }
@@ -174,6 +184,7 @@ namespace Garrison.Core.Organizations
                 {
                     ChangeClassification changed = New(item, unitId);
                     changed.Detail = "changes unit " + name;
+                    changed.Subject = "Unit/" + name.ToLowerInvariant();
                     changed.Unclassified.AddRange(other.Select(f => "units." + name + "." + f));
                     result.Add(changed);
                 }

@@ -28,6 +28,12 @@ namespace Garrison.Core.Organizations
         public string? Detail { get; set; } = null;
 
         /// <summary>
+        /// What the change is about, for count limits: the agent's name for a change to an agent, its deployment, its
+        /// mandate, or its place in a unit (so one new worker counts once); otherwise the record's kind and name.
+        /// </summary>
+        public string Subject { get; set; } = String.Empty;
+
+        /// <summary>
         /// The live unit the change falls in, which a rule's unit must contain.
         /// </summary>
         public string UnitId { get; set; } = String.Empty;

@@ -47,6 +47,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Fixed
 
+- Applying a studio draft that deletes an agent or deployment failed with an internal error because the studio looked up a service that no module registers; it now deletes them (found in AA8).
 - The Grafana links on Home and Server info left out the Autonomy dashboard added in AA1.15.
 
 - Tenant deletion now removes deployment inference endpoints and credentials and harness runtime settings and credentials, and the startup table check covers them; `TableCatalog` had left these four tables out.

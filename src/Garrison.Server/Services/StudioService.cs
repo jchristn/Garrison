@@ -856,7 +856,7 @@ namespace Garrison.Server.Services
 
         private static string ExecutiveBundle(List<StudioDraftItem> items)
         {
-            // The organization's revision is recorded after the apply (AA8.6), so a publish flag in the document is ignored.
+            // The organization's revision is recorded after the apply (AA8.6), so the document only writes the working tree.
             List<string> documents = new List<string>();
             foreach (StudioDraftItem item in OrderForApply(items))
             {
@@ -864,7 +864,7 @@ namespace Garrison.Server.Services
                 if (item.Kind == "Organization")
                 {
                     ManifestDocument document = ManifestParser.Parse(item.Document)[0];
-                    document.Spec.Remove("publish");
+                    document.Spec["publish"] = false;
                     text = Normalize(document);
                 }
                 documents.Add(text.EndsWith("\n", StringComparison.Ordinal) ? text : text + "\n");
@@ -1208,11 +1208,11 @@ namespace Garrison.Server.Services
                     break;
                 case "Agent":
                     Agent? agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);
-                    if (agent != null) await _Server.Get<TenantConfigurationService>().DeleteAgentAsync(ctx, tenantId, agent, token).ConfigureAwait(false);
+                    if (agent != null) await new TenantConfigurationService(_Server).DeleteAgentAsync(ctx, tenantId, agent, token).ConfigureAwait(false);
                     break;
                 case "Deployment":
                     Deployment? deployment = (await _Server.Database.Deployments.EnumerateAsync(tenantId, new EnumerationQuery { Search = item.Name, MaxResults = 1000 }, token).ConfigureAwait(false)).Objects.FirstOrDefault(d => d.Name == item.Name);
-                    if (deployment != null) await _Server.Get<TenantConfigurationService>().DeleteDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
+                    if (deployment != null) await new TenantConfigurationService(_Server).DeleteDeploymentAsync(ctx, tenantId, deployment, token).ConfigureAwait(false);
                     break;
                 case "Pipeline":
                     Pipeline? pipeline = await _Server.Database.Pipelines.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);

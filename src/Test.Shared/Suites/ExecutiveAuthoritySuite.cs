@@ -168,6 +168,9 @@ namespace Test.Shared.Suites
             hire.Limits.Add(new ChangeRuleLimit { Class = ChangeClassEnum.AddWorker, Name = ChangeRuleMatcher.CountLimit, Maximum = 1 });
             List<ChangeClassification> one = Classify(scope, Item("Organization", "acme", Org(qaMembers: new[] { "tester", "helper" }), Org()));
             Assert.True(ChangeRuleMatcher.Match(one, new List<ChangeRule> { hire }, scope.Tree, now).AllMatched, "One added worker is within count");
+            List<ChangeClassification> worker = Classify(scope, Item("Agent", "helper", Agent("helper"), null), Item("Deployment", "helper-d", Deployment("helper-d", "helper", "small"), null), Item("Organization", "acme", Org(qaMembers: new[] { "tester", "helper" }), Org()));
+            ChangeRuleMatch oneWorker = ChangeRuleMatcher.Match(worker, new List<ChangeRule> { hire }, scope.Tree, now);
+            Assert.True(worker.Count == 3 && oneWorker.AllMatched, "An agent, its deployment, and its unit place are one worker for count: " + Serializer.Serialize(oneWorker));
             List<ChangeClassification> two = Classify(scope, Item("Organization", "acme", Org(qaMembers: new[] { "tester", "helper", "helper2" }), Org()));
             ChangeRuleMatch tooMany = ChangeRuleMatcher.Match(two, new List<ChangeRule> { hire }, scope.Tree, now);
             Assert.True(!tooMany.AllMatched && tooMany.Items.All(i => i.Reason != null && i.Reason.Contains("at most 1", StringComparison.Ordinal)), "Two added workers exceed count: " + Serializer.Serialize(tooMany));
@@ -347,7 +350,33 @@ namespace Test.Shared.Suites
                 Assert.Equal("exa-large-model", bigger.Model ?? String.Empty, "The model changed");
                 Assert.Equal(409, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, proposals + "/" + uncovered.Id + "/decide", new OrgProposalDecisionRequest { Allow = true }, token).ConfigureAwait(false)).StatusCode, "An applied proposal is not pending");
 
-                // Rolling back to the founding revision undoes both applies.
+                // AddWorker under a rule: a new agent joins ops through the organization item, and one revision records it.
+                ChangeRule hire = new ChangeRule { OrganizationId = f.Org.Id, UnitId = f.Ops.Id, Name = "Ops hiring", Classes = new List<ChangeRuleClass> { new ChangeRuleClass { Class = ChangeClassEnum.AddWorker } } };
+                hire.Limits.Add(new ChangeRuleLimit { Class = ChangeClassEnum.AddWorker, Name = "count", Maximum = 1 });
+                await HttpTestHelpers.SendAsync<ChangeRule>(host.AdminClient, HttpMethod.Post, T(host) + "/change-rules", hire, 201, token).ConfigureAwait(false);
+                int beforeHire = (await host.Server.Context.Database.Organizations.ListRevisionsAsync(host.TenantId, f.Org.Id, token).ConfigureAwait(false)).Count;
+                using (TestMcpClient client = new TestMcpClient())
+                {
+                    await client.ConnectAsync(host, bearer, token).ConfigureAwait(false);
+                    StudioDraft hiring = await client.CallAsync<StudioDraft>("garrison_studio_create_draft", new { title = "Hire a helper for ops" }, token).ConfigureAwait(false);
+                    hiring = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId = hiring.Id, version = hiring.Version, kind = "Agent", name = "exa-helper", document = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: exa-helper\nspec:\n  description: Helps the operator.\n" }, token).ConfigureAwait(false);
+                    ManifestDocument organization = await LiveAsync(host, "Organization", f.Org.Name, token).ConfigureAwait(false);
+                    Dictionary<string, object?> ops = FindUnit(organization.Spec["units"], f.Ops.Name) ?? throw new TestAssertionException("The exported organization names " + f.Ops.Name);
+                    List<object?> members = ops.TryGetValue("members", out object? existing) && existing is List<object?> list ? list : new List<object?>();
+                    members.Add(new Dictionary<string, object?> { ["agent"] = "exa-helper", ["title"] = "Helper" });
+                    ops["members"] = members;
+                    hiring = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId = hiring.Id, version = hiring.Version, kind = "Organization", name = f.Org.Name, document = Yaml(organization) }, token).ConfigureAwait(false);
+                    StudioDraftDiff hireDiff = await client.CallAsync<StudioDraftDiff>("garrison_studio_validate", new { draftId = hiring.Id }, token).ConfigureAwait(false);
+                    Assert.True(hireDiff.Valid && hireDiff.AppliesByRule && hireDiff.RuleMatches.Count == 2, "The new agent and its place in ops are one covered worker: " + Serializer.Serialize(hireDiff));
+                    Approval hired = await client.CallAsync<Approval>("garrison_studio_request_apply", new { draftId = hiring.Id, version = hiring.Version }, token).ConfigureAwait(false);
+                    Assert.True(hired.DecisionSource == ApprovalSourceEnum.Rule, "Hiring applies under the rule");
+                }
+                Assert.Equal(beforeHire + 1, (await host.Server.Context.Database.Organizations.ListRevisionsAsync(host.TenantId, f.Org.Id, token).ConfigureAwait(false)).Count, "One org revision records the hire, not two");
+                Agent helper = Assert.NotNull(await host.Server.Context.Database.Agents.ReadByNameAsync(host.TenantId, "exa-helper", token).ConfigureAwait(false), "The helper agent exists");
+                OrgTree hiredTree = Assert.NotNull(await host.Server.Context.Get<ChainOfCommand>().LiveTreeAsync(host.TenantId, f.Org.Id, token).ConfigureAwait(false), "Live tree");
+                Assert.True(hiredTree.PositionOf(helper.Id)?.UnitId == f.Ops.Id, "The helper sits in ops in the live chart");
+
+                // Rolling back to the founding revision undoes every apply.
                 OrgRevision first = founding.Single();
                 await HttpTestHelpers.SendAsync<OrgRevision>(host.AdminClient, HttpMethod.Post, T(host) + "/organizations/" + f.Org.Id + "/rollback", new OrgRollbackRequest { RevisionId = first.Id }, 200, token).ConfigureAwait(false);
                 Deployment restored = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, worker.Id, token).ConfigureAwait(false), "Read the deployment again");
@@ -355,6 +384,7 @@ namespace Test.Shared.Suites
                 Mandate back = Assert.NotNull(await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, keeper.Id, token).ConfigureAwait(false), "Read the mandate again");
                 MandateRevision backRevision = Assert.NotNull(await host.Server.Context.Database.MandateRevisions.ReadAsync(host.TenantId, back.CurrentRevisionId!, token).ConfigureAwait(false), "Read its revision again");
                 Assert.True(backRevision.MinIntervalSeconds == 60 && backRevision.MaxIntervalSeconds == 120, "Rollback restores the mandate's wake bounds: " + Serializer.Serialize(backRevision));
+                Assert.True(await host.Server.Context.Database.Agents.ReadByNameAsync(host.TenantId, "exa-helper", token).ConfigureAwait(false) == null, "Rollback deletes the agent the hire created");
                 StudioDraft revert = Assert.NotNull(await host.Server.Context.Database.StudioDrafts.ReadAsync(host.TenantId, recorded.RevertDraftId!, token).ConfigureAwait(false), "Read the revert draft");
                 Assert.True(revert.Status == StudioDraftStatusEnum.Applied, "The revert draft is used once");
             }
@@ -442,6 +472,22 @@ namespace Test.Shared.Suites
             run.DeploymentId = deployment.Id;
             run.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5);
             return await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+        }
+
+        private static Dictionary<string, object?>? FindUnit(object? units, string name)
+        {
+            if (units is not List<object?> list) return null;
+            foreach (object? entry in list)
+            {
+                if (entry is not Dictionary<string, object?> unit) continue;
+                if (unit.TryGetValue("name", out object? value) && String.Equals(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), name, StringComparison.Ordinal)) return unit;
+                if (unit.TryGetValue("units", out object? children))
+                {
+                    Dictionary<string, object?>? found = FindUnit(children, name);
+                    if (found != null) return found;
+                }
+            }
+            return null;
         }
 
         private static async Task<ManifestDocument> LiveAsync(TestServerHost host, string kind, string name, CancellationToken token)

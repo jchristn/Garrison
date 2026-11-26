@@ -5,7 +5,8 @@ namespace Garrison.Core.Models
 
     /// <summary>
     /// A numeric bound a change must stay within for a change rule to cover it (AA8.4, AA8.5). Known names:
-    /// <c>count</c> for any class (how many changes of the class one draft may carry); <c>minIntervalSeconds</c>,
+    /// <c>count</c> for any class (how many workers, or other records such as templates, one draft may change in the class;
+    /// an agent with its deployment, mandate, and unit place counts once); <c>minIntervalSeconds</c>,
     /// <c>maxIntervalSeconds</c>, <c>backoffFactor</c>, and <c>jitterPercent</c> for WakeTuning (the new values); and
     /// <c>weight</c> for DeploymentWeight (the new weight). A change without the named value, such as a weight change on a
     /// rule bounding only count, is not affected by that limit. Not thread-safe.
