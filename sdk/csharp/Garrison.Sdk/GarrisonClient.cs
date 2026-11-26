@@ -214,6 +214,26 @@ namespace Garrison.Sdk
         public ChangeRulesClient ChangeRules { get; }
 
         /// <summary>
+        /// Eval sets (AA9): versioned sets of eval cases that only people approve.
+        /// </summary>
+        public EvalSetsClient EvalSets { get; }
+
+        /// <summary>
+        /// Eval runs (AA9): evaluations of an eval set against a deployment or an agent revision.
+        /// </summary>
+        public EvalRunsClient EvalRuns { get; }
+
+        /// <summary>
+        /// Shadow trials (AA9): sampled inputs of a deployment copied to a candidate that cannot act.
+        /// </summary>
+        public ShadowTrialsClient ShadowTrials { get; }
+
+        /// <summary>
+        /// Canary releases (AA9): stepped weight moves from a baseline deployment to a candidate, with rollback.
+        /// </summary>
+        public CanaryReleasesClient CanaryReleases { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -346,6 +366,10 @@ namespace Garrison.Sdk
             Messages = new MessagesClient(Transport);
             Organizations = new OrganizationsClient(Transport);
             ChangeRules = new ChangeRulesClient(Transport);
+            EvalSets = new EvalSetsClient(Transport);
+            EvalRuns = new EvalRunsClient(Transport);
+            ShadowTrials = new ShadowTrialsClient(Transport);
+            CanaryReleases = new CanaryReleasesClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

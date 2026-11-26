@@ -23879,6 +23879,1538 @@
       ]
     },
     {
+      "name": "Eval sets",
+      "description": "Eval sets (AA9): versioned, named sets of eval cases. A case has input text, optional expected text and files, and checks scored by ExactMatch, Contains, JsonSchemaValid, or Judge (the set's judge agent grades it). A Draft version changes in place; only a person approves it, and an approved version is immutable, so editing it or its cases makes the next version as a Draft. Hidden cases are never shown to the run tokens of the agent being evaluated.",
+      "item": [
+        {
+          "name": "Create an eval set",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets"
+              ]
+            },
+            "description": "Creates version 1 of an eval set with two cases. The fake harness echoes its input, so each case's Contains check looks for a marker in the input. The second case has expected text and a Contains check without an argument, which compares against the expected text. A person's set has origin Human (or Playground); a set written by a run token is always Evaluator.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-evals-{{suffix}}\",\n  \"description\": \"Created by Postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"cases\": [\n    {\n      \"name\": \"first\",\n      \"inputText\": \"case-0 alpha\",\n      \"checks\": [\n        {\n          \"scorer\": \"Contains\",\n          \"argument\": \"case-0\"\n        }\n      ]\n    },\n    {\n      \"name\": \"second\",\n      \"inputText\": \"case-1 beta\",\n      \"expectedText\": \"case-1\",\n      \"checks\": [\n        {\n          \"scorer\": \"Contains\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a Draft version 1 with two cases', function () { pm.expect(json.id).to.match(/^evs_/); pm.expect(json.version).to.eql(1); pm.expect(json.state).to.eql('Draft'); pm.expect(json.origin).to.eql('Human'); pm.expect(json.caseCount).to.eql(2); pm.expect(json.tags).to.eql(['postman']); });",
+                  "if (json.id) { pm.collectionVariables.set('evalSetId', json.id); pm.collectionVariables.set('evalSetName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A case without input is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets"
+              ]
+            },
+            "description": "Every case needs input text; a missing one answers 400 with field code InputRequired on the case's inputText. Other field codes are ArgumentRequired (an ExactMatch or Contains check with neither an argument nor expected text), UnknownScorer, InvalidJsonSchema, and TooManyCases (past Evaluation.MaxCasesPerSet).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-bad-evals-{{suffix}}\",\n  \"cases\": [\n    {\n      \"inputText\": \"\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code is InputRequired', function () { pm.expect(json.fieldCodes['cases[0].inputText']).to.eql('InputRequired'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add a case",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/cases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "cases"
+              ]
+            },
+            "description": "Adds a case at the end of the set. The check weighs twice as much as a weight 1 check in the run's score. On an approved version the case lands on the next version, a Draft, and the returned case's setId names it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"third\",\n  \"inputText\": \"case-2 gamma\",\n  \"checks\": [\n    {\n      \"scorer\": \"Contains\",\n      \"argument\": \"case-2\",\n      \"weight\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('the third case', function () { pm.expect(json.id).to.match(/^evc_/); pm.expect(json.order).to.eql(2); pm.expect(json.setId).to.eql(pm.collectionVariables.get('evalSetId')); pm.expect(json.checks[0].weight).to.eql(2); });",
+                  "if (json.id) pm.collectionVariables.set('evalCaseId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List cases",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/cases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "cases"
+              ]
+            },
+            "description": "Lists a set version's cases in order. A run token of the agent being evaluated sees hidden cases redacted to their scorers."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('three cases in order', function () { pm.expect(json.map(function (x) { return x.order; })).to.eql([0, 1, 2]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a case",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/cases/{{evalCaseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "cases",
+                "{{evalCaseId}}"
+              ]
+            },
+            "description": "Reads one case."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the third case', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('evalCaseId')); pm.expect(json.inputText).to.eql('case-2 gamma'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update a case",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/cases/{{evalCaseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "cases",
+                "{{evalCaseId}}"
+              ]
+            },
+            "description": "Replaces a case. On an approved version the same case of the next version changes instead.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"third, renamed\",\n  \"inputText\": \"case-2 gamma\",\n  \"checks\": [\n    {\n      \"scorer\": \"Contains\",\n      \"argument\": \"case-2\",\n      \"weight\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('renamed', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('evalCaseId')); pm.expect(json.name).to.eql('third, renamed'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update the eval set",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}"
+              ]
+            },
+            "description": "Edits the description, judge agent, and tags. A Draft changes in place; an approved version answers with its next version, a Draft. Name, origin, and cases are ignored here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Edited by Postman\",\n  \"tags\": [\n    \"postman\",\n    \"edited\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the same Draft version', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('evalSetId')); pm.expect(json.version).to.eql(1); pm.expect(json.description).to.eql('Edited by Postman'); pm.expect(json.tags).to.eql(['postman', 'edited']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List eval sets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets?search=postman-evals-{{suffix}}&latestOnly=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "postman-evals-{{suffix}}"
+                },
+                {
+                  "key": "latestOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Lists eval set versions newest first. Filters: state, origin, tag, latestOnly (the newest version of each name), search, maxResults, and skip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the set is listed once', function () { pm.expect(json.objects.length).to.eql(1); pm.expect(json.objects[0].id).to.eql(pm.collectionVariables.get('evalSetId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the eval set by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetName}}"
+              ]
+            },
+            "description": "A set name reads the newest version; an evs_ identifier reads that version."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the newest version', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('evalSetId')); pm.expect(json.caseCount).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve the eval set",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "approve"
+              ]
+            },
+            "description": "Approves the Draft so it can gate promotions, change rules, and canary steps. Only a person approves; a run token is refused with 403 ApprovalIsPeopleOnly. The approved version is immutable from now on."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Approved', function () { pm.expect(json.state).to.eql('Approved'); pm.expect(json.approvedUtc).to.be.a('string'); pm.expect(json.caseCount).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approving twice is a conflict",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "approve"
+              ]
+            },
+            "description": "An approved version answers 409 AlreadyApproved; an empty Draft answers 409 EvalSetEmpty."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is AlreadyApproved', function () { pm.expect(json.code).to.eql('AlreadyApproved'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Eval runs",
+      "description": "Eval runs (AA9): one evaluation of an eval set version against a deployment or an agent revision. Each case runs as a run of kind Eval and records a scored result; the run's score is the check-weighted mean of the case scores, and passed says whether it reached the threshold. An environment's evalGateSet refuses promotions whose revision has not passed that set (EvalGateFailed). This folder uses the Eval sets folder's set and the Deployments folder's deployment on the fake harness.",
+      "item": [
+        {
+          "name": "Start an eval run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-runs"
+              ]
+            },
+            "description": "Evaluates the approved set against the Deployments folder's deployment on the fake harness. setId takes an identifier or a name (the newest approved version). Each case runs as a run of kind Eval carrying evalRunId. Needs Execute on EvalRun and on the agent.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setId\": \"{{evalSetName}}\",\n  \"targetType\": \"Deployment\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"threshold\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a run of three cases', function () { pm.expect(json.id).to.match(/^evr_/); pm.expect(json.setId).to.eql(pm.collectionVariables.get('evalSetId')); pm.expect(json.targetType).to.eql('Deployment'); pm.expect(json.totalCases).to.eql(3); pm.expect(json.threshold).to.eql(0.5); });",
+                  "if (json.id) pm.collectionVariables.set('evalRunId', json.id);",
+                  "pm.collectionVariables.set('evalRunTries', 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the eval run",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-runs/{{evalRunId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-runs",
+                "{{evalRunId}}"
+              ]
+            },
+            "description": "Reads the run with its score and counts. The cases run on the worker, so this request waits and repeats (up to twenty times) until the run leaves Pending and Running."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (Number(pm.collectionVariables.get('evalRunTries') || 0) > 0) setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var tries = Number(pm.collectionVariables.get('evalRunTries') || 0);",
+                  "if ((json.status === 'Pending' || json.status === 'Running') && tries < 20) { pm.collectionVariables.set('evalRunTries', tries + 1); postman.setNextRequest('Read the eval run'); }",
+                  "else { pm.collectionVariables.set('evalRunTries', 0); pm.test('status is 200', function () { pm.response.to.have.status(200); }); pm.test('Completed and passed', function () { pm.expect(json.status).to.eql('Completed'); pm.expect(json.score).to.eql(1); pm.expect(json.passed).to.eql(true); pm.expect(json.passedCases).to.eql(3); pm.expect(json.completedUtc).to.be.a('string'); }); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the eval run's results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-runs/{{evalRunId}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-runs",
+                "{{evalRunId}}",
+                "results"
+              ]
+            },
+            "description": "Lists the case results in order with the case run, its output, the score, and one entry per check with a note."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('three passing results', function () { pm.expect(json.length).to.eql(3); json.forEach(function (r) { pm.expect(r.id).to.match(/^evx_/); pm.expect(r.passed).to.eql(true); pm.expect(r.runId).to.match(/^run_/); pm.expect(r.outputText).to.include('case-' + r.order); pm.expect(r.checkResults.length).to.eql(1); pm.expect(r.checkResults[0].note).to.be.a('string'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List eval runs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-runs?set={{evalSetName}}&status=Completed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-runs"
+              ],
+              "query": [
+                {
+                  "key": "set",
+                  "value": "{{evalSetName}}"
+                },
+                {
+                  "key": "status",
+                  "value": "Completed"
+                }
+              ]
+            },
+            "description": "Lists eval runs newest first. Filters: set (identifier or name), deployment, revision, status, maxResults, and skip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the run is listed', function () { pm.expect(json.objects.map(function (r) { return r.id; })).to.include(pm.collectionVariables.get('evalRunId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelling a finished run is a conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-runs/{{evalRunId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-runs",
+                "{{evalRunId}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancel stops a Pending or Running eval run and its unfinished case runs; a finished run answers 409 EvalRunFinished.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Too late\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is EvalRunFinished', function () { pm.expect(json.code).to.eql('EvalRunFinished'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove a case from the approved set",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}/cases/{{evalCaseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}",
+                "cases",
+                "{{evalCaseId}}"
+              ]
+            },
+            "description": "The approved version is immutable, so removing a case creates version 2 as a Draft without it and answers with that version."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('version 2 is a Draft', function () { pm.expect(json.id).to.not.eql(pm.collectionVariables.get('evalSetId')); pm.expect(json.version).to.eql(2); pm.expect(json.state).to.eql('Draft'); pm.expect(json.caseCount).to.eql(2); pm.expect(json.previousVersionId).to.eql(pm.collectionVariables.get('evalSetId')); });",
+                  "if (json.id) pm.collectionVariables.set('evalSetDraftId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the draft version",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetDraftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetDraftId}}"
+              ]
+            },
+            "description": "Deletes a Draft version."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleting an approved version is a conflict",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/eval-sets/{{evalSetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "eval-sets",
+                "{{evalSetId}}"
+              ]
+            },
+            "description": "Approved versions are kept, so they can still explain past gates; deleting one answers 409 EvalSetImmutable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is EvalSetImmutable', function () { pm.expect(json.code).to.eql('EvalSetImmutable'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Shadow trials",
+      "description": "Shadow trials (AA9): a sampled share of a source deployment's inputs is copied to a candidate deployment of the same agent as runs of kind Shadow, which cannot cause effects, and the outputs are compared. Only people start and stop trials. This folder creates the candidate deployment the Canary releases folder also uses.",
+      "item": [
+        {
+          "name": "Create a candidate deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "description": "Creates a second deployment of the Agents folder's agent on the fake harness. The Shadow trials and Canary releases folders use it as the candidate; Canary releases deletes it, and Cleanup deletes it if a folder stopped early.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-candidate-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('candidateDeploymentId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start a shadow trial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials"
+              ]
+            },
+            "description": "Copies 25 percent of the Deployments folder's deployment runs to the candidate as runs of kind Shadow, which cannot cause effects, and compares the outputs. The deployments take identifiers or names and must belong to the same agent. Only people start trials, and the caller needs Execute on the agent.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-shadow-{{suffix}}\",\n  \"sourceDeploymentId\": \"{{deploymentId}}\",\n  \"candidateDeploymentId\": \"{{candidateDeploymentId}}\",\n  \"samplePercent\": 25\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a running trial', function () { pm.expect(json.id).to.match(/^shd_/); pm.expect(json.status).to.eql('Running'); pm.expect(json.agentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(json.candidateDeploymentId).to.eql(pm.collectionVariables.get('candidateDeploymentId')); pm.expect(json.samplePercent).to.eql(25); pm.expect(json.comparedCount).to.eql(0); });",
+                  "if (json.id) pm.collectionVariables.set('shadowTrialId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A trial of one deployment is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials"
+              ]
+            },
+            "description": "The candidate must be a different deployment from the source: 400 with field code SameDeployment. Other codes are DeploymentNotFound, DifferentAgent, DeploymentInactive, EndsInPast, and EvalSetNotFound; a pair that is already running answers 409 ShadowTrialAlreadyRunning.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceDeploymentId\": \"{{deploymentId}}\",\n  \"candidateDeploymentId\": \"{{deploymentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code is SameDeployment', function () { pm.expect(json.fieldCodes.candidateDeploymentId).to.eql('SameDeployment'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the shadow trial",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials/{{shadowTrialId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials",
+                "{{shadowTrialId}}"
+              ]
+            },
+            "description": "Reads the trial with its compared, agreed, diverged, and candidate failure counts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the trial', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('shadowTrialId')); pm.expect(json.name).to.eql('postman-shadow-' + pm.collectionVariables.get('suffix')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List shadow trials",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials?source={{deploymentId}}&status=Running",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials"
+              ],
+              "query": [
+                {
+                  "key": "source",
+                  "value": "{{deploymentId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "Running"
+                }
+              ]
+            },
+            "description": "Lists trials newest first. Filters: source, candidate, status, maxResults, and skip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the trial is listed', function () { pm.expect(json.objects.length).to.eql(1); pm.expect(json.objects[0].id).to.eql(pm.collectionVariables.get('shadowTrialId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stop the shadow trial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials/{{shadowTrialId}}/stop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials",
+                "{{shadowTrialId}}",
+                "stop"
+              ]
+            },
+            "description": "Stops the trial. Shadow runs already started finish and are still compared. Only people stop trials.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Postman is done\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Stopped with the reason', function () { pm.expect(json.status).to.eql('Stopped'); pm.expect(json.stopReason).to.eql('Postman is done'); pm.expect(json.completedUtc).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stopping twice is a conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials/{{shadowTrialId}}/stop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials",
+                "{{shadowTrialId}}",
+                "stop"
+              ]
+            },
+            "description": "A trial that is not Running answers 409 ShadowTrialNotRunning.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is ShadowTrialNotRunning', function () { pm.expect(json.code).to.eql('ShadowTrialNotRunning'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Canary releases",
+      "description": "Canary releases (AA9): an agent's traffic moves from a baseline deployment to a candidate in steps of deployment weight, rolling the weights back when the candidate's error rate or eval score crosses a threshold. Only people start and abort releases. This folder deletes the candidate deployment at the end.",
+      "item": [
+        {
+          "name": "Start a canary release",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases"
+              ]
+            },
+            "description": "Moves the agent's traffic from the Deployments folder's deployment to the candidate in two steps, 25 then 100 percent. A step advances after its minimum runs and minutes while the candidate's error rate stays within maxErrorRatePercent (and, with evalSetId and minEvalScore, its eval score stays high enough); otherwise the weights are restored and CanaryRolledBack is notified. The first step's weights apply at once. Only people start releases, and the caller needs Update on both deployments.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"candidateDeploymentId\": \"{{candidateDeploymentId}}\",\n  \"baselineDeploymentId\": \"{{deploymentId}}\",\n  \"maxErrorRatePercent\": 10,\n  \"steps\": [\n    {\n      \"weightPercent\": 25,\n      \"minimumRuns\": 1000,\n      \"minimumMinutes\": 60\n    },\n    {\n      \"weightPercent\": 100,\n      \"minimumRuns\": 1000,\n      \"minimumMinutes\": 60\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('a running release at step 0', function () { pm.expect(json.id).to.match(/^cnr_/); pm.expect(json.status).to.eql('Running'); pm.expect(json.agentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(json.currentStepIndex).to.eql(0); pm.expect(json.steps.map(function (s) { return s.weightPercent; })).to.eql([25, 100]); pm.expect(json.maxErrorRatePercent).to.eql(10); });",
+                  "if (json.id) { pm.collectionVariables.set('canaryReleaseId', json.id); pm.collectionVariables.set('candidateInitialWeight', json.candidateInitialWeight); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A last step below 100 is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases"
+              ]
+            },
+            "description": "Steps must rise and the last must reach 100 percent: 400 with field code LastStepNotFull. Other codes are NotIncreasing, TooMany, AgentNotFound, DeploymentNotFound, DifferentAgent, SameDeployment, DeploymentInactive, EvalGateIncomplete, and EvalSetNotFound; a busy deployment answers 409 CanaryAlreadyRunning.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"candidateDeploymentId\": \"{{candidateDeploymentId}}\",\n  \"baselineDeploymentId\": \"{{deploymentId}}\",\n  \"steps\": [\n    {\n      \"weightPercent\": 50\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code is LastStepNotFull', function () { pm.expect(json.fieldCodes['steps[0].weightPercent']).to.eql('LastStepNotFull'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the canary release",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases/{{canaryReleaseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases",
+                "{{canaryReleaseId}}"
+              ]
+            },
+            "description": "Reads the release with its current step and rollback reason."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('still at step 0', function () { pm.expect(json.status).to.eql('Running'); pm.expect(json.currentStepIndex).to.eql(0); pm.expect(json.stepStartedUtc).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The candidate carries the first step's weight",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{candidateDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{candidateDeploymentId}}"
+              ]
+            },
+            "description": "Deployment weights are on a scale of 1000 for a canary: at 25 percent the candidate weighs 250 and the baseline 750."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('weight 250', function () { pm.expect(json.weight).to.eql(250); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List canary releases",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases?agent={{agentId}}&status=Running",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases"
+              ],
+              "query": [
+                {
+                  "key": "agent",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "Running"
+                }
+              ]
+            },
+            "description": "Lists releases newest first. Filters: agent, status, maxResults, and skip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the release is listed', function () { pm.expect(json.objects.length).to.eql(1); pm.expect(json.objects[0].id).to.eql(pm.collectionVariables.get('canaryReleaseId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abort the canary release",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases/{{canaryReleaseId}}/abort",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases",
+                "{{canaryReleaseId}}",
+                "abort"
+              ]
+            },
+            "description": "Aborts the release; both deployments go back to their weights from before it started. Only people abort releases.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Postman is done\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Aborted with the reason', function () { pm.expect(json.status).to.eql('Aborted'); pm.expect(json.rollbackReason).to.eql('Postman is done'); pm.expect(json.completedUtc).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aborting twice is a conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases/{{canaryReleaseId}}/abort",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases",
+                "{{canaryReleaseId}}",
+                "abort"
+              ]
+            },
+            "description": "A release that is not Running answers 409 CanaryNotRunning.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is CanaryNotRunning', function () { pm.expect(json.code).to.eql('CanaryNotRunning'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The candidate's weight is restored",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{candidateDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{candidateDeploymentId}}"
+              ]
+            },
+            "description": "After the abort the candidate weighs what it did before the release."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the initial weight', function () { pm.expect(json.weight).to.eql(Number(pm.collectionVariables.get('candidateInitialWeight'))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the candidate deployment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{candidateDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{candidateDeploymentId}}"
+              ]
+            },
+            "description": "Deletes the candidate deployment the Shadow trials folder created."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -25935,6 +27467,138 @@
           ]
         },
         {
+          "name": "Abort canary release",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/canary-releases/{{canaryReleaseId}}/abort",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "canary-releases",
+                "{{canaryReleaseId}}",
+                "abort"
+              ]
+            },
+            "description": "Aborts the Canary releases folder's release if that folder stopped before aborting it; 409 when it is no longer running, 404 when it was never started.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Cleanup\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200, 404, or 409', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404, 409]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stop shadow trial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/shadow-trials/{{shadowTrialId}}/stop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "shadow-trials",
+                "{{shadowTrialId}}",
+                "stop"
+              ]
+            },
+            "description": "Stops the Shadow trials folder's trial if that folder stopped before stopping it; 409 when it is no longer running, 404 when it was never started.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Cleanup\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200, 404, or 409', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404, 409]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete candidate deployment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{candidateDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{candidateDeploymentId}}"
+              ]
+            },
+            "description": "Deletes the Shadow trials folder's candidate deployment if the Canary releases folder stopped before deleting it; 404 when it is already gone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([204, 404]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete deployment",
           "request": {
             "method": "DELETE",
@@ -27496,6 +29160,46 @@
     },
     {
       "key": "changeRuleId",
+      "value": ""
+    },
+    {
+      "key": "evalSetId",
+      "value": ""
+    },
+    {
+      "key": "evalSetName",
+      "value": ""
+    },
+    {
+      "key": "evalCaseId",
+      "value": ""
+    },
+    {
+      "key": "evalSetDraftId",
+      "value": ""
+    },
+    {
+      "key": "evalRunId",
+      "value": ""
+    },
+    {
+      "key": "evalRunTries",
+      "value": ""
+    },
+    {
+      "key": "candidateDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "shadowTrialId",
+      "value": ""
+    },
+    {
+      "key": "canaryReleaseId",
+      "value": ""
+    },
+    {
+      "key": "candidateInitialWeight",
       "value": ""
     }
   ]

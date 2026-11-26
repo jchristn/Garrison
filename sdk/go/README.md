@@ -278,6 +278,38 @@ _, err = client.Organizations.DecideProposal(ctx, "acme", proposal.DraftID, garr
 
 `StudioDraft` carries `OriginRunID`, `OrganizationID`, `ExecutiveUnitID`, and `ExecutiveAgentID` for an executive's draft, and `OrgRevision` carries `DraftID` and `RevertDraftID` when it records one being applied. `NotificationEventOrgProposalApplied` fires when change rules apply a proposal without a person.
 
+## Evaluations, shadow trials, and canary releases
+
+An eval set is a named, versioned list of cases: each case has `InputText`, optional `ExpectedText`, and checks (`EvalScorerExactMatch`, `EvalScorerContains`, `EvalScorerJSONSchemaValid`, `EvalScorerJudge`, each with an optional `Argument` and a `Weight` from 0 to 100). A case without checks is scored `ExactMatch` against its expected text, or by the set's `JudgeAgent` when it has none. `client.EvalSets` creates a set (version 1, `Draft`), edits it and its cases, and approves it; only a person approves. An approved version is immutable: editing it or adding, changing, or removing a case answers with its next version, a draft, and `Delete` refuses it with 409 `EvalSetImmutable`. A set is addressed by its `evs_` identifier or by name (the newest version).
+
+`client.EvalRuns.Create` runs a set against a deployment (`EvalRunTargetDeployment`) or an agent revision (`EvalRunTargetAgentRevision`) and answers `Pending`; poll `Get` until the status is `Completed`, `Failed`, or `Cancelled`. `Score` is the check-weighted mean of case scores from 0 to 1, and `Passed` is `Score >= Threshold`. `Results` returns one `EvalCaseResult` per case with its output, the case's `Eval` run, and per-check scores and notes. `Cancel` stops a pending or running eval run (409 `EvalRunFinished` once it finished). Each case runs as a `Run` with `Kind` `RunKindEval` and `EvalRunID` set. A `TenantEnvironment` with `EvalGateSet` (and `EvalGateThreshold`, default 1) requires a passing eval run of that approved set before a promotion into it.
+
+```go
+expected := "Paris"
+set, err := client.EvalSets.Create(ctx, garrison.EvalSetRequest{Name: &name, Cases: []garrison.EvalCase{
+	{InputText: "What is the capital of France?", ExpectedText: &expected, Checks: []garrison.EvalCaseCheck{{Scorer: garrison.EvalScorerContains}}},
+}})
+set, err = client.EvalSets.Approve(ctx, set.ID)
+target := garrison.EvalRunTargetDeployment
+run, err := client.EvalRuns.Create(ctx, garrison.EvalRunRequest{SetID: set.Name, TargetType: &target, DeploymentID: &deploymentID})
+for run.Status == garrison.EvalRunStatusPending || run.Status == garrison.EvalRunStatusRunning {
+	time.Sleep(time.Second)
+	run, err = client.EvalRuns.Get(ctx, run.ID)
+}
+results, err := client.EvalRuns.Results(ctx, run.ID)
+```
+
+A shadow trial copies `SamplePercent` (1 to 100) of a source deployment's runs to a candidate deployment of the same agent as `RunKindShadow` runs that cannot act, and counts compared, agreed, diverged, and failed candidate outputs. A canary release moves the agent's traffic from a baseline deployment to a candidate in `CanaryReleaseStep`s (rising `WeightPercent`, the last one 100, each held for `MinimumRuns` and `MinimumMinutes`), rolls back when the candidate's error rate passes `MaxErrorRatePercent` or its eval score on `EvalSetID` drops below `MinEvalScore`, and fires `NotificationEventCanaryRolledBack`. `Deployment.Weight` shows the weights it sets. Both are people only (403 `PeopleOnly` for a run token); `client.ShadowTrials.Stop` and `client.CanaryReleases.Abort` end them early, and abort restores both deployments' weights.
+
+```go
+trial, err := client.ShadowTrials.Create(ctx, garrison.ShadowTrial{SourceDeploymentID: "support-prod", CandidateDeploymentID: "support-next", SamplePercent: 25})
+trial, err = client.ShadowTrials.Stop(ctx, trial.ID, "Enough samples.")
+
+release, err := client.CanaryReleases.Create(ctx, garrison.CanaryRelease{AgentID: "support", CandidateDeploymentID: "support-next", BaselineDeploymentID: "support-prod",
+	Steps: []garrison.CanaryReleaseStep{{WeightPercent: 10, MinimumRuns: 20, MinimumMinutes: 10}, {WeightPercent: 100, MinimumRuns: 20, MinimumMinutes: 10}}})
+release, err = client.CanaryReleases.Abort(ctx, release.ID, "Rolling back by hand.")
+```
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

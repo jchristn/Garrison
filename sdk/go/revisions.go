@@ -108,6 +108,10 @@ type TenantEnvironment struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
 	Position    int     `json:"position"`
+	// EvalGateSet names an approved eval set a promotion into this environment must pass; nil for no gate.
+	EvalGateSet *string `json:"evalGateSet,omitempty"`
+	// EvalGateThreshold is the score from 0 to 1 the gate's eval run must reach; nil with a gate set requires 1.
+	EvalGateThreshold *float64 `json:"evalGateThreshold,omitempty"`
 }
 
 // TenantEnvironmentList is a tenant's ordered environment list. IsDefault is true (read only) when the tenant has not

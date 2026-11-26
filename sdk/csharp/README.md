@@ -292,6 +292,44 @@ await client.Organizations.DecideProposalAsync("acme", proposal.DraftId, new Org
 
 `StudioDraft` carries `OriginRunId`, `OrganizationId`, `ExecutiveUnitId`, and `ExecutiveAgentId` for an executive's draft, and `OrgRevision` carries `DraftId` and `RevertDraftId` for a revision recorded when one was applied. `NotificationEventEnum.OrgProposalApplied` fires when change rules apply a proposal without a person.
 
+## Evaluations, shadow trials, and canary releases
+
+`EvalSets` holds versioned, named sets of eval cases. A set is created as version 1 in `EvalSetStateEnum.Draft` and changes in place until a person approves it with `ApproveAsync`; an approved version is immutable, so editing it or adding, changing, or removing one of its cases creates the next version as a Draft (`DeleteCaseAsync` returns that version). Sets and versions are addressed by `evs_` ID, or by name for the newest version. Each `EvalCase` has `InputText`, optional `ExpectedText`, `Hidden` (run tokens see a hidden case's scores only), files, and `EvalCaseCheck` entries scored by `EvalScorerEnum` `ExactMatch`, `Contains`, `JsonSchemaValid`, or `Judge` (the set's `JudgeAgent` grades it). A case with expected text and no checks is `ExactMatch`; a case with neither is `Judge`. Approving twice answers 409 `AlreadyApproved`, and deleting an approved version answers 409 `EvalSetImmutable`.
+
+`EvalRuns.CreateAsync` evaluates a set against a deployment (`EvalRunTargetEnum.Deployment`) or an agent revision (`AgentRevision`, run on an ephemeral deployment). Each case runs as a run of `RunKindEnum.Eval` carrying `EvalRunId`; the run's `Score` is the check-weighted mean of the case scores from 0 to 1, and `Passed` says whether it reached `Threshold`. `BudgetUsd` stops a run that spends too much, `EvalRunInputModeEnum.RecentInputs` replays a deployment's recent inputs, and `CancelAsync` stops an unfinished run (a finished one answers 409 `EvalRunFinished`). An environment with `TenantEnvironment.EvalGateSet` (and optional `EvalGateThreshold`) refuses a promotion whose revision has not passed that set, with code `EvalGateFailed`.
+
+```csharp
+EvalSetRequest request = new EvalSetRequest { Name = "smoke", Cases = new List<EvalCase>() };
+request.Cases.Add(new EvalCase { InputText = "What is 2 + 2?", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "4" } } });
+EvalSet set = await client.EvalSets.CreateAsync(request);
+await client.EvalSets.CreateCaseAsync(set.Id, new EvalCase { InputText = "Name a prime.", ExpectedText = "7" });
+await client.EvalSets.ApproveAsync(set.Id);
+
+EvalRun run = await client.EvalRuns.CreateAsync(new EvalRunRequest { SetId = "smoke", DeploymentId = "my-deployment", Threshold = 0.9 });
+while (run.Status == EvalRunStatusEnum.Pending || run.Status == EvalRunStatusEnum.Running)
+{
+    await Task.Delay(1000);
+    run = await client.EvalRuns.GetAsync(run.Id);
+}
+List<EvalCaseResult> results = await client.EvalRuns.ResultsAsync(run.Id);
+// results[i].OutputText, results[i].Score, and results[i].CheckResults[j].Note explain each case.
+```
+
+`ShadowTrials.CreateAsync` copies `SamplePercent` (1 to 100) of a source deployment's runs to a candidate deployment of the same agent as runs of `RunKindEnum.Shadow` (carrying `ShadowTrialId`), which cannot cause effects, and compares the outputs: `ComparedCount`, `AgreedCount`, `DivergedCount`, and `CandidateFailureCount`. `StopAsync` stops a running trial (`ShadowTrialStatusEnum.Stopped`).
+
+`CanaryReleases.CreateAsync` moves an agent's traffic from a baseline deployment to a candidate in `CanaryReleaseStep` entries (`WeightPercent` rising to 100, `MinimumRuns`, `MinimumMinutes`). A step advances while the candidate's error rate stays within `MaxErrorRatePercent` and, with `EvalSetId` and `MinEvalScore`, its latest eval score stays high enough; otherwise the weights are restored, the release becomes `CanaryStatusEnum.RolledBack`, and `NotificationEventEnum.CanaryRolledBack` fires. `AbortAsync` restores the weights at once (`Aborted`). Shadow trials and canary releases are started and stopped only by people. `ResourceTypeEnum` names `EvalSet`, `EvalRun`, `ShadowTrial`, and `CanaryRelease` in permissions.
+
+```csharp
+ShadowTrial trial = await client.ShadowTrials.CreateAsync(new ShadowTrial { SourceDeploymentId = "prod", CandidateDeploymentId = "next", SamplePercent = 20 });
+await client.ShadowTrials.StopAsync(trial.Id, "Enough samples.");
+
+CanaryRelease release = new CanaryRelease { AgentId = "my-agent", BaselineDeploymentId = "prod", CandidateDeploymentId = "next", MaxErrorRatePercent = 5 };
+release.Steps.Add(new CanaryReleaseStep { WeightPercent = 10, MinimumRuns = 20, MinimumMinutes = 10 });
+release.Steps.Add(new CanaryReleaseStep { WeightPercent = 100 });
+release = await client.CanaryReleases.CreateAsync(release);
+await client.CanaryReleases.AbortAsync(release.Id, "Rolling back by hand.");
+```
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

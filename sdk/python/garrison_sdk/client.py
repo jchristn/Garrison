@@ -946,11 +946,15 @@ class AgentRevisionDiff(TypedDict):
     changes: List[AgentRevisionChange]
 
 
-class TenantEnvironment(TypedDict):
-    """One environment in the tenant's ordered promotion path."""
+class TenantEnvironment(TypedDict, total=False):
+    """One environment in the tenant's ordered promotion path. evalGateSet names an approved eval set (identifier or
+    name) whose eval run must pass before a promotion into this environment, or None for no gate. evalGateThreshold is
+    the score from 0 to 1 that run must reach, or None; with a gate set and no threshold, 1 is required."""
     name: str
     description: Optional[str]
     position: int
+    evalGateSet: Optional[str]
+    evalGateThreshold: Optional[float]
 
 
 class TenantEnvironmentList(TypedDict):
@@ -1063,7 +1067,9 @@ PIPELINE_REVIEW_SOURCES = ("User", "Timeout", "Cancelled")
 TRIGGER_TYPES = ("Cron", "Webhook")
 # Run["kind"] values. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft"
 # environment (PLAYGROUND_ENVIRONMENT); see Agents.playground_invoke and StudioDrafts.playground_invoke.
-RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message")
+# Eval runs start one Eval run per case, and shadow trials start Shadow runs that cannot act; Run["evalRunId"] and
+# Run["shadowTrialId"] name the eval run or the trial.
+RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message", "Eval", "Shadow")
 PLAYGROUND_ENVIRONMENT = "draft"
 TRIGGER_TARGET_TYPES = ("Agent", "Pipeline")
 TRIGGER_FIRE_SOURCES = ("Cron", "Webhook", "Manual")
@@ -1081,7 +1087,7 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
                        "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy",
-                       "OrgProposalApplied", "Test")
+                       "OrgProposalApplied", "CanaryRolledBack", "Test")
 # Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
 # ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
 # mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
@@ -1113,6 +1119,19 @@ BUDGET_PERIODS = ("Day", "Month")
 USAGE_QUOTA_SCOPES = ("Tenant", "Agent", "Deployment", "Mandate", "OrgUnit")
 # Change rules: a ChangeRule class entry's "class", a limit's "class", and ChangeRuleMatchItem["classes"].
 CHANGE_CLASSES = ("PromptRetune", "WakeTuning", "MandateTextEdit", "AddWorker", "RemoveWorker", "ModelChange", "DeploymentWeight")
+# Evaluation: EvalSet["state"] and ["origin"], EvalCaseCheck["scorer"], EvalRun["status"], ["targetType"], and
+# ["inputMode"], ShadowTrial["status"], and CanaryRelease["status"]. Permissions name the resources with
+# EVALUATION_RESOURCE_TYPES.
+EVAL_SET_STATES = ("Draft", "Approved")
+EVAL_SET_ORIGINS = ("Human", "Evaluator", "Playground")
+EVAL_SCORERS = ("ExactMatch", "Contains", "JsonSchemaValid", "Judge")
+EVAL_RUN_STATUSES = ("Pending", "Running", "Completed", "Failed", "Cancelled")
+EVAL_RUN_TERMINAL_STATUSES = ("Completed", "Failed", "Cancelled")
+EVAL_RUN_TARGETS = ("AgentRevision", "Deployment")
+EVAL_RUN_INPUT_MODES = ("Cases", "RecentInputs")
+SHADOW_TRIAL_STATUSES = ("Running", "Completed", "Stopped", "Failed")
+CANARY_STATUSES = ("Running", "Promoted", "RolledBack", "Aborted")
+EVALUATION_RESOURCE_TYPES = ("EvalSet", "EvalRun", "ShadowTrial", "CanaryRelease")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -1610,6 +1629,239 @@ class OrgProposal(TypedDict, total=False):
     ruleIds: List[str]
     diff: Optional[StudioDraftDiff]
     createdUtc: str
+    lastUpdateUtc: str
+
+
+class EvalCaseCheck(TypedDict, total=False):
+    """EvalCase["checks"] item. scorer is one of EVAL_SCORERS (default ExactMatch). argument is the text to match
+    (ExactMatch, Contains; the case's expectedText when empty), a JSON Schema (JsonSchemaValid), or the judging criteria
+    (Judge). weight is 0 to 100 (default 1); a case's score is the weighted mean of its checks."""
+    scorer: str
+    argument: Optional[str]
+    weight: float
+
+
+class EvalCaseFile(TypedDict, total=False):
+    """EvalCase["files"] item: a file placed in the case run's workspace at path, from contentText or an agent asset
+    (assetId, assetPath)."""
+    path: str
+    mediaType: Optional[str]
+    contentText: Optional[str]
+    assetId: Optional[str]
+    assetPath: Optional[str]
+
+
+class EvalCase(TypedDict, total=False):
+    """One case of an eval set version. id has the prefix evc_; order is assigned by the server. inputText is required.
+    A case without checks is ExactMatch against expectedText, or one Judge check when it has no expectedText. A hidden
+    case is redacted for run tokens (its scorers only). sourceRunId names the run a case was saved from."""
+    id: str
+    tenantId: str
+    setId: str
+    order: int
+    name: Optional[str]
+    inputText: str
+    hidden: bool
+    expectedText: Optional[str]
+    checks: List[EvalCaseCheck]
+    files: List[EvalCaseFile]
+    sourceRunId: Optional[str]
+    warnings: Optional[List[FieldWarning]]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class EvalSet(TypedDict, total=False):
+    """One version of an eval set. id has the prefix evs_. state is one of EVAL_SET_STATES: a Draft can change; an
+    Approved version is immutable, and editing it (or its cases) creates the next version as a Draft. origin is one of
+    EVAL_SET_ORIGINS. judgeAgent names the agent that runs Judge checks."""
+    id: str
+    tenantId: str
+    name: str
+    description: Optional[str]
+    version: int
+    previousVersionId: Optional[str]
+    state: str
+    origin: str
+    approvedById: Optional[str]
+    approvedByName: Optional[str]
+    approvedUtc: Optional[str]
+    authoringOrgUnitId: Optional[str]
+    authoredByType: str
+    authoredById: Optional[str]
+    authoredByName: Optional[str]
+    authoredByAgentId: Optional[str]
+    judgeAgent: Optional[str]
+    tags: List[str]
+    caseCount: int
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class EvalSetRequest(TypedDict, total=False):
+    """Body of EvalSets.create (name required, cases optional) and EvalSets.update (description, judgeAgent, and tags;
+    the name does not change). origin is Human or Playground for a person; a run token's set is always Evaluator."""
+    name: str
+    description: Optional[str]
+    origin: Optional[str]
+    judgeAgent: Optional[str]
+    tags: List[str]
+    cases: List[EvalCase]
+
+
+class EvalRunRequest(TypedDict, total=False):
+    """Body of EvalRuns.create. setId takes an identifier or a name (setVersion picks a version; default the newest).
+    targetType is one of EVAL_RUN_TARGETS: Deployment needs deploymentId; AgentRevision needs agentId and optionally
+    agentRevisionId. inputMode is one of EVAL_RUN_INPUT_MODES; RecentInputs replays the deployment's recentInputCount
+    (1 to 1000, default 20) newest succeeded runs. threshold is 0 to 1 (None means 1); budgetUsd (0 to 100000) caps the
+    run's cost."""
+    setId: str
+    setVersion: Optional[int]
+    targetType: Optional[str]
+    agentId: Optional[str]
+    agentRevisionId: Optional[str]
+    deploymentId: Optional[str]
+    studioDraftId: Optional[str]
+    inputMode: str
+    recentInputCount: int
+    threshold: Optional[float]
+    budgetUsd: Optional[float]
+
+
+class EvalRun(TypedDict, total=False):
+    """One run of an eval set against a deployment or an agent revision. id has the prefix evr_. status is one of
+    EVAL_RUN_STATUSES. score (0 to 1) is the check-weighted mean of the case scores once Completed; passed is
+    score >= threshold. failureReason explains a Failed run (for example BudgetExhausted)."""
+    id: str
+    tenantId: str
+    setId: str
+    setName: str
+    setVersion: int
+    targetType: str
+    agentId: Optional[str]
+    agentRevisionId: Optional[str]
+    deploymentId: Optional[str]
+    studioDraftId: Optional[str]
+    status: str
+    inputMode: str
+    recentInputCount: int
+    score: Optional[float]
+    threshold: Optional[float]
+    passed: Optional[bool]
+    budgetUsd: Optional[float]
+    costUsd: float
+    totalCases: int
+    completedCases: int
+    passedCases: int
+    erroredCases: int
+    failureReason: Optional[str]
+    startedByType: str
+    startedById: Optional[str]
+    startedByName: Optional[str]
+    originRunId: Optional[str]
+    warnings: Optional[List[FieldWarning]]
+    createdUtc: str
+    startedUtc: Optional[str]
+    completedUtc: Optional[str]
+    lastUpdateUtc: str
+
+
+class EvalCaseCheckResult(TypedDict, total=False):
+    """EvalCaseResult["checkResults"] item: one check's score (0 to 1) and note. judgeRunId names a Judge check's run."""
+    scorer: str
+    weight: float
+    score: float
+    passed: bool
+    judgeRunId: Optional[str]
+    note: Optional[str]
+
+
+class EvalCaseResult(TypedDict, total=False):
+    """One case's result in an eval run. id has the prefix evx_. runId names the Eval run that answered the case;
+    sourceRunId the replayed run in RecentInputs mode. Run tokens see a hidden case's result as scores only."""
+    id: str
+    tenantId: str
+    evalRunId: str
+    caseId: Optional[str]
+    order: int
+    sourceRunId: Optional[str]
+    runId: Optional[str]
+    outputText: Optional[str]
+    score: float
+    passed: bool
+    errorMessage: Optional[str]
+    costUsd: float
+    checkResults: List[EvalCaseCheckResult]
+    createdUtc: str
+
+
+class ShadowTrial(TypedDict, total=False):
+    """A shadow trial: samplePercent (1 to 100, default 10) of the source deployment's runs are copied to the candidate
+    deployment (same agent) as Shadow runs that cannot act, and the outputs are compared. id has the prefix shd_.
+    status is one of SHADOW_TRIAL_STATUSES. endsUtc (in the future) ends it, or None to run until stopped.
+    comparisonEvalSetId scores both outputs with a set's checks; useJudge compares them with the judge. In a request
+    the deployments take an identifier or a name."""
+    id: str
+    tenantId: str
+    name: Optional[str]
+    agentId: Optional[str]
+    sourceDeploymentId: str
+    candidateDeploymentId: str
+    samplePercent: int
+    endsUtc: Optional[str]
+    comparisonEvalSetId: Optional[str]
+    useJudge: bool
+    status: str
+    stopReason: Optional[str]
+    comparedCount: int
+    agreedCount: int
+    divergedCount: int
+    candidateFailureCount: int
+    createdByType: str
+    createdById: Optional[str]
+    createdByName: Optional[str]
+    warnings: Optional[List[FieldWarning]]
+    createdUtc: str
+    completedUtc: Optional[str]
+    lastUpdateUtc: str
+
+
+class CanaryReleaseStep(TypedDict, total=False):
+    """CanaryRelease["steps"] item. weightPercent (1 to 100, default 10) is the candidate's share of traffic; each step
+    is higher than the one before and the last is 100. The step advances after minimumRuns (0 to 1000000, default 20)
+    candidate runs and minimumMinutes (0 to 43200, default 10)."""
+    weightPercent: int
+    minimumRuns: int
+    minimumMinutes: int
+
+
+class CanaryRelease(TypedDict, total=False):
+    """A canary release that moves an agent's traffic from the baseline deployment to the candidate in steps, rolling
+    back when the candidate's error rate passes maxErrorRatePercent (0 to 100, default 5) or its latest eval score on
+    evalSetId falls below minEvalScore (0 to 1; give both or neither). id has the prefix cnr_. status is one of
+    CANARY_STATUSES. The initial weights are restored on a rollback or an abort. In a request the agent and deployments
+    take an identifier or a name."""
+    id: str
+    tenantId: str
+    agentId: str
+    candidateDeploymentId: str
+    baselineDeploymentId: str
+    baselineInitialWeight: int
+    candidateInitialWeight: int
+    steps: List[CanaryReleaseStep]
+    currentStepIndex: int
+    stepStartedUtc: Optional[str]
+    maxErrorRatePercent: float
+    minEvalScore: Optional[float]
+    evalSetId: Optional[str]
+    status: str
+    rollbackReason: Optional[str]
+    createdByType: str
+    createdById: Optional[str]
+    createdByName: Optional[str]
+    warnings: Optional[List[FieldWarning]]
+    createdUtc: str
+    completedUtc: Optional[str]
     lastUpdateUtc: str
 
 
@@ -3045,6 +3297,101 @@ class ChangeRules(Resource):
                                                      "search": search, "maxResults": max_results, "skip": skip})
 
 
+class EvalSets(Resource):
+    """Eval sets: versioned, approvable sets of cases that grade an agent. Read, Create, Update, and Delete on EvalSet.
+    A set is addressed by its evs_ identifier or by name (the newest version). Editing an approved version, or adding,
+    changing, or removing one of its cases, lands on its next version as a Draft. Only people approve (403
+    ApprovalIsPeopleOnly for a run token); approving twice raises GarrisonError 409 AlreadyApproved, and deleting an
+    approved version 409 EvalSetImmutable."""
+
+    def list(self, state: Optional[str] = None, origin: Optional[str] = None, tag: Optional[str] = None,  # type: ignore[override]
+             latest_only: Optional[bool] = None, search: Optional[str] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None) -> Dict[str, Any]:
+        """Eval set versions, newest first. state is one of EVAL_SET_STATES, origin one of EVAL_SET_ORIGINS; latest_only
+        keeps the newest version of each name."""
+        return self._t.request("GET", self._base(), {"state": state, "origin": origin, "tag": tag, "latestOnly": latest_only,
+                                                     "search": search, "maxResults": max_results, "skip": skip})
+
+    def approve(self, id: str) -> Dict[str, Any]:
+        """Approve a draft version so it can gate promotions and canaries (see EvalSet). People only."""
+        return self._t.request("POST", self._item(id) + "/approve")
+
+    def list_cases(self, id: str) -> List[Dict[str, Any]]:
+        """A set version's cases in order (see EvalCase)."""
+        return self._t.request("GET", self._item(id) + "/cases")
+
+    def create_case(self, id: str, case: Dict[str, Any]) -> Dict[str, Any]:
+        """Add a case at the end. On an approved version it lands on the next version (a Draft)."""
+        return self._t.request("POST", self._item(id) + "/cases", body=case)
+
+    def get_case(self, id: str, case_id: str) -> Dict[str, Any]:
+        """Read a case."""
+        return self._t.request("GET", self._item(id) + f"/cases/{_seg(case_id)}")
+
+    def update_case(self, id: str, case_id: str, case: Dict[str, Any]) -> Dict[str, Any]:
+        """Replace a case. On an approved version the same case of the next version changes."""
+        return self._t.request("PUT", self._item(id) + f"/cases/{_seg(case_id)}", body=case)
+
+    def delete_case(self, id: str, case_id: str) -> Dict[str, Any]:
+        """Remove a case. Returns the draft version (see EvalSet) it was removed from."""
+        return self._t.request("DELETE", self._item(id) + f"/cases/{_seg(case_id)}")
+
+
+class EvalRuns(Resource):
+    """Eval runs: run an eval set against a deployment or an agent revision, one Eval run per case, and score it (see
+    EvalRunRequest and EvalRun). Read on EvalRun lists and reads; starting and cancelling need Execute on EvalRun, and
+    starting also needs Execute on the agent. Cancelling a finished run raises GarrisonError 409 EvalRunFinished. Poll get
+    until status is in EVAL_RUN_TERMINAL_STATUSES."""
+
+    def list(self, set: Optional[str] = None, deployment: Optional[str] = None, revision: Optional[str] = None,  # type: ignore[override]
+             status: Optional[str] = None, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """Eval runs, newest first. set takes an identifier or a name; status is one of EVAL_RUN_STATUSES."""
+        return self._t.request("GET", self._base(), {"set": set, "deployment": deployment, "revision": revision, "status": status,
+                                                     "maxResults": max_results, "skip": skip})
+
+    def results(self, id: str) -> List[Dict[str, Any]]:
+        """The run's case results with per-check scores and notes (see EvalCaseResult)."""
+        return self._t.request("GET", self._item(id) + "/results")
+
+    def cancel(self, id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Cancel a pending or running eval run and its unfinished case runs."""
+        return self._t.request("POST", self._item(id) + "/cancel", body={"reason": reason})
+
+
+class ShadowTrials(Resource):
+    """Shadow trials (see ShadowTrial): copy a sample of a deployment's runs to a candidate deployment of the same agent
+    as Shadow runs that cannot act, and compare the outputs. Only people start and stop trials (403 PeopleOnly for a run
+    token); starting needs Execute on the agent. A pair with a running trial raises GarrisonError 409
+    ShadowTrialAlreadyRunning; stopping a trial that is not running raises 409 ShadowTrialNotRunning."""
+
+    def list(self, source: Optional[str] = None, candidate: Optional[str] = None, status: Optional[str] = None,  # type: ignore[override]
+             max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """Shadow trials, newest first, by source or candidate deployment and status (SHADOW_TRIAL_STATUSES)."""
+        return self._t.request("GET", self._base(), {"source": source, "candidate": candidate, "status": status,
+                                                     "maxResults": max_results, "skip": skip})
+
+    def stop(self, id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Stop a running trial. Shadow runs already started finish and are still compared."""
+        return self._t.request("POST", self._item(id) + "/stop", body={"reason": reason})
+
+
+class CanaryReleases(Resource):
+    """Canary releases (see CanaryRelease): move an agent's traffic from a baseline deployment to a candidate in weighted
+    steps, rolling back when health crosses a threshold (CanaryRolledBack in NOTIFICATION_EVENTS). Only people start and
+    abort releases (403 PeopleOnly for a run token); starting needs Update on both deployments. A refused step raises
+    GarrisonError 400 with a field code such as NotIncreasing or LastStepNotFull; a deployment already in a release
+    raises 409 CanaryAlreadyRunning, and aborting a release that is not running 409 CanaryNotRunning."""
+
+    def list(self, agent: Optional[str] = None, status: Optional[str] = None, max_results: Optional[int] = None,  # type: ignore[override]
+             skip: Optional[int] = None) -> Dict[str, Any]:
+        """Canary releases, newest first, by agent and status (CANARY_STATUSES)."""
+        return self._t.request("GET", self._base(), {"agent": agent, "status": status, "maxResults": max_results, "skip": skip})
+
+    def abort(self, id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Abort a running release; both deployments go back to their weights from before it started."""
+        return self._t.request("POST", self._item(id) + "/abort", body={"reason": reason})
+
+
 class Reports:
     """Reports: list and read the reports runs filed upward, chart a metric over time, and file a report as a person.
     Agents file through the garrison_file_report MCP tool. Reading needs Read on Report; filing needs Create. Reports
@@ -3310,6 +3657,10 @@ class GarrisonClient:
         self.messages = Messages(t)
         self.organizations = Organizations(t, "organizations")
         self.change_rules = ChangeRules(t, "change-rules")
+        self.eval_sets = EvalSets(t, "eval-sets")
+        self.eval_runs = EvalRuns(t, "eval-runs")
+        self.shadow_trials = ShadowTrials(t, "shadow-trials")
+        self.canary_releases = CanaryReleases(t, "canary-releases")
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

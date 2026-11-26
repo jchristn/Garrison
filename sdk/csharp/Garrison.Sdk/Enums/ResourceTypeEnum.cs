@@ -266,6 +266,26 @@ namespace Garrison.Sdk.Enums
         /// Change rules that pre-authorize narrow classes of executive change (AA8). Only people create, update, or delete
         /// them; executive runs read the rules that apply to their own subtree.
         /// </summary>
-        ChangeRule
+        ChangeRule,
+
+        /// <summary>
+        /// Eval sets and their cases (AA9). Update covers cases and new versions; only a person approves a set.
+        /// </summary>
+        EvalSet,
+
+        /// <summary>
+        /// Eval runs and their case results (AA9). Execute starts and cancels a run.
+        /// </summary>
+        EvalRun,
+
+        /// <summary>
+        /// Shadow trials that copy a deployment's inputs to a candidate (AA9). Update stops a trial.
+        /// </summary>
+        ShadowTrial,
+
+        /// <summary>
+        /// Canary releases that move deployment weight to a candidate in steps (AA9). Update aborts a release.
+        /// </summary>
+        CanaryRelease
     }
 }

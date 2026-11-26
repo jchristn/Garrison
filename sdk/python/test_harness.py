@@ -18,7 +18,7 @@ from typing import Optional
 
 import requests
 
-from garrison_sdk import (EFFECT_POLICIES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
+from garrison_sdk import (EFFECT_POLICIES, EVAL_RUN_TERMINAL_STATUSES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
                           GarrisonError, sign_webhook, verify_webhook)
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
@@ -919,6 +919,118 @@ def t_change_rules():
             client.organizations.delete(org["id"])
 
 
+def t_evaluation():
+    # An eval set is versioned and approved by a person, an eval run grades a deployment case by case, a shadow trial
+    # copies a deployment's runs to a candidate, and a canary release moves traffic to it in steps.
+    agent = None
+    deployments = []
+    trial = None
+    release = None
+    try:
+        agent = client.agents.create({"name": f"sdk-py-eval-{SUFFIX}", "description": "Python SDK evaluation"})
+        base = client.deployments.create({"name": f"sdk-py-eval-{SUFFIX}-base", "agentId": agent["id"], "harnessProfileId": state["fake"]})
+        deployments.append(base["id"])
+        cand = client.deployments.create({"name": f"sdk-py-eval-{SUFFIX}-cand", "agentId": agent["id"], "harnessProfileId": state["fake"]})
+        deployments.append(cand["id"])
+
+        name = f"sdk-py-set-{SUFFIX}"
+        eval_set = client.eval_sets.create({"name": name, "description": "Echo checks", "tags": ["sdk"], "cases": [
+            {"name": "zero", "inputText": "case-0 alpha", "checks": [{"scorer": "Contains", "argument": "case-0"}]},
+            {"name": "one", "inputText": "case-1 beta", "expectedText": "case-1", "checks": [{"scorer": "Contains"}]}]})
+        require(eval_set["id"].startswith("evs_") and eval_set["version"] == 1 and eval_set["state"] == "Draft" and eval_set["origin"] == "Human"
+                and eval_set["caseCount"] == 2, f"create an eval set: {eval_set}")
+        added = client.eval_sets.create_case(eval_set["id"], {"name": "two", "inputText": "case-2 gamma",
+                                                              "checks": [{"scorer": "Contains", "argument": "case-2", "weight": 2}]})
+        require(added["id"].startswith("evc_") and added["order"] == 2 and added["checks"][0]["weight"] == 2, f"add a case: {added}")
+        cases = client.eval_sets.list_cases(eval_set["id"])
+        require([c["order"] for c in cases] == [0, 1, 2], f"list cases: {cases}")
+        read_case = client.eval_sets.get_case(eval_set["id"], added["id"])
+        read_case["name"] = "two-b"
+        updated_case = client.eval_sets.update_case(eval_set["id"], added["id"], read_case)
+        require(updated_case["name"] == "two-b" and updated_case["id"] == added["id"], f"update a case: {updated_case}")
+        updated_set = client.eval_sets.update(eval_set["id"], {"description": "Echo checks, edited", "tags": ["sdk", "echo"]})
+        require(updated_set["id"] == eval_set["id"] and updated_set["description"] == "Echo checks, edited" and updated_set["tags"] == ["sdk", "echo"],
+                f"update a draft set in place: {updated_set}")
+        listed = client.eval_sets.list(latest_only=True, search=name)
+        require(len(listed["objects"]) == 1 and listed["objects"][0]["id"] == eval_set["id"], f"list eval sets: {listed}")
+
+        approved = client.eval_sets.approve(eval_set["id"])
+        require(approved["state"] == "Approved" and approved["approvedByName"] and approved["caseCount"] == 3, f"approve: {approved}")
+        try:
+            client.eval_sets.approve(eval_set["id"])
+            require(False, "approving twice is refused")
+        except GarrisonError as e:
+            require(e.status_code == 409 and e.code == "AlreadyApproved", f"status {e.status_code} code {e.code}")
+        require(client.eval_sets.get(name)["id"] == eval_set["id"], "read a set by name")
+
+        run = client.eval_runs.create({"setId": name, "targetType": "Deployment", "deploymentId": base["id"], "threshold": 0.5})
+        require(run["id"].startswith("evr_") and run["setId"] == eval_set["id"] and run["totalCases"] == 3 and run["threshold"] == 0.5, f"start an eval run: {run}")
+        deadline = time.time() + 120
+        while run["status"] not in EVAL_RUN_TERMINAL_STATUSES and time.time() < deadline:
+            time.sleep(1)
+            run = client.eval_runs.get(run["id"])
+        require(run["status"] == "Completed" and run["passed"] is True and run["score"] == 1 and run["passedCases"] == 3, f"eval run completes: {run}")
+        results = client.eval_runs.results(run["id"])
+        require(len(results) == 3 and all(r["passed"] and r["runId"] and f"case-{r['order']}" in (r.get("outputText") or "") and r["checkResults"] for r in results),
+                f"eval run results: {results}")
+        runs = client.eval_runs.list(set=name)
+        require(any(r["id"] == run["id"] for r in runs["objects"]), f"list eval runs by set: {runs}")
+        try:
+            client.eval_runs.cancel(run["id"], "too late")
+            require(False, "cancelling a finished eval run is refused")
+        except GarrisonError as e:
+            require(e.status_code == 409 and e.code == "EvalRunFinished", f"status {e.status_code} code {e.code}")
+
+        draft = client.eval_sets.delete_case(eval_set["id"], added["id"])
+        require(draft["name"] == name and draft["version"] == 2 and draft["state"] == "Draft" and draft["previousVersionId"] == eval_set["id"]
+                and draft["caseCount"] == 2, f"removing a case of an approved set makes version 2: {draft}")
+        client.eval_sets.delete(draft["id"])
+        require(client.eval_sets.get(name)["id"] == eval_set["id"], "the approved version remains after deleting the draft")
+
+        trial = client.shadow_trials.create({"name": f"sdk-py-shadow-{SUFFIX}", "sourceDeploymentId": base["id"], "candidateDeploymentId": cand["name"], "samplePercent": 50})
+        require(trial["id"].startswith("shd_") and trial["status"] == "Running" and trial["candidateDeploymentId"] == cand["id"]
+                and trial["agentId"] == agent["id"] and trial["samplePercent"] == 50, f"start a shadow trial: {trial}")
+        require(client.shadow_trials.get(trial["id"])["name"] == f"sdk-py-shadow-{SUFFIX}", "read a shadow trial")
+        trials = client.shadow_trials.list(source=base["id"], status="Running")
+        require([t["id"] for t in trials["objects"]] == [trial["id"]], f"list shadow trials: {trials}")
+        stopped = client.shadow_trials.stop(trial["id"], "done")
+        require(stopped["status"] == "Stopped" and stopped["stopReason"] == "done", f"stop a shadow trial: {stopped}")
+        trial = None
+        try:
+            client.shadow_trials.stop(stopped["id"])
+            require(False, "stopping a stopped trial is refused")
+        except GarrisonError as e:
+            require(e.status_code == 409 and e.code == "ShadowTrialNotRunning", f"status {e.status_code} code {e.code}")
+
+        release = client.canary_releases.create({"agentId": agent["name"], "candidateDeploymentId": cand["id"], "baselineDeploymentId": base["id"], "maxErrorRatePercent": 10,
+                                                 "steps": [{"weightPercent": 25, "minimumRuns": 1000, "minimumMinutes": 60},
+                                                           {"weightPercent": 100, "minimumRuns": 1000, "minimumMinutes": 60}]})
+        require(release["id"].startswith("cnr_") and release["status"] == "Running" and release["currentStepIndex"] == 0 and len(release["steps"]) == 2
+                and release["baselineInitialWeight"] == 100 and release["candidateInitialWeight"] == 100, f"start a canary release: {release}")
+        require(client.deployments.get(cand["id"])["weight"] < client.deployments.get(base["id"])["weight"], "the candidate gets the smaller weight")
+        require(client.canary_releases.get(release["id"])["agentId"] == agent["id"], "read a canary release")
+        releases = client.canary_releases.list(agent=agent["id"], status="Running")
+        require([r["id"] for r in releases["objects"]] == [release["id"]], f"list canary releases: {releases}")
+        try:
+            client.canary_releases.create({"agentId": agent["id"], "candidateDeploymentId": cand["id"], "baselineDeploymentId": base["id"], "steps": [{"weightPercent": 50}]})
+            require(False, "a last step below 100 is refused")
+        except GarrisonError as e:
+            require(e.status_code == 400 and e.field_codes.get("steps[0].weightPercent") == "LastStepNotFull", f"status {e.status_code} fieldCodes {e.field_codes}")
+        aborted = client.canary_releases.abort(release["id"], "sdk test")
+        require(aborted["status"] == "Aborted" and aborted["rollbackReason"] == "sdk test", f"abort a canary release: {aborted}")
+        release = None
+        require(client.deployments.get(cand["id"])["weight"] == 100 and client.deployments.get(base["id"])["weight"] == 100, "weights restored after abort")
+    finally:
+        if trial is not None:
+            client.shadow_trials.stop(trial["id"])
+        if release is not None:
+            client.canary_releases.abort(release["id"])
+        for d in deployments:
+            client.deployments.delete(d)
+        if agent is not None:
+            client.agents.delete(agent["id"])
+
+
 def t_reports():
     # People file reports with an idempotency key; agents file through garrison_file_report.
     key = "sdk-" + uuid.uuid4().hex
@@ -1449,7 +1561,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

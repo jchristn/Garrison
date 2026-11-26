@@ -369,6 +369,16 @@ namespace Garrison.Sdk.Models
         public string? MandateTickId { get; set; } = null;
 
         /// <summary>
+        /// Eval run this run is a case of (Kind Eval, AA9.3), or null.
+        /// </summary>
+        public string? EvalRunId { get; set; } = null;
+
+        /// <summary>
+        /// Shadow trial this run is a shadow copy for (Kind Shadow, AA9.7), or null.
+        /// </summary>
+        public string? ShadowTrialId { get; set; } = null;
+
+        /// <summary>
         /// Blocking escalation the run is waiting on (AA2), or null.
         /// </summary>
         public string? EscalationId { get; set; } = null;

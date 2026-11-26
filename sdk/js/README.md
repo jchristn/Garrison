@@ -250,6 +250,43 @@ await client.organizations.decideProposal("acme", proposal.draftId, { allow: tru
 
 `StudioDraft` carries `originRunId`, `organizationId`, `executiveUnitId`, and `executiveAgentId` for an executive's draft, and `OrgRevision` carries `draftId` and `revertDraftId` when it records one being applied. `OrgProposalApplied` in `NOTIFICATION_EVENTS` fires when change rules apply a proposal without a person.
 
+## Evaluations, shadow trials, and canary releases
+
+An eval set is a versioned list of cases, each an input with checks (`EVAL_SCORERS`: `ExactMatch`, `Contains`, `JsonSchemaValid`, `Judge`). `ExactMatch` and `Contains` compare with the check's argument, or with the case's `expectedText` when the argument is empty; a case with no checks is scored `ExactMatch` on its expected text, or by the set's `judgeAgent` when it has none. A set starts as a `Draft`; `client.evalSets.approve` (people only) makes that version immutable, and editing an approved version (`update`, `createCase`, `updateCase`, `deleteCase`) answers with or lands on its next version as a `Draft`. A set is addressed by its `evs_` identifier or by name (its newest version). `delete` removes draft versions only (409 `EvalSetImmutable`).
+
+`client.evalRuns.create` runs a set against a deployment (`targetType` `Deployment`) or an agent revision (`AgentRevision`, run on an ephemeral deployment) as runs of kind `Eval`. It needs Execute on EvalRun and on the agent. Poll `get` until the status leaves `Pending` and `Running`; a `Completed` run has a `score` from 0 to 1 (the check-weighted mean of its case scores) and `passed` when the score reaches `threshold`. `results` returns one `EvalCaseResult` per case with per-check scores and notes. `cancel` stops a pending or running eval run (409 `EvalRunFinished` once it is done).
+
+```ts
+const set = await client.evalSets.create({
+  name: "capitals",
+  cases: [{ name: "france", inputText: "Capital of France?", checks: [{ scorer: "Contains", argument: "Paris" }] }],
+});
+await client.evalSets.createCase(set.id, { inputText: "Capital of Italy?", expectedText: "Rome", checks: [{ scorer: "Contains" }] });
+await client.evalSets.approve(set.id);
+
+let run = await client.evalRuns.create({ setId: "capitals", targetType: "Deployment", deploymentId: "support-prod", threshold: 0.8 });
+while (run.status === "Pending" || run.status === "Running") {
+  await new Promise((r) => setTimeout(r, 1000));
+  run = await client.evalRuns.get(run.id);
+}
+const results = await client.evalRuns.results(run.id);
+```
+
+A shadow trial copies `samplePercent` (1 to 100) of a source deployment's runs to a candidate deployment of the same agent as runs of kind `Shadow` that cannot act, and counts how often the answers agree. A canary release moves an agent's traffic from a baseline deployment to a candidate in steps (`weightPercent` rising to 100, each held for `minimumRuns` and `minimumMinutes`) and rolls back when the candidate's error rate passes `maxErrorRatePercent` or its latest eval score on `evalSetId` falls below `minEvalScore`. Both are started, stopped, and aborted by people only (403 `PeopleOnly` for a run token).
+
+```ts
+const trial = await client.shadowTrials.create({ sourceDeploymentId: "support-prod", candidateDeploymentId: "support-next", samplePercent: 20 });
+await client.shadowTrials.stop(trial.id, "Enough data.");
+
+const release = await client.canaryReleases.create({
+  agentId: "support", candidateDeploymentId: "support-next", baselineDeploymentId: "support-prod", maxErrorRatePercent: 5,
+  steps: [{ weightPercent: 10, minimumRuns: 20, minimumMinutes: 10 }, { weightPercent: 100 }],
+});
+await client.canaryReleases.abort(release.id, "Paused for review.");
+```
+
+`EVAL_SET_STATES`, `EVAL_SET_ORIGINS`, `EVAL_RUN_STATUSES`, `EVAL_RUN_TARGETS`, `EVAL_RUN_INPUT_MODES`, `SHADOW_TRIAL_STATUSES`, and `CANARY_STATUSES` list the values. `Run` carries `evalRunId` and `shadowTrialId`, `RUN_KINDS` includes `Eval` and `Shadow`, `TenantEnvironment` carries `evalGateSet` and `evalGateThreshold` (a promotion into the environment must pass that approved set), and `CanaryRolledBack` in `NOTIFICATION_EVENTS` fires when a canary release rolls back.
+
 ## Streaming run events
 
 ```ts

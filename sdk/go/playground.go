@@ -7,7 +7,8 @@ import (
 )
 
 // Run kinds (Run.Kind): why a run was created. RunKindPlayground runs try an agent's draft revision in the studio
-// playground, on an ephemeral deployment in the reserved PlaygroundEnvironment.
+// playground, on an ephemeral deployment in the reserved PlaygroundEnvironment. RunKindEval runs are the case runs of an
+// eval run (Run.EvalRunID); RunKindShadow runs are a shadow trial's copies that cannot act (Run.ShadowTrialID).
 const (
 	RunKindInvoke     = "Invoke"
 	RunKindDelegated  = "Delegated"
@@ -18,6 +19,8 @@ const (
 	RunKindPlayground = "Playground"
 	RunKindKeeper     = "Keeper"
 	RunKindMessage    = "Message"
+	RunKindEval       = "Eval"
+	RunKindShadow     = "Shadow"
 )
 
 // PlaygroundEnvironment is the reserved environment playground deployments live in. Users cannot create deployments

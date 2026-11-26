@@ -393,6 +393,9 @@ type Deployment struct {
 	Name                 string                       `json:"name"`
 	HarnessProfileID     string                       `json:"harnessProfileId"`
 	Model                string                       `json:"model,omitempty"`
+	// Weight steers selection among the agent's deployments, 0 to 1000; nil on create means the server default, 100.
+	// A canary release changes it step by step and restores it on rollback or abort.
+	Weight *int `json:"weight,omitempty"`
 	// AgentRevisionID pins the deployment to a published agent revision; nil runs the live agent definition.
 	AgentRevisionID *string `json:"agentRevisionId,omitempty"`
 	// Environment is the promotion environment this deployment belongs to; empty means "dev".
@@ -608,7 +611,7 @@ type Run struct {
 	DeploymentID         string                `json:"deploymentId"`
 	// AgentRevisionID is the agent revision the run executed; nil when the deployment was unpinned.
 	AgentRevisionID *string `json:"agentRevisionId,omitempty"`
-	// Kind is a RunKind* constant: Invoke, Delegated, Test, Retry, Pipeline, Trigger, Playground, Keeper, or Message.
+	// Kind is a RunKind* constant: Invoke, Delegated, Test, Retry, Pipeline, Trigger, Playground, Keeper, Message, Eval, or Shadow.
 	Kind     string `json:"kind"`
 	Status   string `json:"status"`
 	Outcome  string `json:"outcome"`
@@ -713,6 +716,10 @@ type Run struct {
 	EscalationID *string `json:"escalationId,omitempty"`
 	// FanOutGroupID is the fan-out group this run is a member of; nil when it was not started by garrison_fan_out.
 	FanOutGroupID *string `json:"fanOutGroupId,omitempty"`
+	// EvalRunID is the eval run this run is a case of (Kind Eval); nil otherwise.
+	EvalRunID *string `json:"evalRunId,omitempty"`
+	// ShadowTrialID is the shadow trial this run is a copy for (Kind Shadow); nil otherwise.
+	ShadowTrialID *string `json:"shadowTrialId,omitempty"`
 }
 
 // Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness

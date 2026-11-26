@@ -252,6 +252,39 @@ client.organizations.decide_proposal("acme", proposal["draftId"], allow=True, re
 
 A studio draft carries `originRunId`, `organizationId`, `executiveUnitId`, and `executiveAgentId` for an executive's draft, and an org revision carries `draftId` and `revertDraftId` when it records one being applied. `OrgProposalApplied` in `NOTIFICATION_EVENTS` fires when change rules apply a proposal without a person.
 
+## Evaluation: eval sets, eval runs, shadow trials, and canary releases
+
+An eval set is a versioned list of cases (`inputText`, optional `expectedText`, and checks whose `scorer` is one of `EVAL_SCORERS`: `ExactMatch`, `Contains`, `JsonSchemaValid`, `Judge`). A set is addressed by its `evs_` identifier or its name (the newest version). A `Draft` can change; once a person approves it, the version is immutable, and editing it or adding, changing, or removing a case lands on the next version as a `Draft`. Only people approve (403 `ApprovalIsPeopleOnly` for a run token). Approving twice fails with 409 `AlreadyApproved`, and deleting an approved version fails with 409 `EvalSetImmutable`.
+
+An eval run grades a set against a deployment or an agent revision (`EVAL_RUN_TARGETS`). Each case runs as a run of kind `Eval`, and a run's `evalRunId` names its eval run. The run's `score`, from 0 to 1, is the check-weighted mean of its case scores, and `passed` is `score >= threshold` (a missing threshold means 1). Poll `get` until the status is in `EVAL_RUN_TERMINAL_STATUSES`. Cancelling a finished run fails with 409 `EvalRunFinished`.
+
+```python
+s = client.eval_sets.create({"name": "echo", "cases": [
+    {"inputText": "case-0 alpha", "checks": [{"scorer": "Contains", "argument": "case-0"}]}]})
+client.eval_sets.create_case(s["id"], {"inputText": "case-1 beta", "expectedText": "case-1", "checks": [{"scorer": "Contains"}]})
+client.eval_sets.approve(s["id"])
+run = client.eval_runs.create({"setId": "echo", "targetType": "Deployment", "deploymentId": "support-prod", "threshold": 0.9})
+while run["status"] not in EVAL_RUN_TERMINAL_STATUSES:
+    time.sleep(2)
+    run = client.eval_runs.get(run["id"])
+for result in client.eval_runs.results(run["id"]):
+    print(result["order"], result["score"], [c["note"] for c in result["checkResults"]])
+```
+
+A shadow trial sends `samplePercent` (1 to 100) of the source deployment's runs to a candidate deployment of the same agent as runs of kind `Shadow`. Those runs cannot act, and the trial compares their outputs (`comparedCount`, `agreedCount`, `divergedCount`, `candidateFailureCount`). A canary release moves an agent's traffic from a baseline deployment to a candidate in steps (`weightPercent` rising to 100, each held for `minimumRuns` and `minimumMinutes`). It rolls back when the candidate's error rate passes `maxErrorRatePercent`, or when its latest eval score on `evalSetId` falls below `minEvalScore`, and sends `CanaryRolledBack` (in `NOTIFICATION_EVENTS`). Both kinds are started and ended by people only (403 `PeopleOnly` for a run token).
+
+```python
+trial = client.shadow_trials.create({"sourceDeploymentId": "support-prod", "candidateDeploymentId": "support-next", "samplePercent": 20})
+client.shadow_trials.stop(trial["id"], reason="Enough samples")
+
+release = client.canary_releases.create({"agentId": "support", "baselineDeploymentId": "support-prod", "candidateDeploymentId": "support-next",
+                                         "maxErrorRatePercent": 5, "steps": [{"weightPercent": 10, "minimumRuns": 50, "minimumMinutes": 30},
+                                                                             {"weightPercent": 100}]})
+client.canary_releases.abort(release["id"], reason="Holding for review")  # restores both deployments' weights
+```
+
+`EVAL_SET_STATES`, `EVAL_SET_ORIGINS`, `EVAL_RUN_STATUSES`, `EVAL_RUN_INPUT_MODES`, `SHADOW_TRIAL_STATUSES`, and `CANARY_STATUSES` list the values, and `EVALUATION_RESOURCE_TYPES` names the resource types for permissions. A tenant environment's `evalGateSet` and `evalGateThreshold` require a passing eval run of that set before a promotion into the environment.
+
 ## Streaming run events
 
 ```python

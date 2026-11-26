@@ -54,6 +54,7 @@ const (
 	NotificationEventMandateCapReached  = "MandateCapReached"
 	NotificationEventReportUnhealthy    = "ReportUnhealthy"
 	NotificationEventOrgProposalApplied = "OrgProposalApplied"
+	NotificationEventCanaryRolledBack   = "CanaryRolledBack"
 	NotificationEventTest               = "Test"
 )
 

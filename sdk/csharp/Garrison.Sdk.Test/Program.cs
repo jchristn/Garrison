@@ -1202,6 +1202,123 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("evaluations", async () =>
+                {
+                    // An eval set is written, approved, and run against a deployment on the fake harness; a shadow trial and a canary release are started and stopped.
+                    Agent? evalAgent = null;
+                    Deployment? baseline = null;
+                    Deployment? candidate = null;
+                    ShadowTrial? trial = null;
+                    CanaryRelease? release = null;
+                    try
+                    {
+                        evalAgent = await client.Agents.CreateAsync(new Agent { Name = "sdk-cs-eval-" + suffix }, token).ConfigureAwait(false);
+                        baseline = await client.Deployments.CreateAsync(new Deployment { Name = "sdk-cs-eval-" + suffix + "-base", AgentId = evalAgent.Id, HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile") }, token).ConfigureAwait(false);
+                        candidate = await client.Deployments.CreateAsync(new Deployment { Name = "sdk-cs-eval-" + suffix + "-cand", AgentId = evalAgent.Id, HarnessProfileId = fakeProfileId }, token).ConfigureAwait(false);
+
+                        string setName = "sdk-cs-evals-" + suffix;
+                        EvalSetRequest setRequest = new EvalSetRequest { Name = setName, Description = "C# SDK eval set", Tags = new List<string> { "sdk" }, Cases = new List<EvalCase>() };
+                        setRequest.Cases.Add(new EvalCase { Name = "first", InputText = "case-0 alpha", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "case-0" } } });
+                        setRequest.Cases.Add(new EvalCase { Name = "second", InputText = "case-1 beta", ExpectedText = "case-1", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains } } });
+                        EvalSet set = await client.EvalSets.CreateAsync(setRequest, token).ConfigureAwait(false);
+                        Require(set.Id.StartsWith("evs_", StringComparison.Ordinal) && set.Version == 1 && set.State == EvalSetStateEnum.Draft && set.Origin == EvalSetOriginEnum.Human && set.CaseCount == 2, "create an eval set");
+
+                        EvalCase third = await client.EvalSets.CreateCaseAsync(set.Id, new EvalCase { Name = "third", InputText = "case-2 gamma", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "case-2", Weight = 2 } } }, token).ConfigureAwait(false);
+                        Require(third.Id.StartsWith("evc_", StringComparison.Ordinal) && third.Order == 2 && third.SetId == set.Id && third.Checks[0].Weight == 2, "add a case");
+                        List<EvalCase> cases = await client.EvalSets.ListCasesAsync(set.Id, token).ConfigureAwait(false);
+                        Require(cases.Count == 3 && cases.Select(c => c.Order).SequenceEqual(new[] { 0, 1, 2 }), "list cases in order");
+                        EvalCase readCase = await client.EvalSets.GetCaseAsync(set.Id, third.Id, token).ConfigureAwait(false);
+                        readCase.Name = "third-renamed";
+                        EvalCase updatedCase = await client.EvalSets.UpdateCaseAsync(set.Id, third.Id, readCase, token).ConfigureAwait(false);
+                        Require(updatedCase.Id == third.Id && updatedCase.Name == "third-renamed", "update a case");
+
+                        EvalSet edited = await client.EvalSets.UpdateAsync(set.Id, new EvalSetRequest { Description = "C# SDK eval set, edited", Tags = new List<string> { "sdk", "edited" } }, token).ConfigureAwait(false);
+                        Require(edited.Id == set.Id && edited.Version == 1 && edited.Description == "C# SDK eval set, edited" && edited.Tags.Count == 2, "a draft is edited in place");
+                        EnumerationResult<EvalSet> sets = await client.EvalSets.ListAsync(new EvalSetFilter { Search = setName, LatestOnly = true }, token).ConfigureAwait(false);
+                        Require(sets.Objects.Count == 1 && sets.Objects[0].Id == set.Id, "list eval sets");
+
+                        EvalSet approved = await client.EvalSets.ApproveAsync(setName, token).ConfigureAwait(false);
+                        Require(approved.State == EvalSetStateEnum.Approved && approved.ApprovedUtc.HasValue && approved.CaseCount == 3, "approve an eval set");
+                        string? againCode = null;
+                        try
+                        {
+                            await client.EvalSets.ApproveAsync(set.Id, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409) { againCode = e.Error?.Code; }
+                        Require(againCode == "AlreadyApproved", "approving twice is a conflict, got " + againCode);
+
+                        EvalRun run = await client.EvalRuns.CreateAsync(new EvalRunRequest { SetId = setName, TargetType = EvalRunTargetEnum.Deployment, DeploymentId = baseline.Id, Threshold = 0.5 }, token).ConfigureAwait(false);
+                        Require(run.Id.StartsWith("evr_", StringComparison.Ordinal) && run.SetId == set.Id && run.TotalCases == 3 && run.DeploymentId == baseline.Id, "start an eval run");
+                        DateTime deadline = DateTime.UtcNow.AddSeconds(120);
+                        while ((run.Status == EvalRunStatusEnum.Pending || run.Status == EvalRunStatusEnum.Running) && DateTime.UtcNow < deadline)
+                        {
+                            await Task.Delay(500, token).ConfigureAwait(false);
+                            run = await client.EvalRuns.GetAsync(run.Id, token).ConfigureAwait(false);
+                        }
+                        Require(run.Status == EvalRunStatusEnum.Completed && run.Passed == true && run.Score == 1 && run.PassedCases == 3 && run.CompletedUtc.HasValue, "the eval run completes and passes: " + run.Status + " " + run.Score + " " + run.FailureReason);
+                        List<EvalCaseResult> results = await client.EvalRuns.ResultsAsync(run.Id, token).ConfigureAwait(false);
+                        Require(results.Count == 3 && results.All(r => r.Passed && r.RunId != null && r.OutputText != null && r.OutputText.Contains("case-" + r.Order, StringComparison.Ordinal) && r.CheckResults.Count == 1), "three passing case results");
+                        EnumerationResult<EvalRun> runs = await client.EvalRuns.ListAsync(new EvalRunFilter { Set = setName }, token).ConfigureAwait(false);
+                        Require(runs.Objects.Any(r => r.Id == run.Id), "list eval runs by set");
+                        string? finishedCode = null;
+                        try
+                        {
+                            await client.EvalRuns.CancelAsync(run.Id, "too late", token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409) { finishedCode = e.Error?.Code; }
+                        Require(finishedCode == "EvalRunFinished", "a finished run cannot be cancelled, got " + finishedCode);
+
+                        EvalSet next = await client.EvalSets.DeleteCaseAsync(set.Id, third.Id, token).ConfigureAwait(false);
+                        Require(next.Id != set.Id && next.Version == 2 && next.State == EvalSetStateEnum.Draft && next.CaseCount == 2 && next.PreviousVersionId == set.Id, "removing a case of an approved set makes version 2");
+                        await client.EvalSets.DeleteAsync(next.Id, token).ConfigureAwait(false);
+                        EvalSet latest = await client.EvalSets.GetAsync(setName, token).ConfigureAwait(false);
+                        Require(latest.Id == set.Id, "the draft version is deleted");
+
+                        trial = await client.ShadowTrials.CreateAsync(new ShadowTrial { Name = "sdk-cs-shadow", SourceDeploymentId = baseline.Id, CandidateDeploymentId = candidate.Name, SamplePercent = 50 }, token).ConfigureAwait(false);
+                        Require(trial.Id.StartsWith("shd_", StringComparison.Ordinal) && trial.Status == ShadowTrialStatusEnum.Running && trial.CandidateDeploymentId == candidate.Id && trial.AgentId == evalAgent.Id && trial.SamplePercent == 50, "start a shadow trial");
+                        ShadowTrial readTrial = await client.ShadowTrials.GetAsync(trial.Id, token).ConfigureAwait(false);
+                        Require(readTrial.ComparedCount == 0 && readTrial.Name == "sdk-cs-shadow", "read a shadow trial");
+                        EnumerationResult<ShadowTrial> trials = await client.ShadowTrials.ListAsync(new ShadowTrialFilter { Source = baseline.Id, Status = ShadowTrialStatusEnum.Running }, token).ConfigureAwait(false);
+                        Require(trials.Objects.Count == 1 && trials.Objects[0].Id == trial.Id, "list shadow trials");
+                        ShadowTrial stopped = await client.ShadowTrials.StopAsync(trial.Id, "harness done", token).ConfigureAwait(false);
+                        Require(stopped.Status == ShadowTrialStatusEnum.Stopped && stopped.StopReason == "harness done" && stopped.CompletedUtc.HasValue, "stop a shadow trial");
+                        string? stopCode = null;
+                        try
+                        {
+                            await client.ShadowTrials.StopAsync(trial.Id, null, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 409) { stopCode = e.Error?.Code; }
+                        Require(stopCode == "ShadowTrialNotRunning", "a stopped trial cannot stop again, got " + stopCode);
+                        trial = null;
+
+                        CanaryRelease releaseRequest = new CanaryRelease { AgentId = evalAgent.Name, CandidateDeploymentId = candidate.Id, BaselineDeploymentId = baseline.Id, MaxErrorRatePercent = 10 };
+                        releaseRequest.Steps.Add(new CanaryReleaseStep { WeightPercent = 25, MinimumRuns = 1000, MinimumMinutes = 60 });
+                        releaseRequest.Steps.Add(new CanaryReleaseStep { WeightPercent = 100, MinimumRuns = 1000, MinimumMinutes = 60 });
+                        release = await client.CanaryReleases.CreateAsync(releaseRequest, token).ConfigureAwait(false);
+                        Require(release.Id.StartsWith("cnr_", StringComparison.Ordinal) && release.Status == CanaryStatusEnum.Running && release.AgentId == evalAgent.Id && release.CurrentStepIndex == 0 && release.Steps.Count == 2 && release.CandidateInitialWeight == 100, "start a canary release");
+                        Deployment weighted = await client.Deployments.GetAsync(candidate.Id, token).ConfigureAwait(false);
+                        Deployment baselineWeighted = await client.Deployments.GetAsync(baseline.Id, token).ConfigureAwait(false);
+                        Require(weighted.Weight * 3 == baselineWeighted.Weight, "the first step gives the candidate 25 percent of the weight, got " + weighted.Weight + " and " + baselineWeighted.Weight);
+                        CanaryRelease readRelease = await client.CanaryReleases.GetAsync(release.Id, token).ConfigureAwait(false);
+                        Require(readRelease.Steps[0].WeightPercent == 25 && readRelease.MaxErrorRatePercent == 10, "read a canary release");
+                        EnumerationResult<CanaryRelease> releases = await client.CanaryReleases.ListAsync(new CanaryReleaseFilter { Agent = evalAgent.Id, Status = CanaryStatusEnum.Running }, token).ConfigureAwait(false);
+                        Require(releases.Objects.Count == 1 && releases.Objects[0].Id == release.Id, "list canary releases");
+                        CanaryRelease aborted = await client.CanaryReleases.AbortAsync(release.Id, "harness done", token).ConfigureAwait(false);
+                        Require(aborted.Status == CanaryStatusEnum.Aborted && aborted.RollbackReason == "harness done", "abort a canary release");
+                        release = null;
+                        Deployment restored = await client.Deployments.GetAsync(candidate.Id, token).ConfigureAwait(false);
+                        Require(restored.Weight == 100, "abort restores the candidate's weight, got " + restored.Weight);
+                    }
+                    finally
+                    {
+                        if (trial != null) await client.ShadowTrials.StopAsync(trial.Id, "harness cleanup", token).ConfigureAwait(false);
+                        if (release != null) await client.CanaryReleases.AbortAsync(release.Id, "harness cleanup", token).ConfigureAwait(false);
+                        if (candidate != null) await client.Deployments.DeleteAsync(candidate.Id, token).ConfigureAwait(false);
+                        if (baseline != null) await client.Deployments.DeleteAsync(baseline.Id, token).ConfigureAwait(false);
+                        if (evalAgent != null) await client.Agents.DeleteAsync(evalAgent.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("change rules", async () =>
                 {
                     // A rule pre-authorizes classes of executive change below a unit; proposals list an organization's executive drafts.

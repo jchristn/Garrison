@@ -49,6 +49,18 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Started by urgent mail to an agent without a keeper (AA6). Its input carries the agent's queued messages.
         /// </summary>
-        Message
+        Message,
+
+        /// <summary>
+        /// One case of an eval run (AA9.3): the input of an eval case, or a replayed recent input, run against the eval
+        /// run's target. EvalRunId is set.
+        /// </summary>
+        Eval,
+
+        /// <summary>
+        /// A shadow copy of a source deployment's input run on a candidate deployment (AA9.7). Tool approvals default to
+        /// Deny and effects, messages, escalations, reports, memory writes, and drafts are refused. ShadowTrialId is set.
+        /// </summary>
+        Shadow
     }
 }

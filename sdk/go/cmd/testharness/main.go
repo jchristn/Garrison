@@ -1959,6 +1959,248 @@ func main() {
 		return nil
 	})
 
+	check("eval sets, eval runs, shadow trials, and canary releases", func(ctx context.Context) error {
+		// An eval set is written, approved, and run against a fake deployment; a shadow trial and a canary release use a
+		// second deployment of the same agent.
+		str := func(v string) *string { return &v }
+		num := func(v float64) *float64 { return &v }
+		var agent garrison.Agent
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-eval-" + suffix, Description: "Go SDK evaluation scratch agent."}, &agent); err != nil {
+			return err
+		}
+		defer client.Agents.Delete(ctx, agent.ID)
+		var base, cand garrison.Deployment
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-eval-" + suffix + "-base", AgentID: agent.ID, HarnessProfileID: fakeID}, &base); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, base.ID)
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-eval-" + suffix + "-cand", AgentID: agent.ID, HarnessProfileID: fakeID}, &cand); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, cand.ID)
+
+		setName := "sdk-go-evals-" + suffix
+		set, err := client.EvalSets.Create(ctx, garrison.EvalSetRequest{Name: str(setName), Description: str("Go SDK eval set."), Tags: []string{"sdk"}, Cases: []garrison.EvalCase{
+			{Name: str("one"), InputText: "case-0 alpha", Checks: []garrison.EvalCaseCheck{{Scorer: garrison.EvalScorerContains, Argument: str("case-0")}}},
+			{Name: str("two"), InputText: "case-1 beta", ExpectedText: str("case-1"), Checks: []garrison.EvalCaseCheck{{Scorer: garrison.EvalScorerContains}}},
+		}})
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(set.ID, "evs_") || set.Version != 1 || set.State != garrison.EvalSetStateDraft || set.Origin != garrison.EvalSetOriginHuman || set.CaseCount != 2 {
+			return fmt.Errorf("create an eval set: %+v", set)
+		}
+		third, err := client.EvalSets.CreateCase(ctx, set.ID, garrison.EvalCase{Name: str("three"), InputText: "case-2 gamma", Checks: []garrison.EvalCaseCheck{{Scorer: garrison.EvalScorerContains, Argument: str("case-2"), Weight: num(2)}}})
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(third.ID, "evc_") || third.Order != 2 || third.Checks[0].Weight == nil || *third.Checks[0].Weight != 2 {
+			return fmt.Errorf("add a case: %+v", third)
+		}
+		cases, err := client.EvalSets.ListCases(ctx, set.ID)
+		if err != nil {
+			return err
+		}
+		if len(cases) != 3 || cases[0].Order != 0 || cases[2].ID != third.ID {
+			return fmt.Errorf("list cases: %d", len(cases))
+		}
+		third.Name = str("three-b")
+		changed, err := client.EvalSets.UpdateCase(ctx, set.ID, third.ID, *third)
+		if err != nil {
+			return err
+		}
+		read, err := client.EvalSets.GetCase(ctx, set.ID, third.ID)
+		if err != nil {
+			return err
+		}
+		if changed.Name == nil || *changed.Name != "three-b" || read.Name == nil || *read.Name != "three-b" {
+			return errors.New("update and read a case")
+		}
+		edited, err := client.EvalSets.Update(ctx, set.ID, garrison.EvalSetRequest{Description: str("Go SDK eval set, edited."), Tags: []string{"sdk", "go"}})
+		if err != nil {
+			return err
+		}
+		if edited.ID != set.ID || edited.Version != 1 || edited.Description == nil || *edited.Description != "Go SDK eval set, edited." || len(edited.Tags) != 2 {
+			return fmt.Errorf("edit a draft set: %+v", edited)
+		}
+		listed, err := client.EvalSets.List(ctx, garrison.EvalSetFilter{Search: setName, LatestOnly: true})
+		if err != nil {
+			return err
+		}
+		if len(listed.Objects) != 1 || listed.Objects[0].ID != set.ID {
+			return errors.New("list eval sets")
+		}
+		approved, err := client.EvalSets.Approve(ctx, set.ID)
+		if err != nil {
+			return err
+		}
+		if approved.State != garrison.EvalSetStateApproved || approved.ApprovedByName == nil || approved.CaseCount != 3 {
+			return fmt.Errorf("approve: %+v", approved)
+		}
+		var apiErr *garrison.Error
+		if _, err := client.EvalSets.Approve(ctx, set.ID); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "AlreadyApproved" {
+			return fmt.Errorf("approving twice is a conflict: %v", err)
+		}
+		byName, err := client.EvalSets.Get(ctx, setName)
+		if err != nil {
+			return err
+		}
+		if byName.ID != set.ID {
+			return errors.New("read a set by name")
+		}
+
+		run, err := client.EvalRuns.Create(ctx, garrison.EvalRunRequest{SetID: setName, TargetType: str(garrison.EvalRunTargetDeployment), DeploymentID: str(base.ID), Threshold: num(0.5)})
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(run.ID, "evr_") || run.TotalCases != 3 || run.SetVersion != 1 {
+			return fmt.Errorf("start an eval run: %+v", run)
+		}
+		deadline := time.Now().Add(90 * time.Second)
+		for run.Status == garrison.EvalRunStatusPending || run.Status == garrison.EvalRunStatusRunning {
+			if time.Now().After(deadline) {
+				return fmt.Errorf("eval run still %s", run.Status)
+			}
+			time.Sleep(time.Second)
+			if run, err = client.EvalRuns.Get(ctx, run.ID); err != nil {
+				return err
+			}
+		}
+		if run.Status != garrison.EvalRunStatusCompleted || run.Score == nil || *run.Score != 1 || run.Passed == nil || !*run.Passed || run.PassedCases != 3 {
+			return fmt.Errorf("eval run outcome: %+v", run)
+		}
+		results, err := client.EvalRuns.Results(ctx, run.ID)
+		if err != nil {
+			return err
+		}
+		if len(results) != 3 {
+			return fmt.Errorf("results: %d", len(results))
+		}
+		for _, r := range results {
+			if !r.Passed || r.RunID == nil || r.OutputText == nil || !strings.Contains(*r.OutputText, "case-"+strconv.Itoa(r.Order)) || len(r.CheckResults) != 1 {
+				return fmt.Errorf("result %d: %+v", r.Order, r)
+			}
+		}
+		runs, err := client.EvalRuns.List(ctx, garrison.EvalRunFilter{Set: setName})
+		if err != nil {
+			return err
+		}
+		if len(runs.Objects) != 1 || runs.Objects[0].ID != run.ID {
+			return errors.New("list eval runs by set")
+		}
+		if _, err := client.EvalRuns.Cancel(ctx, run.ID, "too late"); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "EvalRunFinished" {
+			return fmt.Errorf("cancelling a finished run is a conflict: %v", err)
+		}
+
+		next, err := client.EvalSets.DeleteCase(ctx, set.ID, cases[1].ID)
+		if err != nil {
+			return err
+		}
+		if next.ID == set.ID || next.Version != 2 || next.State != garrison.EvalSetStateDraft || next.CaseCount != 2 {
+			return fmt.Errorf("removing a case from an approved set makes version 2: %+v", next)
+		}
+		if err := client.EvalSets.Delete(ctx, next.ID); err != nil {
+			return err
+		}
+		if err := client.EvalSets.Delete(ctx, set.ID); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "EvalSetImmutable" {
+			return fmt.Errorf("an approved version is kept: %v", err)
+		}
+
+		trial, err := client.ShadowTrials.Create(ctx, garrison.ShadowTrial{Name: str("sdk-go-shadow"), SourceDeploymentID: base.ID, CandidateDeploymentID: cand.Name, SamplePercent: 50})
+		if err != nil {
+			return err
+		}
+		stopped := false
+		defer func() {
+			if !stopped {
+				_, _ = client.ShadowTrials.Stop(ctx, trial.ID, "")
+			}
+		}()
+		if !strings.HasPrefix(trial.ID, "shd_") || trial.Status != garrison.ShadowTrialStatusRunning || trial.CandidateDeploymentID != cand.ID || trial.SamplePercent != 50 || trial.AgentID == nil || *trial.AgentID != agent.ID {
+			return fmt.Errorf("start a shadow trial: %+v", trial)
+		}
+		readTrial, err := client.ShadowTrials.Get(ctx, trial.ID)
+		if err != nil {
+			return err
+		}
+		trials, err := client.ShadowTrials.List(ctx, garrison.ShadowTrialFilter{Source: base.ID, Status: garrison.ShadowTrialStatusRunning})
+		if err != nil {
+			return err
+		}
+		if readTrial.ID != trial.ID || len(trials.Objects) != 1 || trials.Objects[0].ID != trial.ID {
+			return errors.New("read and list shadow trials")
+		}
+		halted, err := client.ShadowTrials.Stop(ctx, trial.ID, "done")
+		if err != nil {
+			return err
+		}
+		stopped = true
+		if halted.Status != garrison.ShadowTrialStatusStopped || halted.StopReason == nil || *halted.StopReason != "done" {
+			return fmt.Errorf("stop a shadow trial: %+v", halted)
+		}
+		if _, err := client.ShadowTrials.Stop(ctx, trial.ID, ""); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict || apiErr.Code != "ShadowTrialNotRunning" {
+			return fmt.Errorf("stopping twice is a conflict: %v", err)
+		}
+
+		if _, err := client.CanaryReleases.Create(ctx, garrison.CanaryRelease{AgentID: agent.ID, CandidateDeploymentID: cand.ID, BaselineDeploymentID: base.ID,
+			Steps: []garrison.CanaryReleaseStep{{WeightPercent: 50, MinimumRuns: 1, MinimumMinutes: 1}}}); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.FieldCodes["steps[0].weightPercent"] != "LastStepNotFull" {
+			return fmt.Errorf("a last step below 100 is refused: %v", err)
+		}
+		release, err := client.CanaryReleases.Create(ctx, garrison.CanaryRelease{AgentID: agent.Name, CandidateDeploymentID: cand.ID, BaselineDeploymentID: base.ID, MaxErrorRatePercent: num(10),
+			Steps: []garrison.CanaryReleaseStep{{WeightPercent: 25, MinimumRuns: 1000, MinimumMinutes: 60}, {WeightPercent: 100, MinimumRuns: 1000, MinimumMinutes: 60}}})
+		if err != nil {
+			return err
+		}
+		aborted := false
+		defer func() {
+			if !aborted {
+				_, _ = client.CanaryReleases.Abort(ctx, release.ID, "")
+			}
+		}()
+		if !strings.HasPrefix(release.ID, "cnr_") || release.Status != garrison.CanaryStatusRunning || release.AgentID != agent.ID || release.CurrentStepIndex != 0 || len(release.Steps) != 2 || release.BaselineInitialWeight != 100 || release.CandidateInitialWeight != 100 {
+			return fmt.Errorf("start a canary release: %+v", release)
+		}
+		var candWeighted, baseWeighted garrison.Deployment
+		if err := client.Deployments.Get(ctx, cand.ID, &candWeighted); err != nil {
+			return err
+		}
+		if err := client.Deployments.Get(ctx, base.ID, &baseWeighted); err != nil {
+			return err
+		}
+		if candWeighted.Weight == nil || baseWeighted.Weight == nil || *candWeighted.Weight*3 != *baseWeighted.Weight {
+			return errors.New("the first step gives the candidate 25 percent of the weight")
+		}
+		readRelease, err := client.CanaryReleases.Get(ctx, release.ID)
+		if err != nil {
+			return err
+		}
+		releases, err := client.CanaryReleases.List(ctx, garrison.CanaryReleaseFilter{Agent: agent.ID, Status: garrison.CanaryStatusRunning})
+		if err != nil {
+			return err
+		}
+		if readRelease.ID != release.ID || len(releases.Objects) != 1 || releases.Objects[0].ID != release.ID {
+			return errors.New("read and list canary releases")
+		}
+		ended, err := client.CanaryReleases.Abort(ctx, release.ID, "sdk")
+		if err != nil {
+			return err
+		}
+		aborted = true
+		if ended.Status != garrison.CanaryStatusAborted || ended.RollbackReason == nil || *ended.RollbackReason != "sdk" {
+			return fmt.Errorf("abort a canary release: %+v", ended)
+		}
+		for _, id := range []string{base.ID, cand.ID} {
+			var after garrison.Deployment
+			if err := client.Deployments.Get(ctx, id, &after); err != nil {
+				return err
+			}
+			if after.Weight == nil || *after.Weight != 100 {
+				return errors.New("abort restores weight 100")
+			}
+		}
+		return nil
+	})
+
 	check("notification endpoints", func(ctx context.Context) error {
 		var refused garrison.NotificationEndpoint
 		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)

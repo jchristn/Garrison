@@ -795,6 +795,110 @@ await check("change rules", async () => {
     if (org) await client.organizations.delete(org.id);
   }
 });
+await check("eval sets, eval runs, shadow trials, and canary releases", async () => {
+  // Grade a deployment on the fake harness with an approved eval set, then shadow and canary a second deployment of the same agent.
+  let agent = null;
+  const deployments = [];
+  let trial = null;
+  let release = null;
+  try {
+    agent = await client.agents.create({ name: `sdk-js-eval-${suffix}`, description: "JavaScript SDK evaluation scratch agent." });
+    const base = await client.deployments.create({ name: `sdk-js-eval-${suffix}-base`, agentId: agent.id, harnessProfileId: state.fake });
+    deployments.push(base);
+    const cand = await client.deployments.create({ name: `sdk-js-eval-${suffix}-cand`, agentId: agent.id, harnessProfileId: state.fake });
+    deployments.push(cand);
+
+    const setName = `sdk-js-set-${suffix}`;
+    const set = await client.evalSets.create({
+      name: setName, description: "JavaScript SDK eval set.", tags: ["sdk"],
+      cases: [
+        { name: "one", inputText: "case-0 alpha", checks: [{ scorer: "Contains", argument: "case-0" }] },
+        { name: "two", inputText: "case-1 beta", expectedText: "case-1", checks: [{ scorer: "Contains" }] },
+      ],
+    });
+    require(set.id.startsWith("evs_") && set.version === 1 && set.state === "Draft" && set.origin === "Human" && set.caseCount === 2, "create an eval set");
+    const third = await client.evalSets.createCase(set.id, { name: "three", inputText: "case-2 gamma", checks: [{ scorer: "Contains", argument: "case-2", weight: 2 }] });
+    require(third.id.startsWith("evc_") && third.order === 2 && third.checks[0].weight === 2, "add a case");
+    const cases = await client.evalSets.listCases(set.id);
+    require(cases.length === 3 && cases.map((c) => c.order).join(",") === "0,1,2", "list cases in order");
+    const readCase = await client.evalSets.getCase(set.id, third.id);
+    require(readCase.inputText === "case-2 gamma", "read a case");
+    const renamed = await client.evalSets.updateCase(set.id, third.id, { ...readCase, name: "three-b" });
+    require(renamed.name === "three-b" && renamed.id === third.id, "update a case");
+    const edited = await client.evalSets.update(set.id, { description: "Edited by the JavaScript SDK.", tags: ["sdk", "js"] });
+    require(edited.id === set.id && edited.version === 1 && edited.description === "Edited by the JavaScript SDK." && edited.tags.length === 2, "update a draft set in place");
+    const listed = await client.evalSets.list({ search: setName, latestOnly: true });
+    require(listed.objects.length === 1 && listed.objects[0].id === set.id, "list eval sets");
+    const byName = await client.evalSets.get(setName);
+    require(byName.id === set.id, "read a set by name");
+
+    const approved = await client.evalSets.approve(set.id);
+    require(approved.state === "Approved" && approved.approvedUtc && approved.caseCount === 3, "approve the set");
+    let status = 0;
+    let code = null;
+    try { await client.evalSets.approve(set.id); } catch (e) { if (e instanceof GarrisonError) { status = e.statusCode; code = e.code; } else throw e; }
+    require(status === 409 && code === "AlreadyApproved", `approving twice is refused (${status} ${code})`);
+
+    const run = await client.evalRuns.create({ setId: setName, targetType: "Deployment", deploymentId: base.id, threshold: 0.5 });
+    require(run.id.startsWith("evr_") && run.setId === set.id && run.totalCases === 3 && run.threshold === 0.5, "start an eval run");
+    let done = run;
+    for (let i = 0; i < 120 && (done.status === "Pending" || done.status === "Running"); i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      done = await client.evalRuns.get(run.id);
+    }
+    require(done.status === "Completed" && done.passed === true && done.score === 1 && done.passedCases === 3 && done.completedCases === 3, `the eval run completes and passes (${done.status} ${done.score} ${done.failureReason})`);
+    const results = await client.evalRuns.results(run.id);
+    require(results.length === 3 && results.every((r) => r.passed && r.runId && (r.outputText || "").includes(`case-${r.order}`) && r.checkResults.length === 1), "three passing case results");
+    const runs = await client.evalRuns.list({ set: setName });
+    require(runs.objects.some((r) => r.id === run.id), "list eval runs by set");
+    status = 0; code = null;
+    try { await client.evalRuns.cancel(run.id, "late"); } catch (e) { if (e instanceof GarrisonError) { status = e.statusCode; code = e.code; } else throw e; }
+    require(status === 409 && code === "EvalRunFinished", `a finished eval run cannot be cancelled (${status} ${code})`);
+
+    const next = await client.evalSets.deleteCase(set.id, third.id);
+    require(next.name === setName && next.version === 2 && next.state === "Draft" && next.previousVersionId === set.id && next.caseCount === 2, `removing a case from an approved set makes version 2 (${next.version} ${next.state} ${next.caseCount})`);
+    await client.evalSets.delete(next.id);
+    status = 0;
+    try { await client.evalSets.get(next.id); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 404, `a deleted draft version is gone (${status})`);
+
+    trial = await client.shadowTrials.create({ name: "sdk-js-shadow", sourceDeploymentId: base.id, candidateDeploymentId: cand.name, samplePercent: 50 });
+    require(trial.id.startsWith("shd_") && trial.status === "Running" && trial.candidateDeploymentId === cand.id && trial.agentId === agent.id && trial.samplePercent === 50, "start a shadow trial");
+    const readTrial = await client.shadowTrials.get(trial.id);
+    require(readTrial.comparedCount === 0 && readTrial.name === "sdk-js-shadow", "read a shadow trial");
+    const trials = await client.shadowTrials.list({ source: base.id, status: "Running" });
+    require(trials.objects.length === 1 && trials.objects[0].id === trial.id, "list shadow trials by source");
+    const stopped = await client.shadowTrials.stop(trial.id, "done");
+    require(stopped.status === "Stopped" && stopped.stopReason === "done", "stop a shadow trial");
+    status = 0; code = null;
+    try { await client.shadowTrials.stop(trial.id); } catch (e) { if (e instanceof GarrisonError) { status = e.statusCode; code = e.code; } else throw e; }
+    require(status === 409 && code === "ShadowTrialNotRunning", `stopping twice is refused (${status} ${code})`);
+    trial = null;
+
+    release = await client.canaryReleases.create({
+      agentId: agent.name, candidateDeploymentId: cand.id, baselineDeploymentId: base.id, maxErrorRatePercent: 10,
+      steps: [{ weightPercent: 25, minimumRuns: 1000, minimumMinutes: 60 }, { weightPercent: 100, minimumRuns: 1000, minimumMinutes: 60 }],
+    });
+    require(release.id.startsWith("cnr_") && release.status === "Running" && release.currentStepIndex === 0 && release.steps.length === 2 && release.candidateInitialWeight === 100 && release.baselineInitialWeight === 100, "start a canary release");
+    const readRelease = await client.canaryReleases.get(release.id);
+    require(readRelease.maxErrorRatePercent === 10 && readRelease.agentId === agent.id, "read a canary release");
+    const releases = await client.canaryReleases.list({ agent: agent.id, status: "Running" });
+    require(releases.objects.length === 1 && releases.objects[0].id === release.id, "list canary releases by agent");
+    status = 0; code = null;
+    try { await client.canaryReleases.create({ agentId: agent.id, candidateDeploymentId: cand.id, baselineDeploymentId: base.id, steps: [{ weightPercent: 50 }] }); } catch (e) { if (e instanceof GarrisonError) { status = e.statusCode; code = e.fieldCodes?.["steps[0].weightPercent"] ?? null; } else throw e; }
+    require(status === 400 && code === "LastStepNotFull", `a release must end at 100 percent (${status} ${code})`);
+    const aborted = await client.canaryReleases.abort(release.id, "sdk harness");
+    require(aborted.status === "Aborted" && aborted.rollbackReason === "sdk harness", "abort a canary release");
+    release = null;
+    const [baseAfter, candAfter] = await Promise.all([client.deployments.get(base.id), client.deployments.get(cand.id)]);
+    require(baseAfter.weight === 100 && candAfter.weight === 100, `weights are restored (${baseAfter.weight} ${candAfter.weight})`);
+  } finally {
+    if (trial) await client.shadowTrials.stop(trial.id, "cleanup").catch(() => {});
+    if (release) await client.canaryReleases.abort(release.id, "cleanup").catch(() => {});
+    for (const d of deployments) await client.deployments.delete(d.id);
+    if (agent) await client.agents.delete(agent.id);
+  }
+});
 
 await check("freezes", async () => {
   // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.

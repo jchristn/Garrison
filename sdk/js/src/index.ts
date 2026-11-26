@@ -567,8 +567,11 @@ export interface AgentRevisionDiff {
 /** Body of a revision publish. */
 export interface RevisionPublishRequest { changeNote?: string; }
 
-/** One named environment in the tenant's promotion order. */
-export interface TenantEnvironment { name: string; description?: string | null; position: number; }
+/**
+ * One named environment in the tenant's promotion order. evalGateSet names an approved eval set a promotion into this
+ * environment must pass, scoring at least evalGateThreshold (0 to 1; 1 when a gate set is given without one), or null for no gate.
+ */
+export interface TenantEnvironment { name: string; description?: string | null; position: number; evalGateSet?: string | null; evalGateThreshold?: number | null; }
 
 /** Ordered tenant environments. isDefault is true when the tenant uses the built-in dev, staging, prod list. */
 export interface TenantEnvironmentList { environments: TenantEnvironment[]; isDefault?: boolean; }
@@ -956,8 +959,8 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "CanaryRolledBack" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "CanaryRolledBack", "Test"] as const;
 
 /** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
 export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
@@ -1380,8 +1383,8 @@ export type RunStatus = "Queued" | "Leased" | "Running" | "Cancelling" | "Succee
 export const RUN_STATUSES: readonly RunStatus[] = ["Queued", "Leased", "Running", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected", "Suspended"] as const;
 export const QUEUE_FULL_ERROR = "QueueFull" as const;
 /** Why a run was created. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft" environment. */
-export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground" | "Keeper" | "Message";
-export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message"] as const;
+export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground" | "Keeper" | "Message" | "Eval" | "Shadow";
+export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message", "Eval", "Shadow"] as const;
 /** The reserved environment playground deployments live in; users cannot create deployments in it. */
 export const PLAYGROUND_ENVIRONMENT = "draft" as const;
 export type EffectOperationState = "Authorized" | "Dispatched" | "Completed" | "Unknown";
@@ -1496,6 +1499,10 @@ export interface Run extends Json {
   escalationId?: string | null;
   /** Fan-out group this run is a member of, or null when it was not started by garrison_fan_out. */
   fanOutGroupId?: string | null;
+  /** The eval run this run answers a case of (kind Eval), or null. */
+  evalRunId?: string | null;
+  /** The shadow trial this run belongs to (kind Shadow), or null. */
+  shadowTrialId?: string | null;
   /** Structured output of the run as a JSON value (any JSON type), or null when there is none. */
   structuredOutput?: unknown;
 }
@@ -2768,6 +2775,221 @@ export class ChangeRules {
   delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.t.tenantPath(`/change-rules/${seg(id)}`)); }
 }
 
+/** State of an eval set version: Draft while being written, Approved (by a person) and immutable after. */
+export type EvalSetState = "Draft" | "Approved";
+export const EVAL_SET_STATES: readonly EvalSetState[] = ["Draft", "Approved"] as const;
+/** Who wrote an eval set: a person (Human), an evaluator agent (Evaluator), or studio playground runs saved as cases (Playground). */
+export type EvalSetOrigin = "Human" | "Evaluator" | "Playground";
+export const EVAL_SET_ORIGINS: readonly EvalSetOrigin[] = ["Human", "Evaluator", "Playground"] as const;
+/**
+ * How a check scores a case's output. ExactMatch and Contains compare with the check's argument, or the case's expected
+ * text when the argument is empty; JsonSchemaValid validates against the JSON Schema in the argument; Judge asks the
+ * set's judge agent with the argument as criteria.
+ */
+export type EvalScorer = "ExactMatch" | "Contains" | "JsonSchemaValid" | "Judge";
+export const EVAL_SCORERS: readonly EvalScorer[] = ["ExactMatch", "Contains", "JsonSchemaValid", "Judge"] as const;
+/** Status of an eval run. Completed carries a score and passed; Failed carries failureReason. */
+export type EvalRunStatus = "Pending" | "Running" | "Completed" | "Failed" | "Cancelled";
+export const EVAL_RUN_STATUSES: readonly EvalRunStatus[] = ["Pending", "Running", "Completed", "Failed", "Cancelled"] as const;
+/** What an eval run evaluates: an agent revision (on an ephemeral deployment) or a deployment as configured now. */
+export type EvalRunTarget = "AgentRevision" | "Deployment";
+export const EVAL_RUN_TARGETS: readonly EvalRunTarget[] = ["AgentRevision", "Deployment"] as const;
+/** Where an eval run's inputs come from: the set's cases, or the target deployment's most recent finished runs. */
+export type EvalRunInputMode = "Cases" | "RecentInputs";
+export const EVAL_RUN_INPUT_MODES: readonly EvalRunInputMode[] = ["Cases", "RecentInputs"] as const;
+/** Status of a shadow trial. */
+export type ShadowTrialStatus = "Running" | "Completed" | "Stopped" | "Failed";
+export const SHADOW_TRIAL_STATUSES: readonly ShadowTrialStatus[] = ["Running", "Completed", "Stopped", "Failed"] as const;
+/** Status of a canary release. RolledBack means a threshold was crossed; Aborted means a person stopped it. */
+export type CanaryStatus = "Running" | "Promoted" | "RolledBack" | "Aborted";
+export const CANARY_STATUSES: readonly CanaryStatus[] = ["Running", "Promoted", "RolledBack", "Aborted"] as const;
+/** Resource type name of eval sets in permissions and the operation scope map. */
+export const EVAL_SET_RESOURCE_TYPE = "EvalSet";
+/** Resource type name of eval runs in permissions and the operation scope map. */
+export const EVAL_RUN_RESOURCE_TYPE = "EvalRun";
+/** Resource type name of shadow trials in permissions and the operation scope map. */
+export const SHADOW_TRIAL_RESOURCE_TYPE = "ShadowTrial";
+/** Resource type name of canary releases in permissions and the operation scope map. */
+export const CANARY_RELEASE_RESOURCE_TYPE = "CanaryRelease";
+
+/** One check of an eval case. weight is 0 to 100 (default 1); out-of-range values are clamped with a warning. */
+export interface EvalCaseCheck { scorer: EvalScorer; argument?: string | null; weight?: number; warnings?: FieldWarning[] | null; }
+/** A file placed in the workspace for a case: inline contentText, or an agent asset (assetId, assetPath). */
+export interface EvalCaseFile { path: string; mediaType?: string | null; contentText?: string | null; assetId?: string | null; assetPath?: string | null; }
+/**
+ * One case of an eval set version. id has the prefix evc_. order is assigned by the server. A hidden case is redacted to
+ * its scorers for run tokens. A case with no checks is scored ExactMatch on expectedText, or by the judge when there is
+ * no expected text.
+ */
+export interface EvalCase extends Json {
+  id?: string; tenantId?: string; setId?: string; order?: number; name?: string | null; inputText: string; hidden?: boolean;
+  expectedText?: string | null; checks?: EvalCaseCheck[]; files?: EvalCaseFile[]; sourceRunId?: string | null;
+  warnings?: FieldWarning[] | null; createdUtc?: string; lastUpdateUtc?: string;
+}
+/**
+ * One version of an eval set. id has the prefix evs_. A Draft can change; approving it (people only) makes it immutable,
+ * and editing an approved version answers with its next version as a Draft. judgeAgent names the agent Judge checks use.
+ */
+export interface EvalSet extends Json {
+  id: string; tenantId: string; name: string; description?: string | null; version: number; previousVersionId?: string | null;
+  state: EvalSetState; origin: EvalSetOrigin; approvedById?: string | null; approvedByName?: string | null; approvedUtc?: string | null;
+  authoringOrgUnitId?: string | null; authoredByType?: string; authoredById?: string | null; authoredByName?: string | null; authoredByAgentId?: string | null;
+  judgeAgent?: string | null; tags: string[]; caseCount: number; createdUtc: string; lastUpdateUtc: string;
+}
+/** Body to create an eval set (name and optional cases) or edit one (description, judgeAgent, tags). A person's origin is Human or Playground. */
+export interface EvalSetRequest { name?: string; description?: string | null; origin?: EvalSetOrigin; judgeAgent?: string | null; tags?: string[]; cases?: EvalCase[]; }
+/** Filter for {@link EvalSets.list}. latestOnly keeps only the newest version of each name. */
+export interface EvalSetFilter { state?: EvalSetState; origin?: EvalSetOrigin; tag?: string; latestOnly?: boolean; search?: string; maxResults?: number; skip?: number; }
+/**
+ * Body to start an eval run. setId takes an identifier or a name (a name runs its newest approved version, else its
+ * newest version, unless setVersion is given). targetType Deployment needs deploymentId; AgentRevision needs agentId and optionally agentRevisionId (default
+ * the agent's latest). threshold is 0 to 1; budgetUsd caps the run's cost (0 to 100000). recentInputCount is 1 to 1000 (default 20).
+ */
+export interface EvalRunRequest {
+  setId: string; setVersion?: number | null; targetType?: EvalRunTarget | null; agentId?: string | null; agentRevisionId?: string | null;
+  deploymentId?: string | null; studioDraftId?: string | null; inputMode?: EvalRunInputMode; recentInputCount?: number;
+  threshold?: number | null; budgetUsd?: number | null;
+}
+/**
+ * An eval run of one set version against a target. id has the prefix evr_. score (0 to 1) is the check-weighted mean of
+ * the case scores and passed is score >= threshold, both set when the run completes.
+ */
+export interface EvalRun extends Json {
+  id: string; tenantId: string; setId: string; setName: string; setVersion: number; targetType: EvalRunTarget;
+  agentId?: string | null; agentRevisionId?: string | null; deploymentId?: string | null; studioDraftId?: string | null;
+  status: EvalRunStatus; inputMode: EvalRunInputMode; recentInputCount: number; score?: number | null; threshold?: number | null;
+  passed?: boolean | null; budgetUsd?: number | null; costUsd: number; totalCases: number; completedCases: number; passedCases: number;
+  erroredCases: number; failureReason?: string | null; startedByType?: string; startedById?: string | null; startedByName?: string | null;
+  originRunId?: string | null; warnings?: FieldWarning[] | null; createdUtc: string; startedUtc?: string | null; completedUtc?: string | null; lastUpdateUtc: string;
+}
+/** Filter for {@link EvalRuns.list}. set takes an identifier or a name; revision is an agent revision identifier. */
+export interface EvalRunFilter { set?: string; deployment?: string; revision?: string; status?: EvalRunStatus; maxResults?: number; skip?: number; }
+/** One check's score on a case. judgeRunId is the judge's run for a Judge check; note explains the score. */
+export interface EvalCaseCheckResult { scorer: EvalScorer; weight: number; score: number; passed: boolean; judgeRunId?: string | null; note?: string | null; }
+/** One case's result in an eval run. id has the prefix evx_. runId is the Eval run that answered it. Run tokens see hidden cases as scores only. */
+export interface EvalCaseResult extends Json {
+  id: string; tenantId: string; evalRunId: string; caseId?: string | null; order: number; sourceRunId?: string | null; runId?: string | null;
+  outputText?: string | null; score: number; passed: boolean; errorMessage?: string | null; costUsd: number;
+  checkResults: EvalCaseCheckResult[]; createdUtc: string;
+}
+/**
+ * A shadow trial copies samplePercent (1 to 100, default 10) of the source deployment's runs to the candidate as Shadow
+ * runs that cannot act, and compares the answers. id has the prefix shd_. Both deployments belong to the same agent and
+ * may be given by identifier or name. endsUtc must be in the future, or null to run until stopped.
+ */
+export interface ShadowTrial extends Json {
+  id?: string; tenantId?: string; name?: string | null; agentId?: string | null; sourceDeploymentId: string; candidateDeploymentId: string;
+  samplePercent?: number; endsUtc?: string | null; comparisonEvalSetId?: string | null; useJudge?: boolean; status?: ShadowTrialStatus;
+  stopReason?: string | null; comparedCount?: number; agreedCount?: number; divergedCount?: number; candidateFailureCount?: number;
+  createdByType?: string; createdById?: string | null; createdByName?: string | null; warnings?: FieldWarning[] | null;
+  createdUtc?: string; completedUtc?: string | null; lastUpdateUtc?: string;
+}
+/** Filter for {@link ShadowTrials.list}. source and candidate are deployment identifiers. */
+export interface ShadowTrialFilter { source?: string; candidate?: string; status?: ShadowTrialStatus; maxResults?: number; skip?: number; }
+/**
+ * One canary step: the candidate's share of traffic (weightPercent 1 to 100, rising, the last 100), held for at least
+ * minimumRuns runs (0 to 1000000, default 20) and minimumMinutes (0 to 43200, default 10) before the next step.
+ */
+export interface CanaryReleaseStep { weightPercent: number; minimumRuns?: number; minimumMinutes?: number; warnings?: FieldWarning[] | null; }
+/**
+ * A canary release moves an agent's traffic from the baseline deployment to the candidate in steps, rolling back when
+ * the candidate's error rate passes maxErrorRatePercent (0 to 100, default 5) or its latest eval score on evalSetId
+ * falls below minEvalScore (0 to 1; both or neither). id has the prefix cnr_. The initial weights are restored on abort
+ * or rollback.
+ */
+export interface CanaryRelease extends Json {
+  id?: string; tenantId?: string; agentId: string; candidateDeploymentId: string; baselineDeploymentId: string;
+  baselineInitialWeight?: number; candidateInitialWeight?: number; steps: CanaryReleaseStep[]; currentStepIndex?: number;
+  stepStartedUtc?: string | null; maxErrorRatePercent?: number; minEvalScore?: number | null; evalSetId?: string | null;
+  status?: CanaryStatus; rollbackReason?: string | null; createdByType?: string; createdById?: string | null; createdByName?: string | null;
+  warnings?: FieldWarning[] | null; createdUtc?: string; completedUtc?: string | null; lastUpdateUtc?: string;
+}
+/** Filter for {@link CanaryReleases.list}. agent is an agent identifier. */
+export interface CanaryReleaseFilter { agent?: string; status?: CanaryStatus; maxResults?: number; skip?: number; }
+
+/**
+ * Eval sets: versioned sets of cases with scorers. Read, Create, Update, and Delete on EvalSet; approving is Update by a
+ * person only. Sets and cases are addressed by identifier, and a set also by name (its newest version). Conflicts fail
+ * with 409 and a code such as EvalSetExists, AlreadyApproved, EvalSetEmpty, or EvalSetImmutable.
+ */
+export class EvalSets {
+  constructor(private readonly t: Transport) {}
+  /** Eval set versions, newest first. */
+  list(filter: EvalSetFilter = {}): Promise<EnumerationResult<EvalSet>> { return this.t.request("GET", this.t.tenantPath("/eval-sets"), filter as any); }
+  /** Read a set version by identifier, or the newest version of a name. */
+  get(id: string): Promise<EvalSet> { return this.t.request("GET", this.t.tenantPath(`/eval-sets/${seg(id)}`)); }
+  /** Create version 1 of a set with its cases. */
+  create(request: EvalSetRequest): Promise<EvalSet> { return this.t.request("POST", this.t.tenantPath("/eval-sets"), undefined, request); }
+  /** Edit description, judgeAgent, and tags. An approved version answers with its next version, a Draft. */
+  update(id: string, request: EvalSetRequest): Promise<EvalSet> { return this.t.request("PUT", this.t.tenantPath(`/eval-sets/${seg(id)}`), undefined, request); }
+  /** Delete a draft version (approved versions are kept: 409 EvalSetImmutable). */
+  delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.t.tenantPath(`/eval-sets/${seg(id)}`)); }
+  /** Approve a draft version so it can gate promotions. People only. */
+  approve(id: string): Promise<EvalSet> { return this.t.request("POST", this.t.tenantPath(`/eval-sets/${seg(id)}/approve`)); }
+  /** A set version's cases in order. */
+  listCases(id: string): Promise<EvalCase[]> { return this.t.request("GET", this.t.tenantPath(`/eval-sets/${seg(id)}/cases`)); }
+  /** Add a case at the end; on an approved version it lands on the next version. */
+  createCase(id: string, item: EvalCase): Promise<EvalCase> { return this.t.request("POST", this.t.tenantPath(`/eval-sets/${seg(id)}/cases`), undefined, item); }
+  /** Read a case. */
+  getCase(id: string, caseId: string): Promise<EvalCase> { return this.t.request("GET", this.t.tenantPath(`/eval-sets/${seg(id)}/cases/${seg(caseId)}`)); }
+  /** Replace a case; on an approved version the same case of the next version changes. */
+  updateCase(id: string, caseId: string, item: EvalCase): Promise<EvalCase> { return this.t.request("PUT", this.t.tenantPath(`/eval-sets/${seg(id)}/cases/${seg(caseId)}`), undefined, item); }
+  /** Remove a case; answers with the draft version it was removed from. */
+  deleteCase(id: string, caseId: string): Promise<EvalSet> { return this.t.request("DELETE", this.t.tenantPath(`/eval-sets/${seg(id)}/cases/${seg(caseId)}`)); }
+}
+
+/**
+ * Eval runs: run a set against a deployment or an agent revision as Eval runs. Read on EvalRun; starting and cancelling
+ * need Execute on EvalRun, and starting also on the agent. A finished run cannot be cancelled (409 EvalRunFinished).
+ */
+export class EvalRuns {
+  constructor(private readonly t: Transport) {}
+  /** Eval runs, newest first. */
+  list(filter: EvalRunFilter = {}): Promise<EnumerationResult<EvalRun>> { return this.t.request("GET", this.t.tenantPath("/eval-runs"), filter as any); }
+  /** Start an eval run. */
+  create(request: EvalRunRequest): Promise<EvalRun> { return this.t.request("POST", this.t.tenantPath("/eval-runs"), undefined, request); }
+  /** Read an eval run with its score and counts. */
+  get(id: string): Promise<EvalRun> { return this.t.request("GET", this.t.tenantPath(`/eval-runs/${seg(id)}`)); }
+  /** The run's case results with per-check scores and notes. */
+  results(id: string): Promise<EvalCaseResult[]> { return this.t.request("GET", this.t.tenantPath(`/eval-runs/${seg(id)}/results`)); }
+  /** Cancel a pending or running eval run and its unfinished case runs. */
+  cancel(id: string, reason?: string): Promise<EvalRun> { return this.t.request("POST", this.t.tenantPath(`/eval-runs/${seg(id)}/cancel`), undefined, { reason: reason ?? null }); }
+}
+
+/**
+ * Shadow trials: copy a share of a deployment's inputs to a candidate deployment as Shadow runs and compare. Read,
+ * Create, and Update on ShadowTrial; starting needs Execute on the agent. People only (403 PeopleOnly for a run token).
+ * A second trial for the same pair fails with 409 ShadowTrialAlreadyRunning; stopping a stopped trial with 409 ShadowTrialNotRunning.
+ */
+export class ShadowTrials {
+  constructor(private readonly t: Transport) {}
+  /** Shadow trials, newest first. */
+  list(filter: ShadowTrialFilter = {}): Promise<EnumerationResult<ShadowTrial>> { return this.t.request("GET", this.t.tenantPath("/shadow-trials"), filter as any); }
+  /** Start a shadow trial. */
+  create(trial: ShadowTrial): Promise<ShadowTrial> { return this.t.request("POST", this.t.tenantPath("/shadow-trials"), undefined, trial); }
+  /** Read a shadow trial with its compared, agreed, diverged, and candidate failure counts. */
+  get(id: string): Promise<ShadowTrial> { return this.t.request("GET", this.t.tenantPath(`/shadow-trials/${seg(id)}`)); }
+  /** Stop a running trial; shadow runs already started finish and are still compared. */
+  stop(id: string, reason?: string): Promise<ShadowTrial> { return this.t.request("POST", this.t.tenantPath(`/shadow-trials/${seg(id)}/stop`), undefined, { reason: reason ?? null }); }
+}
+
+/**
+ * Canary releases: move an agent's traffic to a candidate deployment in weighted steps with automatic rollback. Read,
+ * Create, and Update on CanaryRelease; starting needs Update on both deployments. People only. A refused step fails
+ * with 400 and a field code such as NotIncreasing or LastStepNotFull; a busy deployment with 409 CanaryAlreadyRunning.
+ */
+export class CanaryReleases {
+  constructor(private readonly t: Transport) {}
+  /** Canary releases, newest first. */
+  list(filter: CanaryReleaseFilter = {}): Promise<EnumerationResult<CanaryRelease>> { return this.t.request("GET", this.t.tenantPath("/canary-releases"), filter as any); }
+  /** Start a canary release; the first step's weights apply at once. */
+  create(release: CanaryRelease): Promise<CanaryRelease> { return this.t.request("POST", this.t.tenantPath("/canary-releases"), undefined, release); }
+  /** Read a canary release with its current step and rollback reason. */
+  get(id: string): Promise<CanaryRelease> { return this.t.request("GET", this.t.tenantPath(`/canary-releases/${seg(id)}`)); }
+  /** Abort a running release; both deployments go back to their weights from before it. */
+  abort(id: string, reason?: string): Promise<CanaryRelease> { return this.t.request("POST", this.t.tenantPath(`/canary-releases/${seg(id)}/abort`), undefined, { reason: reason ?? null }); }
+}
+
 /** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
 export class Reports {
   constructor(private readonly t: Transport) {}
@@ -3059,6 +3281,10 @@ export class GarrisonClient {
   readonly messages: Messages;
   readonly organizations: Organizations;
   readonly changeRules: ChangeRules;
+  readonly evalSets: EvalSets;
+  readonly evalRuns: EvalRuns;
+  readonly shadowTrials: ShadowTrials;
+  readonly canaryReleases: CanaryReleases;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -3113,6 +3339,10 @@ export class GarrisonClient {
     this.messages = new Messages(t);
     this.organizations = new Organizations(t, "organizations");
     this.changeRules = new ChangeRules(t);
+    this.evalSets = new EvalSets(t);
+    this.evalRuns = new EvalRuns(t);
+    this.shadowTrials = new ShadowTrials(t);
+    this.canaryReleases = new CanaryReleases(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
