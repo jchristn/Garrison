@@ -421,6 +421,11 @@ namespace Garrison.Core.Database.Ado
             v55.BuildVersion55();
             migrations.Add(new SchemaMigration(55, "Environment eval gates and eval set judges", v55._Statements, v55._Columns));
 
+            // AA9.10: a change rule may require a passing eval set; drafts record when their items last changed.
+            SchemaBuilder v56 = new SchemaBuilder(catalog, dialect);
+            v56.BuildVersion56();
+            migrations.Add(new SchemaMigration(56, "Change rule eval gates and draft content change times", v56._Statements, v56._Columns));
+
             return migrations;
         }
 
@@ -484,6 +489,14 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion56()
+        {
+            SqlDialect d = _Dialect;
+            Column("change_rules", "gateevalset", "VARCHAR(128)");
+            Column("change_rules", "gatethreshold", d.TypeDouble);
+            Column("studio_drafts", "contentchangedutc", d.TypeTimestamp);
         }
 
         private void BuildVersion55()

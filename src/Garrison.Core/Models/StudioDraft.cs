@@ -145,6 +145,13 @@ namespace Garrison.Core.Models
         /// </summary>
         public DateTime LastUpdateUtc { get; set; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// When the draft's items last changed (UTC): set on create and whenever an item is put or removed, not by layout
+        /// moves or status changes. An eval gate counts only eval runs created after it (AA9.10). Null for drafts stored
+        /// before schema version 56, where <see cref="LastUpdateUtc"/> stands in.
+        /// </summary>
+        public DateTime? ContentChangedUtc { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -152,6 +159,20 @@ namespace Garrison.Core.Models
         private string _Id = IdGenerator.NewStudioDraftId();
         private List<StudioDraftItem> _Items = new List<StudioDraftItem>();
         private List<StudioDraftNode> _Layout = new List<StudioDraftNode>();
+
+        #endregion
+
+        #region Public-Methods
+
+        /// <summary>
+        /// When the draft's items last changed: <see cref="ContentChangedUtc"/>, or <see cref="LastUpdateUtc"/> for drafts
+        /// stored before it existed.
+        /// </summary>
+        /// <returns>Time (UTC).</returns>
+        public DateTime ContentChangedOrUpdatedUtc()
+        {
+            return ContentChangedUtc ?? LastUpdateUtc;
+        }
 
         #endregion
     }

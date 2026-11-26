@@ -46,6 +46,7 @@ namespace Test.Shared.Suites
             unit.Add(new TestCaseDescriptor("executives-unit", "limits", "A valid draft passes; one refusal each for OutsideSubtree, SelfModification, ForbiddenKind, BudgetIncrease, and AuthorityChange", LimitsAsync));
             unit.Add(new TestCaseDescriptor("executives-unit", "classes", "Every change class from its fields, values for limits, and unclassified fields", ClassesAsync));
             unit.Add(new TestCaseDescriptor("executives-unit", "matching", "Rules cover changes in their unit subtree within value and count limits; expired, inactive, and unclassified never match", MatchingAsync));
+            unit.Add(new TestCaseDescriptor("executives-unit", "gate-matching", "A rule with an eval gate covers ModelChange only once the draft passed it (EvalGatePending otherwise), still covers WakeTuning at once, and an ungated rule may cover what it holds back", GateMatchingAsync));
             suites.Add(new TestSuiteDescriptor("executives-unit", "Executives: scope, limits, classes, rules", unit));
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
             {
@@ -180,6 +181,36 @@ namespace Test.Shared.Suites
             Assert.True(!ChangeRuleMatcher.Match(unclassified, new List<ChangeRule> { everything }, scope.Tree, now).AllMatched, "An unclassified field is never covered");
             Assert.True(!ChangeRuleMatcher.Match(new List<ChangeClassification>(), new List<ChangeRule> { everything }, scope.Tree, now).AllMatched, "An empty draft is not auto-applied");
             Assert.True(ChangeRuleMatcher.KnownLimitNames(ChangeClassEnum.WakeTuning).Contains("jitterPercent") && ChangeRuleMatcher.KnownLimitNames(ChangeClassEnum.DeploymentWeight).Contains("weight") && ChangeRuleMatcher.KnownLimitNames(ChangeClassEnum.ModelChange).Single() == "count", "Known limit names per class");
+            return Task.CompletedTask;
+        }
+
+        private static Task GateMatchingAsync(CancellationToken token)
+        {
+            // AA9.10: a rule with an eval gate covers AddWorker and ModelChange only once the draft passed the gate.
+            ExecutiveScope scope = Scope();
+            DateTime now = DateTime.UtcNow;
+            ChangeRule models = Rule("cru_models", "oun_root", now.AddMinutes(-2), ChangeClassEnum.ModelChange, ChangeClassEnum.WakeTuning);
+            models.GateEvalSet = "quality";
+            models.GateThreshold = 0.8;
+            List<ChangeClassification> bigger = Classify(scope, Item("Deployment", "tester-d", Deployment("tester-d", "tester", "large"), Deployment("tester-d", "tester", "small")));
+            Assert.True(bigger.Single().Classes.Contains(ChangeClassEnum.ModelChange), "A model change");
+            ChangeRuleMatch noStatus = ChangeRuleMatcher.Match(bigger, new List<ChangeRule> { models }, scope.Tree, now);
+            Assert.True(!noStatus.AllMatched && noStatus.Items.Single().Code == ChangeRuleMatcher.EvalGatePending && noStatus.Items.Single().Reason!.StartsWith("Needs a person: ", StringComparison.Ordinal), "Without a gate status the change waits with EvalGatePending: " + Serializer.Serialize(noStatus));
+            Dictionary<string, ChangeRuleGateStatus> pending = new Dictionary<string, ChangeRuleGateStatus> { ["cru_models"] = new ChangeRuleGateStatus { RuleId = "cru_models", Reason = "rule models requires eval set quality version 1 at score 0.8; the draft's latest eval run against it, evr_x, scored 0.5." } };
+            ChangeRuleMatch failing = ChangeRuleMatcher.Match(bigger, new List<ChangeRule> { models }, scope.Tree, now, pending);
+            Assert.True(!failing.AllMatched && failing.Items.Single().Code == ChangeRuleMatcher.EvalGatePending && failing.Items.Single().Reason!.Contains("scored 0.5", StringComparison.Ordinal), "A failing gate keeps it waiting with the gate's reason: " + Serializer.Serialize(failing));
+            Dictionary<string, ChangeRuleGateStatus> passed = new Dictionary<string, ChangeRuleGateStatus> { ["cru_models"] = new ChangeRuleGateStatus { RuleId = "cru_models", Satisfied = true, EvalRunId = "evr_pass" } };
+            ChangeRuleMatch covered = ChangeRuleMatcher.Match(bigger, new List<ChangeRule> { models }, scope.Tree, now, passed);
+            Assert.True(covered.AllMatched && covered.Items.Single().GateEvalRunId == "evr_pass" && covered.Items.Single().Code == null, "A passed gate covers it and names the eval run: " + Serializer.Serialize(covered));
+
+            // The gate holds back only AddWorker and ModelChange; the same rule covers a wake change without any eval.
+            List<ChangeClassification> slow = Classify(scope, Item("Mandate", "tester-m", Mandate("tester-m", "tester", "tester-d", 300, 900, 1), Mandate("tester-m", "tester", "tester-d", 60, 120, 1)));
+            Assert.True(ChangeRuleMatcher.Match(slow, new List<ChangeRule> { models }, scope.Tree, now).AllMatched, "A gated rule still covers WakeTuning at once");
+
+            // A later rule without a gate may still cover the change.
+            ChangeRule open = Rule("cru_open", "oun_root", now.AddMinutes(-1), ChangeClassEnum.ModelChange);
+            ChangeRuleMatch fallback = ChangeRuleMatcher.Match(bigger, new List<ChangeRule> { models, open }, scope.Tree, now, pending);
+            Assert.True(fallback.AllMatched && fallback.RuleIds.Single() == "cru_open" && fallback.Items.Single().GateEvalRunId == null, "An ungated rule covers what the gated one holds back: " + Serializer.Serialize(fallback));
             return Task.CompletedTask;
         }
 
@@ -474,7 +505,7 @@ namespace Test.Shared.Suites
             return await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
         }
 
-        private static Dictionary<string, object?>? FindUnit(object? units, string name)
+        internal static Dictionary<string, object?>? FindUnit(object? units, string name)
         {
             if (units is not List<object?> list) return null;
             foreach (object? entry in list)
@@ -490,7 +521,7 @@ namespace Test.Shared.Suites
             return null;
         }
 
-        private static async Task<ManifestDocument> LiveAsync(TestServerHost host, string kind, string name, CancellationToken token)
+        internal static async Task<ManifestDocument> LiveAsync(TestServerHost host, string kind, string name, CancellationToken token)
         {
             ManifestExportOptions options = new ManifestExportOptions();
             options.Resources.Add(new ManifestResourceReference { Kind = kind, Name = name });
@@ -498,7 +529,7 @@ namespace Test.Shared.Suites
             return ManifestParser.Parse(export.Yaml).Single(d => d.Kind == kind && d.Metadata.Name == name);
         }
 
-        private static string Yaml(ManifestDocument document)
+        internal static string Yaml(ManifestDocument document)
         {
             Dictionary<string, object?> wrapped = new Dictionary<string, object?>
             {

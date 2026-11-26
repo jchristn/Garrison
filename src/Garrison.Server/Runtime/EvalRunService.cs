@@ -101,9 +101,12 @@ namespace Garrison.Server.Runtime
                         ?? throw new NotFoundException("Studio draft " + request.StudioDraftId + " not found.");
                     if (caller != null && !await OwnDraftAsync(tenantId, caller, draft, token).ConfigureAwait(false)) throw new NotFoundException("Studio draft " + request.StudioDraftId + " not found.");
                     if (caller != null) await RequireWithinLimitsAsync(draft, token).ConfigureAwait(false);
-                    agent = await _Server.Get<PlaygroundService>().ApplyDraftRevisionAsync(ctx, tenantId, draft, request.AgentId, token).ConfigureAwait(false);
+                    // AA9.10: the draft's Agent document, its Deployment document for the agent, or the worker it adds.
+                    DraftEvalTarget draftTarget = await _Server.Get<PlaygroundService>().DraftEvalTargetAsync(ctx, tenantId, draft, request.AgentId, request.AgentRevisionId, token).ConfigureAwait(false);
+                    agent = draftTarget.Agent;
                     run.StudioDraftId = draft.Id;
-                    run.AgentRevisionId = draft.Items.Any(i => i.Kind == "Agent" && i.Name == agent.Name && i.Operation == StudioDraftOperationEnum.Upsert) ? agent.DraftRevisionId : request.AgentRevisionId ?? agent.LatestPublishedRevisionId;
+                    run.AgentRevisionId = draftTarget.AgentRevisionId;
+                    run.DeploymentId = draftTarget.Deployment?.Id;
                 }
                 else
                 {

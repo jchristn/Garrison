@@ -146,6 +146,30 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
+        /// Name of the eval set an AddWorker or ModelChange change must pass before this rule covers it (AA9.10), or null
+        /// for no gate. The draft needs a completed eval run against the set's latest approved version, created after the
+        /// draft's last change, scoring at least <see cref="GateThreshold"/>. At most 128 characters; the rule must list
+        /// AddWorker or ModelChange, and the set must have a version a person approved.
+        /// </summary>
+        public string? GateEvalSet { get; set; } = null;
+
+        /// <summary>
+        /// Score from 0 to 1 the gate's eval run must reach, or null. With a gate set and no threshold, 1 is required.
+        /// Values outside the range are clamped.
+        /// </summary>
+        public double? GateThreshold
+        {
+            get
+            {
+                return _GateThreshold;
+            }
+            set
+            {
+                _GateThreshold = value.HasValue && !Double.IsNaN(value.Value) ? Math.Clamp(value.Value, 0, 1) : null;
+            }
+        }
+
+        /// <summary>
         /// Principal type of the person who created the rule (User or Credential; never Run).
         /// </summary>
         public PrincipalTypeEnum CreatedByType { get; set; } = PrincipalTypeEnum.User;
@@ -186,6 +210,7 @@ namespace Garrison.Core.Models
         private string _Name = String.Empty;
         private List<ChangeRuleClass> _Classes = new List<ChangeRuleClass>();
         private List<ChangeRuleLimit> _Limits = new List<ChangeRuleLimit>();
+        private double? _GateThreshold = null;
 
         #endregion
 

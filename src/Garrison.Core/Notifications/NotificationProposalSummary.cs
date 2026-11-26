@@ -2,6 +2,7 @@ namespace Garrison.Core.Notifications
 {
     using System;
     using System.Collections.Generic;
+    using Garrison.Core.Models;
 
     /// <summary>
     /// Fields carried by OrgProposalApplied notifications (AA8.10): what was applied, for which unit, and under which
@@ -65,6 +66,11 @@ namespace Garrison.Core.Notifications
         /// When it was applied (UTC).
         /// </summary>
         public DateTime AppliedUtc { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Eval runs, shadow trials, and canary releases that tested the draft before it applied (AA9.10), or null.
+        /// </summary>
+        public ProposalEvidence? Evidence { get; set; } = null;
 
         #endregion
     }

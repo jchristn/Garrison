@@ -20,7 +20,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, organizationid, unitid, name, description, active, expiresutc, createdbytype, createdbyid, createdbyname, updatedbyname, createdutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, organizationid, unitid, name, description, active, expiresutc, gateevalset, gatethreshold, createdbytype, createdbyid, createdbyname, updatedbyname, createdutc, lastupdateutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Rules;
@@ -71,7 +71,7 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "UPDATE " + _Rules + " SET unitid = @unitid, name = @name, description = @description, active = @active, expiresutc = @expiresutc, updatedbyname = @updatedbyname, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
+                    "UPDATE " + _Rules + " SET unitid = @unitid, name = @name, description = @description, active = @active, expiresutc = @expiresutc, gateevalset = @gateevalset, gatethreshold = @gatethreshold, updatedbyname = @updatedbyname, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
                     command => Bind(command, obj), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, obj.TenantId, obj.Id, ct).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, obj, ct).ConfigureAwait(false);
@@ -198,6 +198,8 @@ namespace Garrison.Core.Database.Ado
             obj.Description = AdoConverters.NullableStr(reader, "description");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.ExpiresUtc = AdoConverters.NullableDate(reader, "expiresutc");
+            obj.GateEvalSet = AdoConverters.NullableStr(reader, "gateevalset");
+            obj.GateThreshold = AdoConverters.NullableDouble(reader, "gatethreshold");
             obj.CreatedByType = AdoConverters.Enum(reader, "createdbytype", PrincipalTypeEnum.User);
             obj.CreatedById = AdoConverters.NullableStr(reader, "createdbyid");
             obj.CreatedByName = AdoConverters.NullableStr(reader, "createdbyname");
@@ -217,6 +219,8 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "description", obj.Description);
             AdoDatabaseDriver.Add(command, "active", obj.Active);
             AdoDatabaseDriver.Add(command, "expiresutc", obj.ExpiresUtc);
+            AdoDatabaseDriver.Add(command, "gateevalset", obj.GateEvalSet);
+            AdoDatabaseDriver.Add(command, "gatethreshold", obj.GateThreshold);
             AdoDatabaseDriver.Add(command, "createdbytype", obj.CreatedByType.ToString());
             AdoDatabaseDriver.Add(command, "createdbyid", obj.CreatedById);
             AdoDatabaseDriver.Add(command, "createdbyname", obj.CreatedByName);

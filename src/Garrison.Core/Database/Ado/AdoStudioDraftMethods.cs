@@ -51,11 +51,12 @@ namespace Garrison.Core.Database.Ado
             if (draft == null) throw new ArgumentNullException(nameof(draft));
             draft.CreatedUtc = DateTime.UtcNow;
             draft.LastUpdateUtc = draft.CreatedUtc;
+            draft.ContentChangedUtc = draft.CreatedUtc;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _Drafts + " (id, tenantid, title, owneruserid, ownername, conversationid, targetapp, version, status, approvalid, publishonapply, manifestapplyid, originrunid, organizationid, executiveunitid, executiveagentid, createdutc, lastupdateutc) " +
-                    "VALUES (@id, @tenantid, @title, @owneruserid, @ownername, @conversationid, @targetapp, @version, @status, @approvalid, @publishonapply, @manifestapplyid, @originrunid, @organizationid, @executiveunitid, @executiveagentid, @createdutc, @lastupdateutc);",
+                    "INSERT INTO " + _Drafts + " (id, tenantid, title, owneruserid, ownername, conversationid, targetapp, version, status, approvalid, publishonapply, manifestapplyid, originrunid, organizationid, executiveunitid, executiveagentid, contentchangedutc, createdutc, lastupdateutc) " +
+                    "VALUES (@id, @tenantid, @title, @owneruserid, @ownername, @conversationid, @targetapp, @version, @status, @approvalid, @publishonapply, @manifestapplyid, @originrunid, @organizationid, @executiveunitid, @executiveagentid, @contentchangedutc, @createdutc, @lastupdateutc);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", draft.Id);
@@ -74,6 +75,7 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "organizationid", draft.OrganizationId);
                         AdoDatabaseDriver.Add(command, "executiveunitid", draft.ExecutiveUnitId);
                         AdoDatabaseDriver.Add(command, "executiveagentid", draft.ExecutiveAgentId);
+                        AdoDatabaseDriver.Add(command, "contentchangedutc", draft.ContentChangedUtc);
                         AdoDatabaseDriver.Add(command, "createdutc", draft.CreatedUtc);
                         AdoDatabaseDriver.Add(command, "lastupdateutc", draft.LastUpdateUtc);
                     }, ct).ConfigureAwait(false);
@@ -172,7 +174,7 @@ namespace Garrison.Core.Database.Ado
             bool moved = false;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
-                moved = await BumpAsync(connection, transaction, tenantId, draftId, expectedVersion, ct).ConfigureAwait(false);
+                moved = await BumpAsync(connection, transaction, tenantId, draftId, expectedVersion, true, ct).ConfigureAwait(false);
                 if (!moved) return;
                 await UpsertItemAsync(connection, transaction, tenantId, draftId, item, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -185,7 +187,7 @@ namespace Garrison.Core.Database.Ado
             bool moved = false;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
-                moved = await BumpAsync(connection, transaction, tenantId, draftId, expectedVersion, ct).ConfigureAwait(false);
+                moved = await BumpAsync(connection, transaction, tenantId, draftId, expectedVersion, true, ct).ConfigureAwait(false);
                 if (!moved) return;
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Items + " WHERE draftid = @draft AND kind = @kind AND name = @name;", command =>
                 {
@@ -204,7 +206,7 @@ namespace Garrison.Core.Database.Ado
             bool moved = false;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
-                moved = await BumpAsync(connection, transaction, tenantId, draftId, expectedVersion, ct).ConfigureAwait(false);
+                moved = await BumpAsync(connection, transaction, tenantId, draftId, expectedVersion, false, ct).ConfigureAwait(false);
                 if (!moved) return;
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Layout + " WHERE draftid = @draft;", command => AdoDatabaseDriver.Add(command, "draft", draftId), ct).ConfigureAwait(false);
                 foreach (StudioDraftNode node in nodes) await InsertNodeAsync(connection, transaction, tenantId, draftId, node, ct).ConfigureAwait(false);
@@ -278,9 +280,11 @@ namespace Garrison.Core.Database.Ado
 
         #region Private-Methods
 
-        private async Task<bool> BumpAsync(DbConnection connection, DbTransaction transaction, string tenantId, string draftId, int expectedVersion, CancellationToken token)
+        private async Task<bool> BumpAsync(DbConnection connection, DbTransaction transaction, string tenantId, string draftId, int expectedVersion, bool content, CancellationToken token)
         {
-            int affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "UPDATE " + _Drafts + " SET version = version + 1, lastupdateutc = @now WHERE id = @id AND tenantid = @tenantid AND version = @expected AND status = @open;", command =>
+            // AA9.10: item changes also move contentchangedutc, which eval gates compare eval runs against; layout does not.
+            string set = content ? "version = version + 1, lastupdateutc = @now, contentchangedutc = @now" : "version = version + 1, lastupdateutc = @now";
+            int affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "UPDATE " + _Drafts + " SET " + set + " WHERE id = @id AND tenantid = @tenantid AND version = @expected AND status = @open;", command =>
             {
                 AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
                 AdoDatabaseDriver.Add(command, "id", draftId);
@@ -349,6 +353,7 @@ namespace Garrison.Core.Database.Ado
             draft.ExecutiveAgentId = AdoConverters.NullableStr(reader, "executiveagentid");
             draft.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             draft.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
+            draft.ContentChangedUtc = AdoConverters.NullableDate(reader, "contentchangedutc");
             return draft;
         }
 

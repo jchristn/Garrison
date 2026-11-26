@@ -23,6 +23,16 @@ namespace Garrison.Core.Organizations
         /// </summary>
         public const string CountLimit = "count";
 
+        /// <summary>
+        /// Match item code (AA9.10): a rule would cover the change once the draft passes the rule's eval gate.
+        /// </summary>
+        public static readonly string EvalGatePending = "EvalGatePending";
+
+        /// <summary>
+        /// Classes an eval gate applies to (AA9.10). A rule's gate holds back only changes with one of these classes.
+        /// </summary>
+        public static readonly IReadOnlyList<ChangeClassEnum> GatedClasses = new List<ChangeClassEnum> { ChangeClassEnum.AddWorker, ChangeClassEnum.ModelChange };
+
         #endregion
 
         #region Public-Methods
@@ -47,9 +57,12 @@ namespace Garrison.Core.Organizations
         /// <param name="rules">Rules of the executive's organization; those not in force at <paramref name="utc"/> are ignored.</param>
         /// <param name="tree">Live tree, for unit containment.</param>
         /// <param name="utc">Time (UTC).</param>
+        /// <param name="gates">Eval gate status of the draft per rule identifier (AA9.10), or null. A rule with a gate covers
+        /// an AddWorker or ModelChange change only when its status here is satisfied; a rule missing from the map counts as
+        /// not satisfied.</param>
         /// <returns>The verdict.</returns>
-        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
-        public static ChangeRuleMatch Match(List<ChangeClassification> changes, List<ChangeRule> rules, OrgTree tree, DateTime utc)
+        /// <exception cref="ArgumentNullException">Thrown when an argument other than gates is null.</exception>
+        public static ChangeRuleMatch Match(List<ChangeClassification> changes, List<ChangeRule> rules, OrgTree tree, DateTime utc, Dictionary<string, ChangeRuleGateStatus>? gates = null)
         {
             if (changes == null) throw new ArgumentNullException(nameof(changes));
             if (rules == null) throw new ArgumentNullException(nameof(rules));
@@ -72,9 +85,21 @@ namespace Garrison.Core.Organizations
                     continue;
                 }
                 string? lastReason = null;
+                string? gateReason = null;
                 foreach (ChangeRule rule in inForce)
                 {
                     string? why = Covers(rule, change, tree);
+                    if (why == null && Gated(rule, change))
+                    {
+                        // AA9.10: the rule would cover the change, but only once the draft passed its eval gate.
+                        ChangeRuleGateStatus? gate = gates != null && gates.TryGetValue(rule.Id, out ChangeRuleGateStatus? found) ? found : null;
+                        if (gate == null || !gate.Satisfied)
+                        {
+                            gateReason ??= gate?.Reason ?? "rule " + rule.Name + " requires a passing eval run of eval set " + rule.GateEvalSet + " for the draft.";
+                            continue;
+                        }
+                        item.GateEvalRunId = gate.EvalRunId;
+                    }
                     if (why == null)
                     {
                         item.RuleId = rule.Id;
@@ -84,7 +109,13 @@ namespace Garrison.Core.Organizations
                     }
                     lastReason ??= why;
                 }
-                if (item.RuleId == null) item.Reason = "Needs a person: " + (lastReason ?? "no change rule is in force for this organization.");
+                if (item.RuleId == null)
+                {
+                    item.GateEvalRunId = null;
+                    // A pending eval gate is the reason that says what to do next, so it wins over the other rules' reasons.
+                    item.Reason = "Needs a person: " + (gateReason ?? lastReason ?? "no change rule is in force for this organization.");
+                    if (gateReason != null) item.Code = EvalGatePending;
+                }
             }
 
             foreach (IGrouping<string, KeyValuePair<ChangeRuleMatchItem, ChangeRule>> byRule in assigned.GroupBy(a => a.Value.Id, StringComparer.Ordinal))
@@ -102,6 +133,7 @@ namespace Garrison.Core.Organizations
                         {
                             item.RuleId = null;
                             item.RuleName = null;
+                            item.GateEvalRunId = null;
                             item.Reason = "Needs a person: rule " + rule.Name + " allows " + Range(limit) + " " + limit.Class + " changes in one draft, and this draft has " + count.ToString(CultureInfo.InvariantCulture) + ".";
                         }
                     }
@@ -129,6 +161,11 @@ namespace Garrison.Core.Organizations
                 }
             }
             return null;
+        }
+
+        private static bool Gated(ChangeRule rule, ChangeClassification change)
+        {
+            return !String.IsNullOrWhiteSpace(rule.GateEvalSet) && change.Classes.Any(c => GatedClasses.Contains(c));
         }
 
         private static string Range(ChangeRuleLimit limit)

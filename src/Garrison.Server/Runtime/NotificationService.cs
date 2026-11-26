@@ -15,6 +15,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Evaluation;
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Notifications;
@@ -920,6 +921,7 @@ namespace Garrison.Server.Runtime
                 summary.ApprovalId = approval.Id;
                 summary.RuleIds = (approval.RulePattern ?? String.Empty).Split(',').Select(r => r.Trim()).Where(r => r.Length > 0).ToList();
                 summary.AppliedUtc = applied;
+                summary.Evidence = await new ProposalEvidenceReader(_Database).ReadAsync(draft, token).ConfigureAwait(false);
                 NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.OrgProposalApplied, applied, "/organizations/" + summary.OrganizationId + "/proposals/" + draft.Id);
                 payload.Proposal = summary;
                 if (await QueueAsync(endpoint, NotificationEventEnum.OrgProposalApplied, "proposal:" + approval.Id, "Approval", approval.Id, payload, token).ConfigureAwait(false)) queued++;

@@ -1832,6 +1832,7 @@ namespace Garrison.Core.Compilation
                 rule["classes"] = r.Classes;
                 rule["limits"] = r.Limits;
                 rule["expires"] = r.Expires;
+                rule["gate"] = r.Gate;
                 return (object?)rule;
             }).ToList();
             return map;

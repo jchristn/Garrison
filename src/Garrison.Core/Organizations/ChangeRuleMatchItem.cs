@@ -51,6 +51,17 @@ namespace Garrison.Core.Organizations
         /// </summary>
         public string? Reason { get; set; } = null;
 
+        /// <summary>
+        /// Machine-readable reason when the change waits for a person, or null. EvalGatePending (AA9.10): a rule would
+        /// cover the change once the draft passes the rule's eval gate.
+        /// </summary>
+        public string? Code { get; set; } = null;
+
+        /// <summary>
+        /// The passing eval run that satisfied the covering rule's eval gate, or null when the rule has no gate.
+        /// </summary>
+        public string? GateEvalRunId { get; set; } = null;
+
         #endregion
     }
 }

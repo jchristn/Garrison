@@ -485,7 +485,11 @@ namespace Garrison.Server.Runtime
                 if (String.IsNullOrEmpty(run.AgentRevisionId)) throw new NotFoundException("The eval run names no agent revision.");
                 AgentRevision revision = await _Server.Database.AgentRevisions.ReadAsync(run.TenantId, run.AgentRevisionId, token).ConfigureAwait(false)
                     ?? throw new NotFoundException("The eval run's agent revision no longer exists.");
-                context.DeploymentId = (await _Server.Get<PlaygroundService>().EvalDeploymentAsync(run.TenantId, context.Agent, revision, token).ConfigureAwait(false)).Id;
+                // AA9.10: a draft that changes the agent's deployment brings its own eval copy, prepared when the run was created.
+                Deployment? draftCopy = String.IsNullOrEmpty(run.DeploymentId) ? null : await _Server.Database.Deployments.ReadAsync(run.TenantId, run.DeploymentId, token).ConfigureAwait(false);
+                context.DeploymentId = draftCopy != null && draftCopy.AgentId == context.Agent.Id
+                    ? draftCopy.Id
+                    : (await _Server.Get<PlaygroundService>().EvalDeploymentAsync(run.TenantId, context.Agent, revision, token).ConfigureAwait(false)).Id;
             }
             IEvalScorer? judge = null;
             if (!String.IsNullOrWhiteSpace(set.JudgeAgent))

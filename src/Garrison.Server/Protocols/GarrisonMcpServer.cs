@@ -1912,7 +1912,8 @@ namespace Garrison.Server.Protocols
                     {
                         OrganizationId = arguments.Organization ?? String.Empty, UnitId = arguments.Unit ?? String.Empty, Name = arguments.Name ?? String.Empty,
                         Description = arguments.Description, Active = arguments.Active ?? true, ExpiresUtc = arguments.ExpiresUtc,
-                        Classes = ParseClasses(arguments.Classes), Limits = arguments.Limits ?? new List<ChangeRuleLimit>()
+                        Classes = ParseClasses(arguments.Classes), Limits = arguments.Limits ?? new List<ChangeRuleLimit>(),
+                        GateEvalSet = arguments.GateEvalSet, GateThreshold = arguments.GateThreshold
                     };
                     return await ToolCallAsync(() => rules.CreateAsync(caller, tenantId, body, token)).ConfigureAwait(false);
                 }
@@ -1923,7 +1924,9 @@ namespace Garrison.Server.Protocols
                     {
                         OrganizationId = existing.OrganizationId, UnitId = arguments.Unit ?? existing.UnitId, Name = arguments.Name ?? existing.Name,
                         Description = arguments.Description ?? existing.Description, Active = arguments.Active ?? existing.Active, ExpiresUtc = arguments.ExpiresUtc ?? existing.ExpiresUtc,
-                        Classes = arguments.Classes != null ? ParseClasses(arguments.Classes) : existing.Classes, Limits = arguments.Limits ?? existing.Limits
+                        Classes = arguments.Classes != null ? ParseClasses(arguments.Classes) : existing.Classes, Limits = arguments.Limits ?? existing.Limits,
+                        GateEvalSet = arguments.GateEvalSet ?? existing.GateEvalSet,
+                        GateThreshold = arguments.GateEvalSet != null && arguments.GateEvalSet.Trim().Length == 0 ? null : arguments.GateThreshold ?? existing.GateThreshold
                     };
                     return await ToolCallAsync(() => rules.UpdateAsync(caller, existing, body, token)).ConfigureAwait(false);
                 }

@@ -553,7 +553,10 @@ namespace Garrison.Server.Services
 
         /// <summary>
         /// Ask a person to approve applying the draft (AD7.3): validate it, then create a DraftApply approval holding the
-        /// diff and move the draft to PendingApproval. Nothing changes live until a person approves.
+        /// diff and move the draft to PendingApproval. Nothing changes live until a person approves. An executive's draft
+        /// whose every change a change rule covers applies at once (AA8.6). An executive may ask again for a draft that is
+        /// waiting (AA9.10): while it is still uncovered the waiting approval comes back unchanged; once covered, for example
+        /// after an eval run passed a rule's gate, the waiting approval is cancelled and the draft applies under the rules.
         /// </summary>
         /// <param name="ctx">Caller.</param>
         /// <param name="tenantId">Tenant identifier.</param>
@@ -564,6 +567,28 @@ namespace Garrison.Server.Services
         /// <exception cref="ValidationException">Thrown with DraftInvalid when an item fails validation, DraftStale when a live record moved, DraftEmpty without changes.</exception>
         public async Task<Approval> RequestApplyAsync(RequestContext ctx, string tenantId, string draftId, int version, CancellationToken token)
         {
+            StudioDraft current = await ReadAsync(tenantId, draftId, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(current.ExecutiveUnitId) && current.Status == StudioDraftStatusEnum.PendingApproval && current.Version == version && !String.IsNullOrEmpty(current.ApprovalId))
+            {
+                // AA9.10: an executive asks again for a proposal that waits, for example after its eval passed a rule's gate.
+                // Still uncovered, it keeps waiting with the same approval; covered now, the waiting approval is cancelled
+                // and the draft applies under the rules below.
+                Approval? pendingApproval = await _Server.Database.Approvals.ReadAsync(tenantId, current.ApprovalId, token).ConfigureAwait(false);
+                if (pendingApproval != null && pendingApproval.Status == ApprovalStatusEnum.Pending)
+                {
+                    StudioDraftDiff recheck = await DiffAsync(ctx, tenantId, current, token).ConfigureAwait(false);
+                    bool coveredNow = recheck.AppliesByRule && !recheck.Items.Any(i => i.Stale)
+                        && (await _Server.Authorization.AuthorizeOriginAsync(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Create, token).ConfigureAwait(false)).Permitted;
+                    if (!coveredNow) return pendingApproval;
+                    await _Server.Get<Garrison.Server.Runtime.ApprovalService>().CancelDraftAsync(pendingApproval, "Superseded: change rules now cover every change, so the draft applies under them.", token).ConfigureAwait(false);
+                    if (!await _Server.Database.StudioDrafts.TransitionAsync(tenantId, current.Id, current.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false))
+                    {
+                        throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, current.Id, token).ConfigureAwait(false) ?? current);
+                    }
+                    StudioDraft reopened = await _Server.Database.StudioDrafts.ReadAsync(tenantId, current.Id, token).ConfigureAwait(false) ?? current;
+                    version = reopened.Version;
+                }
+            }
             StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
             StudioDraftDiff diff = await DiffAsync(ctx, tenantId, draft, token).ConfigureAwait(false);
             if (diff.Items.Any(i => i.Stale)) throw Invalid("items", "DraftStale", "Live configuration changed since the draft was based on it: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". Rebase those items and try again.");
@@ -822,7 +847,18 @@ namespace Garrison.Server.Services
                 }
                 List<ChangeClassification> changes = ChangeClassifier.Classify(context);
                 List<ChangeRule> rules = await _Server.Database.ChangeRules.ListInForceAsync(draft.TenantId, context.Scope.OrganizationId, DateTime.UtcNow, token).ConfigureAwait(false);
-                ChangeRuleMatch match = ChangeRuleMatcher.Match(changes, rules, context.Scope.Tree, DateTime.UtcNow);
+                // AA9.10: a rule's eval gate is read here, because matching itself reads nothing.
+                Dictionary<string, ChangeRuleGateStatus> gates = new Dictionary<string, ChangeRuleGateStatus>(StringComparer.Ordinal);
+                if (rules.Any(r => !String.IsNullOrWhiteSpace(r.GateEvalSet)) && changes.Any(c => c.Classes.Any(k => ChangeRuleMatcher.GatedClasses.Contains(k))))
+                {
+                    ExecutivePosition proposer = new ExecutivePosition { OrganizationId = context.Scope.OrganizationId, OrganizationName = context.Scope.OrganizationName, UnitId = context.Scope.UnitId, UnitName = context.Scope.UnitName, AgentId = context.Scope.AgentId };
+                    EvalGateService evalGates = _Server.Get<EvalGateService>();
+                    foreach (ChangeRule gated in rules.Where(r => !String.IsNullOrWhiteSpace(r.GateEvalSet)))
+                    {
+                        gates[gated.Id] = await evalGates.DraftGateAsync(draft, gated, proposer, token).ConfigureAwait(false);
+                    }
+                }
+                ChangeRuleMatch match = ChangeRuleMatcher.Match(changes, rules, context.Scope.Tree, DateTime.UtcNow, gates);
                 diff.RuleMatches = match.Items;
                 span?.SetTag("garrison.result", diff.Refusals.Count > 0 ? "refused" : match.AllMatched ? "covered" : "needs_person");
                 return match;

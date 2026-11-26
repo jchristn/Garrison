@@ -109,6 +109,7 @@ namespace Garrison.Core.Organizations
                 entry.Classes = String.Join(", ", rule.Classes.Select(c => c.Class.ToString()));
                 entry.Limits = rule.Limits.Count == 0 ? null : String.Join("; ", rule.Limits.Select(Describe));
                 entry.Expires = rule.ExpiresUtc?.ToString("u", CultureInfo.InvariantCulture);
+                entry.Gate = String.IsNullOrWhiteSpace(rule.GateEvalSet) ? null : "eval set " + rule.GateEvalSet + " at score " + (rule.GateThreshold ?? 1).ToString("0.###", CultureInfo.InvariantCulture);
                 context.Rules.Add(entry);
             }
             return context;

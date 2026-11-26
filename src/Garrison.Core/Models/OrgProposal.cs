@@ -105,6 +105,12 @@ namespace Garrison.Core.Models
         public StudioDraftDiff? Diff { get; set; } = null;
 
         /// <summary>
+        /// Eval runs, shadow trials, and canary releases that tested the draft (AA9.10); filled when one proposal is read,
+        /// null in lists.
+        /// </summary>
+        public ProposalEvidence? Evidence { get; set; } = null;
+
+        /// <summary>
         /// Draft creation time (UTC).
         /// </summary>
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;

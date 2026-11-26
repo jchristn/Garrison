@@ -22,7 +22,7 @@ Your changes are also limited to what the person who started this run may do.
 {{#if executive.hasRules}}
 Change rules people wrote for your part of the organization. When every change in a draft is covered by one of these, it applies as soon as you request it; otherwise a person reviews it.
 {{#each executive.rules}}
-- {{this.name}} (unit {{this.unitName}} and below): {{this.classes}}{{#if this.limits}}; limits: {{this.limits}}{{/if}}{{#if this.expires}}; expires {{this.expires}}{{/if}}
+- {{this.name}} (unit {{this.unitName}} and below): {{this.classes}}{{#if this.limits}}; limits: {{this.limits}}{{/if}}{{#if this.expires}}; expires {{this.expires}}{{/if}}{{#if this.gate}}; AddWorker and ModelChange changes need a passing eval run of the draft against {{this.gate}}, made after the draft's last change (garrison_run_eval){{/if}}
 {{/each}}
 {{else}}
 No change rules cover your part of the organization, so a person reviews every draft you ask to apply.

@@ -36,6 +36,12 @@ namespace Garrison.Server.Protocols
         /// <summary>Limits on the changes the rule covers.</summary>
         public List<ChangeRuleLimit>? Limits { get; set; } = null;
 
+        /// <summary>Eval set an AddWorker or ModelChange change must pass before the rule covers it; an empty string on update removes the gate.</summary>
+        public string? GateEvalSet { get; set; } = null;
+
+        /// <summary>Score from 0 to 1 the gate's eval run must reach; default 1.</summary>
+        public double? GateThreshold { get; set; } = null;
+
         /// <summary>Only active rules.</summary>
         public bool? ActiveOnly { get; set; } = null;
 

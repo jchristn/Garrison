@@ -7,6 +7,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Evaluation;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
@@ -60,7 +61,8 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Read one proposal; one that is not applied carries its diff with refusals and rule matches.
+        /// Read one proposal with its eval, shadow, and canary evidence (AA9.10); one that is not applied also carries its
+        /// diff with refusals and rule matches.
         /// </summary>
         /// <param name="ctx">Caller, for the diff's dry run.</param>
         /// <param name="organization">Organization.</param>
@@ -73,6 +75,7 @@ namespace Garrison.Server.Runtime
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             StudioDraft draft = await DraftAsync(organization, draftId, token).ConfigureAwait(false);
             OrgProposal proposal = await ProposalAsync(draft, token).ConfigureAwait(false);
+            proposal.Evidence = await new ProposalEvidenceReader(_Server.Database).ReadAsync(draft, token).ConfigureAwait(false);
             if (draft.Status != StudioDraftStatusEnum.Applied) proposal.Diff = await _Server.Get<StudioService>().DiffAsync(ctx, organization.TenantId, draft, token).ConfigureAwait(false);
             return proposal;
         }
@@ -106,7 +109,7 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// A proposal's summary (no diff) from its draft.
+        /// A proposal's summary (no diff) from its draft, with its eval, shadow, and canary evidence (AA9.10).
         /// </summary>
         /// <param name="draft">Executive draft.</param>
         /// <param name="token">Cancellation token.</param>
@@ -115,7 +118,9 @@ namespace Garrison.Server.Runtime
         public async Task<OrgProposal> SummaryAsync(StudioDraft draft, CancellationToken token = default)
         {
             if (draft == null) throw new ArgumentNullException(nameof(draft));
-            return await ProposalAsync(draft, token).ConfigureAwait(false);
+            OrgProposal proposal = await ProposalAsync(draft, token).ConfigureAwait(false);
+            proposal.Evidence = await new ProposalEvidenceReader(_Server.Database).ReadAsync(draft, token).ConfigureAwait(false);
+            return proposal;
         }
 
         #endregion

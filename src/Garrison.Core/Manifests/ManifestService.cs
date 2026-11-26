@@ -281,6 +281,36 @@ namespace Garrison.Core.Manifests
         }
 
         /// <summary>
+        /// Plan one Deployment document into a deployment record without writing anything (AA9.10): references resolve as
+        /// an apply would, and the record keeps the identifier of a live deployment of the same name. Used to build the
+        /// eval copy of a deployment a studio draft changes or adds.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="document">Deployment document.</param>
+        /// <param name="agentName">An agent name the document's spec.agent may use that is not live yet, or null.</param>
+        /// <param name="agentId">Identifier <paramref name="agentName"/> resolves to, or null.</param>
+        /// <param name="secretUse">Checks the caller may use the secrets the record references, or null for no check.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The planned deployment, not stored.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or document is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the document is not a Deployment, a reference does not resolve, or a secret may not be used.</exception>
+        public async Task<Deployment> PlanDeploymentModelAsync(string tenantId, ManifestDocument document, string? agentName, string? agentId, SecretUseChecker? secretUse, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (document == null) throw new ArgumentNullException(nameof(document));
+            if (!String.Equals(document.Kind, "Deployment", StringComparison.OrdinalIgnoreCase)) throw new ValidationException("Document " + document.Metadata.Name + " is a " + document.Kind + ", not a Deployment.");
+            Resolver resolver = new Resolver(_Database, tenantId, new ConfigurationReferenceCache(_Database, tenantId));
+            if (!String.IsNullOrEmpty(agentName) && !String.IsNullOrEmpty(agentId)) resolver.Add("Agent", agentName, agentId);
+            if (document.Metadata.Description != null) document.Spec["description"] = document.Metadata.Description;
+            Planned planned = new Planned();
+            planned.Document = document;
+            await PlanDeploymentAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
+            Deployment deployment = planned.Model as Deployment ?? throw new ValidationException("Deployment " + document.Metadata.Name + " could not be planned.");
+            if (secretUse != null) await secretUse.RequireForModelAsync(tenantId, deployment, token).ConfigureAwait(false);
+            return deployment;
+        }
+
+        /// <summary>
         /// Export every tenant-owned resource as a manifest bundle (multi-document YAML). Secrets are requirements only.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

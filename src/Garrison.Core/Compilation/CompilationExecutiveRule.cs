@@ -31,5 +31,10 @@ namespace Garrison.Core.Compilation
         /// When the rule expires (UTC, ISO 8601), or null.
         /// </summary>
         public string? Expires { get; set; } = null;
+
+        /// <summary>
+        /// The rule's eval gate in words, such as "eval set support-quality at score 0.9" (AA9.10), or null.
+        /// </summary>
+        public string? Gate { get; set; } = null;
     }
 }

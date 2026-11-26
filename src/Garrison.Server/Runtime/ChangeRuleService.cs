@@ -7,6 +7,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Evaluation;
     using Garrison.Core.Models;
     using Garrison.Core.Organizations;
     using Garrison.Core.Security;
@@ -118,7 +119,7 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Replace a rule's unit, name, description, active flag, expiry, classes, and limits. Its organization does not
+        /// Replace a rule's unit, name, description, active flag, expiry, classes, limits, and eval gate. Its organization does not
         /// change. Only people change rules.
         /// </summary>
         /// <param name="ctx">Authorized caller (ChangeRule Update).</param>
@@ -223,6 +224,24 @@ namespace Garrison.Server.Runtime
                 if (limit.Minimum.HasValue && limit.Maximum.HasValue && limit.Minimum.Value > limit.Maximum.Value) throw Invalid(field, "MinimumAboveMaximum", "minimum must not exceed maximum.");
                 if ((limit.Minimum.HasValue && (Double.IsNaN(limit.Minimum.Value) || limit.Minimum.Value < 0)) || (limit.Maximum.HasValue && (Double.IsNaN(limit.Maximum.Value) || limit.Maximum.Value < 0))) throw Invalid(field, "NegativeBound", "Bounds are zero or more.");
             }
+            string? gateSet = String.IsNullOrWhiteSpace(body.GateEvalSet) ? null : body.GateEvalSet.Trim();
+            if (gateSet == null && body.GateThreshold.HasValue) throw Invalid("gateThreshold", "GateSetRequired", "gateThreshold needs gateEvalSet, the eval set the draft must pass.");
+            if (gateSet != null)
+            {
+                // AA9.10: a gate holds back AddWorker and ModelChange, and it must be a set a person approved (AA-024).
+                if (gateSet.Length > 128) throw Invalid("gateEvalSet", "TooLong", "gateEvalSet is at most 128 characters.");
+                if (!classes.Any(c => ChangeRuleMatcher.GatedClasses.Contains(c))) throw Invalid("gateEvalSet", "GateClassRequired", "An eval gate holds back " + String.Join(" and ", ChangeRuleMatcher.GatedClasses) + " changes; list one of those classes, or leave gateEvalSet out.");
+                EvalSet? approved = await _Server.Database.EvalSets.ReadLatestApprovedAsync(organization.TenantId, gateSet, token).ConfigureAwait(false);
+                if (approved == null)
+                {
+                    EvalSet? any = await _Server.Database.EvalSets.ReadLatestAsync(organization.TenantId, gateSet, token).ConfigureAwait(false);
+                    if (any == null) throw Invalid("gateEvalSet", "EvalSetNotFound", "gateEvalSet names no eval set in this tenant.");
+                    throw Invalid("gateEvalSet", EvalGatePolicy.NotApproved, "Eval set " + gateSet + " has no version a person approved; approve it before a rule gates on it.");
+                }
+                string? refusal = EvalGatePolicy.Refusal(approved, null, null, null);
+                if (refusal != null) throw Invalid("gateEvalSet", refusal, "Eval set " + gateSet + " cannot gate a change (" + refusal + ").");
+                gateSet = approved.Name;
+            }
             target.Name = name;
             target.Description = String.IsNullOrWhiteSpace(body.Description) ? null : body.Description.Trim();
             target.UnitId = unit.Id;
@@ -231,6 +250,8 @@ namespace Garrison.Server.Runtime
             target.ExpiresUtc = body.ExpiresUtc;
             target.Classes = classes.Select(c => new ChangeRuleClass { Class = c }).ToList();
             target.Limits = body.Limits.Select(l => new ChangeRuleLimit { Class = l.Class, Name = l.Name, Minimum = l.Minimum, Maximum = l.Maximum }).ToList();
+            target.GateEvalSet = gateSet;
+            target.GateThreshold = gateSet == null ? null : body.GateThreshold;
         }
 
         private async Task NameAsync(string tenantId, List<ChangeRule> rules, CancellationToken token)
@@ -253,7 +274,8 @@ namespace Garrison.Server.Runtime
         {
             string classes = String.Join(", ", rule.Classes.Select(c => c.Class));
             string limits = rule.Limits.Count == 0 ? String.Empty : "; limits " + String.Join(", ", rule.Limits.Select(l => l.Class + "." + l.Name + " " + (l.Minimum?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*") + ".." + (l.Maximum?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*")));
-            return (rule.Active ? "active" : "inactive") + "; " + classes + limits + (rule.ExpiresUtc.HasValue ? "; expires " + rule.ExpiresUtc.Value.ToString("u", System.Globalization.CultureInfo.InvariantCulture) : String.Empty);
+            string gate = String.IsNullOrEmpty(rule.GateEvalSet) ? String.Empty : "; gate " + rule.GateEvalSet + " at " + (rule.GateThreshold ?? 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return (rule.Active ? "active" : "inactive") + "; " + classes + limits + gate + (rule.ExpiresUtc.HasValue ? "; expires " + rule.ExpiresUtc.Value.ToString("u", System.Globalization.CultureInfo.InvariantCulture) : String.Empty);
         }
 
         private static ValidationException Invalid(string field, string code, string message)

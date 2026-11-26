@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 55).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 56).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2896,3 +2896,9 @@ ALTER TABLE "tenant_environments" ADD COLUMN evalgateset VARCHAR(128);
 ALTER TABLE "tenant_environments" ADD COLUMN evalgatethreshold REAL;
 ALTER TABLE "eval_sets" ADD COLUMN judgeagent VARCHAR(128);
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 55, 'Environment eval gates and eval set judges', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 55);
+
+-- Migration 56: Change rule eval gates and draft content change times
+ALTER TABLE "change_rules" ADD COLUMN gateevalset VARCHAR(128);
+ALTER TABLE "change_rules" ADD COLUMN gatethreshold REAL;
+ALTER TABLE "studio_drafts" ADD COLUMN contentchangedutc TEXT;
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 56, 'Change rule eval gates and draft content change times', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 56);

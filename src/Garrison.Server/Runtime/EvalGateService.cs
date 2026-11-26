@@ -139,6 +139,67 @@ namespace Garrison.Server.Runtime
             throw new EvalGateFailedException(set.Name, latest.Id, "Promotion blocked: " + where + "; the latest eval run of revision " + revision.Number + ", " + latest.Id + ", " + state + ".");
         }
 
+        /// <summary>
+        /// Whether an executive's draft passes a change rule's eval gate (AA9.10): a completed eval run of the draft against
+        /// the gate set's version (see <see cref="GateSetAsync"/>), created after the draft's items last changed, scoring
+        /// at least the rule's threshold (1 when the rule sets none). Never throws for a missing or unapproved set: the
+        /// gate is then not passed and the reason says why.
+        /// </summary>
+        /// <param name="draft">Executive draft.</param>
+        /// <param name="rule">Change rule with a gate.</param>
+        /// <param name="proposer">Proposing executive, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The gate status for the rule.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when draft or rule is null.</exception>
+        public async Task<ChangeRuleGateStatus> DraftGateAsync(StudioDraft draft, ChangeRule rule, ExecutivePosition? proposer, CancellationToken token = default)
+        {
+            if (draft == null) throw new ArgumentNullException(nameof(draft));
+            if (rule == null) throw new ArgumentNullException(nameof(rule));
+            ChangeRuleGateStatus status = new ChangeRuleGateStatus { RuleId = rule.Id };
+            if (String.IsNullOrWhiteSpace(rule.GateEvalSet))
+            {
+                status.Satisfied = true;
+                return status;
+            }
+            string name = rule.GateEvalSet.Trim();
+            double threshold = rule.GateThreshold ?? 1;
+            string required = threshold.ToString("0.###", CultureInfo.InvariantCulture);
+            EvalSet set;
+            try
+            {
+                set = await GateSetAsync(draft.TenantId, name, proposer, token).ConfigureAwait(false);
+            }
+            catch (EvalGateFailedException e)
+            {
+                status.Reason = "rule " + rule.Name + " requires eval set " + name + " at score " + required + ", and that set cannot gate: " + e.Message;
+                return status;
+            }
+            DateTime changed = draft.ContentChangedOrUpdatedUtc();
+            List<EvalRun> current = (await _Server.Database.EvalRuns.ListForDraftAsync(draft.TenantId, draft.Id, token).ConfigureAwait(false))
+                .Where(r => r.SetId == set.Id && r.CreatedUtc >= changed)
+                .OrderByDescending(r => r.CreatedUtc).ThenByDescending(r => r.Id, StringComparer.Ordinal).ToList();
+            EvalRun? passing = current.FirstOrDefault(r => r.Status == EvalRunStatusEnum.Completed && r.Score.HasValue && r.Score.Value >= threshold - 1e-9);
+            if (passing != null)
+            {
+                status.Satisfied = true;
+                status.EvalRunId = passing.Id;
+                return status;
+            }
+            string where = "rule " + rule.Name + " requires eval set " + set.Name + " version " + set.Version.ToString(CultureInfo.InvariantCulture) + " at score " + required;
+            EvalRun? latest = current.FirstOrDefault();
+            if (latest == null)
+            {
+                status.Reason = where + ", and the draft has no eval run against it since its last change. Run garrison_run_eval with this draft's studioDraftId.";
+                return status;
+            }
+            status.EvalRunId = latest.Id;
+            string state = latest.Status == EvalRunStatusEnum.Completed
+                ? "scored " + (latest.Score ?? 0).ToString("0.###", CultureInfo.InvariantCulture)
+                : "is " + latest.Status + (latest.FailureReason != null ? " (" + latest.FailureReason + ")" : String.Empty);
+            status.Reason = where + "; the draft's latest eval run against it, " + latest.Id + ", " + state + ".";
+            return status;
+        }
+
         #endregion
     }
 }
