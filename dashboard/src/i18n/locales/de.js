@@ -8006,3 +8006,296 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "Gremium",
+    "tip": "Eine Organisation auf einen Blick: Zustand, offene Punkte, Vorschläge, Ausgaben, Bremsen und der CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "Kurzbericht für das Gremium eingereicht"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "Diese Organisation hat keinen CEO: Die Stammeinheit braucht eine Leitung mit einem Wächter in der Live-Revision.",
+  "BoardCeoUnavailable": "Der Wächter des CEO hat keine Bereitstellung, es gibt also niemanden, mit dem Sie sprechen können. Geben Sie dem Wächter zuerst eine Bereitstellung."
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "Gremium"
+  }
+ },
+ "board": {
+  "title": "Gremium",
+  "subtitle": "Beaufsichtigen Sie eine Organisation von Wächtern: was eine Entscheidung braucht, was es kostet, und die Bremsen.",
+  "heading": "Gremium von {{name}}",
+  "generated": "Aktualisiert",
+  "refresh": "Aktualisieren",
+  "openOrganization": "Organisation öffnen",
+  "killSwitchOn": "Der Notschalter ist aktiv: Kein Wächter in diesem Mandanten wacht auf, bis er wieder ausgeschaltet wird.",
+  "notFoundTitle": "Gremium nicht verfügbar",
+  "notFoundBody": "Die Organisation existiert nicht, oder Sie dürfen sie nicht lesen.",
+  "picker": {
+   "title": "Organisation auswählen",
+   "select": "Organisation",
+   "choose": "Wählen Sie eine Organisation",
+   "open": "Gremium öffnen",
+   "emptyTitle": "Noch keine Organisationen",
+   "emptyBody": "Erstellen Sie zuerst eine Organisation von Wächtern. Ihr Gremium erscheint dann hier.",
+   "organizations": "Zu den Organisationen"
+  },
+  "chart": {
+   "title": "Organigramm und Zustand",
+   "empty": "Die Organisation hat noch keine Einheiten. Fügen Sie auf der Organisationsseite Einheiten hinzu und veröffentlichen Sie eine Revision.",
+   "health": "Zustand der Einheit",
+   "frozen": "Gesperrt",
+   "overBudget": "Budget überschritten",
+   "columns": {
+    "unit": "Einheit",
+    "health": "Zustand",
+    "escalations": "Offene Eskalationen",
+    "brakes": "Bremsen",
+    "lastReport": "Letzter Bericht"
+   }
+  },
+  "attention": {
+   "title": "Braucht Aufmerksamkeit",
+   "empty": "Im Moment braucht nichts das Gremium.",
+   "none": "Keine.",
+   "escalations_one": "{{count}} offene Eskalation",
+   "escalations_other": "{{count}} offene Eskalationen",
+   "reports_one": "{{count}} gestörter Bericht",
+   "reports_other": "{{count}} gestörte Berichte",
+   "caps_one": "{{count}} Einheit am Budgetlimit",
+   "caps_other": "{{count}} Einheiten am Budgetlimit",
+   "raisedBy": "Gestellt von {{name}}",
+   "filedBy": "Eingereicht von {{name}}"
+  },
+  "proposals": {
+   "title": "Vorschläge",
+   "empty": "Kein Vorschlag wartet auf eine Entscheidung.",
+   "by": "{{agent}} aus {{unit}}",
+   "showChanges": "Änderungen anzeigen",
+   "hideChanges": "Änderungen ausblenden"
+  },
+  "evidence": {
+   "title": "Belege",
+   "empty": "Noch stützen keine Eval-Läufe, Schattentests oder Canary-Freigaben diesen Vorschlag.",
+   "since": "Seit der letzten Änderung des Vorschlags am {{when}}.",
+   "evalRuns": "Eval-Läufe",
+   "shadowTrials": "Schattentests",
+   "canaryReleases": "Canary-Freigaben",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "Bewertung {{score}} gegenüber {{threshold}}, {{done}} von {{total}} Testfällen",
+   "stale": "Vor der letzten Änderung",
+   "shadow": "Schattentest {{name}}",
+   "shadowCounts": "{{agreed}} von {{compared}} übereinstimmend, {{diverged}} abweichend, {{failures}} Fehler des Kandidaten",
+   "canary": "Canary-Freigabe von {{name}}",
+   "canaryStep": "Schritt {{step}} von {{total}}",
+   "rollback": "Zurückgesetzt: {{reason}}"
+  },
+  "spend": {
+   "title": "Ausgaben im Vergleich zum Budget",
+   "empty": "Keine Einheit hat im aktuellen Zeitfenster ein Budget oder Ausgaben."
+  },
+  "brief": {
+   "title": "Neuester Kurzbericht",
+   "ceo": "CEO: {{name}}, Leitung von {{unit}}.",
+   "cadence_one": "Kurzberichte jede Stunde.",
+   "cadence_other": "Kurzberichte alle {{count}} Stunden.",
+   "noCadence": "Für den Wächter des CEO ist kein Rhythmus für Kurzberichte festgelegt.",
+   "empty": "Der CEO hat noch keinen Kurzbericht eingereicht."
+  },
+  "ceo": {
+   "missing": "Die Stammeinheit hat keine Leitung, daher hat die Organisation keinen CEO.",
+   "noMandate": "Der CEO hat keinen Wächter in der Live-Revision.",
+   "noDeployment": "Der Wächter des CEO hat keine Bereitstellung, mit der Sie sprechen können."
+  },
+  "brakes": {
+   "title": "Bremsen",
+   "active_one": "{{count}} aktive Sperre",
+   "active_other": "{{count}} aktive Sperren",
+   "none": "Nichts ist gesperrt.",
+   "frozenBy": "Gesperrt von {{name}}",
+   "lift": "Aufheben",
+   "freezeOrg": "Organisation sperren",
+   "unit": "Einheit",
+   "pickUnit": "Wählen Sie eine Einheit",
+   "freezeUnit": "Einheit sperren",
+   "rollback": "Organigramm zurücksetzen",
+   "rollbackTitle": "Das Organigramm zurücksetzen",
+   "rollbackMessage": "Die Organisation auf die Revision zurücksetzen, die vor Revision {{number}} live war? Befehlskette, Budgets und Nachrichtenwege folgen ihr sofort.",
+   "rollbackNote": "Vom Gremium zurückgesetzt",
+   "rolledBack": "Zurückgesetzt. Revision {{number}} ist live."
+  },
+  "direction": {
+   "title": "Anweisung an den CEO",
+   "note": "Der Text wird zu einer neuen veröffentlichten Revision des Wächters des CEO, und sein nächster Zyklus liest ihn als Anweisung des Gremiums.",
+   "text": "Anweisung",
+   "placeholder": "Zum Beispiel: Erstattungen über 500 $ bis zum Ende der Prüfung einer Person vorlegen.",
+   "count": "{{count}} von {{max}} Zeichen",
+   "changeNote": "Änderungsnotiz",
+   "changeNotePlaceholder": "Warum das Gremium diese Anweisung gibt (optional)",
+   "submit": "Anweisung senden",
+   "given": "Anweisung als Revision {{number}} von {{name}} veröffentlicht.",
+   "errors": {
+    "required": "Schreiben Sie die Anweisung an den CEO.",
+    "tooLong": "Verwenden Sie höchstens {{max}} Zeichen."
+   }
+  },
+  "ceoChat": {
+   "title": "Mit dem CEO sprechen",
+   "note": "Nachrichten starten eine Unterhaltung mit der Bereitstellung des CEO, gekennzeichnet als Nachrichten des Gremiums.",
+   "talkingTo": "Sie sprechen als Gremium mit {{name}}.",
+   "conversation": "Unterhaltung",
+   "newConversation": "Neue Unterhaltung",
+   "new": "Neu",
+   "transcript": "Unterhaltung mit dem CEO",
+   "empty": "Noch keine Nachrichten. Fragen Sie den CEO, wie es der Organisation geht.",
+   "message": "Nachricht",
+   "tooLong": "Verwenden Sie höchstens {{max}} Zeichen."
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "Erster Wächter"
+  },
+  "welcomeItemKeeper": "Ihren ersten Wächter erstellen: einen Agenten, der nach Zeitplan aufwacht und auf ein Ziel hinarbeitet.",
+  "keeper": {
+   "body": "Ein Wächter gibt dem Beispielagenten ein Ziel und weckt ihn nach Zeitplan auf, mit längeren Pausen, solange sich nichts ändert. Er nutzt die Test-Harness und kostet daher nichts. Auf der Seite Wächter können Sie ihn pausieren oder löschen.",
+   "objectiveDefault": "Ab und zu nachsehen und melden, dass alles ruhig ist.",
+   "description": "Vom Einrichtungsassistenten erstellt.",
+   "create": "Wächter erstellen",
+   "created": "Wächter {{name}} erstellt. Er wacht nach seinem Zeitplan auf.",
+   "ready": "Wächter {{name}} ist bereit. Weiter zum Testlauf."
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "Autonomie",
+    "body": "Wächter sind Agenten, die nach Zeitplan aufwachen und auf ein Ziel hinarbeiten. Eskalationen, Sperren, der Notschalter, Gedächtnis, Berichte und Nachrichten halten sie unter Kontrolle."
+   },
+   "board": {
+    "title": "Das Gremium",
+    "body": "Organisationen fassen Wächter unter einem CEO zusammen. Der Reiter Gremium zeigt Zustand, offene Entscheidungen, Ausgaben und Bremsen einer Organisation und lässt Sie den CEO anweisen und mit ihm sprechen."
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "Das Gremium",
+   "p1": "Das Gremium ist die Person oder Gruppe über der Stammeinheit einer Organisation. Diese Seite bündelt, was sie braucht: den Zustand jeder Einheit aus ihrem neuesten Bericht, offene Eskalationen, gestörte Berichte, Einheiten am Budgetlimit und Vorschläge, die mit ihren Belegen aus Eval-Läufen, Schattentests und Canary-Freigaben auf eine Entscheidung warten.",
+   "p2": "Die Bremsen sperren eine Einheit oder die ganze Organisation, setzen das Organigramm zurück oder halten mit dem Notschalter jeden Wächter an. Eine Anweisung wird zu einer neuen Revision des Wächters des CEO, und Mit dem CEO sprechen öffnet eine gewöhnliche Unterhaltung mit der Bereitstellung des CEO."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "Gremium: Zustand, offene Punkte, Vorschläge, Ausgaben, Kurzbericht und Bremsen einer Organisation auf einer Seite."
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "Der CEO einer Organisation hat einen Kurzbericht für das Gremium eingereicht."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "Das Gremium dieser Organisation öffnen: Zustand, offene Punkte, Vorschläge, Ausgaben, Bremsen und der CEO."
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "Name des Wächters: Buchstaben, Ziffern, Punkte, Bindestriche und Unterstriche.",
+    "objective": "Worauf der Wächter hinarbeitet. Jeder Zyklus liest es.",
+    "create": "Den Wächter auf der Test-Harness-Bereitstellung des Beispielagenten erstellen und zum Testlauf wechseln.",
+    "skip": "Ohne Wächter fortfahren. Sie können auf der Seite Wächter einen hinzufügen."
+   }
+  },
+  "board": {
+   "refresh": "Das Gremium neu laden. Es wird auch aktualisiert, wenn sich die Organisation ändert.",
+   "openOrganization": "Die Organisationsseite öffnen, um Einheiten, Budgets und Revisionen zu bearbeiten.",
+   "openEscalation": "Die Eskalation öffnen, um sie zu beantworten.",
+   "openReport": "Den Bericht mit seinen Kennzahlen, Problemen und Entscheidungen öffnen.",
+   "openKeeper": "Den Wächter des CEO mit seinen Zyklen und Revisionen öffnen.",
+   "picker": {
+    "select": "Die Organisation, deren Gremium geöffnet werden soll.",
+    "open": "Das Gremium dieser Organisation öffnen.",
+    "organizations": "Die Organisationsseite öffnen, um eine zu erstellen."
+   },
+   "chart": {
+    "title": "Das Live-Organigramm: jede Einheit mit ihrer Leitung, ihren Mitgliedern, dem Zustand aus ihrem neuesten Bericht und ihren Ausgaben.",
+    "frozen": "Eine aktive Sperre gilt für diese Einheit oder die ganze Organisation.",
+    "overBudget": "Der Teilbaum der Einheit hat im aktuellen Zeitfenster ein ganzes Budget ausgegeben.",
+    "columns": {
+     "unit": "Die Einheit in der Live-Revision.",
+     "health": "Zustand aus dem neuesten in der Einheit eingereichten Bericht. Unbekannt, wenn es keinen gibt.",
+     "escalations": "Offene Eskalationen, die Agenten der Einheit gestellt haben.",
+     "brakes": "Ob eine Sperre für die Einheit gilt und ob sie ein Budget überschreitet.",
+     "lastReport": "Wann der neueste Bericht eingereicht wurde. Öffnet den Bericht."
+    }
+   },
+   "attention": {
+    "title": "Was auf das Gremium wartet: offene Eskalationen, beeinträchtigte oder gestörte Berichte der letzten 7 Tage und Einheiten am Budgetlimit."
+   },
+   "proposals": {
+    "title": "Änderungen, die die Leitung der Organisation vorgeschlagen hat und die keine Änderungsregel abdeckte, warten auf eine Person.",
+    "toggle": "Die Änderungen des Vorschlags und die jeweils geltende Regel ein- oder ausblenden, vom Server gelesen."
+   },
+   "evidence": {
+    "title": "Eval-Läufe, Schattentests und Canary-Freigaben der vorgeschlagenen Agenten seit der letzten Änderung des Vorschlags.",
+    "openEvalRun": "Den Eval-Lauf mit seinen Testfallergebnissen öffnen.",
+    "openShadowTrial": "Den Schattentest mit seinen Vergleichen öffnen.",
+    "openCanary": "Die Canary-Freigabe mit ihren Schritten öffnen.",
+    "stale": "Dieser Eval-Lauf begann vor der letzten Änderung des Vorschlags und prüft daher möglicherweise nicht die aktuellen Änderungen."
+   },
+   "spend": {
+    "title": "Die Ausgaben jeder Einheit im aktuellen Tages- und Monatsfenster im Vergleich zu ihren Budgets."
+   },
+   "brief": {
+    "title": "Der neueste Kurzbericht des CEO für das Gremium und wie oft der Wächter des CEO einen anfordert."
+   },
+   "brakes": {
+    "title": "Arbeit schnell anhalten: eine Einheit oder die Organisation sperren, das Organigramm zurücksetzen oder den Notschalter einschalten.",
+    "lift": "Diese Sperre aufheben. Arbeit in ihrem Bereich kann wieder beginnen.",
+    "freezeOrg": "Jeden Agenten und Wächter dieser Organisation sperren, bis die Sperre aufgehoben wird. Fragt nach einer Bestätigung.",
+    "orgFrozen": "Die Organisation ist bereits gesperrt. Heben Sie zuerst diese Sperre auf.",
+    "unit": "Die zu sperrende Einheit, mit allem, was darunter liegt.",
+    "freezeUnit": "Die gewählte Einheit und ihren Teilbaum sperren. Fragt nach einer Bestätigung.",
+    "rollback": "Zur Revision zurückkehren, die vor der aktuellen live war. Fragt nach einer Bestätigung.",
+    "rollbackNone": "Es gibt keine frühere Live-Revision, zu der Sie zurückkehren können."
+   },
+   "direction": {
+    "title": "Den CEO anweisen. Der Text wird als neue Revision des Wächters des CEO mit der Quelle Gremium veröffentlicht.",
+    "text": "1 bis 4000 Zeichen. Der nächste Zyklus des CEO liest ihn als Anweisung des Gremiums.",
+    "changeNote": "Optional, höchstens 2000 Zeichen. Wird mit der Revision gespeichert.",
+    "submit": "Die Anweisung als neue Revision des Wächters des CEO veröffentlichen."
+   },
+   "ceoChat": {
+    "title": "Eine Unterhaltung mit der Bereitstellung des CEO. Jede Nachricht ist ein Lauf, den Sie wie jeden anderen öffnen können.",
+    "conversation": "Eine frühere Unterhaltung des Gremiums fortsetzen oder eine neue beginnen.",
+    "new": "Eine neue Unterhaltung mit dem CEO beginnen.",
+    "message": "Was Sie dem CEO sagen möchten. Enter sendet, Umschalt+Enter fügt eine Zeile hinzu.",
+    "send": "Die Nachricht senden. Die Antwort erscheint fortlaufend darunter."
+   }
+  }
+ }
+});

@@ -1472,6 +1472,41 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/proposals/${enc(draftId)}/decide`), { body });
   }
 
+  // ------------------------------------------------------------------ the board (AA10)
+
+  /**
+   * The board of an organization in one call: chart with unit health, open escalations, pending proposals with their
+   * evidence (no diff), spend against budget, the latest brief, unhealthy reports, active freezes, the kill switch, and
+   * the CEO (the root unit's lead). params: { limit } (1 to 100, default 20) bounds the escalation, proposal, and
+   * report lists.
+   */
+  getBoard(tenantId, orgId, params = {}) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/board`), { query: params?.limit ? { limit: params.limit } : null });
+  }
+
+  /**
+   * Give the CEO direction: publishes a new revision of the CEO's mandate with source Board and the direction text.
+   * body: { direction (1 to 4000 characters), changeNote? (at most 2000) }. Answers 201 with the mandate revision; 409
+   * BoardCeoMissing when the root unit has no lead with a mandate in the live revision.
+   */
+  giveBoardDirection(tenantId, orgId, body) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/direction`), { body });
+  }
+
+  /**
+   * Talk to the CEO: starts a run on the CEO mandate's deployment as the caller and answers 202 with the run, which
+   * the client follows like any run. body: { input (1 to 32000 characters), conversationId? (to continue) }. 409
+   * BoardCeoMissing or BoardCeoUnavailable (the CEO mandate has no deployment).
+   */
+  sendBoardMessage(tenantId, orgId, body) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/board/messages`), { body });
+  }
+
+  /** Conversations started through the board for this organization, newest first. */
+  listBoardConversations(tenantId, orgId, params = {}) {
+    return this._list(this._t(tenantId, `organizations/${enc(orgId)}/board/conversations`), params);
+  }
+
   // ------------------------------------------------------------------ evaluations, shadow trials, canaries (AA9)
 
   /** Eval set versions, newest first. filters: state, origin, tag, latestOnly, search, pageNumber, pageSize. */

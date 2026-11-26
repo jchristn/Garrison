@@ -819,6 +819,9 @@ function routes(ids) {
     ['listChangeRules (organization)', tp(`change-rules?${list}&organization=${ids.organization}&activeOnly=true`)],
     ['getChangeRule', tp(`change-rules/${ids.changeRule}`)],
     ['listOrgProposals', tp(`organizations/${ids.organization}/proposals?maxResults=200&skip=0`)],
+    // The board (AA10.7): the aggregate of that organization and its (empty) board conversations.
+    ['getBoard', tp(`organizations/${ids.organization}/board`)],
+    ['listBoardConversations', tp(`organizations/${ids.organization}/board/conversations?${list}`)],
     // Evaluations (AA9.15): the approved set with its cases, and the (empty) run, shadow trial, and canary lists.
     ['listEvalSets', tp(`eval-sets?${list}&latestOnly=true`)],
     ['getEvalSet', tp(`eval-sets/${ids.evalSet}`)],

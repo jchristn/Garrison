@@ -462,7 +462,7 @@ test('the setup wizard creates the architect with the default prompt when the se
   await login(page);
   // A tenant whose only agent is the seeded architect counts as empty, so the wizard opens.
   await expect(page.locator('.wizard-steps')).toBeVisible();
-  await expect(page.locator('.wizard-steps li')).toHaveText(['Welcome', 'Credential', 'Agent Studio', 'Sample agent', 'Test run']);
+  await expect(page.locator('.wizard-steps li')).toHaveText(['Welcome', 'Credential', 'Agent Studio', 'Sample agent', 'First keeper', 'Test run']);
   await page.getByRole('button', { name: 'Start' }).click();
   await page.getByRole('button', { name: 'Skip this step' }).click();
   await expect(page.locator('.wizard-steps li.active')).toHaveText('Agent Studio');
@@ -491,6 +491,8 @@ test('skipping the Agent Studio step leaves the wizard working as before', async
   await page.getByTestId('wizard-skip-studio').click();
   await expect(page.locator('.wizard-steps li.active')).toHaveText('Sample agent');
   await page.locator('.modal-footer').getByRole('button', { name: 'Apply' }).click();
+  await expect(page.locator('.wizard-steps li.active')).toHaveText('First keeper');
+  await page.getByTestId('wizard-skip-keeper').click();
   await expect(page.locator('.wizard-steps li.active')).toHaveText('Test run');
   expect(state.architectBodies).toEqual([]);
 });

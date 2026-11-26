@@ -560,13 +560,16 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await page.getByTestId('wizard-skip-studio').click();
   await audit(page, 'wizard manifest');
   await page.locator('.modal-footer').getByRole('button', { name: 'Apply' }).click();
+  await expect(page.locator('.wizard-steps li.active')).toContainText('First keeper');
+  await audit(page, 'wizard first keeper');
+  await page.getByTestId('wizard-skip-keeper').click();
   await expect(page.locator('.wizard-steps li.active')).toContainText('Test run');
   await audit(page, 'wizard test run');
   await closeModal(page);
 
   // Guided tour, every stop.
   await page.locator('.sidebar-utility').nth(1).click();
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     await audit(page, `tour step ${i + 1}`);
     const next = page.locator('.tour-card').getByRole('button', { name: /^(Next|Done)$/ });
     await next.click();

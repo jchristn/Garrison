@@ -8020,3 +8020,296 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "Comité",
+    "tip": "Une organisation d'un coup d'œil : santé, points d'attention, propositions, dépenses, freins et le CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "Synthèse déposée pour le comité"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "Cette organisation n'a pas de CEO : l'unité racine a besoin d'un responsable doté d'un gardien dans la révision en service.",
+  "BoardCeoUnavailable": "Le gardien du CEO n'a pas de déploiement, il n'y a donc personne à qui parler. Donnez d'abord un déploiement au gardien."
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "Comité"
+  }
+ },
+ "board": {
+  "title": "Comité",
+  "subtitle": "Supervisez une organisation de gardiens : ce qui demande une décision, ce que cela coûte, et les freins.",
+  "heading": "Comité de {{name}}",
+  "generated": "Mis à jour",
+  "refresh": "Actualiser",
+  "openOrganization": "Ouvrir l'organisation",
+  "killSwitchOn": "L'arrêt d'urgence est activé : aucun gardien de ce locataire ne se réveille tant qu'il n'est pas désactivé.",
+  "notFoundTitle": "Comité indisponible",
+  "notFoundBody": "L'organisation n'existe pas, ou vous ne pouvez pas la lire.",
+  "picker": {
+   "title": "Choisir une organisation",
+   "select": "Organisation",
+   "choose": "Choisissez une organisation",
+   "open": "Ouvrir le comité",
+   "emptyTitle": "Aucune organisation pour l'instant",
+   "emptyBody": "Créez d'abord une organisation de gardiens. Son comité apparaîtra ici.",
+   "organizations": "Aller aux organisations"
+  },
+  "chart": {
+   "title": "Organigramme et santé",
+   "empty": "L'organisation n'a pas encore d'unités. Ajoutez des unités et publiez une révision sur la page de l'organisation.",
+   "health": "Santé de l'unité",
+   "frozen": "Gelée",
+   "overBudget": "Budget dépassé",
+   "columns": {
+    "unit": "Unité",
+    "health": "Santé",
+    "escalations": "Escalades ouvertes",
+    "brakes": "Freins",
+    "lastReport": "Dernier rapport"
+   }
+  },
+  "attention": {
+   "title": "Demande votre attention",
+   "empty": "Rien ne requiert le comité pour le moment.",
+   "none": "Aucun.",
+   "escalations_one": "{{count}} escalade ouverte",
+   "escalations_other": "{{count}} escalades ouvertes",
+   "reports_one": "{{count}} rapport défaillant",
+   "reports_other": "{{count}} rapports défaillants",
+   "caps_one": "{{count}} unité au plafond de budget",
+   "caps_other": "{{count}} unités au plafond de budget",
+   "raisedBy": "Créée par {{name}}",
+   "filedBy": "Déposé par {{name}}"
+  },
+  "proposals": {
+   "title": "Propositions",
+   "empty": "Aucune proposition n'attend de décision.",
+   "by": "{{agent}} dans {{unit}}",
+   "showChanges": "Afficher les changements",
+   "hideChanges": "Masquer les changements"
+  },
+  "evidence": {
+   "title": "Éléments probants",
+   "empty": "Aucune exécution d'évaluation, aucun essai fantôme ni aucune diffusion canari n'étaye encore cette proposition.",
+   "since": "Depuis la dernière modification de la proposition, le {{when}}.",
+   "evalRuns": "Exécutions d'évaluation",
+   "shadowTrials": "Essais fantômes",
+   "canaryReleases": "Diffusions canari",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "Score {{score}} pour un seuil de {{threshold}}, {{done}} cas sur {{total}}",
+   "stale": "Avant la dernière modification",
+   "shadow": "Essai fantôme {{name}}",
+   "shadowCounts": "{{agreed}} sur {{compared}} concordants, {{diverged}} divergents, {{failures}} échecs du candidat",
+   "canary": "Diffusion canari de {{name}}",
+   "canaryStep": "Étape {{step}} sur {{total}}",
+   "rollback": "Revenue en arrière : {{reason}}"
+  },
+  "spend": {
+   "title": "Dépenses par rapport au budget",
+   "empty": "Aucune unité n'a de budget ni de dépenses dans la fenêtre actuelle."
+  },
+  "brief": {
+   "title": "Dernière synthèse",
+   "ceo": "CEO : {{name}}, responsable de {{unit}}.",
+   "cadence_one": "Une synthèse toutes les heures.",
+   "cadence_other": "Une synthèse toutes les {{count}} heures.",
+   "noCadence": "Aucune fréquence de synthèse n'est définie sur le gardien du CEO.",
+   "empty": "Le CEO n'a pas encore déposé de synthèse."
+  },
+  "ceo": {
+   "missing": "L'unité racine n'a pas de responsable, l'organisation n'a donc pas de CEO.",
+   "noMandate": "Le CEO n'a pas de gardien dans la révision en service.",
+   "noDeployment": "Le gardien du CEO n'a pas de déploiement auquel parler."
+  },
+  "brakes": {
+   "title": "Freins",
+   "active_one": "{{count}} gel actif",
+   "active_other": "{{count}} gels actifs",
+   "none": "Rien n'est gelé.",
+   "frozenBy": "Gelé par {{name}}",
+   "lift": "Lever",
+   "freezeOrg": "Geler l'organisation",
+   "unit": "Unité",
+   "pickUnit": "Choisissez une unité",
+   "freezeUnit": "Geler l'unité",
+   "rollback": "Rétablir l'organigramme",
+   "rollbackTitle": "Rétablir l'organigramme précédent",
+   "rollbackMessage": "Ramener l'organisation à la révision qui était en service avant la révision {{number}} ? La chaîne de commandement, les budgets et les lignes de messages la suivent aussitôt.",
+   "rollbackNote": "Rétabli depuis le comité",
+   "rolledBack": "Rétabli. La révision {{number}} est en service."
+  },
+  "direction": {
+   "title": "Consignes pour le CEO",
+   "note": "Le texte devient une nouvelle révision publiée du gardien du CEO, et son prochain cycle le lit comme l'instruction du comité.",
+   "text": "Consignes",
+   "placeholder": "Par exemple : soumettre à une personne les remboursements de plus de 500 $ jusqu'à la fin de l'audit.",
+   "count": "{{count}} caractères sur {{max}}",
+   "changeNote": "Note de modification",
+   "changeNotePlaceholder": "Pourquoi le comité donne ces consignes (facultatif)",
+   "submit": "Envoyer les consignes",
+   "given": "Consignes publiées comme révision {{number}} de {{name}}.",
+   "errors": {
+    "required": "Rédigez les consignes pour le CEO.",
+    "tooLong": "Utilisez au plus {{max}} caractères."
+   }
+  },
+  "ceoChat": {
+   "title": "Parler au CEO",
+   "note": "Les messages ouvrent une conversation avec le déploiement du CEO, présentée comme venant du comité.",
+   "talkingTo": "Vous parlez à {{name}} au nom du comité.",
+   "conversation": "Conversation IA",
+   "newConversation": "Nouvelle conversation",
+   "new": "Nouvelle",
+   "transcript": "Conversation avec le CEO",
+   "empty": "Aucun message pour l'instant. Demandez au CEO comment va l'organisation.",
+   "message": "Message au CEO",
+   "tooLong": "Utilisez au plus {{max}} caractères."
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "Premier gardien"
+  },
+  "welcomeItemKeeper": "Créer votre premier gardien : un agent qui se réveille selon un calendrier et travaille vers un objectif.",
+  "keeper": {
+   "body": "Un gardien donne un objectif à l'agent d'exemple et le réveille selon un calendrier, en espaçant les réveils tant que rien ne change. Il utilise le harness factice, il ne coûte donc rien. Vous pouvez le mettre en pause ou le supprimer sur la page Gardiens.",
+   "objectiveDefault": "Faire le point de temps en temps et signaler que tout est calme.",
+   "description": "Créé par l'assistant de configuration.",
+   "create": "Créer le gardien",
+   "created": "Gardien {{name}} créé. Il se réveille selon son calendrier.",
+   "ready": "Le gardien {{name}} est prêt. Passez à l'exécution de test."
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "Autonomie",
+    "body": "Les gardiens sont des agents qui se réveillent selon un calendrier et travaillent vers un objectif. Les escalades, les gels, l'arrêt d'urgence, la mémoire, les rapports et les messages les gardent sous contrôle."
+   },
+   "board": {
+    "title": "Le comité",
+    "body": "Les organisations regroupent des gardiens sous un CEO. L'onglet Comité montre la santé d'une organisation, ce qui demande une décision, les dépenses et les freins, et vous permet de donner des consignes au CEO et de lui parler."
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "Le comité",
+   "p1": "Le comité est la personne ou le groupe placé au-dessus de l'unité racine d'une organisation. Cette page rassemble ce dont il a besoin : la santé de chaque unité d'après son dernier rapport, les escalades ouvertes, les rapports défaillants, les unités au plafond de budget, et les propositions en attente de décision avec leurs éléments probants issus des évaluations, des essais fantômes et des diffusions canari.",
+   "p2": "Les freins gèlent une unité ou toute l'organisation, rétablissent l'organigramme précédent, ou arrêtent tous les gardiens avec l'arrêt d'urgence. Les consignes deviennent une nouvelle révision du gardien du CEO, et Parler au CEO ouvre une conversation ordinaire avec le déploiement du CEO."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "Comité : la santé, les points d'attention, les propositions, les dépenses, la synthèse et les freins d'une organisation sur une seule page."
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "Le CEO d'une organisation a déposé une synthèse pour le comité."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "Ouvrir le comité de cette organisation : santé, points d'attention, propositions, dépenses, freins et le CEO."
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "Nom du gardien : lettres, chiffres, points, tirets et traits de soulignement.",
+    "objective": "Ce vers quoi le gardien travaille. Chaque cycle le lit.",
+    "create": "Créer le gardien sur le déploiement à harness factice de l'agent d'exemple et passer à l'exécution de test.",
+    "skip": "Continuer sans gardien. Vous pourrez en ajouter un sur la page Gardiens."
+   }
+  },
+  "board": {
+   "refresh": "Relire le comité. Il s'actualise aussi quand l'organisation change.",
+   "openOrganization": "Ouvrir la page de l'organisation pour modifier les unités, les budgets et les révisions.",
+   "openEscalation": "Ouvrir l'escalade pour y répondre.",
+   "openReport": "Ouvrir le rapport avec ses métriques, ses problèmes et ses décisions.",
+   "openKeeper": "Ouvrir le gardien du CEO avec ses cycles et ses révisions.",
+   "picker": {
+    "select": "L'organisation dont ouvrir le comité.",
+    "open": "Ouvrir le comité de cette organisation.",
+    "organizations": "Ouvrir la page des organisations pour en créer une."
+   },
+   "chart": {
+    "title": "L'organigramme en service : chaque unité avec son responsable, ses membres, sa santé d'après son dernier rapport, et ses dépenses.",
+    "frozen": "Un gel actif couvre cette unité ou toute l'organisation.",
+    "overBudget": "Le sous-arbre de l'unité a dépensé un budget entier dans la fenêtre actuelle.",
+    "columns": {
+     "unit": "L'unité dans la révision en service.",
+     "health": "Santé d'après le dernier rapport déposé dans l'unité. Inconnue s'il n'y en a aucun.",
+     "escalations": "Escalades ouvertes créées par les agents de l'unité.",
+     "brakes": "Si un gel couvre l'unité et si elle dépasse un budget.",
+     "lastReport": "Date du dernier rapport déposé. Ouvre le rapport."
+    }
+   },
+   "attention": {
+    "title": "Ce qui attend le comité : escalades ouvertes, rapports dégradés ou défaillants des 7 derniers jours, et unités au plafond de budget."
+   },
+   "proposals": {
+    "title": "Changements proposés par la direction de l'organisation qu'aucune règle de changement ne couvrait, en attente d'une personne.",
+    "toggle": "Afficher ou masquer les changements de la proposition et la règle qui couvre chacun, lus depuis le serveur."
+   },
+   "evidence": {
+    "title": "Exécutions d'évaluation, essais fantômes et diffusions canari des agents proposés depuis la dernière modification de la proposition.",
+    "openEvalRun": "Ouvrir l'exécution d'évaluation avec les résultats de ses cas.",
+    "openShadowTrial": "Ouvrir l'essai fantôme avec ses comparaisons.",
+    "openCanary": "Ouvrir la diffusion canari avec ses étapes.",
+    "stale": "Cette exécution d'évaluation a commencé avant la dernière modification de la proposition, elle ne teste donc peut-être pas les changements actuels."
+   },
+   "spend": {
+    "title": "Les dépenses de chaque unité dans les fenêtres actuelles du jour et du mois, comparées à ses budgets."
+   },
+   "brief": {
+    "title": "La dernière synthèse déposée par le CEO pour le comité, et la fréquence à laquelle le gardien du CEO en demande une."
+   },
+   "brakes": {
+    "title": "Arrêter le travail vite : geler une unité ou l'organisation, rétablir l'organigramme précédent, ou activer l'arrêt d'urgence.",
+    "lift": "Lever ce gel. Le travail dans son périmètre peut reprendre.",
+    "freezeOrg": "Geler tous les agents et gardiens de cette organisation jusqu'à la levée du gel. Demande une confirmation.",
+    "orgFrozen": "L'organisation est déjà gelée. Levez d'abord ce gel.",
+    "unit": "L'unité à geler, avec tout ce qui se trouve en dessous.",
+    "freezeUnit": "Geler l'unité choisie et son sous-arbre. Demande une confirmation.",
+    "rollback": "Revenir à la révision qui était en service avant l'actuelle. Demande une confirmation.",
+    "rollbackNone": "Il n'existe aucune révision antérieure en service à laquelle revenir."
+   },
+   "direction": {
+    "title": "Donner des consignes au CEO. Le texte est publié comme nouvelle révision du gardien du CEO avec la source Comité.",
+    "text": "De 1 à 4000 caractères. Le prochain cycle du CEO le lit comme l'instruction du comité.",
+    "changeNote": "Facultatif, au plus 2000 caractères. Enregistré avec la révision.",
+    "submit": "Publier les consignes comme nouvelle révision du gardien du CEO."
+   },
+   "ceoChat": {
+    "title": "Une conversation avec le déploiement du CEO. Chaque message est une exécution que vous pouvez ouvrir comme les autres.",
+    "conversation": "Reprendre une conversation passée du comité ou en commencer une nouvelle.",
+    "new": "Commencer une nouvelle conversation avec le CEO.",
+    "message": "Ce que vous voulez dire au CEO. Entrée envoie ; Maj+Entrée ajoute une ligne.",
+    "send": "Envoyer le message. La réponse s'affiche en continu ci-dessous."
+   }
+  }
+ }
+});

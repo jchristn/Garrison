@@ -1828,3 +1828,42 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
   .eval-check-actions { padding-top: 0; grid-column: 2; grid-row: 1; }
 }
 .eval-error-text { color: var(--color-danger); }
+
+/* The board (AA10.7): panels in two columns that fall to one on narrow screens; wide panels (chart, proposals, the CEO
+   conversation) span both. Lists drop the check marks of plain-list; report, brief, and freeze text wraps anywhere. */
+.board-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); align-items: start; }
+.board-panel { min-width: 0; margin: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.board-wide { grid-column: 1 / -1; }
+.board-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; }
+.board-panel-head h2 { font-size: 1.1rem; margin: 0; }
+.board-panel-tools { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; min-width: 0; }
+.board-panel-tools select { max-width: 100%; }
+.board-count { color: var(--color-text-secondary); font-weight: 400; }
+.board-subhead { font-size: var(--font-size-sm); font-weight: 600; margin: var(--spacing-sm) 0 0; }
+.board-empty { margin: 0; }
+.board-mission { color: var(--color-text-secondary); margin: 0 0 var(--spacing-md); white-space: pre-wrap; overflow-wrap: anywhere; }
+.board .plain-list li::before, .proposal-evidence-list li::before, .board-picker-list li::before { content: none; }
+.board-list li, .board-proposal, .board-spend-chart li { overflow-wrap: anywhere; min-width: 0; }
+.board-proposal-list { gap: var(--spacing-md); }
+.board-proposal { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm) var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.board-proposal-head { display: flex; flex-direction: column; gap: 2px; }
+.board-proposal-title { font-size: 1rem; margin: 0; overflow-wrap: anywhere; }
+.board-proposal-decide { display: flex; align-items: flex-end; gap: var(--spacing-sm); flex-wrap: wrap; }
+.board-proposal-decide .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
+.board-proposal-buttons { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
+.proposal-evidence { display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; }
+.proposal-evidence-list { margin: 0; }
+.proposal-evidence-list li { overflow-wrap: anywhere; }
+.board-panel a:not(.button):not([class*="button-"]), .proposal-evidence a { text-decoration: underline; }
+.board-spend-chart { gap: var(--spacing-md); }
+.board-spend-unit { font-weight: 600; margin-bottom: var(--spacing-xs); }
+.board-brief-body { display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; }
+.board-brakes-actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-sm); }
+.board-brakes-unit { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; max-width: 100%; }
+.board-brakes-unit select { min-width: 0; max-width: 100%; }
+.board-ceo-transcript { max-height: 420px; }
+.board-picker-row { display: flex; align-items: flex-end; gap: var(--spacing-sm); flex-wrap: wrap; }
+.board-picker-row .field { margin: 0; min-width: 0; flex: 0 1 20rem; }
+@media (max-width: 900px) {
+  .board-grid { grid-template-columns: minmax(0, 1fr); }
+}

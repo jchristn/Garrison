@@ -7994,3 +7994,296 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "Board",
+    "tip": "One organization at a glance: health, attention, proposals, spend, brakes, and the CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "Board brief filed"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "This organization has no CEO: the root unit needs a lead with a keeper in the live revision.",
+  "BoardCeoUnavailable": "The CEO's keeper has no deployment, so there is nothing to talk to. Give the keeper a deployment first."
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "Board"
+  }
+ },
+ "board": {
+  "title": "Board",
+  "subtitle": "Oversee an organization of keepers: what needs a decision, what it costs, and the brakes.",
+  "heading": "Board of {{name}}",
+  "generated": "Updated",
+  "refresh": "Refresh",
+  "openOrganization": "Open organization",
+  "killSwitchOn": "The kill switch is on: no keeper in this tenant wakes until it is turned off.",
+  "notFoundTitle": "Board not available",
+  "notFoundBody": "The organization does not exist, or you cannot read it.",
+  "picker": {
+   "title": "Pick an organization",
+   "select": "Organization",
+   "choose": "Choose an organization",
+   "open": "Open board",
+   "emptyTitle": "No organizations yet",
+   "emptyBody": "Create an organization of keepers first. Its board shows up here.",
+   "organizations": "Go to organizations"
+  },
+  "chart": {
+   "title": "Chart and health",
+   "empty": "The organization has no units yet. Add units and publish a revision on the organization page.",
+   "health": "Unit health",
+   "frozen": "Frozen",
+   "overBudget": "Over budget",
+   "columns": {
+    "unit": "Unit",
+    "health": "Health",
+    "escalations": "Open escalations",
+    "brakes": "Brakes",
+    "lastReport": "Last report"
+   }
+  },
+  "attention": {
+   "title": "Needs attention",
+   "empty": "Nothing needs the board right now.",
+   "none": "None.",
+   "escalations_one": "{{count}} open escalation",
+   "escalations_other": "{{count}} open escalations",
+   "reports_one": "{{count}} unhealthy report",
+   "reports_other": "{{count}} unhealthy reports",
+   "caps_one": "{{count}} unit at a budget cap",
+   "caps_other": "{{count}} units at a budget cap",
+   "raisedBy": "Raised by {{name}}",
+   "filedBy": "Filed by {{name}}"
+  },
+  "proposals": {
+   "title": "Proposals",
+   "empty": "No proposal waits for a decision.",
+   "by": "{{agent}} in {{unit}}",
+   "showChanges": "Show changes",
+   "hideChanges": "Hide changes"
+  },
+  "evidence": {
+   "title": "Evidence",
+   "empty": "No eval runs, shadow trials, or canary releases back this proposal yet.",
+   "since": "Since the proposal last changed at {{when}}.",
+   "evalRuns": "Eval runs",
+   "shadowTrials": "Shadow trials",
+   "canaryReleases": "Canary releases",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "Score {{score}} against {{threshold}}, {{done}} of {{total}} cases",
+   "stale": "Before the last change",
+   "shadow": "Shadow trial {{name}}",
+   "shadowCounts": "{{agreed}} of {{compared}} agreed, {{diverged}} diverged, {{failures}} candidate failures",
+   "canary": "Canary of {{name}}",
+   "canaryStep": "Step {{step}} of {{total}}",
+   "rollback": "Rolled back: {{reason}}"
+  },
+  "spend": {
+   "title": "Spend against budget",
+   "empty": "No unit has a budget or spend in the current window."
+  },
+  "brief": {
+   "title": "Latest brief",
+   "ceo": "CEO: {{name}}, lead of {{unit}}.",
+   "cadence_one": "Briefs every hour.",
+   "cadence_other": "Briefs every {{count}} hours.",
+   "noCadence": "No brief cadence is set on the CEO's keeper.",
+   "empty": "The CEO has not filed a brief yet."
+  },
+  "ceo": {
+   "missing": "The root unit has no lead, so the organization has no CEO.",
+   "noMandate": "The CEO has no keeper in the live revision.",
+   "noDeployment": "The CEO's keeper has no deployment to talk to."
+  },
+  "brakes": {
+   "title": "Brakes",
+   "active_one": "{{count}} active freeze",
+   "active_other": "{{count}} active freezes",
+   "none": "Nothing is frozen.",
+   "frozenBy": "Frozen by {{name}}",
+   "lift": "Lift",
+   "freezeOrg": "Freeze organization",
+   "unit": "Unit",
+   "pickUnit": "Choose a unit",
+   "freezeUnit": "Freeze unit",
+   "rollback": "Roll back chart",
+   "rollbackTitle": "Roll back the chart",
+   "rollbackMessage": "Return the organization to the revision that was live before revision {{number}}? The chain of command, budgets, and message lines follow it at once.",
+   "rollbackNote": "Rolled back from the board",
+   "rolledBack": "Rolled back. Revision {{number}} is live."
+  },
+  "direction": {
+   "title": "Direction for the CEO",
+   "note": "The text becomes a new published revision of the CEO's keeper, and its next tick reads it as the board's instruction.",
+   "text": "Direction",
+   "placeholder": "For example: hold refunds over $500 for a person until the audit ends.",
+   "count": "{{count}} of {{max}} characters",
+   "changeNote": "Change note",
+   "changeNotePlaceholder": "Why the board gave this direction (optional)",
+   "submit": "Send direction",
+   "given": "Direction published as revision {{number}} of {{name}}.",
+   "errors": {
+    "required": "Write the direction for the CEO.",
+    "tooLong": "Use at most {{max}} characters."
+   }
+  },
+  "ceoChat": {
+   "title": "Talk to the CEO",
+   "note": "Messages start a conversation with the CEO's deployment, framed as coming from the board.",
+   "talkingTo": "You are talking to {{name}} as the board.",
+   "conversation": "Conversation",
+   "newConversation": "New conversation",
+   "new": "New",
+   "transcript": "Conversation with the CEO",
+   "empty": "No messages yet. Ask the CEO how the organization is doing.",
+   "message": "Message",
+   "tooLong": "Use at most {{max}} characters."
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "First keeper"
+  },
+  "welcomeItemKeeper": "Create your first keeper: an agent that wakes on a schedule and works toward an objective.",
+  "keeper": {
+   "body": "A keeper gives the sample agent an objective and wakes it on a schedule, backing off while nothing changes. It uses the fake harness, so it costs nothing. You can pause or delete it on the Keepers page.",
+   "objectiveDefault": "Check in once in a while and report that everything is quiet.",
+   "description": "Created by the setup wizard.",
+   "create": "Create keeper",
+   "created": "Keeper {{name}} created. It wakes on its schedule.",
+   "ready": "Keeper {{name}} is ready. Continue to the test run."
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "Autonomy",
+    "body": "Keepers are agents that wake on a schedule and work toward an objective. Escalations, freezes, the kill switch, memory, reports, and messages keep them in check."
+   },
+   "board": {
+    "title": "The board",
+    "body": "Organizations group keepers under a CEO. The Board tab shows one organization's health, what needs a decision, spend, and the brakes, and lets you direct and talk to the CEO."
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "The board",
+   "p1": "The board is the person or group above an organization's root unit. This page gathers what they need in one place: each unit's health from its latest report, open escalations, unhealthy reports, units at a budget cap, and proposals waiting for a decision with their eval, shadow, and canary evidence.",
+   "p2": "The brakes freeze a unit or the whole organization, roll the chart back, or stop every keeper with the kill switch. Direction becomes a new revision of the CEO's keeper, and Talk to the CEO opens an ordinary conversation with the CEO's deployment."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "Board: one organization's health, attention, proposals, spend, brief, and brakes on one page."
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "The CEO of an organization filed a brief for the board."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "Open this organization's board: health, attention, proposals, spend, brakes, and the CEO."
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "Name of the keeper: letters, digits, dots, dashes, and underscores.",
+    "objective": "What the keeper works toward. Each tick reads it.",
+    "create": "Create the keeper on the sample agent's fake harness deployment and move to the test run.",
+    "skip": "Continue without a keeper. You can add one on the Keepers page."
+   }
+  },
+  "board": {
+   "refresh": "Read the board again. It also refreshes when the organization changes.",
+   "openOrganization": "Open the organization page to edit units, budgets, and revisions.",
+   "openEscalation": "Open the escalation to answer it.",
+   "openReport": "Open the report with its metrics, issues, and decisions.",
+   "openKeeper": "Open the CEO's keeper with its ticks and revisions.",
+   "picker": {
+    "select": "The organization whose board to open.",
+    "open": "Open the board of this organization.",
+    "organizations": "Open the organizations page to create one."
+   },
+   "chart": {
+    "title": "The live chart: each unit with its lead, members, health from its latest report, and spend.",
+    "frozen": "An active freeze covers this unit or the whole organization.",
+    "overBudget": "The unit's subtree has spent a whole budget in the current window.",
+    "columns": {
+     "unit": "The unit in the live revision.",
+     "health": "Health from the latest report filed in the unit. Unknown when it has none.",
+     "escalations": "Open escalations raised by agents of the unit.",
+     "brakes": "Whether a freeze covers the unit and whether it is over a budget.",
+     "lastReport": "When the latest report was filed. Opens the report."
+    }
+   },
+   "attention": {
+    "title": "What waits for the board: open escalations, reports from the last 7 days that are degraded or unhealthy, and units at a budget cap."
+   },
+   "proposals": {
+    "title": "Changes the organization's executives proposed that no change rule covered, waiting for a person.",
+    "toggle": "Show or hide the proposal's changes and the rule that covers each, read from the server."
+   },
+   "evidence": {
+    "title": "Eval runs, shadow trials, and canary releases of the proposed agents since the proposal last changed.",
+    "openEvalRun": "Open the eval run with its case results.",
+    "openShadowTrial": "Open the shadow trial with its comparisons.",
+    "openCanary": "Open the canary release with its steps.",
+    "stale": "This eval run started before the proposal last changed, so it may not test the current changes."
+   },
+   "spend": {
+    "title": "Each unit's spend in the current day and month windows against its budgets."
+   },
+   "brief": {
+    "title": "The newest brief the CEO filed for the board, and how often the CEO's keeper asks for one."
+   },
+   "brakes": {
+    "title": "Stop work fast: freeze a unit or the organization, roll back the chart, or turn on the kill switch.",
+    "lift": "Lift this freeze. Work in its scope may start again.",
+    "freezeOrg": "Freeze every agent and keeper of this organization until the freeze is lifted. Asks for confirmation.",
+    "orgFrozen": "The organization is already frozen. Lift that freeze first.",
+    "unit": "The unit to freeze, with everything below it.",
+    "freezeUnit": "Freeze the chosen unit and its subtree. Asks for confirmation.",
+    "rollback": "Return to the revision that was live before the current one. Asks for confirmation.",
+    "rollbackNone": "There is no earlier live revision to return to."
+   },
+   "direction": {
+    "title": "Instruct the CEO. The text is published as a new revision of the CEO's keeper with source Board.",
+    "text": "1 to 4000 characters. The CEO's next tick reads it as the board's instruction.",
+    "changeNote": "Optional, at most 2000 characters. Stored with the revision.",
+    "submit": "Publish the direction as a new revision of the CEO's keeper."
+   },
+   "ceoChat": {
+    "title": "A conversation with the CEO's deployment. Each message is a run you can open like any other.",
+    "conversation": "Continue a past board conversation or start a new one.",
+    "new": "Start a new conversation with the CEO.",
+    "message": "What to say to the CEO. Enter sends; Shift+Enter adds a line.",
+    "send": "Send the message. The reply streams in below."
+   }
+  }
+ }
+});

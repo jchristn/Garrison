@@ -8024,3 +8024,296 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "Consejo",
+    "tip": "Una organización de un vistazo: estado, pendientes, propuestas, gasto, frenos y el CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "Resumen para el consejo presentado"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "Esta organización no tiene CEO: la unidad raíz necesita un líder con un guardián en la revisión en vigor.",
+  "BoardCeoUnavailable": "El guardián del CEO no tiene despliegue, así que no hay nadie con quien hablar. Asigna primero un despliegue al guardián."
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "Consejo"
+  }
+ },
+ "board": {
+  "title": "Consejo",
+  "subtitle": "Supervisa una organización de guardianes: qué necesita una decisión, cuánto cuesta y los frenos.",
+  "heading": "Consejo de {{name}}",
+  "generated": "Actualizado",
+  "refresh": "Actualizar",
+  "openOrganization": "Abrir organización",
+  "killSwitchOn": "El interruptor de emergencia está activado: ningún guardián de este inquilino despierta hasta que se desactive.",
+  "notFoundTitle": "Consejo no disponible",
+  "notFoundBody": "La organización no existe o no puedes leerla.",
+  "picker": {
+   "title": "Elige una organización",
+   "select": "Organización",
+   "choose": "Elige una organización",
+   "open": "Abrir consejo",
+   "emptyTitle": "Todavía no hay organizaciones",
+   "emptyBody": "Crea primero una organización de guardianes. Su consejo aparecerá aquí.",
+   "organizations": "Ir a organizaciones"
+  },
+  "chart": {
+   "title": "Organigrama y estado",
+   "empty": "La organización todavía no tiene unidades. Añade unidades y publica una revisión en la página de la organización.",
+   "health": "Estado de la unidad",
+   "frozen": "Congelada",
+   "overBudget": "Presupuesto superado",
+   "columns": {
+    "unit": "Unidad",
+    "health": "Estado",
+    "escalations": "Escalados abiertos",
+    "brakes": "Frenos",
+    "lastReport": "Último informe"
+   }
+  },
+  "attention": {
+   "title": "Requiere atención",
+   "empty": "Ahora mismo nada requiere al consejo.",
+   "none": "Ninguno.",
+   "escalations_one": "{{count}} escalado abierto",
+   "escalations_other": "{{count}} escalados abiertos",
+   "reports_one": "{{count}} informe en mal estado",
+   "reports_other": "{{count}} informes en mal estado",
+   "caps_one": "{{count}} unidad en el límite de presupuesto",
+   "caps_other": "{{count}} unidades en el límite de presupuesto",
+   "raisedBy": "Creado por {{name}}",
+   "filedBy": "Presentado por {{name}}"
+  },
+  "proposals": {
+   "title": "Propuestas",
+   "empty": "Ninguna propuesta espera una decisión.",
+   "by": "{{agent}} en {{unit}}",
+   "showChanges": "Mostrar cambios",
+   "hideChanges": "Ocultar cambios"
+  },
+  "evidence": {
+   "title": "Pruebas",
+   "empty": "Todavía no hay ejecuciones de evaluación, pruebas en sombra ni lanzamientos canario que respalden esta propuesta.",
+   "since": "Desde el último cambio de la propuesta, el {{when}}.",
+   "evalRuns": "Ejecuciones de evaluación",
+   "shadowTrials": "Pruebas en sombra",
+   "canaryReleases": "Lanzamientos canario",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "Puntuación {{score}} frente a {{threshold}}, {{done}} de {{total}} casos",
+   "stale": "Anterior al último cambio",
+   "shadow": "Prueba en sombra {{name}}",
+   "shadowCounts": "{{agreed}} de {{compared}} coincidentes, {{diverged}} divergentes, {{failures}} fallos del candidato",
+   "canary": "Lanzamiento canario de {{name}}",
+   "canaryStep": "Paso {{step}} de {{total}}",
+   "rollback": "Revertido: {{reason}}"
+  },
+  "spend": {
+   "title": "Gasto frente al presupuesto",
+   "empty": "Ninguna unidad tiene presupuesto ni gasto en la ventana actual."
+  },
+  "brief": {
+   "title": "Último resumen",
+   "ceo": "CEO: {{name}}, líder de {{unit}}.",
+   "cadence_one": "Resúmenes cada hora.",
+   "cadence_other": "Resúmenes cada {{count}} horas.",
+   "noCadence": "El guardián del CEO no tiene una frecuencia de resúmenes definida.",
+   "empty": "El CEO todavía no ha presentado ningún resumen."
+  },
+  "ceo": {
+   "missing": "La unidad raíz no tiene líder, así que la organización no tiene CEO.",
+   "noMandate": "El CEO no tiene guardián en la revisión en vigor.",
+   "noDeployment": "El guardián del CEO no tiene un despliegue con el que hablar."
+  },
+  "brakes": {
+   "title": "Frenos",
+   "active_one": "{{count}} congelación activa",
+   "active_other": "{{count}} congelaciones activas",
+   "none": "No hay nada congelado.",
+   "frozenBy": "Congelado por {{name}}",
+   "lift": "Levantar",
+   "freezeOrg": "Congelar organización",
+   "unit": "Unidad",
+   "pickUnit": "Elige una unidad",
+   "freezeUnit": "Congelar unidad",
+   "rollback": "Revertir organigrama",
+   "rollbackTitle": "Revertir el organigrama",
+   "rollbackMessage": "¿Devolver la organización a la revisión que estaba en vigor antes de la revisión {{number}}? La cadena de mando, los presupuestos y las líneas de mensajes la siguen de inmediato.",
+   "rollbackNote": "Revertido desde el consejo",
+   "rolledBack": "Revertido. La revisión {{number}} está en vigor."
+  },
+  "direction": {
+   "title": "Instrucciones para el CEO",
+   "note": "El texto se convierte en una nueva revisión publicada del guardián del CEO, y su próximo ciclo lo lee como la instrucción del consejo.",
+   "text": "Instrucciones",
+   "placeholder": "Por ejemplo: deja los reembolsos de más de 500 $ a una persona hasta que termine la auditoría.",
+   "count": "{{count}} de {{max}} caracteres",
+   "changeNote": "Nota del cambio",
+   "changeNotePlaceholder": "Por qué el consejo da estas instrucciones (opcional)",
+   "submit": "Enviar instrucciones",
+   "given": "Instrucciones publicadas como revisión {{number}} de {{name}}.",
+   "errors": {
+    "required": "Escribe las instrucciones para el CEO.",
+    "tooLong": "Usa como máximo {{max}} caracteres."
+   }
+  },
+  "ceoChat": {
+   "title": "Hablar con el CEO",
+   "note": "Los mensajes inician una conversación con el despliegue del CEO, presentados como si vinieran del consejo.",
+   "talkingTo": "Estás hablando con {{name}} como el consejo.",
+   "conversation": "Conversación",
+   "newConversation": "Nueva conversación",
+   "new": "Nueva",
+   "transcript": "Conversación con el CEO",
+   "empty": "Todavía no hay mensajes. Pregunta al CEO cómo va la organización.",
+   "message": "Mensaje",
+   "tooLong": "Usa como máximo {{max}} caracteres."
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "Primer guardián"
+  },
+  "welcomeItemKeeper": "Crear tu primer guardián: un agente que despierta según un horario y trabaja hacia un objetivo.",
+  "keeper": {
+   "body": "Un guardián da al agente de ejemplo un objetivo y lo despierta según un horario, espaciando los ciclos mientras nada cambia. Usa el harness simulado, así que no cuesta nada. Puedes pausarlo o eliminarlo en la página Guardianes.",
+   "objectiveDefault": "Revisar de vez en cuando e informar de que todo está tranquilo.",
+   "description": "Creado por el asistente de configuración.",
+   "create": "Crear guardián",
+   "created": "Guardián {{name}} creado. Despierta según su horario.",
+   "ready": "El guardián {{name}} está listo. Continúa con la ejecución de prueba."
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "Autonomía",
+    "body": "Los guardianes son agentes que despiertan según un horario y trabajan hacia un objetivo. Los escalados, las congelaciones, el interruptor de emergencia, la memoria, los informes y los mensajes los mantienen bajo control."
+   },
+   "board": {
+    "title": "El consejo",
+    "body": "Las organizaciones agrupan guardianes bajo un CEO. La pestaña Consejo muestra el estado de una organización, lo que necesita una decisión, el gasto y los frenos, y te permite dar instrucciones al CEO y hablar con él."
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "El consejo",
+   "p1": "El consejo es la persona o el grupo que está por encima de la unidad raíz de una organización. Esta página reúne lo que necesita en un solo lugar: el estado de cada unidad según su último informe, los escalados abiertos, los informes en mal estado, las unidades en el límite de presupuesto y las propuestas que esperan una decisión con sus pruebas de evaluación, en sombra y canario.",
+   "p2": "Los frenos congelan una unidad o toda la organización, revierten el organigrama o detienen a todos los guardianes con el interruptor de emergencia. Las instrucciones se convierten en una nueva revisión del guardián del CEO, y Hablar con el CEO abre una conversación normal con el despliegue del CEO."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "Consejo: el estado, los pendientes, las propuestas, el gasto, el resumen y los frenos de una organización en una sola página."
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "El CEO de una organización presentó un resumen para el consejo."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "Abrir el consejo de esta organización: estado, pendientes, propuestas, gasto, frenos y el CEO."
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "Nombre del guardián: letras, dígitos, puntos, guiones y guiones bajos.",
+    "objective": "Hacia qué trabaja el guardián. Cada ciclo lo lee.",
+    "create": "Crear el guardián sobre el despliegue con harness simulado del agente de ejemplo y pasar a la ejecución de prueba.",
+    "skip": "Continuar sin guardián. Puedes añadir uno en la página Guardianes."
+   }
+  },
+  "board": {
+   "refresh": "Volver a leer el consejo. También se actualiza cuando cambia la organización.",
+   "openOrganization": "Abrir la página de la organización para editar unidades, presupuestos y revisiones.",
+   "openEscalation": "Abrir el escalado para responderlo.",
+   "openReport": "Abrir el informe con sus métricas, problemas y decisiones.",
+   "openKeeper": "Abrir el guardián del CEO con sus ciclos y revisiones.",
+   "picker": {
+    "select": "La organización cuyo consejo quieres abrir.",
+    "open": "Abrir el consejo de esta organización.",
+    "organizations": "Abrir la página de organizaciones para crear una."
+   },
+   "chart": {
+    "title": "El organigrama en vigor: cada unidad con su líder, sus miembros, el estado según su último informe y su gasto.",
+    "frozen": "Una congelación activa cubre esta unidad o toda la organización.",
+    "overBudget": "El subárbol de la unidad ha gastado un presupuesto completo en la ventana actual.",
+    "columns": {
+     "unit": "La unidad en la revisión en vigor.",
+     "health": "Estado según el último informe presentado en la unidad. Desconocido si no tiene ninguno.",
+     "escalations": "Escalados abiertos creados por agentes de la unidad.",
+     "brakes": "Si una congelación cubre la unidad y si supera un presupuesto.",
+     "lastReport": "Cuándo se presentó el último informe. Abre el informe."
+    }
+   },
+   "attention": {
+    "title": "Lo que espera al consejo: escalados abiertos, informes degradados o en mal estado de los últimos 7 días y unidades en el límite de presupuesto."
+   },
+   "proposals": {
+    "title": "Cambios que propuso la dirección de la organización, no cubiertos por ninguna regla de cambio, que esperan a una persona.",
+    "toggle": "Mostrar u ocultar los cambios de la propuesta y la regla que cubre cada uno, leídos del servidor."
+   },
+   "evidence": {
+    "title": "Ejecuciones de evaluación, pruebas en sombra y lanzamientos canario de los agentes propuestos desde el último cambio de la propuesta.",
+    "openEvalRun": "Abrir la ejecución de evaluación con los resultados de sus casos.",
+    "openShadowTrial": "Abrir la prueba en sombra con sus comparaciones.",
+    "openCanary": "Abrir el lanzamiento canario con sus pasos.",
+    "stale": "Esta ejecución de evaluación empezó antes del último cambio de la propuesta, así que puede que no pruebe los cambios actuales."
+   },
+   "spend": {
+    "title": "El gasto de cada unidad en las ventanas actuales de día y de mes frente a sus presupuestos."
+   },
+   "brief": {
+    "title": "El resumen más reciente que el CEO presentó al consejo y con qué frecuencia lo pide el guardián del CEO."
+   },
+   "brakes": {
+    "title": "Detén el trabajo rápido: congela una unidad o la organización, revierte el organigrama o activa el interruptor de emergencia.",
+    "lift": "Levantar esta congelación. El trabajo en su ámbito puede volver a empezar.",
+    "freezeOrg": "Congelar todos los agentes y guardianes de esta organización hasta que se levante la congelación. Pide confirmación.",
+    "orgFrozen": "La organización ya está congelada. Levanta primero esa congelación.",
+    "unit": "La unidad que se congela, con todo lo que depende de ella.",
+    "freezeUnit": "Congelar la unidad elegida y su subárbol. Pide confirmación.",
+    "rollback": "Volver a la revisión que estaba en vigor antes de la actual. Pide confirmación.",
+    "rollbackNone": "No hay una revisión anterior en vigor a la que volver."
+   },
+   "direction": {
+    "title": "Da instrucciones al CEO. El texto se publica como una nueva revisión del guardián del CEO con origen Consejo.",
+    "text": "De 1 a 4000 caracteres. El próximo ciclo del CEO lo lee como la instrucción del consejo.",
+    "changeNote": "Opcional, como máximo 2000 caracteres. Se guarda con la revisión.",
+    "submit": "Publicar las instrucciones como una nueva revisión del guardián del CEO."
+   },
+   "ceoChat": {
+    "title": "Una conversación con el despliegue del CEO. Cada mensaje es una ejecución que puedes abrir como cualquier otra.",
+    "conversation": "Continuar una conversación anterior del consejo o empezar una nueva.",
+    "new": "Empezar una nueva conversación con el CEO.",
+    "message": "Qué decirle al CEO. Intro envía; Mayús+Intro añade una línea.",
+    "send": "Enviar el mensaje. La respuesta aparece abajo a medida que llega."
+   }
+  }
+ }
+});

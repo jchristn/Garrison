@@ -15,15 +15,17 @@ import { architectBody, architectFormErrors, blankArchitectForm } from '../utils
 import { enumOptions } from '../utils/enums';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
+import { blankKeeper, keeperErrors, keeperToBody } from '../utils/keepers';
 
 // The architect fields come with the studio chunk, loaded only when the Agent Studio step opens.
 const ArchitectFields = lazy(() => import('./studio/ArchitectFields'));
 
-const STEPS = ['welcome', 'secret', 'studio', 'manifest', 'invoke'];
+const STEPS = ['welcome', 'secret', 'studio', 'manifest', 'keeper', 'invoke'];
 
 /**
  * First-run setup: add a harness credential, give the agent architect a deployment (AD9.5, AD9.9: harness profile,
- * model, and architect prompt; the server gives it managementAccess Drafts), apply a sample manifest, and test-invoke
+ * model, and architect prompt; the server gives it managementAccess Drafts), apply a sample manifest, create a first
+ * keeper on the sample agent (AA10.8: a mandate on the fake harness deployment that wakes on its own), and test-invoke
  * an agent. Every step but the welcome can be skipped, and the wizard can be relaunched from the sidebar.
  */
 export default function SetupWizard() {
@@ -42,6 +44,9 @@ export default function SetupWizard() {
   const [architectAgent, setArchitectAgent] = useState(undefined);
   const [architectErrors, setArchitectErrors] = useState({});
   const [architect, setArchitect] = useState(null);
+  const [keeperForm, setKeeperForm] = useState(() => ({ name: 'first-keeper', objective: t('wizard.keeper.objectiveDefault') }));
+  const [keeperFieldErrors, setKeeperErrors] = useState({});
+  const [keeper, setKeeper] = useState(null);
 
   const close = (dismiss) => {
     if (dismiss) localStorage.setItem(`${STORAGE_KEYS.setupDismissed}:${tenantId}`, 'true');
@@ -102,6 +107,39 @@ export default function SetupWizard() {
       addToast({ type: 'success', message: t('views.manifests.applied') });
       setStep((s) => s + 1);
     } catch (e) {
+      addToast({ type: 'error', message: errorMessage(t, e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // A first keeper on the sample agent: the echo-agent deployment runs on the fake harness, so it needs no credential.
+  const createKeeper = async () => {
+    if (keeper) {
+      setStep((s) => s + 1);
+      return;
+    }
+    const name = keeperForm.name.trim();
+    const objective = keeperForm.objective.trim();
+    // The agent and deployment are looked up below, so only the name and the revision fields are checked here.
+    const found = keeperErrors({ ...blankKeeper(), name, objective, agentId: '-', deploymentId: '-' }, t, 'create');
+    const errors = Object.fromEntries(Object.entries(found).filter(([k]) => k === 'name' || k === 'objective'));
+    setKeeperErrors(errors);
+    if (Object.keys(errors).length) return;
+    setBusy(true);
+    try {
+      const agents = await apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 10, search: 'echo-agent' });
+      const agent = (agents.items || []).find((a) => a.name === 'echo-agent') || (agents.items || [])[0];
+      if (!agent) throw new Error(t('wizard.noAgent'));
+      const deployments = await apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 10, agentId: agent.id });
+      const deployment = (deployments.items || []).find((d) => d.name === 'echo-agent-default') || (deployments.items || []).find((d) => d.agentId === agent.id) || null;
+      const body = keeperToBody({ ...blankKeeper(), name, objective, description: t('wizard.keeper.description'), agentId: agent.id, deploymentId: deployment?.id || '' }, 'create');
+      const created = await apiClient.createMandate(tenantId, body);
+      setKeeper(created || { name });
+      addToast({ type: 'success', message: t('wizard.keeper.created', { name: created?.name || name }) });
+      setStep((s) => s + 1);
+    } catch (e) {
+      if (e?.fields) setKeeperErrors(e.fields);
       addToast({ type: 'error', message: errorMessage(t, e) });
     } finally {
       setBusy(false);
@@ -175,6 +213,16 @@ export default function SetupWizard() {
               {t('views.manifests.apply')}
             </button>
           )}
+          {current === 'keeper' && !keeper && (
+            <button type="button" className="button-secondary" onClick={() => setStep((s) => s + 1)} disabled={busy} data-testid="wizard-skip-keeper" {...tip(t('tips.wizard.keeper.skip'))}>
+              {t('wizard.skipStep')}
+            </button>
+          )}
+          {current === 'keeper' && (
+            <button type="button" className="button-primary" onClick={createKeeper} disabled={busy} data-testid="wizard-create-keeper" {...tip(t(keeper ? 'tips.wizard.continue' : 'tips.wizard.keeper.create'))}>
+              {keeper ? t('wizard.continue') : t('wizard.keeper.create')}
+            </button>
+          )}
           {current === 'invoke' && (
             <button type="button" className="button-primary" onClick={testInvoke} disabled={busy} {...tip(t('tips.wizard.invoke'))}>
               {t('wizard.invoke')}
@@ -197,6 +245,7 @@ export default function SetupWizard() {
             <li>{t('wizard.welcomeItem1')}</li>
             <li>{t('wizard.welcomeItemStudio')}</li>
             <li>{t('wizard.welcomeItem2')}</li>
+            <li>{t('wizard.welcomeItemKeeper')}</li>
             <li>{t('wizard.welcomeItem3')}</li>
           </ul>
         </div>
@@ -237,6 +286,33 @@ export default function SetupWizard() {
         <div className="wizard-body">
           <p>{t('wizard.manifestBody')}</p>
           <textarea className="monospace template-textarea" rows={14} value={manifest} onChange={(e) => setManifest(e.target.value)} aria-label={t('views.manifests.document')} {...tip(t('tips.wizard.manifest'))} />
+        </div>
+      )}
+      {current === 'keeper' && (
+        <div className="wizard-body form-grid" data-testid="wizard-keeper">
+          <p className="span-full">{t('wizard.keeper.body')}</p>
+          {keeper ? (
+            <div className="info-banner span-full" role="status" data-testid="wizard-keeper-created">
+              {t('wizard.keeper.ready', { name: keeper.name || keeperForm.name })}
+            </div>
+          ) : (
+            <>
+              <FormField
+                id="wiz-keeper-name"
+                field={{ name: 'name', type: 'text', required: true, label: t('resources.keepers.fields.name'), tip: t('tips.wizard.keeper.name') }}
+                value={keeperForm.name}
+                error={keeperFieldErrors.name}
+                onChange={(v) => setKeeperForm((f) => ({ ...f, name: v }))}
+              />
+              <FormField
+                id="wiz-keeper-objective"
+                field={{ name: 'objective', type: 'textarea', rows: 4, required: true, span: 'full', label: t('resources.keepers.fields.objective'), tip: t('tips.wizard.keeper.objective') }}
+                value={keeperForm.objective}
+                error={keeperFieldErrors.objective}
+                onChange={(v) => setKeeperForm((f) => ({ ...f, objective: v }))}
+              />
+            </>
+          )}
         </div>
       )}
       {current === 'invoke' && (

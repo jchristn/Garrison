@@ -8020,3 +8020,296 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "Consiglio",
+    "tip": "Un'organizzazione a colpo d'occhio: stato, punti da seguire, proposte, spesa, freni e il CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "Presentata una sintesi per il consiglio"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "Questa organizzazione non ha un CEO: l'unità radice ha bisogno di un capo con un custode nella revisione in vigore.",
+  "BoardCeoUnavailable": "Il custode del CEO non ha una distribuzione, quindi non c'è nessuno con cui parlare. Assegna prima una distribuzione al custode."
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "Consiglio"
+  }
+ },
+ "board": {
+  "title": "Consiglio",
+  "subtitle": "Supervisiona un'organizzazione di custodi: cosa richiede una decisione, quanto costa e i freni.",
+  "heading": "Consiglio di {{name}}",
+  "generated": "Aggiornato",
+  "refresh": "Aggiorna",
+  "openOrganization": "Apri organizzazione",
+  "killSwitchOn": "L'interruttore di emergenza è attivo: nessun custode di questo tenant si sveglia finché non viene disattivato.",
+  "notFoundTitle": "Consiglio non disponibile",
+  "notFoundBody": "L'organizzazione non esiste, oppure non puoi leggerla.",
+  "picker": {
+   "title": "Scegli un'organizzazione",
+   "select": "Organizzazione",
+   "choose": "Scegli un'organizzazione",
+   "open": "Apri consiglio",
+   "emptyTitle": "Ancora nessuna organizzazione",
+   "emptyBody": "Crea prima un'organizzazione di custodi. Il suo consiglio comparirà qui.",
+   "organizations": "Vai alle organizzazioni"
+  },
+  "chart": {
+   "title": "Organigramma e stato",
+   "empty": "L'organizzazione non ha ancora unità. Aggiungi unità e pubblica una revisione nella pagina dell'organizzazione.",
+   "health": "Stato dell'unità",
+   "frozen": "Bloccata",
+   "overBudget": "Budget superato",
+   "columns": {
+    "unit": "Unità",
+    "health": "Stato",
+    "escalations": "Escalation aperte",
+    "brakes": "Freni",
+    "lastReport": "Ultimo rapporto"
+   }
+  },
+  "attention": {
+   "title": "Richiede attenzione",
+   "empty": "Al momento nulla richiede il consiglio.",
+   "none": "Nessuno.",
+   "escalations_one": "{{count}} escalation aperta",
+   "escalations_other": "{{count}} escalation aperte",
+   "reports_one": "{{count}} rapporto critico",
+   "reports_other": "{{count}} rapporti critici",
+   "caps_one": "{{count}} unità al limite di budget",
+   "caps_other": "{{count}} unità al limite di budget",
+   "raisedBy": "Aperta da {{name}}",
+   "filedBy": "Presentato da {{name}}"
+  },
+  "proposals": {
+   "title": "Proposte",
+   "empty": "Nessuna proposta attende una decisione.",
+   "by": "{{agent}} nell'unità {{unit}}",
+   "showChanges": "Mostra modifiche",
+   "hideChanges": "Nascondi modifiche"
+  },
+  "evidence": {
+   "title": "Prove a supporto",
+   "empty": "Nessuna esecuzione di valutazione, prova in ombra o rilascio canary sostiene ancora questa proposta.",
+   "since": "Dall'ultima modifica della proposta, il {{when}}.",
+   "evalRuns": "Esecuzioni di valutazione",
+   "shadowTrials": "Prove in ombra",
+   "canaryReleases": "Rilasci canary",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "Punteggio {{score}} rispetto a {{threshold}}, {{done}} casi su {{total}}",
+   "stale": "Precedente all'ultima modifica",
+   "shadow": "Prova in ombra {{name}}",
+   "shadowCounts": "{{agreed}} concordi su {{compared}}, {{diverged}} divergenti, {{failures}} errori del candidato",
+   "canary": "Rilascio canary di {{name}}",
+   "canaryStep": "Passo {{step}} di {{total}}",
+   "rollback": "Ripristinato: {{reason}}"
+  },
+  "spend": {
+   "title": "Spesa rispetto al budget",
+   "empty": "Nessuna unità ha un budget o una spesa nella finestra attuale."
+  },
+  "brief": {
+   "title": "Ultima sintesi",
+   "ceo": "CEO: {{name}}, capo di {{unit}}.",
+   "cadence_one": "Una sintesi ogni ora.",
+   "cadence_other": "Una sintesi ogni {{count}} ore.",
+   "noCadence": "Sul custode del CEO non è impostata una frequenza per le sintesi.",
+   "empty": "Il CEO non ha ancora presentato una sintesi."
+  },
+  "ceo": {
+   "missing": "L'unità radice non ha un capo, quindi l'organizzazione non ha un CEO.",
+   "noMandate": "Il CEO non ha un custode nella revisione in vigore.",
+   "noDeployment": "Il custode del CEO non ha una distribuzione con cui parlare."
+  },
+  "brakes": {
+   "title": "Freni",
+   "active_one": "{{count}} blocco attivo",
+   "active_other": "{{count}} blocchi attivi",
+   "none": "Nulla è bloccato.",
+   "frozenBy": "Bloccato da {{name}}",
+   "lift": "Rimuovi",
+   "freezeOrg": "Blocca organizzazione",
+   "unit": "Unità",
+   "pickUnit": "Scegli un'unità",
+   "freezeUnit": "Blocca unità",
+   "rollback": "Ripristina organigramma",
+   "rollbackTitle": "Ripristina l'organigramma",
+   "rollbackMessage": "Riportare l'organizzazione alla revisione che era in vigore prima della revisione {{number}}? La catena di comando, i budget e le linee dei messaggi la seguono subito.",
+   "rollbackNote": "Ripristinato dal consiglio",
+   "rolledBack": "Ripristinato. La revisione {{number}} è in vigore."
+  },
+  "direction": {
+   "title": "Indicazioni per il CEO",
+   "note": "Il testo diventa una nuova revisione pubblicata del custode del CEO, e il suo prossimo ciclo lo legge come istruzione del consiglio.",
+   "text": "Indicazioni",
+   "placeholder": "Per esempio: sottoponi a una persona i rimborsi oltre 500 $ fino alla fine dell'audit.",
+   "count": "{{count}} di {{max}} caratteri",
+   "changeNote": "Nota di modifica",
+   "changeNotePlaceholder": "Perché il consiglio dà queste indicazioni (facoltativa)",
+   "submit": "Invia indicazioni",
+   "given": "Indicazioni pubblicate come revisione {{number}} di {{name}}.",
+   "errors": {
+    "required": "Scrivi le indicazioni per il CEO.",
+    "tooLong": "Usa al massimo {{max}} caratteri."
+   }
+  },
+  "ceoChat": {
+   "title": "Parla con il CEO",
+   "note": "I messaggi avviano una conversazione con la distribuzione del CEO, presentata come proveniente dal consiglio.",
+   "talkingTo": "Stai parlando con {{name}} come consiglio.",
+   "conversation": "Conversazione",
+   "newConversation": "Nuova conversazione",
+   "new": "Nuova",
+   "transcript": "Conversazione con il CEO",
+   "empty": "Ancora nessun messaggio. Chiedi al CEO come va l'organizzazione.",
+   "message": "Messaggio",
+   "tooLong": "Usa al massimo {{max}} caratteri."
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "Primo custode"
+  },
+  "welcomeItemKeeper": "Creare il primo custode: un agente che si sveglia secondo una pianificazione e lavora verso un obiettivo.",
+  "keeper": {
+   "body": "Un custode dà all'agente di esempio un obiettivo e lo sveglia secondo una pianificazione, diradando i risvegli finché nulla cambia. Usa l'harness fittizio, quindi non costa nulla. Puoi metterlo in pausa o eliminarlo nella pagina Custodi.",
+   "objectiveDefault": "Controllare ogni tanto e riferire che è tutto tranquillo.",
+   "description": "Creato dalla procedura guidata di configurazione.",
+   "create": "Crea custode",
+   "created": "Custode {{name}} creato. Si sveglia secondo la sua pianificazione.",
+   "ready": "Il custode {{name}} è pronto. Continua con l'esecuzione di prova."
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "Autonomia",
+    "body": "I custodi sono agenti che si svegliano secondo una pianificazione e lavorano verso un obiettivo. Escalation, blocchi, l'interruttore di emergenza, memoria, rapporti e messaggi li tengono sotto controllo."
+   },
+   "board": {
+    "title": "Il consiglio",
+    "body": "Le organizzazioni raggruppano i custodi sotto un CEO. La scheda Consiglio mostra lo stato di un'organizzazione, cosa richiede una decisione, la spesa e i freni, e ti permette di dare indicazioni al CEO e di parlarci."
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "Il consiglio",
+   "p1": "Il consiglio è la persona o il gruppo sopra l'unità radice di un'organizzazione. Questa pagina raccoglie in un unico posto ciò che gli serve: lo stato di ogni unità dal suo ultimo rapporto, le escalation aperte, i rapporti critici, le unità al limite di budget e le proposte in attesa di decisione con le loro prove di valutazione, in ombra e canary.",
+   "p2": "I freni bloccano un'unità o l'intera organizzazione, ripristinano l'organigramma o fermano ogni custode con l'interruttore di emergenza. Le indicazioni diventano una nuova revisione del custode del CEO, e Parla con il CEO apre una normale conversazione con la distribuzione del CEO."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "Consiglio: stato, punti da seguire, proposte, spesa, sintesi e freni di un'organizzazione in una sola pagina."
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "Il CEO di un'organizzazione ha presentato una sintesi per il consiglio."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "Apri il consiglio di questa organizzazione: stato, punti da seguire, proposte, spesa, freni e il CEO."
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "Nome del custode: lettere, cifre, punti, trattini e trattini bassi.",
+    "objective": "Ciò verso cui lavora il custode. Ogni ciclo lo legge.",
+    "create": "Crea il custode sulla distribuzione con harness fittizio dell'agente di esempio e passa all'esecuzione di prova.",
+    "skip": "Continua senza custode. Puoi aggiungerne uno nella pagina Custodi."
+   }
+  },
+  "board": {
+   "refresh": "Rileggi il consiglio. Si aggiorna anche quando l'organizzazione cambia.",
+   "openOrganization": "Apri la pagina dell'organizzazione per modificare unità, budget e revisioni.",
+   "openEscalation": "Apri l'escalation per rispondere.",
+   "openReport": "Apri il rapporto con le sue metriche, i problemi e le decisioni.",
+   "openKeeper": "Apri il custode del CEO con i suoi cicli e le sue revisioni.",
+   "picker": {
+    "select": "L'organizzazione di cui aprire il consiglio.",
+    "open": "Apri il consiglio di questa organizzazione.",
+    "organizations": "Apri la pagina delle organizzazioni per crearne una."
+   },
+   "chart": {
+    "title": "L'organigramma in vigore: ogni unità con il suo capo, i membri, lo stato dal suo ultimo rapporto e la spesa.",
+    "frozen": "Un blocco attivo copre questa unità o l'intera organizzazione.",
+    "overBudget": "Il sottoalbero dell'unità ha speso un intero budget nella finestra attuale.",
+    "columns": {
+     "unit": "L'unità nella revisione in vigore.",
+     "health": "Stato dall'ultimo rapporto presentato nell'unità. Sconosciuto se non ne ha.",
+     "escalations": "Escalation aperte dagli agenti dell'unità.",
+     "brakes": "Se un blocco copre l'unità e se supera un budget.",
+     "lastReport": "Quando è stato presentato l'ultimo rapporto. Apre il rapporto."
+    }
+   },
+   "attention": {
+    "title": "Ciò che attende il consiglio: escalation aperte, rapporti degradati o critici degli ultimi 7 giorni e unità al limite di budget."
+   },
+   "proposals": {
+    "title": "Modifiche proposte dalla direzione dell'organizzazione, non coperte da alcuna regola di modifica, in attesa di una persona.",
+    "toggle": "Mostra o nascondi le modifiche della proposta e la regola che copre ciascuna, lette dal server."
+   },
+   "evidence": {
+    "title": "Esecuzioni di valutazione, prove in ombra e rilasci canary degli agenti proposti dall'ultima modifica della proposta.",
+    "openEvalRun": "Apri l'esecuzione di valutazione con i risultati dei casi.",
+    "openShadowTrial": "Apri la prova in ombra con i suoi confronti.",
+    "openCanary": "Apri il rilascio canary con i suoi passi.",
+    "stale": "Questa esecuzione di valutazione è iniziata prima dell'ultima modifica della proposta, quindi potrebbe non testare le modifiche attuali."
+   },
+   "spend": {
+    "title": "La spesa di ogni unità nelle finestre attuali del giorno e del mese rispetto ai suoi budget."
+   },
+   "brief": {
+    "title": "L'ultima sintesi presentata dal CEO al consiglio, e ogni quanto il custode del CEO ne chiede una."
+   },
+   "brakes": {
+    "title": "Ferma il lavoro in fretta: blocca un'unità o l'organizzazione, ripristina l'organigramma o attiva l'interruttore di emergenza.",
+    "lift": "Rimuovi questo blocco. Il lavoro nel suo ambito può ripartire.",
+    "freezeOrg": "Blocca ogni agente e custode di questa organizzazione finché il blocco non viene rimosso. Chiede conferma.",
+    "orgFrozen": "L'organizzazione è già bloccata. Rimuovi prima quel blocco.",
+    "unit": "L'unità da bloccare, con tutto ciò che sta sotto di essa.",
+    "freezeUnit": "Blocca l'unità scelta e il suo sottoalbero. Chiede conferma.",
+    "rollback": "Torna alla revisione che era in vigore prima di quella attuale. Chiede conferma.",
+    "rollbackNone": "Non c'è una revisione precedente in vigore a cui tornare."
+   },
+   "direction": {
+    "title": "Dai indicazioni al CEO. Il testo viene pubblicato come nuova revisione del custode del CEO con origine Consiglio.",
+    "text": "Da 1 a 4000 caratteri. Il prossimo ciclo del CEO lo legge come istruzione del consiglio.",
+    "changeNote": "Facoltativa, al massimo 2000 caratteri. Salvata con la revisione.",
+    "submit": "Pubblica le indicazioni come nuova revisione del custode del CEO."
+   },
+   "ceoChat": {
+    "title": "Una conversazione con la distribuzione del CEO. Ogni messaggio è un'esecuzione che puoi aprire come qualsiasi altra.",
+    "conversation": "Continua una conversazione passata del consiglio o iniziane una nuova.",
+    "new": "Inizia una nuova conversazione con il CEO.",
+    "message": "Cosa dire al CEO. Invio invia; Maiusc+Invio aggiunge una riga.",
+    "send": "Invia il messaggio. La risposta compare qui sotto man mano che arriva."
+   }
+  }
+ }
+});

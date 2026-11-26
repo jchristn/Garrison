@@ -27,6 +27,12 @@ export default function useChatTranscript({ apiClient, tenantId, conversationId,
   const [pending, setPending] = useState(null);
   const [live, setLive] = useState({});
   const unmounted = useRef(false);
+  // The turn just started, so a read of the conversation that does not list it yet (a new conversation read as the
+  // first turn is sent) keeps showing it.
+  const pendingRef = useRef(null);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
   useEffect(() => {
     unmounted.current = false;
     return () => {
@@ -41,7 +47,12 @@ export default function useChatTranscript({ apiClient, tenantId, conversationId,
     }
     return apiClient
       .listConversationRuns(tenantId, conversationId)
-      .then((r) => !unmounted.current && setTurns(r.items || []))
+      .then((r) => {
+        if (unmounted.current) return;
+        const items = r.items || [];
+        const started = pendingRef.current;
+        setTurns(started && started.conversationId === conversationId && !items.some((x) => x.id === started.id) ? [...items, started] : items);
+      })
       .catch(() => !unmounted.current && setTurns([]));
   }, [apiClient, tenantId, conversationId]);
 
@@ -168,6 +179,7 @@ export default function useChatTranscript({ apiClient, tenantId, conversationId,
   const startTurn = useCallback((run, input) => {
     if (!run?.id) return;
     stick.current = true;
+    pendingRef.current = { ...run, inputText: run.inputText || input };
     setPending(run);
     setTurns((list) => [...list.filter((r) => r.id !== run.id), { ...run, inputText: run.inputText || input }]);
   }, []);

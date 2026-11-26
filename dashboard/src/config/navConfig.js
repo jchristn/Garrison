@@ -78,6 +78,8 @@ export const NAV_SECTIONS = [
           { id: 'messages', slug: 'messages' },
           { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true },
           { id: 'organizations', slug: 'organizations', detail: true },
+          // AA10.7: the board of one organization (/dashboard/board/<id>); the tab itself picks the organization.
+          { id: 'board', slug: 'board', detail: true },
           { id: 'changeRules', slug: 'change-rules' },
           { id: 'evaluations', slug: 'evaluations', detail: true },
           { id: 'evalRuns', slug: 'eval-runs', detail: true },

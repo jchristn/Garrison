@@ -22,6 +22,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import useCallerPermissions from '../hooks/useCallerPermissions';
+import useOrganizationChannel from '../hooks/useOrganizationChannel';
+import StudioLink from '../components/studio/StudioLink';
 import { ORGANIZATION_LIMITS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
@@ -40,51 +42,6 @@ function Detail({ label, tipText, children, testId }) {
       <div className="detail-item-value">{children ?? '-'}</div>
     </div>
   );
-}
-
-/**
- * Live updates for one organization over the WebSocket channel organization:{id} (AA7.12): org.changed when the
- * organization or its tree changes (deleted: true when it is gone), report.filed for reports its members file, and
- * spend.updated with the unit spend rows, and proposal.changed when an executive's proposal changes (AA8.10). Returns
- * whether the channel is subscribed.
- */
-function useOrganizationChannel(apiClient, organizationId, onEvent) {
-  const [live, setLive] = useState(false);
-  const handler = useRef(onEvent);
-  useEffect(() => {
-    handler.current = onEvent;
-  }, [onEvent]);
-  useEffect(() => {
-    if (!apiClient || !organizationId || typeof WebSocket === 'undefined' || typeof apiClient.webSocketUrl !== 'function') return undefined;
-    const channel = `organization:${organizationId}`;
-    let ws;
-    try {
-      ws = new WebSocket(apiClient.webSocketUrl());
-      ws.onopen = () => {
-        try {
-          ws.send(JSON.stringify({ type: 'subscribe', channel }));
-        } catch {
-          /* ignore */
-        }
-      };
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          if (message?.type === 'subscribed' && message.channel === channel) setLive(true);
-          else if (message?.type === 'error' && message.channel === channel) setLive(false);
-          else if (message?.type === 'org.changed' || message?.type === 'report.filed' || message?.type === 'spend.updated' || message?.type === 'proposal.changed') handler.current?.(message);
-        } catch {
-          /* not JSON */
-        }
-      };
-      ws.onclose = () => setLive(false);
-      ws.onerror = () => setLive(false);
-    } catch {
-      setLive(false);
-    }
-    return () => ws?.close();
-  }, [apiClient, organizationId]);
-  return live;
 }
 
 /**
@@ -444,6 +401,9 @@ export default function OrganizationDetailView({ recordId }) {
         }
         actions={
           <>
+            <StudioLink to={pathFor('board', org.id)} className="button button-secondary" testId="org-open-board" tipText={t('tips.views.organizationDetail.openBoard')}>
+              {t('views.organizationDetail.openBoard')}
+            </StudioLink>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.organizationDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

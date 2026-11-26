@@ -7955,3 +7955,295 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "委員會",
+    "tip": "一眼睇晒一個組織：健康狀況、要處理嘅事、提案、支出、煞掣同 CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "提交咗委員會簡報"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "呢個組織冇 CEO：根單位要有一個喺生效修訂入面有守護者嘅負責人。",
+  "BoardCeoUnavailable": "CEO 嘅守護者冇部署，所以冇嘢可以傾。請先幫個守護者設定部署。"
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "委員會"
+  }
+ },
+ "board": {
+  "title": "委員會",
+  "subtitle": "監督一個由守護者組成嘅組織：有咩要決定、要使幾多錢，同埋煞掣。",
+  "heading": "{{name}} 嘅委員會",
+  "generated": "更新時間",
+  "refresh": "重新整理",
+  "openOrganization": "開啟組織",
+  "killSwitchOn": "緊急停止掣開咗：未關之前，呢個租戶入面冇守護者會醒。",
+  "notFoundTitle": "用唔到委員會",
+  "notFoundBody": "個組織唔存在，或者你冇權限讀取。",
+  "picker": {
+   "title": "揀一個組織",
+   "select": "組織",
+   "choose": "揀一個組織",
+   "open": "開啟委員會",
+   "emptyTitle": "仲未有組織",
+   "emptyBody": "請先建立一個由守護者組成嘅組織，佢嘅委員會會喺呢度出現。",
+   "organizations": "去組織"
+  },
+  "chart": {
+   "title": "組織圖同健康狀況",
+   "empty": "呢個組織仲未有單位。請喺組織頁面加單位，再發佈修訂。",
+   "health": "單位健康狀況",
+   "frozen": "已凍結",
+   "overBudget": "超出預算",
+   "columns": {
+    "unit": "單位",
+    "health": "健康狀況",
+    "escalations": "未處理嘅上報",
+    "brakes": "煞掣",
+    "lastReport": "最近嘅報告"
+   }
+  },
+  "attention": {
+   "title": "要處理",
+   "empty": "而家冇嘢要委員會處理。",
+   "none": "冇。",
+   "escalations_one": "{{count}} 個未處理嘅上報",
+   "escalations_other": "{{count}} 個未處理嘅上報",
+   "reports_one": "{{count}} 份異常報告",
+   "reports_other": "{{count}} 份異常報告",
+   "caps_one": "{{count}} 個單位到咗預算上限",
+   "caps_other": "{{count}} 個單位到咗預算上限",
+   "raisedBy": "提出者：{{name}}",
+   "filedBy": "提交者：{{name}}"
+  },
+  "proposals": {
+   "title": "提案",
+   "empty": "冇提案等緊決定。",
+   "by": "{{unit}} 入面嘅 {{agent}}",
+   "showChanges": "顯示改動",
+   "hideChanges": "隱藏改動"
+  },
+  "evidence": {
+   "title": "佐證",
+   "empty": "暫時仲未有評估執行、影子試驗或者金絲雀發佈支持呢個提案。",
+   "since": "由提案喺 {{when}} 最後改動之後計。",
+   "evalRuns": "評估執行",
+   "shadowTrials": "影子試驗",
+   "canaryReleases": "金絲雀發佈",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "分數 {{score}}，門檻 {{threshold}}，完成咗 {{done}}/{{total}} 個案例",
+   "stale": "喺最後改動之前",
+   "shadow": "影子試驗 {{name}}",
+   "shadowCounts": "{{compared}} 次比較入面 {{agreed}} 次一致，{{diverged}} 次唔一致，候選失敗 {{failures}} 次",
+   "canary": "{{name}} 嘅金絲雀發佈",
+   "canaryStep": "第 {{step}} 個階段，總共 {{total}} 個",
+   "rollback": "回復咗：{{reason}}"
+  },
+  "spend": {
+   "title": "支出對比預算",
+   "empty": "目前嘅時間區間入面，冇單位設咗預算或者有支出。"
+  },
+  "brief": {
+   "title": "最新簡報",
+   "ceo": "CEO：{{name}}，{{unit}} 嘅負責人。",
+   "cadence_one": "每個鐘交一次簡報。",
+   "cadence_other": "每 {{count}} 個鐘交一次簡報。",
+   "noCadence": "CEO 嘅守護者冇設定簡報頻率。",
+   "empty": "CEO 仲未交過簡報。"
+  },
+  "ceo": {
+   "missing": "根單位冇負責人，所以呢個組織冇 CEO。",
+   "noMandate": "CEO 喺生效修訂入面冇守護者。",
+   "noDeployment": "CEO 嘅守護者冇部署可以傾。"
+  },
+  "brakes": {
+   "title": "煞掣",
+   "active_one": "{{count}} 個生效中嘅凍結",
+   "active_other": "{{count}} 個生效中嘅凍結",
+   "none": "冇嘢凍結咗。",
+   "frozenBy": "凍結者：{{name}}",
+   "lift": "解除",
+   "freezeOrg": "凍結組織",
+   "unit": "單位",
+   "pickUnit": "揀一個單位",
+   "freezeUnit": "凍結單位",
+   "rollback": "還原組織圖",
+   "rollbackTitle": "還原組織圖",
+   "rollbackMessage": "要將組織返去修訂 {{number}} 之前生效嘅修訂嗎？指揮鏈、預算同訊息線路會即刻跟住改。",
+   "rollbackNote": "由委員會還原",
+   "rolledBack": "還原咗。修訂 {{number}} 已經生效。"
+  },
+  "direction": {
+   "title": "俾 CEO 嘅指示",
+   "note": "呢段文字會變成 CEO 守護者嘅一個新發佈修訂，佢下一次巡檢會當佢係委員會嘅指示嚟讀。",
+   "text": "指示",
+   "placeholder": "例如：審計完之前，超過 500 蚊嘅退款交俾真人處理。",
+   "count": "{{count}}/{{max}} 個字元",
+   "changeNote": "改動說明",
+   "changeNotePlaceholder": "委員會點解俾呢個指示（可以留空）",
+   "submit": "送出指示",
+   "given": "指示已經發佈做 {{name}} 嘅修訂 {{number}}。",
+   "errors": {
+    "required": "請寫低俾 CEO 嘅指示。",
+    "tooLong": "最多 {{max}} 個字元。"
+   }
+  },
+  "ceoChat": {
+   "title": "同 CEO 傾",
+   "note": "訊息會以委員會嘅名義，同 CEO 嘅部署開始一段對話。",
+   "talkingTo": "你而家以委員會身分同 {{name}} 傾緊。",
+   "conversation": "對話",
+   "newConversation": "新對話",
+   "new": "新增",
+   "transcript": "同 CEO 嘅對話",
+   "empty": "仲未有訊息。問下 CEO 個組織搞成點。",
+   "message": "訊息",
+   "tooLong": "最多 {{max}} 個字元。"
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "第一個守護者"
+  },
+  "welcomeItemKeeper": "建立你第一個守護者：一個按排程醒嚟、朝住目標做嘢嘅代理程式。",
+  "keeper": {
+   "body": "守護者會俾範例代理程式一個目標，再按排程叫醒佢；冇嘢變嘅時候會慢慢拉長間隔。佢用模擬 Harness，所以唔使錢。你可以喺守護者頁面暫停或者刪除佢。",
+   "objectiveDefault": "間中檢查一下，報告一切風平浪靜。",
+   "description": "由設定精靈建立。",
+   "create": "建立守護者",
+   "created": "建立咗守護者 {{name}}，佢會按排程醒。",
+   "ready": "守護者 {{name}} 準備好喇。繼續去測試執行。"
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "自主運作",
+    "body": "守護者係按排程醒嚟、朝住目標做嘢嘅代理程式。上報、凍結、緊急停止掣、記憶、報告同訊息令佢哋受控。"
+   },
+   "board": {
+    "title": "委員會",
+    "body": "組織將守護者放喺一個 CEO 之下。委員會分頁顯示一個組織嘅健康狀況、有咩要決定、支出同煞掣，仲可以俾指示 CEO 同埋同佢傾。"
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "委員會",
+   "p1": "委員會係喺組織根單位之上嘅個人或者團體。呢個頁面將佢哋需要嘅資料集中喺一齊：根據最新報告得出嘅每個單位健康狀況、未處理嘅上報、異常報告、到咗預算上限嘅單位，同埋附有評估、影子同金絲雀佐證、等緊決定嘅提案。",
+   "p2": "煞掣可以凍結一個單位或者成個組織、還原組織圖，或者用緊急停止掣停晒所有守護者。指示會變成 CEO 守護者嘅新修訂，而「同 CEO 傾」會同 CEO 嘅部署開一段普通對話。"
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "委員會：喺一個頁面睇晒一個組織嘅健康狀況、要處理嘅事、提案、支出、簡報同煞掣。"
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "某個組織嘅 CEO 交咗一份簡報俾委員會。"
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "開啟呢個組織嘅委員會：健康狀況、要處理嘅事、提案、支出、煞掣同 CEO。"
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "守護者名稱：可以用字母、數字、點、連字號同底線。",
+    "objective": "守護者要達成嘅目標，每次巡檢都會讀。",
+    "create": "喺範例代理程式嘅模擬 Harness 部署上面建立守護者，然後去測試執行。",
+    "skip": "唔建立守護者，直接繼續。你之後可以喺守護者頁面加。"
+   }
+  },
+  "board": {
+   "refresh": "重新讀取委員會。組織有改動嘅時候都會重新整理。",
+   "openOrganization": "開啟組織頁面，修改單位、預算同修訂。",
+   "openEscalation": "開啟上報去回覆。",
+   "openReport": "開啟報告，睇佢嘅指標、問題同決定。",
+   "openKeeper": "開啟 CEO 嘅守護者，睇佢嘅巡檢同修訂。",
+   "picker": {
+    "select": "要開啟邊個組織嘅委員會。",
+    "open": "開啟呢個組織嘅委員會。",
+    "organizations": "開啟組織頁面去建立一個。"
+   },
+   "chart": {
+    "title": "生效中嘅組織圖：每個單位同佢嘅負責人、成員、根據最新報告得出嘅健康狀況同支出。",
+    "frozen": "有生效中嘅凍結覆蓋呢個單位或者成個組織。",
+    "overBudget": "呢個單位同佢嘅下層單位喺目前時間區間入面用晒一整份預算。",
+    "columns": {
+     "unit": "生效修訂入面嘅單位。",
+     "health": "根據單位入面最新提交嘅報告得出嘅健康狀況。冇報告就係未知。",
+     "escalations": "呢個單位嘅代理程式提出、未處理嘅上報。",
+     "brakes": "有冇凍結覆蓋呢個單位，同埋佢有冇超出預算。",
+     "lastReport": "最新報告幾時提交。撳落去開啟份報告。"
+    }
+   },
+   "attention": {
+    "title": "等緊委員會處理嘅嘢：未處理嘅上報、過去 7 日轉差或者異常嘅報告，同埋到咗預算上限嘅單位。"
+   },
+   "proposals": {
+    "title": "組織主管提出、冇變更規則覆蓋、等緊真人決定嘅改動。",
+    "toggle": "顯示或者隱藏提案嘅改動同覆蓋每項改動嘅規則，內容由伺服器讀取。"
+   },
+   "evidence": {
+    "title": "由提案最後改動之後，提案入面代理程式嘅評估執行、影子試驗同金絲雀發佈。",
+    "openEvalRun": "開啟評估執行，睇佢嘅案例結果。",
+    "openShadowTrial": "開啟影子試驗，睇佢嘅比較結果。",
+    "openCanary": "開啟金絲雀發佈，睇佢嘅階段。",
+    "stale": "呢次評估執行喺提案最後改動之前已經開始，所以可能冇測試到而家嘅改動。"
+   },
+   "spend": {
+    "title": "每個單位喺今日同今個月時間區間入面嘅支出，對比佢嘅預算。"
+   },
+   "brief": {
+    "title": "CEO 交俾委員會嘅最新簡報，同埋 CEO 嘅守護者幾耐要一次簡報。"
+   },
+   "brakes": {
+    "title": "快速停工：凍結一個單位或者成個組織、還原組織圖，或者開緊急停止掣。",
+    "lift": "解除呢個凍結。佢範圍入面嘅工作可能會重新開始。",
+    "freezeOrg": "凍結呢個組織嘅所有代理程式同守護者，直到解除凍結為止。會要求確認。",
+    "orgFrozen": "呢個組織已經凍結咗。請先解除嗰個凍結。",
+    "unit": "要凍結嘅單位，連埋佢下面所有嘢。",
+    "freezeUnit": "凍結揀咗嘅單位同佢嘅下層單位。會要求確認。",
+    "rollback": "返去目前修訂之前生效嘅修訂。會要求確認。",
+    "rollbackNone": "冇更早嘅生效修訂可以返去。"
+   },
+   "direction": {
+    "title": "俾指示 CEO。文字會發佈做 CEO 守護者嘅新修訂，來源係委員會。",
+    "text": "1 至 4000 個字元。CEO 下一次巡檢會當佢係委員會嘅指示嚟讀。",
+    "changeNote": "可以留空，最多 2000 個字元，會同修訂一齊儲存。",
+    "submit": "將指示發佈做 CEO 守護者嘅新修訂。"
+   },
+   "ceoChat": {
+    "title": "同 CEO 部署嘅對話。每個訊息都係一次執行，可以好似其他執行咁開啟。",
+    "conversation": "繼續以前嘅委員會對話，或者開始新對話。",
+    "new": "同 CEO 開始新對話。",
+    "message": "想同 CEO 講嘅嘢。撳 Enter 傳送，撳 Shift+Enter 換行。",
+    "send": "傳送訊息。回覆會喺下面串流顯示。"
+   }
+  }
+ }
+});

@@ -11,6 +11,9 @@ const STEPS = [
   { id: 'topbar', selector: '[data-tour="topbar"]' },
   { id: 'kpis', selector: '[data-tour="kpis"]' },
   { id: 'invoke', selector: '[data-nav="invoke"]' },
+  // AA10.8: keepers and their brakes, then the board that oversees an organization of them.
+  { id: 'autonomy', selector: '[data-nav="autonomy"]' },
+  { id: 'board', selector: '[data-nav="autonomy"]' },
   { id: 'configure', selector: '[data-nav="configuration"]' },
   { id: 'observe', selector: '[data-nav="monitoring"]' }
 ];

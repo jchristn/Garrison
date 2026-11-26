@@ -7956,3 +7956,295 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "委员会",
+    "tip": "一览单个组织：健康状况、待处理事项、提案、支出、制动措施和 CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "已提交委员会简报"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "此组织没有 CEO：根单元需要一名在已上线修订版中拥有守护者的负责人。",
+  "BoardCeoUnavailable": "CEO 的守护者没有部署，因此无法对话。请先为该守护者设置部署。"
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "委员会"
+  }
+ },
+ "board": {
+  "title": "委员会",
+  "subtitle": "监督由守护者组成的组织：需要决定的事项、它们的成本，以及制动措施。",
+  "heading": "{{name}} 的委员会",
+  "generated": "更新时间",
+  "refresh": "刷新",
+  "openOrganization": "打开组织",
+  "killSwitchOn": "紧急停止开关已打开：在关闭之前，此租户中的守护者都不会唤醒。",
+  "notFoundTitle": "委员会不可用",
+  "notFoundBody": "该组织不存在，或者您无权读取它。",
+  "picker": {
+   "title": "选择组织",
+   "select": "组织",
+   "choose": "请选择一个组织",
+   "open": "打开委员会",
+   "emptyTitle": "还没有组织",
+   "emptyBody": "请先创建一个由守护者组成的组织，它的委员会会显示在这里。",
+   "organizations": "前往组织"
+  },
+  "chart": {
+   "title": "架构图与健康状况",
+   "empty": "该组织还没有单元。请在组织页面添加单元并发布修订版。",
+   "health": "单元健康状况",
+   "frozen": "已冻结",
+   "overBudget": "超出预算",
+   "columns": {
+    "unit": "单元",
+    "health": "健康状况",
+    "escalations": "未处理的上报",
+    "brakes": "制动",
+    "lastReport": "最近报告"
+   }
+  },
+  "attention": {
+   "title": "待处理",
+   "empty": "目前没有需要委员会处理的事项。",
+   "none": "无。",
+   "escalations_one": "{{count}} 个未处理的上报",
+   "escalations_other": "{{count}} 个未处理的上报",
+   "reports_one": "{{count}} 份异常报告",
+   "reports_other": "{{count}} 份异常报告",
+   "caps_one": "{{count}} 个单元已达预算上限",
+   "caps_other": "{{count}} 个单元已达预算上限",
+   "raisedBy": "提出者：{{name}}",
+   "filedBy": "提交者：{{name}}"
+  },
+  "proposals": {
+   "title": "提案",
+   "empty": "没有等待决定的提案。",
+   "by": "{{unit}} 中的 {{agent}}",
+   "showChanges": "显示变更",
+   "hideChanges": "隐藏变更"
+  },
+  "evidence": {
+   "title": "依据",
+   "empty": "目前还没有评估运行、影子试验或金丝雀发布支持此提案。",
+   "since": "自提案于 {{when}} 最后一次变更以来。",
+   "evalRuns": "评估运行",
+   "shadowTrials": "影子试验",
+   "canaryReleases": "金丝雀发布",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "得分 {{score}}，阈值 {{threshold}}，已完成 {{done}}/{{total}} 个用例",
+   "stale": "早于最后一次变更",
+   "shadow": "影子试验 {{name}}",
+   "shadowCounts": "{{compared}} 次比较中 {{agreed}} 次一致，{{diverged}} 次不一致，候选失败 {{failures}} 次",
+   "canary": "{{name}} 的金丝雀发布",
+   "canaryStep": "第 {{step}} 步，共 {{total}} 步",
+   "rollback": "已回滚：{{reason}}"
+  },
+  "spend": {
+   "title": "支出与预算",
+   "empty": "当前时间窗口内没有单元设有预算或产生支出。"
+  },
+  "brief": {
+   "title": "最新简报",
+   "ceo": "CEO：{{name}}，{{unit}} 的负责人。",
+   "cadence_one": "每小时提交一次简报。",
+   "cadence_other": "每 {{count}} 小时提交一次简报。",
+   "noCadence": "CEO 的守护者没有设置简报频率。",
+   "empty": "CEO 还没有提交简报。"
+  },
+  "ceo": {
+   "missing": "根单元没有负责人，因此该组织没有 CEO。",
+   "noMandate": "CEO 在已上线修订版中没有守护者。",
+   "noDeployment": "CEO 的守护者没有可对话的部署。"
+  },
+  "brakes": {
+   "title": "制动",
+   "active_one": "{{count}} 个生效的冻结",
+   "active_other": "{{count}} 个生效的冻结",
+   "none": "没有任何冻结。",
+   "frozenBy": "冻结者：{{name}}",
+   "lift": "解除",
+   "freezeOrg": "冻结组织",
+   "unit": "单元",
+   "pickUnit": "请选择一个单元",
+   "freezeUnit": "冻结单元",
+   "rollback": "回滚架构图",
+   "rollbackTitle": "回滚架构图",
+   "rollbackMessage": "将组织恢复到修订版 {{number}} 之前已上线的修订版？指挥链、预算和消息线路会立即随之变更。",
+   "rollbackNote": "从委员会回滚",
+   "rolledBack": "已回滚。修订版 {{number}} 已上线。"
+  },
+  "direction": {
+   "title": "给 CEO 的指示",
+   "note": "这段文本会成为 CEO 守护者的一个新发布修订版，其下一次巡检会把它当作委员会的指示读取。",
+   "text": "指示",
+   "placeholder": "例如：在审计结束前，超过 500 美元的退款交由人员处理。",
+   "count": "{{count}}/{{max}} 个字符",
+   "changeNote": "变更说明",
+   "changeNotePlaceholder": "委员会给出此指示的原因（可选）",
+   "submit": "发送指示",
+   "given": "指示已作为 {{name}} 的修订版 {{number}} 发布。",
+   "errors": {
+    "required": "请填写给 CEO 的指示。",
+    "tooLong": "最多 {{max}} 个字符。"
+   }
+  },
+  "ceoChat": {
+   "title": "与 CEO 对话",
+   "note": "消息会以委员会的名义开启与 CEO 部署的对话。",
+   "talkingTo": "您正以委员会身份与 {{name}} 对话。",
+   "conversation": "对话",
+   "newConversation": "新对话",
+   "new": "新建",
+   "transcript": "与 CEO 的对话",
+   "empty": "还没有消息。问问 CEO 组织运行得怎么样。",
+   "message": "消息",
+   "tooLong": "最多 {{max}} 个字符。"
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "第一个守护者"
+  },
+  "welcomeItemKeeper": "创建您的第一个守护者：一个按计划唤醒并朝目标工作的智能体。",
+  "keeper": {
+   "body": "守护者为示例智能体设定目标，并按计划唤醒它；在没有变化时会逐渐拉长间隔。它使用模拟 Harness，因此不产生费用。您可以在守护者页面暂停或删除它。",
+   "objectiveDefault": "时不时检查一下，并报告一切平静。",
+   "description": "由设置向导创建。",
+   "create": "创建守护者",
+   "created": "已创建守护者 {{name}}，它会按计划唤醒。",
+   "ready": "守护者 {{name}} 已就绪。请继续进行测试运行。"
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "自主运行",
+    "body": "守护者是按计划唤醒并朝目标工作的智能体。上报、冻结、紧急停止开关、记忆、报告和消息让它们处于掌控之中。"
+   },
+   "board": {
+    "title": "委员会",
+    "body": "组织将守护者归于一名 CEO 之下。委员会标签页显示单个组织的健康状况、需要决定的事项、支出和制动措施，并让您向 CEO 下达指示或与其对话。"
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "委员会",
+   "p1": "委员会是位于组织根单元之上的个人或团体。此页面把他们需要的信息集中在一处：根据最新报告得出的各单元健康状况、未处理的上报、异常报告、已达预算上限的单元，以及附带评估、影子和金丝雀依据、等待决定的提案。",
+   "p2": "制动措施可以冻结某个单元或整个组织、回滚架构图，或用紧急停止开关停止所有守护者。指示会成为 CEO 守护者的新修订版，而“与 CEO 对话”会与 CEO 的部署开启一次普通对话。"
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "委员会：在一个页面中查看单个组织的健康状况、待处理事项、提案、支出、简报和制动措施。"
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "某个组织的 CEO 为委员会提交了一份简报。"
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "打开此组织的委员会：健康状况、待处理事项、提案、支出、制动措施和 CEO。"
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "守护者名称：可使用字母、数字、点、短横线和下划线。",
+    "objective": "守护者要达成的目标，每次巡检都会读取。",
+    "create": "在示例智能体的模拟 Harness 部署上创建守护者，然后进入测试运行。",
+    "skip": "不创建守护者，直接继续。您可以稍后在守护者页面添加。"
+   }
+  },
+  "board": {
+   "refresh": "重新读取委员会。组织发生变化时也会刷新。",
+   "openOrganization": "打开组织页面，编辑单元、预算和修订版。",
+   "openEscalation": "打开上报以作出答复。",
+   "openReport": "打开报告，查看其指标、问题和决定。",
+   "openKeeper": "打开 CEO 的守护者，查看其巡检和修订版。",
+   "picker": {
+    "select": "要打开其委员会的组织。",
+    "open": "打开此组织的委员会。",
+    "organizations": "打开组织页面以创建组织。"
+   },
+   "chart": {
+    "title": "已上线的架构图：每个单元及其负责人、成员、根据最新报告得出的健康状况和支出。",
+    "frozen": "有生效的冻结覆盖此单元或整个组织。",
+    "overBudget": "此单元的子树在当前时间窗口内已用完一整份预算。",
+    "columns": {
+     "unit": "已上线修订版中的单元。",
+     "health": "根据单元中最新提交的报告得出的健康状况。没有报告时为未知。",
+     "escalations": "该单元的智能体提出的未处理上报。",
+     "brakes": "是否有冻结覆盖该单元，以及它是否超出预算。",
+     "lastReport": "最新报告的提交时间。点击打开该报告。"
+    }
+   },
+   "attention": {
+    "title": "等待委员会处理的事项：未处理的上报、最近 7 天内降级或异常的报告，以及已达预算上限的单元。"
+   },
+   "proposals": {
+    "title": "组织主管提出、没有任何变更规则覆盖、正在等待人员决定的变更。",
+    "toggle": "显示或隐藏提案的变更以及覆盖每项变更的规则，内容从服务器读取。"
+   },
+   "evidence": {
+    "title": "自提案最后一次变更以来，所提议智能体的评估运行、影子试验和金丝雀发布。",
+    "openEvalRun": "打开评估运行，查看其用例结果。",
+    "openShadowTrial": "打开影子试验，查看其比较结果。",
+    "openCanary": "打开金丝雀发布，查看其步骤。",
+    "stale": "此评估运行在提案最后一次变更之前就已开始，因此可能没有测试当前的变更。"
+   },
+   "spend": {
+    "title": "每个单元在当日和当月时间窗口内的支出与其预算的对比。"
+   },
+   "brief": {
+    "title": "CEO 为委员会提交的最新简报，以及 CEO 的守护者要求提交简报的频率。"
+   },
+   "brakes": {
+    "title": "快速停止工作：冻结某个单元或整个组织、回滚架构图，或打开紧急停止开关。",
+    "lift": "解除此冻结。其范围内的工作可能会重新开始。",
+    "freezeOrg": "冻结此组织的所有智能体和守护者，直到解除冻结。会要求确认。",
+    "orgFrozen": "该组织已被冻结。请先解除那个冻结。",
+    "unit": "要冻结的单元，包括其下的所有内容。",
+    "freezeUnit": "冻结所选单元及其子树。会要求确认。",
+    "rollback": "恢复到当前修订版之前已上线的修订版。会要求确认。",
+    "rollbackNone": "没有更早的已上线修订版可以恢复。"
+   },
+   "direction": {
+    "title": "向 CEO 下达指示。文本会作为 CEO 守护者的新修订版发布，来源为委员会。",
+    "text": "1 到 4000 个字符。CEO 的下一次巡检会把它当作委员会的指示读取。",
+    "changeNote": "可选，最多 2000 个字符，与修订版一起保存。",
+    "submit": "将指示作为 CEO 守护者的新修订版发布。"
+   },
+   "ceoChat": {
+    "title": "与 CEO 部署的对话。每条消息都是一次运行，可以像其他运行一样打开。",
+    "conversation": "继续过去的委员会对话，或开始新的对话。",
+    "new": "与 CEO 开始新的对话。",
+    "message": "要对 CEO 说的话。按 Enter 发送，按 Shift+Enter 换行。",
+    "send": "发送消息。回复会在下方以流式方式显示。"
+   }
+  }
+ }
+});

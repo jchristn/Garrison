@@ -7955,3 +7955,295 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+// The board (AA10.4, AA10.6, AA10.7, AA10.8): the Board page under Autonomy with its chart, attention, proposals with
+// evidence, spend, brief, brakes, direction, and conversation with the CEO; the Autonomy tour stops; the setup wizard's
+// first keeper step; the BoardBrief event; and the board error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "board": {
+    "label": "ボード",
+    "tip": "1 つの組織をひと目で: 健全性、要対応事項、提案、支出、ブレーキ、CEO"
+   }
+  }
+ },
+ "enums": {
+  "notificationEvent": {
+   "BoardBrief": "ボードへの概要が提出された"
+  }
+ },
+ "errorCodes": {
+  "BoardCeoMissing": "この組織には CEO がいません。ルートの組織単位に、公開中のリビジョンでキーパーを持つ責任者が必要です。",
+  "BoardCeoUnavailable": "CEO のキーパーにデプロイメントがないため、話しかける相手がいません。先にキーパーにデプロイメントを設定してください。"
+ },
+ "views": {
+  "organizationDetail": {
+   "openBoard": "ボード"
+  }
+ },
+ "board": {
+  "title": "ボード",
+  "subtitle": "キーパーの組織を監督します。決定が必要なこと、そのコスト、そしてブレーキ。",
+  "heading": "{{name}} のボード",
+  "generated": "更新日時",
+  "refresh": "再読み込み",
+  "openOrganization": "組織を開く",
+  "killSwitchOn": "緊急停止スイッチがオンです。オフにするまで、このテナントのキーパーは起動しません。",
+  "notFoundTitle": "ボードを表示できません",
+  "notFoundBody": "組織が存在しないか、閲覧する権限がありません。",
+  "picker": {
+   "title": "組織を選択",
+   "select": "組織",
+   "choose": "組織を選んでください",
+   "open": "ボードを開く",
+   "emptyTitle": "組織はまだありません",
+   "emptyBody": "まずキーパーの組織を作成してください。そのボードがここに表示されます。",
+   "organizations": "組織へ移動"
+  },
+  "chart": {
+   "title": "組織図と健全性",
+   "empty": "この組織にはまだ組織単位がありません。組織のページで組織単位を追加し、リビジョンを公開してください。",
+   "health": "組織単位の健全性",
+   "frozen": "凍結中",
+   "overBudget": "予算超過",
+   "columns": {
+    "unit": "組織単位",
+    "health": "健全性",
+    "escalations": "未解決のエスカレーション",
+    "brakes": "ブレーキ",
+    "lastReport": "最新のレポート"
+   }
+  },
+  "attention": {
+   "title": "要対応",
+   "empty": "今ボードが対応すべきことはありません。",
+   "none": "なし。",
+   "escalations_one": "未解決のエスカレーション {{count}} 件",
+   "escalations_other": "未解決のエスカレーション {{count}} 件",
+   "reports_one": "異常のレポート {{count}} 件",
+   "reports_other": "異常のレポート {{count}} 件",
+   "caps_one": "予算上限に達した組織単位 {{count}} 個",
+   "caps_other": "予算上限に達した組織単位 {{count}} 個",
+   "raisedBy": "作成者: {{name}}",
+   "filedBy": "提出者: {{name}}"
+  },
+  "proposals": {
+   "title": "提案",
+   "empty": "決定を待っている提案はありません。",
+   "by": "{{unit}} の {{agent}}",
+   "showChanges": "変更を表示",
+   "hideChanges": "変更を隠す"
+  },
+  "evidence": {
+   "title": "根拠",
+   "empty": "この提案を裏付ける評価実行、シャドートライアル、カナリアリリースはまだありません。",
+   "since": "提案が最後に変更された {{when}} 以降。",
+   "evalRuns": "評価実行",
+   "shadowTrials": "シャドートライアル",
+   "canaryReleases": "カナリアリリース",
+   "evalSet": "{{name}} v{{version}}",
+   "evalScore": "スコア {{score}} (しきい値 {{threshold}})、{{total}} ケース中 {{done}} 件",
+   "stale": "最後の変更より前",
+   "shadow": "シャドートライアル {{name}}",
+   "shadowCounts": "{{compared}} 件中 {{agreed}} 件一致、{{diverged}} 件相違、候補の失敗 {{failures}} 件",
+   "canary": "{{name}} のカナリア",
+   "canaryStep": "ステップ {{step}} / {{total}}",
+   "rollback": "ロールバック済み: {{reason}}"
+  },
+  "spend": {
+   "title": "予算に対する支出",
+   "empty": "現在の期間に予算または支出のある組織単位はありません。"
+  },
+  "brief": {
+   "title": "最新の概要",
+   "ceo": "CEO: {{name}} ({{unit}} の責任者)。",
+   "cadence_one": "概要は 1 時間ごとです。",
+   "cadence_other": "概要は {{count}} 時間ごとです。",
+   "noCadence": "CEO のキーパーに概要の間隔が設定されていません。",
+   "empty": "CEO はまだ概要を提出していません。"
+  },
+  "ceo": {
+   "missing": "ルートの組織単位に責任者がいないため、この組織には CEO がいません。",
+   "noMandate": "CEO は公開中のリビジョンでキーパーを持っていません。",
+   "noDeployment": "CEO のキーパーには話しかけられるデプロイメントがありません。"
+  },
+  "brakes": {
+   "title": "ブレーキ",
+   "active_one": "有効な凍結 {{count}} 件",
+   "active_other": "有効な凍結 {{count}} 件",
+   "none": "凍結されているものはありません。",
+   "frozenBy": "凍結した人: {{name}}",
+   "lift": "解除",
+   "freezeOrg": "組織を凍結",
+   "unit": "組織単位",
+   "pickUnit": "組織単位を選んでください",
+   "freezeUnit": "組織単位を凍結",
+   "rollback": "組織図をロールバック",
+   "rollbackTitle": "組織図のロールバック",
+   "rollbackMessage": "組織を、リビジョン {{number}} の前に公開されていたリビジョンに戻しますか? 指揮系統、予算、メッセージの経路もすぐにそれに従います。",
+   "rollbackNote": "ボードからロールバック",
+   "rolledBack": "ロールバックしました。リビジョン {{number}} が公開中です。"
+  },
+  "direction": {
+   "title": "CEO への指示",
+   "note": "このテキストは CEO のキーパーの新しい公開リビジョンになり、次のティックでボードからの指示として読まれます。",
+   "text": "指示",
+   "placeholder": "例: 監査が終わるまで、500 ドルを超える返金は人の判断に回してください。",
+   "count": "{{count}} / {{max}} 文字",
+   "changeNote": "変更メモ",
+   "changeNotePlaceholder": "ボードがこの指示を出した理由 (任意)",
+   "submit": "指示を送信",
+   "given": "指示を {{name}} のリビジョン {{number}} として公開しました。",
+   "errors": {
+    "required": "CEO への指示を入力してください。",
+    "tooLong": "{{max}} 文字以内にしてください。"
+   }
+  },
+  "ceoChat": {
+   "title": "CEO と話す",
+   "note": "メッセージはボードからのものとして、CEO のデプロイメントとの会話を始めます。",
+   "talkingTo": "ボードとして {{name}} と話しています。",
+   "conversation": "会話",
+   "newConversation": "新しい会話",
+   "new": "新規",
+   "transcript": "CEO との会話",
+   "empty": "まだメッセージはありません。組織の状況を CEO に聞いてみましょう。",
+   "message": "メッセージ",
+   "tooLong": "{{max}} 文字以内にしてください。"
+  }
+ },
+ "wizard": {
+  "steps": {
+   "keeper": "最初のキーパー"
+  },
+  "welcomeItemKeeper": "最初のキーパーを作成します。スケジュールに従って起動し、目的に向けて働くエージェントです。",
+  "keeper": {
+   "body": "キーパーはサンプルエージェントに目的を与え、スケジュールに従って起動します。何も変化がない間は間隔を広げます。擬似ハーネスを使うので費用はかかりません。キーパーのページで一時停止や削除ができます。",
+   "objectiveDefault": "ときどき状況を確認し、すべて平穏であることを報告してください。",
+   "description": "セットアップウィザードが作成しました。",
+   "create": "キーパーを作成",
+   "created": "キーパー {{name}} を作成しました。スケジュールに従って起動します。",
+   "ready": "キーパー {{name}} の準備ができました。テスト実行に進んでください。"
+  }
+ },
+ "tour": {
+  "steps": {
+   "autonomy": {
+    "title": "自律運用",
+    "body": "キーパーは、スケジュールに従って起動し、目的に向けて働くエージェントです。エスカレーション、凍結、緊急停止スイッチ、メモリ、レポート、メッセージでその動きを管理します。"
+   },
+   "board": {
+    "title": "ボード",
+    "body": "組織はキーパーを CEO の下にまとめます。ボードのタブでは、1 つの組織の健全性、決定が必要なこと、支出、ブレーキを確認でき、CEO に指示を出したり話しかけたりできます。"
+   }
+  }
+ },
+ "explainers": {
+  "board": {
+   "title": "ボード",
+   "p1": "ボードは、組織のルートの組織単位の上に立つ人またはグループです。このページには、ボードに必要な情報がまとまっています。最新のレポートに基づく各組織単位の健全性、未解決のエスカレーション、異常のレポート、予算上限に達した組織単位、そして評価、シャドー、カナリアの根拠付きで決定を待つ提案です。",
+   "p2": "ブレーキを使うと、組織単位や組織全体を凍結したり、組織図をロールバックしたり、緊急停止スイッチですべてのキーパーを止めたりできます。指示は CEO のキーパーの新しいリビジョンになり、「CEO と話す」は CEO のデプロイメントとの通常の会話を開きます。"
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "board": "ボード: 1 つの組織の健全性、要対応事項、提案、支出、概要、ブレーキを 1 ページで確認します。"
+   }
+  },
+  "enums": {
+   "notificationEvent": {
+    "BoardBrief": "組織の CEO がボードへの概要を提出しました。"
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openBoard": "この組織のボードを開きます。健全性、要対応事項、提案、支出、ブレーキ、CEO。"
+   }
+  },
+  "wizard": {
+   "keeper": {
+    "name": "キーパーの名前です。英字、数字、ドット、ハイフン、アンダースコアを使えます。",
+    "objective": "キーパーが目指すことです。ティックごとに読まれます。",
+    "create": "サンプルエージェントの擬似ハーネスのデプロイメントでキーパーを作成し、テスト実行に進みます。",
+    "skip": "キーパーなしで続行します。キーパーのページで後から追加できます。"
+   }
+  },
+  "board": {
+   "refresh": "ボードを読み込み直します。組織が変わったときにも更新されます。",
+   "openOrganization": "組織のページを開いて、組織単位、予算、リビジョンを編集します。",
+   "openEscalation": "エスカレーションを開いて回答します。",
+   "openReport": "指標、問題、決定事項を含むレポートを開きます。",
+   "openKeeper": "ティックとリビジョンを含む CEO のキーパーを開きます。",
+   "picker": {
+    "select": "ボードを開く組織です。",
+    "open": "この組織のボードを開きます。",
+    "organizations": "組織のページを開いて作成します。"
+   },
+   "chart": {
+    "title": "公開中の組織図です。各組織単位の責任者、メンバー、最新のレポートに基づく健全性、支出を表示します。",
+    "frozen": "有効な凍結がこの組織単位または組織全体に適用されています。",
+    "overBudget": "この組織単位の配下が、現在の期間で予算を使い切りました。",
+    "columns": {
+     "unit": "公開中のリビジョンの組織単位です。",
+     "health": "組織単位で提出された最新のレポートに基づく健全性です。レポートがない場合は不明です。",
+     "escalations": "組織単位のエージェントが作成した未解決のエスカレーションです。",
+     "brakes": "凍結が組織単位に適用されているか、予算を超過しているかを示します。",
+     "lastReport": "最新のレポートが提出された日時です。クリックでレポートを開きます。"
+    }
+   },
+   "attention": {
+    "title": "ボードの対応を待っているもの: 未解決のエスカレーション、過去 7 日間の低下または異常のレポート、予算上限に達した組織単位。"
+   },
+   "proposals": {
+    "title": "組織のエグゼクティブが提案し、どの変更ルールにも該当せず人の判断を待っている変更です。",
+    "toggle": "提案の変更と、それぞれに該当するルールを表示または非表示にします。内容はサーバーから読み込みます。"
+   },
+   "evidence": {
+    "title": "提案が最後に変更されて以降の、提案されたエージェントの評価実行、シャドートライアル、カナリアリリースです。",
+    "openEvalRun": "ケースの結果を含む評価実行を開きます。",
+    "openShadowTrial": "比較結果を含むシャドートライアルを開きます。",
+    "openCanary": "ステップを含むカナリアリリースを開きます。",
+    "stale": "この評価実行は提案が最後に変更される前に始まったため、現在の変更を検証していない可能性があります。"
+   },
+   "spend": {
+    "title": "各組織単位の、現在の日と月の期間における予算に対する支出です。"
+   },
+   "brief": {
+    "title": "CEO がボードに提出した最新の概要と、CEO のキーパーが概要を求める間隔です。"
+   },
+   "brakes": {
+    "title": "すばやく作業を止めます。組織単位や組織の凍結、組織図のロールバック、緊急停止スイッチのオン。",
+    "lift": "この凍結を解除します。対象範囲の作業が再び始まる可能性があります。",
+    "freezeOrg": "凍結が解除されるまで、この組織のすべてのエージェントとキーパーを凍結します。確認を求めます。",
+    "orgFrozen": "この組織はすでに凍結されています。先にその凍結を解除してください。",
+    "unit": "凍結する組織単位です。その配下もすべて含みます。",
+    "freezeUnit": "選んだ組織単位とその配下を凍結します。確認を求めます。",
+    "rollback": "現在のリビジョンの前に公開されていたリビジョンに戻します。確認を求めます。",
+    "rollbackNone": "戻せる以前の公開リビジョンがありません。"
+   },
+   "direction": {
+    "title": "CEO に指示を出します。テキストは、ソースがボードの CEO のキーパーの新しいリビジョンとして公開されます。",
+    "text": "1 から 4000 文字です。CEO の次のティックでボードからの指示として読まれます。",
+    "changeNote": "任意、2000 文字以内です。リビジョンと一緒に保存されます。",
+    "submit": "指示を CEO のキーパーの新しいリビジョンとして公開します。"
+   },
+   "ceoChat": {
+    "title": "CEO のデプロイメントとの会話です。各メッセージは、ほかの実行と同じように開ける実行です。",
+    "conversation": "過去のボードの会話を続けるか、新しい会話を始めます。",
+    "new": "CEO との新しい会話を始めます。",
+    "message": "CEO に伝える内容です。Enter で送信、Shift+Enter で改行します。",
+    "send": "メッセージを送信します。返信は下にストリーミング表示されます。"
+   }
+  }
+ }
+});

@@ -1810,6 +1810,90 @@ function organizationRoutes(method, url, parts) {
     return revision;
   }
   if (parts[2] === 'rollback') return { ...orgRevision(1), id: 'orv_0004', number: 4, state: 'Published', rollbackOfRevisionId: 'orv_0001', publishedUtc: iso(0) };
+  if (parts[2] === 'board' || parts[2] === 'direction') return boardRoutes(method, url, parts, i === 1 || !known ? 1 : i);
+  return {};
+}
+
+// ---------------------------------------------------------------- the board (AA10.7)
+
+// The board of org_0001: echo-agent leads Leadership and is the CEO (keeper mdt_0001 on dep_0001, briefs every 24
+// hours). Billing is over its daily budget and degraded; Support is frozen and has no report yet. Two escalations are
+// open, one unhealthy report came in today, the waiting proposal carries eval, shadow, and canary evidence, and the
+// latest brief is the board brief. org_0002 (a draft with no units) has an empty board with no CEO.
+
+/** The evidence of the waiting proposal: a passing current eval run, a stale failing one, a shadow trial, and a canary. */
+export function proposalEvidence() {
+  return {
+    contentChangedUtc: iso(40),
+    evalRuns: [
+      { evalRunId: 'evr_0001', setName: 'refund-regressions', setVersion: 2, agentId: 'agt_0002', deploymentId: 'dep_0002', status: 'Completed', score: 0.92, threshold: 0.8, passed: true, completedCases: 10, totalCases: 10, current: true, createdUtc: iso(30), completedUtc: iso(25) },
+      { evalRunId: 'evr_0002', setName: 'refund-regressions', setVersion: 1, agentId: 'agt_0002', deploymentId: 'dep_0002', status: 'Completed', score: 0.6, threshold: 0.8, passed: false, completedCases: 10, totalCases: 10, current: false, createdUtc: iso(90), completedUtc: iso(85) }
+    ],
+    shadowTrials: [{ shadowTrialId: 'shd_0001', name: 'haiku-shadow', sourceDeploymentId: 'dep_0002', candidateDeploymentId: 'dep_0003', candidateDeploymentName: 'deployment-3', status: 'Completed', comparedCount: 40, agreedCount: 37, divergedCount: 3, candidateFailureCount: 0, createdUtc: iso(60), completedUtc: iso(20) }],
+    canaryReleases: [{ canaryReleaseId: 'cnr_0001', agentId: 'agt_0002', candidateDeploymentId: 'dep_0003', candidateDeploymentName: 'deployment-3', baselineDeploymentId: 'dep_0002', status: 'Running', currentStepIndex: 1, stepCount: 3, rollbackReason: null, createdUtc: iso(15), completedUtc: null }]
+  };
+}
+
+/** GET /organizations/{id}/board: org_0001 populated (i = 1), any other fixture organization empty. */
+export function board(i = 1) {
+  const org = organization(i);
+  if (i !== 1) {
+    return {
+      organizationId: org.id,
+      name: org.name,
+      mission: org.mission,
+      status: org.status,
+      generatedUtc: iso(0),
+      chart: { organizationId: org.id, name: org.name, mission: org.mission, revisionId: null, revisionNumber: 0, source: 'Working', units: [] },
+      ceo: null,
+      unitHealth: [],
+      escalations: [],
+      proposals: [],
+      spend: [],
+      latestBrief: null,
+      unhealthyReports: [],
+      freezes: [],
+      killSwitch: killSwitch(false)
+    };
+  }
+  const supportFreeze = { ...freeze(1), id: 'mfz_0010', targetKind: 'OrgUnit', targetId: 'oun_0003', targetName: 'Support', reason: 'Support replies are under review.', cancelActiveRuns: false, cancelledRunCount: 0 };
+  return {
+    organizationId: org.id,
+    name: org.name,
+    mission: org.mission,
+    status: org.status,
+    generatedUtc: iso(0),
+    chart: orgChart(),
+    ceo: { agentId: 'agt_0001', agentName: 'echo-agent', unitId: 'oun_0001', unitName: 'Leadership', mandateId: 'mdt_0001', mandateName: 'inbox-keeper', deploymentId: 'dep_0001', briefIntervalHours: 24, lastBriefUtc: iso(30) },
+    unitHealth: [
+      { unitId: 'oun_0001', unitName: 'Leadership', health: 'Healthy', lastReportId: 'rpt_0001', lastReportUtc: iso(170), openEscalations: 1, frozen: false, overBudget: false },
+      { unitId: 'oun_0002', unitName: 'Billing', health: 'Degraded', lastReportId: 'rpt_0003', lastReportUtc: iso(90), openEscalations: 1, frozen: false, overBudget: true },
+      { unitId: 'oun_0003', unitName: 'Support', health: 'Unknown', lastReportId: null, lastReportUtc: null, openEscalations: 0, frozen: true, overBudget: false }
+    ],
+    escalations: [escalation(1), escalation(2)],
+    proposals: [{ ...orgProposal(2), evidence: proposalEvidence() }],
+    spend: orgSpend(),
+    latestBrief: { ...report(4), authorAgentId: 'agt_0001', authorAgentName: 'echo-agent', mandateId: 'mdt_0001', title: 'Weekly brief: refunds on track', body: 'Paid 412 refunds this week.\nBilling is over its daily budget; I asked it to batch retries.' },
+    unhealthyReports: [report(2), report(3)],
+    freezes: [supportFreeze],
+    killSwitch: killSwitch(false)
+  };
+}
+
+/** Past board conversations of org_0001 with the CEO, newest first. */
+export function boardConversations() {
+  return [
+    { ...conversation(1), id: 'cnv_board_0002', title: 'How are refunds going?', agentId: 'agt_0001', agentName: 'echo-agent', organizationId: 'org_0001', lastActivityUtc: iso(60) },
+    { ...conversation(3), id: 'cnv_board_0001', title: 'Budget for December', agentId: 'agt_0001', agentName: 'echo-agent', organizationId: 'org_0001', lastActivityUtc: iso(600) }
+  ];
+}
+
+/** Responses for the board routes of one fixture organization (i): the board, direction, messages, conversations. */
+function boardRoutes(method, url, parts, i) {
+  if (parts[2] === 'direction') return { ...keeperRevision(3, 'mdt_0001'), id: 'mdr_0099', number: 4, state: 'Published', source: 'Board', direction: 'Hold refunds over $500.', changeNote: 'Board direction', author: 'admin@garrison' };
+  if (parts.length === 3) return board(i);
+  if (parts[3] === 'messages') return { ...FACTORIES.runs(1), id: 'run_board_0001', status: 'Queued', outcome: 'None', agentId: 'agt_0001', deploymentId: 'dep_0001', conversationId: 'cnv_board_0003', inputText: 'How is the quarter going?' };
+  if (parts[3] === 'conversations') return pageOf(i === 1 ? boardConversations() : [], url);
   return {};
 }
 
