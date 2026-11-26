@@ -175,7 +175,13 @@ The run token of such a deployment may:
 - create, read, and edit studio drafts, try them in the playground (which writes agent draft revisions, never published ones), and request their apply;
 - read design configuration: deployments, harness profiles, prompt templates, MCP servers, workspace templates, agent revisions, agent assets, capabilities, apps, pipelines, and triggers.
 
-Every permission is also checked against the person who started the run, so the architect can never do more than that person. It sees and edits only that person's drafts. It can never apply a draft, decide an approval, delete live resources, or read secret values. The grant ends when the run ends, like every run token.
+Every permission is also checked against the person who started the run, so the architect can never do more than that person. It sees and edits only that person's drafts, and never an executive's proposal. It can never apply a draft, decide an approval, delete live resources, or read secret values. The grant ends when the run ends, like every run token.
+
+### Executives
+
+`managementAccess: OrgSubtree` is the second grant. It is valid only on a deployment of an agent that leads exactly one org unit, and it makes that agent the unit's [executive](EXECUTIVES.md). An executive uses the same draft tools, but its drafts are bound to the unit it leads: every item must stay inside the units below it, and hard limits refuse anything that touches the executive itself, anything above it, secrets, budget increases, or `managementAccess`. The playground stays closed to it.
+
+An executive's draft records `originRunId`, `organizationId`, `executiveUnitId`, and `executiveAgentId`. Its diff adds `refusals` (each hard limit an item breaks, with its code), `ruleMatches` (each change with its classes and the change rule that covers it, or why none does), and `appliesByRule`. When every change is covered by a change rule and the person who started the run holds Create on `Manifest`, `request-apply` applies the draft at once with an approval decided by source `Rule`. Otherwise the approval waits for a person as described above. Every executive apply publishes an organization revision that a rollback can undo. See [EXECUTIVES.md](EXECUTIVES.md).
 
 ## The agent architect
 
@@ -196,7 +202,7 @@ All paths are under `/v1.0/api/tenants/{tenantId}/studio/drafts`:
 
 | Method and path suffix | Permission | Result |
 |---|---|---|
-| `GET` | Read on `StudioDraft` | `EnumerationResult<StudioDraft>`; `mine=true` for your own, `status` (`Open`, `PendingApproval`, `Applied`, `Discarded`) to filter |
+| `GET` | Read on `StudioDraft` | `EnumerationResult<StudioDraft>`; `mine=true` for your own, `status` (`Open`, `PendingApproval`, `Applied`, `Discarded`) to filter. A run token always gets only the drafts it may use: its person's drafts, and for an executive only its own proposals |
 | `POST` | Create on `StudioDraft` (and Read on `AgenticApp` with `fromApp`) | `StudioDraft`, 201 |
 | `GET /{id}` | Read on `StudioDraft` | `StudioDraft` |
 | `DELETE /{id}` | Delete on `StudioDraft` | 204 |
@@ -220,7 +226,7 @@ Architects and architect prompts, under `/v1.0/api/tenants/{tenantId}/studio`. `
 | `GET /architects/{deploymentId}/prompt` | Read on `Deployment` | `ArchitectPromptSelection` |
 | `PUT /architects/{deploymentId}/prompt` | Update on `Deployment` | `ArchitectPromptSelection`; 400 `NotAnArchitectDeployment`, `InvalidArchitectPrompt` |
 
-Errors: 400 `ValidationFailed` with codes `UnsupportedKind`, `InvalidDocument`, `DocumentMismatch`, `DeleteNotSupported`, `NotAMember`, `SelfEdge`, `NoSuchEdge`, `AppDeleted`, and 400 `DraftStale`, `DraftInvalid`, `DraftEmpty` on request-apply; 409 `DraftVersionConflict`, `DraftNotOpen`; on decide, 403 `ApproverLacksPermission`, 409 `DraftStale`, `DraftInvalid`.
+A run token that may not use a draft gets 404 for it on every route. Errors: 400 `ValidationFailed` with codes `UnsupportedKind`, `InvalidDocument`, `DocumentMismatch`, `DeleteNotSupported`, `NotAMember`, `SelfEdge`, `NoSuchEdge`, `AppDeleted`, and 400 `DraftStale`, `DraftInvalid`, `DraftEmpty` on request-apply (an executive's `DraftInvalid` names each hard limit as `OutsideSubtree`, `SelfModification`, `ForbiddenKind`, `BudgetIncrease`, or `AuthorityChange`); 403 `NotAnExecutive` when an `OrgSubtree` run whose agent leads no live unit creates a draft; 409 `DraftVersionConflict`, `DraftNotOpen`; on decide, 403 `ApproverLacksPermission`, 409 `DraftStale`, `DraftInvalid`.
 
 The MCP tools are in [MCP_API.md](../MCP_API.md#studio-drafts).
 

@@ -76,7 +76,13 @@ Publishing a draft makes it live. The previous live revision becomes `Superseded
 
 `POST .../rollback` returns to an earlier live revision: the one you name in `revisionId`, or by default the one that was live most recently before the current one. Garrison writes a new revision that copies the earlier snapshot, with `rollbackOfRevisionId` pointing at it, publishes the copy, restores its pinned mandate revisions, and replaces the working tree with the earlier units. Revision numbers only grow, so rolling revision 3 back to revision 1 produces revision 4. A revision that was never live answers 409 `RevisionNeverPublished`, the live revision answers `AlreadyLive`, and an organization with nothing earlier answers `NothingToRollBack`.
 
+A revision can also come from an [executive](EXECUTIVES.md). Every executive draft that applies, whether change rules or a person let it through, publishes a new revision with `draftId` (the draft) and `revertDraftId` (an `Undo:` draft holding the records it changed, as they were). A rollback past such revisions restores the tree as usual and then applies their revert drafts, newest first, so the agents, deployments, mandates, templates, and assets the executive changed go back too. See [Revisions, revert drafts, and rollback](EXECUTIVES.md#revisions-revert-drafts-and-rollback).
+
 Organizations have no environments of their own (AA-062). Every publish writes a [promotion record](REVISIONS.md#promotion) with subject `Organization`, `kind` `Promote`, source environment `draft`, and target environment `live`, carrying `organizationId` and `orgRevisionId`. A rollback writes a record of kind `Rollback` from `live` to `live` and marks the publish record of the revision it replaced as `RolledBack`. The records appear in `GET .../promotions` beside agent and app promotions. To undo an organization change, use the organization's rollback route. The promotions rollback route refuses an organization record with 409 `UseOrganizationRollback`.
+
+## Executives
+
+A unit lead whose deployment has `managementAccess: OrgSubtree` is that unit's executive. It may draft changes to the units below it: their agents, deployments, mandates, and the templates and assets only they use. It can never change itself, its own unit, anything above it, secrets, budgets upward, or anyone's `managementAccess`. A person decides each of its drafts unless a change rule a person wrote covers every change in it, in which case it applies at once. People follow these drafts as the organization's proposals. [EXECUTIVES.md](EXECUTIVES.md) covers authority, hard limits, change rules, and a worked example.
 
 ## The chain of command
 
@@ -182,6 +188,9 @@ Where an agent belongs to several organizations, `builtin/org-context`, the capa
 | `POST /organizations/{id}/revisions/{revId}/publish` | Make a draft live |
 | `POST /organizations/{id}/rollback` | Return to an earlier live revision (`revisionId`, `note`) |
 | `GET /organizations/{id}/spend` | Each unit's spend against its budgets in the current windows |
+| `GET /organizations/{id}/proposals` | Executive proposals, newest change first. `status`, `maxResults`, `skip` ([EXECUTIVES.md](EXECUTIVES.md#proposals)) |
+| `GET /organizations/{id}/proposals/{draftId}` | One proposal; one not yet applied carries its diff, refusals, and rule matches |
+| `POST /organizations/{id}/proposals/{draftId}/decide` | Allow or deny a proposal waiting for a person (`allow`, `reason`). Needs Update on Approval |
 
 Paths are relative to `/v1.0/api/tenants/{tenantId}`. Another tenant's organizations answer 404. See [REST_API.md](../REST_API.md#organizations) for the models.
 
@@ -215,6 +224,8 @@ People and API credentials manage organizations with management tools, which run
 | `garrison_rollback_organization` | Update on Organization | `organization`; optional `revisionId`, `note` |
 | `garrison_org_chart` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `organization` |
 | `garrison_org_whoami` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `agent`, optional `organization` |
+| `garrison_list_org_proposals`, `garrison_get_org_proposal` | Read on Organization | `organization`; `draftId` for one. See [EXECUTIVES.md](EXECUTIVES.md#mcp-tools) |
+| `garrison_decide_org_proposal` | Update on Approval, and Create on Manifest to allow | `organization`, `draftId`, `allow`, optional `reason` |
 
 `units` replaces the whole working tree in one step. Units may name their parents and peers in any order, and a unit whose name matches an existing unit keeps that unit's identifier, so its memory and reports stay attached. `garrison_publish_org_revision` without `revisionId` snapshots the working tree and publishes it in one call. Validation failures come back as tool errors with the codes in [Validation](#validation).
 
@@ -245,6 +256,7 @@ The `organization:{orgId}` WebSocket channel needs Read on Organization and send
 | `org.changed` | The organization, its working tree, its revisions, or its status changed, including a freeze setting it `Frozen` | `organization`, or `organizationId` and `deleted: true` once it is deleted |
 | `report.filed` | A report was filed by an agent in one of its units | `organizationId`, `report` |
 | `spend.updated` | Spend against the live revision's budgets moved. Checked at most every 30 seconds | `organizationId`, `spend` (one `OrgUnitSpend` per unit and period) |
+| `proposal.changed` | An executive's proposal for the organization was created, edited, sent for approval, applied, or sent back | `organizationId`, `proposal` (an `OrgProposal` without its diff) |
 
 See [WEBSOCKETS_API.md](../WEBSOCKETS_API.md).
 
@@ -257,7 +269,7 @@ See [WEBSOCKETS_API.md](../WEBSOCKETS_API.md).
 | Change it, edit units, snapshot, publish, roll back | Update on Organization | AgentDeveloper, Editor, TenantAdmin |
 | Delete an organization | Delete on Organization | Editor, TenantAdmin |
 
-Run tokens never hold these permissions. A run cannot change the structure it sits in; it reads its own place through `garrison_org_chart` and `garrison_org_whoami`. Every change is written to the audit log against the organization.
+Run tokens never hold these permissions. An ordinary run cannot change the structure it sits in; it reads its own place through `garrison_org_chart` and `garrison_org_whoami`. An executive changes the units below it only through studio drafts, checked against its subtree, its hard limits, and the person who started its run ([EXECUTIVES.md](EXECUTIVES.md)). Change rules have their own permissions on `ChangeRule` ([EXECUTIVES.md](EXECUTIVES.md#permissions)). Every change is written to the audit log against the organization.
 
 ## Telemetry
 
@@ -267,4 +279,4 @@ Run tokens never hold these permissions. A run cannot change the structure it si
 
 Organizations are kept with their tenant until someone deletes them. Revisions are never pruned, so every structure an organization ever had stays readable, and any revision that was once live can be rolled back to.
 
-Deleting an organization deletes its units, its revisions and their snapshots, the `OrgUnit` memory of every unit that ever appeared in it, and its `Organization` memory. It does not delete agents, mandates, apps, reports, or promotion records; reports keep their `orgUnitId`. Its agents lose their positions at once, so freezes and budgets on it stop applying. Retire an organization instead when you want to keep its history and memory but take it out of the chain of command.
+Deleting an organization deletes its units, its revisions and their snapshots, its change rules, the `OrgUnit` memory of every unit that ever appeared in it, and its `Organization` memory. It does not delete agents, mandates, apps, reports, or promotion records; reports keep their `orgUnitId`. Its agents lose their positions at once, so freezes and budgets on it stop applying. Retire an organization instead when you want to keep its history and memory but take it out of the chain of command.

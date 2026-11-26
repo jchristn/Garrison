@@ -93,7 +93,7 @@ The decision for a request is made in this order:
 1. The administrator API key and system administrators (`isAdmin`) are allowed.
 2. A tenant in the path that is not the caller's tenant is reported as not found.
 3. Platform resources (`Settings`, `NodePool`, `Admin`, creating or deleting tenants, and changing nodes) need a system administrator.
-4. Run tokens are limited to reading and invoking agents and to reading, starting, and cancelling runs (plus studio drafts for deployments with `managementAccess: Drafts`, see "Delegated management"), and are then checked against the permissions of the user or credential that started the chain. A run token cannot retry a run (403 `RunTokenRetryNotAllowed`), because a retry would start a top-level run outside the delegation policy.
+4. Run tokens are limited to reading and invoking agents and to reading, starting, and cancelling runs (plus studio drafts for deployments with `managementAccess: Drafts` or `OrgSubtree`, see "Delegated management" and "Executive authority"), and are then checked against the permissions of the user or credential that started the chain. A run token cannot retry a run (403 `RunTokenRetryNotAllowed`), because a retry would start a top-level run outside the delegation policy.
 5. The node protocol (`Node` `Execute`) needs a grant that names `Node` explicitly, such as the `NodeAgent` role. The tenant administrator bypass and `All` grants are not enough.
 6. Tenant administrators (`isTenantAdmin`) are allowed within their tenant. A credential owned by a tenant administrator is still limited by its own assignments when it has any.
 7. Everyone else: the grants from all their assignments are expanded. An explicit `Deny` wins, then any `Permit`, otherwise the request is denied. For a credential, its owner's grants are checked as well, so a credential can never do what its owner cannot.
@@ -144,6 +144,8 @@ Reports (resource type `Report`, see `REPORTS.md`): `Viewer`, `Auditor`, and `Ag
 Messages (resource type `AgentMessage`, see `MESSAGING.md`): `Viewer` and `Auditor` can list and read messages and threads; `AgentDeveloper` and `AgentOperator` can also write to an agent; `Editor` and `TenantAdmin` hold every operation. Runs never use these permissions: a run writes only along an app edge, an organization's reporting or peer line, or as a reply to the agent that wrote to it, reads only its own agent's inbox, and every send passes the loop guards (hop limit, thread budget, per-line rate, recipient freeze), with each refusal stored. Message text is untrusted. It reaches a prompt only through `builtin/inbox-delivery`, framed as data between markers chosen at random for each render, and audit records and logs name the message, its parties, and its urgency, never its subject or body.
 
 Organizations (resource type `Organization`, see `ORGANIZATIONS.md`): `Viewer`, `Auditor`, and `AgentOperator` can read organizations, their revisions, charts, and spend; `AgentDeveloper` can also create them, edit their units, and publish and roll back revisions; `Editor` and `TenantAdmin` hold every operation, including delete. Run tokens never hold `Organization` permissions: a run reads its own place through `garrison_org_chart` and `garrison_org_whoami` and cannot change the structure it sits in. Nothing in the working tree takes effect until a person publishes it, and every change is audited. Mandate summaries on the chart are text people or agents wrote and are returned as data.
+
+Change rules (resource type `ChangeRule`, see `EXECUTIVES.md`): `Viewer`, `Auditor`, `AgentOperator`, and `AgentDeveloper` can read them; `Editor` and `TenantAdmin` can also create, change, and delete them. Run tokens never write a rule, whatever their permissions (403 `RulesArePeopleOnly`).
 
 Permission approvals (resource type `Approval`): `Viewer`, `Auditor`, `AgentDeveloper`, and `AgentOperator` can read them; `Editor`, `AgentOperator`, `ResourceAdmin`, and `TenantAdmin` can decide them (Update on `Approval`). Deciding with `remember`, which adds a rule to the deployment, also needs Update on that deployment.
 
@@ -310,7 +312,7 @@ Violations fail the invocation with `DelegationDisabled`, `DelegationNotAllowed`
 
 ## Delegated management
 
-Runs cannot change configuration. The one exception is narrow: a deployment with `managementAccess: Drafts` gives its run tokens access to studio drafts ([STUDIO.md](STUDIO.md#delegated-management)). Such a token:
+Runs cannot change configuration on their own. There are two narrow exceptions: a deployment with `managementAccess: Drafts` gives its run tokens access to studio drafts ([STUDIO.md](STUDIO.md#delegated-management)), and `managementAccess: OrgSubtree` makes a unit lead an executive that drafts changes to the units below it ([Executive authority](#executive-authority)). A `Drafts` token:
 
 - may create, read, and edit drafts, try them in the playground (writing agent draft revisions, never publishing), and request their apply, only for the person who started the run;
 - may read design configuration (deployments, harness profiles, prompt templates, MCP servers, workspace templates, revisions, assets, capabilities, apps, pipelines, triggers), never secrets;
@@ -320,7 +322,33 @@ Runs cannot change configuration. The one exception is narrow: a deployment with
 
 The architect cannot change its own instructions either: the architect prompt and prompt template MCP tools are hidden from every run token and refused if called ([ARCHITECT.md](ARCHITECT.md#who-may-change-the-prompt)).
 
-Applying a draft takes a `DraftApply` approval decided by a person who holds Create on `Manifest`. The approval shows the full diff, and the draft is checked again at decision time, so a change made to live configuration after the request is never silently overwritten (409 `DraftStale`). Turning `managementAccess` on or off is audited with the deployment change.
+Applying an architect's draft takes a `DraftApply` approval decided by a person who holds Create on `Manifest`. The approval shows the full diff, and the draft is checked again at decision time, so a change made to live configuration after the request is never silently overwritten (409 `DraftStale`). Turning `managementAccess` on or off is audited with the deployment change.
+
+## Executive authority
+
+An executive is a unit lead whose deployment has `managementAccess: OrgSubtree`. It drafts changes to the units below it, and a draft that human-written change rules fully cover applies without a person ([EXECUTIVES.md](EXECUTIVES.md)). That is the one place in Garrison where an agent changes configuration and nobody looks first, so it gets its own threat model. Authority points down the tree only, a person sets every ceiling, and one rollback undoes any apply.
+
+**Goal drift through self-modification.** The risk that matters most is an agent rewriting what it is for. An executive cannot touch its own agent, its deployments, its mandates, the mandate it holds as lead, or its own unit, including that unit's members, budgets, and title (`SelfModification`). It cannot touch its unit's parents or the organization's mission (`OutsideSubtree`). These are hard limits: they are checked when a draft is validated, when apply is requested, and again just before it applies, and no change rule or human approval lifts them. A person who wants to change an executive does it directly, outside the draft path. Mandate revisions an executive writes carry source `Executive`, and a run token is refused on the mandate publish route.
+
+**Privilege escalation through management access.** Changing `managementAccess` on any deployment, new or existing, is refused with `AuthorityChange`, so an executive cannot mint another executive or an architect. Change rules are written only by people: every rule route answers 403 `RulesArePeopleOnly` to a run token, and the rule-writing MCP tools are hidden from runs. An executive reads the rules that bear on its subtree and nothing else. Executive authority also follows the live chart. Garrison works out the executive's position on every call, so a person who publishes a revision moving it out of the lead's seat ends its authority at once, including for drafts it already wrote.
+
+**The person ceiling.** Every executive draft is still checked against the person who started the run. The dry run uses that person's permissions and secret access. A rule-covered draft applies only when that person holds Create on `Manifest`, and it applies as them; otherwise it waits. A rule therefore never grants an agent more than its person could do by hand. An executive's run token reaches only that person's drafts and only the executive's own proposals for the unit it leads now; other runs, including an architect working for the same person, never see an executive's proposals.
+
+**Secrets.** Changing any field whose path names a secret or a credential on an agent, deployment, or asset is refused with `ForbiddenKind`, so an executive cannot rebind a worker to a different secret or read one by routing it somewhere new. `Secret` documents are not among the kinds an executive draft may hold, and executives never read secret values.
+
+**Budgets.** Raising or removing a budget is refused with `BudgetIncrease`: `maxBudgetUsd` on an existing deployment, the per-tick and per-day budgets and token cap on an existing mandate, and the budgets of existing units below. Lowering is allowed. A new worker's deployment and mandate are not compared with anything, so hiring (`AddWorker`) deserves a careful rule or none. Unit budgets at and above the executive's unit still cap the whole subtree, and the executive cannot reach them, so spending inside it stays bounded either way.
+
+**Outside agents adopted into a subtree.** An agent that is live outside the subtree, or in no unit, cannot be added to a unit below the executive (`OutsideSubtree`). New agents may join, but only in the same draft that creates them, and only below the executive. Without this an executive could pull any agent in the tenant under its authority by listing it as a member. New peer lines from inside the subtree to units outside it are refused for the same reason.
+
+**Shared templates and assets.** A prompt template or agent asset used both inside and outside the subtree is read-only to the executive. Editing it would change how agents above or beside the executive behave. The executive is told to copy it under a new name and bind the copy.
+
+**Deletes.** An executive never deletes a live record (`ForbiddenKind`). Deletes cannot be undone by a revision rollback. Retiring a worker means removing it from its unit, and the records stay for a person to delete.
+
+**Unreviewed changes stay narrow.** A rule covers a change only when every changed field falls in a class the rule lists and within its limits. Fields that loosen isolation or reach, such as trust level, egress rules, approval settings, harness, and an agent's delegation settings, have no class at all, so a change to them always waits for a person. Rules match per change, oldest rule first, against the live chart, and `count` limits stop one draft from hiring a crowd.
+
+**Rollback as the safety net.** Every executive apply, by rule or by a person, publishes a new organization revision with the draft's identifier and a revert draft holding the records as they were. Rolling the organization back past that revision restores the tree and pinned mandates and then applies the revert drafts newest first, so the agents, deployments, mandates, templates, and assets it changed go back too. Agents and deployments it created are deleted; mandates, templates, and assets it created stay for a person to remove. Every rule change, apply, and revision is audited, `OrgProposalApplied` tells subscribed endpoints each time rules applied something without a person, and `proposal.changed` shows each proposal on the organization's WebSocket channel.
+
+Some things stay closed even to a fully trusted executive: the playground (draft agent revisions) until evaluations exist, freezes, approvals, escalation answers, and any change to change rules.
 
 ## App sessions and anonymous use
 

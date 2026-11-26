@@ -394,7 +394,7 @@ Validation errors use the REST field codes (for example `InvalidColor`, `Unknown
 
 ## Studio drafts
 
-Tools for building studio drafts (AD7). Users and credentials can call them with the matching `StudioDraft` permission. A run can call them only when its deployment sets `managementAccess: Drafts`, and then only on drafts of the person it works for, within that person's permissions ([docs/STUDIO.md](docs/STUDIO.md#delegated-management)).
+Tools for building studio drafts (AD7). Users and credentials can call them with the matching `StudioDraft` permission. A run can call them only when its deployment sets `managementAccess: Drafts` or `OrgSubtree`, and then only on drafts of the person it works for, within that person's permissions ([docs/STUDIO.md](docs/STUDIO.md#delegated-management)). An executive (`OrgSubtree`) sees only its own proposals for the unit it leads, its drafts are held to its subtree and hard limits, and `garrison_studio_playground_invoke` is refused to it; no other run ever sees an executive's proposal ([docs/EXECUTIVES.md](docs/EXECUTIVES.md)).
 
 | Tool | Permission | Arguments |
 |---|---|---|
@@ -414,7 +414,7 @@ Tools for building studio drafts (AD7). Users and credentials can call them with
 
 The two Studio capability tools expose the tenant catalog for design, including candidates that are not executable by the architect’s own deployment. They do not grant tool execution, delegation, or access across tenants. Ordinary runs cannot discover or call them. The runtime tools `garrison_list_capabilities` and `garrison_describe_capability` keep their deployment-specific filtering. An empty catalog does not establish that no MCP servers are configured; refresh the capability catalog when needed.
 
-Every change names the draft version the caller read and fails with `DraftVersionConflict` when the draft moved on. No tool applies a draft. A person decides the `DraftApply` approval that `garrison_studio_request_apply` creates.
+Every change names the draft version the caller read and fails with `DraftVersionConflict` when the draft moved on. No tool applies a draft directly. A person decides the `DraftApply` approval that `garrison_studio_request_apply` creates, with one exception: when an executive requests apply and change rules cover every change in its draft, the approval is decided at once with source `Rule` and the draft applies as the person who started the run, if that person holds Create on `Manifest`. For an executive's draft, `garrison_studio_validate` and `garrison_studio_diff` also return `refusals`, `ruleMatches`, and `appliesByRule`.
 
 Architect, architect prompt, and prompt template tools, for users and credentials only. Runs never see or call them, so the architect cannot change itself or its own prompt:
 
@@ -569,6 +569,12 @@ When enabled, `garrison_memory_read`, `garrison_memory_write`, `garrison_memory_
 ## Organizations
 
 People shape an organization with `garrison_create_organization` and `garrison_update_organization`, which edit its working tree, and make it live with `garrison_publish_org_revision`; `garrison_rollback_organization` returns to an earlier live revision. Validation failures come back as tool errors with the codes in [organizations](docs/ORGANIZATIONS.md#validation), such as `OneRoot`, `LeadsTwoUnits`, and `BudgetExceedsParent`. A run whose agent holds a position in a live organization sees `garrison_org_chart` and `garrison_org_whoami` and gets `builtin/org-context` in its system prompt; the organization's lines, report audiences, memory scopes, `Manager` escalations, freezes, and budgets then apply to it. Mandate summaries on the chart are data their authors wrote, never instructions. See [organizations](docs/ORGANIZATIONS.md).
+
+## Executives and change rules
+
+A run of a deployment with `managementAccess: OrgSubtree` whose agent leads one unit of a live organization is an executive. It proposes changes to the units below it with the studio draft tools above and reads the change rules that bear on its subtree with `garrison_list_change_rules`, which no other run sees (`NotAnExecutive` if called). Its system prompt carries `builtin/executive-system`.
+
+People write change rules with `garrison_get_change_rule`, `garrison_create_change_rule`, `garrison_update_change_rule`, and `garrison_delete_change_rule`, and follow executives with `garrison_list_org_proposals`, `garrison_get_org_proposal`, and `garrison_decide_org_proposal`. Runs never see these tools, and a run token is refused on every rule write. `garrison_update_change_rule` changes only the fields you pass; `classes` and `limits` replace the lists. Permissions, arguments, hard limits, and rule matching are in [docs/EXECUTIVES.md](docs/EXECUTIVES.md#mcp-tools).
 
 ## HTTP inference endpoints (v0.2.0)
 

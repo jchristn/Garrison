@@ -4058,6 +4058,9 @@ An organization (AA7) is a tree of units with lead agents, members, peer lines, 
 | `POST /organizations/{id}/revisions/{revId}/publish` | Update on `Organization` | `OrgRevision`, 200 |
 | `POST /organizations/{id}/rollback` | Update on `Organization` | `OrgRevision` (the new copy), 200 |
 | `GET /organizations/{id}/spend` | Read on `Organization` | `OrgUnitSpend[]`, 200 |
+| `GET /organizations/{id}/proposals` | Read on `Organization` | `EnumerationResult<OrgProposal>`, newest change first, 200 |
+| `GET /organizations/{id}/proposals/{draftId}` | Read on `Organization` | `OrgProposal`, with `diff` while not applied, 200 |
+| `POST /organizations/{id}/proposals/{draftId}/decide` | Update on `Approval` | `OrgProposal`, 200 |
 
 Paths are relative to `/v1.0/api/tenants/{tenantId}`. `{id}` takes an identifier or a name, and `{unitId}` an identifier or a unit name. Organizations of another tenant answer 404. Structural refusals answer 409 with the codes listed in [docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md#validation), for example `OneRoot`, `Cycle`, `LeadsTwoUnits`, `PositionTaken`, `BudgetExceedsParent`, `AgentInactive`, and `OrganizationRetired`.
 
@@ -4092,6 +4095,34 @@ Return to an earlier live revision with an optional `OrgRollbackRequest`: `revis
 #### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/spend`
 
 Each unit of the live revision with its subtree's known spend in the current UTC day or month window, one entry per budget; a unit without budgets reports its day. Empty before the first publish.
+
+#### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/proposals`
+
+The drafts executives (deployments with `managementAccess: OrgSubtree`) wrote for this organization, as `OrgProposal` summaries without diffs, newest change first. Query: `status` (`Open`, `PendingApproval`, `Applied`), `maxResults`, `skip`. `GET .../proposals/{draftId}` reads one; a proposal that is not applied carries `diff`, a `StudioDraftDiff` with `refusals` and `ruleMatches`. A draft that is not an executive proposal of the organization answers 404. See [docs/EXECUTIVES.md](docs/EXECUTIVES.md#proposals).
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/proposals/{draftId}/decide`
+
+Decide a proposal waiting for a person with an `OrgProposalDecisionRequest`. `allow: true` checks that you hold Create on `Manifest`, validates the draft again, applies it as you, and publishes an organization revision that names the draft and its revert draft; `allow: false` sends it back to `Open`. Errors: 403 `ApproverLacksPermission`, `ApproverIsAgent`; 404; 409 `ProposalNotPending`, `DraftStale`, `DraftInvalid`.
+
+### Change rules
+
+Change rules (AA8) are written by people and pre-authorize narrow classes of change by executives inside a unit's subtree. An executive's draft whose every change a rule in force covers applies at once when the executive requests apply; otherwise it waits for a person. No rule lifts an executive's hard limits. [docs/EXECUTIVES.md](docs/EXECUTIVES.md#change-rules) covers classes, limits, and matching.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /change-rules` | Read on `ChangeRule` | `EnumerationResult<ChangeRule>`, newest first, 200. Query: `organization`, `unit` (needs `organization`), `activeOnly`, `search`, `maxResults`, `skip` |
+| `POST /change-rules` | Create on `ChangeRule` | `ChangeRule`, 201 |
+| `GET /change-rules/{ruleId}` | Read on `ChangeRule` | `ChangeRule`, 200 |
+| `PUT /change-rules/{ruleId}` | Update on `ChangeRule` | `ChangeRule`, 200 |
+| `DELETE /change-rules/{ruleId}` | Delete on `ChangeRule` | 204 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`; another tenant's rule answers 404. A run token is refused on every write with 403 `RulesArePeopleOnly`. `POST` takes `organizationId` and `unitId` as identifiers or names; `PUT` replaces the unit, name, description, active flag, expiry, classes, and limits, and refuses another organization with `OrganizationNotSettable`. Validation answers 400 `ValidationFailed` with field codes `Required`, `TooLong`, `OrganizationNotFound`, `UnitNotFound`, `ExpiryInPast`, `Duplicate`, `TooMany`, `ClassNotInRule`, `UnknownLimit`, `BoundRequired`, `MinimumAboveMaximum`, and `NegativeBound`.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/change-rules" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"organizationId": "site-reliability", "unitId": "reliability", "name": "Keepers may slow down", "classes": [{"class": "WakeTuning"}], "limits": [{"class": "WakeTuning", "name": "minIntervalSeconds", "minimum": 300, "maximum": 3600}]}'
+```
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/units" \
@@ -4286,7 +4317,7 @@ Two gateway routes manage the session owner's conversations. Both need the app s
 
 ### Studio drafts
 
-Manifest bundles designed in the studio and applied only after a person approves (AD7). [docs/STUDIO.md](docs/STUDIO.md) explains drafts, versions, diffs, the graph, `DraftApply` approvals, and the `managementAccess: Drafts` grant. Routes are under `/studio/drafts`; the tables are in [docs/STUDIO.md](docs/STUDIO.md#routes).
+Manifest bundles designed in the studio and applied only after a person approves (AD7), or, for an executive's draft that change rules fully cover, at once (AA8). [docs/STUDIO.md](docs/STUDIO.md) explains drafts, versions, diffs, the graph, `DraftApply` approvals, and the `managementAccess: Drafts` and `OrgSubtree` grants; [docs/EXECUTIVES.md](docs/EXECUTIVES.md) covers executives. Routes are under `/studio/drafts`; the tables are in [docs/STUDIO.md](docs/STUDIO.md#routes).
 
 Agent architects are reusable, tenant-wide deployments that may edit studio drafts (`managementAccess: Drafts`); any draft can use any architect, and an architect's ID is its deployment ID (`dep_...`). `{deploymentId}` takes the ID or the name. Full field lists and examples are in [docs/ARCHITECT.md](docs/ARCHITECT.md#architects).
 
@@ -5813,7 +5844,7 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `nodePoolId` | `string?` | Required node pool. |
 | `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`; for an `Untrusted` deployment or one with `egressRules`, null never resolves to `Process` and uses `KubernetesJob`. A PersistentVolume workspace template requires `KubernetesJob`. `Process` on an `Untrusted` deployment is rejected (`UntrustedNeedsIsolation`), and on a deployment with `egressRules` too (`EgressRulesNeedKubernetesJob`). |
 | `trustLevel` | `DeploymentTrustLevelEnum` | `Trusted` (default) or `Untrusted`. Untrusted runs need at least `Container` isolation and queue with `NoIsolatingWorker` until a worker can provide it. See [Deployment trust level](#deployment-trust-level-trustlevel). |
-| `managementAccess` | `ManagementAccessEnum` | `None` (default) or `Drafts`. With `Drafts`, this deployment's runs may read design configuration and create and edit studio drafts for the person who started them, within that person's permissions. They can never apply a draft, decide its approval, delete live resources, or read secrets. See [docs/STUDIO.md](docs/STUDIO.md#delegated-management). |
+| `managementAccess` | `ManagementAccessEnum` | `None` (default), `Drafts`, or `OrgSubtree`. With `Drafts`, this deployment's runs may read design configuration and create and edit studio drafts for the person who started them, within that person's permissions. They can never apply a draft, decide its approval, delete live resources, or read secrets. See [docs/STUDIO.md](docs/STUDIO.md#delegated-management). `OrgSubtree` makes the agent an executive: its drafts are limited to the units below the one it leads and checked against hard limits, and they apply at once only when change rules cover every change. Valid only when the agent leads exactly one unit (400 with field code `NotAUnitLead` or `LeadsSeveralUnits`). See [docs/EXECUTIVES.md](docs/EXECUTIVES.md). |
 | `architectPromptTemplateId`, `architectPromptVersion` | `string?`, `int?` | On create only, for architect deployments: the architect prompt to bind as the `System` prompt, and an optional pinned version. A deployment of `agent-architect` without them binds `builtin/agent-architect`. See [docs/PROMPTS.md](docs/PROMPTS.md#architect-prompts). |
 | `egressRules` | `DeploymentEgressRule[]` | Egress allowlist; empty (default) means none. With rules, run pods reach only DNS, the Garrison MCP port, and these rules, and runs need a worker that enforces them. At most 64. See [Deployment egress allowlist](#deployment-egress-allowlist-egressrules). |
 | `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
@@ -7333,6 +7364,8 @@ The same shape holds a unit of the working tree and a unit in a revision's snaps
 | `state` | `OrgRevisionStateEnum` | `Draft`, `Published` (live), or `Superseded`. |
 | `note` | `string?` | At most 2000 characters. |
 | `rollbackOfRevisionId` | `string?` | For a rollback, the revision this one copies. |
+| `draftId` | `string?` | For a revision recorded when an executive's draft applied, the draft. |
+| `revertDraftId` | `string?` | For such a revision, the `Undo:` draft holding the records as they were before; a rollback past this revision applies it once. |
 | `authorType`, `authorId`, `authorName` | `PrincipalTypeEnum`, `string?`, `string?` | Who made it. |
 | `units` | `OrgUnit[]` | The snapshot, root first. Empty on lists. |
 | `mandates` | `OrgRevisionMandate[]` | Pinned mandate revisions. Empty on lists. |
@@ -7597,7 +7630,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `NotificationEventEnum`
 
-`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `Test` (test sends only)
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `Test` (test sends only)
 
 #### `NotificationDeliveryStatusEnum`
 
@@ -8928,6 +8961,10 @@ A studio draft (AD7, AD-002): a manifest bundle being designed, by a person or b
 | `approvalId` | `string?` | The DraftApply approval while PendingApproval, or the one that applied it, or null. |
 | `publishOnApply` | `boolean` | Whether applying also publishes the revisions the draft writes. Default true. |
 | `manifestApplyId` | `string?` | The manifest apply record of the applied draft, or null. |
+| `originRunId` | `string?` | The run that created the draft, or null for a draft a person started. |
+| `organizationId` | `string?` | For an executive's draft, the organization it proposes changes to. |
+| `executiveUnitId` | `string?` | For an executive's draft, the unit the executive leads; every item must stay below it. Set on create and never changed. |
+| `executiveAgentId` | `string?` | For an executive's draft, the executive's agent. |
 | `items` | `StudioDraftItem[]` | Items (manifest documents), in kind and name order. |
 | `layout` | `StudioDraftNode[]` | Graph layout of the visual editor. |
 | `createdUtc` | `DateTime` | Creation time (UTC). |
@@ -9000,8 +9037,11 @@ A draft compared with live configuration and validated by a manifest dry run (AD
 |---|---|---|
 | `draftId` | `string` | Draft identifier. |
 | `version` | `integer` | Draft version compared. |
-| `valid` | `boolean` | Whether every item validated and nothing is stale. |
+| `valid` | `boolean` | Whether every item validated, nothing is stale, and (for an executive's draft) no hard limit is broken. |
 | `items` | `StudioDraftDiffItem[]` | Items, in apply order. |
+| `refusals` | `ExecutiveRefusal[]` | For an executive's draft, each hard limit it breaks; empty otherwise. |
+| `ruleMatches` | `ChangeRuleMatchItem[]` | For an executive's draft, each change with its classes and the change rule that covers it, or why none does; empty otherwise. |
+| `appliesByRule` | `boolean` | For an executive's draft, whether requesting apply would apply it at once under change rules. |
 
 #### `StudioDraftDiffItem`
 
@@ -9016,6 +9056,89 @@ What applying one draft item would do to live configuration (AD7.2).
 | `message` | `string?` | Why the item failed validation, or a note, or null. |
 | `errorCode` | `string?` | Error code of a failed item, or null. |
 | `stale` | `boolean` | Whether the live record changed since the item was based on it. |
+
+#### `ExecutiveRefusal`
+
+A hard limit an executive's draft item breaks (AA8.3).
+
+| Field | Type | Description |
+|---|---|---|
+| `kind`, `name` | `string` | The item. For a unit inside the Organization item, `name` is `<organization>/<unit>`. |
+| `code` | `string` | `OutsideSubtree`, `SelfModification`, `ForbiddenKind`, `BudgetIncrease`, or `AuthorityChange`. |
+| `message` | `string` | Why, and what to do instead. |
+
+#### `ChangeRuleMatchItem`
+
+One change of an executive's draft and the rule that covers it (AA8.5).
+
+| Field | Type | Description |
+|---|---|---|
+| `kind`, `name` | `string` | The item. |
+| `detail` | `string?` | What changed, for example `adds agent x to unit y`, or null. |
+| `classes` | `ChangeClassEnum[]` | Classes of the change. |
+| `ruleId`, `ruleName` | `string?` | The covering rule, or null when the change needs a person. |
+| `reason` | `string?` | Why no rule covers it, or null. |
+
+#### `ChangeRule`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`cru_`). |
+| `tenantId` | `string` | Tenant. |
+| `organizationId`, `organizationName` | `string`, `string?` | The organization; a request may name it. The name is filled in on read. |
+| `unitId`, `unitName` | `string`, `string?` | The unit whose subtree the rule covers; a request may name it. |
+| `name` | `string` | 1 to 128 characters. |
+| `description` | `string?` | At most 2000 characters. |
+| `active` | `boolean` | Default true. |
+| `expiresUtc` | `DateTime?` | When the rule stops matching, or null for no expiry (the default). Must be in the future when set. |
+| `classes` | `ChangeRuleClass[]` | At least one, each once. |
+| `limits` | `ChangeRuleLimit[]` | At most 32, one per class and name. |
+| `createdByType`, `createdById`, `createdByName`, `updatedByName` | `PrincipalTypeEnum`, `string?`, `string?`, `string?` | Who wrote and last changed it. Set by the server; never `Run`. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
+
+#### `ChangeRuleClass`
+
+| Field | Type | Description |
+|---|---|---|
+| `class` | `ChangeClassEnum` | A class the rule pre-authorizes. |
+
+#### `ChangeRuleLimit`
+
+| Field | Type | Description |
+|---|---|---|
+| `class` | `ChangeClassEnum` | The class the limit applies to; the rule must list it. |
+| `name` | `string` | `count` for any class; `minIntervalSeconds`, `maxIntervalSeconds`, `backoffFactor`, `jitterPercent` for `WakeTuning`; `weight` for `DeploymentWeight`. |
+| `minimum`, `maximum` | `double?` | Inclusive bounds, zero or more; at least one is required. |
+
+#### `ChangeClassEnum`
+
+`PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`. See [docs/EXECUTIVES.md](docs/EXECUTIVES.md#change-classes) for the fields each covers.
+
+#### `OrgProposal`
+
+An executive's draft seen from its organization (AA8.9), computed from the draft and its approval.
+
+| Field | Type | Description |
+|---|---|---|
+| `draftId`, `title`, `status`, `version` | `string`, `string`, `StudioDraftStatusEnum`, `int` | The draft. |
+| `organizationId` | `string` | Organization. |
+| `unitId`, `unitName` | `string`, `string?` | The unit the executive leads. |
+| `agentId`, `agentName` | `string`, `string?` | The executive. |
+| `originRunId` | `string?` | The run that wrote the draft. |
+| `ownerName` | `string?` | The person the run acted for. |
+| `approvalId`, `approvalStatus` | `string?`, `ApprovalStatusEnum?` | The latest apply approval, or null when apply was never requested. |
+| `decisionSource` | `ApprovalSourceEnum?` | `Rule` when change rules applied it, `User` when a person decided, null while undecided. |
+| `decidedBy`, `reason` | `string?` | Who decided ("change rules" for a rule apply) and why. |
+| `ruleIds` | `string[]` | Rules that applied it; empty unless `decisionSource` is `Rule`. |
+| `diff` | `StudioDraftDiff?` | Only when one proposal is read and it is not applied. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
+
+#### `OrgProposalDecisionRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `allow` | `boolean` | True applies the proposal; false sends it back to the executive. |
+| `reason` | `string?` | At most 4000 characters. |
 
 #### `StudioGraph`
 
@@ -9081,7 +9204,7 @@ One graph operation on a studio draft (AD7.5), applied at the draft version the 
 
 #### `ManagementAccessEnum`
 
-`None`, `Drafts`
+`None`, `Drafts`, `OrgSubtree`
 
 #### `ArchitectPromptEntry`
 

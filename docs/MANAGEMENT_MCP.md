@@ -53,6 +53,10 @@ The two keeper run tools, `garrison_keeper_context` and `garrison_keeper_complet
 
 `garrison_list_freezes` lists the tenant's freezes, active first, and says whether the autonomy kill switch is on; it needs Read on `Freeze`. `garrison_freeze` freezes an agent, deployment, mandate, or app (or, with `TenantAutonomy`, turns the kill switch on) with Create on `Freeze`, and `garrison_lift_freeze` lifts one with Update on `Freeze`. Run tokens never see these tools. See [BRAKES.md](BRAKES.md).
 
+## Change rules and executive proposals
+
+`garrison_create_change_rule`, `garrison_update_change_rule`, `garrison_delete_change_rule`, `garrison_get_change_rule`, and `garrison_list_change_rules` manage the rules that let executives apply narrow classes of change without waiting for a person. `garrison_list_org_proposals`, `garrison_get_org_proposal`, and `garrison_decide_org_proposal` show what executives proposed and decide the ones that wait. Only people use these; the single exception is `garrison_list_change_rules`, which an executive run calls to read the rules on its own subtree. See [EXECUTIVES.md](EXECUTIVES.md).
+
 ## Revisions and promotion
 
 `garrison_list_agent_revisions`, `garrison_get_agent_revision`, and `garrison_publish_agent_revision` read an agent's revisions and publish its open draft. `garrison_promote` moves a revision from one environment to the next, and `garrison_rollback_promotion` restores the pins a promotion replaced. Promotion needs Execute on `Promotion` for the target environment, so a `Releaser` assigned to `staging` can promote there and nowhere else ([REVISIONS.md](REVISIONS.md)).
