@@ -20068,6 +20068,385 @@
       ]
     },
     {
+      "name": "Escalations",
+      "description": "Escalations (AA2): questions a run raises for a person, a role, or another agent when it should not decide alone, with optional options, a default answer, a severity, and a timeout. Runs raise and withdraw them over MCP (garrison_escalate, garrison_withdraw_escalation); people list, read, answer, and cancel them here. Non-blocking escalations let the run continue; a Blocking one suspends its run until answered. The escalations WebSocket channel streams them.",
+      "item": [
+        {
+          "name": "Draft revision with a default escalation target",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "revisions"
+              ]
+            },
+            "description": "Drafts a keeper revision that names a default escalation target: the role TenantAdmin. The keeper's escalations go there when it names no target, and a timed-out escalation with EscalateUp is passed up to it. Kinds are User (user ID or email), Role (ID or name), Agent (ID or name), and Manager (refused with ManagerUnavailable until organizations exist).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": \"Keep the Postman queue short and ask before deleting anything.\",\n  \"escalationTargetKind\": \"Role\",\n  \"escalationTargetId\": \"TenantAdmin\",\n  \"wakeMode\": \"Fixed\",\n  \"minIntervalSeconds\": 3600,\n  \"changeNote\": \"Escalate to tenant admins\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('target round-trips', function () { pm.expect(json.escalationTargetKind).to.eql('Role'); pm.expect(json.escalationTargetId).to.eql('TenantAdmin'); pm.expect(json.state).to.eql('Draft'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A User target needs an identifier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}",
+                "revisions"
+              ]
+            },
+            "description": "A User, Role, or Agent target without escalationTargetId is refused with 400 and field code TargetRequired on escalationTargetId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": \"x\",\n  \"escalationTargetKind\": \"User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code TargetRequired', function () { pm.expect((json.fieldCodes || {}).escalationTargetId).to.eql('TargetRequired'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List open escalations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/escalations?status=Open&maxResults=25&skip=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "escalations"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Open"
+                },
+                {
+                  "key": "maxResults",
+                  "value": "25"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists escalations, open first and then newest first. Filters: status (Open, Answered, Expired, Cancelled, Withdrawn), severity (Info, Warning, Urgent), targetKind, targetId, agentId, mandateId, raisingRunId, search, maxResults, skip. Runs raise escalations with the run-token MCP tool garrison_escalate, so this collection only sees the ones its runs raised, usually none. Needs Read on Escalation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('only open ones', function () { pm.expect(json.objects).to.be.an('array'); json.objects.forEach(function (e) { pm.expect(e.status).to.eql('Open'); pm.expect(e.id).to.match(/^esc_/); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List the keeper's urgent escalations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/escalations?mandateId={{mandateId}}&severity=Urgent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "escalations"
+              ],
+              "query": [
+                {
+                  "key": "mandateId",
+                  "value": "{{mandateId}}"
+                },
+                {
+                  "key": "severity",
+                  "value": "Urgent"
+                }
+              ]
+            },
+            "description": "Filters by keeper and severity. An escalation a keeper tick raised carries mandateId and mandateTickId; its answer wakes the keeper with the answer in the next tick's input."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('filtered', function () { json.objects.forEach(function (e) { pm.expect(e.mandateId).to.eql(pm.collectionVariables.get('mandateId')); pm.expect(e.severity).to.eql('Urgent'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown escalation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/escalations/esc_postman_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "escalations",
+                "esc_postman_missing"
+              ]
+            },
+            "description": "An escalation that does not exist in this tenant, or belongs to another tenant, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Answer an unknown escalation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/escalations/esc_postman_missing/answer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "escalations",
+                "esc_postman_missing",
+                "answer"
+              ]
+            },
+            "description": "Answers an open escalation: choice must be one of its option keys when it has options, otherwise text is required (at most 8000 characters). A Blocking escalation's run resumes on another worker; a keeper wakes with the answer. Already resolved answers 409 EscalationNotOpen; passed up to another escalation answers 409 EscalatedUp. Needs Update on Escalation. This one does not exist, so 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"choice\": \"refund\",\n  \"text\": \"The duplicate capture should be refunded.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel an unknown escalation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/escalations/esc_postman_missing/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "escalations",
+                "esc_postman_missing",
+                "cancel"
+              ]
+            },
+            "description": "Cancels an open escalation with an optional reason; a run blocked on it is cancelled too. Needs Update on Escalation. This one does not exist, so 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"No longer needed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create escalation notification endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints"
+              ]
+            },
+            "description": "Subscribes an endpoint to EscalationRaised and EscalationExpired with escalationMinimumSeverity Urgent, so Info and Warning escalations are skipped. The signed payload carries an escalation summary (id, severity, question, target, agent, mandate).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-escalations-{{suffix}}\",\n  \"url\": \"https://example.invalid/escalations\",\n  \"events\": [\n    \"EscalationRaised\",\n    \"EscalationExpired\"\n  ],\n  \"escalationMinimumSeverity\": \"Urgent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('escalationEndpointId', json.id);",
+                  "pm.test('events and minimum severity', function () { pm.expect(json.events).to.include('EscalationRaised'); pm.expect(json.events).to.include('EscalationExpired'); pm.expect(json.escalationMinimumSeverity).to.eql('Urgent'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -21761,6 +22140,40 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete escalation notification endpoint",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{escalationEndpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{escalationEndpointId}}"
+              ]
+            },
+            "description": "Deletes the escalation notification endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
@@ -23481,6 +23894,10 @@
     },
     {
       "key": "mandateTickTries",
+      "value": ""
+    },
+    {
+      "key": "escalationEndpointId",
       "value": ""
     }
   ]
