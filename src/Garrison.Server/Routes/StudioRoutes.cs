@@ -8,6 +8,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
+    using Garrison.Core.Security;
     using Garrison.Core.Services;
     using Garrison.Server.Services;
     using WatsonWebserver.Core;
@@ -86,10 +87,29 @@ namespace Garrison.Server.Routes
 
         private async Task ListAsync(HttpContextBase http)
         {
+            RequestContext ctx = RouteHelpers.Context(http);
             string? owner = null;
-            if (RouteHelpers.QueryBool(http, "mine") == true) StudioService.Owner(RouteHelpers.Context(http), out owner, out string? _);
+            if (RouteHelpers.QueryBool(http, "mine") == true || ctx.PrincipalType == PrincipalTypeEnum.Run) StudioService.Owner(ctx, out owner, out string? _);
             EnumerationResult<StudioDraft> page = await _Server.Database.StudioDrafts.EnumerateAsync(RouteHelpers.Tenant(http), owner, RouteHelpers.Enumeration(http), RouteHelpers.QueryEnum<StudioDraftStatusEnum>(http, "status"), http.Token).ConfigureAwait(false);
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                List<StudioDraft> visible = new List<StudioDraft>();
+                foreach (StudioDraft draft in page.Objects)
+                {
+                    if (await _Studio.RunMayUseAsync(ctx, draft, http.Token).ConfigureAwait(false)) visible.Add(draft);
+                }
+                page.TotalRecords -= page.Objects.Count - visible.Count;
+                page.Objects = visible;
+            }
             await RouteHelpers.JsonAsync(http, 200, page).ConfigureAwait(false);
+        }
+
+        private async Task<StudioDraft> DraftAsync(HttpContextBase http)
+        {
+            // A run reaches only drafts of the person it acts for, and an executive only its own proposals (AA8.3).
+            StudioDraft draft = await _Studio.ReadAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false);
+            if (!await _Studio.RunMayUseAsync(RouteHelpers.Context(http), draft, http.Token).ConfigureAwait(false)) throw new NotFoundException("Draft not found.");
+            return draft;
         }
 
         private async Task CreateAsync(HttpContextBase http)
@@ -101,18 +121,20 @@ namespace Garrison.Server.Routes
 
         private async Task ReadAsync(HttpContextBase http)
         {
-            await RouteHelpers.JsonAsync(http, 200, await _Studio.ReadAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, await DraftAsync(http).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         private async Task DeleteAsync(HttpContextBase http)
         {
-            await _Studio.DeleteAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id") ?? String.Empty, http.Token).ConfigureAwait(false);
+            StudioDraft owned = await DraftAsync(http).ConfigureAwait(false);
+            await _Studio.DeleteAsync(RouteHelpers.Tenant(http), owned.Id, http.Token).ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task PutItemAsync(HttpContextBase http)
         {
             StudioDraftItemRequest request = RouteHelpers.RequiredBody<StudioDraftItemRequest>(http);
+            await DraftAsync(http).ConfigureAwait(false);
             StudioDraft draft = await _Studio.PutItemAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id") ?? String.Empty, RouteHelpers.Param(http, "kind") ?? String.Empty, RouteHelpers.Param(http, "name") ?? String.Empty, request, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, draft).ConfigureAwait(false);
         }
@@ -120,6 +142,7 @@ namespace Garrison.Server.Routes
         private async Task RemoveItemAsync(HttpContextBase http)
         {
             int version = RouteHelpers.QueryInt(http, "version") ?? throw new ValidationException("version is required: the draft version you read.", new Dictionary<string, string> { { "version", "Required." } });
+            await DraftAsync(http).ConfigureAwait(false);
             StudioDraft draft = await _Studio.RemoveItemAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id") ?? String.Empty, RouteHelpers.Param(http, "kind") ?? String.Empty, RouteHelpers.Param(http, "name") ?? String.Empty, version, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, draft).ConfigureAwait(false);
         }
@@ -127,13 +150,14 @@ namespace Garrison.Server.Routes
         private async Task DiffAsync(HttpContextBase http)
         {
             string tenantId = RouteHelpers.Tenant(http);
-            StudioDraft draft = await _Studio.ReadAsync(tenantId, RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false);
+            StudioDraft draft = await DraftAsync(http).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, await _Studio.DiffAsync(RouteHelpers.Context(http), tenantId, draft, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         private async Task RequestApplyAsync(HttpContextBase http)
         {
             StudioDraftVersionRequest request = RouteHelpers.RequiredBody<StudioDraftVersionRequest>(http);
+            await DraftAsync(http).ConfigureAwait(false);
             Approval approval = await _Studio.RequestApplyAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id") ?? String.Empty, request.Version, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, approval).ConfigureAwait(false);
         }
@@ -141,7 +165,7 @@ namespace Garrison.Server.Routes
         private async Task DraftPlaygroundAsync(HttpContextBase http)
         {
             string tenantId = RouteHelpers.Tenant(http);
-            StudioDraft draft = await _Studio.ReadAsync(tenantId, RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false);
+            StudioDraft draft = await DraftAsync(http).ConfigureAwait(false);
             PlaygroundInvokeRequest request = RouteHelpers.RequiredBody<PlaygroundInvokeRequest>(http);
             if (_Routes != null && !await _Routes.RequireAsync(http, tenantId, ResourceTypeEnum.AgentRevision, OperationTypeEnum.Update, null).ConfigureAwait(false)) return;
             Run run = await _Server.Get<PlaygroundService>().InvokeDraftAsync(RouteHelpers.Context(http), tenantId, draft, request, http.Token).ConfigureAwait(false);
@@ -226,13 +250,14 @@ namespace Garrison.Server.Routes
 
         private async Task GraphAsync(HttpContextBase http)
         {
-            StudioDraft draft = await _Studio.ReadAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id"), http.Token).ConfigureAwait(false);
+            StudioDraft draft = await DraftAsync(http).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, StudioService.Graph(draft)).ConfigureAwait(false);
         }
 
         private async Task GraphOperationAsync(HttpContextBase http)
         {
             StudioGraphOperationRequest request = RouteHelpers.RequiredBody<StudioGraphOperationRequest>(http);
+            await DraftAsync(http).ConfigureAwait(false);
             StudioGraph graph = await _Studio.ApplyGraphOperationAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id") ?? String.Empty, request, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, graph).ConfigureAwait(false);
         }

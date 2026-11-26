@@ -681,7 +681,7 @@ namespace Garrison.Core.Services
             }
             else if (endpoint.Events.Any(e => e == NotificationEventEnum.Test || !Enum.IsDefined(e)))
             {
-                errors["events"] = "Events are RunSucceeded, RunFailed, RunCancelled, RunTimedOut, PipelineCompleted, PipelineFailed, ApprovalRequested, EscalationRaised, EscalationExpired, FreezeApplied, MandateCapReached, and ReportUnhealthy.";
+                errors["events"] = "Events are RunSucceeded, RunFailed, RunCancelled, RunTimedOut, PipelineCompleted, PipelineFailed, ApprovalRequested, EscalationRaised, EscalationExpired, FreezeApplied, MandateCapReached, ReportUnhealthy, and OrgProposalApplied.";
                 codes["events"] = "InvalidEvent";
             }
             else
@@ -832,6 +832,7 @@ namespace Garrison.Core.Services
                 : cache != null ? await cache.AgentAsync(deployment.AgentId, token).ConfigureAwait(false)
                 : await database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false);
             if (agent == null) errors["agentId"] = "The agent does not exist in this tenant.";
+            if (agent != null && deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree) await ExecutiveAsync(database, tenantId, agent, errors, codes, cache, token).ConfigureAwait(false);
             await EnvironmentAndRevisionAsync(database, tenantId, deployment, errors, codes, token).ConfigureAwait(false);
             if (!Garrison.Core.Helpers.RelativePaths.IsValid(deployment.FileSpaceMountPath, 128))
             {
@@ -1002,6 +1003,24 @@ namespace Garrison.Core.Services
         #endregion
 
         #region Private-Methods
+
+        private static async Task ExecutiveAsync(DatabaseDriverBase database, string tenantId, Agent agent, Dictionary<string, string> errors, Dictionary<string, string> codes, ConfigurationReferenceCache? cache, CancellationToken token)
+        {
+            // AA8.1: OrgSubtree is executive authority over the subtree below the unit the agent leads, so the agent must
+            // lead exactly one unit (in an organization that is not Retired, or in an Organization of the same bundle).
+            int led = await database.Organizations.CountLedUnitsAsync(tenantId, agent.Id, token).ConfigureAwait(false);
+            bool planned = cache != null && cache.PlannedUnitLeads.Contains(agent.Name);
+            if (led == 0 && !planned)
+            {
+                errors["managementAccess"] = "managementAccess OrgSubtree is executive authority over the units below the one the agent leads, and agent " + agent.Name + " leads no org unit. Make it a unit's lead first, or use None or Drafts.";
+                codes["managementAccess"] = "NotAUnitLead";
+            }
+            else if (led > 1)
+            {
+                errors["managementAccess"] = "Agent " + agent.Name + " leads " + led.ToString(System.Globalization.CultureInfo.InvariantCulture) + " units across organizations, so its executive authority would be ambiguous. An executive leads exactly one unit.";
+                codes["managementAccess"] = "LeadsSeveralUnits";
+            }
+        }
 
         private static async Task TrustLevelAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, Dictionary<string, string> errors, Dictionary<string, string> codes, ConfigurationReferenceCache? cache, CancellationToken token)
         {

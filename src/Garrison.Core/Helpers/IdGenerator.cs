@@ -362,6 +362,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New change rule identifier (prefix cru_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewChangeRuleId()
+        {
+            return New(Constants.ChangeRuleIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

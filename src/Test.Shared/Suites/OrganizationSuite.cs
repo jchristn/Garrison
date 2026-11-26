@@ -564,7 +564,7 @@ namespace Test.Shared.Suites
             }
         }
 
-        private static async Task<OrgFixture> FixtureAsync(TestServerHost host, string prefix, CancellationToken token)
+        internal static async Task<OrgFixture> FixtureAsync(TestServerHost host, string prefix, CancellationToken token)
         {
             // root (CEO) with children ops (lead, worker) and sales (seller); ops and sales share a peer line.
             OrganizationService service = host.Server.Context.Get<OrganizationService>();
@@ -584,29 +584,29 @@ namespace Test.Shared.Suites
             return f;
         }
 
-        private static RequestContext Admin(TestServerHost host)
+        internal static RequestContext Admin(TestServerHost host)
         {
             return new RequestContext { TenantId = host.TenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = "admin", IsAuthenticated = true };
         }
 
-        private static async Task<Agent> AgentAsync(TestServerHost host, string name, CancellationToken token)
+        internal static async Task<Agent> AgentAsync(TestServerHost host, string name, CancellationToken token)
         {
             return await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = name }, token).ConfigureAwait(false);
         }
 
-        private static async Task<Deployment> DeploymentAsync(TestServerHost host, Agent agent, CancellationToken token)
+        internal static async Task<Deployment> DeploymentAsync(TestServerHost host, Agent agent, CancellationToken token)
         {
             return await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = agent.Name + "-default", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
         }
 
-        private static async Task<Mandate> MandateAsync(TestServerHost host, string name, Agent agent, Deployment deployment, string objective, CancellationToken token)
+        internal static async Task<Mandate> MandateAsync(TestServerHost host, string name, Agent agent, Deployment deployment, string objective, CancellationToken token)
         {
             Mandate body = KeeperSuite.Body(name, agent, KeeperSuite.Revision(objective, WakeModeEnum.Fixed, 60, 120));
             body.DeploymentId = deployment.Id;
             return await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", body, 201, token).ConfigureAwait(false);
         }
 
-        private static Run RunOf(TestServerHost host, Agent agent)
+        internal static Run RunOf(TestServerHost host, Agent agent)
         {
             Run run = new Run();
             run.Id = IdGenerator.NewRunId();
@@ -628,7 +628,7 @@ namespace Test.Shared.Suites
             return await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
         }
 
-        private static async Task<TestMcpClient> RunClientAsync(TestServerHost host, Run run, CancellationToken token)
+        internal static async Task<TestMcpClient> RunClientAsync(TestServerHost host, Run run, CancellationToken token)
         {
             string bearer = await host.Server.Context.Authentication.IssueForRunAsync(run, run.LeaseEpoch, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
             TestMcpClient client = new TestMcpClient();
@@ -658,7 +658,7 @@ namespace Test.Shared.Suites
             return "none";
         }
 
-        private static string T(TestServerHost host)
+        internal static string T(TestServerHost host)
         {
             return "/v1.0/api/tenants/" + host.TenantId;
         }

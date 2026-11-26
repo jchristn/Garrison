@@ -153,6 +153,7 @@ namespace Garrison.Core.Manifests
             // One reference cache for the whole apply (I-06): each referenced record is read once for planning, diffing,
             // and the deployment validation at write time, instead of once per document that names it.
             ConfigurationReferenceCache cache = new ConfigurationReferenceCache(_Database, tenantId);
+            foreach (string lead in PlannedLeads(documents)) cache.PlannedUnitLeads.Add(lead);
             Resolver resolver = new Resolver(_Database, tenantId, cache);
             List<Planned> plan = new List<Planned>();
             foreach (ManifestDocument document in documents.OrderBy(d => KindOrder(d.Kind)).ThenBy(d => d.Index))
@@ -363,6 +364,32 @@ namespace Garrison.Core.Manifests
             string? kind = Kinds.FirstOrDefault(k => String.Equals(k, document.Kind, StringComparison.OrdinalIgnoreCase));
             if (kind == null || String.IsNullOrWhiteSpace(document.Metadata.Name)) return;
             resolver.Add(kind, document.Metadata.Name, "unresolved_" + kind.ToLowerInvariant() + "_" + document.Index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        private static List<string> PlannedLeads(List<ManifestDocument> documents)
+        {
+            // AA8.1: a deployment with managementAccess OrgSubtree may arrive in the same bundle as the unit its agent leads.
+            List<string> leads = new List<string>();
+            foreach (ManifestDocument document in documents.Where(d => d.Kind == "Organization"))
+            {
+                OrganizationSpec? spec;
+                try
+                {
+                    spec = Serializer.Deserialize<OrganizationSpec>(TemplateValues.ToJson(document.Spec));
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+                Stack<OrgUnitSpec> pending = new Stack<OrgUnitSpec>(spec?.Units ?? new List<OrgUnitSpec>());
+                while (pending.Count > 0)
+                {
+                    OrgUnitSpec unit = pending.Pop();
+                    if (!String.IsNullOrWhiteSpace(unit.Lead)) leads.Add(unit.Lead.Trim());
+                    foreach (OrgUnitSpec child in unit.Units ?? new List<OrgUnitSpec>()) pending.Push(child);
+                }
+            }
+            return leads;
         }
 
         private static int KindOrder(string kind)

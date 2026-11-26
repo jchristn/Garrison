@@ -37,6 +37,12 @@ namespace Garrison.Server.Runtime
         public Func<string, MemoryScopeKindEnum, string, CancellationToken, Task>? DeleteMemoryScopeAsync { get; set; } = null;
 
         /// <summary>
+        /// Applies a revert draft recorded with an executive's apply (AA8.6) when a rollback goes past it, with the caller,
+        /// the tenant, and the draft. Returns false when the draft was already applied or is gone. Null to skip.
+        /// </summary>
+        public Func<RequestContext, string, string, CancellationToken, Task<bool>>? ApplyRevertAsync { get; set; } = null;
+
+        /// <summary>
         /// Tree validator with the configured limits.
         /// </summary>
         public OrgTreeValidator Validator
@@ -223,6 +229,7 @@ namespace Garrison.Server.Runtime
                 OrgRevision? full = await _Database.Organizations.ReadRevisionAsync(organization.TenantId, revision.Id, token).ConfigureAwait(false);
                 if (full != null) foreach (OrgUnit unit in full.Units) unitIds.Add(unit.Id);
             }
+            await _Database.ChangeRules.DeleteForOrganizationAsync(organization.TenantId, organization.Id, token).ConfigureAwait(false);
             bool deleted = await _Database.Organizations.DeleteAsync(organization.TenantId, organization.Id, token).ConfigureAwait(false);
             if (!deleted) return false;
             if (DeleteMemoryScopeAsync != null)
@@ -555,6 +562,42 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Record an executive's applied draft (AA8.6): snapshot the working tree the apply left as a new revision that names
+        /// the draft and its revert draft, and publish it, so a rollback past it undoes the change.
+        /// </summary>
+        /// <param name="ctx">The principal the apply ran as.</param>
+        /// <param name="organization">Organization.</param>
+        /// <param name="draftId">Applied draft.</param>
+        /// <param name="revertDraftId">Draft holding the records as they were before, or null.</param>
+        /// <param name="note">Why, at most 2000 characters.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The published revision.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or organization is null.</exception>
+        /// <exception cref="ConflictException">Thrown with a tree rule code or OrganizationRetired.</exception>
+        public async Task<OrgRevision> RecordExecutiveApplyAsync(RequestContext ctx, Organization organization, string draftId, string? revertDraftId, string note, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (organization == null) throw new ArgumentNullException(nameof(organization));
+            EnsureEditable(organization);
+            List<OrgUnit> units = TreeOrder(organization, await _Database.Organizations.ListUnitsAsync(organization.TenantId, organization.Id, token).ConfigureAwait(false));
+            _Validator.Validate(units, true);
+            OrgRevision revision = new OrgRevision();
+            revision.TenantId = organization.TenantId;
+            revision.OrganizationId = organization.Id;
+            revision.Note = note.Length > 2000 ? note.Substring(0, 2000) : note;
+            revision.DraftId = draftId;
+            revision.RevertDraftId = revertDraftId;
+            Author(ctx, revision);
+            revision.Units = units;
+            revision.Mandates = await PinMandatesAsync(organization.TenantId, units, token).ConfigureAwait(false);
+            await _Database.Organizations.CreateRevisionAsync(revision, token).ConfigureAwait(false);
+            await GoLiveAsync(ctx, organization, revision, PromotionKindEnum.Promote, null, token).ConfigureAwait(false);
+            await AuditAsync(ctx, organization, "Published revision " + revision.Number + " of organization " + organization.Name + " for applied executive draft " + draftId + ".", token).ConfigureAwait(false);
+            await NotifyAsync(organization, "Published", token).ConfigureAwait(false);
+            return await _Database.Organizations.ReadRevisionAsync(organization.TenantId, revision.Id, token).ConfigureAwait(false) ?? revision;
+        }
+
+        /// <summary>
         /// Roll an organization back to an earlier published revision: a new revision copying its snapshot is published,
         /// the working tree is replaced with it, the mandate revisions it pinned become current again, and a rollback
         /// promotion record is written.
@@ -610,7 +653,21 @@ namespace Garrison.Server.Runtime
             List<OrgUnit> tree = target.Units.Select(Clone).ToList();
             organization.RootUnitId = tree.Where(u => String.IsNullOrEmpty(u.ParentUnitId)).Select(u => u.Id).FirstOrDefault();
             await _Database.Organizations.ReplaceTreeAsync(organization, tree, token).ConfigureAwait(false);
-            await AuditAsync(ctx, organization, "Rolled organization " + organization.Name + " back to revision " + target.Number + " as revision " + copy.Number + ".", token).ConfigureAwait(false);
+
+            // AA8.6: revisions recorded for executive applies after the target carry the records as they were before; apply
+            // them newest first so agents, deployments, mandates, templates, and assets go back too.
+            int reverted = 0;
+            if (ApplyRevertAsync != null && target.PublishedUtc.HasValue)
+            {
+                List<OrgRevision> later = (await _Database.Organizations.ListRevisionsAsync(organization.TenantId, organization.Id, token).ConfigureAwait(false))
+                    .Where(r => r.PublishedUtc.HasValue && r.PublishedUtc.Value > target.PublishedUtc.Value && !String.IsNullOrEmpty(r.RevertDraftId))
+                    .OrderByDescending(r => r.PublishedUtc!.Value).ThenByDescending(r => r.Number).ToList();
+                foreach (OrgRevision revision in later)
+                {
+                    if (await ApplyRevertAsync(ctx, organization.TenantId, revision.RevertDraftId!, token).ConfigureAwait(false)) reverted++;
+                }
+            }
+            await AuditAsync(ctx, organization, "Rolled organization " + organization.Name + " back to revision " + target.Number + " as revision " + copy.Number + (reverted > 0 ? ", undoing " + reverted + " executive apply" + (reverted == 1 ? String.Empty : "s") : String.Empty) + ".", token).ConfigureAwait(false);
             await NotifyAsync(organization, "RolledBack", token).ConfigureAwait(false);
             return await _Database.Organizations.ReadRevisionAsync(organization.TenantId, copy.Id, token).ConfigureAwait(false) ?? copy;
         }

@@ -53,6 +53,12 @@ namespace Garrison.Core.Services
             }
         }
 
+        /// <summary>
+        /// Agent names that lead a unit in an Organization document of the same manifest apply (AA8.1), so a deployment
+        /// with managementAccess OrgSubtree validates when the bundle also creates the unit it leads. Empty by default.
+        /// </summary>
+        public HashSet<string> PlannedUnitLeads { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         #endregion
 
         #region Private-Members

@@ -518,9 +518,12 @@ namespace Garrison.Server.Services
                 // delete live resources, or read secrets.
                 Run? run = String.IsNullOrEmpty(ctx.RunId) ? null : await _Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
                 Deployment? deployment = run == null ? null : await _Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false);
-                allowed = deployment != null && deployment.ManagementAccess == ManagementAccessEnum.Drafts;
+                // Executives (AA8.1): OrgSubtree works on studio drafts too, checked against the subtree by the studio, but
+                // never through the playground's draft agent revisions.
+                allowed = deployment != null && (deployment.ManagementAccess == ManagementAccessEnum.Drafts
+                    || (deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree && !(resourceType == ResourceTypeEnum.AgentRevision && operation == OperationTypeEnum.Update)));
             }
-            if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may discover and invoke agents, read runs, or upload configured artifacts for their own execution; deployments with managementAccess Drafts may also work on studio drafts.");
+            if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may discover and invoke agents, read runs, or upload configured artifacts for their own execution; deployments with managementAccess Drafts or OrgSubtree may also work on studio drafts.");
 
             if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator) return AuthorizationDecision.Permit("Run on behalf of a system administrator.");
             if (String.IsNullOrEmpty(ctx.OriginPrincipalId)) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run has no originating principal.");
@@ -540,6 +543,40 @@ namespace Garrison.Server.Services
             if (!ceiling.Permitted) ceiling.Reason = "Originating principal ceiling: " + ceiling.Reason;
             ceiling.BypassReason = null;
             return ceiling;
+        }
+
+        /// <summary>
+        /// Evaluate a permission for the person who started a run (AA8.6): a rule-applied executive draft is applied for
+        /// that person, so it needs what they hold. For any other caller this is the ordinary evaluation.
+        /// </summary>
+        /// <param name="ctx">Run caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="resourceType">Resource type.</param>
+        /// <param name="operation">Operation.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Decision.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx is null.</exception>
+        public async Task<AuthorizationDecision> AuthorizeOriginAsync(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run) return await AuthorizeAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator) return AuthorizationDecision.Permit("Run on behalf of a system administrator.");
+            RequestContext? origin = await OriginAsync(ctx, tenantId, token).ConfigureAwait(false);
+            if (origin == null) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "The person who started the run is inactive or unknown.");
+            return await EvaluateAsync(origin, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A request context for the person who started a run, or null when they are inactive or unknown.
+        /// </summary>
+        /// <param name="ctx">Run caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Context or null.</returns>
+        public async Task<RequestContext?> OriginContextAsync(RequestContext ctx, string tenantId, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            return await OriginAsync(ctx, tenantId, token).ConfigureAwait(false);
         }
 
         private async Task<RequestContext?> OriginAsync(RequestContext ctx, string tenantId, CancellationToken token)

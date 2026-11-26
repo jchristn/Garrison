@@ -150,6 +150,9 @@ namespace Garrison.Core
         /// <summary>Organization revision identifier prefix (AA7).</summary>
         public const string OrgRevisionIdPrefix = "orv_";
 
+        /// <summary>Change rule identifier prefix (AA8, AA-030; chr_ is taken by child rows).</summary>
+        public const string ChangeRuleIdPrefix = "cru_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

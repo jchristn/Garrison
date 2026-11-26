@@ -199,6 +199,9 @@ namespace Garrison.Core.Database
                 "org_revision_peer_lines",
                 "org_revision_budgets",
                 "org_revision_mandates",
+                "change_rules",
+                "change_rule_classes",
+                "change_rule_limits",
         };
 
         private readonly SqlDialect _Dialect;

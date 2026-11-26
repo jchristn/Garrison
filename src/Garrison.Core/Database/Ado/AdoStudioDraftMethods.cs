@@ -54,8 +54,8 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _Drafts + " (id, tenantid, title, owneruserid, ownername, conversationid, targetapp, version, status, approvalid, publishonapply, manifestapplyid, createdutc, lastupdateutc) " +
-                    "VALUES (@id, @tenantid, @title, @owneruserid, @ownername, @conversationid, @targetapp, @version, @status, @approvalid, @publishonapply, @manifestapplyid, @createdutc, @lastupdateutc);",
+                    "INSERT INTO " + _Drafts + " (id, tenantid, title, owneruserid, ownername, conversationid, targetapp, version, status, approvalid, publishonapply, manifestapplyid, originrunid, organizationid, executiveunitid, executiveagentid, createdutc, lastupdateutc) " +
+                    "VALUES (@id, @tenantid, @title, @owneruserid, @ownername, @conversationid, @targetapp, @version, @status, @approvalid, @publishonapply, @manifestapplyid, @originrunid, @organizationid, @executiveunitid, @executiveagentid, @createdutc, @lastupdateutc);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", draft.Id);
@@ -70,6 +70,10 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "approvalid", draft.ApprovalId);
                         AdoDatabaseDriver.Add(command, "publishonapply", draft.PublishOnApply);
                         AdoDatabaseDriver.Add(command, "manifestapplyid", draft.ManifestApplyId);
+                        AdoDatabaseDriver.Add(command, "originrunid", draft.OriginRunId);
+                        AdoDatabaseDriver.Add(command, "organizationid", draft.OrganizationId);
+                        AdoDatabaseDriver.Add(command, "executiveunitid", draft.ExecutiveUnitId);
+                        AdoDatabaseDriver.Add(command, "executiveagentid", draft.ExecutiveAgentId);
                         AdoDatabaseDriver.Add(command, "createdutc", draft.CreatedUtc);
                         AdoDatabaseDriver.Add(command, "lastupdateutc", draft.LastUpdateUtc);
                     }, ct).ConfigureAwait(false);
@@ -124,6 +128,30 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "tenantid", tenantId);
                 if (!String.IsNullOrEmpty(ownerUserId)) AdoDatabaseDriver.Add(command, "owner", ownerUserId);
                 if (!String.IsNullOrEmpty(query.Search)) AdoDatabaseDriver.Add(command, "search", "%" + query.Search + "%");
+                if (status.HasValue) AdoDatabaseDriver.Add(command, "status", status.Value.ToString());
+            };
+            object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Drafts + where + ";", bind, token).ConfigureAwait(false);
+            long total = countValue == null ? 0 : Convert.ToInt64(countValue, CultureInfo.InvariantCulture);
+            List<StudioDraft> drafts = await _Driver.QueryAsync("SELECT * FROM " + _Drafts + where + " ORDER BY lastupdateutc DESC, id DESC" + _Driver.Dialect.LimitOffsetClause() + ";", command =>
+            {
+                bind(command);
+                AdoDatabaseDriver.Add(command, "max", query.MaxResults);
+                AdoDatabaseDriver.Add(command, "skip", query.Skip);
+            }, Map, token).ConfigureAwait(false);
+            return EnumerationResult<StudioDraft>.Build(query, total, drafts);
+        }
+
+        /// <inheritdoc />
+        public async Task<EnumerationResult<StudioDraft>> EnumerateProposalsAsync(string tenantId, string organizationId, EnumerationQuery query, StudioDraftStatusEnum? status = null, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(organizationId)) throw new ArgumentNullException(nameof(organizationId));
+            if (query == null) throw new ArgumentNullException(nameof(query));
+            string where = " WHERE tenantid = @tenantid AND organizationid = @organizationid AND executiveunitid IS NOT NULL" + (status.HasValue ? " AND status = @status" : String.Empty);
+            Action<DbCommand> bind = command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "organizationid", organizationId);
                 if (status.HasValue) AdoDatabaseDriver.Add(command, "status", status.Value.ToString());
             };
             object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Drafts + where + ";", bind, token).ConfigureAwait(false);
@@ -315,6 +343,10 @@ namespace Garrison.Core.Database.Ado
             draft.ApprovalId = AdoConverters.NullableStr(reader, "approvalid");
             draft.PublishOnApply = AdoConverters.Bool(reader, "publishonapply");
             draft.ManifestApplyId = AdoConverters.NullableStr(reader, "manifestapplyid");
+            draft.OriginRunId = AdoConverters.NullableStr(reader, "originrunid");
+            draft.OrganizationId = AdoConverters.NullableStr(reader, "organizationid");
+            draft.ExecutiveUnitId = AdoConverters.NullableStr(reader, "executiveunitid");
+            draft.ExecutiveAgentId = AdoConverters.NullableStr(reader, "executiveagentid");
             draft.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             draft.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
             return draft;

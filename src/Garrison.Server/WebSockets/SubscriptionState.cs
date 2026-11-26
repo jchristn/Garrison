@@ -31,5 +31,10 @@ namespace Garrison.Server.WebSockets
         /// When the periodic summary was last computed (UTC).
         /// </summary>
         public DateTime SummaryCheckedUtc { get; set; } = DateTime.MinValue;
+
+        /// <summary>
+        /// A third cursor, such as the organization channel's proposal cursor (ticks of the last change sent), or null.
+        /// </summary>
+        public string? TertiaryFingerprint { get; set; } = null;
     }
 }

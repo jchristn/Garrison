@@ -83,6 +83,7 @@ namespace Test.Shared
                 suites.AddRange(ReportSuite.Build());
                 suites.AddRange(MessagingSuite.Build());
                 suites.AddRange(OrganizationSuite.Build());
+                suites.AddRange(ExecutiveAuthoritySuite.Build());
                 suites.AddRange(NotificationSuite.Build());
                 suites.AddRange(TranscriptSuite.Build());
                 suites.AddRange(RevisionSuite.Build());

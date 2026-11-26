@@ -212,6 +212,7 @@ namespace Garrison.Core.Compilation
             if (!String.IsNullOrEmpty(run.ConversationId)) inputs.StudioDraft = await _Database.StudioDrafts.ReadByConversationAsync(run.TenantId, run.ConversationId, token).ConfigureAwait(false);
             if (run.Kind == RunKindEnum.Keeper && !String.IsNullOrEmpty(run.MandateId)) await LoadKeeperAsync(inputs, run, token).ConfigureAwait(false);
             await LoadOrgAsync(inputs, run, token).ConfigureAwait(false);
+            await LoadExecutiveAsync(inputs, run, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -303,6 +304,9 @@ namespace Garrison.Core.Compilation
             ExecutorCapabilityRules.Admit(run, inputs.Deployment, pool);
             run.EffectPolicy = inputs.Deployment.EffectPolicy;
             inputs.Containerized = run.Executor == RunExecutorEnum.KubernetesJob;
+            // A preview shows the organization and executive fragments a real run of the deployment would carry (AA7.8, AA8.8).
+            await LoadOrgAsync(inputs, run, token).ConfigureAwait(false);
+            await LoadExecutiveAsync(inputs, run, token).ConfigureAwait(false);
             if (parameters != null)
             {
                 foreach (KeyValuePair<string, string> entry in parameters)
@@ -694,7 +698,7 @@ namespace Garrison.Core.Compilation
             }
             context.Set("inference", inference);
 
-            bool managementEnabled = deployment.ManagementAccess == ManagementAccessEnum.Drafts && !String.IsNullOrEmpty(runToken);
+            bool managementEnabled = (deployment.ManagementAccess == ManagementAccessEnum.Drafts || deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree) && !String.IsNullOrEmpty(runToken);
             List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled || managementEnabled, approvalsEnabled, spec, scrub);
             context.Set("resources", ResourcesContext(inputs, servers));
             context.Set("assets", AssetsContext(inputs, spec));
@@ -723,6 +727,13 @@ namespace Garrison.Core.Compilation
                 context.Set("org", OrgContextMap(inputs.Org));
                 string org = RenderPrompt(inputs, Garrison.Core.Organizations.OrgContextLoader.Role, context, includes, usedIncludes).Trim();
                 if (org.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + org : org;
+            }
+            if (inputs.Executive != null && inputs.Prompts.ContainsKey(Garrison.Core.Organizations.ExecutiveContextLoader.Role))
+            {
+                // AA8.8: an executive learns its authority, its hard limits, and the change rules in force.
+                context.Set("executive", ExecutiveContextMap(inputs.Executive));
+                string executive = RenderPrompt(inputs, Garrison.Core.Organizations.ExecutiveContextLoader.Role, context, includes, usedIncludes).Trim();
+                if (executive.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + executive : executive;
             }
             string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
             if (repair != null)
@@ -1388,7 +1399,7 @@ namespace Garrison.Core.Compilation
                 // skips the preflight, so an unreachable endpoint never fails it.
                 garrison.Required = delegationEnabled || approvalsEnabled || keeper || _Options.AgentMemoryEnabled;
                 if (delegationEnabled && inputs.Agent.DelegationMode != DelegationModeEnum.None) garrison.RequiredTools.Add("garrison_invoke_agent");
-                if (inputs.Deployment.ManagementAccess == ManagementAccessEnum.Drafts) garrison.RequiredTools.Add("garrison_studio_get_draft");
+                if (inputs.Deployment.ManagementAccess == ManagementAccessEnum.Drafts || inputs.Deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree) garrison.RequiredTools.Add("garrison_studio_get_draft");
                 if (approvalsEnabled) garrison.RequiredTools.Add(PermissionPromptTool);
                 if (keeper) garrison.RequiredTools.Add("garrison_keeper_complete_tick");
                 garrison.ToolTimeoutSeconds = approvalsEnabled ? Math.Max(600, inputs.Deployment.ApprovalTimeoutSeconds + 120) : 600;
@@ -1768,6 +1779,53 @@ namespace Garrison.Core.Compilation
             bound.Content = template.Content;
             inputs.Prompts[role] = bound;
             if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
+        }
+
+        private async Task LoadExecutiveAsync(CompilationInputs inputs, Run run, CancellationToken token)
+        {
+            inputs.Executive = await new Garrison.Core.Organizations.ExecutiveContextLoader(_Database).LoadAsync(run.TenantId, inputs.Deployment, run.AgentId, token).ConfigureAwait(false);
+            if (inputs.Executive == null) return;
+            string role = Garrison.Core.Organizations.ExecutiveContextLoader.Role;
+            if (inputs.Prompts.ContainsKey(role)) return;
+            PromptTemplate template = await new Garrison.Core.Keepers.KeeperTemplateResolver(_Database).ResolveAsync(run.TenantId, Garrison.Core.Organizations.ExecutiveContextLoader.TemplateName, PromptTemplateKindEnum.Fragment, token).ConfigureAwait(false);
+            BoundPrompt bound = new BoundPrompt();
+            bound.Role = role;
+            bound.TemplateId = template.Id;
+            bound.TemplateName = template.Name;
+            bound.Version = template.CurrentVersion;
+            bound.Content = template.Content;
+            inputs.Prompts[role] = bound;
+            if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
+        }
+
+        private static Dictionary<string, object?> ExecutiveContextMap(CompilationExecutiveContext executive)
+        {
+            Dictionary<string, object?> map = TemplateContext.NewMap();
+            map["organizationName"] = executive.OrganizationName;
+            map["unitName"] = executive.UnitName;
+            map["agentCount"] = executive.AgentCount;
+            map["hasUnits"] = executive.Units.Count > 0;
+            map["units"] = executive.Units.Select(u =>
+            {
+                Dictionary<string, object?> unit = TemplateContext.NewMap();
+                unit["name"] = u.Name;
+                unit["parentName"] = u.ParentName;
+                unit["leadName"] = u.LeadName;
+                unit["memberCount"] = u.MemberCount;
+                return (object?)unit;
+            }).ToList();
+            map["hasRules"] = executive.Rules.Count > 0;
+            map["rules"] = executive.Rules.Select(r =>
+            {
+                Dictionary<string, object?> rule = TemplateContext.NewMap();
+                rule["name"] = r.Name;
+                rule["unitName"] = r.UnitName;
+                rule["classes"] = r.Classes;
+                rule["limits"] = r.Limits;
+                rule["expires"] = r.Expires;
+                return (object?)rule;
+            }).ToList();
+            return map;
         }
 
         private static Dictionary<string, object?> OrgContextMap(CompilationOrgContext org)

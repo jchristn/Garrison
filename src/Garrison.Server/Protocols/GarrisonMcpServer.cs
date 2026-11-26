@@ -412,6 +412,7 @@ namespace Garrison.Server.Protocols
                 if (tool.Name.StartsWith("garrison_keeper_", StringComparison.Ordinal) && await KeeperRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
                 if ((RunOnlyEscalationTool(tool.Name) || RunOnlyMessageTool(tool.Name)) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
                 if (tool.Name.StartsWith("garrison_org_", StringComparison.Ordinal) && ctx.PrincipalType == PrincipalTypeEnum.Run && !await OrgMemberRunAsync(ctx, token).ConfigureAwait(false)) continue;
+                if (tool.Name == "garrison_list_change_rules" && ctx.PrincipalType == PrincipalTypeEnum.Run && await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -432,12 +433,12 @@ namespace Garrison.Server.Protocols
 
         private async Task<bool> DraftGrantAsync(RequestContext ctx, CancellationToken token)
         {
-            // Runs see the studio tools only when their deployment grants managementAccess Drafts (AD7.4).
+            // Runs see the studio tools only when their deployment grants managementAccess Drafts (AD7.4) or OrgSubtree (AA8.1).
             if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return false;
             Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
             if (run == null) return false;
             Deployment? deployment = await _Context.Database.Deployments.ReadAsync(ctx.TenantId, run.DeploymentId, token).ConfigureAwait(false);
-            return deployment != null && deployment.ManagementAccess == ManagementAccessEnum.Drafts;
+            return deployment != null && (deployment.ManagementAccess == ManagementAccessEnum.Drafts || deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree);
         }
 
         private async Task<List<Agent>> AgentToolsAsync(RequestContext ctx, string tenantId, CancellationToken token)
@@ -897,6 +898,16 @@ namespace Garrison.Server.Protocols
                     case "garrison_publish_org_revision":
                     case "garrison_rollback_organization":
                         result = await OrganizationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_change_rules":
+                    case "garrison_get_change_rule":
+                    case "garrison_create_change_rule":
+                    case "garrison_update_change_rule":
+                    case "garrison_delete_change_rule":
+                    case "garrison_list_org_proposals":
+                    case "garrison_get_org_proposal":
+                    case "garrison_decide_org_proposal":
+                        result = await ChangeRuleToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_freezes":
                     case "garrison_freeze":
@@ -1841,6 +1852,87 @@ namespace Garrison.Server.Protocols
             return (await _Context.Get<ChainOfCommand>().PositionsAsync(ctx.TenantId, run.AgentId, token).ConfigureAwait(false)).Count > 0;
         }
 
+        private async Task<object> ChangeRuleToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            ChangeRuleService rules = _Context.Get<ChangeRuleService>();
+            McpChangeRuleArguments arguments = ManagementArguments<McpChangeRuleArguments>(args);
+            if (tool.Name == "garrison_list_change_rules" && ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                // AA8.9: an executive reads the rules that bear on its own subtree through its own identity.
+                ExecutivePosition position = await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false)
+                    ?? throw ToolError("NotAnExecutive", "Only an executive run (a deployment with managementAccess OrgSubtree whose agent leads a unit) reads change rules.");
+                return await rules.ForExecutiveAsync(tenantId, position, token).ConfigureAwait(false);
+            }
+            await Require(ctx, tenantId, tool.ResourceType, tool.Operation, null, token).ConfigureAwait(false);
+            RequestContext caller = ctx;
+            switch (tool.Name)
+            {
+                case "garrison_list_change_rules":
+                {
+                    EnumerationQuery query = new EnumerationQuery { Search = arguments.Search, ActiveOnly = arguments.ActiveOnly == true, Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    return await ToolCallAsync(() => rules.EnumerateAsync(tenantId, arguments.Organization, arguments.Unit, query, token)).ConfigureAwait(false);
+                }
+                case "garrison_get_change_rule":
+                    return await ToolCallAsync(() => rules.ReadAsync(tenantId, arguments.RuleId, token)).ConfigureAwait(false);
+                case "garrison_create_change_rule":
+                {
+                    ChangeRule body = new ChangeRule
+                    {
+                        OrganizationId = arguments.Organization ?? String.Empty, UnitId = arguments.Unit ?? String.Empty, Name = arguments.Name ?? String.Empty,
+                        Description = arguments.Description, Active = arguments.Active ?? true, ExpiresUtc = arguments.ExpiresUtc,
+                        Classes = ParseClasses(arguments.Classes), Limits = arguments.Limits ?? new List<ChangeRuleLimit>()
+                    };
+                    return await ToolCallAsync(() => rules.CreateAsync(caller, tenantId, body, token)).ConfigureAwait(false);
+                }
+                case "garrison_update_change_rule":
+                {
+                    ChangeRule existing = await ToolCallAsync(() => rules.ReadAsync(tenantId, arguments.RuleId, token)).ConfigureAwait(false);
+                    ChangeRule body = new ChangeRule
+                    {
+                        OrganizationId = existing.OrganizationId, UnitId = arguments.Unit ?? existing.UnitId, Name = arguments.Name ?? existing.Name,
+                        Description = arguments.Description ?? existing.Description, Active = arguments.Active ?? existing.Active, ExpiresUtc = arguments.ExpiresUtc ?? existing.ExpiresUtc,
+                        Classes = arguments.Classes != null ? ParseClasses(arguments.Classes) : existing.Classes, Limits = arguments.Limits ?? existing.Limits
+                    };
+                    return await ToolCallAsync(() => rules.UpdateAsync(caller, existing, body, token)).ConfigureAwait(false);
+                }
+                case "garrison_delete_change_rule":
+                {
+                    ChangeRule existing = await ToolCallAsync(() => rules.ReadAsync(tenantId, arguments.RuleId, token)).ConfigureAwait(false);
+                    bool deleted = await ToolCallAsync(() => rules.DeleteAsync(caller, existing, token)).ConfigureAwait(false);
+                    return new Dictionary<string, object?> { ["deleted"] = deleted, ["ruleId"] = existing.Id };
+                }
+            }
+
+            OrganizationService organizations = _Context.Get<OrganizationService>();
+            OrgProposalService proposals = _Context.Get<OrgProposalService>();
+            Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+            switch (tool.Name)
+            {
+                case "garrison_list_org_proposals":
+                {
+                    EnumerationQuery query = new EnumerationQuery { Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    StudioDraftStatusEnum? status = String.IsNullOrWhiteSpace(arguments.Status) ? null : ParseOr(arguments.Status, StudioDraftStatusEnum.Open, "status");
+                    return await proposals.EnumerateAsync(organization, query, status, token).ConfigureAwait(false);
+                }
+                case "garrison_get_org_proposal":
+                    return await ToolCallAsync(() => proposals.ReadAsync(caller, organization, arguments.DraftId, token)).ConfigureAwait(false);
+                default:
+                    if (!arguments.Allow.HasValue) throw ToolError("ValidationFailed", "allow is required: true to apply the proposal, false to send it back.");
+                    return await ToolCallAsync(() => proposals.DecideAsync(caller, organization, arguments.DraftId, arguments.Allow.Value, arguments.Reason, token)).ConfigureAwait(false);
+            }
+        }
+
+        private List<ChangeRuleClass> ParseClasses(List<string>? classes)
+        {
+            List<ChangeRuleClass> result = new List<ChangeRuleClass>();
+            foreach (string value in classes ?? new List<string>())
+            {
+                if (!Enum.TryParse(value?.Trim(), true, out ChangeClassEnum parsed)) throw ToolError("ValidationFailed", "Unknown change class " + value + "; use " + String.Join(", ", Enum.GetNames(typeof(ChangeClassEnum))) + ".");
+                result.Add(new ChangeRuleClass { Class = parsed });
+            }
+            return result;
+        }
+
         private async Task<object> OrganizationToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
         {
             OrganizationService organizations = _Context.Get<OrganizationService>();
@@ -2619,7 +2711,19 @@ namespace Garrison.Server.Protocols
                 {
                     string? owner = null;
                     if (ctx.PrincipalType == PrincipalTypeEnum.Run) StudioService.Owner(ctx, out owner, out string? _);
-                    return await _Context.Database.StudioDrafts.EnumerateAsync(tenantId, owner, new EnumerationQuery { Search = arguments.Title, MaxResults = 100 }, null, token).ConfigureAwait(false);
+                    EnumerationResult<StudioDraft> drafts = await _Context.Database.StudioDrafts.EnumerateAsync(tenantId, owner, new EnumerationQuery { Search = arguments.Title, MaxResults = 100 }, null, token).ConfigureAwait(false);
+                    if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+                    {
+                        // An executive sees only its own proposals; any other run never sees them (AA8.3).
+                        List<StudioDraft> visible = new List<StudioDraft>();
+                        foreach (StudioDraft candidate in drafts.Objects)
+                        {
+                            if (await studio.RunMayUseAsync(ctx, candidate, token).ConfigureAwait(false)) visible.Add(candidate);
+                        }
+                        drafts.TotalRecords -= drafts.Objects.Count - visible.Count;
+                        drafts.Objects = visible;
+                    }
+                    return drafts;
                 }
                 if (tool.Name == "garrison_studio_create_draft")
                 {
@@ -2633,12 +2737,8 @@ namespace Garrison.Server.Protocols
                 }
                 if (String.IsNullOrWhiteSpace(arguments.DraftId)) throw ToolError("ValidationFailed", "draftId is required.");
                 StudioDraft draft = await studio.ReadAsync(tenantId, arguments.DraftId, token).ConfigureAwait(false);
-                if (ctx.PrincipalType == PrincipalTypeEnum.Run)
-                {
-                    // A run works only on drafts of the person it acts for (AD-017).
-                    StudioService.Owner(ctx, out string? owner, out string? _);
-                    if (draft.OwnerUserId != owner) throw ToolError("NotFound", "Draft not found.");
-                }
+                // A run works only on drafts of the person it acts for (AD-017); an executive only on its own proposals (AA8.3).
+                if (!await studio.RunMayUseAsync(ctx, draft, token).ConfigureAwait(false)) throw ToolError("NotFound", "Draft not found.");
                 int version = arguments.Version ?? draft.Version;
                 if (tool.Name == "garrison_studio_playground_invoke")
                 {

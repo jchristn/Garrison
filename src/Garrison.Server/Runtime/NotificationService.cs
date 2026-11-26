@@ -52,7 +52,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// Event sources the leader sweeps, in order: runs, pipeline_runs, approvals, pipeline_reviews.
         /// </summary>
-        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports" };
+        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports", "org_proposals" };
 
         /// <summary>
         /// Resolves a destination host name to addresses when a delivery connects. Default: the system resolver
@@ -606,6 +606,15 @@ namespace Garrison.Server.Runtime
                                 Advance(report.CreatedUtc, report.Id, ref lastUtc, ref lastId);
                             }
                             break;
+                        case "org_proposals":
+                            List<Approval> applied = await _Database.NotificationDeliveries.ListRuleAppliedProposalsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = applied.Count;
+                            foreach (Approval approval in applied)
+                            {
+                                queued += await QueueProposalAsync(approval, interested, token).ConfigureAwait(false);
+                                Advance(approval.DecidedUtc ?? approval.CreatedUtc, approval.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
                         case "mandate_caps":
                             List<MandateTick> caps = await _Database.NotificationDeliveries.ListCapReachedTicksAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
                             read = caps.Count;
@@ -665,6 +674,8 @@ namespace Garrison.Server.Runtime
                     return source == "mandate_caps";
                 case NotificationEventEnum.ReportUnhealthy:
                     return source == "reports";
+                case NotificationEventEnum.OrgProposalApplied:
+                    return source == "org_proposals";
                 default:
                     return false;
             }
@@ -862,6 +873,43 @@ namespace Garrison.Server.Runtime
                 NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.ReportUnhealthy, report.CreatedUtc, "/reports/" + report.Id);
                 payload.Report = summary;
                 if (await QueueAsync(endpoint, NotificationEventEnum.ReportUnhealthy, "report:" + report.Id, "Report", report.Id, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        private async Task<int> QueueProposalAsync(Approval approval, List<NotificationEndpoint> endpoints, CancellationToken token)
+        {
+            // AA8.10: change rules applied an executive's proposal. An endpoint filtered to an agent hears about that
+            // executive's proposals only; one filtered to a deployment hears none.
+            DateTime applied = approval.DecidedUtc ?? approval.CreatedUtc;
+            StudioDraft? draft = null;
+            bool loaded = false;
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                if (!Subscribed(endpoint, approval.TenantId, NotificationEventEnum.OrgProposalApplied, applied)) continue;
+                if (!loaded)
+                {
+                    draft = String.IsNullOrEmpty(approval.DraftId) ? null : await _Database.StudioDrafts.ReadAsync(approval.TenantId, approval.DraftId, token).ConfigureAwait(false);
+                    loaded = true;
+                }
+                if (draft == null || String.IsNullOrEmpty(draft.ExecutiveUnitId)) return queued;
+                if (!Matches(endpoint, draft.ExecutiveAgentId, null)) continue;
+                NotificationProposalSummary summary = new NotificationProposalSummary();
+                summary.DraftId = draft.Id;
+                summary.Title = draft.Title;
+                summary.OrganizationId = draft.OrganizationId ?? String.Empty;
+                summary.OrganizationName = (await _Database.Organizations.ReadAsync(approval.TenantId, summary.OrganizationId, token).ConfigureAwait(false))?.Name;
+                summary.UnitId = draft.ExecutiveUnitId;
+                summary.UnitName = (await _Database.Organizations.ReadUnitAsync(approval.TenantId, draft.ExecutiveUnitId, token).ConfigureAwait(false))?.Name;
+                summary.AgentId = draft.ExecutiveAgentId ?? String.Empty;
+                summary.AgentName = approval.AgentName;
+                summary.ApprovalId = approval.Id;
+                summary.RuleIds = (approval.RulePattern ?? String.Empty).Split(',').Select(r => r.Trim()).Where(r => r.Length > 0).ToList();
+                summary.AppliedUtc = applied;
+                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.OrgProposalApplied, applied, "/organizations/" + summary.OrganizationId + "/proposals/" + draft.Id);
+                payload.Proposal = summary;
+                if (await QueueAsync(endpoint, NotificationEventEnum.OrgProposalApplied, "proposal:" + approval.Id, "Approval", approval.Id, payload, token).ConfigureAwait(false)) queued++;
             }
             return queued;
         }

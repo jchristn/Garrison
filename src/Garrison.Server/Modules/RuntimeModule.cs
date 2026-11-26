@@ -262,8 +262,13 @@ namespace Garrison.Server.Modules
                 return Task.CompletedTask;
             };
             organizations.DeleteMemoryScopeAsync = async (tenantId, kind, scopeId, ct) => await memory.DeleteScopeAsync(tenantId, kind, scopeId, ct).ConfigureAwait(false);
+            // AA8: executives, change rules, and proposals. A rollback past an executive's apply applies its revert draft.
+            organizations.ApplyRevertAsync = async (ctx, tenantId, draftId, ct) => await context.Get<Garrison.Server.Services.StudioService>().ApplyRevertAsync(ctx, tenantId, draftId, ct).ConfigureAwait(false);
             context.Register(chain);
             context.Register(organizations);
+            context.Register(new ExecutiveAuthority(context, chain));
+            context.Register(new ChangeRuleService(context, organizations));
+            context.Register(new OrgProposalService(context));
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -328,6 +333,7 @@ namespace Garrison.Server.Modules
             new ReportRoutes(context, context.Get<ReportService>()).Register(routes);
             new MessageRoutes(context, context.Get<MessageService>()).Register(routes);
             new OrganizationRoutes(context, context.Get<OrganizationService>()).Register(routes);
+            new ChangeRuleRoutes(context, context.Get<ChangeRuleService>(), context.Get<OrgProposalService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);

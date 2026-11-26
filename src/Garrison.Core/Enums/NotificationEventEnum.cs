@@ -64,6 +64,11 @@ namespace Garrison.Core.Enums
         ReportUnhealthy,
 
         /// <summary>
+        /// Change rules applied an executive's proposal without a person (AA8.10). A rollback of its organization undoes it.
+        /// </summary>
+        OrgProposalApplied,
+
+        /// <summary>
         /// A test notification sent by the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

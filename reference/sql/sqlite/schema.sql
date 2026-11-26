@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 52).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 53).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2645,3 +2645,47 @@ CREATE TABLE IF NOT EXISTS "org_revision_mandates" (
     PRIMARY KEY (revisionid, mandateid)
 );
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 52, 'Organizations', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 52);
+
+-- Migration 53: Change rules and executive drafts
+ALTER TABLE "studio_drafts" ADD COLUMN originrunid VARCHAR(64);
+ALTER TABLE "studio_drafts" ADD COLUMN organizationid VARCHAR(64);
+ALTER TABLE "studio_drafts" ADD COLUMN executiveunitid VARCHAR(64);
+ALTER TABLE "studio_drafts" ADD COLUMN executiveagentid VARCHAR(64);
+ALTER TABLE "org_revisions" ADD COLUMN draftid VARCHAR(64);
+ALTER TABLE "org_revisions" ADD COLUMN revertdraftid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "change_rules" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    organizationid VARCHAR(64) NOT NULL,
+    unitid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description VARCHAR(2000),
+    active INTEGER NOT NULL,
+    expiresutc TEXT,
+    createdbytype VARCHAR(32) NOT NULL,
+    createdbyid VARCHAR(64),
+    createdbyname VARCHAR(256),
+    updatedbyname VARCHAR(256),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_change_rules_org" ON "change_rules" ("tenantid", "organizationid", "active");
+CREATE TABLE IF NOT EXISTS "change_rule_classes" (
+    ruleid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    changeclass VARCHAR(32) NOT NULL,
+    PRIMARY KEY (ruleid, position)
+);
+CREATE TABLE IF NOT EXISTS "change_rule_limits" (
+    ruleid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    changeclass VARCHAR(32) NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    minimum REAL,
+    maximum REAL,
+    PRIMARY KEY (ruleid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_studio_drafts_org" ON "studio_drafts" ("tenantid", "organizationid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 53, 'Change rules and executive drafts', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 53);

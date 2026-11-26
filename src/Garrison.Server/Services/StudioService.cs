@@ -11,12 +11,15 @@ namespace Garrison.Server.Services
     using Garrison.Core.Enums;
     using Garrison.Core.Manifests;
     using Garrison.Core.Models;
+    using Garrison.Core.Organizations;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Core.Templates;
+    using Garrison.Server.Runtime;
 
     /// <summary>
     /// Studio drafts (AD7.2, AD7.3, AD-002): manifest bundles designed by a person or by the agent architect, compared with
@@ -94,6 +97,21 @@ namespace Garrison.Server.Services
             Owner(ctx, out string? ownerId, out string? ownerName);
             draft.OwnerUserId = ownerId;
             draft.OwnerName = ownerName;
+            ExecutivePosition? executive = null;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                draft.OriginRunId = ctx.RunId;
+                Deployment? deployment = await RunDeploymentAsync(ctx, tenantId, token).ConfigureAwait(false);
+                if (deployment != null && deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree)
+                {
+                    // AA8.3: an executive's draft is bound to the unit it leads now; every item is checked against that subtree.
+                    executive = await _Server.Get<ExecutiveAuthority>().ResolveAsync(tenantId, deployment, token).ConfigureAwait(false)
+                        ?? throw new AppAccessException(403, "NotAnExecutive", "This run's deployment has managementAccess OrgSubtree, but its agent leads no unit in a live organization, so it has no subtree to propose changes to.");
+                    draft.OrganizationId = executive.OrganizationId;
+                    draft.ExecutiveUnitId = executive.UnitId;
+                    draft.ExecutiveAgentId = executive.AgentId;
+                }
+            }
             if (!String.IsNullOrWhiteSpace(request.FromApp))
             {
                 AuthorizationDecision mayRead = await _Server.Authorization.AuthorizeAsync(ctx, tenantId, ResourceTypeEnum.AgenticApp, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
@@ -109,7 +127,7 @@ namespace Garrison.Server.Services
                     draft.Items.Add(new StudioDraftItem { Kind = document.Kind, Name = document.Metadata.Name, Document = text, BaseHash = Hash(text) });
                 }
             }
-            string title = String.IsNullOrWhiteSpace(request.Title) ? (draft.TargetApp ?? "Untitled draft") : request.Title.Trim();
+            string title = String.IsNullOrWhiteSpace(request.Title) ? (draft.TargetApp ?? (executive != null ? "Proposal for " + executive.UnitName : "Untitled draft")) : request.Title.Trim();
             draft.Title = title.Length > 256 ? title.Substring(0, 256) : title;
             await _Server.Database.StudioDrafts.CreateAsync(draft, token).ConfigureAwait(false);
             return await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false);
@@ -460,7 +478,75 @@ namespace Garrison.Server.Services
                 diff.Items.Add(entry);
             }
             diff.Valid = diff.Items.All(i => i.Change != "Failed" && !i.Stale);
+            if (!String.IsNullOrEmpty(draft.ExecutiveUnitId))
+            {
+                ChangeRuleMatch? match = await ExecutiveReviewAsync(draft, diff, token).ConfigureAwait(false);
+                diff.Valid = diff.Items.All(i => i.Change != "Failed" && !i.Stale) && diff.Refusals.Count == 0;
+                diff.AppliesByRule = diff.Valid && match != null && match.AllMatched && diff.Items.Any(i => i.Change != "Unchanged");
+            }
             return diff;
+        }
+
+        /// <summary>
+        /// Whether a run may use a draft (AD-017, AA8.3): only drafts of the person it acts for; an executive (OrgSubtree)
+        /// only its own proposals for the unit it leads now, and any other run never an executive's proposal. People pass.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="draft">Draft.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the caller may use the draft.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        public async Task<bool> RunMayUseAsync(RequestContext ctx, StudioDraft draft, CancellationToken token)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (draft == null) throw new ArgumentNullException(nameof(draft));
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run) return true;
+            Owner(ctx, out string? owner, out string? _);
+            if (draft.OwnerUserId != owner) return false;
+            Deployment? deployment = await RunDeploymentAsync(ctx, draft.TenantId, token).ConfigureAwait(false);
+            if (deployment == null) return false;
+            if (deployment.ManagementAccess != ManagementAccessEnum.OrgSubtree) return String.IsNullOrEmpty(draft.ExecutiveUnitId);
+            ExecutivePosition? executive = await _Server.Get<ExecutiveAuthority>().ResolveAsync(draft.TenantId, deployment, token).ConfigureAwait(false);
+            return executive != null && draft.ExecutiveUnitId == executive.UnitId && draft.ExecutiveAgentId == executive.AgentId;
+        }
+
+        /// <summary>
+        /// Apply a revert draft recorded with an executive's apply (AA8.6), as part of an organization rollback: its records
+        /// return to how they were before, and records the apply created are deleted. Nothing happens when the draft is gone
+        /// or no longer open.
+        /// </summary>
+        /// <param name="ctx">The person rolling back.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Revert draft.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when applied.</returns>
+        /// <exception cref="ConflictException">Thrown with RevertFailed when the manifest apply fails (nothing changed).</exception>
+        public async Task<bool> ApplyRevertAsync(RequestContext ctx, string tenantId, string draftId, CancellationToken token)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            StudioDraft? draft = await _Server.Database.StudioDrafts.ReadAsync(tenantId, draftId, token).ConfigureAwait(false);
+            if (draft == null || draft.Status != StudioDraftStatusEnum.Open) return false;
+            List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
+            string? applyId = null;
+            if (upserts.Count > 0)
+            {
+                ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId), MandateRevisionSource = MandateRevisionSourceEnum.Human };
+                ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(tenantId, Bundle(upserts), options, token).ConfigureAwait(false);
+                if (applied.FailedCount > 0) throw new ConflictException("RevertFailed", "Undoing " + draft.Title + " failed, and nothing was changed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+                applyId = applied.Id;
+                if (draft.PublishOnApply)
+                {
+                    foreach (StudioDraftItem agent in upserts.Where(i => i.Kind == "Agent"))
+                    {
+                        await PublishAgentAsync(ctx, tenantId, agent.Name, draft.Title, token).ConfigureAwait(false);
+                        await RepinDevAsync(ctx, tenantId, agent.Name, token).ConfigureAwait(false);
+                    }
+                }
+            }
+            foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Delete).OrderBy(i => i.Kind == "Agent" ? 1 : 0)) await DeleteLiveAsync(ctx, tenantId, item, token).ConfigureAwait(false);
+            await _Server.Database.StudioDrafts.TransitionAsync(tenantId, draft.Id, draft.Version, StudioDraftStatusEnum.Open, StudioDraftStatusEnum.Applied, null, applyId, token).ConfigureAwait(false);
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Applied " + draft.Title + " during an organization rollback.", tenantId, token).ConfigureAwait(false);
+            return true;
         }
 
         /// <summary>
@@ -479,15 +565,37 @@ namespace Garrison.Server.Services
             StudioDraft draft = await OpenAsync(tenantId, draftId, version, token).ConfigureAwait(false);
             StudioDraftDiff diff = await DiffAsync(ctx, tenantId, draft, token).ConfigureAwait(false);
             if (diff.Items.Any(i => i.Stale)) throw Invalid("items", "DraftStale", "Live configuration changed since the draft was based on it: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". Rebase those items and try again.");
-            if (!diff.Valid) throw Invalid("items", "DraftInvalid", "The draft does not validate: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
+            bool executive = !String.IsNullOrEmpty(draft.ExecutiveUnitId);
+            if (!diff.Valid)
+            {
+                if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", "rule", "outcome", "refused");
+                string problems = String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + (i.ErrorCode != null && executive ? i.ErrorCode + ": " : String.Empty) + i.Message));
+                throw Invalid("items", "DraftInvalid", "The draft does not validate: " + problems);
+            }
             if (diff.Items.All(i => i.Change == "Unchanged")) throw Invalid("items", "DraftEmpty", "The draft changes nothing.");
+            // AA8.6: an executive's draft whose every change a change rule covers applies at once, for the person who started
+            // the run, when that person may apply manifests; otherwise it waits for a person as any draft does.
+            bool byRule = executive && diff.AppliesByRule
+                && (await _Server.Authorization.AuthorizeOriginAsync(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Create, token).ConfigureAwait(false)).Permitted;
+            List<string> ruleIds = diff.RuleMatches.Where(m => m.RuleId != null).Select(m => m.RuleId!).Distinct(StringComparer.Ordinal).ToList();
             Approval approval = new Approval
             {
                 TenantId = tenantId, RunId = String.Empty, AgentId = String.Empty, AgentName = "studio", DeploymentId = String.Empty, Kind = ApprovalKindEnum.DraftApply,
                 ToolName = "Apply draft " + draft.Title, DraftId = draft.Id, Status = ApprovalStatusEnum.Pending, TimeoutDecision = ApprovalDecisionEnum.Deny,
                 Summary = "Apply draft " + draft.Title + ": " + Summarize(diff), InputPreview = Serializer.Serialize(diff),
-                RequestedUtc = DateTime.UtcNow, ExpiresUtc = DateTime.UtcNow.AddHours(_ApprovalHours)
+                RequestedUtc = DateTime.UtcNow, ExpiresUtc = DateTime.UtcNow.AddHours(_ApprovalHours),
+                RuleId = byRule ? ruleIds.FirstOrDefault() : null, RulePattern = byRule ? String.Join(", ", ruleIds) : null
             };
+            if (executive && !String.IsNullOrEmpty(draft.OriginRunId))
+            {
+                Run? origin = await _Server.Database.Runs.ReadAsync(tenantId, draft.OriginRunId, token).ConfigureAwait(false);
+                if (origin != null)
+                {
+                    approval.RootRunId = origin.Id;
+                    approval.AgentId = origin.AgentId;
+                    approval.AgentName = origin.AgentName ?? approval.AgentName;
+                }
+            }
             await _Server.Database.Approvals.CreateAsync(approval, token).ConfigureAwait(false);
             if (!await _Server.Database.StudioDrafts.TransitionAsync(tenantId, draft.Id, version, StudioDraftStatusEnum.Open, StudioDraftStatusEnum.PendingApproval, approval.Id, null, token).ConfigureAwait(false))
             {
@@ -495,7 +603,14 @@ namespace Garrison.Server.Services
                 throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
             }
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Requested approval to apply draft " + draft.Title + " (" + Summarize(diff) + ").", tenantId, token).ConfigureAwait(false);
-            return approval;
+            if (!byRule)
+            {
+                if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", "user", "outcome", "waiting");
+                return approval;
+            }
+            StudioDraft pending = await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft;
+            string reason = "Applied under change rules " + String.Join(", ", ruleIds) + ": every change is covered (" + String.Join("; ", diff.RuleMatches.Select(m => m.Kind + "/" + m.Name + (m.Detail == null ? String.Empty : " " + m.Detail) + " by " + m.RuleName)) + ").";
+            return await ApplyApprovedAsync(ctx, approval, pending, reason, true, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -521,6 +636,7 @@ namespace Garrison.Server.Services
             StudioDraft draft = await _Server.Database.StudioDrafts.ReadAsync(approval.TenantId, approval.DraftId ?? String.Empty, token).ConfigureAwait(false) ?? throw new NotFoundException("The draft no longer exists.");
             if (!allow)
             {
+                if (!String.IsNullOrEmpty(draft.ExecutiveUnitId)) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", "user", "outcome", "denied");
                 await approvals.ResolveDraftAsync(ctx, approval, false, reason, token).ConfigureAwait(false);
                 await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
                 return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
@@ -535,38 +651,7 @@ namespace Garrison.Server.Services
                     if (!mayDelete.Permitted) throw new AppAccessException(403, "ApproverLacksPermission", "The draft deletes " + item.Kind + "/" + item.Name + ", which needs Delete on " + item.Kind + ".");
                 }
             }
-            StudioDraftDiff diff = await DiffAsync(ctx, approval.TenantId, draft, token).ConfigureAwait(false);
-            if (diff.Items.Any(i => i.Stale))
-            {
-                await approvals.ResolveDraftAsync(ctx, approval, false, "Live configuration changed since the draft was validated; validate it again.", token).ConfigureAwait(false);
-                await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
-                throw new ConflictException("DraftStale", "Live configuration changed since the draft was validated: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". The draft is open again; validate it and request approval again.");
-            }
-            if (!diff.Valid) await ReopenInvalidAsync(ctx, approvals, approval, draft, "The draft no longer validates: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
-
-            ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, approval.TenantId), MandateRevisionSource = MandateRevisionSourceEnum.Architect };
-            List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
-            string? applyId = null;
-            if (upserts.Count > 0)
-            {
-                ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(approval.TenantId, Bundle(upserts), options, token).ConfigureAwait(false);
-                applyId = applied.Id;
-                // A failed apply was rolled back, so nothing changed live.
-                if (applied.FailedCount > 0) await ReopenInvalidAsync(ctx, approvals, approval, draft, "Applying the draft failed, and nothing was changed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
-            }
-            foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Delete)) await DeleteLiveAsync(ctx, approval.TenantId, item, token).ConfigureAwait(false);
-            if (draft.PublishOnApply)
-            {
-                foreach (StudioDraftDiffItem changed in diff.Items.Where(i => i.Kind == "Agent" && (i.Change == "Create" || i.Change == "Update")))
-                {
-                    await PublishAgentAsync(ctx, approval.TenantId, changed.Name, "Studio draft " + draft.Title, token).ConfigureAwait(false);
-                    await RepinDevAsync(ctx, approval.TenantId, changed.Name, token).ConfigureAwait(false);
-                }
-            }
-            await approvals.ResolveDraftAsync(ctx, approval, true, reason, token).ConfigureAwait(false);
-            await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Applied, approval.Id, applyId, token).ConfigureAwait(false);
-            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Applied draft " + draft.Title + " (" + Summarize(diff) + ")" + (applyId == null ? "." : " as manifest apply " + applyId + "."), approval.TenantId, token).ConfigureAwait(false);
-            return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
+            return await ApplyApprovedAsync(ctx, approval, draft, reason, false, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -631,6 +716,168 @@ namespace Garrison.Server.Services
         #endregion
 
         #region Private-Methods
+
+        private async Task<Approval> ApplyApprovedAsync(RequestContext ctx, Approval approval, StudioDraft draft, string? reason, bool byRule, CancellationToken token)
+        {
+            // Shared by a person's allow (AD7.3) and a change rule's (AA8.6): validate again, apply, record, and resolve.
+            Garrison.Server.Runtime.ApprovalService approvals = _Server.Get<Garrison.Server.Runtime.ApprovalService>();
+            bool executive = !String.IsNullOrEmpty(draft.ExecutiveUnitId);
+            string source = byRule ? "rule" : "user";
+            StudioDraftDiff diff = await DiffAsync(ctx, approval.TenantId, draft, token).ConfigureAwait(false);
+            if (diff.Items.Any(i => i.Stale))
+            {
+                if (byRule) await approvals.CancelDraftAsync(approval, "Live configuration changed since the draft was validated; validate it again.", token).ConfigureAwait(false);
+                else await approvals.ResolveDraftAsync(ctx, approval, false, "Live configuration changed since the draft was validated; validate it again.", token).ConfigureAwait(false);
+                await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Open, null, null, token).ConfigureAwait(false);
+                if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", source, "outcome", "failed");
+                throw new ConflictException("DraftStale", "Live configuration changed since the draft was validated: " + String.Join(", ", diff.Items.Where(i => i.Stale).Select(i => i.Kind + "/" + i.Name)) + ". The draft is open again; validate it and request approval again.");
+            }
+            if (!diff.Valid)
+            {
+                if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", source, "outcome", "refused");
+                await ReopenInvalidAsync(ctx, approvals, approval, draft, "The draft no longer validates: " + String.Join("; ", diff.Items.Where(i => i.Change == "Failed").Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
+            }
+
+            // A run acts with the secrets of the person who started it; executive mandate revisions say so (AA8.7).
+            ManifestApplyOptions options = new ManifestApplyOptions
+            {
+                PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId,
+                SecretUse = ctx.PrincipalType == PrincipalTypeEnum.Run ? _Server.Authorization.SecretUseForDryRun(ctx, approval.TenantId) : _Server.Authorization.SecretUse(ctx, approval.TenantId),
+                MandateRevisionSource = executive ? MandateRevisionSourceEnum.Executive : MandateRevisionSourceEnum.Architect
+            };
+            string? revertId = executive ? await CreateRevertDraftAsync(draft, token).ConfigureAwait(false) : null;
+            List<StudioDraftItem> upserts = draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert).ToList();
+            string? applyId = null;
+            if (upserts.Count > 0)
+            {
+                ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(approval.TenantId, executive ? ExecutiveBundle(upserts) : Bundle(upserts), options, token).ConfigureAwait(false);
+                applyId = applied.Id;
+                // A failed apply was rolled back, so nothing changed live.
+                if (applied.FailedCount > 0)
+                {
+                    if (revertId != null) await _Server.Database.StudioDrafts.DeleteAsync(approval.TenantId, revertId, token).ConfigureAwait(false);
+                    if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", source, "outcome", "failed");
+                    await ReopenInvalidAsync(ctx, approvals, approval, draft, "Applying the draft failed, and nothing was changed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)), token).ConfigureAwait(false);
+                }
+            }
+            foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Delete)) await DeleteLiveAsync(ctx, approval.TenantId, item, token).ConfigureAwait(false);
+            if (draft.PublishOnApply)
+            {
+                foreach (StudioDraftDiffItem changed in diff.Items.Where(i => i.Kind == "Agent" && (i.Change == "Create" || i.Change == "Update")))
+                {
+                    await PublishAgentAsync(ctx, approval.TenantId, changed.Name, "Studio draft " + draft.Title, token).ConfigureAwait(false);
+                    await RepinDevAsync(ctx, approval.TenantId, changed.Name, token).ConfigureAwait(false);
+                }
+            }
+            if (executive) await RecordExecutiveApplyAsync(ctx, approval, draft, revertId, byRule, token).ConfigureAwait(false);
+            if (byRule) await approvals.ResolveDraftByRuleAsync(approval, reason ?? "Applied under change rules.", token).ConfigureAwait(false);
+            else await approvals.ResolveDraftAsync(ctx, approval, true, reason, token).ConfigureAwait(false);
+            await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Applied, approval.Id, applyId, token).ConfigureAwait(false);
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Applied draft " + draft.Title + " (" + Summarize(diff) + ")" + (byRule ? " under change rules " + approval.RulePattern : String.Empty) + (applyId == null ? "." : " as manifest apply " + applyId + "."), approval.TenantId, token).ConfigureAwait(false);
+            if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", source, "outcome", "applied");
+            return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
+        }
+
+        private async Task RecordExecutiveApplyAsync(RequestContext ctx, Approval approval, StudioDraft draft, string? revertId, bool byRule, CancellationToken token)
+        {
+            // AA8.6: every executive apply becomes an org revision, so the organization's rollback undoes it.
+            Organization? organization = await _Server.Database.Organizations.ReadAsync(draft.TenantId, draft.OrganizationId ?? String.Empty, token).ConfigureAwait(false);
+            if (organization == null) return;
+            string note = (byRule ? "Applied under change rules " + approval.RulePattern : "Applied with approval by " + (ctx.PrincipalName ?? "a person")) + ": " + draft.Title + ".";
+            try
+            {
+                await _Server.Get<OrganizationService>().RecordExecutiveApplyAsync(ctx, organization, draft.Id, revertId, note, token).ConfigureAwait(false);
+            }
+            catch (ConflictException e)
+            {
+                // The change is live already; say why no revision recorded it rather than failing the apply.
+                await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Organization", organization.Id, "Executive draft " + draft.Title + " was applied, but no revision of organization " + organization.Name + " could record it: " + e.Message, draft.TenantId, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<ChangeRuleMatch?> ExecutiveReviewAsync(StudioDraft draft, StudioDraftDiff diff, CancellationToken token)
+        {
+            using (System.Diagnostics.Activity? span = GarrisonTracing.Start("org proposal validate", System.Diagnostics.ActivityKind.Internal))
+            {
+                ExecutiveDraftContext? context = await _Server.Get<ExecutiveAuthority>().ContextAsync(draft, token).ConfigureAwait(false);
+                if (context == null)
+                {
+                    // The executive no longer leads the unit in a live organization: its authority is gone with the position.
+                    foreach (StudioDraftDiffItem entry in diff.Items)
+                    {
+                        ExecutiveRefusal gone = new ExecutiveRefusal { Kind = entry.Kind, Name = entry.Name, Code = ExecutiveDraftValidator.OutsideSubtree, Message = "The executive that wrote this draft no longer leads its unit in a live organization, so it has no subtree to change." };
+                        diff.Refusals.Add(gone);
+                        Refuse(entry, gone);
+                    }
+                    span?.SetTag("garrison.result", "no_authority");
+                    return null;
+                }
+                diff.Refusals = ExecutiveDraftValidator.Validate(context);
+                foreach (ExecutiveRefusal refusal in diff.Refusals)
+                {
+                    StudioDraftDiffItem? entry = diff.Items.FirstOrDefault(i => i.Kind == refusal.Kind && (i.Name == refusal.Name || refusal.Name.StartsWith(i.Name + "/", StringComparison.Ordinal)));
+                    if (entry != null) Refuse(entry, refusal);
+                }
+                List<ChangeClassification> changes = ChangeClassifier.Classify(context);
+                List<ChangeRule> rules = await _Server.Database.ChangeRules.ListInForceAsync(draft.TenantId, context.Scope.OrganizationId, DateTime.UtcNow, token).ConfigureAwait(false);
+                ChangeRuleMatch match = ChangeRuleMatcher.Match(changes, rules, context.Scope.Tree, DateTime.UtcNow);
+                diff.RuleMatches = match.Items;
+                span?.SetTag("garrison.result", diff.Refusals.Count > 0 ? "refused" : match.AllMatched ? "covered" : "needs_person");
+                return match;
+            }
+        }
+
+        private static void Refuse(StudioDraftDiffItem entry, ExecutiveRefusal refusal)
+        {
+            // A dry-run failure message is replaced; a second refusal of the same item adds to the first.
+            bool refusedBefore = entry.Change == "Failed" && entry.ErrorCode != null && ExecutiveDraftValidator.IsRefusalCode(entry.ErrorCode);
+            entry.Message = refusedBefore ? entry.Message + " " + refusal.Message : refusal.Message;
+            entry.Change = "Failed";
+            entry.ErrorCode = refusal.Code;
+        }
+
+        private async Task<string?> CreateRevertDraftAsync(StudioDraft draft, CancellationToken token)
+        {
+            // AA8.6: the records an executive's apply changes, as they are now, so a rollback past its revision puts them back.
+            // The organization itself comes back through the revision snapshot; records the apply creates are deleted.
+            StudioDraft revert = new StudioDraft { TenantId = draft.TenantId, OwnerUserId = draft.OwnerUserId, OwnerName = draft.OwnerName, PublishOnApply = draft.PublishOnApply };
+            string title = "Undo: " + draft.Title;
+            revert.Title = title.Length > 256 ? title.Substring(0, 256) : title;
+            foreach (StudioDraftItem item in draft.Items.Where(i => i.Operation == StudioDraftOperationEnum.Upsert && i.Kind != "Organization"))
+            {
+                ManifestDocument? live = await LiveDocumentAsync(draft.TenantId, item.Kind, item.Name, token).ConfigureAwait(false);
+                if (live != null) revert.Items.Add(new StudioDraftItem { Kind = item.Kind, Name = item.Name, Operation = StudioDraftOperationEnum.Upsert, Document = Normalize(live) });
+                else if (DeletableKinds.Contains(item.Kind)) revert.Items.Add(new StudioDraftItem { Kind = item.Kind, Name = item.Name, Operation = StudioDraftOperationEnum.Delete });
+            }
+            if (revert.Items.Count == 0) return null;
+            await _Server.Database.StudioDrafts.CreateAsync(revert, token).ConfigureAwait(false);
+            return revert.Id;
+        }
+
+        private static string ExecutiveBundle(List<StudioDraftItem> items)
+        {
+            // The organization's revision is recorded after the apply (AA8.6), so a publish flag in the document is ignored.
+            List<string> documents = new List<string>();
+            foreach (StudioDraftItem item in OrderForApply(items))
+            {
+                string text = item.Document;
+                if (item.Kind == "Organization")
+                {
+                    ManifestDocument document = ManifestParser.Parse(item.Document)[0];
+                    document.Spec.Remove("publish");
+                    text = Normalize(document);
+                }
+                documents.Add(text.EndsWith("\n", StringComparison.Ordinal) ? text : text + "\n");
+            }
+            return String.Join("---\n", documents);
+        }
+
+        private async Task<Deployment?> RunDeploymentAsync(RequestContext ctx, string tenantId, CancellationToken token)
+        {
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.RunId)) return null;
+            Run? run = await _Server.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+            return run == null ? null : await _Server.Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false);
+        }
 
         private async Task<StudioDraft> OpenAsync(string tenantId, string draftId, int version, CancellationToken token)
         {

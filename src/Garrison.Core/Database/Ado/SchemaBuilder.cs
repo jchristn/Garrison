@@ -405,6 +405,11 @@ namespace Garrison.Core.Database.Ado
             v52.BuildVersion52();
             migrations.Add(new SchemaMigration(52, "Organizations", v52._Statements, v52._Columns));
 
+            // AA8: change rules with their classes and limits; executive drafts and the revisions that record their applies.
+            SchemaBuilder v53 = new SchemaBuilder(catalog, dialect);
+            v53.BuildVersion53();
+            migrations.Add(new SchemaMigration(53, "Change rules and executive drafts", v53._Statements, v53._Columns));
+
             return migrations;
         }
 
@@ -468,6 +473,52 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion53()
+        {
+            SqlDialect d = _Dialect;
+            Table("change_rules",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "organizationid " + d.TypeId + " NOT NULL",
+                "unitid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description VARCHAR(2000)",
+                "active " + d.TypeBool + " NOT NULL",
+                "expiresutc " + d.TypeTimestamp,
+                "createdbytype VARCHAR(32) NOT NULL",
+                "createdbyid " + d.TypeId,
+                "createdbyname VARCHAR(256)",
+                "updatedbyname VARCHAR(256)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("change_rules", "org", false, "tenantid", "organizationid", "active");
+
+            Table("change_rule_classes",
+                "ruleid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "changeclass VARCHAR(32) NOT NULL",
+                "PRIMARY KEY (ruleid, position)");
+
+            Table("change_rule_limits",
+                "ruleid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "changeclass VARCHAR(32) NOT NULL",
+                "name VARCHAR(64) NOT NULL",
+                "minimum " + d.TypeDouble,
+                "maximum " + d.TypeDouble,
+                "PRIMARY KEY (ruleid, position)");
+
+            Column("studio_drafts", "originrunid", d.TypeId);
+            Column("studio_drafts", "organizationid", d.TypeId);
+            Column("studio_drafts", "executiveunitid", d.TypeId);
+            Column("studio_drafts", "executiveagentid", d.TypeId);
+            Index("studio_drafts", "org", false, "tenantid", "organizationid");
+            Column("org_revisions", "draftid", d.TypeId);
+            Column("org_revisions", "revertdraftid", d.TypeId);
         }
 
         private void BuildVersion52()

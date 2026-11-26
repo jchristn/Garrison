@@ -248,6 +248,19 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<int> CountLedUnitsAsync(string tenantId, string agentId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(agentId)) throw new ArgumentNullException(nameof(agentId));
+            object? value = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Units + " u INNER JOIN " + _Table + " o ON o.id = u.organizationid WHERE u.tenantid = @tenantid AND u.leadagentid = @agentid AND o.status <> 'Retired';", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "agentid", agentId);
+            }, token).ConfigureAwait(false);
+            return value == null || value is DBNull ? 0 : Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> DeleteUnitAsync(string tenantId, string unitId, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
@@ -318,7 +331,7 @@ namespace Garrison.Core.Database.Ado
                 }, reader => AdoConverters.Int(reader, "highest"), ct).ConfigureAwait(false);
                 revision.Number = (numbers.Count > 0 ? numbers[0] : 0) + 1;
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _Revisions + " (id, tenantid, organizationid, number, state, note, rollbackofrevisionid, authortype, authorid, authorname, publishedutc, createdutc) VALUES (@id, @tenantid, @organizationid, @number, @state, @note, @rollbackofrevisionid, @authortype, @authorid, @authorname, @publishedutc, @createdutc);",
+                    "INSERT INTO " + _Revisions + " (id, tenantid, organizationid, number, state, note, rollbackofrevisionid, draftid, revertdraftid, authortype, authorid, authorname, publishedutc, createdutc) VALUES (@id, @tenantid, @organizationid, @number, @state, @note, @rollbackofrevisionid, @draftid, @revertdraftid, @authortype, @authorid, @authorname, @publishedutc, @createdutc);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", revision.Id);
@@ -328,6 +341,8 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "state", revision.State.ToString());
                         AdoDatabaseDriver.Add(command, "note", revision.Note);
                         AdoDatabaseDriver.Add(command, "rollbackofrevisionid", revision.RollbackOfRevisionId);
+                        AdoDatabaseDriver.Add(command, "draftid", revision.DraftId);
+                        AdoDatabaseDriver.Add(command, "revertdraftid", revision.RevertDraftId);
                         AdoDatabaseDriver.Add(command, "authortype", revision.AuthorType.ToString());
                         AdoDatabaseDriver.Add(command, "authorid", revision.AuthorId);
                         AdoDatabaseDriver.Add(command, "authorname", revision.AuthorName);
@@ -556,6 +571,8 @@ namespace Garrison.Core.Database.Ado
             obj.State = AdoConverters.Enum(reader, "state", OrgRevisionStateEnum.Draft);
             obj.Note = AdoConverters.NullableStr(reader, "note");
             obj.RollbackOfRevisionId = AdoConverters.NullableStr(reader, "rollbackofrevisionid");
+            obj.DraftId = AdoConverters.NullableStr(reader, "draftid");
+            obj.RevertDraftId = AdoConverters.NullableStr(reader, "revertdraftid");
             obj.AuthorType = AdoConverters.Enum(reader, "authortype", PrincipalTypeEnum.User);
             obj.AuthorId = AdoConverters.NullableStr(reader, "authorid");
             obj.AuthorName = AdoConverters.NullableStr(reader, "authorname");

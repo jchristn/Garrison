@@ -222,6 +222,13 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Approval>> ListRuleAppliedProposalsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<Approval>();
+            return await KeysetAsync(_Driver.Table("approvals"), "decidedutc", "kind = 'DraftApply' AND decisionsource = 'Rule' AND status = 'Approved'", tenantIds, afterUtc, afterId, untilUtc, limit, AdoApprovalMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<MandateTick>> ListCapReachedTicksAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
         {
             if (tenantIds == null || tenantIds.Count == 0) return new List<MandateTick>();

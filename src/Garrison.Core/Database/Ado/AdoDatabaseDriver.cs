@@ -152,6 +152,7 @@ namespace Garrison.Core.Database.Ado
             Reports = new AdoReportMethods(this);
             AgentMessages = new AdoAgentMessageMethods(this);
             Organizations = new AdoOrganizationMethods(this);
+            ChangeRules = new AdoChangeRuleMethods(this);
             NotificationEndpoints = new AdoNotificationEndpointMethods(this);
             NotificationDeliveries = new AdoNotificationDeliveryMethods(this);
             AgentRevisions = new AdoAgentRevisionMethods(this);

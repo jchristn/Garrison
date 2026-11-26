@@ -92,5 +92,11 @@ namespace Garrison.Core.Compilation
         /// Where the run's agent sits in a live organization (AA7.8), or null.
         /// </summary>
         public CompilationOrgContext? Org { get; set; } = null;
+
+        /// <summary>
+        /// The run's executive authority when its deployment has managementAccess OrgSubtree and its agent leads a live
+        /// unit (AA8.8), or null.
+        /// </summary>
+        public CompilationExecutiveContext? Executive { get; set; } = null;
     }
 }

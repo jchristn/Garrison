@@ -177,6 +177,19 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Report>> ListUnhealthyReportsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// DraftApply approvals that change rules approved in the given tenants, ordered by (decidedutc, id), after a
+        /// position (AA8.10).
+        /// </summary>
+        /// <param name="tenantIds">Tenants; empty returns nothing.</param>
+        /// <param name="afterUtc">Position timestamp (UTC).</param>
+        /// <param name="afterId">Position identifier; empty starts at the timestamp.</param>
+        /// <param name="untilUtc">Upper bound (UTC), inclusive.</param>
+        /// <param name="limit">Most records. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Approvals.</returns>
+        Task<List<Approval>> ListRuleAppliedProposalsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Keeper ticks that recorded a daily cap (error code CapReached) in the given tenants, ordered by (startedutc, id),
         /// after a position (AA3.6).
         /// </summary>

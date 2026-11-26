@@ -79,6 +79,11 @@ namespace Garrison.Core.Notifications
         /// </summary>
         public NotificationReportSummary? Report { get; set; } = null;
 
+        /// <summary>
+        /// The proposal, for OrgProposalApplied (AA8.10).
+        /// </summary>
+        public NotificationProposalSummary? Proposal { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories

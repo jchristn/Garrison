@@ -131,6 +131,15 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<OrgUnit>> ListUnitsAsync(string tenantId, string organizationId, CancellationToken token = default);
 
         /// <summary>
+        /// How many units an agent leads in organizations that are not Retired, in their working trees (AA8.1).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agentId">Agent identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Count.</returns>
+        Task<int> CountLedUnitsAsync(string tenantId, string agentId, CancellationToken token = default);
+
+        /// <summary>
         /// Delete a unit and every peer line that points at it.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

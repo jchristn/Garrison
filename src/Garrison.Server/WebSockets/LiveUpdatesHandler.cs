@@ -532,6 +532,17 @@ namespace Garrison.Server.WebSockets
                 await SendAsync(session, sendLock, new { type = "report.filed", organizationId = organizationId, report = report }, token).ConfigureAwait(false);
             }
 
+            // AA8.10: proposal.changed for each executive proposal that changed since the last pass, oldest change first.
+            long proposalCursor = state.TertiaryFingerprint == null ? DateTime.UtcNow.Ticks : Int64.Parse(state.TertiaryFingerprint, System.Globalization.CultureInfo.InvariantCulture);
+            if (state.TertiaryFingerprint == null) state.TertiaryFingerprint = proposalCursor.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            EnumerationResult<StudioDraft> proposals = await _Context.Database.StudioDrafts.EnumerateProposalsAsync(ctx.TenantId!, organizationId, new EnumerationQuery { MaxResults = 50 }, null, token).ConfigureAwait(false);
+            foreach (StudioDraft draft in proposals.Objects.Where(d => d.LastUpdateUtc.Ticks > proposalCursor).OrderBy(d => d.LastUpdateUtc).ThenBy(d => d.Id, StringComparer.Ordinal))
+            {
+                OrgProposal proposal = await _Context.Get<OrgProposalService>().SummaryAsync(draft, token).ConfigureAwait(false);
+                await SendAsync(session, sendLock, new { type = "proposal.changed", organizationId = organizationId, proposal = proposal }, token).ConfigureAwait(false);
+                state.TertiaryFingerprint = draft.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
             DateTime now = DateTime.UtcNow;
             if (live == null || (now - state.SummaryCheckedUtc).TotalSeconds < OrganizationSpendSeconds) return;
             state.SummaryCheckedUtc = now;

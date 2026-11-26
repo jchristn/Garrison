@@ -423,6 +423,24 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Approve a pending DraftApply approval because change rules cover every change of an executive's draft (AA8.6).
+        /// The approval keeps the matching rules in RuleId and RulePattern; the decision source is Rule.
+        /// </summary>
+        /// <param name="approval">Approval.</param>
+        /// <param name="reason">Which rules matched, recorded on the approval.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when approved.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when approval is null.</exception>
+        public async Task<bool> ResolveDraftByRuleAsync(Approval approval, string reason, CancellationToken token = default)
+        {
+            if (approval == null) throw new ArgumentNullException(nameof(approval));
+            if (approval.Status != ApprovalStatusEnum.Pending) return false;
+            ApprovalResolution resolution = Resolution(approval, ApprovalStatusEnum.Approved, ApprovalDecisionEnum.Allow, ApprovalSourceEnum.Rule, reason.Length > 4000 ? reason.Substring(0, 4000) : reason);
+            resolution.DecidedBy = "change rules";
+            return await ResolveAsync(approval, resolution, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Cancel a pending DraftApply approval (its draft changed or was deleted).
         /// </summary>
         /// <param name="approval">Approval.</param>

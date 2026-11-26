@@ -292,6 +292,11 @@ namespace Garrison.Core.Database
         public IOrganizationMethods Organizations { get; protected set; } = null!;
 
         /// <summary>
+        /// Change rules that pre-authorize narrow classes of executive change (AA8).
+        /// </summary>
+        public IChangeRuleMethods ChangeRules { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;
