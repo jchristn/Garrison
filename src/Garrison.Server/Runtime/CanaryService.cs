@@ -486,7 +486,8 @@ namespace Garrison.Server.Runtime
             query.MaxResults = 100;
             query.Ordering = EnumerationOrderEnum.CreatedDescending;
             EnumerationResult<EvalRun> page = await _Server.Database.EvalRuns.EnumerateAsync(release.TenantId, release.EvalSetId, release.CandidateDeploymentId, null, null, query, token).ConfigureAwait(false);
-            return page.Objects.Where(r => r.TenantId == release.TenantId && r.CreatedUtc >= fromUtc).ToList();
+            // Only eval runs over the set's cases count: a RecentInputs replay has no expected text and never gates (AA9.11).
+            return page.Objects.Where(r => r.TenantId == release.TenantId && r.CreatedUtc >= fromUtc && r.InputMode == EvalRunInputModeEnum.Cases).ToList();
         }
 
         private async Task<RequestContext?> CreatorContextAsync(CanaryRelease release, CancellationToken token)

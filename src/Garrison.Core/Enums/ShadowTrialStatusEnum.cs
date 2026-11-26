@@ -21,7 +21,8 @@ namespace Garrison.Core.Enums
         Stopped,
 
         /// <summary>
-        /// The trial could not continue (a deployment was deleted or the candidate kept failing); see stopReason.
+        /// The trial could not continue: the leader sweep found its source or candidate deployment deleted or inactive; see
+        /// stopReason.
         /// </summary>
         Failed
     }

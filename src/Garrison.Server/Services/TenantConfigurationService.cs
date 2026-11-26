@@ -72,6 +72,7 @@ namespace Garrison.Server.Services
         /// <param name="deployment">Configuration; identity/version/protection is assigned here.</param>
         /// <param name="token">Cancellation.</param>
         /// <returns>Created deployment.</returns>
+        /// <exception cref="EvalGateFailedException">Thrown with EvalGateFailed when the deployment pins a revision in an environment whose eval gate that revision has not passed (AA9.6).</exception>
         public async Task<Deployment> CreateDeploymentAsync(RequestContext ctx, string tenantId, Deployment deployment, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
@@ -89,6 +90,9 @@ namespace Garrison.Server.Services
             await _Server.Authorization.SecretUse(ctx, tenantId).RequireForDeploymentAsync(tenantId, deployment, token).ConfigureAwait(false);
             Deployment? existing = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, deployment.Name);
+            // AA9.6: a pinned deployment created in a gated environment needs the same passing eval run as a promotion.
+            EvalGateService? gates = _Server.TryGet<EvalGateService>();
+            if (gates != null) await gates.RequirePinAsync(tenantId, deployment, null, token).ConfigureAwait(false);
             Deployment created = await _Server.Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
             await AuditAsync(ctx, tenantId, "Deployment", created.Id, "Created deployment " + created.Name + " (trust level " + created.TrustLevel + ", effect policy " + created.EffectPolicy + ", egress allowlist " + EgressSummary(created) + ", management access " + created.ManagementAccess + ").", token).ConfigureAwait(false);
             return created;
@@ -100,6 +104,7 @@ namespace Garrison.Server.Services
         /// <param name="deployment">Replacement configuration.</param>
         /// <param name="token">Cancellation.</param>
         /// <returns>Updated deployment.</returns>
+        /// <exception cref="EvalGateFailedException">Thrown with EvalGateFailed when the new pin, or the move into a new environment, meets an eval gate the pinned revision has not passed (AA9.6).</exception>
         public async Task<Deployment> UpdateDeploymentAsync(RequestContext ctx, string tenantId, Deployment existing, Deployment deployment, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
@@ -115,6 +120,9 @@ namespace Garrison.Server.Services
             await _Server.Authorization.SecretUse(ctx, tenantId).RequireForDeploymentAsync(tenantId, deployment, token).ConfigureAwait(false);
             Deployment? named = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, deployment.Name);
+            // AA9.6: repinning a deployment in a gated environment, or moving a pinned one into it, is gated like a promotion.
+            EvalGateService? gates = _Server.TryGet<EvalGateService>();
+            if (gates != null) await gates.RequirePinAsync(tenantId, deployment, existing, token).ConfigureAwait(false);
             Deployment updated = await _Server.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
             string trust = existing.TrustLevel != updated.TrustLevel ? " Trust level changed from " + existing.TrustLevel + " to " + updated.TrustLevel + "." : String.Empty;
             string effect = existing.EffectPolicy != updated.EffectPolicy ? " Effect policy changed from " + existing.EffectPolicy + " to " + updated.EffectPolicy + "." : String.Empty;

@@ -185,7 +185,7 @@ namespace Garrison.Server.Services
             if (targets.Count == 0) throw new ConflictException("NoTargetDeployments", "Agent " + agent.Name + " has no deployment in environment " + target + ". Create one there first.");
             // AA9.6: an environment with an eval gate admits only a revision whose eval run against the gate set passed.
             Garrison.Server.Runtime.EvalGateService? gates = _Server.TryGet<Garrison.Server.Runtime.EvalGateService>();
-            if (gates != null) await gates.RequireAsync(tenantId, order[targetIndex], revision, null, token).ConfigureAwait(false);
+            if (gates != null) await gates.RequireAsync(tenantId, order[targetIndex], revision, token).ConfigureAwait(false);
 
             PromotionRecord record = new PromotionRecord();
             record.TenantId = tenantId;
@@ -225,6 +225,7 @@ namespace Garrison.Server.Services
         /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
         /// <exception cref="ValidationException">Thrown for an unknown environment, NoNextEnvironment, or a long note.</exception>
         /// <exception cref="ConflictException">Thrown with RevisionNotPublished, PromotionOrderViolation, or NoTargetDeployments naming the member.</exception>
+        /// <exception cref="EvalGateFailedException">Thrown with EvalGateFailed when the target environment's eval gate has no passing eval run of a member's revision (AA9.6).</exception>
         public async Task<PromotionRecord?> PromoteAppAsync(RequestContext ctx, string tenantId, AgenticApp app, AppRevision revision, string sourceEnvironment, string? targetEnvironment, bool allowSkip, string? note, Func<string, Task<bool>> authorizeTarget, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -279,6 +280,17 @@ namespace Garrison.Server.Services
                     record.Items.Add(new PromotionRecordItem { DeploymentId = deployment.Id, DeploymentName = deployment.Name, AgentId = member.AgentId, PreviousRevisionId = deployment.AgentRevisionId, NewRevisionId = member.AgentRevisionId });
                 }
             }
+            // AA9.6: every member revision promoted into a gated environment needs its own passing eval run, so an app
+            // promotion is no way around an agent's gate.
+            Garrison.Server.Runtime.EvalGateService? gates = _Server.TryGet<Garrison.Server.Runtime.EvalGateService>();
+            if (gates != null && !String.IsNullOrWhiteSpace(order[targetIndex].EvalGateSet))
+            {
+                foreach (string revisionId in revision.Members.Select(m => m.AgentRevisionId).Where(r => !String.IsNullOrEmpty(r)).Distinct(StringComparer.Ordinal))
+                {
+                    AgentRevision? memberRevision = await _Server.Database.AgentRevisions.ReadAsync(tenantId, revisionId!, token).ConfigureAwait(false);
+                    if (memberRevision != null) await gates.RequireAsync(tenantId, order[targetIndex], memberRevision, token).ConfigureAwait(false);
+                }
+            }
             await ApplyAsync(record, token).ConfigureAwait(false);
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Promotion", record.Id, "Promoted revision " + revision.Number + " of app " + app.Name + " from " + record.SourceEnvironment + " to " + target + " (" + record.Items.Count + " deployment(s) of " + revision.Members.Count + " member(s)).", tenantId, token).ConfigureAwait(false);
             return record;
@@ -286,7 +298,8 @@ namespace Garrison.Server.Services
 
         /// <summary>
         /// Roll back a promotion: restore every deployment pin it replaced, in one transaction, and mark it RolledBack.
-        /// The caller must hold Execute on Promotion for the promotion's target environment.
+        /// The caller must hold Execute on Promotion for the promotion's target environment. A rollback is not eval gated:
+        /// it is the emergency path back to the pins as they were, and it is audit-logged like the promotion.
         /// </summary>
         /// <param name="ctx">Caller.</param>
         /// <param name="tenantId">Tenant identifier.</param>

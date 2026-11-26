@@ -227,6 +227,20 @@ namespace Garrison.Server.Services
             return target;
         }
 
+        /// <summary>
+        /// The key a studio draft's eval copies carry in their names (AA9.10): eval-d{key}-{agent} for a new worker's agent
+        /// copy and eval-{agent}-d{key} for a deployment copy. Eight lowercase hex characters derived from the tenant and
+        /// draft identifiers.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draftId">Draft identifier.</param>
+        /// <returns>Key.</returns>
+        public static string DraftEvalKey(string tenantId, string draftId)
+        {
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes((tenantId ?? String.Empty) + "/" + (draftId ?? String.Empty)));
+            return Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
+        }
+
         #endregion
 
         #region Private-Methods
@@ -258,8 +272,7 @@ namespace Garrison.Server.Services
 
         private static string DraftKey(StudioDraft draft)
         {
-            byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(draft.TenantId + "/" + draft.Id));
-            return Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
+            return DraftEvalKey(draft.TenantId, draft.Id);
         }
 
         private static string Bounded(string name)

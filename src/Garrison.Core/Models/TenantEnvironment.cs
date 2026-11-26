@@ -38,8 +38,10 @@ namespace Garrison.Core.Models
         public int Position { get; set; } = 0;
 
         /// <summary>
-        /// Name of the eval set a revision must pass before it is promoted into this environment (AA9.6, AD11.4), or null
-        /// for no gate. The latest approved version of the set counts; at most 128 characters.
+        /// Name of the eval set a revision must pass before it is promoted, or pinned on a deployment, into this environment
+        /// (AA9.6, AD11.4), or null for no gate. Only the latest version of the set a person approved counts (a draft
+        /// version never gates a promotion), and only a completed eval run over its cases (not RecentInputs); at most 128
+        /// characters.
         /// </summary>
         public string? EvalGateSet { get; set; } = null;
 

@@ -50,7 +50,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "trial", "A source run on the fake harness finishes unaffected; its input is copied once to three candidates as Shadow runs that agree, diverge, and fail (" + provider + ")", ct => TrialAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "comparison", "A trial with a comparison eval set is scored with the set's checks against the source output; useJudge runs the set's judge agent with eval-judge; a judge without a judge agent is refused at start (" + provider + ")", ct => ComparisonAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "terminal", "A shadow run cancelled in the queue or timed out by the maintenance pass counts once as a candidate failure; a clamped samplePercent is echoed (" + provider + ")", ct => TerminalAsync(provider, ct)));
-                cases.Add(new TestCaseDescriptor(id, "sweep", "The leader's sweep completes a trial at its end time and leaves an open-ended one running (" + provider + ")", ct => SweepAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "sweep", "The leader's sweep completes a trial at its end time, leaves an open-ended one running, and fails a trial whose candidate is inactive or whose source is deleted (" + provider + ")", ct => SweepAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "POST /shadow-trials validation and 409, GET list filters and one, POST stop and stop again, cross-tenant 404, Viewer reads but cannot start, MCP tools for people only (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Shadow trials (" + provider + ")", cases));
             }
@@ -104,6 +104,8 @@ namespace Test.Shared.Suites
             }
             Assert.True(ShadowRunPolicy.Refuses(new McpToolDefinition { Name = "some-agent", AgentTool = true, Operation = OperationTypeEnum.Read }), "Agent tools are refused");
             Assert.True(ShadowRunPolicy.IsShadow(new Run { Kind = RunKindEnum.Shadow }) && !ShadowRunPolicy.IsShadow(new Run()) && !ShadowRunPolicy.IsShadow(null), "Only Shadow runs are shadow runs");
+            Assert.True(ShadowRunPolicy.IsRestricted(new Run { Kind = RunKindEnum.Shadow }) && ShadowRunPolicy.IsRestricted(new Run { Kind = RunKindEnum.Eval }) && !ShadowRunPolicy.IsRestricted(new Run()) && !ShadowRunPolicy.IsRestricted(null), "Shadow and Eval runs are restricted (AA-074)");
+            Assert.True(ShadowRunPolicy.RefusalCodeFor(new Run { Kind = RunKindEnum.Eval }) == "EvalRunRefused" && ShadowRunPolicy.RefusalCodeFor(new Run { Kind = RunKindEnum.Shadow }) == ShadowRunPolicy.RefusalCode, "Each kind has its refusal code");
             return Task.CompletedTask;
         }
 
@@ -248,6 +250,20 @@ namespace Test.Shared.Suites
                 ShadowTrial ended = await service.ReadAsync(host.TenantId, ending.Id, token).ConfigureAwait(false);
                 Assert.True(ended.Status == ShadowTrialStatusEnum.Completed && ended.CompletedUtc.HasValue && ended.StopReason == "Reached its end time.", "Completed at its end time: " + Serializer.Serialize(ended));
                 Assert.Equal(ShadowTrialStatusEnum.Running, (await service.ReadAsync(host.TenantId, open.Id, token).ConfigureAwait(false)).Status, "An open-ended trial keeps running");
+
+                // A trial whose candidate is made inactive, or whose source is deleted, fails on the next sweep.
+                Deployment gone = await DeploymentAsync(host, agent, "shadow-sweep-d", token).ConfigureAwait(false);
+                Deployment later = await DeploymentAsync(host, agent, "shadow-sweep-e", token).ConfigureAwait(false);
+                ShadowTrial orphaned = await HttpTestHelpers.SendAsync<ShadowTrial>(host.AdminClient, HttpMethod.Post, T(host) + "/shadow-trials", new ShadowTrial { SourceDeploymentId = gone.Id, CandidateDeploymentId = later.Id }, 201, token).ConfigureAwait(false);
+                other.Active = false;
+                await host.Server.Context.Database.Deployments.UpdateAsync(other, token).ConfigureAwait(false);
+                await host.Server.Context.Database.Deployments.DeleteAsync(gone.Id, token).ConfigureAwait(false);
+                Assert.True(await service.SweepAsync(token).ConfigureAwait(false), "The sweep fails the broken trials");
+                ShadowTrial inactive = await service.ReadAsync(host.TenantId, open.Id, token).ConfigureAwait(false);
+                Assert.True(inactive.Status == ShadowTrialStatusEnum.Failed && inactive.StopReason!.Contains("candidate deployment shadow-sweep-c is inactive", StringComparison.Ordinal), "An inactive candidate fails the trial: " + Serializer.Serialize(inactive));
+                ShadowTrial deleted = await service.ReadAsync(host.TenantId, orphaned.Id, token).ConfigureAwait(false);
+                Assert.True(deleted.Status == ShadowTrialStatusEnum.Failed && deleted.StopReason!.Contains("source deployment " + gone.Id + " was deleted", StringComparison.Ordinal), "A deleted source fails the trial: " + Serializer.Serialize(deleted));
+                Assert.True(!await service.SweepAsync(token).ConfigureAwait(false), "A failed trial is not swept again");
             }
         }
 

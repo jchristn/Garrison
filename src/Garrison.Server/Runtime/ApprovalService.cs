@@ -205,9 +205,9 @@ namespace Garrison.Server.Runtime
             string? cwd = WorkingDirectory(run.Id, typed);
             ApprovalRuleMatch match = ApprovalRuleMatcher.Evaluate(deployment?.ApprovalRules, toolName, typed, inputJson, cwd);
             ApprovalRuleActionEnum action = match.Action ?? deployment?.ApprovalDefaultAction ?? ApprovalRuleActionEnum.Ask;
-            if (run.Kind == RunKindEnum.Shadow)
+            if (run.Kind == RunKindEnum.Shadow || run.Kind == RunKindEnum.Eval)
             {
-                // AA-027: a shadow run's approvals default to Deny and no rule or person can allow an effect.
+                // AA-027, AA-074: a shadow or eval run's approvals default to Deny and no rule or person can allow an effect.
                 match = new ApprovalRuleMatch();
                 action = ApprovalRuleActionEnum.Deny;
             }

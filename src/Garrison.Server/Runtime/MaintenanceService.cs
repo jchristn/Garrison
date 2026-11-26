@@ -174,6 +174,12 @@ namespace Garrison.Server.Runtime
         public EvalRunner? Evaluations { get; set; } = null;
 
         /// <summary>
+        /// Eval copy janitor (AA9.10): the leader deletes idle eval copies (it does work at most once per its sweep
+        /// interval); null when not wired.
+        /// </summary>
+        public EvalCopyJanitor? EvalCopies { get; set; } = null;
+
+        /// <summary>
         /// Escalation service (AA2), whose timeout sweep the leader runs every pass; null when not wired.
         /// </summary>
         public EscalationService? Escalations { get; set; } = null;
@@ -636,6 +642,19 @@ namespace Garrison.Server.Runtime
                     if (evaluations != null && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         await GarrisonTracing.BackgroundAsync("maintenance", "evaluations", evaluations.SweepAsync, token).ConfigureAwait(false);
+                    }
+                    EvalCopyJanitor? evalCopies = EvalCopies;
+                    if (evalCopies != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "eval_copies", evalCopies.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Listing deployments and agents can take a while; that work is not a pause.
+                            _Pause.Touch();
+                        }
                     }
                     NotificationService? notifications = Notifications;
                     if (notifications != null && await AwakeAsync(token).ConfigureAwait(false))

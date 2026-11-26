@@ -436,10 +436,10 @@ namespace Garrison.Server.Protocols
 
         private async Task<bool> ShadowRunAsync(RequestContext ctx, CancellationToken token)
         {
-            // AA-027: a shadow run is shown only the tools it may call.
+            // AA-027, AA-074: a shadow or eval run is shown only the tools it may call.
             if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return false;
             Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
-            return ShadowRunPolicy.IsShadow(run);
+            return ShadowRunPolicy.IsRestricted(run);
         }
 
         private async Task<bool> DraftGrantAsync(RequestContext ctx, CancellationToken token)
@@ -653,8 +653,8 @@ namespace Garrison.Server.Protocols
                 || run == null || run.TenantId != ctx.TenantId || session.LeaseEpoch.Value != run.LeaseEpoch || !run.LeaseExpiresUtc.HasValue || run.LeaseExpiresUtc.Value <= DateTime.UtcNow
                 || run.CancelRequested || (run.Status != RunStatusEnum.Running && run.Status != RunStatusEnum.Leased))
                 throw ToolError("LeaseExpired", "The run session no longer holds an active lease.");
-            // AA-027: a shadow run's token refuses every effect, checked on the run row read for this call.
-            if (ShadowRunPolicy.IsShadow(run) && ShadowRunPolicy.Refuses(tool)) throw ToolError(ShadowRunPolicy.RefusalCode, ShadowRunPolicy.RefusalMessage(tool.Name));
+            // AA-027, AA-074: a shadow or eval run's token refuses every effect, checked on the run row read for this call.
+            if (ShadowRunPolicy.IsRestricted(run) && ShadowRunPolicy.Refuses(tool)) throw ToolError(ShadowRunPolicy.RefusalCodeFor(run), ShadowRunPolicy.RefusalMessageFor(tool.Name, run));
             // Read operations cannot cause external effects. Every other tool is conservatively journaled.
             if (!EffectClassificationRules.RequiresJournal(tool.Operation, tool.AgentTool, tool.Annotations)) return await GatewayOperation.DispatchAsync(ct => DispatchCoreAsync(tool, args, call, ct), token).ConfigureAwait(false);
             EffectOperation operation = new EffectOperation
@@ -3122,6 +3122,10 @@ namespace Garrison.Server.Protocols
             string? agentRef = args?.GetString("agent");
             if (!String.IsNullOrEmpty(agentRef)) filter.AgentId = (await _Invoker.ResolveAgentAsync(tenantId, agentRef, token).ConfigureAwait(false)).Id;
             filter.MaxResults = (int)Math.Clamp(args?.GetInt64("maxResults") ?? 25, 1, 100);
+            string? evalRunId = args?.GetString("evalRunId");
+            if (!String.IsNullOrWhiteSpace(evalRunId)) filter.EvalRunId = evalRunId.Trim();
+            string? shadowTrialId = args?.GetString("shadowTrialId");
+            if (!String.IsNullOrWhiteSpace(shadowTrialId)) filter.ShadowTrialId = shadowTrialId.Trim();
             if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId)) filter.RootRunId = await RootOfAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
             List<Run> visible = await HiddenRuns().VisibleAsync(ctx, page.Objects, token).ConfigureAwait(false);

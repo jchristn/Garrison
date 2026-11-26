@@ -4165,15 +4165,17 @@ Eval sets (AA9) are versioned lists of cases, each with an input, optional expec
 | `GET /canary-releases/{releaseId}` | Read on `CanaryRelease` | `CanaryRelease`, 200 |
 | `POST /canary-releases/{releaseId}/abort` | Update on `CanaryRelease` | `CanaryRelease`, 200 |
 
-Paths are relative to `/v1.0/api/tenants/{tenantId}`; another tenant's records answer 404. `{setId}` takes a version identifier (`evs_`) or a set name, which means its newest version. Run tokens of executives (deployments with `managementAccess: OrgSubtree`) may read sets, create sets (recorded with origin `Evaluator`), start eval runs of their own studio drafts, and read the eval runs their agent started; they see hidden cases and their results redacted. Every other route answers a run token 403, and shadow trial and canary routes refuse run tokens with 403 `PeopleOnly`.
+Paths are relative to `/v1.0/api/tenants/{tenantId}`; another tenant's records answer 404. `{setId}` takes a version identifier (`evs_`) or a set name, which means its newest version. Run tokens of executives (deployments with `managementAccess: OrgSubtree`) may read sets, create sets (recorded with origin `Evaluator`), start eval runs of their own studio drafts, and read the eval runs their agent started; they see hidden cases and their results redacted. Every other route answers a run token 403, and shadow trial and canary routes refuse run tokens with 403 `PeopleOnly`. The case and judge runs of hidden cases answer 404 to every run token but their own on `GET .../runs/{id}` and its sub-routes, and are left out of run lists. Every `Eval` run (case runs, recent-input replays, and judges) is restricted like a shadow run: its MCP effects are refused with `EvalRunRefused` and its approvals are denied (AA-074).
+
+Eval gates on environments count only versions a person approved and only eval runs over the cases (not `RecentInputs`). A promotion, an app promotion, a deployment `POST` or `PUT` that sets or changes `agentRevisionId` in a gated environment or moves a pinned deployment there, and a manifest `Deployment` document with `agentRevision` there answer 409 `EvalGateFailed` (a manifest item fails with that code) until the revision passed; promotion rollbacks are not gated.
 
 #### `POST /v1.0/api/tenants/{tenantId}/eval-sets`
 
-Body `EvalSetRequest`: `name` (1 to 128 characters, required), `description`, `origin` (`Human` or `Playground`; default `Human`), `judgeAgent` (identifier or name), `tags`, and `cases`. Each case takes `inputText` (required), `name`, `expectedText`, `hidden`, `checks` (`scorer`, `argument`, `weight` 0 to 100, default 1), `files` (`path` with `contentText`, or `assetId` and `assetPath`), and `sourceRunId`. `PUT .../eval-sets/{setId}` changes `description`, `judgeAgent`, and `tags`; fields left out keep their values.
+Body `EvalSetRequest`: `name` (1 to 128 characters, required), `description`, `origin` (`Human` or `Playground`; default `Human`), `judgeAgent` (identifier or name), `tags`, and `cases`. Each case takes `inputText` (required), `name` (at most 128 characters), `expectedText`, `hidden`, `checks` (`scorer`, `argument`, `weight` 0 to 100, default 1), `files` (`path` with `contentText`, or `assetId` and `assetPath`, written into each case run's workspace), and `sourceRunId` (a run of the same tenant). `PUT .../eval-sets/{setId}` changes `description`, `judgeAgent`, and `tags`; fields left out keep their values.
 
 | | |
 |---|---|
-| Errors | 400 `ValidationFailed` with field codes `OutOfRange`, `InputRequired`, `UnknownScorer`, `InvalidJsonSchema`, `ArgumentRequired`, `TooManyCases` (past `Evaluation.MaxCasesPerSet`), `EvaluatorIsForAgents`; 409 `EvalSetExists` |
+| Errors | 400 `ValidationFailed` with field codes `OutOfRange`, `InputRequired`, `UnknownScorer`, `InvalidJsonSchema`, `ArgumentRequired`, `TooManyCases` (past `Evaluation.MaxCasesPerSet`), `EvaluatorIsForAgents`, `RunNotFound` (a `sourceRunId` that is not a run of the tenant), `InvalidPath`, `DuplicatePath`, `FileContentRequired`, `AssetNotFound`, `AssetFileNotFound`; 409 `EvalSetExists`. Adding and replacing cases (`POST` and `PUT .../cases`) check the same fields |
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/eval-sets" \
@@ -4229,7 +4231,7 @@ Body: `sourceDeploymentId` and `candidateDeploymentId` (identifiers or names, tw
 
 | | |
 |---|---|
-| Errors | 400 `ValidationFailed` with field codes `DeploymentNotFound`, `SameDeployment`, `DifferentAgent`, `DeploymentInactive`, `AgentMismatch`, `EndsInPast`, `EvalSetNotFound`, `TooLong`; 403 `PeopleOnly`, or without Execute on the agent; 409 `ShadowTrialAlreadyRunning`, `ShadowTrialNotRunning` on stop |
+| Errors | 400 `ValidationFailed` with field codes `DeploymentNotFound`, `SameDeployment`, `DifferentAgent`, `DeploymentInactive`, `AgentMismatch`, `EndsInPast`, `EvalSetNotFound`, `JudgeAgentRequired`, `JudgeAgentNotFound`, `TooLong`; 403 `PeopleOnly`, or without Execute on the agent; 409 `ShadowTrialAlreadyRunning`, `ShadowTrialNotRunning` on stop. A clamped `samplePercent` is echoed in `warnings` |
 
 #### `POST /v1.0/api/tenants/{tenantId}/canary-releases`
 
@@ -4549,7 +4551,7 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/environments" \
 |---|---|
 | Errors | 400 `ValidationFailed` (1 to 16 environments; names are 1 to 32 lowercase letters, digits, and hyphens starting with a letter; `draft` is reserved; `evalGateSet` at most 128 characters); 409 `EnvironmentInUse` when a removed environment still has deployments |
 
-Each entry takes `name`, `description`, and an optional eval gate: `evalGateSet`, the name of an eval set a revision must pass before it is promoted into the environment, and `evalGateThreshold`, the score from 0 to 1 that counts as passing (1 when a set is named without a threshold). Clearing `evalGateSet` clears the threshold. See [docs/EVALS.md](docs/EVALS.md#promotion-gates).
+Each entry takes `name`, `description`, and an optional eval gate: `evalGateSet`, the name of an eval set a revision must pass before it is promoted, or pinned on a deployment, into the environment, and `evalGateThreshold`, the score from 0 to 1 that counts as passing (1 when a set is named without a threshold). Only the latest version a person approved counts, and only eval runs over its cases. Clearing `evalGateSet` clears the threshold. See [docs/EVALS.md](docs/EVALS.md#promotion-gates).
 
 #### `POST /v1.0/api/tenants/{tenantId}/promotions`
 
@@ -4582,7 +4584,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/promotions" \
 
 | | |
 |---|---|
-| Errors | 400 `UnknownEnvironment`, `NoNextEnvironment`; 403 without Execute on `Promotion` for the target; 404 for an unknown agent or revision; 409 `PromotionOrderViolation`, `RevisionNotPublished`, `NoSourceRevision`, `AmbiguousSourceRevision`, `NoTargetDeployments`, `EvalGateFailed` (the target environment's eval gate has no completed eval run of the revision at its threshold; the message names the latest eval run) |
+| Errors | 400 `UnknownEnvironment`, `NoNextEnvironment`; 403 without Execute on `Promotion` for the target; 404 for an unknown agent or revision; 409 `PromotionOrderViolation`, `RevisionNotPublished`, `NoSourceRevision`, `AmbiguousSourceRevision`, `NoTargetDeployments`, `EvalGateFailed` (the target environment's eval gate has no approved version, or no completed eval run of the revision over its cases at its threshold; the message names the latest eval run) |
 
 #### `POST /v1.0/api/tenants/{tenantId}/promotions/{id}/rollback`
 
@@ -5325,7 +5327,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 Trigger agent targets apply the same schema check to the rendered trigger input; a rejected input is recorded as a failed fire with `InputNotJson` or `InputSchemaViolation`. Pipeline stages validate the fully rendered handoff task during compilation, before the system prompt is added. Their stored input remains the original caller input. An invalid handoff fails the receiving run with outcome `CompileFailed` and an error message starting with the same schema code, rather than returning an invocation-time HTTP 400. Compile preview exposes the same error. See [pipeline handoffs](docs/PIPELINES.md#the-handoff-between-stages).
 
-**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `mandateId` (the tick runs of a keeper), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
+**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `mandateId` (the tick runs of a keeper), `evalRunId` (the case and judge runs of one eval run), `shadowTrialId` (the shadow runs of one trial), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
@@ -9282,13 +9284,13 @@ One version of an eval set (AA9). See [docs/EVALS.md](docs/EVALS.md#eval-sets).
 |---|---|---|
 | `id`, `tenantId`, `setId` | `string` | Identifier (`evc_`), tenant, and set version. A case copied into a new version gets a new identifier. |
 | `order` | `int` | Position in the set, set by the server. |
-| `name` | `string?` | At most 256 characters. |
+| `name` | `string?` | At most 128 characters. |
 | `inputText` | `string` | Input sent to the agent. Required. Empty for a hidden case read by a run token. |
 | `hidden` | `boolean` | Default false. Run tokens see a hidden case redacted. |
 | `expectedText` | `string?` | Reference answer. `ExactMatch` and `Contains` checks without an argument compare against it. |
 | `checks` | `EvalCaseCheck[]` | Checks in order. A case without checks is scored by `ExactMatch` against `expectedText`, or by one `Judge` check when it has none. |
-| `files` | `EvalCaseFile[]` | Files of the case. |
-| `sourceRunId` | `string?` | The run the case was saved from, for example a playground run. |
+| `files` | `EvalCaseFile[]` | Files written into each case run's workspace before it starts. Paths are unique within the case. |
+| `sourceRunId` | `string?` | The run the case was saved from, for example a playground run. Must be a run of the same tenant (400 `RunNotFound`). |
 | `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
 
 #### `EvalCaseCheck`
@@ -9303,10 +9305,10 @@ One version of an eval set (AA9). See [docs/EVALS.md](docs/EVALS.md#eval-sets).
 
 | Field | Type | Description |
 |---|---|---|
-| `path` | `string` | Relative path with forward slashes, no `.` or `..` segments, at most 512 characters. |
+| `path` | `string` | Path in the case run's workspace: relative, forward slashes, no empty, `.`, or `..` segments, at most 512 characters (400 `InvalidPath`). |
 | `mediaType` | `string?` | Media type, or null to guess from the extension. |
-| `contentText` | `string?` | Inline content, or null when the file comes from an asset. |
-| `assetId`, `assetPath` | `string?` | An agent asset (`aas_`) and the file inside it, used at its latest version. Never together with `contentText`. |
+| `contentText` | `string?` | Inline content, written as UTF-8 bytes and never rendered as a template, or null when the file comes from an asset. |
+| `assetId`, `assetPath` | `string?` | An agent asset (`aas_`) of the tenant and the file inside it, used at its latest version when the case run is leased. Exactly one of `contentText` or the asset (400 `FileContentRequired`). |
 
 #### `EvalRun`
 
@@ -9357,8 +9359,8 @@ One version of an eval set (AA9). See [docs/EVALS.md](docs/EVALS.md#eval-sets).
 | `endsUtc` | `DateTime?` | When it completes, or null to run until stopped. |
 | `comparisonEvalSetId` | `string?` | Eval set whose checks compare outputs. |
 | `useJudge` | `boolean` | Whether a judge decides agreement. Default false. |
-| `status` | `ShadowTrialStatusEnum` | Default `Running`. |
-| `stopReason` | `string?` | Why it stopped. |
+| `status` | `ShadowTrialStatusEnum` | Default `Running`. `Failed` when the leader's sweep found its source or candidate deployment deleted or inactive. |
+| `stopReason` | `string?` | Why it stopped, completed, or failed. |
 | `comparedCount`, `agreedCount`, `divergedCount`, `candidateFailureCount` | `long` | Tally. |
 | `createdByType`, `createdById`, `createdByName` | `PrincipalTypeEnum`, `string?`, `string?` | Who started it. |
 | `createdUtc`, `completedUtc`, `lastUpdateUtc` | `DateTime`, `DateTime?`, `DateTime` | UTC timestamps. |

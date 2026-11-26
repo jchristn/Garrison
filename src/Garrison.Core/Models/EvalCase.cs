@@ -132,7 +132,8 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
-        /// Files placed in the working directory before the case runs, in order.
+        /// Files placed in the case run's workspace before it starts, in order (inline text, or an agent asset file from the
+        /// asset's latest version). Paths are unique within the case. Judge runs and RecentInputs replays get no files.
         /// </summary>
         public List<EvalCaseFile> Files
         {
@@ -147,7 +148,8 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
-        /// Run the case was saved from (a studio playground run, AD11.5), or null.
+        /// Run the case was saved from (a studio playground run, AD11.5), or null. Must name a run in the same tenant
+        /// (400 with code RunNotFound otherwise).
         /// </summary>
         public string? SourceRunId { get; set; } = null;
 

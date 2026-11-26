@@ -8,8 +8,9 @@ namespace Garrison.Server.Runtime
     using Garrison.Server.Protocols;
 
     /// <summary>
-    /// What a shadow run may do through Garrison's MCP server (AA-027, AA9.7). A run token belongs to a shadow run when
-    /// its run has kind Shadow; the gateway re-reads the run on every call, so the flag cannot be dropped by the harness.
+    /// What a shadow run, and every eval run, may do through Garrison's MCP server (AA-027, AA-074, AA9.7). A run token is
+    /// restricted when its run has kind Shadow (a shadow copy) or Eval (an eval case run, a recent-input replay, or a judge
+    /// run); the gateway re-reads the run on every call, so the flag cannot be dropped by the harness.
     /// A shadow run may read. It may not call any tool the effect journal would record (every non-read tool and every
     /// agent tool), and it may not use the messaging, escalation, report, memory-write, keeper, or studio draft tools
     /// even where one of them reads. The permission prompt stays available so the harness can ask, and the approval
@@ -20,9 +21,14 @@ namespace Garrison.Server.Runtime
         #region Public-Members
 
         /// <summary>
-        /// Error code of every refusal: ShadowRunRefused.
+        /// Error code of a shadow run's refusals: ShadowRunRefused.
         /// </summary>
         public static readonly string RefusalCode = "ShadowRunRefused";
+
+        /// <summary>
+        /// Error code of an eval run's refusals (AA-074): EvalRunRefused.
+        /// </summary>
+        public static readonly string EvalRefusalCode = "EvalRunRefused";
 
         #endregion
 
@@ -57,7 +63,41 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Whether a shadow run is refused this tool.
+        /// Whether a run is restricted like a shadow run: kind Shadow, or kind Eval (case runs, recent-input replays, and
+        /// judge runs; AA-074), because replaying cases or production inputs must not act.
+        /// </summary>
+        /// <param name="run">Run, or null.</param>
+        /// <returns>True for a run of kind Shadow or Eval.</returns>
+        public static bool IsRestricted(Run? run)
+        {
+            return run != null && (run.Kind == RunKindEnum.Shadow || run.Kind == RunKindEnum.Eval);
+        }
+
+        /// <summary>
+        /// The refusal code for a restricted run: <see cref="EvalRefusalCode"/> for an eval run, otherwise
+        /// <see cref="RefusalCode"/>.
+        /// </summary>
+        /// <param name="run">Run, or null.</param>
+        /// <returns>Code.</returns>
+        public static string RefusalCodeFor(Run? run)
+        {
+            return run != null && run.Kind == RunKindEnum.Eval ? EvalRefusalCode : RefusalCode;
+        }
+
+        /// <summary>
+        /// The message a refused restricted run receives.
+        /// </summary>
+        /// <param name="toolName">Tool name.</param>
+        /// <param name="run">Run, or null.</param>
+        /// <returns>Message.</returns>
+        public static string RefusalMessageFor(string? toolName, Run? run)
+        {
+            if (run == null || run.Kind != RunKindEnum.Eval) return RefusalMessage(toolName);
+            return (String.IsNullOrEmpty(toolName) ? "This tool" : toolName) + " is not available to an eval run: eval case runs, recent-input replays, and judge runs only read, and their effects (messages, escalations, reports, memory writes, drafts, files, other runs, and tools that change anything) are refused (AA-074).";
+        }
+
+        /// <summary>
+        /// Whether a restricted run is refused this tool.
         /// </summary>
         /// <param name="tool">Tool.</param>
         /// <returns>True when the call must be refused with <see cref="RefusalCode"/>.</returns>

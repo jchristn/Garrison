@@ -40,21 +40,29 @@ An edit to an approved version, its description, or one of its cases opens the n
 | Field | Meaning |
 |---|---|
 | `inputText` | The input sent to the agent. Required (400 `InputRequired`) |
-| `name` | A short label, at most 256 characters |
+| `name` | A short label, at most 128 characters |
 | `order` | Position in the set, set by the server. Cases run and list in order |
 | `expectedText` | The reference answer, or null |
 | `checks` | How the answer is scored, in order. Each has a `scorer`, an `argument`, and a `weight` |
 | `hidden` | Whether the case is hidden from the run tokens of the agent being evaluated. Default false |
-| `files` | Files that belong to the case, each with a `path` (relative, forward slashes, no `.` or `..`, at most 512 characters), an optional `mediaType`, and either `contentText` or an agent asset (`assetId` and `assetPath`) |
-| `sourceRunId` | The run the case was saved from, or null |
+| `files` | Files placed in the case run's workspace before it starts ([below](#case-files)), each with a `path` (relative, forward slashes, no empty, `.`, or `..` segments, at most 512 characters, unique within the case), an optional `mediaType`, and either `contentText` or an agent asset file (`assetId` and `assetPath`), never both |
+| `sourceRunId` | The run the case was saved from, or null. It must be a run of the same tenant |
 
 A check's `weight` runs from 0 to 100 and defaults to 1. A weight of 0 reports the check without counting it. A case's score is the weighted mean of its check scores (the plain mean when every weight is 0), and the case passes when every check with a weight above 0 passed. A case run that fails, times out, or cannot start scores 0 and counts as errored.
 
 A case without checks still gets scored. With `expectedText` it is scored by one `ExactMatch` check; without it, by one `Judge` check with the default criteria. One version holds at most `Evaluation.MaxCasesPerSet` cases (500 by default); creating or adding past that answers 400 `TooManyCases`.
 
+Saving a case checks what it points at, in the caller's tenant only. A `sourceRunId` that names no run there answers 400 `RunNotFound`, the same as for another tenant's run. A file path that leaves the workspace answers 400 `InvalidPath`, a path listed twice `DuplicatePath`, a file with both or neither of `contentText` and an asset `FileContentRequired`, an unknown `assetId` `AssetNotFound`, and an `assetPath` that the asset's latest version does not hold `AssetFileNotFound`.
+
+### Case files
+
+A case's files are written into the workspace of each run of that case before its harness starts, at their `path`. Inline `contentText` is written as UTF-8 bytes; it is never treated as a template, so placeholders in it stay as typed. An asset file comes from the asset's latest version when the case run is leased, and the worker downloads and checks it against its SHA-256 like any other asset file; one that no longer exists is left out. Only case runs get files: judge runs and recent-input replays get none. The workspace of an eval run is never written back anywhere, and case files are never collected as artifacts.
+
 ### Hidden cases
 
 A hidden case is one the agent being evaluated never gets to read. Hidden cases exist for the executive that proposes a change and then evaluates it: if it could read the cases, it could tune its draft to the answers. Run tokens see a hidden case's name, order, and its checks' scorers and weights. They never see its input, expected text, check arguments, or file contents. In eval run results they see a hidden case's scores and pass flag, never the agent's output, the scorers' notes (a judge's reason can quote the input), or the error text, which reads "The case is hidden." The case runs a hidden case starts are closed to run tokens as well, so the input cannot be read back from the run.
+
+The runs a hidden case starts are found by their idempotency key: `eval:{evalRunId}:{order}` for the case run and `eval:{evalRunId}:{order}:judge...` for its judges. To every run token other than the run itself, such a run does not exist. `GET /runs/{id}` and its sub-routes answer 404, run lists (`GET /runs`, a run's children) leave it out, the `run:{runId}` WebSocket channel refuses it and the `runs` channel drops its events, and the MCP run tools refuse it as not found. A hidden case's result also has its `runId`, `sourceRunId`, and every check's `judgeRunId` cleared for run tokens, so there is no identifier to look up.
 
 People with Read on `EvalSet` see hidden cases in full; the redaction applies to run tokens only.
 
@@ -85,7 +93,7 @@ The judge replies with a verdict:
 
 A set that needs a judge and has none cannot run. That covers a set with any `Judge` check, any case with neither checks nor expected text, and any run in recent-input mode. Starting such a run answers 400 `JudgeAgentRequired`.
 
-Pick a judge agent other than the agent being graded, and keep its deployment's tools to a minimum: every answer it reads was written by an agent that would like a high score.
+Pick a judge agent other than the agent being graded, and keep its deployment's tools to a minimum: every answer it reads was written by an agent that would like a high score. A judge run is an `Eval` run, so it runs under the same restrictions as a case run ([below](#what-an-eval-run-cannot-do)); a judge needs no tools to answer.
 
 ## Running an eval
 
@@ -107,6 +115,14 @@ Starting a run needs Execute on `EvalRun` and Execute on the evaluated agent, be
 
 Each case runs as its own run of kind `Eval`, with `evalRunId` set and the idempotency key `eval:{evalRunId}:{order}`. A deployment target sends the case to that deployment. A revision target runs it on a deployment named `eval-{agent}-r{number}`: a copy of the agent's `dev` deployment (or its first one) in the reserved `draft` environment, pinned to the revision, with weight 0 so normal routing never picks it. The copy is made on first use and reused, so every case of a revision runs the same configuration. An agent with no deployment to copy fails the eval run with a `TargetUnavailable` reason.
 
+A studio draft target brings its own copies. When the draft holds a `Deployment` document for the agent (a model change, for example), the document is planned into `eval-{agent}-d{key}` in the `draft` environment, weight 0, pinned to the evaluated revision, and the cases run there. A worker the draft adds runs as a protected agent copy `eval-d{key}-{agent}` with its own deployment copy. `{key}` is eight hex characters derived from the tenant and the draft. Live configuration does not change.
+
+Eval copies are cleaned up. A draft's copies are deleted when the draft is applied or deleted, unless one is still in use, and every other copy is deleted by the leader's sweep once it has been idle (no change, and no run created or finished) for a day (`EvalCopyJanitor.IdleHours`, 24 by default; the sweep runs at most hourly). A copy stays while it has an unfinished run, a pending or running eval run, a running shadow trial, or a running canary release. Eval runs, their results, and their runs are kept; only the copies go.
+
+### What an eval run cannot do
+
+Replaying cases or production inputs must not act (decision AA-074). Every run of kind `Eval`, which covers case runs, recent-input replays, and judge runs, including the judge runs of shadow comparisons, runs under the shadow restrictions of [What a shadow run cannot do](#what-a-shadow-run-cannot-do): the MCP gateway refuses every effectful tool, messaging, escalation, report, memory-write, keeper, studio draft, file, and run tool, and leaves them out of `tools/list`; every permission prompt is denied; Garrison turns approvals on where the harness can relay them (Claude Code in permission mode `default` with only Garrison's tools pre-allowed); and the run gets no conversation file space and cannot write one back. The refusal code is `EvalRunRefused`, so a harness log tells an eval refusal from a shadow one (`ShadowRunRefused`). An eval case that only works by calling a tool with effects cannot pass; grade the answer the agent gives instead.
+
 At most `Evaluation.MaxConcurrentCases` cases of one eval run run at once (4 by default, 1 to 64). The eval run tracks `costUsd` across its case and judge runs. Once that reaches `budgetUsd`, no further cases start, and the run fails with a `failureReason` that starts with `BudgetExhausted` and says how many cases did not run.
 
 When every case is scored, the run is `Completed`. `score` is the mean of the case scores, each weighted by the total weight of its checks (a case with no weighted checks, such as one whose run failed, weighs 1), so a case with three points of checks counts three times as much as a case with one. `passedCases`, `erroredCases`, and `completedCases` count the cases, and `passed` is true when `score` reached `threshold` (null without a threshold). A run that cannot continue, because its deployment, revision, or judge agent disappeared, is `Failed` with a reason starting `TargetUnavailable`. `POST /eval-runs/{id}/cancel` with an optional `reason` moves a `Pending` or `Running` eval run to `Cancelled` and cancels its unfinished case and judge runs; a finished one answers 409 `EvalRunFinished`.
@@ -121,7 +137,7 @@ The leader's maintenance pass resumes `Pending` and `Running` eval runs, so a ru
 
 Recent inputs have no expected text, so they are scored by the set's `Judge` checks only: each distinct pair of criteria and weight across its cases, or one `Judge` check with the default criteria when the set has none. A judge agent is therefore required. Recent-input mode works only on a deployment target (400 `RecentInputsNeedDeployment`), and a deployment with no succeeded runs yet answers 400 `NoRecentInputs`. Scheduled checks (AA11) use this mode to re-grade a deployment on a timer.
 
-The replayed runs are ordinary `Eval` runs of the deployment. They are not shadow runs, so they may use the deployment's tools. Run recent-input evals against deployments whose tools only read, or that have approvals turned on.
+The replayed runs are `Eval` runs, restricted like every eval run ([above](#what-an-eval-run-cannot-do)), so replaying a production input never repeats its effects. A recent-input run never satisfies a promotion gate, a change rule gate, or a canary step's eval gate: its score says how a judge liked the answers, not whether they matched a reviewed reference.
 
 ### Saving cases from the playground
 
@@ -157,13 +173,20 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/environments" \
   -d '{"environments": [{"name": "dev"}, {"name": "staging"}, {"name": "prod", "evalGateSet": "invoice-fields", "evalGateThreshold": 0.9}]}'
 ```
 
-On `POST /promotions` into a gated environment, Garrison picks the gate's version: the latest version of the set a person approved, or, when none is approved, the latest version if an evaluator outside the proposer's subtree wrote it. It then looks at the most recent eval runs (up to 100) of the revision being promoted against that version and lets the promotion through when one of them is `Completed` with a score at or above the threshold. Any eval run of the revision counts, whether it targeted the revision directly or a deployment pinned to it. The eval run's own `threshold` does not matter; the environment's does.
+On `POST /promotions` into a gated environment, Garrison picks the gate's version: the latest version of the set a person approved. A draft version never gates a promotion, not even one an evaluator agent wrote; with no approved version the promotion answers `EvalGateFailed` naming `EvalSetNotApproved`. Garrison then looks at the most recent eval runs (up to 100) of the revision being promoted against that version, over the set's cases (`inputMode: Cases`; recent-input runs never count), and lets the promotion through when one of them is `Completed` with a score at or above the threshold. Any such eval run of the revision counts, whether it targeted the revision directly or a deployment pinned to it. The eval run's own `threshold` does not matter; the environment's does.
 
-Otherwise the promotion answers 409 `EvalGateFailed`, and the message says what to do: that the set does not exist, that no version may gate yet, that the revision has no eval run against the gate's version, or that the latest one, named by its `evr_` identifier, scored too low or is still running. Approving a new version of the set moves the gate to it, so earlier passing runs against the old version stop counting until the revision passes the new one.
+Otherwise the promotion answers 409 `EvalGateFailed`, and the message says what to do: that the set does not exist, that no version is approved yet, that the revision has no eval run against the gate's version, or that the latest one, named by its `evr_` identifier, scored too low or is still running. Approving a new version of the set moves the gate to it, so earlier passing runs against the old version stop counting until the revision passes the new one.
 
-The gate guards the promotion route. Agentic app promotions, promotion rollbacks, and direct edits of a deployment's `agentRevisionId` are not checked against it, so keep Update on prod deployments with the people you trust to bypass it.
+Every other way of putting a revision into a gated environment meets the same gate:
 
-For executives, change rules can carry the same kind of gate. A rule that allows `AddWorker` or `ModelChange` can name a gate eval set and a threshold, and a draft covered by that rule applies by rule only after an eval run of the draft passes it. The executive runs the set with `garrison_run_eval` and its `studioDraftId`, and the separation rules above decide whether the set may gate its draft. The proposal a person reviews carries the evidence: the draft's eval runs, and any shadow trials and canary releases of the deployments it changes. See [EXECUTIVES.md](EXECUTIVES.md).
+- An agentic app promotion checks every member revision it would pin there, and refuses the whole promotion when one has not passed.
+- Creating a deployment there with `agentRevisionId` set, changing the `agentRevisionId` of one there, or moving a pinned deployment there (`POST` or `PUT /deployments`, the MCP deployment tools, and the architect) answers 409 `EvalGateFailed` unless that revision passed.
+- A manifest `Deployment` document that pins `agentRevision` in a gated environment fails its item with `EvalGateFailed`, on a dry run as on an apply, so a studio draft or an executive's draft that pins prod does not validate.
+- Applying a studio draft repins `dev` deployments to the new revision only when a gated `dev` admits it; otherwise the pin stays and the audit log says why.
+
+Rollbacks are not gated. `POST /promotions/{id}/rollback`, and the revert drafts an organization rollback applies, restore pins as they were: they are the emergency path back, and both are written to the audit log like the promotion they undo. A deployment that pins no revision follows the agent's latest published revision, so publishing a revision moves it without a gate; pin the deployments of a gated environment.
+
+For executives, change rules can carry the same kind of gate. A rule that allows `AddWorker` or `ModelChange` can name a gate eval set (`gateEvalSet`) and a threshold (`gateThreshold`, 1 when left out), and a draft covered by that rule applies by rule only after an eval run of the draft passes it. Creating such a rule needs a set a person approved (400 `EvalSetNotApproved`, `EvalSetNotFound`, `GateSetRequired` for a threshold without a set, `GateClassRequired` for a gate on a rule without either class). The executive runs the set with `garrison_run_eval` and its `studioDraftId`. The gate's version is the latest approved one or, when none is approved, the latest version written by an evaluator outside the executive's subtree; the separation rules above decide. Only a `Completed` run over the cases counts, created at or after the draft's items last changed (`contentChangedUtc`, set on create and on every item put or removal, not on layout moves), with a score at or above the threshold. Until then the item's rule match has code `EvalGatePending` with the reason, and the draft waits for a person; once the gate passes, the match carries `gateEvalRunId`, and asking to apply again cancels the waiting approval and applies the draft by rule. The proposal a person reviews carries the evidence: the draft's eval runs (score, threshold, passed, and whether each is current), and any shadow trials and canary releases whose candidate is one of the draft's deployments or eval copies. See [EXECUTIVES.md](EXECUTIVES.md#eval-gates).
 
 ## Shadow trials
 
@@ -178,10 +201,10 @@ A shadow trial answers "would the candidate have said the same thing?" on real t
 | `endsUtc` | When the trial completes, or null to run until stopped. Must be in the future |
 | `comparisonEvalSetId` | An eval set whose checks compare the two answers, or null |
 | `useJudge` | Whether a judge decides whether the answers agree. Default false |
-| `status` | `Running`, `Completed` (reached `endsUtc`), `Stopped` (a person stopped it), or `Failed` |
+| `status` | `Running`, `Completed` (reached `endsUtc`), `Stopped` (a person stopped it), or `Failed` (its source or candidate deployment was deleted or made inactive; `stopReason` says which) |
 | `comparedCount`, `agreedCount`, `divergedCount`, `candidateFailureCount` | The tally |
 
-Only people start and stop trials (403 `PeopleOnly` for a run token). Starting one needs Create on `ShadowTrial` and Execute on the agent, because the trial starts runs of it. Validation answers 400 with `DeploymentNotFound`, `SameDeployment`, `DifferentAgent`, `DeploymentInactive`, `AgentMismatch` (an `agentId` that is not the source's agent), `EndsInPast`, `EvalSetNotFound`, or `TooLong`. One candidate can shadow one source once at a time (409 `ShadowTrialAlreadyRunning`).
+Only people start and stop trials (403 `PeopleOnly` for a run token). Starting one needs Create on `ShadowTrial` and Execute on the agent, because the trial starts runs of it. Validation answers 400 with `DeploymentNotFound`, `SameDeployment`, `DifferentAgent`, `DeploymentInactive`, `AgentMismatch` (an `agentId` that is not the source's agent), `EndsInPast`, `EvalSetNotFound`, `JudgeAgentRequired` (the comparison needs a judge, through `useJudge` or the set's `Judge` checks, and there is no comparison set or it has no `judgeAgent`), `JudgeAgentNotFound`, or `TooLong`. A `samplePercent` outside 1 to 100 is clamped, and the create response echoes the clamp in `warnings` (`ValueClamped`). One candidate can shadow one source once at a time (409 `ShadowTrialAlreadyRunning`).
 
 ### Sampling
 
@@ -215,18 +238,18 @@ Harnesses that cannot relay permission prompts (Codex exec, Gemini CLI, Mux, ope
 
 When a shadow run finishes, Garrison compares its output with its source's on another background job. Each side's output is its structured output JSON when it has one, and its result text otherwise.
 
-- A shadow run that did not succeed (failed, timed out, or was cancelled) adds one to `candidateFailureCount`.
-- With `comparisonEvalSetId`, the candidate's answer is scored with that set's checks, with the source's answer as the reference, and the pair agrees when the checks pass.
-- With `useJudge`, the set's judge agent decides through `builtin/eval-judge` whether the candidate's answer agrees with the source's.
+- A shadow run that did not succeed (failed, timed out, or was cancelled) adds one to `candidateFailureCount`. That includes shadow runs that ended without a worker report: cancelled in the queue, refused or failed at compile, past their deadline, on a lost lease, or failed while blocked. Each reports to its trial only when its own transition won, so it counts once.
+- With `comparisonEvalSetId`, the candidate's answer is scored with the eval scorers, with the source's answer as the reference. The set used is the latest approved version of the named set's name, or the exact set named when no version is approved. The checks are the distinct checks across its cases. `ExactMatch` and `Contains` checks drop their case arguments, so they compare with the source's answer; `JsonSchemaValid` and `Judge` keep theirs. A set whose cases have no checks compares by exact match. The pair agrees when every weighted check passes.
+- With `useJudge`, a `Judge` check with the default criteria is added when the set has none, and the set's `judgeAgent` grades it through `builtin/eval-judge` as the person who started the trial. Judge runs are `Eval` runs and run restricted.
 - Otherwise the two answers agree when they are equal after trimming, collapsing every run of white space to one space, and ignoring case. Two empty answers agree.
 
-A succeeded comparison adds one to `comparedCount` and one to `agreedCount` or `divergedCount`. Counters change only through atomic increments, so concurrent comparisons never lose a count.
+A succeeded comparison adds one to `comparedCount` and one to `agreedCount` or `divergedCount`, and the scorer notes go to the debug log. A comparison that cannot be scored (the set is gone, its judge agent is gone, or the judge never gave a verdict) leaves the shadow run uncounted rather than counting it as a divergence, and `garrison.shadow.comparisons` records `error`. Counters change only through atomic increments, so concurrent comparisons never lose a count.
 
 A shadow run's cost is recorded on the run like any other run's, so it counts toward the agent's spend, the deployment's quotas, and org unit budgets. A 50 percent trial on a busy deployment costs half again as much as the deployment itself. Each shadow run is an ordinary run in the runs list with kind `Shadow` and its `shadowTrialId`.
 
 ### Ending a trial
 
-`POST /shadow-trials/{id}/stop` with an optional `reason` (at most 2000 characters) stops a running trial; one that already ended answers 409 `ShadowTrialNotRunning`. Shadow runs already started finish and are still compared, so the counts can still move for a while after a stop. The leader's maintenance pass moves trials past their `endsUtc` to `Completed`. Both are compare-and-set on `Running`, so a stop and an expiry never both apply.
+`POST /shadow-trials/{id}/stop` with an optional `reason` (at most 2000 characters) stops a running trial; one that already ended answers 409 `ShadowTrialNotRunning`. Shadow runs already started finish and are still compared, so the counts can still move for a while after a stop. The leader's maintenance pass moves trials past their `endsUtc` to `Completed`, and moves a trial whose source or candidate deployment was deleted or made inactive to `Failed`, with `stopReason` naming the deployment. Each is a compare-and-set on `Running`, so a stop, an expiry, and a failure never both apply.
 
 ## Canary releases
 
@@ -258,7 +281,7 @@ Then it decides, in this order:
 
 1. **Early rollback.** Once the step has at least its `minimumRuns` (and at least one) finished runs, an error rate above `maxErrorRatePercent` rolls the release back, even if `minimumMinutes` has not passed. A broken candidate at 10 percent is pulled after 20 runs, not after 10 minutes of failures.
 2. **Wait** while the step has fewer than `minimumRuns` finished runs, or fewer than `minimumMinutes` have passed.
-3. **Eval gate.** With `evalSetId`, the leader starts an eval run of that set against the candidate for the step and waits for it. The latest completed eval run of the candidate on that set since the release started decides: a score below `minEvalScore` rolls back, and no completed run yet means wait.
+3. **Eval gate.** With `evalSetId`, only eval runs of the candidate on that set created since the step started count, and only runs over the cases (recent-input runs never do). With none, the sweep starts one: target the candidate deployment, threshold `minEvalScore`, started as the person who started the release with what they may do today, and named `canary:{releaseId}` in `startedByName`. Two replicas may each start one; every sweep keeps the oldest of the release's own pending or running eval runs and cancels the rest. The newest completed run decides: a score below `minEvalScore` rolls back. A pending or running one is waited for. A run that failed, or one that cannot start (the set has no cases, or the release's creator is no longer active), rolls the release back. Every step needs an eval run of its own, so a score from before the step never advances it.
 4. **Advance** to the next step and apply its weights, or, past the last step, **promote**: the candidate gets 1000 and the baseline 0.
 
 Every move is a compare-and-set on the release's status and step index, so two replicas, or a sweep and a person's abort, never apply weights twice.
@@ -302,7 +325,9 @@ Paths are relative to `/v1.0/api/tenants/{tenantId}`. Another tenant's sets, run
 | `GET /canary-releases/{releaseId}` | Read on `CanaryRelease` | `CanaryRelease` with its steps |
 | `POST /canary-releases/{releaseId}/abort` | Update on `CanaryRelease` | `CanaryRelease`. Body `{reason}` |
 
-Every create, edit, approval, start, stop, abort, and weight change is written to the audit log. Clamped values come back in `warnings` with code `ValueClamped`, as elsewhere in the API. See [REST_API.md](../REST_API.md#evaluations).
+`GET /runs` takes `evalRunId` and `shadowTrialId` query filters, so `GET /runs?evalRunId=evr_...` lists the case and judge runs of one eval run and `GET /runs?shadowTrialId=shd_...` the shadow runs of one trial. A run token's list still leaves out the runs of hidden cases.
+
+Every create, edit, approval, start, stop, abort, and weight change is written to the audit log. Clamped values come back in `warnings` with code `ValueClamped`, as elsewhere in the API, including the `samplePercent` of a shadow trial and the `maxErrorRatePercent`, `minEvalScore`, and step `weightPercent` of a canary release. See [REST_API.md](../REST_API.md#evaluations).
 
 ## MCP tools
 
@@ -322,7 +347,7 @@ Every create, edit, approval, start, stop, abort, and weight change is written t
 | `garrison_start_canary` | People, Create on `CanaryRelease` and Update on both deployments | `agent`, `candidateDeployment`, `baselineDeployment`, `steps`; optional `maxErrorRatePercent`, `minEvalScore` with `evalSetId` |
 | `garrison_abort_canary` | People, Update on `CanaryRelease` | `releaseId`; optional `reason` |
 
-Only executive runs see `garrison_run_eval` and `garrison_get_eval_run`; other runs never see any of these tools. Errors come back as tool errors with the REST codes above.
+Only executive runs see `garrison_run_eval` and `garrison_get_eval_run`; other runs never see any of these tools. `garrison_list_runs` takes optional `evalRunId` and `shadowTrialId` filters, like `GET /runs`. Errors come back as tool errors with the REST codes above.
 
 ## Live updates
 
@@ -436,7 +461,8 @@ Some limits hold whoever asks:
 
 - Agents never approve eval sets, never edit them after creating them, and never start, stop, or abort shadow trials or canary releases.
 - An executive's own set, or one written inside its subtree, never gates its change, and it never reads its hidden cases or what the agent answered on them.
-- A shadow run never sends a message, escalates, files a report, writes memory, drafts, writes files, starts other runs, or gets a permission prompt allowed.
+- A shadow run or an eval run (case run, recent-input replay, or judge) never sends a message, escalates, files a report, writes memory, drafts, writes files, starts other runs, or gets a permission prompt allowed.
+- A draft eval set version never gates a promotion, and a recent-input eval run never satisfies any gate.
 - An approved eval set version never changes and is never deleted.
 
-The reasoning is in decisions AA-013, AA-024, and AA-027 of `AUTONOMOUS_AGENTS_PLAN.md`. The threat model is in [SECURITY.md](SECURITY.md#evaluations-and-shadow-runs).
+The reasoning is in decisions AA-013, AA-024, AA-027, and AA-074 of `AUTONOMOUS_AGENTS_PLAN.md`. The threat model is in [SECURITY.md](SECURITY.md#evaluations-and-shadow-runs).

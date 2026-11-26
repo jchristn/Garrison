@@ -120,6 +120,7 @@ namespace Garrison.Server.Runtime
             for (int i = 0; i < cases.Count; i++)
             {
                 EvalCase item = Clean(cases[i], "cases[" + i + "].");
+                await CheckReferencesAsync(tenantId, item, "cases[" + i + "].", token).ConfigureAwait(false);
                 item.TenantId = tenantId;
                 item.Order = i;
                 cases[i] = item;
@@ -241,6 +242,7 @@ namespace Garrison.Server.Runtime
             if (set == null) throw new ArgumentNullException(nameof(set));
             if (body == null) throw new ArgumentNullException(nameof(body));
             EvalCase item = Clean(body, String.Empty);
+            await CheckReferencesAsync(set.TenantId, item, String.Empty, token).ConfigureAwait(false);
             EvalSet draft = await DraftOfAsync(ctx, set, token).ConfigureAwait(false);
             List<EvalCase> existing = await _Server.Database.EvalCases.ListBySetAsync(draft.TenantId, draft.Id, token).ConfigureAwait(false);
             if (existing.Count + 1 > _Options.MaxCasesPerSet) throw Invalid("cases", "TooManyCases", "A set holds at most " + _Options.MaxCasesPerSet + " cases (Evaluation.MaxCasesPerSet).");
@@ -271,6 +273,7 @@ namespace Garrison.Server.Runtime
             if (body == null) throw new ArgumentNullException(nameof(body));
             EvalCase current = await CaseOfAsync(set, caseId, token).ConfigureAwait(false);
             EvalCase item = Clean(body, String.Empty);
+            await CheckReferencesAsync(set.TenantId, item, String.Empty, token).ConfigureAwait(false);
             EvalSet draft = await DraftOfAsync(ctx, set, token).ConfigureAwait(false);
             EvalCase target = draft.Id == set.Id ? current : (await _Server.Database.EvalCases.ListBySetAsync(draft.TenantId, draft.Id, token).ConfigureAwait(false)).FirstOrDefault(c => c.Order == current.Order)
                 ?? throw new NotFoundException("Case " + current.Order + " is not in eval set " + draft.Name + " version " + draft.Version + ".");
@@ -366,7 +369,23 @@ namespace Garrison.Server.Runtime
         private static EvalCase Clean(EvalCase body, string prefix)
         {
             if (String.IsNullOrWhiteSpace(body.InputText)) throw Invalid(prefix + "inputText", "InputRequired", "A case needs input text.");
-            if (body.Name != null && body.Name.Length > 256) throw Invalid(prefix + "name", "OutOfRange", "At most 256 characters.");
+            if (body.Name != null && body.Name.Length > 128) throw Invalid(prefix + "name", "OutOfRange", "At most 128 characters.");
+            HashSet<string> paths = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < body.Files.Count; i++)
+            {
+                EvalCaseFile file = body.Files[i];
+                string field = prefix + "files[" + i + "]";
+                string path = file.Path ?? String.Empty;
+                if (path.Length < 1 || path.Length > 512 || path.StartsWith("/", StringComparison.Ordinal) || path.Contains('\\') || path.Contains(':')
+                    || path.Split('/').Any(segment => segment.Length == 0 || segment == "." || segment == ".."))
+                    throw Invalid(field + ".path", "InvalidPath", "Give a relative path of 1 to 512 characters with forward slashes and no empty, \".\", or \"..\" segments, for example data/input.csv.");
+                if (!paths.Add(path)) throw Invalid(field + ".path", "DuplicatePath", "Path " + path + " is listed twice.");
+                bool inline = file.ContentText != null;
+                bool asset = !String.IsNullOrWhiteSpace(file.AssetId) || !String.IsNullOrWhiteSpace(file.AssetPath);
+                if (inline == asset) throw Invalid(field, "FileContentRequired", "Give a file either contentText or assetId with assetPath, not both and not neither.");
+                if (asset && (String.IsNullOrWhiteSpace(file.AssetId) || String.IsNullOrWhiteSpace(file.AssetPath))) throw Invalid(field, "FileContentRequired", "An asset file needs both assetId and assetPath.");
+                if (file.MediaType != null && file.MediaType.Length > 128) throw Invalid(field + ".mediaType", "OutOfRange", "At most 128 characters.");
+            }
             for (int i = 0; i < body.Checks.Count; i++)
             {
                 EvalCaseCheck check = body.Checks[i];
@@ -390,6 +409,34 @@ namespace Garrison.Server.Runtime
             item.Checks = body.Checks.Select(c => new EvalCaseCheck { Scorer = c.Scorer, Argument = c.Argument, Weight = c.Weight }).ToList();
             item.Files = body.Files.Select(f => new EvalCaseFile { Path = f.Path, MediaType = f.MediaType, ContentText = f.ContentText, AssetId = f.AssetId, AssetPath = f.AssetPath }).ToList();
             return item;
+        }
+
+        private async Task CheckReferencesAsync(string tenantId, EvalCase item, string prefix, CancellationToken token)
+        {
+            // References resolve in the caller's tenant only: a run or asset of another tenant reads as not found.
+            if (!String.IsNullOrWhiteSpace(item.SourceRunId))
+            {
+                item.SourceRunId = item.SourceRunId.Trim();
+                Run? source = await _Server.Database.Runs.ReadAsync(tenantId, item.SourceRunId, token).ConfigureAwait(false);
+                if (source == null) throw Invalid(prefix + "sourceRunId", "RunNotFound", "sourceRunId names no run in this tenant.");
+            }
+            else
+            {
+                item.SourceRunId = null;
+            }
+            for (int i = 0; i < item.Files.Count; i++)
+            {
+                EvalCaseFile file = item.Files[i];
+                if (String.IsNullOrWhiteSpace(file.AssetId)) continue;
+                string field = prefix + "files[" + i + "]";
+                file.AssetId = file.AssetId.Trim();
+                file.AssetPath = file.AssetPath?.Trim();
+                AgentAsset? asset = await _Server.Database.AgentAssets.ReadAsync(tenantId, file.AssetId, token).ConfigureAwait(false);
+                if (asset == null) throw Invalid(field + ".assetId", "AssetNotFound", "assetId names no agent asset in this tenant.");
+                AgentAssetVersion? version = asset.CurrentVersion < 1 ? null : await _Server.Database.AgentAssets.ReadVersionAsync(tenantId, asset.Id, asset.CurrentVersion, token).ConfigureAwait(false);
+                if (version == null || !version.Files.Any(f => String.Equals(f.Path, file.AssetPath, StringComparison.Ordinal)))
+                    throw Invalid(field + ".assetPath", "AssetFileNotFound", "Asset " + asset.Name + " has no file " + file.AssetPath + " in its latest version.");
+            }
         }
 
         private static ValidationException Invalid(string field, string code, string message)

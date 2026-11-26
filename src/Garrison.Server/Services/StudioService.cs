@@ -532,7 +532,8 @@ namespace Garrison.Server.Services
             string? applyId = null;
             if (upserts.Count > 0)
             {
-                ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId), MandateRevisionSource = MandateRevisionSourceEnum.Human };
+                // A rollback restores pins as they were, so it is not eval gated (the emergency path, like a promotion rollback).
+                ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId), MandateRevisionSource = MandateRevisionSourceEnum.Human, SkipEvalGates = true };
                 ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(tenantId, Bundle(upserts), options, token).ConfigureAwait(false);
                 if (applied.FailedCount > 0) throw new ConflictException("RevertFailed", "Undoing " + draft.Title + " failed, and nothing was changed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
                 applyId = applied.Id;
@@ -704,7 +705,7 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
-        /// Discard a draft that is not applied.
+        /// Discard a draft that is not applied. Its eval copies (AA9.10) are deleted too; its eval runs and results stay.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
         /// <param name="draftId">Draft identifier.</param>
@@ -719,6 +720,7 @@ namespace Garrison.Server.Services
                 if (approval != null && approval.Status == ApprovalStatusEnum.Pending) await _Server.Get<Garrison.Server.Runtime.ApprovalService>().CancelDraftAsync(approval, "The draft was deleted.", token).ConfigureAwait(false);
             }
             await _Server.Database.StudioDrafts.DeleteAsync(tenantId, draft.Id, token).ConfigureAwait(false);
+            await DeleteEvalCopiesAsync(tenantId, draft.Id, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -800,9 +802,26 @@ namespace Garrison.Server.Services
             if (byRule) await approvals.ResolveDraftByRuleAsync(approval, reason ?? "Applied under change rules.", token).ConfigureAwait(false);
             else await approvals.ResolveDraftAsync(ctx, approval, true, reason, token).ConfigureAwait(false);
             await _Server.Database.StudioDrafts.TransitionAsync(draft.TenantId, draft.Id, draft.Version, StudioDraftStatusEnum.PendingApproval, StudioDraftStatusEnum.Applied, approval.Id, applyId, token).ConfigureAwait(false);
+            await DeleteEvalCopiesAsync(draft.TenantId, draft.Id, token).ConfigureAwait(false);
             await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "StudioDraft", draft.Id, "Applied draft " + draft.Title + " (" + Summarize(diff) + ")" + (byRule ? " under change rules " + approval.RulePattern : String.Empty) + (applyId == null ? "." : " as manifest apply " + applyId + "."), approval.TenantId, token).ConfigureAwait(false);
             if (executive) GarrisonMetrics.Count(GarrisonMetricCatalog.OrgProposals, "source", source, "outcome", "applied");
             return await _Server.Database.Approvals.ReadAsync(approval.TenantId, approval.Id, token).ConfigureAwait(false) ?? approval;
+        }
+
+        private async Task DeleteEvalCopiesAsync(string tenantId, string draftId, CancellationToken token)
+        {
+            // AA9.10: a draft's eval copies go with it; eval runs and results stay. A failure here never fails the apply or
+            // delete: the leader's sweep removes what is left once it is idle.
+            EvalCopyJanitor? janitor = _Server.TryGet<EvalCopyJanitor>();
+            if (janitor == null) return;
+            try
+            {
+                await janitor.DeleteDraftCopiesAsync(tenantId, draftId, token).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _Server.Logging.Warn("[Studio] could not delete the eval copies of draft " + draftId + "; the sweep removes them later: " + e.Message);
+            }
         }
 
         private async Task RecordExecutiveApplyAsync(RequestContext ctx, Approval approval, StudioDraft draft, string? revertId, bool byRule, CancellationToken token)
@@ -1225,9 +1244,24 @@ namespace Garrison.Server.Services
             if (agent == null || String.IsNullOrEmpty(agent.LatestPublishedRevisionId)) return;
             AgentRevision? published = await _Server.Database.AgentRevisions.ReadAsync(tenantId, agent.LatestPublishedRevisionId, token).ConfigureAwait(false);
             if (published == null) return;
+            Garrison.Server.Runtime.EvalGateService? gates = _Server.TryGet<Garrison.Server.Runtime.EvalGateService>();
             foreach (Deployment deployment in await _Server.Database.Deployments.ListByAgentAsync(tenantId, agent.Id, token).ConfigureAwait(false))
             {
                 if (deployment.Environment != "dev" || String.IsNullOrEmpty(deployment.AgentRevisionId) || deployment.AgentRevisionId == published.Id) continue;
+                if (gates != null)
+                {
+                    // AA9.6: a gated dev environment keeps its pin until the new revision passes the gate.
+                    Deployment repinned = new Deployment { Id = deployment.Id, Name = deployment.Name, Environment = deployment.Environment, AgentRevisionId = published.Id };
+                    try
+                    {
+                        await gates.RequirePinAsync(tenantId, repinned, deployment, token).ConfigureAwait(false);
+                    }
+                    catch (EvalGateFailedException e)
+                    {
+                        await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Deployment", deployment.Id, "Kept dev deployment " + deployment.Name + " on its pinned revision after the studio draft apply: " + e.Message, tenantId, token).ConfigureAwait(false);
+                        continue;
+                    }
+                }
                 deployment.AgentRevisionId = published.Id;
                 deployment.ConfigVersion = deployment.ConfigVersion + 1;
                 deployment.LastUpdateUtc = DateTime.UtcNow;

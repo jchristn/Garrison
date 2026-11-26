@@ -145,12 +145,15 @@ namespace Garrison.Server.Modules
             FileSpaceService fileSpaces = context.Get<FileSpaceService>();
             _Maintenance.FileSpaces = fileSpaces;
             _Maintenance.Capabilities = context.TryGet<CapabilityService>();
+            EvalCaseFileDelivery caseFiles = new EvalCaseFileDelivery(context.Database);
             _Scheduler.DecorateSpec = async (run, spec, ct) =>
             {
+                // AA9.3: an eval case run gets its case's files in its workspace (asset files get download URLs below).
+                await caseFiles.ApplyAsync(run, spec, ct).ConfigureAwait(false);
                 assets.ApplyDownloadUrls(run, spec, assetBaseUrl);
                 await fileSpaces.ApplyAsync(run, spec, assetBaseUrl, ct).ConfigureAwait(false);
-                // AA-027: a shadow run neither reads nor writes back a file space.
-                if (ShadowRunPolicy.IsShadow(run)) spec.FileSpace = null;
+                // AA-027, AA-074: a shadow or eval run neither reads nor writes back a file space.
+                if (ShadowRunPolicy.IsRestricted(run)) spec.FileSpace = null;
                 if (spec.FileSpace != null)
                 {
                     spec.FileSpace.MaxFileBytes = context.Settings.FileSpaces.MaxFileBytes;
@@ -263,6 +266,10 @@ namespace Garrison.Server.Modules
             context.Register(_EvalRunner);
             context.Register(new EvalRunService(context, _EvalRunner));
             context.Register(new EvalGateService(context, chain));
+            // AA9.10: eval copies go when their draft is applied or deleted, and on the leader sweep once idle.
+            EvalCopyJanitor evalCopies = new EvalCopyJanitor(context);
+            _Maintenance.EvalCopies = evalCopies;
+            context.Register(evalCopies);
             // AA-024: run reads by run tokens never reach the runs of hidden eval cases.
             context.Register(new HiddenEvalRunPolicy(context.Database));
 

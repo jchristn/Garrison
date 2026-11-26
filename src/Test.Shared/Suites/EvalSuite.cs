@@ -12,6 +12,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Evaluation;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Manifests;
     using Garrison.Core.Models;
     using Garrison.Core.Organizations;
@@ -58,6 +59,10 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "routes", "Eval set and run routes: create, read, list, edit, approve, versioned edits of approved sets, cases, MaxCasesPerSet, tenant isolation, and the user MCP tools (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "separation", "An executive's run sees hidden cases redacted, evaluates its own draft only, reads its eval run as scores for hidden cases, cannot approve, and its own set cannot gate it (" + provider + ")", ct => SeparationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "gate", "A prod eval gate blocks promotion without an approved set, with a failing run (EvalGateFailed naming it), and without a run on the latest version; a passing run lets it through (" + provider + ")", ct => GateAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "gate-bypass", "Promotion gates count only approved versions and runs over the cases (an evaluator's draft and RecentInputs runs do not); direct, new, and manifest pins and app promotions into a gated environment need a passing run; a promotion rollback does not (" + provider + ")", ct => GateBypassAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "eval-refusals", "An eval run's token is refused an effectful tool, a memory write, a message, a report, and file write-back with EvalRunRefused and its approval is denied; GET /runs and garrison_list_runs filter by evalRunId and shadowTrialId and still hide a hidden case's run from run tokens (" + provider + ")", ct => EvalRefusalsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "case-files", "A case's sourceRunId must be a run of the tenant, names are at most 128 characters, file paths stay in the workspace and name one content source, and a case run (not a judge run) gets its files as workspace bytes (" + provider + ")", ct => CaseFilesAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "eval-copies", "Deleting a studio draft deletes its deployment and agent eval copies and keeps its eval runs; the sweep deletes a revision copy idle for a day and keeps one with a pending eval run (" + provider + ")", ct => EvalCopiesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "executive", "A change rule gates ModelChange and AddWorker on a passing eval of the draft: it waits, a failing eval keeps it waiting, a passing one applies it by rule; the draft's model and new worker are what is evaluated; stale evals do not count; the proposal carries the evidence (" + provider + ")", ct => ExecutiveAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Evaluation engine (" + provider + ")", cases));
             }
@@ -570,6 +575,9 @@ namespace Test.Shared.Suites
                 Approval waiting;
                 EvalRun failed;
                 EvalRun passed;
+                string modelCopyId;
+                string helperAgentCopyId;
+                string helperDeploymentCopyId;
                 using (TestMcpClient client = await OrganizationSuite.RunClientAsync(host, execRun, token).ConfigureAwait(false))
                 {
                     // A model change waits for the gate.
@@ -591,6 +599,7 @@ namespace Test.Shared.Suites
                     Assert.True(failed.Status == EvalRunStatusEnum.Completed && Math.Abs((failed.Score ?? 0) - 0.5) < 1e-9, "Half the cases pass: " + Serializer.Serialize(failed));
                     Deployment copy = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, failing.DeploymentId!, token).ConfigureAwait(false), "The eval copy");
                     Assert.True(copy.Model == "evx-large-model" && copy.Environment == "draft" && copy.Weight == 0 && copy.AgentId == worker.Id && copy.IsProtected, "The copy carries the draft's model and stays out of routing: " + Serializer.Serialize(copy));
+                    modelCopyId = copy.Id;
                     EnumerationResult<Run> caseRuns = await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, EvalRunId = failing.Id, MaxResults = 100 }, token).ConfigureAwait(false);
                     Assert.True(caseRuns.Objects.Count == 2 && caseRuns.Objects.All(r => r.DeploymentId == copy.Id), "Every case ran on the copy with the new model");
                     Deployment unchanged = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, workerDeployment.Id, token).ConfigureAwait(false), "The live deployment");
@@ -650,6 +659,8 @@ namespace Test.Shared.Suites
                     Assert.True(evalCopy.Name.StartsWith("eval-d", StringComparison.Ordinal) && evalCopy.Name.EndsWith("-evx-helper", StringComparison.Ordinal) && evalCopy.IsProtected, "The new agent runs as a protected eval copy: " + evalCopy.Name);
                     Deployment helperCopy = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, first.DeploymentId!, token).ConfigureAwait(false), "The eval copy of the new deployment");
                     Assert.True(helperCopy.Model == "evx-small" && helperCopy.AgentId == evalCopy.Id && helperCopy.Environment == "draft", "The new deployment runs as an eval copy: " + Serializer.Serialize(helperCopy));
+                    helperAgentCopyId = evalCopy.Id;
+                    helperDeploymentCopyId = helperCopy.Id;
                     Assert.True(await host.Server.Context.Database.Agents.ReadByNameAsync(host.TenantId, "evx-helper", token).ConfigureAwait(false) == null, "The new agent is not live before the apply");
 
                     hire = await client.CallAsync<StudioDraft>("garrison_studio_put_item", new { draftId = hire.Id, version = hire.Version, kind = "Deployment", name = "evx-helper-default", document = HelperDeployment("evx-medium") }, token).ConfigureAwait(false);
@@ -666,7 +677,291 @@ namespace Test.Shared.Suites
                 Agent helper = Assert.NotNull(await host.Server.Context.Database.Agents.ReadByNameAsync(host.TenantId, "evx-helper", token).ConfigureAwait(false), "The helper is live");
                 Deployment helperDeployment = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "evx-helper-default", token).ConfigureAwait(false), "Its deployment is live");
                 Assert.True(helperDeployment.AgentId == helper.Id && helperDeployment.Model == "evx-medium", "The applied deployment is the draft's latest");
+
+                // Applying a draft deletes its eval copies; its eval runs and results stay.
+                Assert.True(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, modelCopyId, token).ConfigureAwait(false) == null, "The model change's eval copy is gone after the apply");
+                Assert.True(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, helperDeploymentCopyId, token).ConfigureAwait(false) == null && await host.Server.Context.Database.Agents.ReadAsync(host.TenantId, helperAgentCopyId, token).ConfigureAwait(false) == null, "The hire's agent and deployment copies are gone after the apply");
+                Assert.True(await host.Server.Context.Database.EvalRuns.ReadAsync(host.TenantId, passed.Id, token).ConfigureAwait(false) != null && (await host.Server.Context.Database.EvalCaseResults.ListByEvalRunAsync(host.TenantId, passed.Id, token).ConfigureAwait(false)).Count == 2, "The eval runs and their results are kept");
             }
+        }
+
+        private static async Task GateBypassAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            // Hardening of AA9.6: promotion gates count only approved versions and only runs over the cases; a direct pin,
+            // a manifest pin, and an app promotion are gated like a promotion; a promotion rollback is not.
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                // The runner is stopped so the eval runs this case writes stay exactly as written.
+                await host.Server.Context.Get<EvalRunner>().StopAsync().ConfigureAwait(false);
+                TenantEnvironmentList environments = new TenantEnvironmentList { Environments = new List<TenantEnvironment> { new TenantEnvironment { Name = "dev" }, new TenantEnvironment { Name = "prod", EvalGateSet = "evb-gate", EvalGateThreshold = 0.8 } } };
+                await HttpTestHelpers.SendAsync<TenantEnvironmentList>(host.AdminClient, HttpMethod.Put, T(host) + "/environments", environments, 200, token).ConfigureAwait(false);
+                Agent agent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "evb-agent" }, 201, token).ConfigureAwait(false);
+                AgentRevision revision = Assert.NotNull(await host.Server.Context.Database.AgentRevisions.ReadByNumberAsync(host.TenantId, agent.Id, 1, token).ConfigureAwait(false), "Revision 1");
+                await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "evb-dev", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev" }, 201, token).ConfigureAwait(false);
+                Deployment prod = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "evb-prod", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "prod" }, 201, token).ConfigureAwait(false);
+                PromotionRequest promote = new PromotionRequest { AgentId = agent.Name, SourceEnvironment = "dev" };
+
+                // An evaluator's draft that would gate an executive's change never gates a promotion.
+                EvalSet draftSet = await host.Server.Context.Database.EvalSets.CreateWithCasesAsync(new EvalSet
+                {
+                    TenantId = host.TenantId, Name = "evb-gate", Version = 1, State = EvalSetStateEnum.Draft, Origin = EvalSetOriginEnum.Evaluator,
+                    AuthoredByType = PrincipalTypeEnum.Run, AuthoredByAgentId = "agt_evb_outsider", AuthoringOrgUnitId = "oru_evb_outside"
+                }, new List<EvalCase> { new EvalCase { TenantId = host.TenantId, Order = 0, InputText = "x", ExpectedText = "x" } }, token).ConfigureAwait(false);
+                Assert.True(EvalGatePolicy.Refusal(draftSet, null, null, null) == null, "The evaluator's draft passes the separation check on its own");
+                await FinishedEvalRunAsync(host, draftSet, agent, revision, null, null, EvalRunInputModeEnum.Cases, 1, token).ConfigureAwait(false);
+                TestResponse draftOnly = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/promotions", promote, token).ConfigureAwait(false);
+                KeeperSuite.Code(draftOnly, 409, "EvalGateFailed", "An evaluator's draft does not gate a promotion, even with a passing run");
+                Assert.True(draftOnly.Body.Contains(EvalGatePolicy.NotApproved, StringComparison.Ordinal), "It says no version is approved: " + draftOnly.Body);
+                EvalGateService gates = host.Server.Context.Get<EvalGateService>();
+                StudioDraft studio = new StudioDraft { Id = "sdr_evb_gate", TenantId = host.TenantId, CreatedUtc = DateTime.UtcNow.AddMinutes(-5), LastUpdateUtc = DateTime.UtcNow.AddMinutes(-5) };
+                ChangeRule rule = new ChangeRule { Id = "chr_evb", Name = "evb rule", GateEvalSet = "evb-gate", GateThreshold = 0.8 };
+                ChangeRuleGateStatus noProposer = await gates.DraftGateAsync(studio, rule, null, token).ConfigureAwait(false);
+                Assert.True(!noProposer.Satisfied && noProposer.Reason!.Contains(EvalGatePolicy.NotApproved, StringComparison.Ordinal), "Without a proposer the draft fallback does not apply: " + noProposer.Reason);
+
+                // Approved, the set gates; a RecentInputs replay never satisfies it.
+                await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets/" + draftSet.Id + "/approve", null, 200, token).ConfigureAwait(false);
+                EvalSet approved = Assert.NotNull(await host.Server.Context.Database.EvalSets.ReadAsync(host.TenantId, draftSet.Id, token).ConfigureAwait(false), "Approved set");
+                Agent member = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "evb-member" }, 201, token).ConfigureAwait(false);
+                AgentRevision memberRevision = Assert.NotNull(await host.Server.Context.Database.AgentRevisions.ReadByNumberAsync(host.TenantId, member.Id, 1, token).ConfigureAwait(false), "Member revision 1");
+                await host.Server.Context.Database.EvalRuns.DeleteAsync(host.TenantId, (await host.Server.Context.Database.EvalRuns.EnumerateAsync(host.TenantId, approved.Id, null, revision.Id, null, new EnumerationQuery(), token).ConfigureAwait(false)).Objects.Single().Id, token).ConfigureAwait(false);
+                await FinishedEvalRunAsync(host, approved, agent, revision, null, null, EvalRunInputModeEnum.RecentInputs, 1, token).ConfigureAwait(false);
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/promotions", promote, token).ConfigureAwait(false), 409, "EvalGateFailed", "A RecentInputs run does not satisfy a promotion gate");
+                await FinishedEvalRunAsync(host, approved, agent, revision, null, studio.Id, EvalRunInputModeEnum.RecentInputs, 1, token).ConfigureAwait(false);
+                Assert.True(!(await gates.DraftGateAsync(studio, rule, null, token).ConfigureAwait(false)).Satisfied, "A RecentInputs run does not satisfy a change rule gate");
+                EvalRun draftCases = await FinishedEvalRunAsync(host, approved, agent, revision, null, studio.Id, EvalRunInputModeEnum.Cases, 1, token).ConfigureAwait(false);
+                ChangeRuleGateStatus covered = await gates.DraftGateAsync(studio, rule, null, token).ConfigureAwait(false);
+                Assert.True(covered.Satisfied && covered.EvalRunId == draftCases.Id, "A run over the cases does: " + Serializer.Serialize(covered));
+                await host.Server.Context.Database.EvalRuns.DeleteAsync(host.TenantId, draftCases.Id, token).ConfigureAwait(false);
+
+                // Pinning a revision directly into the gated environment is gated like a promotion.
+                Deployment pinned = Serializer.Deserialize<Deployment>(Serializer.Serialize(prod))!;
+                pinned.AgentRevisionId = revision.Id;
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, T(host) + "/deployments/" + prod.Id, pinned, token).ConfigureAwait(false), 409, "EvalGateFailed", "Repinning prod directly");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "evb-prod-2", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "prod", AgentRevisionId = revision.Id }, token).ConfigureAwait(false), 409, "EvalGateFailed", "Creating a pinned prod deployment");
+                Assert.Equal(201, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "evb-dev-2", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev", AgentRevisionId = revision.Id }, token).ConfigureAwait(false)).StatusCode, "An ungated environment pins freely");
+                ManifestApply manifest = await host.Server.Context.Get<ManifestService>().ApplyAsync(host.TenantId, "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: evb-manifest\nspec:\n  agent: evb-agent\n  harnessProfile: builtin/fake\n  environment: prod\n  agentRevision: 1\n", new ManifestApplyOptions { PrincipalName = "admin", PrincipalType = PrincipalTypeEnum.Administrator }, token).ConfigureAwait(false);
+                Assert.True(manifest.FailedCount == 1 && manifest.Items.Single().ErrorCode == "EvalGateFailed", "A manifest pin into prod fails its item: " + Serializer.Serialize(manifest.Items));
+                Assert.True(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "evb-manifest", token).ConfigureAwait(false) == null, "Nothing was written");
+
+                // An app promotion gates every member revision.
+                await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "evb-member-prod", AgentId = member.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "prod" }, token).ConfigureAwait(false);
+                await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "evb-member-dev", AgentId = member.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev" }, token).ConfigureAwait(false);
+                AgenticApp app = new AgenticApp { Id = "app_evb", TenantId = host.TenantId, Name = "evb-app" };
+                AppRevision appRevision = new AppRevision { TenantId = host.TenantId, AppId = app.Id, Number = 1, State = AgentRevisionStateEnum.Published, Members = new List<AppRevisionMember> { new AppRevisionMember { AgentId = member.Id, AgentName = member.Name, AgentRevisionId = memberRevision.Id } } };
+                bool appGated = false;
+                try
+                {
+                    await host.Server.Context.Get<Garrison.Server.Services.PromotionService>().PromoteAppAsync(OrganizationSuite.Admin(host), host.TenantId, app, appRevision, "dev", null, false, null, target => Task.FromResult(true), token).ConfigureAwait(false);
+                }
+                catch (EvalGateFailedException e) when (e.Message.Contains(approved.Name, StringComparison.Ordinal))
+                {
+                    appGated = true;
+                }
+                Assert.True(appGated, "An app promotion of a member revision without a passing eval is refused");
+
+                // With a passing run over the cases, the direct pin and the promotion both go through; a rollback is not gated.
+                await FinishedEvalRunAsync(host, approved, agent, revision, null, null, EvalRunInputModeEnum.Cases, 1, token).ConfigureAwait(false);
+                Deployment repinned = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Put, T(host) + "/deployments/" + prod.Id, pinned, 200, token).ConfigureAwait(false);
+                Assert.Equal(revision.Id, repinned.AgentRevisionId ?? String.Empty, "The pin is set once the revision passed");
+                repinned.AgentRevisionId = null;
+                await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Put, T(host) + "/deployments/" + prod.Id, repinned, 200, token).ConfigureAwait(false);
+                PromotionRecord record = await HttpTestHelpers.SendAsync<PromotionRecord>(host.AdminClient, HttpMethod.Post, T(host) + "/promotions", promote, 201, token).ConfigureAwait(false);
+                foreach (EvalRun run in (await host.Server.Context.Database.EvalRuns.EnumerateAsync(host.TenantId, approved.Id, null, revision.Id, null, new EnumerationQuery(), token).ConfigureAwait(false)).Objects)
+                {
+                    await host.Server.Context.Database.EvalRuns.DeleteAsync(host.TenantId, run.Id, token).ConfigureAwait(false);
+                }
+                TestResponse rollback = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/promotions/" + record.Id + "/rollback", new PromotionRollbackRequest { Note = "Emergency" }, token).ConfigureAwait(false);
+                Assert.True(rollback.StatusCode == 200 || rollback.StatusCode == 201, "A promotion rollback is the emergency path and is not gated: " + rollback.StatusCode + " " + rollback.Body);
+            }
+        }
+
+        private static async Task EvalRefusalsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            // AA-074: eval case runs, recent-input replays, and judge runs are restricted like shadow runs.
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, settings => settings.AgentMemory.Enabled = true, token).ConfigureAwait(false))
+            {
+                await host.Server.Context.Get<EvalRunner>().StopAsync().ConfigureAwait(false);
+                Agent agent = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "evr-refused", ExposeMcpTool = true }, token).ConfigureAwait(false);
+                Agent helper = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "evr-helper", ExposeMcpTool = true }, token).ConfigureAwait(false);
+                Deployment deployment = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "evr-refused-d", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
+                EvalSet set = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "evr-hidden", Cases = new List<EvalCase> { new EvalCase { InputText = "secret question", ExpectedText = "secret answer", Hidden = true } } }, 201, token).ConfigureAwait(false);
+                EvalRun evalRun = await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = set.Version, AgentId = agent.Id, DeploymentId = deployment.Id, Status = EvalRunStatusEnum.Running, TotalCases = 1 }, token).ConfigureAwait(false);
+                Run run = new Run();
+                run.Id = IdGenerator.NewRunId();
+                run.TenantId = host.TenantId;
+                run.AgentId = agent.Id;
+                run.AgentName = agent.Name;
+                run.DeploymentId = deployment.Id;
+                run.Kind = RunKindEnum.Eval;
+                run.EvalRunId = evalRun.Id;
+                run.IdempotencyKey = "eval:" + evalRun.Id + ":0";
+                run.Status = RunStatusEnum.Running;
+                run.LeaseEpoch = 1;
+                run.LeaseNodeId = "nod_eval";
+                run.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5);
+                run.CallerType = PrincipalTypeEnum.Administrator;
+                run = await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                Assert.True(ShadowRunPolicy.IsRestricted(run) && !ShadowRunPolicy.IsShadow(run) && ShadowRunPolicy.RefusalCodeFor(run) == ShadowRunPolicy.EvalRefusalCode, "An eval run is restricted with its own code");
+
+                string bearer = await host.Server.Context.Authentication.IssueForRunAsync(run, run.LeaseEpoch, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
+                using (TestMcpClient client = new TestMcpClient())
+                {
+                    await client.ConnectAsync(host, bearer, token).ConfigureAwait(false);
+                    ProviderToolPage listed = await client.ToolsAsync(token).ConfigureAwait(false);
+                    Assert.True(new[] { "garrison_send_message", "garrison_memory_write", "garrison_invoke_agent", "evr-helper" }.All(n => !listed.Tools.Any(t => t.Name == n)) && listed.Tools.Any(t => t.Name == "garrison_get_run"), "An eval run is shown read tools only");
+                    await client.ExpectErrorAsync("garrison_invoke_agent", new { agent = helper.Name, input = "Act on this." }, ShadowRunPolicy.EvalRefusalCode, token).ConfigureAwait(false);
+                    await client.ExpectErrorAsync("garrison_memory_write", new { scope = "Agent", key = "notes", value = "This must not be written." }, ShadowRunPolicy.EvalRefusalCode, token).ConfigureAwait(false);
+                    await client.ExpectErrorAsync("garrison_send_message", new { recipient = helper.Name, subject = "From an eval", body = "This must not arrive." }, ShadowRunPolicy.EvalRefusalCode, token).ConfigureAwait(false);
+                    await client.ExpectErrorAsync("garrison_file_report", new { kind = "Status", title = "This must not be filed." }, ShadowRunPolicy.EvalRefusalCode, token).ConfigureAwait(false);
+                    PermissionPromptResult prompt = await client.CallAsync<PermissionPromptResult>("garrison_permission_prompt", new { tool_name = "Bash", input = new { command = "rm -rf build" } }, token).ConfigureAwait(false);
+                    Assert.True(prompt.Behavior == "deny", "An eval run's tool approval is denied: " + Serializer.Serialize(prompt));
+                }
+                Assert.Equal(0L, (await host.Server.Context.Database.AgentMessages.EnumerateAsync(new AgentMessageFilter { TenantId = host.TenantId }, token).ConfigureAwait(false)).TotalRecords, "No message was created");
+                Assert.Equal(0L, (await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, AgentId = helper.Id }, token).ConfigureAwait(false)).TotalRecords, "No other run was started");
+                bool refused = false;
+                try
+                {
+                    await host.Server.Context.Get<Garrison.Server.Services.FileSpaceService>().WriteFromNodeAsync(host.TenantId, run.Id, "nod_eval", 1, 0, "result.txt", 0, new byte[] { 1 }, token).ConfigureAwait(false);
+                }
+                catch (ConflictException e) when (e.Code == ShadowRunPolicy.EvalRefusalCode)
+                {
+                    refused = true;
+                }
+                Assert.True(refused, "An eval run's file space write-back is refused");
+
+                // GET /runs filters by evalRunId and shadowTrialId; a run token still never sees a hidden case's run.
+                Run shadow = await host.Server.Context.Database.Runs.CreateAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Kind = RunKindEnum.Shadow, ShadowTrialId = "shd_evr_filter", Status = RunStatusEnum.Succeeded, CallerType = PrincipalTypeEnum.Administrator }, token).ConfigureAwait(false);
+                await host.Server.Context.Database.Runs.CreateAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Kind = RunKindEnum.Invoke, Status = RunStatusEnum.Succeeded, CallerType = PrincipalTypeEnum.Administrator }, token).ConfigureAwait(false);
+                EnumerationResult<Run> byEval = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, T(host) + "/runs?evalRunId=" + evalRun.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(byEval.Objects.Count == 1 && byEval.Objects[0].Id == run.Id, "evalRunId filters the list: " + byEval.Objects.Count);
+                EnumerationResult<Run> byTrial = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, T(host) + "/runs?shadowTrialId=shd_evr_filter", null, 200, token).ConfigureAwait(false);
+                Assert.True(byTrial.Objects.Count == 1 && byTrial.Objects[0].Id == shadow.Id, "shadowTrialId filters the list: " + byTrial.Objects.Count);
+                Run reader = await host.Server.Context.Database.Runs.CreateAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, AgentId = helper.Id, AgentName = helper.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Running, LeaseEpoch = 1, LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5), CallerType = PrincipalTypeEnum.Administrator }, token).ConfigureAwait(false);
+                string readerBearer = await host.Server.Context.Authentication.IssueForRunAsync(reader, 1, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
+                using (HttpClient runClient = new HttpClient())
+                {
+                    runClient.BaseAddress = new Uri(host.BaseUrl);
+                    runClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + readerBearer);
+                    EnumerationResult<Run> hidden = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(runClient, HttpMethod.Get, T(host) + "/runs?evalRunId=" + evalRun.Id, null, 200, token).ConfigureAwait(false);
+                    Assert.Equal(0, hidden.Objects.Count, "A run token's filtered list still drops the hidden case's run");
+                }
+                using (TestMcpClient admin = new TestMcpClient())
+                {
+                    await admin.ConnectAsync(host, await AdminBearerAsync(host, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                    McpRunList listedRuns = await admin.CallAsync<McpRunList>("garrison_list_runs", new { evalRunId = evalRun.Id }, token).ConfigureAwait(false);
+                    Assert.True(listedRuns.Runs.Count == 1 && listedRuns.Runs[0].RunId == run.Id, "garrison_list_runs filters by evalRunId: " + Serializer.Serialize(listedRuns));
+                    McpRunList trialRuns = await admin.CallAsync<McpRunList>("garrison_list_runs", new { shadowTrialId = "shd_evr_filter" }, token).ConfigureAwait(false);
+                    Assert.True(trialRuns.Runs.Count == 1 && trialRuns.Runs[0].RunId == shadow.Id, "garrison_list_runs filters by shadowTrialId");
+                }
+            }
+        }
+
+        private static async Task CaseFilesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            // AA9.3 hardening: case references are checked in the tenant, file paths are validated, and a case run gets its
+            // case's files in its workspace.
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                await host.Server.Context.Get<EvalRunner>().StopAsync().ConfigureAwait(false);
+                Agent agent = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "evf-agent" }, token).ConfigureAwait(false);
+                Deployment deployment = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "evf-d", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
+                Run source = await host.Server.Context.Database.Runs.CreateAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Succeeded, CallerType = PrincipalTypeEnum.Administrator }, token).ConfigureAwait(false);
+                Tenant other = await host.Server.Context.Database.Tenants.CreateAsync(new Tenant { Name = "evf-other-" + Guid.NewGuid().ToString("N").Substring(0, 8) }, token).ConfigureAwait(false);
+                Run foreign = await host.Server.Context.Database.Runs.CreateAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = other.Id, AgentId = agent.Id, AgentName = agent.Name, DeploymentId = deployment.Id, Status = RunStatusEnum.Succeeded, CallerType = PrincipalTypeEnum.Administrator }, token).ConfigureAwait(false);
+                string sets = T(host) + "/eval-sets";
+
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest { Name = "evf-bad-run", Cases = new List<EvalCase> { new EvalCase { InputText = "x", ExpectedText = "x", SourceRunId = "run_missing" } } }, token).ConfigureAwait(false), 400, "RunNotFound", "An unknown source run");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest { Name = "evf-foreign-run", Cases = new List<EvalCase> { new EvalCase { InputText = "x", ExpectedText = "x", SourceRunId = foreign.Id } } }, token).ConfigureAwait(false), 400, "RunNotFound", "Another tenant's run");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest { Name = "evf-long", Cases = new List<EvalCase> { new EvalCase { Name = new string('n', 129), InputText = "x", ExpectedText = "x" } } }, token).ConfigureAwait(false), 400, "OutOfRange", "A case name over 128 characters");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest { Name = "evf-escape", Cases = new List<EvalCase> { new EvalCase { InputText = "x", ExpectedText = "x", Files = new List<EvalCaseFile> { new EvalCaseFile { Path = "../outside.txt", ContentText = "x" } } } } }, token).ConfigureAwait(false), 400, "InvalidPath", "A path that leaves the workspace");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest { Name = "evf-both", Cases = new List<EvalCase> { new EvalCase { InputText = "x", ExpectedText = "x", Files = new List<EvalCaseFile> { new EvalCaseFile { Path = "a.txt", ContentText = "x", AssetId = "aas_x", AssetPath = "a.txt" } } } } }, token).ConfigureAwait(false), 400, "FileContentRequired", "Inline and asset content together");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest { Name = "evf-asset", Cases = new List<EvalCase> { new EvalCase { InputText = "x", ExpectedText = "x", Files = new List<EvalCaseFile> { new EvalCaseFile { Path = "a.txt", AssetId = "aas_missing", AssetPath = "a.txt" } } } } }, token).ConfigureAwait(false), 400, "AssetNotFound", "An unknown asset");
+
+                EvalSet set = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, sets, new EvalSetRequest
+                {
+                    Name = "evf-set",
+                    Cases = new List<EvalCase>
+                    {
+                        new EvalCase { InputText = "read data/input.csv", ExpectedText = "3", SourceRunId = source.Id, Files = new List<EvalCaseFile> { new EvalCaseFile { Path = "data/input.csv", MediaType = "text/csv", ContentText = "a,b\n1,2\n{{secret}}\n" } } }
+                    }
+                }, 201, token).ConfigureAwait(false);
+                List<EvalCase> stored = await host.Server.Context.Database.EvalCases.ListBySetAsync(host.TenantId, set.Id, token).ConfigureAwait(false);
+                Assert.True(stored.Single().SourceRunId == source.Id && stored.Single().Files.Single().Path == "data/input.csv", "The case keeps its source run and file");
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, sets + "/" + set.Id + "/cases/" + stored[0].Id, new EvalCase { InputText = "x", ExpectedText = "x", SourceRunId = "run_missing" }, token).ConfigureAwait(false), 400, "RunNotFound", "An update with an unknown source run");
+
+                EvalRun evalRun = await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = set.Version, AgentId = agent.Id, DeploymentId = deployment.Id, Status = EvalRunStatusEnum.Running, TotalCases = 1 }, token).ConfigureAwait(false);
+                EvalCaseFileDelivery delivery = new EvalCaseFileDelivery(host.Server.Context.Database);
+                Garrison.Core.Compilation.ExecutionSpec spec = new Garrison.Core.Compilation.ExecutionSpec();
+                Run caseRun = new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, Kind = RunKindEnum.Eval, EvalRunId = evalRun.Id, IdempotencyKey = "eval:" + evalRun.Id + ":0" };
+                Assert.Equal(1, await delivery.ApplyAsync(caseRun, spec, token).ConfigureAwait(false), "The case run gets its file");
+                Garrison.Core.Compilation.ExecutionFile placed = spec.Files.Single();
+                Assert.True(placed.BaseDirectory == FileBaseDirectoryEnum.Workspace && placed.Path == "data/input.csv" && placed.ContentBase64 != null && Encoding.UTF8.GetString(Convert.FromBase64String(placed.ContentBase64)) == "a,b\n1,2\n{{secret}}\n", "Placed in the workspace as bytes, never as a template");
+                Garrison.Core.Compilation.ExecutionSpec judgeSpec = new Garrison.Core.Compilation.ExecutionSpec();
+                Assert.Equal(0, await delivery.ApplyAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, Kind = RunKindEnum.Eval, EvalRunId = evalRun.Id, IdempotencyKey = "eval:" + evalRun.Id + ":0:judge" }, judgeSpec, token).ConfigureAwait(false), "A judge run gets no case files");
+                Assert.Equal(0, await delivery.ApplyAsync(new Run { Id = IdGenerator.NewRunId(), TenantId = host.TenantId, Kind = RunKindEnum.Invoke, EvalRunId = evalRun.Id, IdempotencyKey = "eval:" + evalRun.Id + ":0" }, judgeSpec, token).ConfigureAwait(false), "Only Eval runs get case files");
+                Assert.True(judgeSpec.Files.Count == 0 && judgeSpec.AssetFiles.Count == 0, "Nothing added");
+            }
+        }
+
+        private static async Task EvalCopiesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            // AA9.10 hardening: a studio draft's eval copies go when it is deleted; revision copies go once idle for a day.
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                await host.Server.Context.Get<EvalRunner>().StopAsync().ConfigureAwait(false);
+                Agent agent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "evc-agent" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "evc-dev", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev" }, 201, token).ConfigureAwait(false);
+                Garrison.Server.Services.StudioService studio = host.Server.Context.Get<Garrison.Server.Services.StudioService>();
+                Garrison.Server.Services.PlaygroundService playground = host.Server.Context.Get<Garrison.Server.Services.PlaygroundService>();
+                RequestContext admin = OrganizationSuite.Admin(host);
+                StudioDraft draft = await studio.CreateAsync(admin, host.TenantId, new StudioDraftCreateRequest { Title = "Copies" }, token).ConfigureAwait(false);
+                draft = await studio.PutItemAsync(host.TenantId, draft.Id, "Deployment", "evc-dev", new StudioDraftItemRequest { Version = draft.Version, Document = "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: evc-dev\nspec:\n  agent: evc-agent\n  harnessProfile: builtin/fake\n  model: evc-big\n" }, token).ConfigureAwait(false);
+                draft = await studio.PutItemAsync(host.TenantId, draft.Id, "Agent", "evc-new", new StudioDraftItemRequest { Version = draft.Version, Document = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: evc-new\nspec:\n  description: New.\n" }, token).ConfigureAwait(false);
+                draft = await studio.PutItemAsync(host.TenantId, draft.Id, "Deployment", "evc-new-default", new StudioDraftItemRequest { Version = draft.Version, Document = "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: evc-new-default\nspec:\n  agent: evc-new\n  harnessProfile: builtin/fake\n" }, token).ConfigureAwait(false);
+                Garrison.Server.Services.DraftEvalTarget live = await playground.DraftEvalTargetAsync(admin, host.TenantId, draft, "evc-agent", null, token).ConfigureAwait(false);
+                Garrison.Server.Services.DraftEvalTarget hired = await playground.DraftEvalTargetAsync(admin, host.TenantId, draft, "evc-new", null, token).ConfigureAwait(false);
+                Deployment liveCopy = Assert.NotNull(live.Deployment, "The live agent's deployment copy");
+                Deployment hiredCopy = Assert.NotNull(hired.Deployment, "The new worker's deployment copy");
+                Assert.True(EvalCopyJanitor.IsEvalCopy(liveCopy) && EvalCopyJanitor.IsEvalCopy(hiredCopy) && EvalCopyJanitor.IsEvalCopy(hired.Agent), "The copies are recognized");
+                EvalRun kept = await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = "evs_evc", SetName = "evc", AgentId = hired.Agent.Id, DeploymentId = hiredCopy.Id, StudioDraftId = draft.Id, Status = EvalRunStatusEnum.Completed, TotalCases = 1 }, token).ConfigureAwait(false);
+                await studio.DeleteAsync(host.TenantId, draft.Id, token).ConfigureAwait(false);
+                Assert.True(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, liveCopy.Id, token).ConfigureAwait(false) == null && await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, hiredCopy.Id, token).ConfigureAwait(false) == null, "Deleting the draft deletes its deployment copies");
+                Assert.True(await host.Server.Context.Database.Agents.ReadAsync(host.TenantId, hired.Agent.Id, token).ConfigureAwait(false) == null, "and its agent copy");
+                Assert.NotNull(await host.Server.Context.Database.EvalRuns.ReadAsync(host.TenantId, kept.Id, token).ConfigureAwait(false), "Its eval runs are kept");
+                Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "evc-dev", token).ConfigureAwait(false), "The live deployment is untouched");
+
+                // Revision copies go on the sweep once idle; one with a pending eval run is kept.
+                AgentRevision revision = Assert.NotNull(await host.Server.Context.Database.AgentRevisions.ReadByNumberAsync(host.TenantId, agent.Id, 1, token).ConfigureAwait(false), "Revision 1");
+                Deployment idle = await playground.EvalDeploymentAsync(host.TenantId, agent, revision, token).ConfigureAwait(false);
+                Agent busyAgent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "evc-busy" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", new Deployment { Name = "evc-busy-dev", AgentId = busyAgent.Id, HarnessProfileId = "hrn_builtin_fake", Environment = "dev" }, 201, token).ConfigureAwait(false);
+                AgentRevision busyRevision = Assert.NotNull(await host.Server.Context.Database.AgentRevisions.ReadByNumberAsync(host.TenantId, busyAgent.Id, 1, token).ConfigureAwait(false), "Busy revision 1");
+                Deployment busy = await playground.EvalDeploymentAsync(host.TenantId, busyAgent, busyRevision, token).ConfigureAwait(false);
+                await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = "evs_evc", SetName = "evc", TargetType = EvalRunTargetEnum.AgentRevision, AgentId = busyAgent.Id, AgentRevisionId = busyRevision.Id, DeploymentId = busy.Id, Status = EvalRunStatusEnum.Pending, TotalCases = 1 }, token).ConfigureAwait(false);
+                EvalCopyJanitor janitor = host.Server.Context.Get<EvalCopyJanitor>();
+                Assert.Equal(0, await janitor.SweepAsync(true, token).ConfigureAwait(false), "Nothing is idle yet");
+                janitor.Clock = new ManualTimeProvider(DateTime.UtcNow.AddHours(janitor.IdleHours + 1));
+                try
+                {
+                    Assert.Equal(1, await janitor.SweepAsync(true, token).ConfigureAwait(false), "The idle revision copy is deleted");
+                }
+                finally
+                {
+                    janitor.Clock = TimeProvider.System;
+                }
+                Assert.True(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, idle.Id, token).ConfigureAwait(false) == null, "The idle copy is gone");
+                Assert.NotNull(await host.Server.Context.Database.Deployments.ReadAsync(host.TenantId, busy.Id, token).ConfigureAwait(false), "A copy with a pending eval run is kept");
+            }
+        }
+
+        private static async Task<EvalRun> FinishedEvalRunAsync(TestServerHost host, EvalSet set, Agent agent, AgentRevision revision, string? deploymentId, string? studioDraftId, EvalRunInputModeEnum mode, double score, CancellationToken token)
+        {
+            EvalRun run = new EvalRun
+            {
+                TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = set.Version, TargetType = EvalRunTargetEnum.AgentRevision, AgentId = agent.Id, AgentRevisionId = revision.Id,
+                DeploymentId = deploymentId, StudioDraftId = studioDraftId, InputMode = mode, Status = EvalRunStatusEnum.Completed, Score = score, Passed = true, TotalCases = 1, CompletedCases = 1, PassedCases = 1, CompletedUtc = DateTime.UtcNow
+            };
+            return await host.Server.Context.Database.EvalRuns.CreateAsync(run, token).ConfigureAwait(false);
         }
 
         private static ChangeRule GatedRule(Organization org, OrgUnit unit, string? gateSet, double? threshold, params ChangeClassEnum[] classes)

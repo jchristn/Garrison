@@ -171,6 +171,8 @@ namespace Garrison.Server.Routes
             filter.PipelineRunId = RouteHelpers.Query(context, "pipelineRunId");
             filter.TriggerId = RouteHelpers.Query(context, "triggerId");
             filter.MandateId = RouteHelpers.Query(context, "mandateId");
+            filter.EvalRunId = RouteHelpers.Query(context, "evalRunId");
+            filter.ShadowTrialId = RouteHelpers.Query(context, "shadowTrialId");
             filter.Outcome = RouteHelpers.QueryEnum<RunOutcomeEnum>(context, "outcome");
             filter.CallerId = RouteHelpers.Query(context, "callerId");
             filter.FromUtc = RouteHelpers.QueryDate(context, "fromUtc");

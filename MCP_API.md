@@ -79,7 +79,7 @@ A tool that returns a record (a run summary, an agent, an approval) puts it in t
 | `garrison_get_conversation_transcript` | Read on Conversation (user and API credentials only) | `conversationId` | `format` (`markdown` or `json`), `includeThinking` (default false) |
 | `garrison_cancel_run` | Update on Run | `runId` | none |
 | `garrison_upload_artifact` | Create on Artifact (a run token only for its own run, at its current lease epoch) | `runId`, `storeId`, `name`, `epoch`, `repairAttempt`, `contentBase64` | `mediaType`. Uploads one workspace file that the producing deployment's artifact globs select; provider credentials stay on the server |
-| `garrison_list_runs` | Read on Run | none | `status`, `agent`, `maxResults` (1 to 100, default 25) |
+| `garrison_list_runs` | Read on Run | none | `status`, `agent`, `evalRunId` (the case and judge runs of one eval run), `shadowTrialId` (the shadow runs of one trial), `maxResults` (1 to 100, default 25) |
 | `garrison_list_approvals` | Read on Approval | none | `status` (`Pending`, `Approved`, `Denied`, `Expired`, `Cancelled`), `runId`, `agent`, `maxResults` (1 to 100, default 25) |
 | `garrison_get_approval` | Read on Approval | `approvalId` | none |
 | `garrison_decide_approval` | Update on Approval (and Update on Deployment with `remember`) | `approvalId`, `decision` (`Allow` or `Deny`) | `reason`, `remember` (default false), `rulePattern` |
@@ -584,7 +584,7 @@ An executive run (a deployment with `managementAccess: OrgSubtree` whose agent l
 
 `garrison_start_shadow_trial`, `garrison_list_shadow_trials`, `garrison_get_shadow_trial`, and `garrison_stop_shadow_trial` copy a sample of a deployment's finished runs to a candidate as shadow runs and read the agreement counts. `garrison_start_canary`, `garrison_list_canary_releases`, `garrison_get_canary_release`, and `garrison_abort_canary` move an agent's traffic to a candidate deployment in steps. These eight tools are for people only.
 
-A shadow run itself sees a reduced tool list: every tool that would cause an effect (non-read tools, agent tools, messaging, escalations, reports, memory writes, keeper and studio draft tools, file writes, and starting or cancelling runs) is hidden, and calling one anyway fails with `ShadowRunRefused`. `garrison_permission_prompt` stays available and always answers deny. Arguments, permissions, and error codes are in [docs/EVALS.md](docs/EVALS.md#mcp-tools).
+A shadow run itself sees a reduced tool list: every tool that would cause an effect (non-read tools, agent tools, messaging, escalations, reports, memory writes, keeper and studio draft tools, file writes, and starting or cancelling runs) is hidden, and calling one anyway fails with `ShadowRunRefused`. `garrison_permission_prompt` stays available and always answers deny. Every `Eval` run (an eval case run, a recent-input replay, or a judge run) gets the same reduced list and refusals, with the code `EvalRunRefused` (AA-074). The run tools answer a run token as if the case and judge runs of a hidden case did not exist. Arguments, permissions, and error codes are in [docs/EVALS.md](docs/EVALS.md#mcp-tools).
 
 ## HTTP inference endpoints (v0.2.0)
 

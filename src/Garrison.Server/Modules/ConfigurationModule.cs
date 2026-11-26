@@ -1,6 +1,7 @@
 namespace Garrison.Server.Modules
 {
     using System;
+    using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
@@ -85,6 +86,25 @@ namespace Garrison.Server.Modules
             context.Register(assets);
             _Manifests.AssetContent = new ManifestAssetContentStore(assets);
             _Manifests.AppValidator = (tenantId, app, appId, ct) => context.Get<AgenticAppService>().ValidateForManifestAsync(tenantId, app, appId, ct);
+            _Manifests.DeploymentPinGate = async (tenantId, deployment, previous, ct) =>
+            {
+                // AA9.6: a manifest (and so a studio or executive draft) that pins a revision in a gated environment is gated
+                // like a promotion; the refusal fails the item.
+                Garrison.Server.Runtime.EvalGateService? gates = context.TryGet<Garrison.Server.Runtime.EvalGateService>();
+                if (gates == null) return;
+                try
+                {
+                    await gates.RequirePinAsync(tenantId, deployment, previous, ct).ConfigureAwait(false);
+                }
+                catch (Garrison.Core.Services.EvalGateFailedException e)
+                {
+                    Garrison.Core.Services.ValidationException refused = new Garrison.Core.Services.ValidationException(e.Message,
+                        new Dictionary<string, string> { ["agentRevision"] = e.Message },
+                        new Dictionary<string, string> { ["agentRevision"] = Garrison.Core.Services.EvalGateFailedException.ErrorCode });
+                    refused.Code = Garrison.Core.Services.EvalGateFailedException.ErrorCode;
+                    throw refused;
+                }
+            };
             context.Register(new FileSpaceService(context));
             context.Register(new StudioService(context));
             context.Register(new ArchitectService(context));

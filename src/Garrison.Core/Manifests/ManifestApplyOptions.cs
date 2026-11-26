@@ -47,5 +47,12 @@ namespace Garrison.Core.Manifests
         /// studio draft.
         /// </summary>
         public MandateRevisionSourceEnum MandateRevisionSource { get; set; } = MandateRevisionSourceEnum.Human;
+
+        /// <summary>
+        /// Whether Deployment documents skip the eval gate on pinned revisions (AA9.6). False by default; true only for
+        /// rollbacks (an organization rollback's revert drafts), which restore pins as they were, the same emergency path
+        /// as a promotion rollback. Such applies are audit-logged like any other.
+        /// </summary>
+        public bool SkipEvalGates { get; set; } = false;
     }
 }

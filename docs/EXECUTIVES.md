@@ -167,7 +167,8 @@ The approval records the run that wrote the draft (`rootRunId`) and the executiv
 
 A change rule can hold back hiring and model changes until the draft proves itself. Set `gateEvalSet` (and `gateThreshold`) on a rule that lists `AddWorker` or `ModelChange`, and the rule covers such a change only when the draft has an eval run that:
 
-- ran against the gate set's latest version a person approved (or, without one, the latest version an evaluator agent outside the executive's subtree wrote, the same choice an environment's promotion gate makes);
+- ran against the gate set's latest version a person approved (or, without one, the latest version an evaluator agent outside the executive's subtree wrote; an environment's promotion gate never takes that fallback and counts approved versions only);
+- ran over the set's cases (`inputMode: Cases`; a `RecentInputs` replay never counts);
 - was created after the draft's items last changed (`contentChangedUtc` on the draft; moving nodes on the canvas does not count as a change);
 - completed with a score at or above the threshold.
 
@@ -179,7 +180,9 @@ The executive runs the eval itself with `garrison_run_eval`, passing `set`, `stu
 - A Deployment document for the agent (a `model` change, for example) is planned into an eval copy named `eval-{agent}-d{key}` in the reserved `draft` environment, with weight 0 and pinned to the evaluated revision, and every case runs on it. The eval run's `deploymentId` names the copy.
 - A worker the draft adds is evaluated as an eval copy of the new agent, named `eval-d{key}-{agent}` and marked protected, on an eval copy of its Deployment document. A draft that adds an agent without a deployment answers `NoDeployment`.
 
-Live configuration does not change until the draft applies. A failing eval leaves the change waiting with the failing run named in the reason; run the set again after improving the draft. Hidden cases stay hidden from the executive, which sees their scores only.
+Live configuration does not change until the draft applies. A failing eval leaves the change waiting with the failing run named in the reason (the rule match's code is `EvalGatePending`); run the set again after improving the draft. Hidden cases stay hidden from the executive, which sees their scores only, and the case and judge runs of hidden cases answer 404 to its run token. The eval copies go when the draft is applied or deleted; the eval runs and their results stay as evidence. Case runs and judge runs are `Eval` runs and cannot act (`EvalRunRefused`), so an eval of a draft never sends a message, writes memory, or calls a tool with effects.
+
+A draft that pins a deployment's revision in an environment with an eval gate does not validate until that revision passed the environment's gate (`EvalGateFailed` on the item), whatever change rules say. [EVALS.md](EVALS.md) covers eval sets, scorers, eval runs, promotion gates, shadow trials, and canary releases in full.
 
 ## Revisions, revert drafts, and rollback
 

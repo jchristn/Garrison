@@ -407,7 +407,9 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// End every running trial whose end time has passed. Called by the leader's maintenance loop.
+        /// End every running trial whose end time has passed (Completed), and fail every running trial whose source or
+        /// candidate deployment was deleted or made inactive (Failed, with the reason in StopReason). Called by the leader's
+        /// maintenance loop; each change is a compare-and-set on Running.
         /// </summary>
         /// <param name="token">Cancellation token.</param>
         /// <returns>True when a trial ended.</returns>
@@ -418,6 +420,18 @@ namespace Garrison.Server.Runtime
             foreach (ShadowTrial trial in await _Server.Database.ShadowTrials.ListRunningAsync(_SweepBatchSize, token).ConfigureAwait(false))
             {
                 token.ThrowIfCancellationRequested();
+                string? broken = await BrokenReasonAsync(trial, token).ConfigureAwait(false);
+                if (broken != null)
+                {
+                    // A trial whose source or candidate is gone or inactive cannot compare anything more.
+                    if (await _Server.Database.ShadowTrials.TransitionAsync(trial.TenantId, trial.Id, ShadowTrialStatusEnum.Running, ShadowTrialStatusEnum.Failed, broken, token).ConfigureAwait(false))
+                    {
+                        changed = true;
+                        await _Server.Audit.WriteAsync(null, AuditEventTypeEnum.ConfigurationChanged, "ShadowTrial", trial.Id, "Shadow trial " + trial.Id + " failed: " + broken, trial.TenantId, token).ConfigureAwait(false);
+                        _Server.Logging.Warn(_Header + "trial " + trial.Id + " failed: " + broken);
+                    }
+                    continue;
+                }
                 if (!trial.EndsUtc.HasValue || trial.EndsUtc.Value > now) continue;
                 // Compare-and-set on Running: a stop or another replica's sweep that won leaves this a no-op.
                 if (await _Server.Database.ShadowTrials.TransitionAsync(trial.TenantId, trial.Id, ShadowTrialStatusEnum.Running, ShadowTrialStatusEnum.Completed, "Reached its end time.", token).ConfigureAwait(false))
@@ -433,6 +447,17 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private async Task<string?> BrokenReasonAsync(ShadowTrial trial, CancellationToken token)
+        {
+            Deployment? source = await _Server.Database.Deployments.ReadAsync(trial.TenantId, trial.SourceDeploymentId, token).ConfigureAwait(false);
+            if (source == null) return "The source deployment " + trial.SourceDeploymentId + " was deleted.";
+            if (!source.Active) return "The source deployment " + source.Name + " is inactive.";
+            Deployment? candidate = await _Server.Database.Deployments.ReadAsync(trial.TenantId, trial.CandidateDeploymentId, token).ConfigureAwait(false);
+            if (candidate == null) return "The candidate deployment " + trial.CandidateDeploymentId + " was deleted.";
+            if (!candidate.Active) return "The candidate deployment " + candidate.Name + " is inactive.";
+            return null;
+        }
 
         private static bool Copyable(Run run)
         {

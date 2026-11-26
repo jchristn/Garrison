@@ -85,6 +85,14 @@ namespace Garrison.Core.Manifests
         public Func<string, AgenticApp, string?, CancellationToken, Task>? AppValidator { get; set; } = null;
 
         /// <summary>
+        /// Checks a Deployment document's pinned revision against its environment's eval gate before it is written (AA9.6):
+        /// tenant, the deployment as planned, and the deployment as stored now or null. It throws a ValidationException
+        /// (code EvalGateFailed) to fail the item. The control plane sets it to the eval gate service; with none set, pins
+        /// are not gated.
+        /// </summary>
+        public Func<string, Deployment, Deployment?, CancellationToken, Task>? DeploymentPinGate { get; set; } = null;
+
+        /// <summary>
         /// Applies the cluster interval bounds (Autonomy.MinIntervalSeconds and Autonomy.MaxIntervalSeconds) to a Mandate
         /// document's revision (AA1.12). The control plane sets it; with none set, only the revision's own ranges apply.
         /// </summary>
@@ -194,7 +202,7 @@ namespace Garrison.Core.Manifests
             // The checks that otherwise run only as records are written (a deployment's full validation, an app's entry
             // deployment per environment) run now against the planned records too, so a dry run, and the studio's
             // validation built on it, refuses what the write would refuse.
-            if (!plan.Any(p => p.Result == ManifestApplyResultEnum.Failed)) await ValidateWritesAsync(tenantId, plan, cache, token).ConfigureAwait(false);
+            if (!plan.Any(p => p.Result == ManifestApplyResultEnum.Failed)) await ValidateWritesAsync(tenantId, plan, cache, options.SkipEvalGates, token).ConfigureAwait(false);
 
             bool failed = plan.Any(p => p.Result == ManifestApplyResultEnum.Failed);
             if (!options.DryRun && !failed)
@@ -2154,7 +2162,7 @@ namespace Garrison.Core.Manifests
 
         private static readonly string[] _CacheKinds = { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "AgentAsset", "Deployment", "Pipeline" };
 
-        private async Task ValidateWritesAsync(string tenantId, List<Planned> plan, ConfigurationReferenceCache cache, CancellationToken token)
+        private async Task ValidateWritesAsync(string tenantId, List<Planned> plan, ConfigurationReferenceCache cache, bool skipEvalGates, CancellationToken token)
         {
             List<Planned> changing = plan.Where(p => (p.Result == ManifestApplyResultEnum.Created || p.Result == ManifestApplyResultEnum.Updated) && p.Model != null && !String.IsNullOrEmpty(p.ResourceId)).ToList();
             foreach (Planned p in changing)
@@ -2176,6 +2184,11 @@ namespace Garrison.Core.Manifests
                             HarnessProfile? selectedProfile = await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false);
                             if (selectedProfile != null) HarnessRuntimeRules.ClearOverrides(deployment, selectedProfile);
                             await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, cache, token).ConfigureAwait(false);
+                            if (DeploymentPinGate != null && !skipEvalGates)
+                            {
+                                Deployment? stored = planned.Result == ManifestApplyResultEnum.Updated ? await _Database.Deployments.ReadAsync(tenantId, planned.ResourceId!, token).ConfigureAwait(false) : null;
+                                await DeploymentPinGate(tenantId, deployment, stored, token).ConfigureAwait(false);
+                            }
                             break;
                         case AgenticApp app:
                             Dictionary<string, string> errors = new Dictionary<string, string>();

@@ -203,9 +203,13 @@ namespace Test.Shared.Suites
                 EvalSet set = await HttpTestHelpers.SendAsync<EvalSet>(host.AdminClient, HttpMethod.Post, T(host) + "/eval-sets", new EvalSetRequest { Name = "canary-gate", Cases = new List<EvalCase> { new EvalCase { InputText = "gate alpha", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "alpha" } } } } }, 201, token).ConfigureAwait(false);
                 CanaryRelease started = await GatedAsync(host, agent, candidate, baseline, set, 0.8, token, Step(50, 0, 0), Step(100, 0, 0)).ConfigureAwait(false);
 
+                // A RecentInputs replay of the candidate never decides the gate: it has no expected text (AA9.11).
+                await Task.Delay(20, token).ConfigureAwait(false);
+                EvalRun replay = await host.Server.Context.Database.EvalRuns.CreateAsync(new EvalRun { TenantId = host.TenantId, SetId = set.Id, SetName = set.Name, SetVersion = set.Version, TargetType = EvalRunTargetEnum.Deployment, AgentId = agent.Id, DeploymentId = candidate.Id, InputMode = EvalRunInputModeEnum.RecentInputs, Status = EvalRunStatusEnum.Completed, Score = 1, Passed = true, TotalCases = 1, CompletedCases = 1, CompletedUtc = DateTime.UtcNow }, token).ConfigureAwait(false);
+
                 // Once the step's minimums are met the sweep starts one eval run as the release's creator.
                 CanaryStepDecision first = await canaries.EvaluateAsync(await canaries.ReadAsync(host.TenantId, started.Id, token).ConfigureAwait(false), token).ConfigureAwait(false);
-                Assert.True(first.Decision == CanaryDecisionEnum.Wait && first.Reason.StartsWith("Started eval run", StringComparison.Ordinal) && first.Reason.Contains(set.Id, StringComparison.Ordinal), "The sweep starts the step's eval run: " + first.Reason);
+                Assert.True(first.Decision == CanaryDecisionEnum.Wait && first.Reason.StartsWith("Started eval run", StringComparison.Ordinal) && first.Reason.Contains(set.Id, StringComparison.Ordinal) && !first.Reason.Contains(replay.Id, StringComparison.Ordinal), "The sweep ignores the replay and starts the step's eval run: " + first.Reason);
                 List<EvalRun> runs = await GateRunsAsync(host, set, candidate, token).ConfigureAwait(false);
                 Assert.Equal(1, runs.Count, "One eval run for the step");
                 EvalRun gate = runs[0];
@@ -291,7 +295,7 @@ namespace Test.Shared.Suites
         private static async Task<List<EvalRun>> GateRunsAsync(TestServerHost host, EvalSet set, Deployment candidate, CancellationToken token)
         {
             EnumerationResult<EvalRun> page = await host.Server.Context.Database.EvalRuns.EnumerateAsync(host.TenantId, set.Id, candidate.Id, null, null, new EnumerationQuery { MaxResults = 100 }, token).ConfigureAwait(false);
-            return page.Objects.Where(r => r.Status != EvalRunStatusEnum.Cancelled).ToList();
+            return page.Objects.Where(r => r.Status != EvalRunStatusEnum.Cancelled && r.InputMode == EvalRunInputModeEnum.Cases).ToList();
         }
 
         private static async Task FinishEvalRunAsync(TestServerHost host, EvalRun run, EvalRunStatusEnum status, double? score, CancellationToken token)
