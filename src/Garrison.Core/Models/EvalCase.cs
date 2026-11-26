@@ -117,7 +117,7 @@ namespace Garrison.Core.Models
         public string? ExpectedText { get; set; } = null;
 
         /// <summary>
-        /// Checks that score the output, in order. A case without checks scores 1 when its run succeeds.
+        /// Checks that score the output, in order. A case without checks is scored against its expected text by exact match, or by one Judge check when it has no expected text, which needs the set's judge agent.
         /// </summary>
         public List<EvalCaseCheck> Checks
         {
