@@ -28,6 +28,11 @@ import { agentDashboardUrl } from '../utils/grafana';
 import AgentRevisionsPanel from '../components/AgentRevisionsPanel';
 import { EnvironmentBadge, RevisionPinBadge } from '../components/RevisionBadges';
 import { revisionNumbers } from '../utils/revisions';
+import FreezeAction from '../components/FreezeAction';
+import FrozenBanner from '../components/FrozenBanner';
+import useActiveFreezes from '../hooks/useActiveFreezes';
+import useCallerPermissions from '../hooks/useCallerPermissions';
+import { freezeOn } from '../utils/freezes';
 
 /**
  * One agent end to end: identity, exposure, delegation, deployments with weights, environments, and revision pins,
@@ -87,6 +92,10 @@ export default function AgentDetailView({ recordId }) {
 
   useEffect(load, [load]);
 
+  // Brakes (AA3.8): the agent's own freeze, Freeze and Lift.
+  const activeFreezes = useActiveFreezes();
+  const permissions = useCallerPermissions();
+
   if (error && !agent) return <ErrorBanner message={errorMessage(t, error)} onRetry={load} />;
   if (!agent) return <LoadingState />;
 
@@ -107,6 +116,7 @@ export default function AgentDetailView({ recordId }) {
 
   const shares = trafficShares(deployments);
   const na = t('common.generic.notAvailable');
+  const ownFreeze = freezeOn(activeFreezes.freezes, 'Agent', agent.id);
 
   return (
     <div>
@@ -133,6 +143,7 @@ export default function AgentDetailView({ recordId }) {
             <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke', null, { agentId: agent.id }))} {...tip(t('tips.views.agentDetail.invoke'))}>
               <SendIcon size={14} /> {t('views.agentDetail.invoke')}
             </button>
+            <FreezeAction targetKind="Agent" targetId={agent.id} targetName={agent.name} active={activeFreezes} permissions={permissions} />
             <button
               type="button"
               className="button-danger"
@@ -150,6 +161,7 @@ export default function AgentDetailView({ recordId }) {
           </>
         }
       />
+      <FrozenBanner freezes={ownFreeze ? [ownFreeze] : []} permissions={permissions} own={ownFreeze} />
       <div className="panel detail-grid">
         <div className="detail-item detail-item-span">
           <div className="detail-item-label" {...tip(t('tips.resources.agents.description'))}>{t('resources.agents.fields.description')}</div>

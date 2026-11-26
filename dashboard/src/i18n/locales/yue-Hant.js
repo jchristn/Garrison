@@ -5900,3 +5900,245 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "凍結",
+    "tip": "對代理程式、部署、守護者同應用程式嘅制動，仲有自主運作嘅緊急停止掣"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "凍結"
+  },
+  "auditEventType": {
+   "FreezeApplied": "已經凍結",
+   "FreezeLifted": "已經解除凍結",
+   "KillSwitchChanged": "緊急停止掣有改動"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "已經凍結",
+   "MandateCapReached": "守護者到咗支出上限"
+  },
+  "freezeTargetKind": {
+   "Agent": "代理程式",
+   "Deployment": "部署",
+   "Mandate": "守護者",
+   "App": "應用程式",
+   "OrgUnit": "組織單位",
+   "Organization": "組織",
+   "TenantAutonomy": "緊急停止掣"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "已經凍結咗：解除凍結之前，新嘅執行都會被拒絕。",
+  "AlreadyFrozen": "已經凍結咗。請先解除嗰個凍結，或者就咁留住。",
+  "FreezeLifted": "已經有人解除咗呢個凍結。",
+  "KillSwitch": "自主運作嘅緊急停止掣開咗，所以守護者嘅執行會被拒絕。",
+  "MandateBudgetExceeded": "呢個守護者已經用晒今次巡檢或者今日嘅預算。",
+  "OrganizationsUnavailable": "組織凍結會同組織功能一齊推出。請改為凍結代理程式、部署、守護者或者應用程式。"
+ },
+ "freezes": {
+  "killSwitchTarget": "自主運作嘅緊急停止掣",
+  "freezeTitle": "凍結？",
+  "freezeMessage": "凍結 {{target}}？解除凍結之前，新嘅執行都會被拒絕，範圍內嘅守護者亦唔會再醒。",
+  "freezePickMessage": "揀要凍結嘅對象。解除凍結之前，新嘅執行都會被拒絕，範圍內嘅守護者亦唔會再醒。",
+  "pickTarget": "揀...",
+  "reasonPlaceholder": "點解？見到呢個凍結嘅人會睇到呢段文字。",
+  "liftTitle": "解除呢個凍結？",
+  "liftMessage": "解除 {{target}} 嘅凍結？新嘅執行會再被接受。",
+  "liftKeeperMessage": "解除 {{target}} 嘅凍結？守護者會重新啟用，下一次醒會分散喺一段短時間入面。",
+  "bannerOwn": "已凍結：解除凍結之前，新嘅執行都會被拒絕。",
+  "bannerTarget": "{{target}} 已經凍結咗：佢嘅新執行會被拒絕。",
+  "bannerKillSwitch": "自主運作嘅緊急停止掣開咗：呢個租用戶唔會開始任何守護者巡檢。",
+  "bannerBy": "由 {{who}} 喺 {{when}} 凍結。",
+  "bannerReason": "原因：{{reason}}",
+  "openTarget": "打開",
+  "status": {
+   "active": "生效緊",
+   "lifted": "已解除"
+  },
+  "fields": {
+   "targetKind": "凍結對象類型",
+   "target": "對象",
+   "reason": "原因（可以留空）",
+   "liftReason": "解除原因（可以留空）",
+   "cancelActiveRuns": "同時取消已經進行緊嘅執行"
+  },
+  "actions": {
+   "freeze": "凍結",
+   "freezeAny": "揀對象嚟凍結",
+   "lift": "解除凍結",
+   "openTarget": "打開被凍結嘅對象"
+  },
+  "errors": {
+   "reasonMax": "原因最多 {{max}} 個字元。",
+   "target": "請揀要凍結嘅對象。"
+  },
+  "toasts": {
+   "frozen": "{{target}} 已經凍結咗。",
+   "frozenCancelled_other": "{{target}} 已經凍結咗，仲取消咗 {{count}} 個進行緊嘅執行。",
+   "lifted": "{{target}} 嘅凍結已經解除。"
+  },
+  "killSwitch": {
+   "title": "自主運作緊急停止掣",
+   "on": "開",
+   "off": "關",
+   "turnOn": "開啟",
+   "turnOff": "關閉",
+   "help": "緊急停止掣開住嘅時候，唔會開始任何守護者巡檢，守護者嘅執行亦會被拒絕。由人同 API 憑證發起嘅呼叫照常運作。",
+   "changedBy": "由 {{who}} 喺 {{when}} 開咗。",
+   "onTitle": "開啟緊急停止掣？",
+   "onMessage": "關返個掣之前，呢個租用戶所有守護者都唔會再醒，守護者嘅執行亦會被拒絕。進行緊嘅巡檢會做完。",
+   "offTitle": "關閉緊急停止掣？",
+   "offMessage": "守護者會再開始醒，下一次醒會分散喺一段短時間入面。",
+   "toasts": {
+    "on": "緊急停止掣開咗。唔會開始任何守護者巡檢。",
+    "off": "緊急停止掣關咗。守護者會再醒。"
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "凍結",
+   "subtitle": "有人解除之前，拒絕代理程式、部署、守護者或者應用程式新執行嘅制動。緊急停止掣都會喺度顯示。",
+   "add": "新增凍結",
+   "create": "建立凍結",
+   "edit": "編輯凍結",
+   "view": "凍結詳細資料",
+   "deleteTitle": "刪除凍結",
+   "emptyTitle": "冇凍結",
+   "emptyBody": "而家乜都冇凍結。可以喺代理程式、部署、守護者或者應用程式嘅頁面凍結，或者用「揀對象嚟凍結」。",
+   "columns": {
+    "createdUtc": "凍結時間",
+    "status": "狀態",
+    "targetKind": "類型",
+    "target": "對象",
+    "reason": "原因",
+    "createdBy": "凍結者",
+    "cancelledRunCount": "取消咗嘅執行",
+    "liftedUtc": "解除時間",
+    "liftedBy": "解除者",
+    "liftReason": "解除原因",
+    "targetId": "對象 ID",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_other": "{{count}} 個凍結生效緊"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "凍結：對代理程式、部署、守護者同應用程式嘅制動，生效緊嘅排先，可以凍結同解除。"
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "阻止代理程式、部署、守護者或者應用程式新執行嘅凍結，仲有自主運作嘅緊急停止掣。"
+   },
+   "auditEventType": {
+    "FreezeApplied": "有人凍結咗代理程式、部署、守護者或者應用程式。",
+    "FreezeLifted": "有人解除咗一個凍結。",
+    "KillSwitchChanged": "有人開咗或者關咗自主運作嘅緊急停止掣。"
+   },
+   "notificationEvent": {
+    "FreezeApplied": "有人凍結咗代理程式、部署、守護者或者應用程式，或者開咗緊急停止掣。",
+    "MandateCapReached": "有個守護者到咗每日支出上限，到下一個 UTC 日之前都唔會再醒。"
+   },
+   "freezeTargetKind": {
+    "Agent": "代理程式嘅所有部署：新嘅執行會被拒絕，佢嘅守護者唔會再醒。",
+    "Deployment": "一個部署：新嘅執行會被拒絕，喺上面行嘅守護者唔會再醒。",
+    "Mandate": "一個守護者：解除凍結之前唔會再醒。",
+    "App": "一個應用程式：佢個聊天入面嘅新對話同新訊息會被拒絕。",
+    "OrgUnit": "一個組織單位。組織功能推出之前用唔到。",
+    "Organization": "成個組織。組織功能推出之前用唔到。",
+    "TenantAutonomy": "緊急停止掣：成個租用戶都唔會開始任何守護者巡檢。"
+   }
+  },
+  "freezes": {
+   "denied": "你冇權做呢個操作。要對凍結有 {{operation}} 權限。",
+   "openTarget": "打開呢個凍結阻止緊嘅對象嘅頁面。",
+   "status": {
+    "active": "生效緊：範圍內新嘅執行會被拒絕。",
+    "lifted": "已經有人解除咗；執行會再被接受。"
+   },
+   "actions": {
+    "freeze": "凍結：解除之前，新嘅執行都會被拒絕，範圍內嘅守護者唔會再醒。要先確認。",
+    "freezeAny": "揀一個代理程式、部署、守護者或者應用程式嚟凍結。要先確認。",
+    "lift": "解除凍結，等新嘅執行再被接受。要先確認。"
+   },
+   "fields": {
+    "targetKind": "凍結一個代理程式（同佢所有部署）、一個部署、一個守護者或者一個應用程式。",
+    "target": "要凍結嘅記錄。",
+    "reason": "可以留空。會喺凍結橫額同稽核記錄度顯示。",
+    "liftReason": "可以留空。會同凍結一齊記錄，亦會寫入稽核記錄。",
+    "cancelActiveRuns": "同時取消範圍內已經排緊隊或者進行緊嘅執行。唔揀嘅話，佢哋會行完。"
+   },
+   "filters": {
+    "active": "只顯示生效緊嘅凍結或者只顯示已解除嘅凍結。揀「全部」就兩樣都顯示。",
+    "targetKind": "只顯示呢個類型嘅凍結。揀「全部」就移除篩選。"
+   },
+   "killSwitch": {
+    "title": "一個可以停晒呢個租用戶所有守護者嘅掣。一般呼叫照常運作。",
+    "on": "開：唔會開始任何守護者巡檢，守護者嘅執行會被拒絕。",
+    "off": "關：守護者按排程醒。",
+    "turnOn": "停晒呢個租用戶所有守護者。要先確認。",
+    "turnOff": "等守護者再醒。要先確認。"
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "凍結嘅時間。將指標停喺上面就睇到確切時間。",
+    "status": "凍結生效期間係「生效緊」，之後係「已解除」。",
+    "targetKind": "被凍結記錄嘅類型。",
+    "target": "被凍結嘅代理程式、部署、守護者或者應用程式。",
+    "reason": "凍結嘅原因。將指標停喺上面就睇到全文。",
+    "createdBy": "邊個凍結。",
+    "cancelledRunCount": "要求取消嘅時候，凍結取消咗幾多個進行緊嘅執行。",
+    "liftedUtc": "解除凍結嘅時間。",
+    "liftedBy": "邊個解除。",
+    "liftReason": "點解解除。",
+    "targetId": "被凍結記錄嘅 ID。",
+    "id": "凍結嘅 ID（mfz_...），用喺 API 同 MCP 工具。"
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "打開生效緊嘅凍結清單。"
+    }
+   }
+  },
+  "filters": {
+   "active": "只顯示啟用嘅記錄或者只顯示停用嘅記錄。揀「全部」就兩樣都顯示。"
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "凍結",
+   "p1": "凍結係一種制動。生效期間，Garrison 會用 409 Frozen 拒絕被凍結嘅代理程式、部署、守護者或者應用程式嘅新執行，範圍內嘅守護者亦唔會再醒。已經進行緊嘅執行會行完，除非凍結同時取消咗佢哋。",
+   "p2": "可以喺代理程式、部署、守護者或者應用程式嘅頁面凍結，或者喺度用「揀對象嚟凍結」。解除凍結之後，執行會再被接受；被凍結嘅守護者會重新啟用，下一次醒會分散喺一段短時間入面。",
+   "p3": "設定同主頁上面嘅自主運作緊急停止掣會一次過停晒租用戶所有守護者嘅巡檢。佢喺度會顯示做類型係「緊急停止掣」嘅凍結。"
+  }
+ }
+});

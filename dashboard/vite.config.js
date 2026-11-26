@@ -44,11 +44,17 @@ export default defineConfig({
           if (locale) return `locale-${locale[1]}${locale[2] ? '-tips' : ''}`;
           // Pipeline components (P12.9) get their own chunk so the views chunk stays under the size warning.
           if (/\/src\/components\/Pipeline/.test(id)) return 'pipelines';
+          // The shared dialog primitives stay with the shared core that Rollup places in that chunk. Without this rule the
+          // Home kill switch control (AA3.8) reaches the confirmation dialog first and drags them into the revisions chunk,
+          // which then imports the core from pipelines while pipelines imports them back (a chunk cycle).
+          if (/\/src\/components\/(Tooltip|Icons|Modal|States)\.jsx$/.test(id)) return 'pipelines';
           // Trigger and notification components (P12.5, P12.14) likewise.
           if (/\/src\/components\/(Trigger|Notification|SigningSecret)/.test(id)) return 'triggers';
           // Agent revisions and promotions (AD1.9), with the confirmation dialog they share with the views (no chunk cycle).
           // The prompt template clone dialog joins them, shared by the views and the studio's architect prompt panel (AD7.16).
-          if (/\/src\/components\/(AgentRevision|Revision|Promot|ConfirmModal|CloneTemplateModal)/.test(id)) return 'revisions';
+          // Their helpers stay with them: the freeze helpers (AA3.8) reach utils/apps.js early, which would otherwise pull
+          // utils/revisions.js into the apps chunk (a revisions and apps cycle).
+          if (/\/src\/components\/(AgentRevision|Revision|Promot|ConfirmModal|CloneTemplateModal)/.test(id) || id.endsWith('/src/utils/revisions.js')) return 'revisions';
           // Agent assets (AD2.8): the version, upload, and pin dialogs used by both the views and the revisions panel.
           if (/\/src\/components\/(AgentAsset|AssetUpload)/.test(id) || id.endsWith('/src/utils/assets.js')) return 'assets';
           // Conversation file spaces (AD3.8): the Files tab, its version dialog, and its upload panel.
@@ -58,8 +64,7 @@ export default defineConfig({
           if (/\/src\/components\/(Capability|AgentCapabilities)/.test(id) || id.endsWith('/src/utils/capabilities.js')) return 'capabilities';
           // Agentic apps (AD6.11): the Apps tab's graph, share link, delegation, revisions, and promote dialogs, and their
           // helpers. The page configuration stays with the views, which re-export it (no chunk cycle).
-          if (/\/src\/components\/AgenticApp/.test(id) || id.endsWith('/src/utils/apps.js')) return 'apps';
-          // Agent studio (AD7.10): the workspace panels, the architect dialogs and prompt panel, and their helpers. The two
+          if (/\/src\/components\/AgenticApp/.test(id) || id.endsWith('/src/utils/apps.js')) return 'apps';          // Agent studio (AD7.10): the workspace panels, the architect dialogs and prompt panel, and their helpers. The two
           // studio pages stay with the views; the panels import nothing from the views chunk (no chunk cycle). The chat
           // transcript hook, shared by the architect chat and the agent wizard's test chat, joins them for the same reason.
           // The studio canvas (AD8.2): React Flow, the YAML library, the canvas panels, and their helpers load only when a

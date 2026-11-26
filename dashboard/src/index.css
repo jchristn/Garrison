@@ -1650,3 +1650,15 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .escalation-options li.chosen { font-weight: 600; }
 .escalation-question-cell { display: inline-block; max-width: 420px; overflow-wrap: anywhere; }
 .home-escalations li a { min-width: 0; overflow-wrap: anywhere; }
+
+/* Brakes (AA3.8): frozen banners, the kill switch control. */
+.page-intro:empty { display: none; }
+.page-intro:has(.frozen-banner) { max-width: none; color: inherit; font-size: inherit; }
+.frozen-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; }
+.frozen-banner > span { min-width: 0; overflow-wrap: anywhere; }
+.frozen-reason { font-style: italic; }
+.kill-switch-head { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; }
+.kill-switch-title { font-weight: 600; }
+.kill-switch-help, .kill-switch-meta { margin: var(--spacing-xs) 0 0; font-size: var(--font-size-sm); }
+.kill-switch-compact { margin-bottom: var(--spacing-sm); }
+.kill-switch-on.panel { border-color: var(--color-danger, #c0392b); }

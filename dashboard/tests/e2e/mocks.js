@@ -1265,6 +1265,69 @@ function escalationRoutes(method, url, parts) {
   return {};
 }
 
+// ---------------------------------------------------------------- freezes and the kill switch (AA3.8)
+
+// Two active freezes away from the records other specs use (deployment-3 and the second app), a lifted agent freeze,
+// and a kill switch that was turned on and off again. The kill switch is off.
+const FREEZE_ROWS = [
+  { targetKind: 'Deployment', targetId: 'dep_0003', targetName: 'deployment-3', reason: 'Canary is answering in the wrong language.', cancelActiveRuns: true, cancelledRunCount: 2 },
+  { targetKind: 'App', targetId: 'app_0002', targetName: 'support', reason: 'Pending the legal review of the greeting.' },
+  { targetKind: 'Agent', targetId: 'agt_0001', targetName: 'echo-agent', reason: 'Investigating a loop.', lifted: true, liftReason: 'Loop fixed in revision 3.' },
+  { targetKind: 'TenantAutonomy', targetId: 'default', targetName: 'default', reason: 'Incident drill.', lifted: true, liftReason: 'Drill over.' }
+];
+
+/** One freeze by row number (1-based), shaped like GET /freezes/{id} (nulls omitted). */
+export function freeze(i) {
+  const row = FREEZE_ROWS[(i - 1) % FREEZE_ROWS.length];
+  const out = {
+    id: `mfz_${pad(i)}`,
+    tenantId: TENANT,
+    targetKind: row.targetKind,
+    targetId: row.targetId,
+    targetName: row.targetName,
+    reason: row.reason,
+    cancelActiveRuns: !!row.cancelActiveRuns,
+    cancelledRunCount: row.cancelledRunCount || 0,
+    createdById: 'usr_0001',
+    createdByName: 'admin@garrison',
+    active: !row.lifted,
+    createdUtc: iso(40 * i),
+    lastUpdateUtc: iso(10 * i)
+  };
+  if (row.lifted) Object.assign(out, { liftedById: 'usr_0001', liftedByName: 'admin@garrison', liftReason: row.liftReason, liftedUtc: iso(5 * i) });
+  return out;
+}
+
+/** GET /freezes with the filters the list sends; active freezes come first, then the newest. */
+function freezeList(url) {
+  let rows = FREEZE_ROWS.map((_, k) => freeze(k + 1));
+  const active = url.searchParams.get('active');
+  if (active) rows = rows.filter((f) => String(f.active) === active);
+  for (const key of ['targetKind', 'targetId']) {
+    const value = url.searchParams.get(key);
+    if (value) rows = rows.filter((f) => f[key] === value);
+  }
+  rows.sort((a, b) => (a.active ? 0 : 1) - (b.active ? 0 : 1) || b.createdUtc.localeCompare(a.createdUtc));
+  return pageOf(rows, url);
+}
+
+/** The kill switch: off, last turned off by the admin. */
+export function killSwitch(enabled = false) {
+  return enabled ? { tenantId: TENANT, enabled: true, freezeId: 'mfz_0099', reason: 'Incident drill.', changedByName: 'admin@garrison', changedUtc: iso(1) } : { tenantId: TENANT, enabled: false, changedByName: 'admin@garrison', changedUtc: iso(20) };
+}
+
+/** Responses for the freeze and kill switch routes, or undefined for other collections. */
+function freezeRoutes(method, url, parts) {
+  if (parts[0] === 'autonomy' && parts[1] === 'kill-switch') return killSwitch(false);
+  if (parts[0] !== 'freezes') return undefined;
+  if (parts.length === 1) return method === 'POST' ? { ...freeze(1), id: 'mfz_0099', createdUtc: iso(0) } : freezeList(url);
+  const i = /^mfz_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1;
+  if (parts[2] === 'lift') return { ...freeze(i), active: false, liftedById: 'usr_0001', liftedByName: 'admin@garrison', liftedUtc: iso(0) };
+  // An ID the fixtures do not know (the contract test's real IDs) gets every optional field.
+  if (parts.length === 2) return /^mfz_\d+$/.test(parts[1]) ? freeze(i) : { ...freeze(3), id: parts[1] };
+  return {};
+}
+
 /** Responses for the keeper (mandate) routes, or undefined for other collections. */
 function keeperRoutes(method, url, parts) {
   const collection = parts[0];
@@ -2505,6 +2568,8 @@ export function respond(method, url) {
     if (kept !== undefined) return kept;
     const escalated = escalationRoutes(method, url, parts);
     if (escalated !== undefined) return escalated;
+    const frozen = freezeRoutes(method, url, parts);
+    if (frozen !== undefined) return frozen;
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
     const apped = appRoutes(method, url, parts);

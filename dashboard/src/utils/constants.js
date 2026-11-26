@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -176,7 +176,7 @@ export const ENUMS = {
   fanOutGroupStatus: ['Running', 'Joined', 'TimedOut', 'BudgetExceeded', 'Cancelled'],
   fanOutJoinPolicy: ['All', 'Any', 'Quorum'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SecretRevealed', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SecretRevealed', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull', 'FreezeApplied', 'FreezeLifted', 'KillSwitchChanged'],
   // Permission approvals (P12.3).
   approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
   approvalDecision: ['Allow', 'Deny'],
@@ -196,7 +196,7 @@ export const ENUMS = {
   triggerFireSource: ['Cron', 'Webhook', 'Manual'],
   triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
-  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'Test'],
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
   runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
@@ -213,6 +213,9 @@ export const ENUMS = {
   escalationTargetKind: ['User', 'Role', 'Agent', 'Manager'],
   escalationTimeoutAction: ['UseDefaultAnswer', 'Cancel', 'EscalateUp'],
   escalationResolutionSource: ['User', 'Agent', 'Timeout', 'Raiser', 'System'],
+  // Brakes (AA3): what a freeze stops. TenantAutonomy is the kill switch; OrgUnit and Organization arrive with
+  // organizations (AA7) and are refused until then.
+  freezeTargetKind: ['Agent', 'Deployment', 'Mandate', 'App', 'OrgUnit', 'Organization', 'TenantAutonomy'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -366,7 +369,7 @@ export function pipelineReviewDecisionTone(decision) {
 }
 
 /** Events a notification endpoint can subscribe to (Test is only sent by the test action). */
-export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired'];
+export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached'];
 
 /**
  * Escalation targets a person can pick for a keeper's default (AA2): Manager needs an organization (AA7) and is refused
@@ -376,6 +379,12 @@ export const ESCALATION_TARGET_KINDS = ['User', 'Role', 'Agent'];
 
 /** Escalation answer bounds, mirroring the server (AA2): the free-text answer holds at most 8000 characters. */
 export const ESCALATION_LIMITS = { answerMax: 8000, reasonMax: 8000 };
+
+/** Targets a person can freeze from the dashboard (AA3): the kill switch has its own control. */
+export const FREEZE_TARGET_KINDS = ['Agent', 'Deployment', 'Mandate', 'App'];
+
+/** Freeze bounds, mirroring the server (AA3): a freeze, lift, or kill switch reason holds at most 2000 characters. */
+export const FREEZE_LIMITS = { reasonMax: 2000 };
 
 /** Trigger and notification endpoint ranges, matching the server's validation (P12.5, P12.14). */
 export const TRIGGER_LIMITS = {

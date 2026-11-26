@@ -336,8 +336,20 @@ async function seed(api) {
   await seedPipelines(api, ids);
   await seedTriggers(api, ids);
   await seedKeepers(api, ids);
+  await seedFreezes(api, ids);
   await sleep(1500);
   return ids;
+}
+
+/**
+ * Freezes (AA3.8): a freeze on the third agent, lifted with a reason so every lift field exists, and an active freeze on
+ * the keeper. The kill switch stays off. Seeded last, so the frozen keeper and agent do not stop earlier seeding.
+ */
+async function seedFreezes(api, ids) {
+  const lifted = await api.post(tp('freezes'), { targetKind: 'Agent', targetId: ids.agent3, reason: 'Contract test freeze' });
+  await api.post(tp(`freezes/${lifted.id}/lift`), { reason: 'Contract test lift' });
+  ids.liftedFreeze = lifted.id;
+  ids.freeze = (await api.post(tp('freezes'), { targetKind: 'Mandate', targetId: ids.keeper, reason: 'Contract test keeper freeze' })).id;
 }
 
 /**
@@ -667,6 +679,12 @@ function routes(ids) {
     // Escalations (AA2.13): only runs raise them, so a fresh contract server lists none; the envelope is checked.
     ['listEscalations', tp(`escalations?${list}`)],
     ['listEscalations (status)', tp(`escalations?${list}&status=Open`)],
+    // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
+    ['listFreezes', tp(`freezes?${list}`)],
+    ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],
+    ['getFreeze', tp(`freezes/${ids.freeze}`)],
+    ['getFreeze (lifted)', tp(`freezes/${ids.liftedFreeze}`)],
+    ['getKillSwitch', tp('autonomy/kill-switch')],
     ['listNotificationEndpoints', tp(`notification-endpoints?${list}`)],
     ['getNotificationEndpoint', tp(`notification-endpoints/${ids.endpoint}`)],
     ['listNotificationDeliveries', tp(`notification-endpoints/${ids.endpoint}/deliveries?maxResults=50&skip=0`)],

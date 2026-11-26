@@ -49,6 +49,7 @@ const COLLECTIONS = {
   pipelineRuns: 'pipeline-runs',
   pipelineReviews: 'pipeline-reviews',
   keepers: 'mandates',
+  freezes: 'freezes',
   audit: 'audit'
 };
 

@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import LanguageSelector from '../components/LanguageSelector';
+import KillSwitchControl from '../components/KillSwitchControl';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
 import { Badge } from '../components/StatusBadge';
 import { EyeIcon, EyeOffIcon } from '../components/Icons';
@@ -221,6 +222,8 @@ export default function SettingsView() {
         </div>
       )}
       {Object.keys(errors).length > 0 && <div className="error-banner">{t('common.errors.fixFields')}</div>}
+
+      <KillSwitchControl />
 
       {groups.map((g) => (
         <fieldset key={g.name} className="panel settings-group">

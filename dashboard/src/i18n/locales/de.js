@@ -5944,3 +5944,247 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "Sperren",
+    "tip": "Bremsen für Agenten, Bereitstellungen, Wächter und Apps sowie der Autonomie-Notschalter"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "Sperre"
+  },
+  "auditEventType": {
+   "FreezeApplied": "Sperre gesetzt",
+   "FreezeLifted": "Sperre aufgehoben",
+   "KillSwitchChanged": "Notschalter geändert"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "Sperre gesetzt",
+   "MandateCapReached": "Ausgabengrenze des Wächters erreicht"
+  },
+  "freezeTargetKind": {
+   "Agent": "Agent",
+   "Deployment": "Bereitstellung",
+   "Mandate": "Wächter",
+   "App": "Anwendung",
+   "OrgUnit": "Organisationseinheit",
+   "Organization": "Organisation",
+   "TenantAutonomy": "Notschalter"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "Dies ist gesperrt: Neue Läufe werden abgelehnt, bis die Sperre aufgehoben ist.",
+  "AlreadyFrozen": "Dies ist bereits gesperrt. Heben Sie diese Sperre zuerst auf oder lassen Sie sie bestehen.",
+  "FreezeLifted": "Jemand hat diese Sperre bereits aufgehoben.",
+  "KillSwitch": "Der Autonomie-Notschalter ist eingeschaltet, daher werden Wächter-Läufe abgelehnt.",
+  "MandateBudgetExceeded": "Dieser Wächter hat sein Budget für diesen Tick oder für heute aufgebraucht.",
+  "OrganizationsUnavailable": "Sperren für Organisationen kommen mit den Organisationen. Sperren Sie stattdessen einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung."
+ },
+ "freezes": {
+  "killSwitchTarget": "Der Autonomie-Notschalter",
+  "freezeTitle": "Sperren?",
+  "freezeMessage": "{{target}} sperren? Neue Läufe werden abgelehnt, bis die Sperre aufgehoben ist, und betroffene Wächter wachen nicht mehr auf.",
+  "freezePickMessage": "Wählen Sie, was gesperrt werden soll. Neue Läufe werden abgelehnt, bis die Sperre aufgehoben ist, und betroffene Wächter wachen nicht mehr auf.",
+  "pickTarget": "Auswählen...",
+  "reasonPlaceholder": "Warum? Wer die Sperre sieht, liest diesen Text.",
+  "liftTitle": "Diese Sperre aufheben?",
+  "liftMessage": "Die Sperre von {{target}} aufheben? Neue Läufe werden wieder angenommen.",
+  "liftKeeperMessage": "Die Sperre von {{target}} aufheben? Der Wächter wird wieder aktiv, und sein nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
+  "bannerOwn": "Gesperrt: Neue Läufe werden abgelehnt, bis die Sperre aufgehoben ist.",
+  "bannerTarget": "{{target}} ist gesperrt: Neue Läufe davon werden abgelehnt.",
+  "bannerKillSwitch": "Der Autonomie-Notschalter ist eingeschaltet: In diesem Mandanten starten keine Wächter-Ticks.",
+  "bannerBy": "Gesperrt von {{who}} {{when}}.",
+  "bannerReason": "Grund: {{reason}}",
+  "openTarget": "Öffnen",
+  "status": {
+   "active": "Aktiv",
+   "lifted": "Aufgehoben"
+  },
+  "fields": {
+   "targetKind": "Was gesperrt wird",
+   "target": "Ziel",
+   "reason": "Grund (optional)",
+   "liftReason": "Grund für die Aufhebung (optional)",
+   "cancelActiveRuns": "Auch bereits aktive Läufe abbrechen"
+  },
+  "actions": {
+   "freeze": "Sperren",
+   "freezeAny": "Etwas sperren",
+   "lift": "Sperre aufheben",
+   "openTarget": "Gesperrtes Element öffnen"
+  },
+  "errors": {
+   "reasonMax": "Der Grund darf höchstens {{max}} Zeichen lang sein.",
+   "target": "Wählen Sie, was gesperrt werden soll."
+  },
+  "toasts": {
+   "frozen": "{{target}} ist gesperrt.",
+   "frozenCancelled_one": "{{target}} ist gesperrt, und {{count}} aktiver Lauf wurde abgebrochen.",
+   "frozenCancelled_other": "{{target}} ist gesperrt, und {{count}} aktive Läufe wurden abgebrochen.",
+   "lifted": "Die Sperre von {{target}} ist aufgehoben."
+  },
+  "killSwitch": {
+   "title": "Autonomie-Notschalter",
+   "on": "Ein",
+   "off": "Aus",
+   "turnOn": "Einschalten",
+   "turnOff": "Ausschalten",
+   "help": "Solange der Notschalter eingeschaltet ist, starten keine Wächter-Ticks, und Wächter-Läufe werden abgelehnt. Aufrufe durch Personen und API-Zugangsdaten funktionieren weiter.",
+   "changedBy": "Eingeschaltet von {{who}} {{when}}.",
+   "onTitle": "Notschalter einschalten?",
+   "onMessage": "Alle Wächter in diesem Mandanten wachen nicht mehr auf, und Wächter-Läufe werden abgelehnt, bis der Schalter ausgeschaltet wird. Laufende Ticks werden beendet.",
+   "offTitle": "Notschalter ausschalten?",
+   "offMessage": "Die Wächter wachen wieder auf; ihr nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
+   "toasts": {
+    "on": "Der Notschalter ist eingeschaltet. Es starten keine Wächter-Ticks.",
+    "off": "Der Notschalter ist ausgeschaltet. Die Wächter wachen wieder auf."
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "Sperren",
+   "subtitle": "Bremsen, die neue Läufe eines Agenten, einer Bereitstellung, eines Wächters oder einer Anwendung ablehnen, bis jemand sie aufhebt. Auch der Notschalter erscheint hier.",
+   "add": "Sperre hinzufügen",
+   "create": "Sperre erstellen",
+   "edit": "Sperre bearbeiten",
+   "view": "Details der Sperre",
+   "deleteTitle": "Sperre löschen",
+   "emptyTitle": "Keine Sperren",
+   "emptyBody": "Nichts ist gesperrt. Sperren Sie einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung auf deren Seite oder mit Etwas sperren.",
+   "columns": {
+    "createdUtc": "Gesperrt",
+    "status": "Status",
+    "targetKind": "Art",
+    "target": "Ziel",
+    "reason": "Grund",
+    "createdBy": "Gesperrt von",
+    "cancelledRunCount": "Abgebrochene Läufe",
+    "liftedUtc": "Aufgehoben",
+    "liftedBy": "Aufgehoben von",
+    "liftReason": "Grund für die Aufhebung",
+    "targetId": "Ziel-ID",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_one": "{{count}} Sperre ist aktiv",
+    "freezes_other": "{{count}} Sperren sind aktiv"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "Sperren: Bremsen für Agenten, Bereitstellungen, Wächter und Apps, aktive zuerst, mit Sperren und Aufheben."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "Sperren, die neue Läufe eines Agenten, einer Bereitstellung, eines Wächters oder einer Anwendung stoppen, sowie der Autonomie-Notschalter."
+   },
+   "auditEventType": {
+    "FreezeApplied": "Jemand hat einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung gesperrt.",
+    "FreezeLifted": "Jemand hat eine Sperre aufgehoben.",
+    "KillSwitchChanged": "Jemand hat den Autonomie-Notschalter ein- oder ausgeschaltet."
+   },
+   "notificationEvent": {
+    "FreezeApplied": "Jemand hat einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung gesperrt oder den Notschalter eingeschaltet.",
+    "MandateCapReached": "Ein Wächter hat seine tägliche Ausgabengrenze erreicht und wacht bis zum nächsten UTC-Tag nicht mehr auf."
+   },
+   "freezeTargetKind": {
+    "Agent": "Alle Bereitstellungen des Agenten: Neue Läufe werden abgelehnt, und seine Wächter wachen nicht mehr auf.",
+    "Deployment": "Eine Bereitstellung: Neue Läufe werden abgelehnt, und Wächter, die darauf laufen, wachen nicht mehr auf.",
+    "Mandate": "Ein Wächter: Er wacht nicht mehr auf, bis die Sperre aufgehoben ist.",
+    "App": "Eine Anwendung: Neue Unterhaltungen und Nachrichten in ihrem Chat werden abgelehnt.",
+    "OrgUnit": "Eine Organisationseinheit. Erst verfügbar, wenn es Organisationen gibt.",
+    "Organization": "Eine ganze Organisation. Erst verfügbar, wenn es Organisationen gibt.",
+    "TenantAutonomy": "Der Notschalter: Im ganzen Mandanten starten keine Wächter-Ticks."
+   }
+  },
+  "freezes": {
+   "denied": "Sie dürfen das nicht. Dafür ist {{operation}} auf Sperre nötig.",
+   "openTarget": "Die Seite dessen öffnen, was diese Sperre stoppt.",
+   "status": {
+    "active": "In Kraft: Neue Läufe im Geltungsbereich werden abgelehnt.",
+    "lifted": "Jemand hat sie aufgehoben; Läufe werden wieder angenommen."
+   },
+   "actions": {
+    "freeze": "Sperren: Neue Läufe werden abgelehnt, und betroffene Wächter wachen nicht mehr auf, bis die Sperre aufgehoben ist. Sie bestätigen zuerst.",
+    "freezeAny": "Einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung auswählen und sperren. Sie bestätigen zuerst.",
+    "lift": "Die Sperre aufheben, damit neue Läufe wieder angenommen werden. Sie bestätigen zuerst."
+   },
+   "fields": {
+    "targetKind": "Einen Agenten (mit allen Bereitstellungen), eine Bereitstellung, einen Wächter oder eine Anwendung sperren.",
+    "target": "Der zu sperrende Datensatz.",
+    "reason": "Optional. Erscheint im Sperrhinweis und im Auditprotokoll.",
+    "liftReason": "Optional. Wird mit der Sperre und im Auditprotokoll gespeichert.",
+    "cancelActiveRuns": "Auch die bereits wartenden oder laufenden Läufe im Geltungsbereich abbrechen. Ohne diese Option laufen sie zu Ende."
+   },
+   "filters": {
+    "active": "Nur aktive oder nur aufgehobene Sperren anzeigen. Wählen Sie Alle, um beide anzuzeigen.",
+    "targetKind": "Nur Sperren dieser Art anzeigen. Wählen Sie Alle, um den Filter zu entfernen."
+   },
+   "killSwitch": {
+    "title": "Ein Schalter, der alle Wächter in diesem Mandanten anhält. Normale Aufrufe funktionieren weiter.",
+    "on": "Ein: Es starten keine Wächter-Ticks, und Wächter-Läufe werden abgelehnt.",
+    "off": "Aus: Wächter wachen nach ihrem Zeitplan auf.",
+    "turnOn": "Alle Wächter in diesem Mandanten anhalten. Sie bestätigen zuerst.",
+    "turnOff": "Wächter wieder aufwachen lassen. Sie bestätigen zuerst."
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "Wann gesperrt wurde. Für die genaue Zeit mit der Maus darüberfahren.",
+    "status": "Aktiv, solange die Sperre gilt; danach Aufgehoben.",
+    "targetKind": "Welche Art von Datensatz gesperrt ist.",
+    "target": "Der gesperrte Agent, die Bereitstellung, der Wächter oder die Anwendung.",
+    "reason": "Warum gesperrt wurde. Für den vollen Text mit der Maus darüberfahren.",
+    "createdBy": "Wer gesperrt hat.",
+    "cancelledRunCount": "Wie viele aktive Läufe die Sperre abgebrochen hat, wenn das gewünscht war.",
+    "liftedUtc": "Wann die Sperre aufgehoben wurde.",
+    "liftedBy": "Wer sie aufgehoben hat.",
+    "liftReason": "Warum sie aufgehoben wurde.",
+    "targetId": "Die ID des gesperrten Datensatzes.",
+    "id": "Die ID der Sperre (mfz_...), für die API und die MCP-Werkzeuge."
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "Die Liste der aktiven Sperren öffnen."
+    }
+   }
+  },
+  "filters": {
+   "active": "Nur aktive oder nur inaktive Datensätze anzeigen. Wählen Sie Alle, um beide anzuzeigen."
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "Sperren",
+   "p1": "Eine Sperre ist eine Bremse. Solange sie aktiv ist, lehnt Garrison neue Läufe des gesperrten Agenten, der gesperrten Bereitstellung, des gesperrten Wächters oder der gesperrten Anwendung mit 409 Frozen ab, und betroffene Wächter wachen nicht mehr auf. Bereits aktive Läufe laufen zu Ende, außer die Sperre bricht sie ebenfalls ab.",
+   "p2": "Sperren Sie auf der Seite eines Agenten, einer Bereitstellung, eines Wächters oder einer Anwendung oder hier mit Etwas sperren. Nach dem Aufheben werden Läufe wieder angenommen; ein gesperrter Wächter wird aktiv, und sein nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
+   "p3": "Der Autonomie-Notschalter in den Einstellungen und auf der Startseite hält alle Wächter-Ticks im Mandanten auf einmal an. Er erscheint hier als Sperre der Art Notschalter."
+  }
+ }
+});

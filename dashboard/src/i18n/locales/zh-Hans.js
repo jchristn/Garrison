@@ -5901,3 +5901,245 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "冻结",
+    "tip": "对智能体、部署、守护者和应用的制动，以及自主运行的紧急停止开关"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "冻结"
+  },
+  "auditEventType": {
+   "FreezeApplied": "已施加冻结",
+   "FreezeLifted": "已解除冻结",
+   "KillSwitchChanged": "紧急停止开关已更改"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "已施加冻结",
+   "MandateCapReached": "守护者达到支出上限"
+  },
+  "freezeTargetKind": {
+   "Agent": "智能体",
+   "Deployment": "部署",
+   "Mandate": "守护者",
+   "App": "应用",
+   "OrgUnit": "组织单元",
+   "Organization": "组织",
+   "TenantAutonomy": "紧急停止开关"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "已被冻结：在解除冻结之前，新的运行都会被拒绝。",
+  "AlreadyFrozen": "已经被冻结。请先解除那个冻结，或保持不变。",
+  "FreezeLifted": "已有人解除了这个冻结。",
+  "KillSwitch": "自主运行的紧急停止开关已打开，因此守护者的运行会被拒绝。",
+  "MandateBudgetExceeded": "这个守护者已用完本次巡检或今天的预算。",
+  "OrganizationsUnavailable": "组织冻结将随组织功能一起提供。请改为冻结智能体、部署、守护者或应用。"
+ },
+ "freezes": {
+  "killSwitchTarget": "自主运行的紧急停止开关",
+  "freezeTitle": "要冻结吗？",
+  "freezeMessage": "要冻结 {{target}} 吗？在解除冻结之前，新的运行都会被拒绝，范围内的守护者也不再唤醒。",
+  "freezePickMessage": "选择要冻结的对象。在解除冻结之前，新的运行都会被拒绝，范围内的守护者也不再唤醒。",
+  "pickTarget": "请选择...",
+  "reasonPlaceholder": "原因是什么？看到这个冻结的人会读到这段文字。",
+  "liftTitle": "要解除这个冻结吗？",
+  "liftMessage": "要解除 {{target}} 的冻结吗？新的运行会重新被接受。",
+  "liftKeeperMessage": "要解除 {{target}} 的冻结吗？守护者会重新启用，下一次唤醒会分散在一个短时间窗口内。",
+  "bannerOwn": "已冻结：在解除冻结之前，新的运行都会被拒绝。",
+  "bannerTarget": "{{target}} 已被冻结：它的新运行会被拒绝。",
+  "bannerKillSwitch": "自主运行的紧急停止开关已打开：此租户中不会开始任何守护者巡检。",
+  "bannerBy": "由 {{who}} 于 {{when}} 冻结。",
+  "bannerReason": "原因：{{reason}}",
+  "openTarget": "打开",
+  "status": {
+   "active": "生效中",
+   "lifted": "已解除"
+  },
+  "fields": {
+   "targetKind": "冻结对象类型",
+   "target": "对象",
+   "reason": "原因（可选）",
+   "liftReason": "解除原因（可选）",
+   "cancelActiveRuns": "同时取消已在进行的运行"
+  },
+  "actions": {
+   "freeze": "冻结",
+   "freezeAny": "选择对象并冻结",
+   "lift": "解除冻结",
+   "openTarget": "打开被冻结的对象"
+  },
+  "errors": {
+   "reasonMax": "原因最多 {{max}} 个字符。",
+   "target": "请选择要冻结的对象。"
+  },
+  "toasts": {
+   "frozen": "{{target}} 已被冻结。",
+   "frozenCancelled_other": "{{target}} 已被冻结，并取消了 {{count}} 个进行中的运行。",
+   "lifted": "{{target}} 的冻结已解除。"
+  },
+  "killSwitch": {
+   "title": "自主运行紧急停止开关",
+   "on": "开",
+   "off": "关",
+   "turnOn": "打开",
+   "turnOff": "关闭",
+   "help": "紧急停止开关打开期间，不会开始任何守护者巡检，守护者的运行也会被拒绝。由人员和 API 凭据发起的调用照常工作。",
+   "changedBy": "由 {{who}} 于 {{when}} 打开。",
+   "onTitle": "要打开紧急停止开关吗？",
+   "onMessage": "在关闭开关之前，此租户中的所有守护者都不再唤醒，守护者的运行也会被拒绝。已在进行的巡检会完成。",
+   "offTitle": "要关闭紧急停止开关吗？",
+   "offMessage": "守护者会重新开始唤醒，下一次唤醒会分散在一个短时间窗口内。",
+   "toasts": {
+    "on": "紧急停止开关已打开。不会开始任何守护者巡检。",
+    "off": "紧急停止开关已关闭。守护者会重新唤醒。"
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "冻结",
+   "subtitle": "在有人解除之前，拒绝智能体、部署、守护者或应用新运行的制动。紧急停止开关也显示在这里。",
+   "add": "添加冻结",
+   "create": "创建冻结",
+   "edit": "编辑冻结",
+   "view": "冻结详情",
+   "deleteTitle": "删除冻结",
+   "emptyTitle": "没有冻结",
+   "emptyBody": "当前没有任何冻结。可以在智能体、部署、守护者或应用的页面上冻结，或使用“选择对象并冻结”。",
+   "columns": {
+    "createdUtc": "冻结时间",
+    "status": "状态",
+    "targetKind": "类型",
+    "target": "对象",
+    "reason": "原因",
+    "createdBy": "冻结人",
+    "cancelledRunCount": "已取消的运行",
+    "liftedUtc": "解除时间",
+    "liftedBy": "解除人",
+    "liftReason": "解除原因",
+    "targetId": "对象 ID",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_other": "{{count}} 个冻结生效中"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "冻结：对智能体、部署、守护者和应用的制动，生效中的排在前面，可冻结和解除。"
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "阻止智能体、部署、守护者或应用新运行的冻结，以及自主运行的紧急停止开关。"
+   },
+   "auditEventType": {
+    "FreezeApplied": "有人冻结了智能体、部署、守护者或应用。",
+    "FreezeLifted": "有人解除了一个冻结。",
+    "KillSwitchChanged": "有人打开或关闭了自主运行的紧急停止开关。"
+   },
+   "notificationEvent": {
+    "FreezeApplied": "有人冻结了智能体、部署、守护者或应用，或打开了紧急停止开关。",
+    "MandateCapReached": "某个守护者达到每日支出上限，在下一个 UTC 日之前不再唤醒。"
+   },
+   "freezeTargetKind": {
+    "Agent": "智能体的所有部署：新的运行会被拒绝，它的守护者不再唤醒。",
+    "Deployment": "一个部署：新的运行会被拒绝，在其上运行的守护者不再唤醒。",
+    "Mandate": "一个守护者：在解除冻结之前不再唤醒。",
+    "App": "一个应用：其聊天中的新对话和新消息会被拒绝。",
+    "OrgUnit": "一个组织单元。组织功能推出之前不可用。",
+    "Organization": "整个组织。组织功能推出之前不可用。",
+    "TenantAutonomy": "紧急停止开关：整个租户中不会开始任何守护者巡检。"
+   }
+  },
+  "freezes": {
+   "denied": "你无权执行此操作。需要对冻结拥有 {{operation}} 权限。",
+   "openTarget": "打开这个冻结所阻止对象的页面。",
+   "status": {
+    "active": "生效中：范围内新的运行会被拒绝。",
+    "lifted": "已有人解除；运行会重新被接受。"
+   },
+   "actions": {
+    "freeze": "冻结：在解除之前，新的运行都会被拒绝，范围内的守护者不再唤醒。需要先确认。",
+    "freezeAny": "选择一个智能体、部署、守护者或应用并冻结它。需要先确认。",
+    "lift": "解除冻结，让新的运行重新被接受。需要先确认。"
+   },
+   "fields": {
+    "targetKind": "冻结一个智能体（及其所有部署）、一个部署、一个守护者或一个应用。",
+    "target": "要冻结的记录。",
+    "reason": "可选。显示在冻结横幅和审计日志中。",
+    "liftReason": "可选。与冻结一起记录，并写入审计日志。",
+    "cancelActiveRuns": "同时取消范围内已在排队或正在进行的运行。不选的话，它们会运行完毕。"
+   },
+   "filters": {
+    "active": "只显示生效中的冻结或只显示已解除的冻结。选择“全部”可同时显示。",
+    "targetKind": "只显示此类型的冻结。选择“全部”可移除筛选。"
+   },
+   "killSwitch": {
+    "title": "一个能停止此租户中所有守护者的开关。普通调用照常工作。",
+    "on": "开：不会开始任何守护者巡检，守护者的运行会被拒绝。",
+    "off": "关：守护者按计划唤醒。",
+    "turnOn": "停止此租户中的所有守护者。需要先确认。",
+    "turnOff": "让守护者重新唤醒。需要先确认。"
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "冻结的时间。将指针悬停可查看确切时间。",
+    "status": "冻结生效期间为“生效中”，之后为“已解除”。",
+    "targetKind": "被冻结记录的类型。",
+    "target": "被冻结的智能体、部署、守护者或应用。",
+    "reason": "冻结的原因。将指针悬停可查看全文。",
+    "createdBy": "执行冻结的人。",
+    "cancelledRunCount": "在要求取消时，冻结取消的进行中运行数量。",
+    "liftedUtc": "解除冻结的时间。",
+    "liftedBy": "解除冻结的人。",
+    "liftReason": "解除冻结的原因。",
+    "targetId": "被冻结记录的 ID。",
+    "id": "冻结的 ID（mfz_...），用于 API 和 MCP 工具。"
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "打开生效中的冻结列表。"
+    }
+   }
+  },
+  "filters": {
+   "active": "只显示启用的记录或只显示停用的记录。选择“全部”可同时显示。"
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "冻结",
+   "p1": "冻结是一种制动。生效期间，Garrison 会以 409 Frozen 拒绝被冻结的智能体、部署、守护者或应用的新运行，范围内的守护者也不再唤醒。已在进行的运行会完成，除非冻结同时取消了它们。",
+   "p2": "可以在智能体、部署、守护者或应用的页面上冻结，也可以在这里使用“选择对象并冻结”。解除冻结后，运行会重新被接受；被冻结的守护者会重新启用，下一次唤醒会分散在一个短时间窗口内。",
+   "p3": "设置和主页上的自主运行紧急停止开关会一次性停止租户中所有守护者的巡检。它在这里显示为类型为“紧急停止开关”的冻结。"
+  }
+ }
+});

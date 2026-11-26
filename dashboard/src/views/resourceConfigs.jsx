@@ -62,6 +62,9 @@ import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../ut
 import { EGRESS_PROTOCOLS, egressErrors, egressRulesToBody, egressRulesToForm, hasEgressRules } from '../utils/egressRules';
 import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
 import { jsonToText, textToJson } from '../utils/jsonFields';
+import FrozenListBanner from '../components/FrozenListBanner';
+import { FREEZES_CHANGED_EVENT } from '../utils/freezes';
+import { freezeLookups, freezeRowActions } from './freezeConfigs';
 
 // Pipeline definitions (P12.9) live in their own module; re-exported so configuration-wide tests cover them.
 export { pipelinesConfig } from './pipelineConfigs';
@@ -70,6 +73,7 @@ export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
 // AA1.16: keepers (mandates) under Autonomy.
 export { keepersConfig } from './keeperConfigs';
 export { escalationsConfig } from './escalationConfigs';
+export { freezesConfig } from './freezeConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';
@@ -1415,16 +1419,21 @@ export const deploymentsConfig = {
     return { agents, profiles: profiles.filter((p) => isConnection(p) && p.active !== false), templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant, environments };
   },
   // Names for the Agent and Harness profile columns (M1-20), the environment filter, and pinned revision numbers (AD1.9).
-  loadLookups: async ({ apiClient, tenantId }) => {
-    const [agents, profiles, tenant, environments, revisions] = await Promise.all([
+  // AA3.8: also the active freezes and the caller's permissions, for Freeze and Lift in the row menu.
+  loadLookups: async ({ apiClient, tenantId, principal }) => {
+    const [agents, profiles, tenant, environments, revisions, brakes] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
       loadTenant(apiClient, tenantId),
       loadEnvironments(apiClient, tenantId),
-      loadPinnedRevisions(apiClient, tenantId)
+      loadPinnedRevisions(apiClient, tenantId),
+      freezeLookups(apiClient, tenantId, principal)
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profileModels: Object.fromEntries(profiles.map((p) => [p.id, p.runtimeConfiguration?.model])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant, environments, revisionNumbers: revisionNumbers(revisions) };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profileModels: Object.fromEntries(profiles.map((p) => [p.id, p.runtimeConfiguration?.model])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant, environments, revisionNumbers: revisionNumbers(revisions), ...brakes };
   },
+  lookupsEvents: [FREEZES_CHANGED_EVENT],
+  // AA3.8: the frozen deployments, with Lift.
+  intro: () => <FrozenListBanner targetKind="Deployment" />,
   // The environment filter (AD1.9) runs on the loaded page: the deployments list has no environment query.
   filters: [
     {
@@ -1747,7 +1756,8 @@ export const deploymentsConfig = {
     { label: ctx.t('resources.deployments.actions.test'), tip: actionTip(ctx.t, 'deployments', 'test'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, deploymentId: r.id })) },
     // AD1.9: promote this deployment's agent out of its environment, and the agent's promotion history.
     { label: ctx.t('resources.deployments.actions.promote'), tip: actionTip(ctx.t, 'deployments', 'promote'), onClick: () => ctx.setExtraModal(promoteModal(ctx, { agentId: r.agentId, sourceEnvironment: environmentOf(r) })) },
-    { label: ctx.t('resources.deployments.actions.promotions'), tip: actionTip(ctx.t, 'deployments', 'promotions'), onClick: () => ctx.setExtraModal(historyModal(ctx, r.agentId)) }
+    { label: ctx.t('resources.deployments.actions.promotions'), tip: actionTip(ctx.t, 'deployments', 'promotions'), onClick: () => ctx.setExtraModal(historyModal(ctx, r.agentId)) },
+    ...freezeRowActions('Deployment', r, ctx)
   ],
   headerActions: (ctx) => (
     <>

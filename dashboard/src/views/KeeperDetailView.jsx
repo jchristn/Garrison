@@ -26,6 +26,11 @@ import { enumTip } from '../utils/tips';
 import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { canPause, canResume, canWake, formatInterval, outcomeCounts, previousRevision, revisionText, tickSeries } from '../utils/keepers';
 import { tip } from '../components/Tooltip';
+import FreezeAction from '../components/FreezeAction';
+import FrozenBanner from '../components/FrozenBanner';
+import useActiveFreezes from '../hooks/useActiveFreezes';
+import useCallerPermissions from '../hooks/useCallerPermissions';
+import { FREEZES_CHANGED_EVENT, freezeOn, freezesFor } from '../utils/freezes';
 
 const TICK_PAGE_SIZE = 25;
 
@@ -206,6 +211,15 @@ export default function KeeperDetailView({ recordId }) {
   }, [loadMandate, loadTicks]);
   const live = useMandateChannel(apiClient, mandate?.id, onEvent);
 
+  // Brakes (AA3.8): freezes on this keeper, its agent, or its deployment, and the kill switch. Freezing or lifting
+  // changes the keeper's status, so the keeper is re-read too.
+  const activeFreezes = useActiveFreezes();
+  const permissions = useCallerPermissions();
+  useEffect(() => {
+    window.addEventListener(FREEZES_CHANGED_EVENT, loadMandate);
+    return () => window.removeEventListener(FREEZES_CHANGED_EVENT, loadMandate);
+  }, [loadMandate]);
+
   // Without the live channel, re-read the keeper and its ticks while it is scheduled or ticking.
   const scheduled = mandate?.status === 'Active' || !!mandate?.activeRunId;
   useEffect(() => {
@@ -290,6 +304,15 @@ export default function KeeperDetailView({ recordId }) {
   const counts = outcomeCounts(ticks.items, ENUMS.tickOutcome);
   const usd = (v) => (v === null || v === undefined ? '-' : formatCurrency(v, lng, 'USD'));
   const diffPrev = diffOf ? previousRevision(revisions, diffOf) : null;
+  const stopping = freezesFor(
+    activeFreezes.freezes,
+    [
+      { kind: 'Mandate', id: m.id },
+      { kind: 'Agent', id: m.agentId },
+      { kind: 'Deployment', id: m.deploymentId }
+    ],
+    { killSwitch: true }
+  );
 
   return (
     <div data-testid="keeper-detail">
@@ -332,12 +355,15 @@ export default function KeeperDetailView({ recordId }) {
                 <WakeIcon size={14} /> {t('resources.keepers.actions.wake')}
               </button>
             )}
+            <FreezeAction targetKind="Mandate" targetId={m.id} targetName={m.name} active={activeFreezes} permissions={permissions} />
             <button type="button" className="button-danger" disabled={busy} onClick={() => setConfirm('delete')} data-testid="keeper-delete" {...tip(t('tips.views.keeperDetail.delete'))}>
               <TrashIcon size={14} /> {t('common.actions.delete')}
             </button>
           </>
         }
       />
+
+      <FrozenBanner freezes={stopping} permissions={permissions} own={freezeOn(activeFreezes.freezes, 'Mandate', m.id)} />
 
       <Explainer topic="keepers" />
 

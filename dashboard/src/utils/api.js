@@ -1189,6 +1189,44 @@ class ApiClient {
     return Math.max(0, (page.totalCount ?? 0) - passedUp);
   }
 
+  // ------------------------------------------------------------------ freezes and the kill switch (AA3)
+
+  /**
+   * Freezes, active first and then newest first. filters: targetKind (Agent, Deployment, Mandate, App, TenantAutonomy),
+   * targetId, active (true or false), pageNumber, pageSize.
+   */
+  listFreezes(tenantId, params) {
+    return this._list(this._t(tenantId, 'freezes'), params);
+  }
+
+  /** Read a freeze. */
+  getFreeze(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `freezes/${enc(id)}`));
+  }
+
+  /**
+   * Freeze an agent, deployment, keeper (Mandate), or app. body: { targetKind, targetId (ID or name), reason?,
+   * cancelActiveRuns? }. Answers 201 with the freeze; throws 409 AlreadyFrozen when an active freeze covers the target.
+   */
+  applyFreeze(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'freezes'), { body });
+  }
+
+  /** Lift an active freeze. body: { reason? }. Throws 409 FreezeLifted when it was already lifted. */
+  liftFreeze(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `freezes/${enc(id)}/lift`), { body: body || {} });
+  }
+
+  /** The tenant's autonomy kill switch: { enabled, freezeId, reason, changedByName, changedUtc }. */
+  getKillSwitch(tenantId) {
+    return this._request('GET', this._t(tenantId, 'autonomy/kill-switch'));
+  }
+
+  /** Turn the autonomy kill switch on or off. body: { enabled, reason? }. While it is on, no keeper ticks start. */
+  setKillSwitch(tenantId, body) {
+    return this._request('PUT', this._t(tenantId, 'autonomy/kill-switch'), { body });
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

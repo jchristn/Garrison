@@ -5900,3 +5900,245 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "凍結",
+    "tip": "エージェント、デプロイメント、キーパー、アプリへのブレーキと、自律運用の緊急停止スイッチ"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "凍結"
+  },
+  "auditEventType": {
+   "FreezeApplied": "凍結を適用",
+   "FreezeLifted": "凍結を解除",
+   "KillSwitchChanged": "緊急停止スイッチを変更"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "凍結を適用",
+   "MandateCapReached": "キーパーの支出上限に到達"
+  },
+  "freezeTargetKind": {
+   "Agent": "エージェント",
+   "Deployment": "デプロイメント",
+   "Mandate": "キーパー",
+   "App": "アプリ",
+   "OrgUnit": "組織単位",
+   "Organization": "組織",
+   "TenantAutonomy": "緊急停止スイッチ"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "凍結されています。凍結が解除されるまで新しい実行は拒否されます。",
+  "AlreadyFrozen": "すでに凍結されています。先にその凍結を解除するか、そのままにしてください。",
+  "FreezeLifted": "この凍結はすでに解除されています。",
+  "KillSwitch": "自律運用の緊急停止スイッチがオンのため、キーパーの実行は拒否されます。",
+  "MandateBudgetExceeded": "このキーパーはこのティックまたは今日の予算を使い切りました。",
+  "OrganizationsUnavailable": "組織の凍結は組織機能とともに提供されます。代わりにエージェント、デプロイメント、キーパー、アプリを凍結してください。"
+ },
+ "freezes": {
+  "killSwitchTarget": "自律運用の緊急停止スイッチ",
+  "freezeTitle": "凍結しますか?",
+  "freezeMessage": "{{target}} を凍結しますか? 凍結が解除されるまで新しい実行は拒否され、対象のキーパーは起動しなくなります。",
+  "freezePickMessage": "凍結する対象を選んでください。凍結が解除されるまで新しい実行は拒否され、対象のキーパーは起動しなくなります。",
+  "pickTarget": "選択...",
+  "reasonPlaceholder": "理由は? 凍結を見た人がこの文章を読みます。",
+  "liftTitle": "この凍結を解除しますか?",
+  "liftMessage": "{{target}} の凍結を解除しますか? 新しい実行が再び受け付けられます。",
+  "liftKeeperMessage": "{{target}} の凍結を解除しますか? キーパーは再び有効になり、次の起動は短い時間幅に分散されます。",
+  "bannerOwn": "凍結中: 凍結が解除されるまで新しい実行は拒否されます。",
+  "bannerTarget": "{{target}} は凍結中です。新しい実行は拒否されます。",
+  "bannerKillSwitch": "自律運用の緊急停止スイッチがオンです。このテナントではキーパーのティックは開始されません。",
+  "bannerBy": "{{who}} が {{when}} に凍結。",
+  "bannerReason": "理由: {{reason}}",
+  "openTarget": "開く",
+  "status": {
+   "active": "有効",
+   "lifted": "解除済み"
+  },
+  "fields": {
+   "targetKind": "凍結する対象の種類",
+   "target": "対象",
+   "reason": "理由 (任意)",
+   "liftReason": "解除の理由 (任意)",
+   "cancelActiveRuns": "すでに実行中の実行もキャンセルする"
+  },
+  "actions": {
+   "freeze": "凍結",
+   "freezeAny": "対象を選んで凍結",
+   "lift": "凍結を解除",
+   "openTarget": "凍結対象を開く"
+  },
+  "errors": {
+   "reasonMax": "理由は {{max}} 文字以内です。",
+   "target": "凍結する対象を選んでください。"
+  },
+  "toasts": {
+   "frozen": "{{target}} を凍結しました。",
+   "frozenCancelled_other": "{{target}} を凍結し、実行中の実行を {{count}} 件キャンセルしました。",
+   "lifted": "{{target}} の凍結を解除しました。"
+  },
+  "killSwitch": {
+   "title": "自律運用の緊急停止スイッチ",
+   "on": "オン",
+   "off": "オフ",
+   "turnOn": "オンにする",
+   "turnOff": "オフにする",
+   "help": "緊急停止スイッチがオンの間、キーパーのティックは開始されず、キーパーの実行は拒否されます。人や API 資格情報による呼び出しは引き続き動作します。",
+   "changedBy": "{{who}} が {{when}} にオンにしました。",
+   "onTitle": "緊急停止スイッチをオンにしますか?",
+   "onMessage": "スイッチをオフにするまで、このテナントのすべてのキーパーは起動せず、キーパーの実行は拒否されます。実行中のティックは最後まで進みます。",
+   "offTitle": "緊急停止スイッチをオフにしますか?",
+   "offMessage": "キーパーが再び起動するようになり、次の起動は短い時間幅に分散されます。",
+   "toasts": {
+    "on": "緊急停止スイッチがオンです。キーパーのティックは開始されません。",
+    "off": "緊急停止スイッチがオフです。キーパーが再び起動します。"
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "凍結",
+   "subtitle": "誰かが解除するまで、エージェント、デプロイメント、キーパー、アプリの新しい実行を拒否するブレーキです。緊急停止スイッチもここに表示されます。",
+   "add": "凍結を追加",
+   "create": "凍結を作成",
+   "edit": "凍結を編集",
+   "view": "凍結の詳細",
+   "deleteTitle": "凍結を削除",
+   "emptyTitle": "凍結はありません",
+   "emptyBody": "凍結されているものはありません。エージェント、デプロイメント、キーパー、アプリのページか、「対象を選んで凍結」から凍結できます。",
+   "columns": {
+    "createdUtc": "凍結日時",
+    "status": "状態",
+    "targetKind": "種類",
+    "target": "対象",
+    "reason": "理由",
+    "createdBy": "凍結した人",
+    "cancelledRunCount": "キャンセルした実行",
+    "liftedUtc": "解除日時",
+    "liftedBy": "解除した人",
+    "liftReason": "解除の理由",
+    "targetId": "対象 ID",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_other": "有効な凍結 {{count}} 件"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "凍結: エージェント、デプロイメント、キーパー、アプリへのブレーキ。有効なものが先頭で、凍結と解除ができます。"
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "エージェント、デプロイメント、キーパー、アプリの新しい実行を止める凍結と、自律運用の緊急停止スイッチ。"
+   },
+   "auditEventType": {
+    "FreezeApplied": "誰かがエージェント、デプロイメント、キーパー、アプリを凍結しました。",
+    "FreezeLifted": "誰かが凍結を解除しました。",
+    "KillSwitchChanged": "誰かが自律運用の緊急停止スイッチをオンまたはオフにしました。"
+   },
+   "notificationEvent": {
+    "FreezeApplied": "誰かがエージェント、デプロイメント、キーパー、アプリを凍結したか、緊急停止スイッチをオンにしました。",
+    "MandateCapReached": "キーパーが 1 日の支出上限に達し、次の UTC の日まで起動しません。"
+   },
+   "freezeTargetKind": {
+    "Agent": "エージェントのすべてのデプロイメント: 新しい実行は拒否され、そのキーパーは起動しなくなります。",
+    "Deployment": "1 つのデプロイメント: 新しい実行は拒否され、そこで動くキーパーは起動しなくなります。",
+    "Mandate": "1 つのキーパー: 凍結が解除されるまで起動しません。",
+    "App": "1 つのアプリ: そのチャットでの新しい会話とメッセージは拒否されます。",
+    "OrgUnit": "組織単位。組織機能が提供されるまで使えません。",
+    "Organization": "組織全体。組織機能が提供されるまで使えません。",
+    "TenantAutonomy": "緊急停止スイッチ: テナント全体でキーパーのティックが開始されません。"
+   }
+  },
+  "freezes": {
+   "denied": "この操作は許可されていません。凍結に対する {{operation}} が必要です。",
+   "openTarget": "この凍結が止めている対象のページを開きます。",
+   "status": {
+    "active": "有効: 範囲内の新しい実行は拒否されます。",
+    "lifted": "解除済み: 実行は再び受け付けられます。"
+   },
+   "actions": {
+    "freeze": "凍結します。解除されるまで新しい実行は拒否され、対象のキーパーは起動しなくなります。先に確認があります。",
+    "freezeAny": "エージェント、デプロイメント、キーパー、アプリを選んで凍結します。先に確認があります。",
+    "lift": "凍結を解除し、新しい実行を再び受け付けます。先に確認があります。"
+   },
+   "fields": {
+    "targetKind": "エージェント (すべてのデプロイメント)、1 つのデプロイメント、1 つのキーパー、1 つのアプリを凍結します。",
+    "target": "凍結するレコード。",
+    "reason": "任意。凍結のバナーと監査ログに表示されます。",
+    "liftReason": "任意。凍結と監査ログに記録されます。",
+    "cancelActiveRuns": "範囲内ですでにキュー待ちまたは実行中の実行もキャンセルします。選ばない場合は最後まで実行されます。"
+   },
+   "filters": {
+    "active": "有効な凍結だけ、または解除済みの凍結だけを表示します。両方を表示するには「すべて」を選びます。",
+    "targetKind": "この種類の凍結だけを表示します。フィルターを外すには「すべて」を選びます。"
+   },
+   "killSwitch": {
+    "title": "このテナントのすべてのキーパーを止めるスイッチ。通常の呼び出しは引き続き動作します。",
+    "on": "オン: キーパーのティックは開始されず、キーパーの実行は拒否されます。",
+    "off": "オフ: キーパーはスケジュールどおりに起動します。",
+    "turnOn": "このテナントのすべてのキーパーを止めます。先に確認があります。",
+    "turnOff": "キーパーが再び起動できるようにします。先に確認があります。"
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "凍結した日時。正確な時刻はポインターを重ねると表示されます。",
+    "status": "凍結が有効な間は「有効」、その後は「解除済み」。",
+    "targetKind": "凍結されたレコードの種類。",
+    "target": "凍結されたエージェント、デプロイメント、キーパー、アプリ。",
+    "reason": "凍結の理由。全文はポインターを重ねると表示されます。",
+    "createdBy": "凍結した人。",
+    "cancelledRunCount": "求められた場合に、凍結がキャンセルした実行中の実行の数。",
+    "liftedUtc": "凍結を解除した日時。",
+    "liftedBy": "解除した人。",
+    "liftReason": "解除の理由。",
+    "targetId": "凍結されたレコードの ID。",
+    "id": "凍結の ID (mfz_...)。API と MCP ツールで使います。"
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "有効な凍結の一覧を開きます。"
+    }
+   }
+  },
+  "filters": {
+   "active": "有効なレコードだけ、または無効なレコードだけを表示します。両方を表示するには「すべて」を選びます。"
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "凍結",
+   "p1": "凍結はブレーキです。有効な間、Garrison は凍結されたエージェント、デプロイメント、キーパー、アプリの新しい実行を 409 Frozen で拒否し、対象のキーパーは起動しなくなります。すでに実行中の実行は、凍結でキャンセルしない限り最後まで進みます。",
+   "p2": "エージェント、デプロイメント、キーパー、アプリのページか、ここの「対象を選んで凍結」から凍結します。凍結を解除すると実行は再び受け付けられ、凍結されていたキーパーは有効に戻り、次の起動は短い時間幅に分散されます。",
+   "p3": "設定とホームにある自律運用の緊急停止スイッチは、テナントのすべてのキーパーのティックを一度に止めます。ここでは種類が「緊急停止スイッチ」の凍結として表示されます。"
+  }
+ }
+});

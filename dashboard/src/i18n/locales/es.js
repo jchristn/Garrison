@@ -5962,3 +5962,247 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "Congelaciones",
+    "tip": "Frenos para agentes, despliegues, guardianes y aplicaciones, y el interruptor de emergencia de la autonomía"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "Congelación"
+  },
+  "auditEventType": {
+   "FreezeApplied": "Congelación aplicada",
+   "FreezeLifted": "Congelación levantada",
+   "KillSwitchChanged": "Interruptor de emergencia cambiado"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "Congelación aplicada",
+   "MandateCapReached": "Límite de gasto del guardián alcanzado"
+  },
+  "freezeTargetKind": {
+   "Agent": "Agente",
+   "Deployment": "Despliegue",
+   "Mandate": "Guardián",
+   "App": "Aplicación",
+   "OrgUnit": "Unidad organizativa",
+   "Organization": "Organización",
+   "TenantAutonomy": "Interruptor de emergencia"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "Está congelado: las ejecuciones nuevas se rechazan hasta que se levante la congelación.",
+  "AlreadyFrozen": "Ya está congelado. Levante primero esa congelación o déjela como está.",
+  "FreezeLifted": "Alguien ya levantó esta congelación.",
+  "KillSwitch": "El interruptor de emergencia de la autonomía está activado, así que se rechazan las ejecuciones de guardianes.",
+  "MandateBudgetExceeded": "Este guardián ya gastó su presupuesto para este tick o para hoy.",
+  "OrganizationsUnavailable": "Las congelaciones de organizaciones llegarán con las organizaciones. Congele un agente, un despliegue, un guardián o una aplicación."
+ },
+ "freezes": {
+  "killSwitchTarget": "El interruptor de emergencia de la autonomía",
+  "freezeTitle": "¿Congelar?",
+  "freezeMessage": "¿Congelar {{target}}? Las ejecuciones nuevas se rechazan hasta que se levante la congelación, y los guardianes afectados dejan de despertar.",
+  "freezePickMessage": "Elija qué congelar. Las ejecuciones nuevas se rechazan hasta que se levante la congelación, y los guardianes afectados dejan de despertar.",
+  "pickTarget": "Elegir...",
+  "reasonPlaceholder": "¿Por qué? Quien vea la congelación leerá este texto.",
+  "liftTitle": "¿Levantar esta congelación?",
+  "liftMessage": "¿Levantar la congelación de {{target}}? Se vuelven a aceptar ejecuciones nuevas.",
+  "liftKeeperMessage": "¿Levantar la congelación de {{target}}? El guardián vuelve a estar activo y su próximo despertar se reparte en un intervalo breve.",
+  "bannerOwn": "Congelado: las ejecuciones nuevas se rechazan hasta que se levante la congelación.",
+  "bannerTarget": "{{target}} está congelado: sus ejecuciones nuevas se rechazan.",
+  "bannerKillSwitch": "El interruptor de emergencia de la autonomía está activado: no empieza ningún tick de guardián en este inquilino.",
+  "bannerBy": "Congelado por {{who}} {{when}}.",
+  "bannerReason": "Motivo: {{reason}}",
+  "openTarget": "Abrir",
+  "status": {
+   "active": "Activa",
+   "lifted": "Levantada"
+  },
+  "fields": {
+   "targetKind": "Qué congelar",
+   "target": "Objetivo",
+   "reason": "Motivo (opcional)",
+   "liftReason": "Motivo para levantarla (opcional)",
+   "cancelActiveRuns": "Cancelar también las ejecuciones ya activas"
+  },
+  "actions": {
+   "freeze": "Congelar",
+   "freezeAny": "Congelar algo",
+   "lift": "Levantar congelación",
+   "openTarget": "Abrir lo que congela"
+  },
+  "errors": {
+   "reasonMax": "El motivo admite como máximo {{max}} caracteres.",
+   "target": "Elija qué congelar."
+  },
+  "toasts": {
+   "frozen": "{{target}} está congelado.",
+   "frozenCancelled_one": "{{target}} está congelado y se canceló {{count}} ejecución activa.",
+   "frozenCancelled_other": "{{target}} está congelado y se cancelaron {{count}} ejecuciones activas.",
+   "lifted": "Se levantó la congelación de {{target}}."
+  },
+  "killSwitch": {
+   "title": "Interruptor de emergencia de la autonomía",
+   "on": "Activado",
+   "off": "Desactivado",
+   "turnOn": "Activar",
+   "turnOff": "Desactivar",
+   "help": "Mientras el interruptor está activado, no empieza ningún tick de guardián y se rechazan las ejecuciones de guardianes. Las invocaciones de personas y credenciales de API siguen funcionando.",
+   "changedBy": "Activado por {{who}} {{when}}.",
+   "onTitle": "¿Activar el interruptor de emergencia?",
+   "onMessage": "Todos los guardianes de este inquilino dejan de despertar y se rechazan sus ejecuciones hasta que se desactive el interruptor. Los ticks en curso terminan.",
+   "offTitle": "¿Desactivar el interruptor de emergencia?",
+   "offMessage": "Los guardianes vuelven a despertar, con sus próximos despertares repartidos en un intervalo breve.",
+   "toasts": {
+    "on": "El interruptor de emergencia está activado. No empieza ningún tick de guardián.",
+    "off": "El interruptor de emergencia está desactivado. Los guardianes vuelven a despertar."
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "Congelaciones",
+   "subtitle": "Frenos que rechazan las ejecuciones nuevas de un agente, despliegue, guardián o aplicación hasta que alguien los levanta. El interruptor de emergencia también aparece aquí.",
+   "add": "Añadir congelación",
+   "create": "Crear congelación",
+   "edit": "Editar congelación",
+   "view": "Detalles de la congelación",
+   "deleteTitle": "Eliminar congelación",
+   "emptyTitle": "No hay congelaciones",
+   "emptyBody": "No hay nada congelado. Congele un agente, despliegue, guardián o aplicación desde su página o con Congelar algo.",
+   "columns": {
+    "createdUtc": "Congelado",
+    "status": "Estado",
+    "targetKind": "Tipo",
+    "target": "Objetivo",
+    "reason": "Motivo",
+    "createdBy": "Congelado por",
+    "cancelledRunCount": "Ejecuciones canceladas",
+    "liftedUtc": "Levantada",
+    "liftedBy": "Levantada por",
+    "liftReason": "Motivo para levantarla",
+    "targetId": "ID del objetivo",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_one": "{{count}} congelación activa",
+    "freezes_other": "{{count}} congelaciones activas"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "Congelaciones: frenos para agentes, despliegues, guardianes y aplicaciones, primero las activas, con Congelar y Levantar."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "Congelaciones que detienen las ejecuciones nuevas de un agente, despliegue, guardián o aplicación, y el interruptor de emergencia de la autonomía."
+   },
+   "auditEventType": {
+    "FreezeApplied": "Alguien congeló un agente, despliegue, guardián o aplicación.",
+    "FreezeLifted": "Alguien levantó una congelación.",
+    "KillSwitchChanged": "Alguien activó o desactivó el interruptor de emergencia de la autonomía."
+   },
+   "notificationEvent": {
+    "FreezeApplied": "Alguien congeló un agente, despliegue, guardián o aplicación, o activó el interruptor de emergencia.",
+    "MandateCapReached": "Un guardián alcanzó su límite de gasto diario y deja de despertar hasta el siguiente día UTC."
+   },
+   "freezeTargetKind": {
+    "Agent": "Todos los despliegues del agente: se rechazan las ejecuciones nuevas y sus guardianes dejan de despertar.",
+    "Deployment": "Un despliegue: se rechazan las ejecuciones nuevas y los guardianes que se ejecutan en él dejan de despertar.",
+    "Mandate": "Un guardián: deja de despertar hasta que se levante la congelación.",
+    "App": "Una aplicación: se rechazan las conversaciones y los turnos nuevos de su chat.",
+    "OrgUnit": "Una unidad organizativa. No disponible hasta que lleguen las organizaciones.",
+    "Organization": "Una organización completa. No disponible hasta que lleguen las organizaciones.",
+    "TenantAutonomy": "El interruptor de emergencia: no empieza ningún tick de guardián en todo el inquilino."
+   }
+  },
+  "freezes": {
+   "denied": "No puede hacerlo. Hace falta {{operation}} sobre Congelación.",
+   "openTarget": "Abrir la página de lo que esta congelación detiene.",
+   "status": {
+    "active": "En vigor: se rechazan las ejecuciones nuevas en su alcance.",
+    "lifted": "Alguien la levantó; las ejecuciones se aceptan de nuevo."
+   },
+   "actions": {
+    "freeze": "Congelar: se rechazan las ejecuciones nuevas y los guardianes afectados dejan de despertar hasta que se levante. Primero confirma.",
+    "freezeAny": "Elegir un agente, despliegue, guardián o aplicación y congelarlo. Primero confirma.",
+    "lift": "Levantar la congelación para que se acepten de nuevo ejecuciones. Primero confirma."
+   },
+   "fields": {
+    "targetKind": "Congelar un agente (todos sus despliegues), un despliegue, un guardián o una aplicación.",
+    "target": "El registro que se congela.",
+    "reason": "Opcional. Se muestra en el aviso de congelación y en el registro de auditoría.",
+    "liftReason": "Opcional. Se guarda con la congelación y en el registro de auditoría.",
+    "cancelActiveRuns": "Cancelar también las ejecuciones del alcance que ya están en cola o en curso. Sin esta opción, terminan."
+   },
+   "filters": {
+    "active": "Mostrar solo las congelaciones activas o solo las levantadas. Elija Todas para ver ambas.",
+    "targetKind": "Mostrar solo congelaciones de este tipo. Elija Todos para quitar el filtro."
+   },
+   "killSwitch": {
+    "title": "Un interruptor que detiene todos los guardianes de este inquilino. Las invocaciones normales siguen funcionando.",
+    "on": "Activado: no empieza ningún tick de guardián y se rechazan las ejecuciones de guardianes.",
+    "off": "Desactivado: los guardianes despiertan según su programación.",
+    "turnOn": "Detener todos los guardianes de este inquilino. Primero confirma.",
+    "turnOff": "Dejar que los guardianes vuelvan a despertar. Primero confirma."
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "Cuándo se congeló. Pase el cursor para ver la hora exacta.",
+    "status": "Activa mientras la congelación está en vigor; después, Levantada.",
+    "targetKind": "Qué tipo de registro está congelado.",
+    "target": "El agente, despliegue, guardián o aplicación congelado.",
+    "reason": "Por qué se congeló. Pase el cursor para ver el texto completo.",
+    "createdBy": "Quién lo congeló.",
+    "cancelledRunCount": "Cuántas ejecuciones activas canceló la congelación, si se pidió.",
+    "liftedUtc": "Cuándo se levantó la congelación.",
+    "liftedBy": "Quién la levantó.",
+    "liftReason": "Por qué se levantó.",
+    "targetId": "El ID del registro congelado.",
+    "id": "El ID de la congelación (mfz_...), para la API y las herramientas MCP."
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "Abrir la lista de congelaciones activas."
+    }
+   }
+  },
+  "filters": {
+   "active": "Mostrar solo los registros activos o solo los inactivos. Elija Todos para ver ambos."
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "Congelaciones",
+   "p1": "Una congelación es un freno. Mientras está activa, Garrison rechaza las ejecuciones nuevas del agente, despliegue, guardián o aplicación congelado con 409 Frozen, y los guardianes afectados dejan de despertar. Las ejecuciones ya activas terminan, salvo que la congelación también las cancele.",
+   "p2": "Congele desde la página de un agente, despliegue, guardián o aplicación, o aquí con Congelar algo. Al levantar una congelación se aceptan de nuevo ejecuciones; un guardián congelado vuelve a estar activo y su próximo despertar se reparte en un intervalo breve.",
+   "p3": "El interruptor de emergencia de la autonomía, en Configuración y en la página de inicio, detiene a la vez todos los ticks de guardianes del inquilino. Aquí aparece como una congelación de tipo Interruptor de emergencia."
+  }
+ }
+});

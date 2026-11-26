@@ -8,12 +8,16 @@ import { useApp } from '../context/AppContext';
 import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { autonomySummary } from '../utils/keepers';
+import { isKillSwitch } from '../utils/freezes';
+import useActiveFreezes from '../hooks/useActiveFreezes';
+import KillSwitchControl from './KillSwitchControl';
 
 const PAGE = 250;
 
 /**
  * Home Autonomy card (AA1.16): how many keepers are active, paused, and ticking, when the next one wakes, and the keepers
- * whose last tick needs a person. Hidden when the caller cannot read keepers or the server has none of the routes.
+ * whose last tick needs a person. AA3.8: the autonomy kill switch with its toggle, and how many freezes are active.
+ * Hidden when the caller cannot read keepers or the server has none of the routes.
  */
 export default function HomeAutonomyCard() {
   const { t, i18n } = useTranslation();
@@ -21,6 +25,7 @@ export default function HomeAutonomyCard() {
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const [summary, setSummary] = useState(undefined);
+  const activeFreezes = useActiveFreezes();
   const lng = i18n.language;
 
   const load = useCallback(() => {
@@ -38,6 +43,8 @@ export default function HomeAutonomyCard() {
   }, [load]);
 
   if (summary === null || summary === undefined) return null;
+  // Freezes on agents, deployments, keepers, and apps (the kill switch has its own line above).
+  const frozenCount = activeFreezes.freezes.filter((f) => !isKillSwitch(f)).length;
   const open = (e, to) => {
     e.preventDefault();
     navigate(to);
@@ -52,6 +59,14 @@ export default function HomeAutonomyCard() {
           {t('views.home.autonomy.open')}
         </a>
       </div>
+      <KillSwitchControl compact />
+      {frozenCount > 0 && (
+        <p data-testid="home-autonomy-freezes">
+          <a href={pathFor('freezes')} {...tip(t('tips.views.home.autonomy.freezes'))} onClick={(e) => open(e, pathFor('freezes'))}>
+            {t('views.home.autonomy.freezes', { count: frozenCount })}
+          </a>
+        </p>
+      )}
       {summary.total === 0 ? (
         <p className="text-muted" data-testid="home-autonomy-empty">
           {t('views.home.autonomy.empty')}

@@ -5932,3 +5932,247 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "Freezes",
+    "tip": "Brakes on agents, deployments, keepers, and apps, and the autonomy kill switch"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "Freeze"
+  },
+  "auditEventType": {
+   "FreezeApplied": "Freeze applied",
+   "FreezeLifted": "Freeze lifted",
+   "KillSwitchChanged": "Kill switch changed"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "Freeze applied",
+   "MandateCapReached": "Keeper spend cap reached"
+  },
+  "freezeTargetKind": {
+   "Agent": "Agent",
+   "Deployment": "Deployment",
+   "Mandate": "Keeper",
+   "App": "App",
+   "OrgUnit": "Organization unit",
+   "Organization": "Organization",
+   "TenantAutonomy": "Kill switch"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "This is frozen: new runs are refused until the freeze is lifted.",
+  "AlreadyFrozen": "This is already frozen. Lift that freeze first, or leave it in place.",
+  "FreezeLifted": "Someone already lifted this freeze.",
+  "KillSwitch": "The autonomy kill switch is on, so keeper runs are refused.",
+  "MandateBudgetExceeded": "This keeper has spent its budget for this tick or for today.",
+  "OrganizationsUnavailable": "Organization freezes arrive with organizations. Freeze an agent, deployment, keeper, or app instead."
+ },
+ "freezes": {
+  "killSwitchTarget": "The autonomy kill switch",
+  "freezeTitle": "Freeze?",
+  "freezeMessage": "Freeze {{target}}? New runs are refused until the freeze is lifted, and keepers in scope stop waking.",
+  "freezePickMessage": "Choose what to freeze. New runs are refused until the freeze is lifted, and keepers in scope stop waking.",
+  "pickTarget": "Choose...",
+  "reasonPlaceholder": "Why? People who see the freeze read this.",
+  "liftTitle": "Lift this freeze?",
+  "liftMessage": "Lift the freeze on {{target}}? New runs are accepted again.",
+  "liftKeeperMessage": "Lift the freeze on {{target}}? The keeper becomes active again and its next wake is spread over a short window.",
+  "bannerOwn": "Frozen: new runs are refused until the freeze is lifted.",
+  "bannerTarget": "{{target}} is frozen: its new runs are refused.",
+  "bannerKillSwitch": "The autonomy kill switch is on: no keeper ticks start in this tenant.",
+  "bannerBy": "Frozen by {{who}} {{when}}.",
+  "bannerReason": "Reason: {{reason}}",
+  "openTarget": "Open it",
+  "status": {
+   "active": "Active",
+   "lifted": "Lifted"
+  },
+  "fields": {
+   "targetKind": "What to freeze",
+   "target": "Target",
+   "reason": "Reason (optional)",
+   "liftReason": "Reason for lifting (optional)",
+   "cancelActiveRuns": "Also cancel runs that are already active"
+  },
+  "actions": {
+   "freeze": "Freeze",
+   "freezeAny": "Freeze something",
+   "lift": "Lift freeze",
+   "openTarget": "Open what it freezes"
+  },
+  "errors": {
+   "reasonMax": "The reason is limited to {{max}} characters.",
+   "target": "Choose what to freeze."
+  },
+  "toasts": {
+   "frozen": "{{target}} is frozen.",
+   "frozenCancelled_one": "{{target}} is frozen and {{count}} active run was cancelled.",
+   "frozenCancelled_other": "{{target}} is frozen and {{count}} active runs were cancelled.",
+   "lifted": "The freeze on {{target}} is lifted."
+  },
+  "killSwitch": {
+   "title": "Autonomy kill switch",
+   "on": "On",
+   "off": "Off",
+   "turnOn": "Turn on",
+   "turnOff": "Turn off",
+   "help": "While the kill switch is on, no keeper ticks start and keeper runs are refused. Invocations by people and API credentials keep working.",
+   "changedBy": "Turned on by {{who}} {{when}}.",
+   "onTitle": "Turn on the kill switch?",
+   "onMessage": "Every keeper in this tenant stops waking, and keeper runs are refused, until the switch is turned off. Ticks already running finish.",
+   "offTitle": "Turn off the kill switch?",
+   "offMessage": "Keepers start waking again, with their next wakes spread over a short window.",
+   "toasts": {
+    "on": "The kill switch is on. No keeper ticks start.",
+    "off": "The kill switch is off. Keepers wake again."
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "Freezes",
+   "subtitle": "Brakes that refuse new runs of an agent, deployment, keeper, or app until someone lifts them. The kill switch shows here too.",
+   "add": "Add freeze",
+   "create": "Create freeze",
+   "edit": "Edit freeze",
+   "view": "Freeze details",
+   "deleteTitle": "Delete freeze",
+   "emptyTitle": "No freezes",
+   "emptyBody": "Nothing is frozen. Freeze an agent, deployment, keeper, or app from its page or with Freeze something.",
+   "columns": {
+    "createdUtc": "Frozen",
+    "status": "Status",
+    "targetKind": "Kind",
+    "target": "Target",
+    "reason": "Reason",
+    "createdBy": "Frozen by",
+    "cancelledRunCount": "Runs cancelled",
+    "liftedUtc": "Lifted",
+    "liftedBy": "Lifted by",
+    "liftReason": "Reason for lifting",
+    "targetId": "Target ID",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_one": "{{count}} freeze is active",
+    "freezes_other": "{{count}} freezes are active"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "Freezes: brakes on agents, deployments, keepers, and apps, active ones first, with Freeze and Lift."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "Freezes that stop new runs of an agent, deployment, keeper, or app, and the autonomy kill switch."
+   },
+   "auditEventType": {
+    "FreezeApplied": "Someone froze an agent, deployment, keeper, or app.",
+    "FreezeLifted": "Someone lifted a freeze, so runs in its scope are accepted again.",
+    "KillSwitchChanged": "Someone turned the autonomy kill switch on or off."
+   },
+   "notificationEvent": {
+    "FreezeApplied": "Someone froze an agent, deployment, keeper, or app, or turned on the kill switch.",
+    "MandateCapReached": "A keeper reached its daily spend cap and stops waking until the next UTC day."
+   },
+   "freezeTargetKind": {
+    "Agent": "Every deployment of the agent: new runs are refused and its keepers stop waking.",
+    "Deployment": "One deployment: new runs are refused and keepers that run on it stop waking.",
+    "Mandate": "One keeper: it stops waking until the freeze is lifted.",
+    "App": "One app: new conversations and turns in its chat are refused.",
+    "OrgUnit": "An organization unit. Not available until organizations arrive.",
+    "Organization": "A whole organization. Not available until organizations arrive.",
+    "TenantAutonomy": "The kill switch: no keeper ticks start anywhere in the tenant."
+   }
+  },
+  "freezes": {
+   "denied": "You may not do this. It needs {{operation}} on Freeze.",
+   "openTarget": "Open the page of what this freeze stops.",
+   "status": {
+    "active": "In force: new runs in scope are refused.",
+    "lifted": "Someone lifted it; runs are accepted again."
+   },
+   "actions": {
+    "freeze": "Freeze it: new runs are refused and keepers in scope stop waking until the freeze is lifted. You confirm first.",
+    "freezeAny": "Choose an agent, deployment, keeper, or app and freeze it. You confirm first.",
+    "lift": "Lift the freeze so new runs are accepted again. You confirm first."
+   },
+   "fields": {
+    "targetKind": "Freeze an agent (all its deployments), one deployment, one keeper, or one app.",
+    "target": "The record to freeze.",
+    "reason": "Optional. Shown on the frozen banner and in the audit log.",
+    "liftReason": "Optional. Recorded with the freeze and in the audit log.",
+    "cancelActiveRuns": "Also cancel the runs in scope that are already queued or running. Without it they finish."
+   },
+   "filters": {
+    "active": "Show only active freezes or only lifted ones. Choose All to show both.",
+    "targetKind": "Show only freezes of this kind. Choose All to remove the filter."
+   },
+   "killSwitch": {
+    "title": "One switch that stops every keeper in this tenant. Ordinary invocations keep working.",
+    "on": "On: no keeper ticks start and keeper runs are refused.",
+    "off": "Off: keepers wake on their schedules.",
+    "turnOn": "Stop every keeper in this tenant. You confirm first.",
+    "turnOff": "Let keepers wake again. You confirm first."
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "When it was frozen. Hover for the exact time.",
+    "status": "Active while the freeze is in force; Lifted after.",
+    "targetKind": "What kind of record is frozen.",
+    "target": "The frozen agent, deployment, keeper, or app.",
+    "reason": "Why it was frozen. Hover for the full text.",
+    "createdBy": "The person or API credential that applied the freeze.",
+    "cancelledRunCount": "How many active runs the freeze cancelled, when it was asked to.",
+    "liftedUtc": "When the freeze was lifted.",
+    "liftedBy": "The person or API credential that lifted the freeze.",
+    "liftReason": "Why the freeze was lifted, as the person wrote it.",
+    "targetId": "The ID of the frozen record.",
+    "id": "The freeze ID (mfz_...), for the API and MCP tools."
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "Open the list of active freezes."
+    }
+   }
+  },
+  "filters": {
+   "active": "Show only active records or only inactive ones. Choose All to show both."
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "Freezes",
+   "p1": "A freeze is a brake. While it is active, Garrison refuses new runs of the frozen agent, deployment, keeper, or app with 409 Frozen, and keepers in scope stop waking. Runs already active finish unless the freeze also cancels them.",
+   "p2": "Freeze from an agent, deployment, keeper, or app page, or here with Freeze something. Lifting a freeze accepts runs again; a frozen keeper becomes active with its next wake spread over a short window.",
+   "p3": "The autonomy kill switch, on Settings and the Home page, stops every keeper tick in the tenant at once. It shows here as a Kill switch freeze."
+  }
+ }
+});

@@ -5958,3 +5958,247 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "Blocchi",
+    "tip": "Freni su agenti, distribuzioni, custodi e applicazioni, e l'interruttore di emergenza dell'autonomia"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "Blocco"
+  },
+  "auditEventType": {
+   "FreezeApplied": "Blocco applicato",
+   "FreezeLifted": "Blocco rimosso",
+   "KillSwitchChanged": "Interruttore di emergenza modificato"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "Blocco applicato",
+   "MandateCapReached": "Limite di spesa del custode raggiunto"
+  },
+  "freezeTargetKind": {
+   "Agent": "Agente",
+   "Deployment": "Distribuzione",
+   "Mandate": "Custode",
+   "App": "Applicazione",
+   "OrgUnit": "Unità organizzativa",
+   "Organization": "Organizzazione",
+   "TenantAutonomy": "Interruttore di emergenza"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "È bloccato: le nuove esecuzioni vengono rifiutate finché il blocco non viene rimosso.",
+  "AlreadyFrozen": "È già bloccato. Rimuovi prima quel blocco oppure lascialo com'è.",
+  "FreezeLifted": "Qualcuno ha già rimosso questo blocco.",
+  "KillSwitch": "L'interruttore di emergenza dell'autonomia è attivo, quindi le esecuzioni dei custodi vengono rifiutate.",
+  "MandateBudgetExceeded": "Questo custode ha esaurito il budget per questo tick o per oggi.",
+  "OrganizationsUnavailable": "I blocchi delle organizzazioni arriveranno con le organizzazioni. Blocca invece un agente, una distribuzione, un custode o un'applicazione."
+ },
+ "freezes": {
+  "killSwitchTarget": "L'interruttore di emergenza dell'autonomia",
+  "freezeTitle": "Bloccare?",
+  "freezeMessage": "Bloccare {{target}}? Le nuove esecuzioni vengono rifiutate finché il blocco non viene rimosso, e i custodi interessati smettono di risvegliarsi.",
+  "freezePickMessage": "Scegli cosa bloccare. Le nuove esecuzioni vengono rifiutate finché il blocco non viene rimosso, e i custodi interessati smettono di risvegliarsi.",
+  "pickTarget": "Scegli...",
+  "reasonPlaceholder": "Perché? Chi vede il blocco leggerà questo testo.",
+  "liftTitle": "Rimuovere questo blocco?",
+  "liftMessage": "Rimuovere il blocco su {{target}}? Le nuove esecuzioni vengono di nuovo accettate.",
+  "liftKeeperMessage": "Rimuovere il blocco su {{target}}? Il custode torna attivo e il suo prossimo risveglio viene distribuito su un breve intervallo.",
+  "bannerOwn": "Bloccato: le nuove esecuzioni vengono rifiutate finché il blocco non viene rimosso.",
+  "bannerTarget": "{{target}} è bloccato: le sue nuove esecuzioni vengono rifiutate.",
+  "bannerKillSwitch": "L'interruttore di emergenza dell'autonomia è attivo: in questo tenant non parte nessun tick dei custodi.",
+  "bannerBy": "Bloccato da {{who}} {{when}}.",
+  "bannerReason": "Motivo: {{reason}}",
+  "openTarget": "Apri",
+  "status": {
+   "active": "Attivo",
+   "lifted": "Rimosso"
+  },
+  "fields": {
+   "targetKind": "Cosa bloccare",
+   "target": "Destinazione",
+   "reason": "Motivo (facoltativo)",
+   "liftReason": "Motivo della rimozione (facoltativo)",
+   "cancelActiveRuns": "Annulla anche le esecuzioni già attive"
+  },
+  "actions": {
+   "freeze": "Blocca",
+   "freezeAny": "Blocca qualcosa",
+   "lift": "Rimuovi blocco",
+   "openTarget": "Apri ciò che blocca"
+  },
+  "errors": {
+   "reasonMax": "Il motivo può contenere al massimo {{max}} caratteri.",
+   "target": "Scegli cosa bloccare."
+  },
+  "toasts": {
+   "frozen": "{{target}} è bloccato.",
+   "frozenCancelled_one": "{{target}} è bloccato ed è stata annullata {{count}} esecuzione attiva.",
+   "frozenCancelled_other": "{{target}} è bloccato e sono state annullate {{count}} esecuzioni attive.",
+   "lifted": "Il blocco su {{target}} è stato rimosso."
+  },
+  "killSwitch": {
+   "title": "Interruttore di emergenza dell'autonomia",
+   "on": "Attivo",
+   "off": "Disattivo",
+   "turnOn": "Attiva",
+   "turnOff": "Disattiva",
+   "help": "Finché l'interruttore è attivo non parte nessun tick dei custodi e le esecuzioni dei custodi vengono rifiutate. Le invocazioni di persone e credenziali API continuano a funzionare.",
+   "changedBy": "Attivato da {{who}} {{when}}.",
+   "onTitle": "Attivare l'interruttore di emergenza?",
+   "onMessage": "Tutti i custodi di questo tenant smettono di risvegliarsi e le loro esecuzioni vengono rifiutate finché l'interruttore non viene disattivato. I tick già in corso terminano.",
+   "offTitle": "Disattivare l'interruttore di emergenza?",
+   "offMessage": "I custodi tornano a risvegliarsi, con i prossimi risvegli distribuiti su un breve intervallo.",
+   "toasts": {
+    "on": "L'interruttore di emergenza è attivo. Non parte nessun tick dei custodi.",
+    "off": "L'interruttore di emergenza è disattivo. I custodi tornano a risvegliarsi."
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "Blocchi",
+   "subtitle": "Freni che rifiutano le nuove esecuzioni di un agente, di una distribuzione, di un custode o di un'applicazione finché qualcuno non li rimuove. Qui compare anche l'interruttore di emergenza.",
+   "add": "Aggiungi blocco",
+   "create": "Crea blocco",
+   "edit": "Modifica blocco",
+   "view": "Dettagli del blocco",
+   "deleteTitle": "Elimina blocco",
+   "emptyTitle": "Nessun blocco",
+   "emptyBody": "Non c'è niente di bloccato. Blocca un agente, una distribuzione, un custode o un'applicazione dalla sua pagina oppure con Blocca qualcosa.",
+   "columns": {
+    "createdUtc": "Bloccato il",
+    "status": "Stato",
+    "targetKind": "Tipo",
+    "target": "Destinazione",
+    "reason": "Motivo",
+    "createdBy": "Bloccato da",
+    "cancelledRunCount": "Esecuzioni annullate",
+    "liftedUtc": "Rimosso il",
+    "liftedBy": "Rimosso da",
+    "liftReason": "Motivo della rimozione",
+    "targetId": "ID della destinazione",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_one": "{{count}} blocco attivo",
+    "freezes_other": "{{count}} blocchi attivi"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "Blocchi: freni su agenti, distribuzioni, custodi e applicazioni, prima quelli attivi, con Blocca e Rimuovi."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "Blocchi che fermano le nuove esecuzioni di un agente, di una distribuzione, di un custode o di un'applicazione, e l'interruttore di emergenza dell'autonomia."
+   },
+   "auditEventType": {
+    "FreezeApplied": "Qualcuno ha bloccato un agente, una distribuzione, un custode o un'applicazione.",
+    "FreezeLifted": "Qualcuno ha rimosso un blocco.",
+    "KillSwitchChanged": "Qualcuno ha attivato o disattivato l'interruttore di emergenza dell'autonomia."
+   },
+   "notificationEvent": {
+    "FreezeApplied": "Qualcuno ha bloccato un agente, una distribuzione, un custode o un'applicazione, oppure ha attivato l'interruttore di emergenza.",
+    "MandateCapReached": "Un custode ha raggiunto il limite di spesa giornaliero e non si risveglia fino al prossimo giorno UTC."
+   },
+   "freezeTargetKind": {
+    "Agent": "Tutte le distribuzioni dell'agente: le nuove esecuzioni vengono rifiutate e i suoi custodi smettono di risvegliarsi.",
+    "Deployment": "Una distribuzione: le nuove esecuzioni vengono rifiutate e i custodi che vi girano smettono di risvegliarsi.",
+    "Mandate": "Un custode: smette di risvegliarsi finché il blocco non viene rimosso.",
+    "App": "Un'applicazione: le nuove conversazioni e i nuovi messaggi della sua chat vengono rifiutati.",
+    "OrgUnit": "Un'unità organizzativa. Non disponibile finché non arrivano le organizzazioni.",
+    "Organization": "Un'intera organizzazione. Non disponibile finché non arrivano le organizzazioni.",
+    "TenantAutonomy": "L'interruttore di emergenza: in tutto il tenant non parte nessun tick dei custodi."
+   }
+  },
+  "freezes": {
+   "denied": "Non puoi farlo. Serve {{operation}} su Blocco.",
+   "openTarget": "Apri la pagina di ciò che questo blocco ferma.",
+   "status": {
+    "active": "In vigore: le nuove esecuzioni nel suo ambito vengono rifiutate.",
+    "lifted": "Qualcuno l'ha rimosso; le esecuzioni vengono di nuovo accettate."
+   },
+   "actions": {
+    "freeze": "Blocca: le nuove esecuzioni vengono rifiutate e i custodi interessati smettono di risvegliarsi finché il blocco non viene rimosso. Prima confermi.",
+    "freezeAny": "Scegli un agente, una distribuzione, un custode o un'applicazione e bloccalo. Prima confermi.",
+    "lift": "Rimuovi il blocco così le nuove esecuzioni vengono di nuovo accettate. Prima confermi."
+   },
+   "fields": {
+    "targetKind": "Blocca un agente (tutte le sue distribuzioni), una distribuzione, un custode o un'applicazione.",
+    "target": "Il record da bloccare.",
+    "reason": "Facoltativo. Compare nel banner del blocco e nel registro di audit.",
+    "liftReason": "Facoltativo. Registrato con il blocco e nel registro di audit.",
+    "cancelActiveRuns": "Annulla anche le esecuzioni dell'ambito già in coda o in corso. Senza questa opzione terminano."
+   },
+   "filters": {
+    "active": "Mostra solo i blocchi attivi o solo quelli rimossi. Scegli Tutti per vederli entrambi.",
+    "targetKind": "Mostra solo i blocchi di questo tipo. Scegli Tutti per togliere il filtro."
+   },
+   "killSwitch": {
+    "title": "Un interruttore che ferma tutti i custodi di questo tenant. Le invocazioni normali continuano a funzionare.",
+    "on": "Attivo: non parte nessun tick dei custodi e le loro esecuzioni vengono rifiutate.",
+    "off": "Disattivo: i custodi si risvegliano secondo la loro pianificazione.",
+    "turnOn": "Ferma tutti i custodi di questo tenant. Prima confermi.",
+    "turnOff": "Lascia che i custodi tornino a risvegliarsi. Prima confermi."
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "Quando è stato bloccato. Passa sopra con il mouse per l'ora esatta.",
+    "status": "Attivo finché il blocco è in vigore; poi Rimosso.",
+    "targetKind": "Il tipo di record bloccato.",
+    "target": "L'agente, la distribuzione, il custode o l'applicazione bloccati.",
+    "reason": "Perché è stato bloccato. Passa sopra con il mouse per il testo completo.",
+    "createdBy": "Chi l'ha bloccato.",
+    "cancelledRunCount": "Quante esecuzioni attive ha annullato il blocco, se richiesto.",
+    "liftedUtc": "Quando il blocco è stato rimosso.",
+    "liftedBy": "Chi l'ha rimosso.",
+    "liftReason": "Perché è stato rimosso.",
+    "targetId": "L'ID del record bloccato.",
+    "id": "L'ID del blocco (mfz_...), per l'API e gli strumenti MCP."
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "Apri l'elenco dei blocchi attivi."
+    }
+   }
+  },
+  "filters": {
+   "active": "Mostra solo i record attivi o solo quelli inattivi. Scegli Tutti per vederli entrambi."
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "Blocchi",
+   "p1": "Un blocco è un freno. Finché è attivo, Garrison rifiuta le nuove esecuzioni dell'agente, della distribuzione, del custode o dell'applicazione bloccati con 409 Frozen, e i custodi interessati smettono di risvegliarsi. Le esecuzioni già attive terminano, a meno che il blocco non le annulli.",
+   "p2": "Blocca dalla pagina di un agente, di una distribuzione, di un custode o di un'applicazione, oppure qui con Blocca qualcosa. Rimuovendo un blocco le esecuzioni vengono di nuovo accettate; un custode bloccato torna attivo e il suo prossimo risveglio viene distribuito su un breve intervallo.",
+   "p3": "L'interruttore di emergenza dell'autonomia, nelle Impostazioni e nella pagina iniziale, ferma in una volta tutti i tick dei custodi del tenant. Qui compare come blocco di tipo Interruttore di emergenza."
+  }
+ }
+});

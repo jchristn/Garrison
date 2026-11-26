@@ -14,7 +14,10 @@ import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i
 import { resourceTip, enumTip, optionalText } from '../utils/tips';
 import { enumLabel, enumOptions } from '../utils/enums';
 import { environmentNames } from '../utils/revisions';
-import { APP_AUTH_MODES, APP_COLOR_FIELDS, APP_DEFAULT_COLORS, APP_FONTS, appDuplicate, appErrors, appToBody, appToForm, blankApp, entryDeployments, holds, loadCallerPermissions, memberIds, unreachableNames } from '../utils/apps';
+import { APP_AUTH_MODES, APP_COLOR_FIELDS, APP_DEFAULT_COLORS, APP_FONTS, appDuplicate, appErrors, appToBody, appToForm, blankApp, entryDeployments, holds, memberIds, unreachableNames } from '../utils/apps';
+import FrozenListBanner from '../components/FrozenListBanner';
+import { FREEZES_CHANGED_EVENT } from '../utils/freezes';
+import { freezeLookups, freezeRowActions } from './freezeConfigs';
 
 const ID = 'apps';
 
@@ -40,8 +43,8 @@ function agentNamer(agents = {}, app = null) {
 
 /** Agents, agent names, and the caller's permissions (so missing permissions disable actions with a reason). */
 async function appLookups({ apiClient, tenantId, principal }) {
-  const [agents, permissions] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), loadCallerPermissions(apiClient, tenantId, principal)]);
-  return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), permissions };
+  const [agents, brakes] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), freezeLookups(apiClient, tenantId, principal)]);
+  return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), ...brakes };
 }
 
 /**
@@ -92,6 +95,9 @@ export const appsConfig = {
   defaultSort: 'name',
   defaultSortDir: 'asc',
   loadLookups: appLookups,
+  lookupsEvents: [FREEZES_CHANGED_EVENT],
+  // AA3.8: the frozen apps, with Lift.
+  intro: () => <FrozenListBanner targetKind="App" />,
   // Pick lists: agents for members, deployments for the entry deployment per environment, the tenant's environments,
   // and agent assets for the logo.
   loadOptions: async ({ apiClient, tenantId }) => {
@@ -274,7 +280,8 @@ export const appsConfig = {
         label: ctx.t('resources.apps.actions.environments'),
         tip: ctx.t('tips.resources.apps.actions.environments'),
         onClick: () => ctx.setExtraModal(<AgenticAppReleaseModal app={r} permissions={permissions} onClose={() => ctx.setExtraModal(null)} onChanged={() => ctx.reload()} />)
-      }
+      },
+      ...freezeRowActions('App', r, ctx)
     ];
   }
 };

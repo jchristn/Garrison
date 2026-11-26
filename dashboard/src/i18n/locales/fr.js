@@ -5958,3 +5958,247 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Brakes (AA3.8): the Freezes page, the freeze and lift dialogs, the frozen banners, the autonomy kill switch on
+// Settings and the Home Autonomy card, the freeze enums and audit and notification events, and the brake error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "freezes": {
+    "label": "Gels",
+    "tip": "Freins sur les agents, déploiements, gardiens et applications, et l'arrêt d'urgence de l'autonomie"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Freeze": "Gel"
+  },
+  "auditEventType": {
+   "FreezeApplied": "Gel appliqué",
+   "FreezeLifted": "Gel levé",
+   "KillSwitchChanged": "Arrêt d'urgence modifié"
+  },
+  "notificationEvent": {
+   "FreezeApplied": "Gel appliqué",
+   "MandateCapReached": "Plafond de dépenses du gardien atteint"
+  },
+  "freezeTargetKind": {
+   "Agent": "Agent IA",
+   "Deployment": "Déploiement",
+   "Mandate": "Gardien",
+   "App": "Application",
+   "OrgUnit": "Unité organisationnelle",
+   "Organization": "Organisation",
+   "TenantAutonomy": "Arrêt d'urgence"
+  }
+ },
+ "errorCodes": {
+  "Frozen": "Cet élément est gelé : les nouvelles exécutions sont refusées jusqu'à la levée du gel.",
+  "AlreadyFrozen": "Cet élément est déjà gelé. Levez d'abord ce gel ou laissez-le en place.",
+  "FreezeLifted": "Quelqu'un a déjà levé ce gel.",
+  "KillSwitch": "L'arrêt d'urgence de l'autonomie est activé, donc les exécutions des gardiens sont refusées.",
+  "MandateBudgetExceeded": "Ce gardien a dépensé son budget pour ce tick ou pour aujourd'hui.",
+  "OrganizationsUnavailable": "Les gels d'organisation arriveront avec les organisations. Gelez plutôt un agent, un déploiement, un gardien ou une application."
+ },
+ "freezes": {
+  "killSwitchTarget": "L'arrêt d'urgence de l'autonomie",
+  "freezeTitle": "Geler ?",
+  "freezeMessage": "Geler {{target}} ? Les nouvelles exécutions sont refusées jusqu'à la levée du gel, et les gardiens concernés cessent de se réveiller.",
+  "freezePickMessage": "Choisissez ce qu'il faut geler. Les nouvelles exécutions sont refusées jusqu'à la levée du gel, et les gardiens concernés cessent de se réveiller.",
+  "pickTarget": "Choisir...",
+  "reasonPlaceholder": "Pourquoi ? Les personnes qui voient le gel liront ce texte.",
+  "liftTitle": "Lever ce gel ?",
+  "liftMessage": "Lever le gel de {{target}} ? Les nouvelles exécutions sont de nouveau acceptées.",
+  "liftKeeperMessage": "Lever le gel de {{target}} ? Le gardien redevient actif et son prochain réveil est réparti sur une courte période.",
+  "bannerOwn": "Gelé : les nouvelles exécutions sont refusées jusqu'à la levée du gel.",
+  "bannerTarget": "{{target}} est gelé : ses nouvelles exécutions sont refusées.",
+  "bannerKillSwitch": "L'arrêt d'urgence de l'autonomie est activé : aucun tick de gardien ne démarre dans ce locataire.",
+  "bannerBy": "Gelé par {{who}} {{when}}.",
+  "bannerReason": "Motif : {{reason}}",
+  "openTarget": "Ouvrir",
+  "status": {
+   "active": "Actif",
+   "lifted": "Levé"
+  },
+  "fields": {
+   "targetKind": "Ce qu'il faut geler",
+   "target": "Cible",
+   "reason": "Motif (facultatif)",
+   "liftReason": "Motif de la levée (facultatif)",
+   "cancelActiveRuns": "Annuler aussi les exécutions déjà actives"
+  },
+  "actions": {
+   "freeze": "Geler",
+   "freezeAny": "Geler un élément",
+   "lift": "Lever le gel",
+   "openTarget": "Ouvrir l'élément gelé"
+  },
+  "errors": {
+   "reasonMax": "Le motif est limité à {{max}} caractères.",
+   "target": "Choisissez ce qu'il faut geler."
+  },
+  "toasts": {
+   "frozen": "{{target}} est gelé.",
+   "frozenCancelled_one": "{{target}} est gelé et {{count}} exécution active a été annulée.",
+   "frozenCancelled_other": "{{target}} est gelé et {{count}} exécutions actives ont été annulées.",
+   "lifted": "Le gel de {{target}} est levé."
+  },
+  "killSwitch": {
+   "title": "Arrêt d'urgence de l'autonomie",
+   "on": "Activé",
+   "off": "Désactivé",
+   "turnOn": "Activer",
+   "turnOff": "Désactiver",
+   "help": "Tant que l'arrêt d'urgence est activé, aucun tick de gardien ne démarre et les exécutions des gardiens sont refusées. Les invocations par des personnes et des identifiants d'API continuent de fonctionner.",
+   "changedBy": "Activé par {{who}} {{when}}.",
+   "onTitle": "Activer l'arrêt d'urgence ?",
+   "onMessage": "Tous les gardiens de ce locataire cessent de se réveiller et leurs exécutions sont refusées jusqu'à la désactivation. Les ticks en cours se terminent.",
+   "offTitle": "Désactiver l'arrêt d'urgence ?",
+   "offMessage": "Les gardiens se réveillent de nouveau, avec leurs prochains réveils répartis sur une courte période.",
+   "toasts": {
+    "on": "L'arrêt d'urgence est activé. Aucun tick de gardien ne démarre.",
+    "off": "L'arrêt d'urgence est désactivé. Les gardiens se réveillent de nouveau."
+   }
+  }
+ },
+ "resources": {
+  "freezes": {
+   "title": "Gels",
+   "subtitle": "Freins qui refusent les nouvelles exécutions d'un agent, d'un déploiement, d'un gardien ou d'une application jusqu'à leur levée. L'arrêt d'urgence apparaît aussi ici.",
+   "add": "Ajouter un gel",
+   "create": "Créer un gel",
+   "edit": "Modifier le gel",
+   "view": "Détails du gel",
+   "deleteTitle": "Supprimer le gel",
+   "emptyTitle": "Aucun gel",
+   "emptyBody": "Rien n'est gelé. Gelez un agent, un déploiement, un gardien ou une application depuis sa page ou avec Geler un élément.",
+   "columns": {
+    "createdUtc": "Gelé le",
+    "status": "Statut",
+    "targetKind": "Type",
+    "target": "Cible",
+    "reason": "Motif",
+    "createdBy": "Gelé par",
+    "cancelledRunCount": "Exécutions annulées",
+    "liftedUtc": "Levé le",
+    "liftedBy": "Levé par",
+    "liftReason": "Motif de la levée",
+    "targetId": "ID de la cible",
+    "id": "ID"
+   }
+  }
+ },
+ "views": {
+  "home": {
+   "autonomy": {
+    "freezes_one": "{{count}} gel actif",
+    "freezes_other": "{{count}} gels actifs"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "freezes": "Gels : freins sur les agents, déploiements, gardiens et applications, les actifs en premier, avec Geler et Lever."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Freeze": "Gels qui arrêtent les nouvelles exécutions d'un agent, d'un déploiement, d'un gardien ou d'une application, et l'arrêt d'urgence de l'autonomie."
+   },
+   "auditEventType": {
+    "FreezeApplied": "Quelqu'un a gelé un agent, un déploiement, un gardien ou une application.",
+    "FreezeLifted": "Quelqu'un a levé un gel.",
+    "KillSwitchChanged": "Quelqu'un a activé ou désactivé l'arrêt d'urgence de l'autonomie."
+   },
+   "notificationEvent": {
+    "FreezeApplied": "Quelqu'un a gelé un agent, un déploiement, un gardien ou une application, ou a activé l'arrêt d'urgence.",
+    "MandateCapReached": "Un gardien a atteint son plafond de dépenses quotidien et ne se réveille plus jusqu'au prochain jour UTC."
+   },
+   "freezeTargetKind": {
+    "Agent": "Tous les déploiements de l'agent : les nouvelles exécutions sont refusées et ses gardiens cessent de se réveiller.",
+    "Deployment": "Un déploiement : les nouvelles exécutions sont refusées et les gardiens qui s'y exécutent cessent de se réveiller.",
+    "Mandate": "Un gardien : il cesse de se réveiller jusqu'à la levée du gel.",
+    "App": "Une application : les nouvelles conversations et les nouveaux messages de son chat sont refusés.",
+    "OrgUnit": "Une unité organisationnelle. Indisponible tant que les organisations n'existent pas.",
+    "Organization": "Une organisation entière. Indisponible tant que les organisations n'existent pas.",
+    "TenantAutonomy": "L'arrêt d'urgence : aucun tick de gardien ne démarre dans tout le locataire."
+   }
+  },
+  "freezes": {
+   "denied": "Vous n'y êtes pas autorisé. Il faut {{operation}} sur Gel.",
+   "openTarget": "Ouvrir la page de l'élément que ce gel arrête.",
+   "status": {
+    "active": "En vigueur : les nouvelles exécutions dans son périmètre sont refusées.",
+    "lifted": "Quelqu'un l'a levé ; les exécutions sont de nouveau acceptées."
+   },
+   "actions": {
+    "freeze": "Geler : les nouvelles exécutions sont refusées et les gardiens concernés cessent de se réveiller jusqu'à la levée. Vous confirmez d'abord.",
+    "freezeAny": "Choisir un agent, un déploiement, un gardien ou une application et le geler. Vous confirmez d'abord.",
+    "lift": "Lever le gel pour accepter de nouveau les exécutions. Vous confirmez d'abord."
+   },
+   "fields": {
+    "targetKind": "Geler un agent (tous ses déploiements), un déploiement, un gardien ou une application.",
+    "target": "L'enregistrement à geler.",
+    "reason": "Facultatif. Affiché sur le bandeau de gel et dans le journal d'audit.",
+    "liftReason": "Facultatif. Enregistré avec le gel et dans le journal d'audit.",
+    "cancelActiveRuns": "Annuler aussi les exécutions du périmètre déjà en file d'attente ou en cours. Sinon, elles se terminent."
+   },
+   "filters": {
+    "active": "Afficher seulement les gels actifs ou seulement les gels levés. Choisissez Tous pour afficher les deux.",
+    "targetKind": "Afficher seulement les gels de ce type. Choisissez Tous pour retirer le filtre."
+   },
+   "killSwitch": {
+    "title": "Un interrupteur qui arrête tous les gardiens de ce locataire. Les invocations ordinaires continuent de fonctionner.",
+    "on": "Activé : aucun tick de gardien ne démarre et les exécutions des gardiens sont refusées.",
+    "off": "Désactivé : les gardiens se réveillent selon leur planification.",
+    "turnOn": "Arrêter tous les gardiens de ce locataire. Vous confirmez d'abord.",
+    "turnOff": "Laisser les gardiens se réveiller de nouveau. Vous confirmez d'abord."
+   }
+  },
+  "resources": {
+   "freezes": {
+    "createdUtc": "Quand le gel a été appliqué. Survolez pour l'heure exacte.",
+    "status": "Actif tant que le gel est en vigueur ; Levé ensuite.",
+    "targetKind": "Le type d'enregistrement gelé.",
+    "target": "L'agent, le déploiement, le gardien ou l'application gelé.",
+    "reason": "Pourquoi il a été gelé. Survolez pour le texte complet.",
+    "createdBy": "Qui l'a gelé.",
+    "cancelledRunCount": "Combien d'exécutions actives le gel a annulées, si cela a été demandé.",
+    "liftedUtc": "Quand le gel a été levé.",
+    "liftedBy": "Qui l'a levé.",
+    "liftReason": "Pourquoi il a été levé.",
+    "targetId": "L'ID de l'enregistrement gelé.",
+    "id": "L'ID du gel (mfz_...), pour l'API et les outils MCP."
+   }
+  },
+  "views": {
+   "home": {
+    "autonomy": {
+     "freezes": "Ouvrir la liste des gels actifs."
+    }
+   }
+  },
+  "filters": {
+   "active": "Afficher seulement les enregistrements actifs ou seulement les inactifs. Choisissez Tous pour afficher les deux."
+  }
+ },
+ "explainers": {
+  "freezes": {
+   "title": "Gels",
+   "p1": "Un gel est un frein. Tant qu'il est actif, Garrison refuse les nouvelles exécutions de l'agent, du déploiement, du gardien ou de l'application gelé avec 409 Frozen, et les gardiens concernés cessent de se réveiller. Les exécutions déjà actives se terminent, sauf si le gel les annule aussi.",
+   "p2": "Gelez depuis la page d'un agent, d'un déploiement, d'un gardien ou d'une application, ou ici avec Geler un élément. Lever un gel accepte de nouveau les exécutions ; un gardien gelé redevient actif et son prochain réveil est réparti sur une courte période.",
+   "p3": "L'arrêt d'urgence de l'autonomie, dans les Paramètres et sur la page d'accueil, arrête en une fois tous les ticks de gardiens du locataire. Il apparaît ici comme un gel de type Arrêt d'urgence."
+  }
+ }
+});

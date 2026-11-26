@@ -8,6 +8,7 @@ import { ARCHITECT_AGENT_NAME, STORAGE_KEYS, APPROVAL_POLL_MS } from '../utils/c
 import { ApprovalsProvider } from '../context/ApprovalsContext';
 import { EscalationsProvider } from '../context/EscalationsContext';
 import { combinedPending } from '../utils/approvals';
+import { notifyFreezesChanged } from '../utils/freezeEvents';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import SetupWizard from './SetupWizard';
@@ -147,6 +148,8 @@ export default function Dashboard() {
           // One channel per subscribe message; the server pushes approvals.changed whenever the pending set changes.
           ws.send(JSON.stringify({ type: 'subscribe', channel: 'approvals' }));
           ws.send(JSON.stringify({ type: 'subscribe', channel: 'escalations' }));
+          // AA3.8: freezes and the kill switch; a caller without Read on Freeze gets an error message and nothing else.
+          ws.send(JSON.stringify({ type: 'subscribe', channel: 'freezes' }));
         } catch {
           /* ignore */
         }
@@ -159,6 +162,8 @@ export default function Dashboard() {
             if (typeof message.reviewsPending === 'number' && reviewsReadable.current) setPendingReviews(message.reviewsPending);
           }
           if (typeof message?.type === 'string' && message.type.startsWith('escalation') && typeof message.open === 'number' && escalationsReadable.current) setOpenEscalations(message.open);
+          // A freeze applied or lifted, or the kill switch changed, elsewhere: banners, lists, and controls reload.
+          if (message?.type === 'freeze.applied' || message?.type === 'freeze.lifted' || message?.type === 'killswitch.changed') notifyFreezesChanged();
         } catch {
           /* not JSON */
         }

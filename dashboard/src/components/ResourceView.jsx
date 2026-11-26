@@ -177,6 +177,25 @@ export default function ResourceView({ config }) {
     load(1);
   }, [load]);
 
+  // Window events that change what the lookups hold (for example a freeze applied from a row action, AA3.8) reload
+  // them and the list, so row menus and badges follow at once.
+  const lookupsEventsRef = useRef(null);
+  useEffect(() => {
+    lookupsEventsRef.current = () => {
+      loadLookups();
+      load(page.pageNumber);
+    };
+  });
+  useEffect(() => {
+    const events = config.lookupsEvents || [];
+    if (events.length === 0) return undefined;
+    const handler = () => lookupsEventsRef.current?.();
+    for (const name of events) window.addEventListener(name, handler);
+    return () => {
+      for (const name of events) window.removeEventListener(name, handler);
+    };
+  }, [config]);
+
   useAutoRefresh(() => !editing && !jsonValue && load(page.pageNumber, page.pageSize), autoRefreshSeconds);
 
   const displayItems = applyClientFilters(config, filters, SERVER_SORT_KEYS.includes(sort.key) ? items : sortLocal(items, sort.key, sort.dir));
@@ -429,7 +448,7 @@ export default function ResourceView({ config }) {
         subtitle={recordLabel('subtitle')}
         actions={
           <>
-            {config.headerActions && config.headerActions({ ...ctx, reload: () => load(page.pageNumber), setExtraModal })}
+            {config.headerActions && config.headerActions({ ...ctx, lookups, reload: () => load(page.pageNumber), setExtraModal })}
             {config.api.create && canManage && (
               <button type="button" className="button-primary" onClick={openCreate} data-testid="add-button" {...addProps} {...tip(addTip)}>
                 <PlusIcon /> {recordLabel('add')}
