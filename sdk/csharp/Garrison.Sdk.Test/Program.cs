@@ -1121,6 +1121,28 @@ namespace Garrison.Sdk.Test
                     catch (GarrisonException e) when (e.StatusCode == 404) { }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("messages", async () =>
+                {
+                    // People write to any agent with an idempotency key; agents use the garrison_*_message MCP tools.
+                    string key = "sdk-" + Guid.NewGuid().ToString("N");
+                    AgentMessageSendRequest request = new AgentMessageSendRequest { Recipient = agentId, Subject = "SDK check", Body = "Hello from the SDK.", IdempotencyKey = key };
+                    AgentMessage sent = await client.Messages.SendAsync(request, token).ConfigureAwait(false);
+                    AgentMessage again = await client.Messages.SendAsync(request, token).ConfigureAwait(false);
+                    Require(sent.Id.StartsWith("amg_", StringComparison.Ordinal) && again.Id == sent.Id && sent.RecipientAgentId == agentId && sent.Status == MessageStatusEnum.Queued, "send a message once per idempotency key");
+                    EnumerationResult<AgentMessage> page = await client.Messages.ListAsync(new AgentMessageFilter { Recipient = agentId, Status = MessageStatusEnum.Queued, MaxResults = 10 }, token).ConfigureAwait(false);
+                    Require(page.Objects.Exists(m => m.Id == sent.Id), "list messages by recipient and status");
+                    AgentMessage read = await client.Messages.GetAsync(sent.Id, token).ConfigureAwait(false);
+                    Require(read.Subject == "SDK check" && read.ThreadId == sent.Id, "read a message");
+                    List<AgentMessage> thread = await client.Messages.ThreadAsync(sent.ThreadId, token).ConfigureAwait(false);
+                    Require(thread.Count >= 1 && thread[0].Id == sent.Id, "read a thread");
+                    try
+                    {
+                        await client.Messages.GetAsync("amg_sdk_missing", token).ConfigureAwait(false);
+                        Require(false, "an unknown message is not found");
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404) { }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

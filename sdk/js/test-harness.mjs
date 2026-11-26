@@ -684,6 +684,22 @@ await check("reports", async () => {
   try { await client.reports.get("rpt_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
   require(status === 404, `an unknown report is not found (${status})`);
 });
+await check("messages", async () => {
+  // People write to any agent with an idempotency key; agents use the garrison_*_message MCP tools.
+  const request = { recipient: state.agent, subject: "SDK check", body: "Hello from the SDK.", idempotencyKey: `sdk-${Date.now()}-${Math.random()}` };
+  const sent = await client.messages.send(request);
+  const again = await client.messages.send(request);
+  require(sent.id.startsWith("amg_") && again.id === sent.id && sent.recipientAgentId === state.agent && sent.status === "Queued", "send a message once per idempotency key");
+  const page = await client.messages.list({ recipient: state.agent, status: "Queued", maxResults: 10 });
+  require(page.objects.some((m) => m.id === sent.id), "list messages by recipient and status");
+  const read = await client.messages.get(sent.id);
+  require(read.subject === "SDK check" && read.threadId === sent.id, "read a message");
+  const thread = await client.messages.thread(sent.threadId);
+  require(thread.length >= 1 && thread[0].id === sent.id, "read a thread");
+  let status = 0;
+  try { await client.messages.get("amg_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+  require(status === 404, `an unknown message is not found (${status})`);
+});
 
 await check("freezes", async () => {
   // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.

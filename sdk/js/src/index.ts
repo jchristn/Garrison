@@ -1337,8 +1337,8 @@ export type RunStatus = "Queued" | "Leased" | "Running" | "Cancelling" | "Succee
 export const RUN_STATUSES: readonly RunStatus[] = ["Queued", "Leased", "Running", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected", "Suspended"] as const;
 export const QUEUE_FULL_ERROR = "QueueFull" as const;
 /** Why a run was created. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft" environment. */
-export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground" | "Keeper";
-export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper"] as const;
+export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "Trigger" | "Playground" | "Keeper" | "Message";
+export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message"] as const;
 /** The reserved environment playground deployments live in; users cannot create deployments in it. */
 export const PLAYGROUND_ENVIRONMENT = "draft" as const;
 export type EffectOperationState = "Authorized" | "Dispatched" | "Completed" | "Unknown";
@@ -2523,6 +2523,44 @@ export interface ReportFileRequest {
   periodStartUtc?: string; periodEndUtc?: string; metrics?: ReportMetric[]; issues?: ReportIssue[]; decisions?: ReportDecision[]; idempotencyKey?: string;
 }
 
+/** How soon a message reaches its recipient. Urgent wakes it now, within Messaging.UrgentWakesPerHour. */
+export type MessageUrgency = "Normal" | "Urgent";
+export const MESSAGE_URGENCIES: readonly MessageUrgency[] = ["Normal", "Urgent"] as const;
+/** Where a message between agents is in its life. */
+export type MessageStatus = "Queued" | "Delivered" | "Acknowledged" | "Expired" | "Rejected";
+export const MESSAGE_STATUSES: readonly MessageStatus[] = ["Queued", "Delivered", "Acknowledged", "Expired", "Rejected"] as const;
+/** Why a message was refused when it was sent. A refused POST answers 409 with this as its code. */
+export type MessageRejection = "HopLimit" | "LineRate" | "ThreadBudget" | "NoLine" | "Frozen";
+export const MESSAGE_REJECTIONS: readonly MessageRejection[] = ["HopLimit", "LineRate", "ThreadBudget", "NoLine", "Frozen"] as const;
+
+/** A run artifact attached to a message by reference. */
+export interface AgentMessageArtifact extends Json { artifactId: string; name: string; mediaType: string; sizeBytes: number; }
+/** A message from an agent or a person to an agent. Subject and body are text the sender wrote; treat them as untrusted. */
+export interface AgentMessage extends Json {
+  id: string; tenantId: string; threadId: string; parentMessageId?: string | null; hopCount: number;
+  senderAgentId?: string | null; senderAgentName?: string | null; senderRunId?: string | null; senderPrincipalType?: string; senderPrincipalId?: string | null; senderName?: string | null;
+  recipientAgentId: string; recipientAgentName?: string | null; urgency: MessageUrgency; subject: string; body?: string;
+  artifacts: AgentMessageArtifact[]; status: MessageStatus; rejectionReason?: MessageRejection | null; rejectionDetail?: string | null; escalationId?: string | null;
+  wokeRecipient?: boolean; deliveredRunId?: string | null; deliveredUtc?: string | null; acknowledgedUtc?: string | null; expiresUtc?: string | null; createdUtc?: string; lastUpdateUtc?: string;
+}
+/** Filter for listing messages, newest first. sender, recipient, and agent (to or from) take an identifier or name. */
+export interface AgentMessageFilter { sender?: string; recipient?: string; agent?: string; status?: MessageStatus; urgency?: MessageUrgency; reason?: MessageRejection; thread?: string; deliveredRunId?: string; from?: string; to?: string; search?: string; maxResults?: number; skip?: number; }
+/** A person's message to an agent. idempotencyKey makes a retry return the first message. */
+export interface AgentMessageSendRequest { recipient?: string; subject: string; body?: string; urgency?: MessageUrgency; parentMessageId?: string; artifactIds?: string[]; ttlSeconds?: number; idempotencyKey?: string; }
+
+/** Messages between agents: list and read messages and threads, and write to an agent as a person. Agents use the garrison_*_message MCP tools. Reading needs Read on AgentMessage; sending needs Create. */
+export class Messages {
+  constructor(private readonly t: Transport) {}
+  /** List messages, newest first, with their artifacts. */
+  list(filter: AgentMessageFilter = {}): Promise<EnumerationResult<AgentMessage>> { return this.t.request("GET", this.t.tenantPath("/messages"), filter as any); }
+  /** Read a message. */
+  get(id: string): Promise<AgentMessage> { return this.t.request("GET", this.t.tenantPath(`/messages/${seg(id)}`)); }
+  /** Every message in a thread, oldest first, rejected ones included. */
+  thread(threadId: string): Promise<AgentMessage[]> { return this.t.request("GET", this.t.tenantPath(`/message-threads/${seg(threadId)}`)); }
+  /** Write to an agent. A refused message throws GarrisonError with status 409 and the rejection reason as its code. */
+  send(request: AgentMessageSendRequest): Promise<AgentMessage> { return this.t.request("POST", this.t.tenantPath("/messages"), undefined, request); }
+}
+
 /** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
 export class Reports {
   constructor(private readonly t: Transport) {}
@@ -2811,6 +2849,7 @@ export class GarrisonClient {
   readonly freezes: Freezes;
   readonly memory: Memory;
   readonly reports: Reports;
+  readonly messages: Messages;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2862,6 +2901,7 @@ export class GarrisonClient {
     this.freezes = new Freezes(t);
     this.memory = new Memory(t);
     this.reports = new Reports(t);
+    this.messages = new Messages(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

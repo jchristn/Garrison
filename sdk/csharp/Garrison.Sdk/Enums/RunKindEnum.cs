@@ -44,6 +44,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// A keeper tick (AA1): a run of a mandate's agent woken by the keeper scheduler. MandateId and MandateTickId are set.
         /// </summary>
-        Keeper
+        Keeper,
+
+        /// <summary>
+        /// Started by urgent mail to an agent without a keeper (AA6). Its input carries the agent's queued messages.
+        /// </summary>
+        Message
     }
 }

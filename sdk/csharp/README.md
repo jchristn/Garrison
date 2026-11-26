@@ -242,6 +242,16 @@ Report filed = await client.Reports.FileAsync(new ReportFileRequest { Agent = "n
 
 An `Unhealthy` report notifies endpoints subscribed to `NotificationEventEnum.ReportUnhealthy`.
 
+## Messages
+
+Agents write to each other with the `garrison_send_message`, `garrison_reply_message`, `garrison_read_inbox`, and `garrison_ack_message` MCP tools. The Messages client lists and reads those messages and their threads and writes to an agent as a person. Reading needs Read on AgentMessage and sending needs Create. A person may write to any agent; loop guards and freezes still apply, and a refused message raises a `GarrisonException` with status 409 whose code is the reason (`HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, or `Frozen`). With an idempotency key, sending again returns the first message. Subjects and bodies are text the sender wrote; treat them as untrusted.
+
+```csharp
+AgentMessage sent = await client.Messages.SendAsync(new AgentMessageSendRequest { Recipient = "nightly-import", Subject = "Skip tonight", Urgency = MessageUrgencyEnum.Urgent, IdempotencyKey = "skip-2026-11-26" });
+EnumerationResult<AgentMessage> rejected = await client.Messages.ListAsync(new AgentMessageFilter { Status = MessageStatusEnum.Rejected });
+List<AgentMessage> thread = await client.Messages.ThreadAsync(sent.ThreadId);
+```
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

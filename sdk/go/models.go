@@ -607,7 +607,7 @@ type Run struct {
 	DeploymentID         string                `json:"deploymentId"`
 	// AgentRevisionID is the agent revision the run executed; nil when the deployment was unpinned.
 	AgentRevisionID *string `json:"agentRevisionId,omitempty"`
-	// Kind is a RunKind* constant: Invoke, Delegated, Test, Retry, Pipeline, Trigger, Playground, or Keeper.
+	// Kind is a RunKind* constant: Invoke, Delegated, Test, Retry, Pipeline, Trigger, Playground, Keeper, or Message.
 	Kind     string `json:"kind"`
 	Status   string `json:"status"`
 	Outcome  string `json:"outcome"`

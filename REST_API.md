@@ -4001,6 +4001,40 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/reports" \
   -d '{"agent": "nightly-import", "title": "Import paused", "kind": "Decision", "health": "Degraded", "decisions": [{"text": "Paused until the source is fixed."}], "idempotencyKey": "pause-2026-11-26"}'
 ```
 
+### Messages
+
+Messages (AA6) are notes from one agent to another that runs send with `garrison_send_message` and `garrison_reply_message` along allowed lines. These routes let people browse messages and threads and write to an agent themselves. [docs/MESSAGING.md](docs/MESSAGING.md) covers lines, urgency, delivery, and the loop guards.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /messages` | Read on `AgentMessage` | `EnumerationResult<AgentMessage>`, 200 |
+| `POST /messages` | Create on `AgentMessage` | `AgentMessage`, 201 |
+| `GET /messages/{id}` | Read on `AgentMessage` | `AgentMessage`, 200 |
+| `GET /message-threads/{threadId}` | Read on `AgentMessage` | `AgentMessage[]`, oldest first, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Messages and threads of another tenant answer 404. There is no update or delete; status changes come from delivery, acknowledgement, and expiry.
+
+#### `GET /v1.0/api/tenants/{tenantId}/messages`
+
+List messages newest first, with their artifacts, using `maxResults`, `skip`, and `search` (case-insensitive, over subjects) from the [enumeration](#enumeration) parameters and the optional filters `sender`, `recipient`, and `agent` (to or from; agent identifier or name), `status`, `urgency`, `reason` (rejection reason), `thread`, `deliveredRunId`, `from`, and `to` (send time, ISO 8601).
+
+#### `POST /v1.0/api/tenants/{tenantId}/messages`
+
+Write to an agent as a person or credential. The body is an `AgentMessageSendRequest`; `recipient` and `subject` are required (with `parentMessageId` naming a message from an agent, `recipient` defaults to that agent). People may write to any agent: the line policy does not apply, but the recipient's freezes, the thread budget, and the per-line rate do. A refused message is stored as `Rejected` and answers 409 with the reason as the code (`Frozen`, `ThreadBudget`, or `LineRate`). With `idempotencyKey`, sending again with the same key returns the first message with 201. Errors: 400 `ValidationFailed` with fields `recipient` and `parentMessageId` (`ReferenceNotFound`), `subject` (`Required`), `body` (`TooLarge` over `Messaging.MaxBodyBytes`), `ttlSeconds` (`OutOfRange`), and `artifactIds` (`TooMany`, `ReferenceNotFound`).
+
+#### `GET /v1.0/api/tenants/{tenantId}/message-threads/{threadId}`
+
+Every message in a thread, oldest first, rejected ones included, at most 1000. A thread's identifier is the identifier of its first message.
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/messages?status=Rejected&reason=HopLimit" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/messages" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"recipient": "nightly-import", "subject": "Skip tonight", "body": "The source is down for maintenance.", "urgency": "Urgent", "idempotencyKey": "skip-2026-11-26"}'
+```
+
 ### Agent revisions
 
 An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
@@ -5902,7 +5936,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`, `Memory`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`, `Memory`, `Report`, `AgentMessage`
 
 #### `OperationTypeEnum`
 
@@ -6541,7 +6575,7 @@ One invocation of one deployment.
 
 #### `RunKindEnum`
 
-`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire), `Playground` (a studio playground run), `Keeper` (one tick of a mandate)
+`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire), `Playground` (a studio playground run), `Keeper` (one tick of a mandate), `Message` (started by urgent mail to an agent without a keeper)
 
 #### `RunStatusEnum`
 
@@ -7104,6 +7138,65 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `periodStartUtc`, `periodEndUtc` | `DateTime?` | The period covered. |
 | `metrics`, `issues`, `decisions` | arrays | As in `Report`. |
 | `idempotencyKey` | `string?` | At most 256 characters; filing again with it returns the first report. |
+
+#### `AgentMessage`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`amg_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `threadId` | `string` | The first message's identifier; equal to `id` for a message that starts a thread. |
+| `parentMessageId` | `string?` | The message this one replies to. |
+| `hopCount` | `int` | Agent-to-agent hops that led to it: one more than the message it replies to or the messages delivered to the sending run; 0 for a person's message. |
+| `senderAgentId`, `senderAgentName`, `senderRunId` | `string?` | The sending agent, its name when sent, and the run; `null` when a person sent it. |
+| `senderPrincipalType` | `PrincipalTypeEnum` | `Run`, `User`, `Credential`, or `Administrator`. |
+| `senderPrincipalId`, `senderName` | `string?` | Who sent it. |
+| `recipientAgentId`, `recipientAgentName` | `string`, `string?` | The recipient and its name when sent. |
+| `urgency` | `MessageUrgencyEnum` | `Normal` or `Urgent`. |
+| `subject` | `string` | 1 to 256 characters. |
+| `body` | `string` | Plain text or Markdown, at most `Messaging.MaxBodyBytes` UTF-8 bytes. |
+| `artifacts` | `AgentMessageArtifact[]` | Run artifacts attached by reference, at most 20. |
+| `status` | `MessageStatusEnum` | `Queued`, `Delivered`, `Acknowledged`, `Expired`, or `Rejected`. |
+| `rejectionReason`, `rejectionDetail` | `MessageRejectionEnum?`, `string?` | Why a `Rejected` message was refused. |
+| `escalationId` | `string?` | The escalation this message carries to its agent target. |
+| `wokeRecipient` | `bool` | `true` when this urgent message woke its recipient. |
+| `deliveredRunId`, `deliveredUtc` | `string?`, `DateTime?` | The run it was delivered to, and when. |
+| `acknowledgedUtc` | `DateTime?` | When the recipient acknowledged it. |
+| `expiresUtc` | `DateTime?` | When an undelivered message expires; `null` for never. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | When it was sent and when its status last changed (UTC). |
+
+#### `AgentMessageArtifact`
+
+| Field | Type | Description |
+|---|---|---|
+| `artifactId` | `string` | Artifact identifier. |
+| `name`, `mediaType` | `string` | Copied when the message was sent. |
+| `sizeBytes` | `long` | Copied when the message was sent. |
+
+#### `AgentMessageSendRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `recipient` | `string?` | Agent identifier or name. Required unless `parentMessageId` names a message from an agent. |
+| `subject` | `string` | Required, 1 to 256 characters. |
+| `body` | `string?` | Body text. |
+| `urgency` | `MessageUrgencyEnum?` | Default `Normal`. `Urgent` wakes the recipient now, within `Messaging.UrgentWakesPerHour`. |
+| `parentMessageId` | `string?` | The message this one follows; the new message joins its thread. |
+| `artifactIds` | `string[]?` | Run artifacts to attach, at most 20. |
+| `ttlSeconds` | `int?` | 1 to 31536000; an undelivered message expires after this many seconds. |
+| `idempotencyKey` | `string?` | At most 256 characters; sending again with it returns the first message. |
+
+#### `MessageUrgencyEnum`
+
+`Normal` (delivered with the recipient keeper's next tick, or when it reads its inbox), `Urgent` (wakes the recipient now)
+
+#### `MessageStatusEnum`
+
+`Queued`, `Delivered`, `Acknowledged`, `Expired`, `Rejected`
+
+#### `MessageRejectionEnum`
+
+`HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, `Frozen`
 
 #### `MandateRevision`
 

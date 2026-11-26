@@ -250,6 +250,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Reports filed upward (AA5). Read lists and reads reports; Create files one.
         /// </summary>
-        Report
+        Report,
+
+        /// <summary>
+        /// Messages between agents (AA6). Read lists and reads messages and threads; Create writes to an agent.
+        /// </summary>
+        AgentMessage
     }
 }

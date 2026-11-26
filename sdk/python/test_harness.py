@@ -790,6 +790,26 @@ def t_memory():
             require(e.status_code == 404, f"status {e.status_code}")
 
 
+def t_messages():
+    # People write to any agent with an idempotency key; agents use the garrison_*_message MCP tools.
+    key = "sdk-" + uuid.uuid4().hex
+    request = {"recipient": state["agent"], "subject": "SDK check", "body": "Hello from the SDK.", "idempotencyKey": key}
+    sent = client.messages.send(request)
+    again = client.messages.send(request)
+    require(sent["id"].startswith("amg_") and again["id"] == sent["id"] and sent.get("recipientAgentId") == state["agent"] and sent.get("status") == "Queued", f"send once per idempotency key: {sent}")
+    page = client.messages.list(recipient=state["agent"], status="Queued", max_results=10)
+    require(any(m["id"] == sent["id"] for m in page["objects"]), "list messages by recipient and status")
+    read = client.messages.get(sent["id"])
+    require(read["subject"] == "SDK check" and read["threadId"] == sent["id"], f"read a message: {read}")
+    thread = client.messages.thread(sent["threadId"])
+    require(len(thread) >= 1 and thread[0]["id"] == sent["id"], f"read a thread: {thread}")
+    try:
+        client.messages.get("amg_sdk_missing")
+        require(False, "an unknown message is not found")
+    except GarrisonError as e:
+        require(e.status_code == 404, f"status {e.status_code}")
+
+
 def t_reports():
     # People file reports with an idempotency key; agents file through garrison_file_report.
     key = "sdk-" + uuid.uuid4().hex
@@ -1320,7 +1340,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

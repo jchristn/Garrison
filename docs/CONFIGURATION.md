@@ -209,6 +209,12 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Memory.Scoped.MaxEntriesPerScope` | `10000` | 10 to 1000000 | Most entries one memory scope may hold. A new key in a full scope is refused with `MemoryScopeFull`; replacing an existing key is always allowed |
 | `Reports.MaxBodyBytes` | `32768` | 256 to 262144 | Most UTF-8 bytes in a report body. A larger body is refused with a validation error |
 | `Reports.DigestMaxReports` | `20` | 0 to 200 | Most subordinate reports a keeper tick's input carries through `report-digest`, the newest ones. 0 leaves them out; keepers can still list them with `garrison_list_reports` |
+| `Messaging.MaxHops` | `8` | 1 to 64 | Most agent-to-agent hops a message may travel. A message that would travel more is rejected with `HopLimit` |
+| `Messaging.LineRatePerMinute` | `30` | 1 to 6000 | Most messages one sender may send one recipient in any 60 seconds. More are rejected with `LineRate`. Counted in the database, so the limit holds across replicas |
+| `Messaging.ThreadBudget` | `200` | 2 to 100000 | Most messages one thread may hold. More are rejected with `ThreadBudget` |
+| `Messaging.UrgentWakesPerHour` | `12` | 0 to 3600 | Most urgent wakes per recipient agent in any hour. Above it, and at 0, urgent mail waits like normal mail |
+| `Messaging.MaxMessagesPerDelivery` | `50` | 1 to 500 | Most messages one run receives in its input or from one `garrison_read_inbox` call, oldest first. The rest stay queued |
+| `Messaging.MaxBodyBytes` | `16384` | 256 to 262144 | Most UTF-8 bytes in a message body. A larger body is refused with a validation error |
 | `Notifications.AllowPrivateDestinations` | `false` | | Let notification endpoints deliver to loopback and private addresses (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, 100.64/10, ::1, fc00::/7). Off by default to prevent server-side request forgery. Link-local addresses (169.254.0.0/16, which includes cloud metadata services, and fe80::/10), multicast, and reserved addresses stay refused either way. See `docs/NOTIFICATIONS.md` |
 | `Notifications.MaxAttempts` | `8` | 1 to 20 | Most delivery attempts for one notification before it is marked `Failed`. Read when the notification is queued |
 | `Notifications.InitialBackoffSeconds` | `10` | 1 to 3600 | Delay before the second attempt; each later delay doubles |

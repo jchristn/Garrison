@@ -199,6 +199,11 @@ namespace Garrison.Sdk
         public ReportsClient Reports { get; }
 
         /// <summary>
+        /// Messages (AA6): list and read messages between agents and their threads, and write to an agent as a person.
+        /// </summary>
+        public MessagesClient Messages { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -328,6 +333,7 @@ namespace Garrison.Sdk
             Freezes = new FreezesClient(Transport);
             Memory = new MemoryClient(Transport);
             Reports = new ReportsClient(Transport);
+            Messages = new MessagesClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

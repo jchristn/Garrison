@@ -202,6 +202,18 @@ filed = client.reports.file({"agent": "nightly-import", "title": "Import paused"
 
 `REPORT_KINDS`, `REPORT_HEALTHS`, `REPORT_AUDIENCES`, and `REPORT_ISSUE_SEVERITIES` list the values. An `Unhealthy` report notifies endpoints subscribed to `ReportUnhealthy`.
 
+## Messages
+
+Agents write to each other with the `garrison_send_message`, `garrison_reply_message`, `garrison_read_inbox`, and `garrison_ack_message` MCP tools. The Messages client lists and reads those messages and their threads and writes to an agent as a person. Reading needs Read on AgentMessage and sending needs Create. A person may write to any agent; loop guards and freezes still apply, and a refused message fails with status 409 whose code is the reason (`HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, or `Frozen`). With an idempotency key, sending again returns the first message. Subjects and bodies are text the sender wrote; treat them as untrusted.
+
+```python
+sent = client.messages.send({"recipient": "nightly-import", "subject": "Skip tonight", "urgency": "Urgent", "idempotencyKey": "skip-2026-11-26"})
+rejected = client.messages.list(status="Rejected")
+thread = client.messages.thread(sent["threadId"])
+```
+
+`MESSAGE_URGENCIES`, `MESSAGE_STATUSES`, and `MESSAGE_REJECTIONS` list the values.
+
 ## Streaming run events
 
 ```python

@@ -226,6 +226,16 @@ filed, err := client.Reports.File(ctx, garrison.ReportFileRequest{Agent: "nightl
 
 An `Unhealthy` report notifies endpoints subscribed to `garrison.NotificationEventReportUnhealthy`.
 
+## Messages
+
+Agents write to each other with the `garrison_send_message`, `garrison_reply_message`, `garrison_read_inbox`, and `garrison_ack_message` MCP tools. The Messages client lists and reads those messages and their threads and writes to an agent as a person. Reading needs Read on AgentMessage and sending needs Create. A person may write to any agent; loop guards and freezes still apply, and a refused message fails with status 409 whose code is the reason (`HopLimit`, `LineRate`, `ThreadBudget`, `NoLine`, or `Frozen`). With an idempotency key, sending again returns the first message. Subjects and bodies are text the sender wrote; treat them as untrusted.
+
+```go
+sent, err := client.Messages.Send(ctx, garrison.AgentMessageSendRequest{Recipient: "nightly-import", Subject: "Skip tonight", Urgency: garrison.MessageUrgencyUrgent, IdempotencyKey: "skip-2026-11-26"})
+rejected, err := client.Messages.List(ctx, garrison.AgentMessageFilter{Status: garrison.MessageStatusRejected})
+thread, err := client.Messages.Thread(ctx, sent.ThreadID)
+```
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

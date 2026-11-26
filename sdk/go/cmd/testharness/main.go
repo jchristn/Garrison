@@ -1611,6 +1611,52 @@ func main() {
 		return nil
 	})
 
+	check("messages", func(ctx context.Context) error {
+		// People write to any agent with an idempotency key; agents use the garrison_*_message MCP tools.
+		request := garrison.AgentMessageSendRequest{Recipient: agentID, Subject: "SDK check", Body: "Hello from the SDK.", IdempotencyKey: fmt.Sprintf("sdk-%d", time.Now().UnixNano())}
+		sent, err := client.Messages.Send(ctx, request)
+		if err != nil {
+			return err
+		}
+		again, err := client.Messages.Send(ctx, request)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(sent.ID, "amg_") || again.ID != sent.ID || sent.RecipientAgentID != agentID || sent.Status != garrison.MessageStatusQueued {
+			return errors.New("send a message once per idempotency key")
+		}
+		page, err := client.Messages.List(ctx, garrison.AgentMessageFilter{Recipient: agentID, Status: garrison.MessageStatusQueued, MaxResults: 10})
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, m := range page.Objects {
+			found = found || m.ID == sent.ID
+		}
+		if !found {
+			return errors.New("list messages by recipient and status")
+		}
+		read, err := client.Messages.Get(ctx, sent.ID)
+		if err != nil {
+			return err
+		}
+		if read.Subject != "SDK check" || read.ThreadID != sent.ID {
+			return errors.New("read a message")
+		}
+		thread, err := client.Messages.Thread(ctx, sent.ThreadID)
+		if err != nil {
+			return err
+		}
+		if len(thread) < 1 || thread[0].ID != sent.ID {
+			return errors.New("read a thread")
+		}
+		var apiErr *garrison.Error
+		if _, err := client.Messages.Get(ctx, "amg_sdk_missing"); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("an unknown message is not found: %v", err)
+		}
+		return nil
+	})
+
 	check("freezes", func(ctx context.Context) error {
 		// Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
 		before, err := client.Freezes.GetKillSwitch(ctx)

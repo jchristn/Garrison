@@ -43,7 +43,7 @@ A run that has already finished is refused with 409 `RunNotActive`.
 |---|---|---|
 | `User` | A user identifier or email | The escalation waits for that person. It shows in the dashboard and in notifications |
 | `Role` | A role identifier or name | The same, for the people who hold the role |
-| `Agent` | An agent identifier or name | Garrison starts a run of that agent's default active deployment with `builtin/escalation-received`. That run reads the question and answers with `garrison_answer_escalation`. The answering run appears as `routedRunId` |
+| `Agent` | An agent identifier or name | Garrison sends the agent an urgent message from the raising agent, linked by `escalationId` (see [Messaging](MESSAGING.md)). A keeper wakes and reads it with its next tick; an agent without a keeper gets a `Message` run of its default active deployment. The agent answers with `garrison_answer_escalation`, and the run the message woke appears as `routedRunId`. Without messaging, Garrison starts the run directly with `builtin/escalation-received` |
 | `Manager` | None | Refused with 409 `ManagerUnavailable` until organizations exist |
 
 When the run names no target, Garrison picks one. A keeper's question goes to the default target on its current revision (`escalationTargetKind` and `escalationTargetId`, see [Keepers](KEEPERS.md)). Any other run's question goes to the user who started the run. When neither exists, the raise is refused with 400 and field code `TargetRequired`.
@@ -75,7 +75,7 @@ curl -s -X POST "$GARRISON/v1.0/api/tenants/default/escalations/esc_2xQ.../answe
 
 Answers are compare-and-set, so two people answering at once cannot both win. The second gets 409 `EscalationNotOpen`.
 
-The answer reaches the agent as data. `builtin/escalation-answered` frames it between markers and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. `builtin/escalation-received` does the same for a question sent to another agent. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
+The answer reaches the agent as data. `builtin/escalation-answered` frames it between markers and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. A question sent to another agent arrives through `builtin/inbox-delivery`, framed the same way, with a line naming the escalation to answer. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
 
 ## Timeouts
 

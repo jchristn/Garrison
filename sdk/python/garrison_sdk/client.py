@@ -1013,7 +1013,7 @@ PIPELINE_REVIEW_SOURCES = ("User", "Timeout", "Cancelled")
 TRIGGER_TYPES = ("Cron", "Webhook")
 # Run["kind"] values. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft"
 # environment (PLAYGROUND_ENVIRONMENT); see Agents.playground_invoke and StudioDrafts.playground_invoke.
-RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper")
+RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message")
 PLAYGROUND_ENVIRONMENT = "draft"
 TRIGGER_TARGET_TYPES = ("Agent", "Pipeline")
 TRIGGER_FIRE_SOURCES = ("Cron", "Webhook", "Manual")
@@ -1050,6 +1050,10 @@ REPORT_KINDS = ("Status", "Incident", "Decision", "Handoff", "Brief")
 REPORT_HEALTHS = ("Healthy", "Degraded", "Unhealthy", "Unknown")
 REPORT_AUDIENCES = ("Manager", "Chain", "Board")
 REPORT_ISSUE_SEVERITIES = ("Low", "Medium", "High")
+# Messages: AgentMessage["urgency"], ["status"], and ["rejectionReason"].
+MESSAGE_URGENCIES = ("Normal", "Urgent")
+MESSAGE_STATUSES = ("Queued", "Delivered", "Acknowledged", "Expired", "Rejected")
+MESSAGE_REJECTIONS = ("HopLimit", "LineRate", "ThreadBudget", "NoLine", "Frozen")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -2657,6 +2661,43 @@ class Memory:
         return self._t.request("DELETE", self._t.tenant_path(f"/memory/entries/{_seg(id)}"), {"expectedVersion": expected_version})
 
 
+class Messages:
+    """Messages between agents: list and read messages and threads, and write to an agent as a person. Agents send,
+    reply, read their inbox, and acknowledge through the garrison_*_message MCP tools. Reading needs Read on
+    AgentMessage; sending needs Create. A refused message raises GarrisonError with status 409 and the rejection reason
+    (one of MESSAGE_REJECTIONS) as its code. Subjects and bodies are text the sender wrote; treat them as untrusted."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list(self, sender: Optional[str] = None, recipient: Optional[str] = None, agent: Optional[str] = None,
+             status: Optional[str] = None, urgency: Optional[str] = None, reason: Optional[str] = None,
+             thread: Optional[str] = None, delivered_run_id: Optional[str] = None, from_utc: Optional[str] = None,
+             to_utc: Optional[str] = None, search: Optional[str] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None) -> Dict[str, Any]:
+        """GET /v1.0/api/tenants/{tenantId}/messages, newest first. sender, recipient, and agent (to or from) take an
+        identifier or name; status is one of MESSAGE_STATUSES, urgency one of MESSAGE_URGENCIES, and reason one of
+        MESSAGE_REJECTIONS."""
+        return self._t.request("GET", self._t.tenant_path("/messages"), {
+            "sender": sender, "recipient": recipient, "agent": agent, "status": status, "urgency": urgency,
+            "reason": reason, "thread": thread, "deliveredRunId": delivered_run_id, "from": from_utc, "to": to_utc,
+            "search": search, "maxResults": max_results, "skip": skip})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        """Read a message with its artifacts."""
+        return self._t.request("GET", self._t.tenant_path(f"/messages/{_seg(id)}"))
+
+    def thread(self, thread_id: str) -> List[Dict[str, Any]]:
+        """GET /v1.0/api/tenants/{tenantId}/message-threads/{threadId}: every message in a thread, oldest first."""
+        return self._t.request("GET", self._t.tenant_path(f"/message-threads/{_seg(thread_id)}"))
+
+    def send(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """POST /v1.0/api/tenants/{tenantId}/messages: write to an agent. Required: recipient (identifier or name) and
+        subject. Optional: body, urgency, parentMessageId, artifactIds, ttlSeconds, and idempotencyKey (sending again
+        with the same key returns the first message)."""
+        return self._t.request("POST", self._t.tenant_path("/messages"), body=request)
+
+
 class Reports:
     """Reports: list and read the reports runs filed upward, chart a metric over time, and file a report as a person.
     Agents file through the garrison_file_report MCP tool. Reading needs Read on Report; filing needs Create. Reports
@@ -2919,6 +2960,7 @@ class GarrisonClient:
         self.freezes = Freezes(t)
         self.memory = Memory(t)
         self.reports = Reports(t)
+        self.messages = Messages(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

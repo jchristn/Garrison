@@ -22224,6 +22224,495 @@
       ]
     },
     {
+      "name": "Messages",
+      "description": "Messages between agents (AA6): runs write along app edges with garrison_send_message, reply with garrison_reply_message, receive their inbox with garrison_read_inbox, and acknowledge with garrison_ack_message. People write to any agent and browse messages and threads. Loop guards refuse messages past the hop limit, thread budget, or per-line rate, to a frozen agent, or without a line, and record each refusal. See docs/MESSAGING.md.",
+      "item": [
+        {
+          "name": "Write to an agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages"
+              ]
+            },
+            "description": "People and API credentials with AgentMessage.Create write to any agent; agents write with the garrison_send_message MCP tool along an allowed line. Normal mail waits for the agent's next keeper tick or garrison_read_inbox; Urgent wakes it now. idempotencyKey makes a retried send return the first message.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipient\": \"{{agentName}}\",\n  \"subject\": \"Postman: rotate the keys\",\n  \"body\": \"Please rotate the staging keys before Friday.\",\n  \"urgency\": \"Normal\",\n  \"ttlSeconds\": 86400,\n  \"idempotencyKey\": \"{{messageKey}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('messageKey', 'postman-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('queued for the agent in a new thread', function () { pm.expect(json.id).to.match(/^amg_/); pm.expect(json.recipientAgentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(json.status).to.eql('Queued'); pm.expect(json.threadId).to.eql(json.id); pm.expect(json.hopCount).to.eql(0); pm.expect(json.expiresUtc).to.be.ok; });",
+                  "if (json.id) pm.collectionVariables.set('messageId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Write again with the same idempotency key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages"
+              ]
+            },
+            "description": "The same idempotencyKey from the same caller returns the first message instead of sending another.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipient\": \"{{agentName}}\",\n  \"subject\": \"Postman: rotate the keys\",\n  \"body\": \"Please rotate the staging keys before Friday.\",\n  \"urgency\": \"Normal\",\n  \"ttlSeconds\": 86400,\n  \"idempotencyKey\": \"{{messageKey}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('the first message comes back', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('messageId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Write without a subject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages"
+              ]
+            },
+            "description": "A subject (1 to 256 characters) is required.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipient\": \"{{agentName}}\",\n  \"body\": \"No subject.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Follow up in the thread",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages"
+              ]
+            },
+            "description": "parentMessageId puts a person's message in the same thread.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipient\": \"{{agentName}}\",\n  \"parentMessageId\": \"{{messageId}}\",\n  \"subject\": \"Postman: also the prod keys\",\n  \"body\": \"Prod after staging.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('joins the thread', function () { pm.expect(json.threadId).to.eql(pm.collectionVariables.get('messageId')); pm.expect(json.parentMessageId).to.eql(pm.collectionVariables.get('messageId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Write to an agent (MCP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpAdminSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "garrison_send_message is the tool runs use: a run writes as its own agent along an app edge, and loop guards refuse a message past Messaging.MaxHops, the thread budget, or the per-line rate, naming the reason. People may call it too with AgentMessage.Create (tenantId is required with the administrator API key).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 121,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_send_message\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"recipient\": \"{{agentName}}\",\n      \"subject\": \"Postman over MCP\",\n      \"body\": \"Sent with garrison_send_message.\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key"
+                },
+                {
+                  "key": "value",
+                  "value": "{{adminApiKey}}"
+                },
+                {
+                  "key": "in",
+                  "value": "header"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var result = json.result || {};",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('queued for the agent', function () { var s = result.structuredContent || {}; pm.expect(result.isError || false).to.eql(false); pm.expect(s.id).to.match(/^amg_/); pm.expect(s.recipientAgentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(s.status).to.eql('Queued'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List an agent's inbox (MCP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpAdminSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "A run calls garrison_read_inbox to receive its own queued mail, which marks it delivered. People pass agent to list that agent's messages without changing them.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 122,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_read_inbox\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{agentName}}\",\n      \"status\": \"Queued\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key"
+                },
+                {
+                  "key": "value",
+                  "value": "{{adminApiKey}}"
+                },
+                {
+                  "key": "in",
+                  "value": "header"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "var result = json.result || {};",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lists the queued messages', function () { var s = result.structuredContent || {}; pm.expect(result.isError || false).to.eql(false); pm.expect(s.totalCount).to.be.at.least(3); pm.expect(s.messages.some(function (m) { return m.id === pm.collectionVariables.get('messageId'); })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List messages by recipient and status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages?recipient={{agentName}}&status=Queued",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "recipient",
+                  "value": "{{agentName}}"
+                },
+                {
+                  "key": "status",
+                  "value": "Queued"
+                }
+              ]
+            },
+            "description": "Filters: sender, recipient, agent (to or from), status, urgency, reason (for rejected messages), thread, deliveredRunId, from, to, search. Newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the agent\\'s queued messages', function () { pm.expect(json.totalRecords).to.be.at.least(3); pm.expect(json.objects.every(function (m) { return m.status === 'Queued' && m.recipientAgentId === pm.collectionVariables.get('agentId'); })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read a message",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages/{{messageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages",
+                "{{messageId}}"
+              ]
+            },
+            "description": "A message with its artifacts. Subjects and bodies are text the sender wrote; treat them as untrusted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the message', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('messageId')); pm.expect(json.subject).to.eql('Postman: rotate the keys'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the thread",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/message-threads/{{messageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "message-threads",
+                "{{messageId}}"
+              ]
+            },
+            "description": "Every message in a thread, oldest first, rejected ones included."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the message and its follow-up, oldest first', function () { pm.expect(json.length).to.eql(2); pm.expect(json[0].id).to.eql(pm.collectionVariables.get('messageId')); pm.expect(json[1].parentMessageId).to.eql(pm.collectionVariables.get('messageId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown message",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/messages/amg_postman_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "messages",
+                "amg_postman_missing"
+              ]
+            },
+            "description": "An unknown message, or another tenant's, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -25699,6 +26188,14 @@
     },
     {
       "key": "reportKey",
+      "value": ""
+    },
+    {
+      "key": "messageId",
+      "value": ""
+    },
+    {
+      "key": "messageKey",
       "value": ""
     }
   ]

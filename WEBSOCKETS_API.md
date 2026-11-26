@@ -48,10 +48,11 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `escalations` | Read on Escalation in your tenant | `escalations.open` with the number waiting for an answer at subscribe time, then one message per change: `escalation.raised`, `escalation.answered`, `escalation.expired`, `escalation.cancelled`, `escalation.withdrawn`, or `escalation.escalated` (passed up), each with the whole `escalation` and the new `open` count. See [docs/ESCALATIONS.md](docs/ESCALATIONS.md) |
 | `freezes` | Read on Freeze in your tenant | `freezes.active` with the number of active freezes and whether the kill switch is on at subscribe time, then one message per change: `freeze.applied`, `freeze.lifted`, or `killswitch.changed`, each with the whole `freeze`, the new `active` count, and `killSwitch`. See [docs/BRAKES.md](docs/BRAKES.md) |
 | `reports` | Read on Report in your tenant | `reports.subscribed`, then `report.filed` with the whole `report` for each report filed after you subscribed, in order. See [docs/REPORTS.md](docs/REPORTS.md) |
+| `agent-inbox:{agentId}` | Read on AgentMessage in your tenant | `agent-inbox.subscribed` with `agentId` and the `queued` count, then one event per status change of a message to the agent, in order: `message.queued`, `message.delivered`, `message.acknowledged`, `message.expired`, or `message.rejected`, each with the whole `message`. See [docs/MESSAGING.md](docs/MESSAGING.md) |
 
-A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `escalations` sends the open count, `freezes` sends the active count and the kill switch, `reports` sends `reports.subscribed`, `pipeline-run:{pipelineRunId}` sends the pipeline run, `conversation-files:{conversationId}` sends every current file as changed, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
+A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `escalations` sends the open count, `freezes` sends the active count and the kill switch, `reports` sends `reports.subscribed`, `agent-inbox:{agentId}` sends `agent-inbox.subscribed` with the queued count, `pipeline-run:{pipelineRunId}` sends the pipeline run, `conversation-files:{conversationId}` sends every current file as changed, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
 
-The `runs`, `run:{runId}`, `pipeline-run:{pipelineRunId}`, `approvals`, `escalations`, `freezes`, and `reports` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
+The `runs`, `run:{runId}`, `pipeline-run:{pipelineRunId}`, `approvals`, `escalations`, `freezes`, `reports`, and `agent-inbox:{agentId}` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
 
 The `approvals` channel is the push side of the approvals inbox: subscribe to it to show a badge or to notify someone (a chat hook, for example) when a harness is waiting for a decision. Pipeline stage reviews share the inbox, so the message also carries `reviewsPending`, the number of stage reviews waiting for a person; the dashboard's Approvals badge is `pending` plus `reviewsPending`. The reviews themselves are not in the message; list them with `GET .../pipeline-reviews?status=Pending`. Decide over REST or MCP.
 
@@ -121,6 +122,8 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `freezes.active` | `active`, `killSwitch` |
 | `reports.subscribed` | none |
 | `report.filed` | `report` |
+| `agent-inbox.subscribed` | `agentId`, `queued` |
+| `message.queued`, `message.delivered`, `message.acknowledged`, `message.expired`, `message.rejected` | `message` |
 | `freeze.applied`, `freeze.lifted`, `killswitch.changed` | `active`, `killSwitch`, `freeze` |
 | `fan-out.status` | `fanOutGroup` |
 | `studio-draft.changed` | `draftId`, `version`, `status`, `changed`, `graph` |

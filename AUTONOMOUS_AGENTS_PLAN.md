@@ -263,7 +263,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA3 | Brakes I: freezes, spend caps, kill switch | AA1 | Done | 11 / 11 |
 | AA4 | Scoped memory: private and collective | AA1 | Done | 15 / 15 |
 | AA5 | Reports | AA1 | Done | 13 / 13 |
-| AA6 | Mailboxes and wake-on-message | AA1, AA3 | In progress | 12 / 16 |
+| AA6 | Mailboxes and wake-on-message | AA1, AA3 | In progress | 15 / 16 |
 | AA7 | Organizations | AA2, AA4, AA5, AA6 | Not started | 0 / 18 |
 | AA8 | Executive authority and pre-authorized change | AA7 | Not started | 0 / 14 |
 | AA9 | Evaluation, shadow, and canary (absorbs AD11) | AA1, AA3 (AA9.10 needs AA8) | Not started | 0 / 18 |
@@ -808,9 +808,9 @@ Touches: models, schema, `KeeperScheduler`, `AgentInvoker`, MCP, routes, dashboa
 - [x] AA6.10 WebSocket `agent-inbox:{agentId}`.  Accept: events received.  | claude 2026-11-26 agent-inbox:{agentId} channel (Read on AgentMessage): agent-inbox.subscribed with the queued count, then message.queued, message.delivered, message.acknowledged, message.expired, message.rejected per change. messaging channel case
 - [x] AA6.11 Telemetry `garrison.messages`, `garrison.message.delivery.lag.duration`, `garrison.message.loop.guard`, `message deliver` span; Grafana messaging dashboard.  Accept: coverage suite.  | claude 2026-11-26 garrison.messages (urgency, outcome), garrison.message.delivery.lag.duration (urgency), garrison.message.loop.guard (reason), span message deliver; a Messaging row on the Autonomy dashboard (both copies); docs/TELEMETRY.md regenerated. telemetry suite passes
 - [ ] AA6.12 Dashboard `MessagesView` (filters, thread view, rejected tab with reasons), inbox tab on `AgentDetailView`, send-message modal for people; Home card shows loop-guard rejections; i18n; tests; QA.  Accept: e2e sends a message and opens its thread; QA recorded.
-- [ ] AA6.13 SDKs (four).  Accept: harnesses pass.
-- [ ] AA6.14 Postman folder Messages.  Accept: Newman passes.
-- [ ] AA6.15 Docs `docs/MESSAGING.md` (lines, urgency, coalescing, loop guards with a worked ping-pong example), `docs/KEEPERS.md` wake sources, API docs, `docs/CONFIGURATION.md`, index, changelog.  Accept: docs check.
+- [x] AA6.13 SDKs (four).  Accept: harnesses pass.  | claude 2026-11-26 a Messages client in C#, Python, JS, and Go (list with filters, get, thread, send with idempotency key), the message enums and the Message run kind, a messages harness case and README section in each. Harnesses pass: C# 62, Python 61, JS 63, Go 62
+- [x] AA6.14 Postman folder Messages.  Accept: Newman passes.  | claude 2026-11-26 Postman Messages folder: write to an agent, idempotent resend, missing subject, follow-up in the thread, send and list an inbox over MCP, list by recipient and status, read, thread, unknown 404. Newman on Auth, Agents, MCP, and Messages: every Messages request passes (10 requests, 18 assertions)
+- [x] AA6.15 Docs `docs/MESSAGING.md` (lines, urgency, coalescing, loop guards with a worked ping-pong example), `docs/KEEPERS.md` wake sources, API docs, `docs/CONFIGURATION.md`, index, changelog.  Accept: docs check.  | claude 2026-11-26 docs/MESSAGING.md (lines, sending and reading, delivery and coalescing, loop guards with a worked ping-pong, escalations, expiry, settings, permissions, untrusted text); KEEPERS.md wake sources and inbox delivery; ESCALATIONS.md agent targets; REST_API (Messages section, models, enums, ResourceTypeEnum), MCP_API, WEBSOCKETS_API, CONFIGURATION, PROMPTS, SECURITY, docs index, changelog. API docs check: 250 REST paths, 127 MCP tools, 12 channels
 - [x] AA6.16 `MessagingSuite` registered: line policy, guards, coalescing, urgent wake, expiry, isolation.  Accept: suite passes on both providers, including the multi-replica cases.  | claude 2026-11-26 MessagingSuite registered in GarrisonSuites: model and delivery template (unit), data, lines, guards, coalesce, urgent, escalation, expiry, mcp, routes, channel, and replicas. 11/11 on Sqlite and on PostgreSQL
 
 ### Phase AA7: Organizations
