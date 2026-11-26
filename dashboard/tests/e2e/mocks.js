@@ -1469,6 +1469,8 @@ export function report(i) {
   if (row.agent) Object.assign(out, { authorAgentId: `agt_${pad(row.agent)}`, authorAgentName: REPORT_AGENTS[row.agent], runId: `run_${pad(i)}`, filingKey: `${pad(i)}ABCDEF`.repeat(8).slice(0, 64) });
   if (row.keeper) Object.assign(out, { mandateId: 'mdt_0001', mandateTickId: `mtk_${pad(i)}` });
   if (row.app) Object.assign(out, { appId: `app_${pad(row.app)}`, appName: REPORT_APPS[row.app] });
+  // AA7.14: echo-agent leads Leadership (oun_0001) and agent-2 leads Billing (oun_0002) in org_0001.
+  if (row.agent) out.orgUnitId = `oun_${pad(row.agent)}`;
   if (row.period) {
     out.periodStartUtc = iso(row.period[0]);
     if (row.period[1] !== undefined) out.periodEndUtc = iso(row.period[1]);
@@ -1483,6 +1485,8 @@ export function reportList(url, rows = REPORT_ROWS.map((_, k) => report(k + 1)))
   if (author) list = list.filter((r) => r.authorAgentId === author || r.authorAgentName === author);
   const app = url.searchParams.get('app');
   if (app) list = list.filter((r) => r.appId === app || r.appName === app);
+  const unit = url.searchParams.get('unit');
+  if (unit) list = list.filter((r) => r.orgUnitId === unit);
   for (const key of ['kind', 'health', 'runId']) {
     const value = url.searchParams.get(key);
     if (value) list = list.filter((r) => r[key] === value);
@@ -1640,6 +1644,292 @@ function messageRoutes(method, url, parts) {
     return /^amg_\d+$/.test(parts[1]) ? agentMessage(Number(parts[1].slice(4))) : { ...agentMessage(2), id: parts[1] };
   }
   return {};
+}
+
+// ---------------------------------------------------------------- organizations (AA7.14)
+
+// org_0001 "Refund operations" is Active at revision 2. Its working tree has Leadership (echo-agent, the root), Billing
+// (agent-2, with agent-3 as a member and a peer line to Support), and Support (agent-4); Support's lead title is new
+// since revision 2, so the working tree has one unpublished change. Revision 3 is a draft of that change, revision 1
+// (Leadership and Billing only) was superseded. Billing has spent its whole daily budget. org_0002 is a Draft with no
+// units, and org_0003 is retired.
+const ORG_AGENTS = { 1: 'echo-agent', 2: 'agent-2', 3: 'agent-3', 4: 'agent-4' };
+
+function orgUnit(id, name, extra = {}) {
+  return {
+    id,
+    tenantId: TENANT,
+    organizationId: 'org_0001',
+    parentUnitId: null,
+    name,
+    description: null,
+    leadAgentId: null,
+    leadAgentName: null,
+    leadTitle: null,
+    leadMandateId: null,
+    appId: null,
+    members: [],
+    peerLines: [],
+    budgets: [],
+    createdUtc: iso(600),
+    lastUpdateUtc: iso(30),
+    ...extra
+  };
+}
+
+const lead = (i, title) => ({ leadAgentId: `agt_${pad(i)}`, leadAgentName: ORG_AGENTS[i], leadTitle: title || null });
+
+/** The units of org_0001 at a point in its history: 1 (two units), 2 (three, live), or 'working' (Support titled). */
+export function orgUnits(version = 'working') {
+  const leadership = orgUnit('oun_0001', 'Leadership', { ...lead(1, 'Chief executive'), leadMandateId: 'mdt_0001', description: 'Sets direction for <b>refunds</b>.', budgets: [{ period: 'Day', amountUsd: 50 }, { period: 'Month', amountUsd: 1000 }] });
+  const billing = orgUnit('oun_0002', 'Billing', {
+    parentUnitId: 'oun_0001',
+    ...lead(2, 'Head of billing'),
+    members: [{ agentId: 'agt_0003', agentName: 'agent-3', title: 'Refund clerk', mandateId: null }],
+    peerLines: version === 1 ? [] : [{ peerUnitId: 'oun_0003', peerUnitName: 'Support' }],
+    budgets: [{ period: 'Day', amountUsd: 20 }]
+  });
+  if (version === 1) return [leadership, billing];
+  const support = orgUnit('oun_0003', 'Support', { parentUnitId: 'oun_0001', ...lead(4, version === 'working' ? 'Head of support' : null), peerLines: [{ peerUnitId: 'oun_0002', peerUnitName: 'Billing' }] });
+  return [leadership, billing, support];
+}
+
+const ORG_ROWS = [
+  { name: 'Refund operations', status: 'Active', description: 'Runs refunds end to end.', mission: 'Pay every valid refund within a day.', revision: 2 },
+  { name: 'Growth lab', status: 'Draft', description: 'Experiments that are not live yet.' },
+  { name: 'Old support desk', status: 'Retired', revision: 1 }
+];
+
+/** One organization by row number (1-based), shaped like GET /organizations/{id} (units only with withUnits). */
+export function organization(i, withUnits = false) {
+  const row = ORG_ROWS[(i - 1) % ORG_ROWS.length];
+  const out = {
+    id: `org_${pad(i)}`,
+    tenantId: TENANT,
+    name: row.name,
+    description: row.description || null,
+    mission: row.mission || null,
+    status: row.status,
+    rootUnitId: i === 1 ? 'oun_0001' : null,
+    currentRevisionId: row.revision ? `orv_${pad(row.revision)}` : null,
+    currentRevisionNumber: row.revision || 0,
+    createdBy: 'usr_admin',
+    createdUtc: iso(1000 - i * 100),
+    lastUpdateUtc: iso(30)
+  };
+  if (withUnits) out.units = i === 1 ? orgUnits('working') : [];
+  return out;
+}
+
+const ORG_REVISION_ROWS = [
+  { state: 'Superseded', note: 'First chart', units: 1, published: 500 },
+  { state: 'Published', note: 'Add Support with a peer line to Billing', units: 2, published: 200 },
+  { state: 'Draft', note: 'Title the support lead', units: 'working' }
+];
+
+/** One revision of org_0001 by number, with its snapshot when withSnapshot is set. */
+export function orgRevision(n, withSnapshot = true) {
+  const row = ORG_REVISION_ROWS[n - 1];
+  const out = {
+    id: `orv_${pad(n)}`,
+    tenantId: TENANT,
+    organizationId: 'org_0001',
+    number: n,
+    state: row.state,
+    note: row.note,
+    authorType: 'User',
+    authorId: 'usr_admin',
+    authorName: 'admin@garrison',
+    units: withSnapshot ? orgUnits(row.units) : [],
+    mandates: withSnapshot ? [{ mandateId: 'mdt_0001', mandateName: 'inbox-keeper', mandateRevisionId: 'mrv_0001', mandateRevisionNumber: 1 }] : [],
+    createdUtc: iso(600 - n * 100)
+  };
+  if (row.published) out.publishedUtc = iso(row.published);
+  return out;
+}
+
+/** GET /organizations/{id}/chart for org_0001: the live revision (2) with lead and member mandate summaries. */
+export function orgChart() {
+  const units = orgUnits(2);
+  const member = (u, m) => ({ agentId: m.agentId, agentName: m.agentName, title: m.title, unitId: u.id, unitName: u.name, mandateId: m.mandateId || null });
+  return {
+    organizationId: 'org_0001',
+    name: 'Refund operations',
+    mission: 'Pay every valid refund within a day.',
+    revisionId: 'orv_0002',
+    revisionNumber: 2,
+    source: 'Live',
+    units: units.map((u) => ({
+      id: u.id,
+      name: u.name,
+      description: u.description,
+      parentUnitId: u.parentUnitId,
+      depth: u.parentUnitId ? 1 : 0,
+      appId: null,
+      lead: u.leadAgentId ? { agentId: u.leadAgentId, agentName: u.leadAgentName, title: u.leadTitle, unitId: u.id, unitName: u.name, mandateId: u.leadMandateId, mandateName: u.leadMandateId ? 'inbox-keeper' : null, mandateSummary: u.leadMandateId ? 'Keep the refund inbox empty.' : null } : null,
+      members: u.members.map((m) => member(u, m)),
+      peerUnitIds: u.peerLines.map((p) => p.peerUnitId),
+      childUnitIds: units.filter((c) => c.parentUnitId === u.id).map((c) => c.id),
+      budgets: u.budgets
+    }))
+  };
+}
+
+/** GET /organizations/{id}/spend for org_0001: Leadership within its budgets, Billing's daily budget used up. */
+export function orgSpend() {
+  const day = { windowStartUtc: new Date(new Date(NOW).setUTCHours(0, 0, 0, 0)).toISOString(), windowEndUtc: new Date(new Date(NOW).setUTCHours(24, 0, 0, 0)).toISOString() };
+  return [
+    { unitId: 'oun_0001', unitName: 'Leadership', period: 'Day', amountUsd: 50, spentUsd: 12.5, fraction: 0.25, exhausted: false, ...day },
+    { unitId: 'oun_0001', unitName: 'Leadership', period: 'Month', amountUsd: 1000, spentUsd: 840, fraction: 0.84, exhausted: false, ...day },
+    { unitId: 'oun_0002', unitName: 'Billing', period: 'Day', amountUsd: 20, spentUsd: 20, fraction: 1, exhausted: true, ...day }
+  ];
+}
+
+/** Responses for the organization routes, or undefined for other collections. */
+function organizationRoutes(method, url, parts) {
+  if (parts[0] !== 'organizations') return undefined;
+  if (parts.length === 1) return method === 'POST' ? { ...organization(2), id: 'org_0099', name: 'new-organization', units: [] } : pageOf(ORG_ROWS.map((_, k) => organization(k + 1)), url);
+  // An ID the fixtures do not know (the contract test's real IDs) gets org_0001's shape.
+  const i = /^org_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1;
+  const known = i >= 1 && i <= ORG_ROWS.length;
+  const full = known ? organization(i, true) : { ...organization(1, true), id: parts[1] };
+  if (parts.length === 2) return full;
+  const units = full.units || [];
+  if (parts[2] === 'units') {
+    if (parts.length === 3) return method === 'POST' ? orgUnit('oun_0099', 'New unit') : units;
+    return units.find((u) => u.id === parts[3]) || { ...orgUnit(parts[3], 'Unit'), organizationId: full.id };
+  }
+  if (parts[2] === 'chart') return i === 1 || !known ? orgChart() : { organizationId: full.id, name: full.name, revisionNumber: 0, source: 'Working', units: [] };
+  if (parts[2] === 'spend') return i === 1 || !known ? orgSpend() : [];
+  if (parts[2] === 'revisions') {
+    if (i !== 1 && known) return parts.length === 3 && method === 'GET' ? [] : {};
+    if (parts.length === 3) return method === 'POST' ? { ...orgRevision(3), id: 'orv_0004', number: 4 } : [3, 2, 1].map((n) => orgRevision(n, false));
+    const n = /^orv_\d+$/.test(parts[3]) ? Number(parts[3].slice(4)) : 2;
+    const revision = orgRevision(Math.min(Math.max(n, 1), 3));
+    if (parts[4] === 'publish') return { ...revision, state: 'Published', publishedUtc: iso(0) };
+    return revision;
+  }
+  if (parts[2] === 'rollback') return { ...orgRevision(1), id: 'orv_0004', number: 4, state: 'Published', rollbackOfRevisionId: 'orv_0001', publishedUtc: iso(0) };
+  return {};
+}
+
+/**
+ * A stateful organization API for tests that create and change organizations: list, create, read with units, add,
+ * replace, and remove units (with the one-root and unit-name rules), draft and publish revisions, chart, spend, and
+ * rollback. handle(method, url, body) answers { status, body } for organization routes and undefined for others.
+ */
+export function organizationStore() {
+  const orgs = [];
+  let seq = 100;
+  const nextId = (prefix) => `${prefix}_${pad((seq += 1))}`;
+  const find = (id) => orgs.find((o) => o.id === id || o.name === id);
+  const conflict = (code, message) => ({ status: 409, body: { error: code, code, message } });
+  const strip = (o) => {
+    const { units, revisions, ...rest } = o;
+    void units;
+    void revisions;
+    return rest;
+  };
+  const resolveUnit = (org, ref) => org.units.find((u) => u.id === ref || u.name === ref);
+  const toUnit = (org, body, id) => ({
+    ...orgUnit(id, (body.name || '').trim()),
+    organizationId: org.id,
+    description: body.description || null,
+    parentUnitId: body.parentUnitId ? resolveUnit(org, body.parentUnitId)?.id || body.parentUnitId : null,
+    leadAgentId: body.leadAgentId || null,
+    leadAgentName: body.leadAgentId ? ORG_AGENTS[Number(String(body.leadAgentId).slice(4))] || body.leadAgentId : null,
+    leadTitle: body.leadTitle || null,
+    leadMandateId: body.leadMandateId || null,
+    appId: body.appId || null,
+    members: (body.members || []).map((m) => ({ agentId: m.agentId, agentName: ORG_AGENTS[Number(String(m.agentId).slice(4))] || m.agentId, title: m.title || null, mandateId: m.mandateId || null })),
+    peerLines: (body.peerLines || []).map((p) => ({ peerUnitId: p.peerUnitId, peerUnitName: resolveUnit(org, p.peerUnitId)?.name || null })),
+    budgets: body.budgets || []
+  });
+  const checkTree = (org, unit, replacing) => {
+    const others = org.units.filter((u) => u.id !== replacing);
+    if (!unit.parentUnitId && others.some((u) => !u.parentUnitId)) return conflict('OneRoot', `Organization ${org.name} already has a root unit.`);
+    if (others.some((u) => u.name.toLowerCase() === unit.name.toLowerCase())) return conflict('UnitNameTaken', `A unit named ${unit.name} already exists in organization ${org.name}.`);
+    return null;
+  };
+  const handle = (method, url, body) => {
+    const m = /\/v1\.0\/api\/tenants\/[^/]+\/organizations(\/.*)?$/.exec(url.pathname);
+    if (!m) return undefined;
+    const parts = (m[1] || '').split('/').filter(Boolean).map(decodeURIComponent);
+    if (parts.length === 0) {
+      if (method === 'POST') {
+        const org = { ...organization(2), id: nextId('org'), name: body.name, description: body.description || null, mission: body.mission || null, status: 'Draft', rootUnitId: null, currentRevisionId: null, currentRevisionNumber: 0, units: [], revisions: [], createdUtc: iso(0), lastUpdateUtc: iso(0) };
+        orgs.push(org);
+        return { status: 201, body: strip(org) };
+      }
+      return { status: 200, body: pageOf(orgs.map(strip), url) };
+    }
+    const org = find(parts[0]);
+    if (!org) return { status: 404, body: { error: 'NotFound', code: 'NotFound', message: `Organization ${parts[0]} not found.` } };
+    const live = org.revisions.find((r) => r.id === org.currentRevisionId);
+    if (parts.length === 1) {
+      if (method === 'DELETE') {
+        orgs.splice(orgs.indexOf(org), 1);
+        return { status: 204, body: null };
+      }
+      if (method === 'PUT') {
+        Object.assign(org, { name: body.name, description: body.description || null, mission: body.mission || null, lastUpdateUtc: iso(0) });
+        if (body.status === 'Retired') org.status = 'Retired';
+        else if (body.status === 'Active' && org.status === 'Retired') org.status = org.currentRevisionId ? 'Active' : 'Draft';
+      }
+      return { status: 200, body: { ...strip(org), units: org.units } };
+    }
+    if (parts[1] === 'units') {
+      if (parts.length === 2 && method === 'POST') {
+        const unit = toUnit(org, body, nextId('oun'));
+        const refused = checkTree(org, unit, null);
+        if (refused) return refused;
+        org.units.push(unit);
+        if (!unit.parentUnitId) org.rootUnitId = unit.id;
+        return { status: 201, body: unit };
+      }
+      if (parts.length === 2) return { status: 200, body: org.units };
+      const existing = resolveUnit(org, parts[2]);
+      if (!existing) return { status: 404, body: { error: 'NotFound', code: 'NotFound', message: `Unit ${parts[2]} not found.` } };
+      if (method === 'DELETE') {
+        if (org.units.some((u) => u.parentUnitId === existing.id)) return conflict('UnitHasChildren', `Unit ${existing.name} has units below it.`);
+        org.units = org.units.filter((u) => u !== existing);
+        return { status: 204, body: null };
+      }
+      if (method === 'PUT') {
+        const unit = toUnit(org, body, existing.id);
+        const refused = checkTree(org, unit, existing.id);
+        if (refused) return refused;
+        org.units[org.units.indexOf(existing)] = unit;
+        return { status: 200, body: unit };
+      }
+      return { status: 200, body: existing };
+    }
+    if (parts[1] === 'chart') {
+      const units = live ? live.units : org.units;
+      return { status: 200, body: { organizationId: org.id, name: org.name, mission: org.mission, revisionId: live?.id || null, revisionNumber: live?.number || 0, source: live ? 'Live' : 'Working', units: units.map((u) => ({ id: u.id, name: u.name, description: u.description, parentUnitId: u.parentUnitId, depth: 0, appId: u.appId, lead: u.leadAgentId ? { agentId: u.leadAgentId, agentName: u.leadAgentName, title: u.leadTitle, unitId: u.id, unitName: u.name } : null, members: u.members.map((x) => ({ ...x, unitId: u.id, unitName: u.name })), peerUnitIds: u.peerLines.map((p) => p.peerUnitId), childUnitIds: units.filter((c) => c.parentUnitId === u.id).map((c) => c.id), budgets: u.budgets })) } };
+    }
+    if (parts[1] === 'spend') return { status: 200, body: [] };
+    if (parts[1] === 'revisions') {
+      if (parts.length === 2 && method === 'POST') {
+        if (!org.units.some((u) => !u.parentUnitId)) return conflict('OneRoot', `Organization ${org.name} has no root unit.`);
+        const revision = { id: nextId('orv'), tenantId: TENANT, organizationId: org.id, number: org.revisions.length + 1, state: 'Draft', note: body?.note || null, authorType: 'User', authorId: 'usr_admin', authorName: 'admin@garrison', units: JSON.parse(JSON.stringify(org.units)), mandates: [], createdUtc: iso(0) };
+        org.revisions.unshift(revision);
+        return { status: 201, body: revision };
+      }
+      if (parts.length === 2) return { status: 200, body: org.revisions.map((r) => ({ ...r, units: [], mandates: [] })) };
+      const revision = org.revisions.find((r) => r.id === parts[2]);
+      if (!revision) return { status: 404, body: { error: 'NotFound', code: 'NotFound', message: `Revision ${parts[2]} not found.` } };
+      if (parts[3] === 'publish') {
+        if (revision.state !== 'Draft') return conflict('RevisionPublished', `Revision ${revision.number} was already published.`);
+        if (live) live.state = 'Superseded';
+        Object.assign(revision, { state: 'Published', publishedUtc: iso(0) });
+        Object.assign(org, { status: org.status === 'Draft' ? 'Active' : org.status, currentRevisionId: revision.id, currentRevisionNumber: revision.number, lastUpdateUtc: iso(0) });
+      }
+      return { status: 200, body: revision };
+    }
+    return { status: 200, body: {} };
+  };
+  return { orgs, handle };
 }
 
 /** Responses for the keeper (mandate) routes, or undefined for other collections. */
@@ -2889,6 +3179,7 @@ export function respond(method, url) {
     const reported = reportRoutes(method, url, parts);
     if (reported !== undefined) return reported;
     if (parts[0] === 'messages' || parts[0] === 'message-threads') return messageRoutes(method, url, parts);
+    if (parts[0] === 'organizations') return organizationRoutes(method, url, parts);
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
     const apped = appRoutes(method, url, parts);

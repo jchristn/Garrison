@@ -1329,6 +1329,100 @@ class ApiClient {
     return this._request('GET', this._t(tenantId, `message-threads/${enc(threadId)}`));
   }
 
+  // ------------------------------------------------------------------ organizations (AA7)
+
+  /** Organizations by name. filters: search, pageNumber, pageSize. */
+  listOrganizations(tenantId, params) {
+    return this._list(this._t(tenantId, 'organizations'), params);
+  }
+
+  /** Read one organization (ID or name) with its working tree of units, root first. */
+  getOrganization(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(id)}`));
+  }
+
+  /** Create an organization. body: { name, description?, mission? }. It starts as Draft with no units. */
+  createOrganization(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'organizations'), { body });
+  }
+
+  /**
+   * Update name, description, and mission, or set status Retired (or Active again from Retired). The body replaces all
+   * three text fields, so send the ones that stay too.
+   */
+  updateOrganization(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `organizations/${enc(id)}`), { body });
+  }
+
+  /** Delete an organization with its units, revisions, and unit and organization memory. */
+  deleteOrganization(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `organizations/${enc(id)}`));
+  }
+
+  /** The units of the working tree, root first. */
+  listOrgUnits(tenantId, orgId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/units`));
+  }
+
+  /**
+   * Add a unit to the working tree. body: { name, description?, parentUnitId?, leadAgentId?, leadTitle?, leadMandateId?,
+   * appId?, members: [{ agentId, title?, mandateId? }], peerLines: [{ peerUnitId }], budgets: [{ period, amountUsd }] }.
+   * Agents, mandates, apps, parents, and peers take identifiers or names. A tree rule refusal answers 409 with its code.
+   */
+  createOrgUnit(tenantId, orgId, body) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/units`), { body });
+  }
+
+  /** Read one unit of the working tree. */
+  getOrgUnit(tenantId, orgId, unitId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/units/${enc(unitId)}`));
+  }
+
+  /** Replace a unit of the working tree (same body as createOrgUnit). */
+  updateOrgUnit(tenantId, orgId, unitId, body) {
+    return this._request('PUT', this._t(tenantId, `organizations/${enc(orgId)}/units/${enc(unitId)}`), { body });
+  }
+
+  /** Remove a unit without children from the working tree (409 UnitHasChildren otherwise). */
+  deleteOrgUnit(tenantId, orgId, unitId) {
+    return this._request('DELETE', this._t(tenantId, `organizations/${enc(orgId)}/units/${enc(unitId)}`));
+  }
+
+  /** The chart of the live revision (source Live), or of the working tree before the first publish (source Working). */
+  getOrgChart(tenantId, orgId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/chart`));
+  }
+
+  /** Revisions, newest first, without snapshots. */
+  listOrgRevisions(tenantId, orgId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/revisions`));
+  }
+
+  /** Snapshot the working tree as a Draft revision; the note is optional. */
+  createOrgRevision(tenantId, orgId, note) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/revisions`), { body: { note: note || null } });
+  }
+
+  /** Read one revision with its snapshot units and pinned mandate revisions. */
+  getOrgRevision(tenantId, orgId, revisionId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/revisions/${enc(revisionId)}`));
+  }
+
+  /** Make a Draft revision live. */
+  publishOrgRevision(tenantId, orgId, revisionId) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/revisions/${enc(revisionId)}/publish`));
+  }
+
+  /** Return to an earlier live revision. body: { revisionId? (the previous live one when omitted), note? }. */
+  rollbackOrganization(tenantId, orgId, body = {}) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/rollback`), { body });
+  }
+
+  /** Spend of each unit's subtree against its budgets in the current day and month windows (live revision). */
+  getOrgSpend(tenantId, orgId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/spend`));
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

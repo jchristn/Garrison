@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage', 'Organization'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -227,6 +227,10 @@ export const ENUMS = {
   messageStatus: ['Queued', 'Delivered', 'Acknowledged', 'Expired', 'Rejected'],
   messageUrgency: ['Normal', 'Urgent'],
   messageRejection: ['HopLimit', 'LineRate', 'ThreadBudget', 'NoLine', 'Frozen'],
+  // Organizations (AA7): an organization's life, the windows a unit budget covers, and where an org revision stands.
+  organizationStatus: ['Draft', 'Active', 'Frozen', 'Retired'],
+  budgetPeriod: ['Day', 'Month'],
+  orgRevisionState: ['Draft', 'Published', 'Superseded'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -452,6 +456,39 @@ export function messageStatusTone(status) {
       return 'neutral';
   }
 }
+
+/** Semantic tone for an organization status pill. */
+export function organizationStatusTone(status) {
+  switch (status) {
+    case 'Active':
+      return 'success';
+    case 'Frozen':
+      return 'info';
+    case 'Retired':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for an org revision state pill. */
+export function orgRevisionStateTone(state) {
+  switch (state) {
+    case 'Published':
+      return 'success';
+    case 'Draft':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
+
+/**
+ * Organization bounds, mirroring the server (AA7): an organization or unit name holds 1 to 128 characters, a
+ * description at most 2000, a mission at most 8000, a lead or member title at most 128, and a revision note at most
+ * 2000. A unit budget is a positive amount in US dollars.
+ */
+export const ORGANIZATION_LIMITS = { nameMax: 128, descriptionMax: 2000, missionMax: 8000, titleMax: 128, noteMax: 2000 };
 
 /** Semantic tone for a message urgency pill. */
 export function messageUrgencyTone(urgency) {

@@ -6673,3 +6673,287 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "Organizaciones",
+    "tip": "Árboles de unidades con líderes, miembros, líneas entre pares y presupuestos, publicados como revisiones"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organización"
+  },
+  "organizationStatus": {
+   "Draft": "Borrador",
+   "Active": "Activa",
+   "Frozen": "Congelada",
+   "Retired": "Retirada"
+  },
+  "budgetPeriod": {
+   "Day": "Día",
+   "Month": "Mes"
+  },
+  "orgRevisionState": {
+   "Draft": "Borrador",
+   "Published": "Publicada",
+   "Superseded": "Sustituida"
+  }
+ },
+ "organizations": {
+  "notPublished": "Sin publicar",
+  "actions": {
+   "open": "Abrir organización",
+   "copyId": "Copiar ID"
+  },
+  "toasts": {
+   "copied": "Se copió el ID de la organización.",
+   "unitAdded": "Se añadió la unidad {{name}} al árbol de trabajo.",
+   "unitSaved": "Se guardó la unidad {{name}}.",
+   "unitRemoved": "Se quitó la unidad {{name}} del árbol de trabajo.",
+   "published": "La revisión {{number}} está en vigor.",
+   "drafted": "Se guardó la revisión {{number}} como borrador.",
+   "rolledBack": "Se revirtió a la revisión {{number}}. La revisión {{live}} está en vigor.",
+   "retired": "Se retiró {{name}}.",
+   "reactivated": "Se reactivó {{name}}."
+  },
+  "errors": {
+   "OneRoot": "Una organización tiene exactamente una unidad raíz, la que no tiene unidad superior.",
+   "ParentNotFound": "La unidad superior no forma parte de esta organización.",
+   "Cycle": "Una unidad no puede estar por debajo de sí misma ni de una de sus propias unidades.",
+   "UnitNameTaken": "Otra unidad de esta organización ya tiene este nombre.",
+   "LeadsTwoUnits": "Este agente ya lidera otra unidad. Un agente lidera como máximo una unidad por organización.",
+   "PositionTaken": "Este agente ya ocupa un puesto en la organización. Un agente es líder o miembro de una sola unidad.",
+   "PeerNotFound": "Una línea entre pares apunta a una unidad que no forma parte de esta organización.",
+   "BudgetPeriodTaken": "Una unidad tiene un presupuesto por periodo.",
+   "BudgetInvalid": "Un presupuesto debe ser un importe positivo en dólares estadounidenses.",
+   "BudgetExceedsParent": "El presupuesto de una unidad no puede superar el presupuesto de la unidad superior.",
+   "TooManyUnits": "La organización ya tiene tantas unidades como permite el servidor.",
+   "TooManyMembers": "La unidad ya tiene tantos miembros como permite el servidor.",
+   "TooManyPeerLines": "La unidad ya tiene tantas líneas entre pares como permite el servidor.",
+   "UnitHasChildren": "Primero quite o mueva las unidades que dependen de esta.",
+   "OrganizationRetired": "La organización está retirada. Reactívela antes de modificarla.",
+   "AgentInactive": "El agente no existe o no está activo.",
+   "MandateMismatch": "El guardián pertenece a otro agente. Elija un guardián del agente que ocupa este puesto.",
+   "RevisionMismatch": "Esa revisión pertenece a otra organización.",
+   "RevisionPublished": "Esa revisión ya está publicada.",
+   "RevisionNeverPublished": "Solo se puede revertir a revisiones que estuvieron en vigor alguna vez.",
+   "AlreadyLive": "Esa revisión ya está en vigor.",
+   "NothingToRollBack": "No hay ninguna revisión anterior en vigor a la que volver.",
+   "StatusNotSettable": "Una organización se puede retirar o reactivar tras retirarla. La publicación y las congelaciones fijan los demás estados.",
+   "NameConflict": "Otra organización ya usa este nombre."
+  },
+  "spend": {
+   "noBudget": "{{period}}: {{spent}} gastado, sin presupuesto",
+   "of": "{{period}}: {{spent}} de {{amount}} ({{percent}})",
+   "exhausted": "Presupuesto agotado"
+  },
+  "chart": {
+   "lead": "Líder",
+   "noLead": "Sin líder",
+   "members": "Miembros ({{count}})",
+   "peers": "Líneas entre pares",
+   "app": "Aplicación",
+   "collapse": "Contraer las unidades que dependen de {{name}}",
+   "expand": "Expandir las unidades que dependen de {{name}}",
+   "addChild": "Añadir unidad dependiente"
+  },
+  "unit": {
+   "addTitle": "Añadir una unidad",
+   "editTitle": "Editar la unidad {{name}}",
+   "add": "Añadir unidad",
+   "saving": "Guardando...",
+   "intro": "Los cambios van al árbol de trabajo. Nada entra en vigor hasta que publique una revisión. Los nombres admiten hasta {{max}} caracteres.",
+   "namePlaceholder": "facturacion",
+   "titlePlaceholder": "Jefe de facturación",
+   "noParent": "Ninguna (la unidad raíz)",
+   "noLead": "Aún sin líder",
+   "noMandate": "Sin guardián",
+   "noApp": "Sin aplicación",
+   "noPeers": "Añada primero otra unidad para trazar una línea entre pares hacia ella.",
+   "noBudget": "Sin presupuesto",
+   "addMember": "Añadir miembro",
+   "sections": {
+    "lead": "Líder",
+    "members": "Miembros y líneas entre pares",
+    "budgets": "Presupuestos"
+   },
+   "fields": {
+    "name": "Nombre",
+    "parentUnitId": "Depende de",
+    "description": "Descripción",
+    "leadAgentId": "Agente líder",
+    "leadTitle": "Cargo del líder",
+    "leadMandateId": "Guardián del líder",
+    "appId": "Aplicación",
+    "members": "Miembros",
+    "memberAgent": "Agente",
+    "memberTitle": "Cargo",
+    "memberMandate": "Guardián",
+    "peerUnitIds": "Líneas entre pares",
+    "budgetDay": "Presupuesto diario (USD)",
+    "budgetMonth": "Presupuesto mensual (USD)"
+   },
+   "errors": {
+    "name": "Dé a la unidad un nombre de 1 a {{max}} caracteres.",
+    "description": "La descripción admite como máximo {{max}} caracteres.",
+    "title": "Un cargo admite como máximo {{max}} caracteres.",
+    "memberAgent": "Elija un agente para cada miembro o quite la fila vacía.",
+    "duplicateAgent": "Un agente solo puede ocupar un puesto en la unidad.",
+    "budget": "Introduzca un importe mayor que cero, o déjelo vacío para no fijar presupuesto."
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "Dé a la organización un nombre de 1 a {{max}} caracteres.",
+    "text": "Este campo admite como máximo {{max}} caracteres."
+   }
+  },
+  "diff": {
+   "none": "No hay diferencias. Los dos árboles son iguales.",
+   "empty": "(ninguno)",
+   "between": "De {{before}} a {{after}}.",
+   "added": "Unidades añadidas ({{count}})",
+   "removed": "Unidades quitadas ({{count}})",
+   "changed": "Unidades modificadas ({{count}})",
+   "field": "Campo",
+   "fields": {
+    "name": "Nombre",
+    "description": "Descripción",
+    "parent": "Depende de",
+    "lead": "Líder",
+    "leadTitle": "Cargo del líder",
+    "leadMandate": "Guardián del líder",
+    "app": "Aplicación",
+    "members": "Miembros",
+    "peers": "Líneas entre pares",
+    "budgets": "Presupuestos"
+   },
+   "title": "Revisión {{number}} comparada con la organización en vigor",
+   "pendingTitle": "Cambios sin publicar",
+   "nothingLive": "nada en vigor todavía",
+   "working": "el árbol de trabajo"
+  },
+  "revisions": {
+   "label": "Revisión {{number}}",
+   "rollbackOf": "(copia de la revisión {{number}})"
+  },
+  "rollback": {
+   "note": "Revertida a la revisión {{number}} desde el panel."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "Organización",
+   "heading": "Organización {{name}}",
+   "notFoundTitle": "Organización no encontrada",
+   "notFoundBody": "No existe en este inquilino o se eliminó.",
+   "live": "Actualizaciones en vivo",
+   "editDetails": "Editar detalles",
+   "reactivate": "Reactivar",
+   "retire": "Retirar",
+   "publish": "Publicar cambios",
+   "retiredBanner": "Esta organización está retirada. Su cadena de mando, sus líneas y sus presupuestos ya no se aplican, y no se puede modificar nada en ella hasta que la reactive.",
+   "pending": "El árbol de trabajo tiene cambios sin publicar: {{added}} añadidas, {{changed}} modificadas, {{removed}} quitadas.",
+   "neverPublished": "Todavía no hay nada en vigor. Publique una revisión para poner en marcha esta organización.",
+   "reviewPending": "Revisar cambios",
+   "units": "Unidades",
+   "lastUpdate": "Último cambio",
+   "tabs": {
+    "chart": "Organigrama",
+    "budgets": "Presupuestos y gasto",
+    "revisions": "Revisiones ({{count}})"
+   },
+   "chartView": "Qué árbol",
+   "viewWorking": "Árbol de trabajo",
+   "viewLive": "En vigor",
+   "addUnit": "Añadir unidad",
+   "addRoot": "Añadir la unidad raíz",
+   "workingNote": "El árbol de trabajo es lo que usted edita. Publique una revisión para ponerlo en vigor.",
+   "liveNote": "La revisión en vigor: la cadena de mando, las líneas y los presupuestos siguen este árbol.",
+   "noUnitsTitle": "Todavía no hay unidades",
+   "noUnitsBody": "Añada la unidad raíz, liderada por el agente de la cúspide, y luego añada unidades por debajo.",
+   "budgetsNote": "Cada presupuesto limita lo que pueden gastar la unidad y todas las unidades que dependen de ella en un día o un mes UTC. El gasto suma el coste conocido de las ejecuciones terminadas con la revisión en vigor.",
+   "noBudgetsTitle": "Sin presupuestos",
+   "noBudgetsBody": "Edite una unidad para darle un presupuesto diario o mensual.",
+   "noSpend": "No hay gasto registrado",
+   "columns": {
+    "unit": "Unidad",
+    "day": "Día",
+    "month": "Mes",
+    "spend": "Gasto",
+    "number": "Revisión",
+    "state": "Estado",
+    "note": "Nota",
+    "author": "Autor",
+    "created": "Creada",
+    "published": "Publicada"
+   },
+   "noRevisionsTitle": "Todavía no hay revisiones",
+   "noRevisionsBody": "Publique cambios para guardar una instantánea del árbol de trabajo como revisión.",
+   "current": "En vigor",
+   "compare": "Comparar con la revisión en vigor",
+   "publishRevision": "Publicar",
+   "rollback": "Revertir",
+   "publishTitle": "Publicar cambios",
+   "publishIntro": "Al publicar, se guarda una instantánea del árbol de trabajo como nueva revisión y se pone en vigor, con la revisión actual de cada guardián que nombra. Guardar como borrador conserva la instantánea sin ponerla en vigor.",
+   "saveDraft": "Guardar como borrador",
+   "publishNow": "Publicar",
+   "note": "Nota",
+   "diffNote": "Nota: {{note}}",
+   "removeUnitTitle": "Quitar unidad",
+   "confirmRemoveUnit": "¿Quitar la unidad {{name}} del árbol de trabajo? También se quitan las líneas entre pares que apuntan a ella. La organización en vigor no cambia hasta que publique.",
+   "rollbackTitle": "Revertir",
+   "confirmRollback": "¿Poner de nuevo en vigor la revisión {{number}} en lugar de la revisión {{live}}? El árbol de trabajo y los guardianes que nombra vuelven a esa revisión, y la reversión queda registrada como una nueva revisión.",
+   "retireTitle": "Retirar organización",
+   "confirmRetire": "¿Retirar {{name}}? Su cadena de mando, sus líneas y sus presupuestos dejan de aplicarse, y no se puede modificar hasta que la reactive.",
+   "confirmDelete": "¿Eliminar {{name}} con sus {{units}} unidades y {{revisions}} revisiones? También se elimina la memoria guardada para sus unidades y para la organización. Esta acción no se puede deshacer."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "Organizaciones",
+   "subtitle": "Árboles de unidades, cada una liderada por un agente, con miembros, líneas entre pares y presupuestos. Abra una para editar su organigrama y publicarla.",
+   "add": "Crear organización",
+   "create": "Crear organización",
+   "edit": "Editar organización",
+   "view": "Detalles de la organización",
+   "deleteTitle": "Eliminar organización",
+   "emptyTitle": "Todavía no hay organizaciones",
+   "emptyBody": "Cree una organización, añada una unidad raíz liderada por el agente de la cúspide, añada unidades por debajo y publique.",
+   "columns": {
+    "name": "Nombre",
+    "status": "Estado",
+    "currentRevisionNumber": "Revisión en vigor",
+    "description": "Descripción",
+    "createdUtc": "Creada",
+    "mission": "Misión",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Nombre",
+    "description": "Descripción",
+    "mission": "Misión"
+   },
+   "hints": {
+    "name": "De 1 a {{max}} caracteres, único en el inquilino.",
+    "description": "Opcional, como máximo {{max}} caracteres.",
+    "mission": "Para qué sirve la organización, en palabras sencillas. Opcional, como máximo {{max}} caracteres."
+   }
+  }
+ }
+});

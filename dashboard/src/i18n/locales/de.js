@@ -6655,3 +6655,287 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "Organisationen",
+    "tip": "Bäume aus Einheiten mit Leitungen, Mitgliedern, Querverbindungen und Budgets, als Revisionen veröffentlicht"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organisation"
+  },
+  "organizationStatus": {
+   "Draft": "Entwurf",
+   "Active": "Aktiv",
+   "Frozen": "Eingefroren",
+   "Retired": "Außer Dienst"
+  },
+  "budgetPeriod": {
+   "Day": "Tag",
+   "Month": "Monat"
+  },
+  "orgRevisionState": {
+   "Draft": "Entwurf",
+   "Published": "Veröffentlicht",
+   "Superseded": "Abgelöst"
+  }
+ },
+ "organizations": {
+  "notPublished": "Nicht veröffentlicht",
+  "actions": {
+   "open": "Organisation öffnen",
+   "copyId": "ID kopieren"
+  },
+  "toasts": {
+   "copied": "Die Organisations-ID wurde kopiert.",
+   "unitAdded": "Einheit {{name}} wurde zum Arbeitsbaum hinzugefügt.",
+   "unitSaved": "Einheit {{name}} wurde gespeichert.",
+   "unitRemoved": "Einheit {{name}} wurde aus dem Arbeitsbaum entfernt.",
+   "published": "Revision {{number}} ist live.",
+   "drafted": "Revision {{number}} wurde als Entwurf gespeichert.",
+   "rolledBack": "Auf Revision {{number}} zurückgesetzt. Revision {{live}} ist live.",
+   "retired": "{{name}} wurde außer Dienst gestellt.",
+   "reactivated": "{{name}} wurde wieder in Dienst gestellt."
+  },
+  "errors": {
+   "OneRoot": "Eine Organisation hat genau eine Stammeinheit, nämlich die ohne übergeordnete Einheit.",
+   "ParentNotFound": "Die übergeordnete Einheit gehört nicht zu dieser Organisation.",
+   "Cycle": "Eine Einheit kann nicht unter sich selbst oder unter einer ihrer eigenen Einheiten stehen.",
+   "UnitNameTaken": "Eine andere Einheit dieser Organisation trägt bereits diesen Namen.",
+   "LeadsTwoUnits": "Dieser Agent leitet bereits eine andere Einheit. Ein Agent leitet höchstens eine Einheit pro Organisation.",
+   "PositionTaken": "Dieser Agent hat bereits eine Position in der Organisation. Ein Agent ist Leitung oder Mitglied nur einer Einheit.",
+   "PeerNotFound": "Eine Querverbindung zeigt auf eine Einheit, die nicht zu dieser Organisation gehört.",
+   "BudgetPeriodTaken": "Eine Einheit hat ein Budget pro Zeitraum.",
+   "BudgetInvalid": "Ein Budget muss ein positiver Betrag in US-Dollar sein.",
+   "BudgetExceedsParent": "Das Budget einer Einheit kann nicht größer sein als das Budget der Einheit darüber.",
+   "TooManyUnits": "Die Organisation hat bereits so viele Einheiten, wie der Server erlaubt.",
+   "TooManyMembers": "Die Einheit hat bereits so viele Mitglieder, wie der Server erlaubt.",
+   "TooManyPeerLines": "Die Einheit hat bereits so viele Querverbindungen, wie der Server erlaubt.",
+   "UnitHasChildren": "Entfernen oder verschieben Sie zuerst die Einheiten unter dieser.",
+   "OrganizationRetired": "Die Organisation ist außer Dienst. Stellen Sie sie wieder in Dienst, bevor Sie sie ändern.",
+   "AgentInactive": "Der Agent existiert nicht oder ist nicht aktiv.",
+   "MandateMismatch": "Der Wächter gehört zu einem anderen Agenten. Wählen Sie einen Wächter des Agenten auf dieser Position.",
+   "RevisionMismatch": "Diese Revision gehört zu einer anderen Organisation.",
+   "RevisionPublished": "Diese Revision wurde bereits veröffentlicht.",
+   "RevisionNeverPublished": "Zurücksetzen ist nur auf Revisionen möglich, die einmal live waren.",
+   "AlreadyLive": "Diese Revision ist bereits live.",
+   "NothingToRollBack": "Es gibt keine frühere Live-Revision, zu der Sie zurückkehren können.",
+   "StatusNotSettable": "Eine Organisation kann außer Dienst gestellt oder wieder in Dienst gestellt werden. Die anderen Status setzen Veröffentlichungen und Sperren.",
+   "NameConflict": "Eine andere Organisation verwendet diesen Namen bereits."
+  },
+  "spend": {
+   "noBudget": "{{period}}: {{spent}} ausgegeben, kein Budget",
+   "of": "{{period}}: {{spent}} von {{amount}} ({{percent}})",
+   "exhausted": "Budget aufgebraucht"
+  },
+  "chart": {
+   "lead": "Leitung",
+   "noLead": "Keine Leitung",
+   "members": "Mitglieder ({{count}})",
+   "peers": "Querverbindungen",
+   "app": "App",
+   "collapse": "Einheiten unter {{name}} einklappen",
+   "expand": "Einheiten unter {{name}} ausklappen",
+   "addChild": "Einheit darunter hinzufügen"
+  },
+  "unit": {
+   "addTitle": "Einheit hinzufügen",
+   "editTitle": "Einheit {{name}} bearbeiten",
+   "add": "Einheit hinzufügen",
+   "saving": "Wird gespeichert...",
+   "intro": "Änderungen gehen in den Arbeitsbaum. Nichts wird live, bis Sie eine Revision veröffentlichen. Namen haben höchstens {{max}} Zeichen.",
+   "namePlaceholder": "abrechnung",
+   "titlePlaceholder": "Leitung Abrechnung",
+   "noParent": "Keine (die Stammeinheit)",
+   "noLead": "Noch keine Leitung",
+   "noMandate": "Kein Wächter",
+   "noApp": "Keine App",
+   "noPeers": "Fügen Sie zuerst eine weitere Einheit hinzu, um eine Querverbindung zu ihr zu ziehen.",
+   "noBudget": "Kein Budget",
+   "addMember": "Mitglied hinzufügen",
+   "sections": {
+    "lead": "Leitung",
+    "members": "Mitglieder und Querverbindungen",
+    "budgets": "Budgetgrenzen"
+   },
+   "fields": {
+    "name": "Name",
+    "parentUnitId": "Untersteht",
+    "description": "Beschreibung",
+    "leadAgentId": "Leitender Agent",
+    "leadTitle": "Titel der Leitung",
+    "leadMandateId": "Wächter der Leitung",
+    "appId": "App",
+    "members": "Mitglieder",
+    "memberAgent": "Agent",
+    "memberTitle": "Titel",
+    "memberMandate": "Wächter",
+    "peerUnitIds": "Querverbindungen",
+    "budgetDay": "Tagesbudget (USD)",
+    "budgetMonth": "Monatsbudget (USD)"
+   },
+   "errors": {
+    "name": "Geben Sie der Einheit einen Namen mit 1 bis {{max}} Zeichen.",
+    "description": "Die Beschreibung hat höchstens {{max}} Zeichen.",
+    "title": "Ein Titel hat höchstens {{max}} Zeichen.",
+    "memberAgent": "Wählen Sie für jedes Mitglied einen Agenten, oder entfernen Sie die leere Zeile.",
+    "duplicateAgent": "Ein Agent kann in der Einheit nur eine Position haben.",
+    "budget": "Geben Sie einen Betrag über null ein, oder lassen Sie das Feld für kein Budget leer."
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "Geben Sie der Organisation einen Namen mit 1 bis {{max}} Zeichen.",
+    "text": "Dieses Feld hat höchstens {{max}} Zeichen."
+   }
+  },
+  "diff": {
+   "none": "Keine Unterschiede. Die beiden Bäume sind gleich.",
+   "empty": "(keine)",
+   "between": "Von {{before}} zu {{after}}.",
+   "added": "Hinzugefügte Einheiten ({{count}})",
+   "removed": "Entfernte Einheiten ({{count}})",
+   "changed": "Geänderte Einheiten ({{count}})",
+   "field": "Feld",
+   "fields": {
+    "name": "Name",
+    "description": "Beschreibung",
+    "parent": "Untersteht",
+    "lead": "Leitung",
+    "leadTitle": "Titel der Leitung",
+    "leadMandate": "Wächter der Leitung",
+    "app": "App",
+    "members": "Mitglieder",
+    "peers": "Querverbindungen",
+    "budgets": "Budgetgrenzen"
+   },
+   "title": "Revision {{number}} im Vergleich zur Live-Organisation",
+   "pendingTitle": "Unveröffentlichte Änderungen",
+   "nothingLive": "noch nichts live",
+   "working": "dem Arbeitsbaum"
+  },
+  "revisions": {
+   "label": "Revision {{number}}",
+   "rollbackOf": "(Kopie von Revision {{number}})"
+  },
+  "rollback": {
+   "note": "Im Dashboard auf Revision {{number}} zurückgesetzt."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "Organisation",
+   "heading": "Organisation {{name}}",
+   "notFoundTitle": "Organisation nicht gefunden",
+   "notFoundBody": "Sie existiert in diesem Mandanten nicht, oder sie wurde gelöscht.",
+   "live": "Live-Aktualisierungen",
+   "editDetails": "Details bearbeiten",
+   "reactivate": "Wieder in Dienst stellen",
+   "retire": "Außer Dienst stellen",
+   "publish": "Änderungen veröffentlichen",
+   "retiredBanner": "Diese Organisation ist außer Dienst. Ihre Weisungskette, Verbindungen und Budgets gelten nicht mehr, und nichts in ihr kann sich ändern, bis Sie sie wieder in Dienst stellen.",
+   "pending": "Der Arbeitsbaum hat unveröffentlichte Änderungen: {{added}} hinzugefügt, {{changed}} geändert, {{removed}} entfernt.",
+   "neverPublished": "Noch ist nichts live. Veröffentlichen Sie eine Revision, um diese Organisation arbeiten zu lassen.",
+   "reviewPending": "Änderungen prüfen",
+   "units": "Einheiten",
+   "lastUpdate": "Zuletzt geändert",
+   "tabs": {
+    "chart": "Organigramm",
+    "budgets": "Budgets und Ausgaben",
+    "revisions": "Revisionen ({{count}})"
+   },
+   "chartView": "Welcher Baum",
+   "viewWorking": "Arbeitsbaum",
+   "viewLive": "Live-Stand",
+   "addUnit": "Einheit hinzufügen",
+   "addRoot": "Stammeinheit hinzufügen",
+   "workingNote": "Den Arbeitsbaum bearbeiten Sie. Veröffentlichen Sie eine Revision, um ihn live zu schalten.",
+   "liveNote": "Die Live-Revision: Weisungskette, Verbindungen und Budgets folgen diesem Baum.",
+   "noUnitsTitle": "Noch keine Einheiten",
+   "noUnitsBody": "Fügen Sie die Stammeinheit hinzu, geleitet vom Agenten an der Spitze, und dann Einheiten darunter.",
+   "budgetsNote": "Jedes Budget begrenzt, was die Einheit und alle Einheiten darunter an einem UTC-Tag oder in einem UTC-Monat ausgeben dürfen. Als Ausgaben zählen die bekannten Kosten abgeschlossener Läufe unter der Live-Revision.",
+   "noBudgetsTitle": "Keine Budgets",
+   "noBudgetsBody": "Bearbeiten Sie eine Einheit, um ihr ein Tages- oder Monatsbudget zu geben.",
+   "noSpend": "Keine Ausgaben erfasst",
+   "columns": {
+    "unit": "Einheit",
+    "day": "Tag",
+    "month": "Monat",
+    "spend": "Ausgaben",
+    "number": "Revisionsnummer",
+    "state": "Zustand",
+    "note": "Notiz",
+    "author": "Autor",
+    "created": "Erstellt",
+    "published": "Veröffentlicht"
+   },
+   "noRevisionsTitle": "Noch keine Revisionen",
+   "noRevisionsBody": "Veröffentlichen Sie Änderungen, um den Arbeitsbaum als Revision festzuhalten.",
+   "current": "Aktuell live",
+   "compare": "Mit Live-Stand vergleichen",
+   "publishRevision": "Veröffentlichen",
+   "rollback": "Zurücksetzen",
+   "publishTitle": "Änderungen veröffentlichen",
+   "publishIntro": "Beim Veröffentlichen wird der Arbeitsbaum als neue Revision festgehalten und live geschaltet, mit der aktuellen Revision jedes darin genannten Wächters. Als Entwurf speichern behält den Stand, ohne ihn live zu schalten.",
+   "saveDraft": "Als Entwurf speichern",
+   "publishNow": "Veröffentlichen",
+   "note": "Notiz",
+   "diffNote": "Notiz: {{note}}",
+   "removeUnitTitle": "Einheit entfernen",
+   "confirmRemoveUnit": "Einheit {{name}} aus dem Arbeitsbaum entfernen? Querverbindungen, die auf sie zeigen, werden ebenfalls entfernt. Die Live-Organisation ändert sich erst, wenn Sie veröffentlichen.",
+   "rollbackTitle": "Zurücksetzen",
+   "confirmRollback": "Revision {{number}} anstelle von Revision {{live}} wieder live schalten? Der Arbeitsbaum und die darin genannten Wächter kehren zu dieser Revision zurück, und das Zurücksetzen wird als neue Revision festgehalten.",
+   "retireTitle": "Organisation außer Dienst stellen",
+   "confirmRetire": "{{name}} außer Dienst stellen? Weisungskette, Verbindungen und Budgets gelten dann nicht mehr, und die Organisation kann sich nicht ändern, bis Sie sie wieder in Dienst stellen.",
+   "confirmDelete": "{{name}} mit {{units}} Einheiten und {{revisions}} Revisionen löschen? Das für ihre Einheiten und für die Organisation gespeicherte Gedächtnis wird ebenfalls gelöscht. Dies kann nicht rückgängig gemacht werden."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "Organisationen",
+   "subtitle": "Bäume aus Einheiten, jede von einem Agenten geleitet, mit Mitgliedern, Querverbindungen und Budgets. Öffnen Sie eine, um ihr Organigramm zu bearbeiten und zu veröffentlichen.",
+   "add": "Organisation erstellen",
+   "create": "Organisation erstellen",
+   "edit": "Organisation bearbeiten",
+   "view": "Organisationsdetails",
+   "deleteTitle": "Organisation löschen",
+   "emptyTitle": "Noch keine Organisationen",
+   "emptyBody": "Erstellen Sie eine Organisation, fügen Sie eine Stammeinheit hinzu, die der Agent an der Spitze leitet, dann Einheiten darunter, und veröffentlichen Sie.",
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "currentRevisionNumber": "Live-Revision",
+    "description": "Beschreibung",
+    "createdUtc": "Erstellt",
+    "mission": "Zweck",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Beschreibung",
+    "mission": "Zweck"
+   },
+   "hints": {
+    "name": "1 bis {{max}} Zeichen, eindeutig im Mandanten.",
+    "description": "Optional, höchstens {{max}} Zeichen.",
+    "mission": "Wofür die Organisation da ist, in einfachen Worten. Optional, höchstens {{max}} Zeichen."
+   }
+  }
+ }
+});

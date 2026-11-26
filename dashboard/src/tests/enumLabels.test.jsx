@@ -53,6 +53,7 @@ const COLLECTIONS = {
   memory: 'memory/entries',
   reports: 'reports',
   messages: 'messages',
+  organizations: 'organizations',
   audit: 'audit'
 };
 

@@ -6605,3 +6605,287 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "組織",
+    "tip": "由單位組成的樹狀結構，包含負責人、成員、同級線路和預算，以修訂形式發佈"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "組織"
+  },
+  "organizationStatus": {
+   "Draft": "草稿",
+   "Active": "啟用中",
+   "Frozen": "已凍結",
+   "Retired": "已停用"
+  },
+  "budgetPeriod": {
+   "Day": "日",
+   "Month": "月"
+  },
+  "orgRevisionState": {
+   "Draft": "草稿",
+   "Published": "已發佈",
+   "Superseded": "已取代"
+  }
+ },
+ "organizations": {
+  "notPublished": "未發佈",
+  "actions": {
+   "open": "開啟組織",
+   "copyId": "複製 ID"
+  },
+  "toasts": {
+   "copied": "已複製組織 ID。",
+   "unitAdded": "已將單位 {{name}} 新增到工作樹。",
+   "unitSaved": "已儲存單位 {{name}}。",
+   "unitRemoved": "已從工作樹移除單位 {{name}}。",
+   "published": "修訂 {{number}} 已生效。",
+   "drafted": "已將修訂 {{number}} 儲存為草稿。",
+   "rolledBack": "已復原到修訂 {{number}}。目前生效的是修訂 {{live}}。",
+   "retired": "已停用 {{name}}。",
+   "reactivated": "已恢復 {{name}}。"
+  },
+  "errors": {
+   "OneRoot": "一個組織恰好只有一個根單位，也就是沒有上層單位的那一個。",
+   "ParentNotFound": "上層單位不屬於此組織。",
+   "Cycle": "單位不能位於自己之下，也不能位於自己的下層單位之下。",
+   "UnitNameTaken": "此組織中已有其他單位使用這個名稱。",
+   "LeadsTwoUnits": "此代理程式已經是另一個單位的負責人。在每個組織中，一個代理程式最多只能負責一個單位。",
+   "PositionTaken": "此代理程式已在組織中擔任職位。一個代理程式只能是單一單位的負責人或成員。",
+   "PeerNotFound": "有一條同級線路指向不屬於此組織的單位。",
+   "BudgetPeriodTaken": "每個單位在每個週期只能有一個預算。",
+   "BudgetInvalid": "預算必須是以美元計的正數金額。",
+   "BudgetExceedsParent": "單位的預算不能大於上層單位的預算。",
+   "TooManyUnits": "此組織的單位數已達伺服器允許的上限。",
+   "TooManyMembers": "此單位的成員數已達伺服器允許的上限。",
+   "TooManyPeerLines": "此單位的同級線路數已達伺服器允許的上限。",
+   "UnitHasChildren": "請先移除或移動此單位底下的單位。",
+   "OrganizationRetired": "此組織已停用。請先恢復，再進行變更。",
+   "AgentInactive": "該代理程式不存在或未啟用。",
+   "MandateMismatch": "該守護者屬於另一個代理程式。請選擇此職位上代理程式的守護者。",
+   "RevisionMismatch": "該修訂屬於另一個組織。",
+   "RevisionPublished": "該修訂已經發佈過了。",
+   "RevisionNeverPublished": "只能復原到曾經生效過的修訂。",
+   "AlreadyLive": "該修訂已在生效中。",
+   "NothingToRollBack": "沒有更早的生效修訂可以返回。",
+   "StatusNotSettable": "組織只能被停用，或從停用狀態恢復。其他狀態由發佈和凍結決定。",
+   "NameConflict": "已有其他組織使用這個名稱。"
+  },
+  "spend": {
+   "noBudget": "{{period}}：已支出 {{spent}}，無預算",
+   "of": "{{period}}：{{spent}} / {{amount}}（{{percent}}）",
+   "exhausted": "預算已用盡"
+  },
+  "chart": {
+   "lead": "負責人",
+   "noLead": "無負責人",
+   "members": "成員（{{count}}）",
+   "peers": "同級線路",
+   "app": "應用程式",
+   "collapse": "收合 {{name}} 底下的單位",
+   "expand": "展開 {{name}} 底下的單位",
+   "addChild": "在下方新增單位"
+  },
+  "unit": {
+   "addTitle": "新增單位",
+   "editTitle": "編輯單位 {{name}}",
+   "add": "新增單位",
+   "saving": "正在儲存...",
+   "intro": "變更會寫入工作樹。在你發佈修訂之前，不會有任何變更生效。名稱最多 {{max}} 個字元。",
+   "namePlaceholder": "帳務",
+   "titlePlaceholder": "帳務主管",
+   "noParent": "無（根單位）",
+   "noLead": "尚無負責人",
+   "noMandate": "無守護者",
+   "noApp": "無應用程式",
+   "noPeers": "請先新增另一個單位，才能建立通往它的同級線路。",
+   "noBudget": "無預算",
+   "addMember": "新增成員",
+   "sections": {
+    "lead": "負責人",
+    "members": "成員與同級線路",
+    "budgets": "預算"
+   },
+   "fields": {
+    "name": "名稱",
+    "parentUnitId": "上層單位",
+    "description": "描述",
+    "leadAgentId": "負責人代理程式",
+    "leadTitle": "負責人職稱",
+    "leadMandateId": "負責人守護者",
+    "appId": "應用程式",
+    "members": "成員",
+    "memberAgent": "代理程式",
+    "memberTitle": "職稱",
+    "memberMandate": "守護者",
+    "peerUnitIds": "同級線路",
+    "budgetDay": "每日預算（USD）",
+    "budgetMonth": "每月預算（USD）"
+   },
+   "errors": {
+    "name": "請為單位取一個 1 到 {{max}} 個字元的名稱。",
+    "description": "描述最多 {{max}} 個字元。",
+    "title": "職稱最多 {{max}} 個字元。",
+    "memberAgent": "請為每位成員選擇代理程式，或移除空白列。",
+    "duplicateAgent": "一個代理程式在單位中只能擔任一個職位。",
+    "budget": "請輸入大於零的金額，或留空表示無預算。"
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "請為組織取一個 1 到 {{max}} 個字元的名稱。",
+    "text": "此欄位最多 {{max}} 個字元。"
+   }
+  },
+  "diff": {
+   "none": "沒有差異。兩棵樹完全相同。",
+   "empty": "（無）",
+   "between": "從 {{before}} 到 {{after}}。",
+   "added": "新增的單位（{{count}}）",
+   "removed": "移除的單位（{{count}}）",
+   "changed": "變更的單位（{{count}}）",
+   "field": "欄位",
+   "fields": {
+    "name": "名稱",
+    "description": "描述",
+    "parent": "上層單位",
+    "lead": "負責人",
+    "leadTitle": "負責人職稱",
+    "leadMandate": "負責人守護者",
+    "app": "應用程式",
+    "members": "成員",
+    "peers": "同級線路",
+    "budgets": "預算"
+   },
+   "title": "修訂 {{number}} 與生效中組織的比較",
+   "pendingTitle": "未發佈的變更",
+   "nothingLive": "尚無生效版本",
+   "working": "工作樹"
+  },
+  "revisions": {
+   "label": "修訂 {{number}}",
+   "rollbackOf": "（修訂 {{number}} 的副本）"
+  },
+  "rollback": {
+   "note": "已從儀表板復原到修訂 {{number}}。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "組織",
+   "heading": "組織 {{name}}",
+   "notFoundTitle": "找不到組織",
+   "notFoundBody": "它不存在於此租用戶中，或已被刪除。",
+   "live": "即時更新",
+   "editDetails": "編輯詳細資料",
+   "reactivate": "恢復",
+   "retire": "停用",
+   "publish": "發佈變更",
+   "retiredBanner": "此組織已停用。它的指揮鏈、線路和預算都不再適用，在你恢復它之前，其中的任何內容都無法變更。",
+   "pending": "工作樹有未發佈的變更：新增 {{added}} 個、變更 {{changed}} 個、移除 {{removed}} 個。",
+   "neverPublished": "尚無生效版本。請發佈修訂，讓此組織開始運作。",
+   "reviewPending": "檢閱變更",
+   "units": "單位",
+   "lastUpdate": "上次變更",
+   "tabs": {
+    "chart": "組織圖",
+    "budgets": "預算與支出",
+    "revisions": "修訂（{{count}}）"
+   },
+   "chartView": "顯示哪棵樹",
+   "viewWorking": "工作樹",
+   "viewLive": "生效中",
+   "addUnit": "新增單位",
+   "addRoot": "新增根單位",
+   "workingNote": "工作樹是你編輯的版本。發佈修訂即可讓它生效。",
+   "liveNote": "生效中的修訂：指揮鏈、線路和預算都依照這棵樹。",
+   "noUnitsTitle": "尚無單位",
+   "noUnitsBody": "先新增由最上層代理程式負責的根單位，再在它底下新增單位。",
+   "budgetsNote": "每個預算限制該單位及其底下所有單位在一個 UTC 日或月內可支出的金額。支出計算的是生效修訂下已完成執行的已知費用。",
+   "noBudgetsTitle": "尚無預算",
+   "noBudgetsBody": "編輯單位，為它設定每日或每月預算。",
+   "noSpend": "尚無支出紀錄",
+   "columns": {
+    "unit": "單位",
+    "day": "日",
+    "month": "月",
+    "spend": "支出",
+    "number": "修訂",
+    "state": "狀態",
+    "note": "備註",
+    "author": "作者",
+    "created": "建立時間",
+    "published": "發佈時間"
+   },
+   "noRevisionsTitle": "尚無修訂",
+   "noRevisionsBody": "發佈變更，即可將工作樹快照為一個修訂。",
+   "current": "生效中",
+   "compare": "與生效版本比較",
+   "publishRevision": "發佈",
+   "rollback": "復原",
+   "publishTitle": "發佈變更",
+   "publishIntro": "發佈會將工作樹快照為新的修訂並使其生效，同時使用其中每個守護者的目前修訂。「儲存為草稿」只保留快照，不會使其生效。",
+   "saveDraft": "儲存為草稿",
+   "publishNow": "發佈",
+   "note": "備註",
+   "diffNote": "備註：{{note}}",
+   "removeUnitTitle": "移除單位",
+   "confirmRemoveUnit": "要從工作樹移除單位 {{name}} 嗎？指向它的同級線路也會一併移除。在你發佈之前，生效中的組織不會改變。",
+   "rollbackTitle": "復原",
+   "confirmRollback": "要讓修訂 {{number}} 重新生效，取代修訂 {{live}} 嗎？工作樹及其中的守護者都會回到該修訂，而這次復原會記錄為一個新的修訂。",
+   "retireTitle": "停用組織",
+   "confirmRetire": "要停用 {{name}} 嗎？它的指揮鏈、線路和預算將停止適用，在你恢復它之前都無法變更。",
+   "confirmDelete": "要刪除 {{name}} 及其 {{units}} 個單位和 {{revisions}} 個修訂嗎？為其單位和組織儲存的記憶也會一併刪除。此操作無法復原。"
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "組織",
+   "subtitle": "由單位組成的樹狀結構，每個單位由一個代理程式負責，並有成員、同級線路和預算。開啟組織即可編輯組織圖並發佈。",
+   "add": "建立組織",
+   "create": "建立組織",
+   "edit": "編輯組織",
+   "view": "組織詳細資料",
+   "deleteTitle": "刪除組織",
+   "emptyTitle": "尚無組織",
+   "emptyBody": "建立組織，新增由最上層代理程式負責的根單位，在它底下新增單位，然後發佈。",
+   "columns": {
+    "name": "名稱",
+    "status": "狀態",
+    "currentRevisionNumber": "生效修訂",
+    "description": "描述",
+    "createdUtc": "建立時間",
+    "mission": "使命",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名稱",
+    "description": "描述",
+    "mission": "使命"
+   },
+   "hints": {
+    "name": "1 到 {{max}} 個字元，在租用戶中不得重複。",
+    "description": "選填，最多 {{max}} 個字元。",
+    "mission": "用平實的文字說明組織的目的。選填，最多 {{max}} 個字元。"
+   }
+  }
+ }
+});

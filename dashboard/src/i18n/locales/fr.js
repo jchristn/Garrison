@@ -6669,3 +6669,287 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "Organisations",
+    "tip": "Arbres d'unités avec responsables, membres, lignes transversales et budgets, publiés sous forme de révisions"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organisation"
+  },
+  "organizationStatus": {
+   "Draft": "Brouillon",
+   "Active": "Active",
+   "Frozen": "Gelée",
+   "Retired": "Retirée"
+  },
+  "budgetPeriod": {
+   "Day": "Jour",
+   "Month": "Mois"
+  },
+  "orgRevisionState": {
+   "Draft": "Brouillon",
+   "Published": "Publiée",
+   "Superseded": "Remplacée"
+  }
+ },
+ "organizations": {
+  "notPublished": "Non publiée",
+  "actions": {
+   "open": "Ouvrir l'organisation",
+   "copyId": "Copier l'ID"
+  },
+  "toasts": {
+   "copied": "ID de l'organisation copié.",
+   "unitAdded": "Unité {{name}} ajoutée à l'arbre de travail.",
+   "unitSaved": "Unité {{name}} enregistrée.",
+   "unitRemoved": "Unité {{name}} retirée de l'arbre de travail.",
+   "published": "La révision {{number}} est en service.",
+   "drafted": "Révision {{number}} enregistrée comme brouillon.",
+   "rolledBack": "Retour à la révision {{number}}. La révision {{live}} est en service.",
+   "retired": "Organisation {{name}} retirée.",
+   "reactivated": "Organisation {{name}} rétablie."
+  },
+  "errors": {
+   "OneRoot": "Une organisation a exactement une unité racine, celle qui n'a pas de parent.",
+   "ParentNotFound": "L'unité parente ne fait pas partie de cette organisation.",
+   "Cycle": "Une unité ne peut pas se trouver sous elle-même ni sous l'une de ses propres unités.",
+   "UnitNameTaken": "Une autre unité de cette organisation porte déjà ce nom.",
+   "LeadsTwoUnits": "Cet agent dirige déjà une autre unité. Un agent dirige au plus une unité par organisation.",
+   "PositionTaken": "Cet agent occupe déjà un poste dans l'organisation. Un agent est responsable ou membre d'une seule unité.",
+   "PeerNotFound": "Une ligne transversale pointe vers une unité qui ne fait pas partie de cette organisation.",
+   "BudgetPeriodTaken": "Une unité a un budget par période.",
+   "BudgetInvalid": "Un budget doit être un montant positif en dollars américains.",
+   "BudgetExceedsParent": "Le budget d'une unité ne peut pas dépasser celui de l'unité au-dessus.",
+   "TooManyUnits": "L'organisation a déjà autant d'unités que le serveur l'autorise.",
+   "TooManyMembers": "L'unité a déjà autant de membres que le serveur l'autorise.",
+   "TooManyPeerLines": "L'unité a déjà autant de lignes transversales que le serveur l'autorise.",
+   "UnitHasChildren": "Retirez ou déplacez d'abord les unités situées sous celle-ci.",
+   "OrganizationRetired": "L'organisation est retirée. Rétablissez-la avant de la modifier.",
+   "AgentInactive": "L'agent n'existe pas ou n'est pas actif.",
+   "MandateMismatch": "Le gardien appartient à un autre agent. Choisissez un gardien de l'agent occupant ce poste.",
+   "RevisionMismatch": "Cette révision appartient à une autre organisation.",
+   "RevisionPublished": "Cette révision a déjà été publiée.",
+   "RevisionNeverPublished": "On ne peut revenir qu'à une révision qui a déjà été en service.",
+   "AlreadyLive": "Cette révision est déjà en service.",
+   "NothingToRollBack": "Il n'existe aucune révision antérieure en service à laquelle revenir.",
+   "StatusNotSettable": "Une organisation peut être retirée, ou rétablie après son retrait. La publication et les gels définissent les autres statuts.",
+   "NameConflict": "Une autre organisation utilise déjà ce nom."
+  },
+  "spend": {
+   "noBudget": "{{period}} : {{spent}} dépensés, aucun budget",
+   "of": "{{period}} : {{spent}} sur {{amount}} ({{percent}})",
+   "exhausted": "Budget épuisé"
+  },
+  "chart": {
+   "lead": "Responsable",
+   "noLead": "Aucun responsable",
+   "members": "Membres ({{count}})",
+   "peers": "Lignes transversales",
+   "app": "Application",
+   "collapse": "Replier les unités sous {{name}}",
+   "expand": "Déplier les unités sous {{name}}",
+   "addChild": "Ajouter une unité en dessous"
+  },
+  "unit": {
+   "addTitle": "Ajouter une unité",
+   "editTitle": "Modifier l'unité {{name}}",
+   "add": "Ajouter l'unité",
+   "saving": "Enregistrement...",
+   "intro": "Les modifications vont dans l'arbre de travail. Rien n'entre en service tant que vous ne publiez pas une révision. Les noms comptent au plus {{max}} caractères.",
+   "namePlaceholder": "facturation",
+   "titlePlaceholder": "Responsable de la facturation",
+   "noParent": "Aucune (l'unité racine)",
+   "noLead": "Pas encore de responsable",
+   "noMandate": "Aucun gardien",
+   "noApp": "Aucune application",
+   "noPeers": "Ajoutez d'abord une autre unité pour tracer une ligne transversale vers elle.",
+   "noBudget": "Aucun budget",
+   "addMember": "Ajouter un membre",
+   "sections": {
+    "lead": "Responsable",
+    "members": "Membres et lignes transversales",
+    "budgets": "Plafonds budgétaires"
+   },
+   "fields": {
+    "name": "Nom",
+    "parentUnitId": "Rattachée à",
+    "description": "Description",
+    "leadAgentId": "Agent responsable",
+    "leadTitle": "Titre du responsable",
+    "leadMandateId": "Gardien du responsable",
+    "appId": "Application",
+    "members": "Membres",
+    "memberAgent": "Agent",
+    "memberTitle": "Titre",
+    "memberMandate": "Gardien",
+    "peerUnitIds": "Lignes transversales",
+    "budgetDay": "Budget quotidien (USD)",
+    "budgetMonth": "Budget mensuel (USD)"
+   },
+   "errors": {
+    "name": "Donnez à l'unité un nom de 1 à {{max}} caractères.",
+    "description": "La description compte au plus {{max}} caractères.",
+    "title": "Un titre compte au plus {{max}} caractères.",
+    "memberAgent": "Choisissez un agent pour chaque membre, ou supprimez la ligne vide.",
+    "duplicateAgent": "Un agent ne peut occuper qu'un seul poste dans l'unité.",
+    "budget": "Saisissez un montant supérieur à zéro, ou laissez le champ vide pour ne fixer aucun budget."
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "Donnez à l'organisation un nom de 1 à {{max}} caractères.",
+    "text": "Ce champ compte au plus {{max}} caractères."
+   }
+  },
+  "diff": {
+   "none": "Aucune différence. Les deux arbres sont identiques.",
+   "empty": "(aucun)",
+   "between": "De {{before}} à {{after}}.",
+   "added": "Unités ajoutées ({{count}})",
+   "removed": "Unités retirées ({{count}})",
+   "changed": "Unités modifiées ({{count}})",
+   "field": "Champ",
+   "fields": {
+    "name": "Nom",
+    "description": "Description",
+    "parent": "Rattachée à",
+    "lead": "Responsable",
+    "leadTitle": "Titre du responsable",
+    "leadMandate": "Gardien du responsable",
+    "app": "Application",
+    "members": "Membres",
+    "peers": "Lignes transversales",
+    "budgets": "Plafonds budgétaires"
+   },
+   "title": "Révision {{number}} comparée à l'organisation en service",
+   "pendingTitle": "Modifications non publiées",
+   "nothingLive": "rien en service pour l'instant",
+   "working": "l'arbre de travail"
+  },
+  "revisions": {
+   "label": "Révision {{number}}",
+   "rollbackOf": "(copie de la révision {{number}})"
+  },
+  "rollback": {
+   "note": "Retour à la révision {{number}} depuis le tableau de bord."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "Organisation",
+   "heading": "Organisation {{name}}",
+   "notFoundTitle": "Organisation introuvable",
+   "notFoundBody": "Elle n'existe pas dans ce locataire, ou elle a été supprimée.",
+   "live": "Mises à jour en direct",
+   "editDetails": "Modifier les détails",
+   "reactivate": "Rétablir",
+   "retire": "Retirer",
+   "publish": "Publier les modifications",
+   "retiredBanner": "Cette organisation est retirée. Sa chaîne hiérarchique, ses lignes et ses budgets ne s'appliquent plus, et rien ne peut y changer tant que vous ne la rétablissez pas.",
+   "pending": "L'arbre de travail contient des modifications non publiées : {{added}} ajoutées, {{changed}} modifiées, {{removed}} retirées.",
+   "neverPublished": "Rien n'est encore en service. Publiez une révision pour mettre cette organisation au travail.",
+   "reviewPending": "Examiner les modifications",
+   "units": "Unités",
+   "lastUpdate": "Dernière modification",
+   "tabs": {
+    "chart": "Organigramme",
+    "budgets": "Budgets et dépenses",
+    "revisions": "Révisions ({{count}})"
+   },
+   "chartView": "Quel arbre",
+   "viewWorking": "Arbre de travail",
+   "viewLive": "En service",
+   "addUnit": "Ajouter une unité",
+   "addRoot": "Ajouter l'unité racine",
+   "workingNote": "L'arbre de travail est celui que vous modifiez. Publiez une révision pour le mettre en service.",
+   "liveNote": "La révision en service : la chaîne hiérarchique, les lignes et les budgets suivent cet arbre.",
+   "noUnitsTitle": "Aucune unité pour l'instant",
+   "noUnitsBody": "Ajoutez l'unité racine, dirigée par l'agent au sommet, puis ajoutez des unités en dessous.",
+   "budgetsNote": "Chaque budget plafonne ce que l'unité et toutes les unités en dessous peuvent dépenser sur un jour ou un mois UTC. Les dépenses comptent le coût connu des exécutions terminées sous la révision en service.",
+   "noBudgetsTitle": "Aucun budget",
+   "noBudgetsBody": "Modifiez une unité pour lui donner un budget quotidien ou mensuel.",
+   "noSpend": "Aucune dépense enregistrée",
+   "columns": {
+    "unit": "Unité",
+    "day": "Jour",
+    "month": "Mois",
+    "spend": "Dépenses",
+    "number": "Révision",
+    "state": "État",
+    "note": "Note",
+    "author": "Auteur",
+    "created": "Créée",
+    "published": "Publiée"
+   },
+   "noRevisionsTitle": "Aucune révision pour l'instant",
+   "noRevisionsBody": "Publiez des modifications pour figer l'arbre de travail dans une révision.",
+   "current": "En service",
+   "compare": "Comparer avec la version en service",
+   "publishRevision": "Publier",
+   "rollback": "Revenir",
+   "publishTitle": "Publier les modifications",
+   "publishIntro": "La publication fige l'arbre de travail dans une nouvelle révision et la met en service, avec la révision actuelle de chaque gardien qu'il mentionne. Enregistrer comme brouillon conserve l'instantané sans le mettre en service.",
+   "saveDraft": "Enregistrer comme brouillon",
+   "publishNow": "Publier",
+   "note": "Note",
+   "diffNote": "Note : {{note}}",
+   "removeUnitTitle": "Retirer l'unité",
+   "confirmRemoveUnit": "Retirer l'unité {{name}} de l'arbre de travail ? Les lignes transversales qui pointent vers elle disparaissent aussi. L'organisation en service ne change pas tant que vous ne publiez pas.",
+   "rollbackTitle": "Revenir à une révision",
+   "confirmRollback": "Remettre la révision {{number}} en service à la place de la révision {{live}} ? L'arbre de travail et les gardiens qu'il mentionne reviennent à cette révision, et ce retour est enregistré comme une nouvelle révision.",
+   "retireTitle": "Retirer l'organisation",
+   "confirmRetire": "Retirer {{name}} ? Sa chaîne hiérarchique, ses lignes et ses budgets cessent de s'appliquer, et elle ne peut plus changer tant que vous ne la rétablissez pas.",
+   "confirmDelete": "Supprimer {{name}} avec ses {{units}} unités et ses {{revisions}} révisions ? La mémoire enregistrée pour ses unités et pour l'organisation est supprimée aussi. Cette action est irréversible."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "Organisations",
+   "subtitle": "Arbres d'unités, chacune dirigée par un agent, avec membres, lignes transversales et budgets. Ouvrez-en une pour modifier son organigramme et le publier.",
+   "add": "Créer une organisation",
+   "create": "Créer une organisation",
+   "edit": "Modifier l'organisation",
+   "view": "Détails de l'organisation",
+   "deleteTitle": "Supprimer l'organisation",
+   "emptyTitle": "Aucune organisation pour l'instant",
+   "emptyBody": "Créez une organisation, ajoutez une unité racine dirigée par l'agent au sommet, ajoutez des unités en dessous, puis publiez.",
+   "columns": {
+    "name": "Nom",
+    "status": "Statut",
+    "currentRevisionNumber": "Révision en service",
+    "description": "Description",
+    "createdUtc": "Créée",
+    "mission": "Mission",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Nom",
+    "description": "Description",
+    "mission": "Mission"
+   },
+   "hints": {
+    "name": "1 à {{max}} caractères, unique dans le locataire.",
+    "description": "Facultatif, au plus {{max}} caractères.",
+    "mission": "La raison d'être de l'organisation, en termes simples. Facultatif, au plus {{max}} caractères."
+   }
+  }
+ }
+});

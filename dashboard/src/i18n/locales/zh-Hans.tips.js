@@ -4009,3 +4009,172 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "p3": "消息中的一切都是发件人写的数据。它以纯文本显示，并作为数据到达智能体，绝不作为指令。打开一条消息即可按时间从早到晚阅读整个会话。"
  }
 });
+
+// Organizations (AA7.14): tooltips of the Organizations page, the organization page, the chart, and the unit editor.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "organizations": "组织：由智能体负责的单元组成的树，带有预算和修订版。打开一个即可查看其组织图。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "组织及其单元、修订版和支出。Read 用于查看；Create 和 Update 用于更改；Delete 用于删除。"
+  },
+  "organizationStatus": {
+   "Draft": "已创建但从未发布。在有修订版上线之前，其中的内容都不生效。",
+   "Active": "已有修订版上线：指挥链、线路和预算都遵循它。",
+   "Frozen": "针对该组织的冻结会阻止其中每个智能体的新运行和守护者唤醒。",
+   "Retired": "已被人停用。其中的内容都不生效，在恢复之前无法更改。"
+  },
+  "budgetPeriod": {
+   "Day": "预算覆盖一个 UTC 日内的支出，并在 UTC 午夜重新开始。",
+   "Month": "预算覆盖一个 UTC 自然月内的支出，并在每月 1 日重新开始。"
+  },
+  "orgRevisionState": {
+   "Draft": "尚未上线的工作树快照。发布后即可上线。",
+   "Published": "已上线的修订版。指挥链、线路和预算都遵循它。",
+   "Superseded": "曾经上线，之后被更新的修订版取代。可以回滚到它。"
+  }
+ },
+ "organizations": {
+  "denied": "你无权执行此操作。需要对 Organization 拥有 {{operation}} 权限。",
+  "retiredLocked": "此组织已停用。请先恢复再进行更改。",
+  "actions": {
+   "open": "打开组织的组织图、预算和修订版。",
+   "copyId": "复制组织 ID（org_...），用于 REST API、SDK 或 MCP 工具。"
+  },
+  "spend": {
+   "bar": "此单元及其所有下属单元在当前周期内的支出，与其预算对比。",
+   "exhausted": "本周期的预算已用完。在周期重新开始之前，此单元及其下属单元中智能体的新运行都会被拒绝。"
+  },
+  "chart": {
+   "toggle": "显示或隐藏向此单元汇报的单元。",
+   "lead": "负责此单元的智能体，以及它的头衔和守护者。它的上级是上一层单元的负责人。",
+   "mandate": "此智能体在该职位上承担的守护者（长期职责）。",
+   "members": "在此单元工作并向其负责人汇报的智能体，以及它们的头衔和守护者。",
+   "peers": "此单元可以直接发消息的单元，无需经过共同的上级。",
+   "peer": "将指针悬停在此处，可在组织图中突出显示对等单元。",
+   "app": "此单元运行的智能体应用（如有）。",
+   "edit": "更改此单元的名称、上级单元、负责人、成员、对等线路和预算。",
+   "addChild": "添加一个向此单元汇报的新单元。",
+   "remove": "从工作树中移除此单元。有下属单元的单元无法移除。"
+  },
+  "unit": {
+   "save": "将单元保存到工作树。发布修订版后才会上线。",
+   "sections": {
+    "lead": "负责此单元的智能体及其上级角色。",
+    "members": "在此单元工作的智能体，以及与它有直接线路的单元。",
+    "budgets": "此单元及其所有下属单元可支出金额的上限。单元的预算不能超过其上级单元的预算。"
+   },
+   "fields": {
+    "name": "单元在此组织中的唯一名称，1 到 128 个字符。",
+    "parentUnitId": "此单元的汇报对象。根单元请留空；一个组织只有一个根单元。",
+    "description": "用平实的语言说明单元的职能。可选。",
+    "leadAgentId": "负责该单元的智能体。在每个组织中，一个智能体最多负责一个单元，且只担任一个职位。",
+    "leadTitle": "负责人的头衔，显示在组织图中并对其他智能体可见。可选，最多 128 个字符。",
+    "leadMandateId": "此职位承担的、负责人智能体的守护者。发布时会固定其当前修订版。",
+    "appId": "该单元运行的智能体应用。可选。",
+    "members": "在此单元工作并向其负责人汇报的智能体。",
+    "memberAgent": "成员智能体。它不能在此组织中担任其他职位。",
+    "memberTitle": "成员的头衔，显示在组织图中。可选。",
+    "memberMandate": "此职位承担的、该成员智能体的守护者。可选。",
+    "peerUnitIds": "此单元可以直接发消息的其他单元。线路是双向的。",
+    "budgetDay": "此单元及其下属单元在一个 UTC 日内最多可支出的金额，以美元计。留空表示不设每日上限。",
+    "budgetMonth": "此单元及其下属单元在一个 UTC 月内最多可支出的金额，以美元计。留空表示不设每月上限。"
+   }
+  },
+  "diff": {
+   "added": "较新的树中有、较旧的树中没有的单元。",
+   "removed": "较旧的树中有、较新的树中已不存在的单元。",
+   "changed": "两棵树中都有、且至少有一个字段不同的单元。"
+  }
+ },
+ "resources": {
+  "organizations": {
+   "add": "创建新组织。它以没有单元的草稿开始，你可以在其页面上构建组织图。",
+   "name": "组织的名称，在租户内唯一。智能体和 API 可以按名称引用它。",
+   "status": "首次发布前为草稿，之后为活动；被冻结期间为已冻结，被人停用后为已停用。",
+   "currentRevisionNumber": "已上线修订版的编号；首次发布之前显示“未发布”。",
+   "description": "组织的简短描述。悬停可查看全文。",
+   "createdUtc": "组织的创建时间。悬停可查看确切时间。",
+   "mission": "组织的用途。成员的运行会在其组织摘要中看到它。",
+   "id": "组织 ID（org_...），用于 REST API、SDK 和 MCP 工具。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revision": "已上线的修订版。指挥链、线路和预算都遵循它。",
+   "notPublished": "尚无上线内容。发布一个修订版，让组织开始运作。",
+   "live": "组织、其报告和支出发生变化时，页面会随之更新。",
+   "viewJson": "按 API 返回的形式显示组织，包括其工作树。",
+   "editDetails": "更改组织的名称、描述和使命。",
+   "reactivate": "恢复已停用的组织。如果它曾经发布过，会重新变为活动状态。",
+   "retire": "停用组织：其指挥链、线路和预算不再生效。之后可以恢复。",
+   "frozenRetire": "已冻结的组织无法停用。请先解除冻结。",
+   "publish": "将工作树的快照保存为修订版并使其上线，或保存为草稿。",
+   "publishEmpty": "发布前请至少添加根单元。",
+   "delete": "永久删除组织及其单元、修订版，以及单元和组织的记忆。",
+   "reviewPending": "逐个单元比较工作树与已上线的修订版。",
+   "units": "工作树中的单元数量。",
+   "lastUpdate": "组织或其工作树的上次更改时间。悬停可查看确切时间。",
+   "tabs": {
+    "chart": "单元组成的树，包含负责人、成员、对等线路、健康状况和支出。",
+    "budgets": "每个单元的每日和每月预算，以及其子树在当前周期内的支出。",
+    "revisions": "树的快照，按从新到旧排列，可发布、比较和回滚。"
+   },
+   "viewWorking": "显示工作树，即你编辑的版本。",
+   "viewLive": "显示已上线的修订版，即指挥链所遵循的版本。",
+   "noLive": "尚无上线内容。请先发布一个修订版。",
+   "addUnit": "向工作树添加单元。第一个单元即为根单元。",
+   "columns": {
+    "unit": "单元，缩进显示在其汇报的单元之下。",
+    "day": "单元的每日预算（美元），留空表示无预算。",
+    "month": "单元的每月预算（美元），留空表示无预算。",
+    "spend": "此单元及其所有下属单元在当前周期内的支出，与各项预算对比。",
+    "number": "修订版编号，从 1 开始递增。",
+    "state": "草稿、已发布（已上线）或已被取代（曾经上线，之后被替换）。",
+    "note": "创建该修订版的原因，由其作者填写。",
+    "author": "创建该修订版的人或智能体。",
+    "created": "修订版的创建时间。悬停可查看确切时间。",
+    "published": "修订版上线的时间（如果曾经上线）。"
+   },
+   "current": "此修订版当前已上线。",
+   "compare": "逐个单元比较此修订版与已上线的修订版。",
+   "publishRevision": "让此草稿修订版上线。",
+   "rollback": "让这个较早的修订版重新上线。回滚会记录为一个新修订版。",
+   "saveDraft": "将工作树的快照保存为草稿修订版，不使其上线。",
+   "publishNow": "保存工作树的快照并立即上线。",
+   "note": "进行此更改的原因。可选，最多 2000 个字符；显示在修订版列表中。",
+   "removeUnit": "从工作树中移除该单元。"
+  }
+ }
+});
+
+// Organizations (AA7.14): the explainer of the Organizations page and the organization page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "organizations": {
+  "title": "组织",
+  "p1": "组织是由单元组成的树。每个单元有一个负责人智能体、带有头衔和守护者的成员，以及通向可直接发消息的单元的对等线路。每位负责人的上级是上一层单元的负责人，根单元之上则由一个人作为董事会。",
+  "p2": "你编辑的是工作树。在发布修订版之前，不会有任何内容上线；发布之后，指挥链、消息线路、报告对象、记忆范围和预算都会遵循它。每个修订版都会保留，因此你可以将任一修订版与已上线的树比较，或回滚到它。",
+  "p3": "预算限制一个单元及其所有下属单元在一个 UTC 日或月内可支出的金额。预算用完后，该子树中智能体的新运行会被拒绝，并通知该单元的上级。"
+ }
+});

@@ -56,6 +56,8 @@ import ReportsView from '../ReportsView';
 import ReportDetailView from '../ReportDetailView';
 import MessagesView from '../MessagesView';
 import MessageThreadView from '../MessageThreadView';
+import OrganizationsView from '../OrganizationsView';
+import OrganizationDetailView from '../OrganizationDetailView';
 import FreezesView from '../FreezesView';
 import MemoryView from '../MemoryView';
 
@@ -87,6 +89,7 @@ export const PAGE_VIEWS = {
   memory: MemoryView,
   reports: ReportsView,
   messages: MessagesView,
+  organizations: OrganizationsView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,
@@ -124,6 +127,7 @@ export const DETAIL_VIEWS = {
   escalations: EscalationDetailView,
   reports: ReportDetailView,
   messageThreads: MessageThreadView,
+  organizations: OrganizationDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView,
   studio: StudioDraftView,

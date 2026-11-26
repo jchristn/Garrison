@@ -4012,3 +4012,172 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "p3": "Tout ce que contient un message est une donnée écrite par son expéditeur. Il est affiché en texte brut et parvient aux agents comme des données, jamais comme des instructions. Ouvrez un message pour lire tout son fil, du plus ancien au plus récent."
  }
 });
+
+// Organizations (AA7.14): tooltips of the Organizations page, the organization page, the chart, and the unit editor.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "organizations": "Organisations : arbres d'unités dirigées par des agents, avec budgets et révisions. Ouvrez-en une pour voir son organigramme."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Les organisations, leurs unités, leurs révisions et leurs dépenses. Lire permet de les consulter ; Créer et Mettre à jour les modifient ; Supprimer les supprime."
+  },
+  "organizationStatus": {
+   "Draft": "Créée mais jamais publiée. Rien ne s'y applique tant qu'aucune révision n'est en service.",
+   "Active": "Une révision est en service : la chaîne hiérarchique, les lignes et les budgets la suivent.",
+   "Frozen": "Un gel de l'organisation arrête les nouvelles exécutions et les réveils de gardiens pour chacun de ses agents.",
+   "Retired": "Retirée par une personne. Rien ne s'y applique, et elle ne peut pas changer tant qu'elle n'est pas rétablie."
+  },
+  "budgetPeriod": {
+   "Day": "Le budget couvre les dépenses d'un jour UTC et repart de zéro à minuit UTC.",
+   "Month": "Le budget couvre les dépenses d'un mois civil UTC et repart de zéro le premier du mois."
+  },
+  "orgRevisionState": {
+   "Draft": "Un instantané de l'arbre de travail qui n'est pas encore en service. Publiez-le pour le mettre en service.",
+   "Published": "La révision en service. La chaîne hiérarchique, les lignes et les budgets la suivent.",
+   "Superseded": "A été en service puis remplacée par une révision plus récente. Vous pouvez y revenir."
+  }
+ },
+ "organizations": {
+  "denied": "Vous n'êtes pas autorisé à faire cela. Il faut l'opération {{operation}} sur Organisation.",
+  "retiredLocked": "L'organisation est retirée. Rétablissez-la avant de la modifier.",
+  "actions": {
+   "open": "Ouvrir l'organigramme, les budgets et les révisions de l'organisation.",
+   "copyId": "Copier l'ID de l'organisation (org_...) pour l'API REST, les SDK ou les outils MCP."
+  },
+  "spend": {
+   "bar": "Dépenses de cette unité et de toutes les unités en dessous sur la période en cours, par rapport à son budget.",
+   "exhausted": "Le budget de cette période est épuisé. Les nouvelles exécutions des agents de cette unité et des unités en dessous sont refusées jusqu'au début de la période suivante."
+  },
+  "chart": {
+   "toggle": "Afficher ou masquer les unités rattachées à celle-ci.",
+   "lead": "L'agent qui dirige cette unité, avec son titre et son gardien. Son responsable hiérarchique est le responsable de l'unité au-dessus.",
+   "mandate": "Le gardien (mission permanente) que cet agent détient à son poste.",
+   "members": "Les agents qui travaillent dans cette unité et rendent compte à son responsable, avec leurs titres et leurs gardiens.",
+   "peers": "Les unités auxquelles cette unité peut écrire directement, sans passer par un responsable commun.",
+   "peer": "Pointez ici pour mettre en évidence l'unité reliée dans l'organigramme.",
+   "app": "L'application agentique que cette unité exploite, le cas échéant.",
+   "edit": "Modifier le nom, le parent, le responsable, les membres, les lignes transversales et les budgets de cette unité.",
+   "addChild": "Ajouter une nouvelle unité rattachée à celle-ci.",
+   "remove": "Retirer cette unité de l'arbre de travail. Une unité qui a des unités en dessous ne peut pas être retirée."
+  },
+  "unit": {
+   "save": "Enregistrer l'unité dans l'arbre de travail. Elle entre en service quand vous publiez une révision.",
+   "sections": {
+    "lead": "L'agent qui dirige cette unité et son rôle de responsable.",
+    "members": "Les agents qui travaillent dans cette unité et les unités avec lesquelles elle a des lignes directes.",
+    "budgets": "Plafonds de ce que cette unité et toutes les unités en dessous peuvent dépenser. Le budget d'une unité ne peut pas dépasser celui de son parent."
+   },
+   "fields": {
+    "name": "Un nom unique pour l'unité dans cette organisation, de 1 à 128 caractères.",
+    "parentUnitId": "L'unité à laquelle celle-ci est rattachée. Laissez vide pour l'unité racine ; une organisation en a exactement une.",
+    "description": "Ce que fait l'unité, en termes simples. Facultatif.",
+    "leadAgentId": "L'agent qui dirige l'unité. Un agent dirige au plus une unité et occupe un seul poste par organisation.",
+    "leadTitle": "Le titre du responsable, affiché dans l'organigramme et aux autres agents. Facultatif, au plus 128 caractères.",
+    "leadMandateId": "Un gardien de l'agent responsable associé à ce poste. La publication fige sa révision actuelle.",
+    "appId": "Une application agentique que l'unité exploite. Facultatif.",
+    "members": "Les agents qui travaillent dans cette unité et rendent compte à son responsable.",
+    "memberAgent": "L'agent membre. Il ne peut occuper aucun autre poste dans cette organisation.",
+    "memberTitle": "Le titre du membre, affiché dans l'organigramme. Facultatif.",
+    "memberMandate": "Un gardien de cet agent membre associé au poste. Facultatif.",
+    "peerUnitIds": "Les autres unités auxquelles celle-ci peut écrire directement. Les lignes fonctionnent dans les deux sens.",
+    "budgetDay": "Le montant maximal que cette unité et les unités en dessous peuvent dépenser sur un jour UTC, en dollars américains. Laissez vide pour aucun plafond quotidien.",
+    "budgetMonth": "Le montant maximal que cette unité et les unités en dessous peuvent dépenser sur un mois UTC, en dollars américains. Laissez vide pour aucun plafond mensuel."
+   }
+  },
+  "diff": {
+   "added": "Les unités de l'arbre le plus récent que l'ancien n'a pas.",
+   "removed": "Les unités de l'ancien arbre que le plus récent n'a plus.",
+   "changed": "Les unités présentes dans les deux arbres dont au moins un champ diffère."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "add": "Créer une nouvelle organisation. Elle commence comme brouillon sans unités ; vous construisez son organigramme sur sa page.",
+   "name": "Le nom de l'organisation, unique dans le locataire. Les agents et l'API peuvent la désigner par son nom.",
+   "status": "Brouillon jusqu'à la première publication, puis Active ; Gelée tant qu'un gel la bloque, Retirée quand une personne la retire.",
+   "currentRevisionNumber": "Le numéro de la révision en service, ou Non publiée avant la première publication.",
+   "description": "Une courte description de l'organisation. Survolez pour voir le texte complet.",
+   "createdUtc": "Date de création de l'organisation. Survolez pour voir l'heure exacte.",
+   "mission": "La raison d'être de l'organisation. Les exécutions des membres la voient dans le résumé de leur organisation.",
+   "id": "L'ID de l'organisation (org_...), pour l'API REST, les SDK et les outils MCP."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revision": "La révision en service. La chaîne hiérarchique, les lignes et les budgets la suivent.",
+   "notPublished": "Rien n'est encore en service. Publiez une révision pour mettre l'organisation au travail.",
+   "live": "La page se met à jour quand l'organisation, ses rapports et ses dépenses changent.",
+   "viewJson": "Afficher l'organisation telle que l'API la renvoie, avec son arbre de travail.",
+   "editDetails": "Modifier le nom, la description et la mission de l'organisation.",
+   "reactivate": "Rétablir l'organisation retirée. Elle redevient Active si elle a déjà été publiée.",
+   "retire": "Retirer l'organisation : sa chaîne hiérarchique, ses lignes et ses budgets cessent de s'appliquer. Vous pourrez la rétablir plus tard.",
+   "frozenRetire": "Une organisation gelée ne peut pas être retirée. Levez d'abord le gel.",
+   "publish": "Figer l'arbre de travail dans une révision et la mettre en service, ou l'enregistrer comme brouillon.",
+   "publishEmpty": "Ajoutez au moins l'unité racine avant de publier.",
+   "delete": "Supprimer définitivement l'organisation avec ses unités, ses révisions et la mémoire des unités et de l'organisation.",
+   "reviewPending": "Comparer l'arbre de travail avec la révision en service, unité par unité.",
+   "units": "Le nombre d'unités de l'arbre de travail.",
+   "lastUpdate": "Dernière modification de l'organisation ou de son arbre de travail. Survolez pour voir l'heure exacte.",
+   "tabs": {
+    "chart": "L'arbre des unités avec responsables, membres, lignes transversales, santé et dépenses.",
+    "budgets": "Le budget quotidien et mensuel de chaque unité, avec ce que son sous-arbre a dépensé sur la période en cours.",
+    "revisions": "Les instantanés de l'arbre, du plus récent au plus ancien, avec publication, comparaison et retour arrière."
+   },
+   "viewWorking": "Afficher l'arbre de travail, la version que vous modifiez.",
+   "viewLive": "Afficher la révision en service, celle que suit la chaîne hiérarchique.",
+   "noLive": "Rien n'est encore en service. Publiez d'abord une révision.",
+   "addUnit": "Ajouter une unité à l'arbre de travail. La première unité est la racine.",
+   "columns": {
+    "unit": "L'unité, en retrait sous l'unité à laquelle elle est rattachée.",
+    "day": "Le budget quotidien de l'unité en dollars américains, ou vide s'il n'y en a pas.",
+    "month": "Le budget mensuel de l'unité en dollars américains, ou vide s'il n'y en a pas.",
+    "spend": "Ce que l'unité et toutes les unités en dessous ont dépensé sur la période en cours, par rapport à chaque budget.",
+    "number": "Le numéro de révision, à partir de 1.",
+    "state": "Brouillon, Publiée (en service) ou Remplacée (en service autrefois, remplacée depuis).",
+    "note": "La raison de la révision, telle que son auteur l'a écrite.",
+    "author": "La personne ou l'agent qui a créé la révision.",
+    "created": "Date de création de la révision. Survolez pour voir l'heure exacte.",
+    "published": "Date de mise en service de la révision, le cas échéant."
+   },
+   "current": "Cette révision est actuellement en service.",
+   "compare": "Comparer cette révision avec celle en service, unité par unité.",
+   "publishRevision": "Mettre en service cette révision brouillon.",
+   "rollback": "Remettre en service cette révision antérieure. Le retour est enregistré comme une nouvelle révision.",
+   "saveDraft": "Figer l'arbre de travail dans une révision brouillon sans la mettre en service.",
+   "publishNow": "Figer l'arbre de travail et le mettre en service immédiatement.",
+   "note": "La raison de cette modification. Facultatif, au plus 2000 caractères ; affichée dans la liste des révisions.",
+   "removeUnit": "Retirer l'unité de l'arbre de travail."
+  }
+ }
+});
+
+// Organizations (AA7.14): the explainer of the Organizations page and the organization page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "organizations": {
+  "title": "Organisations",
+  "p1": "Une organisation est un arbre d'unités. Chaque unité a un agent responsable, des membres avec leurs titres et leurs gardiens, et des lignes transversales vers les unités auxquelles elle peut écrire directement. Le responsable de l'unité au-dessus est le supérieur de chaque responsable, et une personne siège au-dessus de la racine en tant que conseil d'administration.",
+  "p2": "Vous modifiez l'arbre de travail. Rien n'entre en service tant que vous ne publiez pas une révision : la chaîne hiérarchique, les lignes de messagerie, les destinataires des rapports, les portées de mémoire et les budgets la suivent alors. Chaque révision est conservée, vous pouvez donc la comparer avec l'arbre en service ou y revenir.",
+  "p3": "Un budget plafonne ce qu'une unité et toutes les unités en dessous peuvent dépenser sur un jour ou un mois UTC. Quand un budget est épuisé, les nouvelles exécutions des agents de ce sous-arbre sont refusées et le responsable de l'unité en est averti."
+ }
+});

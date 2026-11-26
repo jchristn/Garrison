@@ -4012,3 +4012,172 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "p3": "Todo lo que contiene un mensaje son datos que escribió su remitente. Se muestra como texto sin formato y llega a los agentes como datos, nunca como instrucciones. Abra un mensaje para leer su hilo completo, del más antiguo al más reciente."
  }
 });
+
+// Organizations (AA7.14): tooltips of the Organizations page, the organization page, the chart, and the unit editor.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "organizations": "Organizaciones: árboles de unidades lideradas por agentes, con presupuestos y revisiones. Abra una para ver su organigrama."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organizaciones, sus unidades, revisiones y gasto. Leer las consulta; Crear y Actualizar las modifican; Eliminar las borra."
+  },
+  "organizationStatus": {
+   "Draft": "Creada pero nunca publicada. Nada de ella se aplica hasta que una revisión entre en vigor.",
+   "Active": "Hay una revisión en vigor: la cadena de mando, las líneas y los presupuestos la siguen.",
+   "Frozen": "Una congelación de la organización detiene las nuevas ejecuciones y los despertares de guardianes de todos sus agentes.",
+   "Retired": "Retirada por una persona. Nada de ella se aplica, y no puede cambiar hasta que se reactive."
+  },
+  "budgetPeriod": {
+   "Day": "El presupuesto cubre el gasto de un día UTC y se reinicia a medianoche UTC.",
+   "Month": "El presupuesto cubre el gasto de un mes natural UTC y se reinicia el día uno."
+  },
+  "orgRevisionState": {
+   "Draft": "Una instantánea del árbol de trabajo que aún no está en vigor. Publíquela para ponerla en vigor.",
+   "Published": "La revisión en vigor. La cadena de mando, las líneas y los presupuestos la siguen.",
+   "Superseded": "Estuvo en vigor y después la sustituyó una revisión más reciente. Puede revertir a ella."
+  }
+ },
+ "organizations": {
+  "denied": "No puede hacerlo. Hace falta {{operation}} sobre Organización.",
+  "retiredLocked": "La organización está retirada. Reactívela antes de modificarla.",
+  "actions": {
+   "open": "Abrir el organigrama, los presupuestos y las revisiones de la organización.",
+   "copyId": "Copiar el ID de la organización (org_...) para la API REST, los SDK o las herramientas MCP."
+  },
+  "spend": {
+   "bar": "Gasto de esta unidad y de todas las que dependen de ella en el periodo actual, frente a su presupuesto.",
+   "exhausted": "El presupuesto de este periodo está agotado. Las nuevas ejecuciones de agentes de esta unidad y de las que dependen de ella se rechazan hasta que empiece el siguiente periodo."
+  },
+  "chart": {
+   "toggle": "Mostrar u ocultar las unidades que dependen de esta.",
+   "lead": "El agente que lidera esta unidad, con su cargo y su guardián. Su responsable es el líder de la unidad superior.",
+   "mandate": "El guardián (tarea permanente) que tiene este agente en su puesto.",
+   "members": "Agentes que trabajan en esta unidad y dependen de su líder, con sus cargos y guardianes.",
+   "peers": "Unidades a las que esta unidad puede enviar mensajes directamente, sin pasar por un responsable común.",
+   "peer": "Señale aquí para resaltar la unidad par en el organigrama.",
+   "app": "La aplicación agéntica que ejecuta esta unidad, si la hay.",
+   "edit": "Cambiar el nombre, la unidad superior, el líder, los miembros, las líneas entre pares y los presupuestos de esta unidad.",
+   "addChild": "Añadir una nueva unidad que dependa de esta.",
+   "remove": "Quitar esta unidad del árbol de trabajo. No se puede quitar una unidad que tiene unidades por debajo."
+  },
+  "unit": {
+   "save": "Guardar la unidad en el árbol de trabajo. Entra en vigor cuando publique una revisión.",
+   "sections": {
+    "lead": "El agente que lidera esta unidad y su función de responsable.",
+    "members": "Los agentes que trabajan en esta unidad y las unidades con las que tiene líneas directas.",
+    "budgets": "Límites de lo que pueden gastar esta unidad y todas las que dependen de ella. El presupuesto de una unidad no puede superar el de su unidad superior."
+   },
+   "fields": {
+    "name": "Un nombre único para la unidad en esta organización, de 1 a 128 caracteres.",
+    "parentUnitId": "La unidad de la que depende esta. Déjelo vacío para la unidad raíz; una organización tiene exactamente una.",
+    "description": "Qué hace la unidad, en palabras sencillas. Opcional.",
+    "leadAgentId": "El agente que lidera la unidad. Un agente lidera como máximo una unidad y ocupa un solo puesto por organización.",
+    "leadTitle": "El cargo del líder, que se muestra en el organigrama y a otros agentes. Opcional, como máximo 128 caracteres.",
+    "leadMandateId": "Un guardián del agente líder asociado a este puesto. Al publicar se fija su revisión actual.",
+    "appId": "Una aplicación agéntica que ejecuta la unidad. Opcional.",
+    "members": "Agentes que trabajan en esta unidad y dependen de su líder.",
+    "memberAgent": "El agente miembro. No puede ocupar otro puesto en esta organización.",
+    "memberTitle": "El cargo del miembro, que se muestra en el organigrama. Opcional.",
+    "memberMandate": "Un guardián de este agente miembro asociado al puesto. Opcional.",
+    "peerUnitIds": "Otras unidades a las que esta puede enviar mensajes directamente. Las líneas funcionan en ambos sentidos.",
+    "budgetDay": "Lo máximo que pueden gastar esta unidad y las que dependen de ella en un día UTC, en dólares estadounidenses. Déjelo vacío para no fijar un límite diario.",
+    "budgetMonth": "Lo máximo que pueden gastar esta unidad y las que dependen de ella en un mes UTC, en dólares estadounidenses. Déjelo vacío para no fijar un límite mensual."
+   }
+  },
+  "diff": {
+   "added": "Unidades del árbol más reciente que el anterior no tiene.",
+   "removed": "Unidades del árbol anterior que el más reciente ya no tiene.",
+   "changed": "Unidades presentes en ambos árboles con al menos un campo distinto."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "add": "Crear una nueva organización. Empieza como borrador sin unidades; su organigrama se construye en su página.",
+   "name": "El nombre de la organización, único en el inquilino. Los agentes y la API pueden referirse a ella por su nombre.",
+   "status": "Borrador hasta la primera publicación y después Activa; Congelada mientras la retiene una congelación, Retirada cuando una persona la retira.",
+   "currentRevisionNumber": "El número de la revisión en vigor, o Sin publicar antes de la primera publicación.",
+   "description": "Una breve descripción de la organización. Pase el cursor para ver el texto completo.",
+   "createdUtc": "Cuándo se creó la organización. Pase el cursor para ver la hora exacta.",
+   "mission": "Para qué sirve la organización. Las ejecuciones de sus miembros la ven en el resumen de su organización.",
+   "id": "El ID de la organización (org_...), para la API REST, los SDK y las herramientas MCP."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revision": "La revisión en vigor. La cadena de mando, las líneas y los presupuestos la siguen.",
+   "notPublished": "Todavía no hay nada en vigor. Publique una revisión para poner en marcha la organización.",
+   "live": "La página se actualiza cuando cambian la organización, sus informes y su gasto.",
+   "viewJson": "Mostrar la organización tal como la devuelve la API, con su árbol de trabajo.",
+   "editDetails": "Cambiar el nombre, la descripción y la misión de la organización.",
+   "reactivate": "Reactivar la organización retirada. Vuelve a estar Activa si se publicó alguna vez.",
+   "retire": "Retirar la organización: su cadena de mando, sus líneas y sus presupuestos dejan de aplicarse. Puede reactivarla más adelante.",
+   "frozenRetire": "Una organización congelada no se puede retirar. Levante primero la congelación.",
+   "publish": "Guardar una instantánea del árbol de trabajo como revisión y ponerla en vigor, o guardarla como borrador.",
+   "publishEmpty": "Añada al menos la unidad raíz antes de publicar.",
+   "delete": "Eliminar de forma permanente la organización con sus unidades, revisiones y la memoria de las unidades y de la organización.",
+   "reviewPending": "Comparar el árbol de trabajo con la revisión en vigor, unidad por unidad.",
+   "units": "Cuántas unidades tiene el árbol de trabajo.",
+   "lastUpdate": "Cuándo cambió por última vez la organización o su árbol de trabajo. Pase el cursor para ver la hora exacta.",
+   "tabs": {
+    "chart": "El árbol de unidades con líderes, miembros, líneas entre pares, estado de salud y gasto.",
+    "budgets": "El presupuesto diario y mensual de cada unidad, con lo que ha gastado su subárbol en el periodo actual.",
+    "revisions": "Instantáneas del árbol, de la más reciente a la más antigua, con publicación, comparación y reversión."
+   },
+   "viewWorking": "Mostrar el árbol de trabajo, la versión que usted edita.",
+   "viewLive": "Mostrar la revisión en vigor, la que sigue la cadena de mando.",
+   "noLive": "Todavía no hay nada en vigor. Publique primero una revisión.",
+   "addUnit": "Añadir una unidad al árbol de trabajo. La primera unidad es la raíz.",
+   "columns": {
+    "unit": "La unidad, con sangría bajo la unidad de la que depende.",
+    "day": "El presupuesto diario de la unidad en dólares estadounidenses, o vacío si no tiene.",
+    "month": "El presupuesto mensual de la unidad en dólares estadounidenses, o vacío si no tiene.",
+    "spend": "Lo que gastaron la unidad y todas las que dependen de ella en el periodo actual, frente a cada presupuesto.",
+    "number": "El número de revisión, contando desde 1.",
+    "state": "Borrador, Publicada (en vigor) o Sustituida (estuvo en vigor y luego se reemplazó).",
+    "note": "Por qué se hizo la revisión, tal como la escribió su autor.",
+    "author": "La persona o el agente que hizo la revisión.",
+    "created": "Cuándo se hizo la revisión. Pase el cursor para ver la hora exacta.",
+    "published": "Cuándo entró en vigor la revisión, si llegó a hacerlo."
+   },
+   "current": "Esta revisión está en vigor ahora.",
+   "compare": "Comparar esta revisión con la que está en vigor, unidad por unidad.",
+   "publishRevision": "Poner en vigor esta revisión en borrador.",
+   "rollback": "Poner de nuevo en vigor esta revisión anterior. La reversión queda registrada como una nueva revisión.",
+   "saveDraft": "Guardar una instantánea del árbol de trabajo como revisión en borrador sin ponerla en vigor.",
+   "publishNow": "Guardar una instantánea del árbol de trabajo y ponerla en vigor ahora.",
+   "note": "Por qué hace este cambio. Opcional, como máximo 2000 caracteres; se muestra en la lista de revisiones.",
+   "removeUnit": "Quitar la unidad del árbol de trabajo."
+  }
+ }
+});
+
+// Organizations (AA7.14): the explainer of the Organizations page and the organization page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "organizations": {
+  "title": "Organizaciones",
+  "p1": "Una organización es un árbol de unidades. Cada unidad tiene un agente líder, miembros con cargos y guardianes, y líneas entre pares hacia las unidades a las que puede enviar mensajes directamente. El responsable de cada líder es el líder de la unidad superior, y por encima de la raíz hay una persona que actúa como consejo.",
+  "p2": "Usted edita el árbol de trabajo. Nada entra en vigor hasta que publica una revisión: a partir de entonces la cadena de mando, las líneas de mensajes, los destinatarios de los informes, los ámbitos de memoria y los presupuestos la siguen. Se conservan todas las revisiones, así que puede comparar cualquiera con el árbol en vigor o revertir a ella.",
+  "p3": "Un presupuesto limita lo que pueden gastar una unidad y todas las que dependen de ella en un día o un mes UTC. Cuando se agota un presupuesto, se rechazan las nuevas ejecuciones de los agentes de ese subárbol y se avisa al responsable de la unidad."
+ }
+});

@@ -80,6 +80,8 @@ export { memoryConfig } from './memoryConfigs';
 export { reportsConfig } from './reportConfigs';
 // AA6.12: messages between agents under Autonomy.
 export { messagesConfig } from './messageConfigs';
+// AA7.14: organizations under Autonomy.
+export { organizationsConfig } from './organizationConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

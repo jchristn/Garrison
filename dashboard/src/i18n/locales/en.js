@@ -6643,3 +6643,287 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "Organizations",
+    "tip": "Trees of units with leads, members, peer lines, and budgets, published as revisions"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organization"
+  },
+  "organizationStatus": {
+   "Draft": "Draft",
+   "Active": "Active",
+   "Frozen": "Frozen",
+   "Retired": "Retired"
+  },
+  "budgetPeriod": {
+   "Day": "Day",
+   "Month": "Month"
+  },
+  "orgRevisionState": {
+   "Draft": "Draft",
+   "Published": "Published",
+   "Superseded": "Superseded"
+  }
+ },
+ "organizations": {
+  "notPublished": "Not published",
+  "actions": {
+   "open": "Open organization",
+   "copyId": "Copy ID"
+  },
+  "toasts": {
+   "copied": "Copied the organization ID.",
+   "unitAdded": "Added unit {{name}} to the working tree.",
+   "unitSaved": "Saved unit {{name}}.",
+   "unitRemoved": "Removed unit {{name}} from the working tree.",
+   "published": "Revision {{number}} is live.",
+   "drafted": "Saved revision {{number}} as a draft.",
+   "rolledBack": "Rolled back to revision {{number}}. Revision {{live}} is live.",
+   "retired": "Retired {{name}}.",
+   "reactivated": "Brought {{name}} back."
+  },
+  "errors": {
+   "OneRoot": "An organization has exactly one root unit, the one without a parent.",
+   "ParentNotFound": "The parent unit is not part of this organization.",
+   "Cycle": "A unit cannot sit below itself or below one of its own units.",
+   "UnitNameTaken": "Another unit of this organization already has this name.",
+   "LeadsTwoUnits": "This agent already leads another unit. An agent leads at most one unit per organization.",
+   "PositionTaken": "This agent already holds a position in the organization. An agent is a lead or a member of one unit only.",
+   "PeerNotFound": "A peer line points at a unit that is not part of this organization.",
+   "BudgetPeriodTaken": "A unit has one budget per period.",
+   "BudgetInvalid": "A budget must be a positive amount in US dollars.",
+   "BudgetExceedsParent": "A unit's budget cannot be larger than the budget of the unit above it.",
+   "TooManyUnits": "The organization already has as many units as the server allows.",
+   "TooManyMembers": "The unit already has as many members as the server allows.",
+   "TooManyPeerLines": "The unit already has as many peer lines as the server allows.",
+   "UnitHasChildren": "Remove or move the units below this one first.",
+   "OrganizationRetired": "The organization is retired. Bring it back before changing it.",
+   "AgentInactive": "The agent does not exist or is not active.",
+   "MandateMismatch": "The keeper belongs to another agent. Pick a keeper of the agent in this position.",
+   "RevisionMismatch": "That revision belongs to another organization.",
+   "RevisionPublished": "That revision was already published.",
+   "RevisionNeverPublished": "Only revisions that were live once can be rolled back to.",
+   "AlreadyLive": "That revision is already live.",
+   "NothingToRollBack": "There is no earlier live revision to return to.",
+   "StatusNotSettable": "An organization can be retired, or brought back from retired. Publishing and freezes set the other statuses.",
+   "NameConflict": "Another organization already uses this name."
+  },
+  "spend": {
+   "noBudget": "{{period}}: {{spent}} spent, no budget",
+   "of": "{{period}}: {{spent}} of {{amount}} ({{percent}})",
+   "exhausted": "Budget used up"
+  },
+  "chart": {
+   "lead": "Lead",
+   "noLead": "No lead",
+   "members": "Members ({{count}})",
+   "peers": "Peer lines",
+   "app": "App",
+   "collapse": "Collapse the units below {{name}}",
+   "expand": "Expand the units below {{name}}",
+   "addChild": "Add unit below"
+  },
+  "unit": {
+   "addTitle": "Add a unit",
+   "editTitle": "Edit unit {{name}}",
+   "add": "Add unit",
+   "saving": "Saving...",
+   "intro": "Changes go to the working tree. Nothing goes live until you publish a revision. Names hold up to {{max}} characters.",
+   "namePlaceholder": "billing",
+   "titlePlaceholder": "Head of billing",
+   "noParent": "None (the root unit)",
+   "noLead": "No lead yet",
+   "noMandate": "No keeper",
+   "noApp": "No app",
+   "noPeers": "Add another unit first to draw a peer line to it.",
+   "noBudget": "No budget",
+   "addMember": "Add member",
+   "sections": {
+    "lead": "Lead",
+    "members": "Members and peer lines",
+    "budgets": "Budgets"
+   },
+   "fields": {
+    "name": "Name",
+    "parentUnitId": "Reports to",
+    "description": "Description",
+    "leadAgentId": "Lead agent",
+    "leadTitle": "Lead title",
+    "leadMandateId": "Lead keeper",
+    "appId": "App",
+    "members": "Members",
+    "memberAgent": "Agent",
+    "memberTitle": "Title",
+    "memberMandate": "Keeper",
+    "peerUnitIds": "Peer lines",
+    "budgetDay": "Daily budget (USD)",
+    "budgetMonth": "Monthly budget (USD)"
+   },
+   "errors": {
+    "name": "Give the unit a name of 1 to {{max}} characters.",
+    "description": "The description holds at most {{max}} characters.",
+    "title": "A title holds at most {{max}} characters.",
+    "memberAgent": "Pick an agent for every member, or remove the empty row.",
+    "duplicateAgent": "An agent can hold only one position in the unit.",
+    "budget": "Enter an amount above zero, or leave it empty for no budget."
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "Give the organization a name of 1 to {{max}} characters.",
+    "text": "This field holds at most {{max}} characters."
+   }
+  },
+  "diff": {
+   "none": "No differences. The two trees are the same.",
+   "empty": "(none)",
+   "between": "From {{before}} to {{after}}.",
+   "added": "Units added ({{count}})",
+   "removed": "Units removed ({{count}})",
+   "changed": "Units changed ({{count}})",
+   "field": "Field",
+   "fields": {
+    "name": "Name",
+    "description": "Description",
+    "parent": "Reports to",
+    "lead": "Lead",
+    "leadTitle": "Lead title",
+    "leadMandate": "Lead keeper",
+    "app": "App",
+    "members": "Members",
+    "peers": "Peer lines",
+    "budgets": "Budgets"
+   },
+   "title": "Revision {{number}} compared with the live organization",
+   "pendingTitle": "Unpublished changes",
+   "nothingLive": "nothing live yet",
+   "working": "the working tree"
+  },
+  "revisions": {
+   "label": "Revision {{number}}",
+   "rollbackOf": "(copy of revision {{number}})"
+  },
+  "rollback": {
+   "note": "Rolled back to revision {{number}} from the dashboard."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "Organization",
+   "heading": "Organization {{name}}",
+   "notFoundTitle": "Organization not found",
+   "notFoundBody": "It does not exist in this tenant, or it was deleted.",
+   "live": "Live updates",
+   "editDetails": "Edit details",
+   "reactivate": "Bring back",
+   "retire": "Retire",
+   "publish": "Publish changes",
+   "retiredBanner": "This organization is retired. Its chain of command, lines, and budgets no longer apply, and nothing in it can change until you bring it back.",
+   "pending": "The working tree has unpublished changes: {{added}} added, {{changed}} changed, {{removed}} removed.",
+   "neverPublished": "Nothing is live yet. Publish a revision to put this organization to work.",
+   "reviewPending": "Review changes",
+   "units": "Units",
+   "lastUpdate": "Last changed",
+   "tabs": {
+    "chart": "Chart",
+    "budgets": "Budgets and spend",
+    "revisions": "Revisions ({{count}})"
+   },
+   "chartView": "Which tree",
+   "viewWorking": "Working tree",
+   "viewLive": "Live",
+   "addUnit": "Add unit",
+   "addRoot": "Add the root unit",
+   "workingNote": "The working tree is what you edit. Publish a revision to make it live.",
+   "liveNote": "The live revision: the chain of command, lines, and budgets follow this tree.",
+   "noUnitsTitle": "No units yet",
+   "noUnitsBody": "Add the root unit, led by the agent at the top, then add units below it.",
+   "budgetsNote": "Each budget caps what the unit and every unit below it may spend in a UTC day or month. Spend counts the known cost of finished runs under the live revision.",
+   "noBudgetsTitle": "No budgets",
+   "noBudgetsBody": "Edit a unit to give it a daily or monthly budget.",
+   "noSpend": "No spend recorded",
+   "columns": {
+    "unit": "Unit",
+    "day": "Day",
+    "month": "Month",
+    "spend": "Spend",
+    "number": "Revision",
+    "state": "State",
+    "note": "Note",
+    "author": "Author",
+    "created": "Created",
+    "published": "Published"
+   },
+   "noRevisionsTitle": "No revisions yet",
+   "noRevisionsBody": "Publish changes to snapshot the working tree as a revision.",
+   "current": "Live",
+   "compare": "Compare with live",
+   "publishRevision": "Publish",
+   "rollback": "Roll back",
+   "publishTitle": "Publish changes",
+   "publishIntro": "Publishing snapshots the working tree as a new revision and makes it live, with the current revision of every keeper it names. Save as draft keeps the snapshot without making it live.",
+   "saveDraft": "Save as draft",
+   "publishNow": "Publish",
+   "note": "Note",
+   "diffNote": "Note: {{note}}",
+   "removeUnitTitle": "Remove unit",
+   "confirmRemoveUnit": "Remove unit {{name}} from the working tree? Peer lines that point at it go too. The live organization does not change until you publish.",
+   "rollbackTitle": "Roll back",
+   "confirmRollback": "Make revision {{number}} live again in place of revision {{live}}? The working tree and the keepers it names return to that revision, and the rollback is recorded as a new revision.",
+   "retireTitle": "Retire organization",
+   "confirmRetire": "Retire {{name}}? Its chain of command, lines, and budgets stop applying, and it cannot change until you bring it back.",
+   "confirmDelete": "Delete {{name}} with its {{units}} units and {{revisions}} revisions? Memory saved for its units and for the organization is deleted too. This cannot be undone."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "Organizations",
+   "subtitle": "Trees of units, each led by an agent with members, peer lines, and budgets. Open one to edit its chart and publish it.",
+   "add": "Create organization",
+   "create": "Create organization",
+   "edit": "Edit organization",
+   "view": "Organization details",
+   "deleteTitle": "Delete organization",
+   "emptyTitle": "No organizations yet",
+   "emptyBody": "Create an organization, add a root unit led by the agent at the top, add units below it, and publish.",
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "currentRevisionNumber": "Live revision",
+    "description": "Description",
+    "createdUtc": "Created",
+    "mission": "Mission",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Description",
+    "mission": "Mission"
+   },
+   "hints": {
+    "name": "1 to {{max}} characters, unique in the tenant.",
+    "description": "Optional, at most {{max}} characters.",
+    "mission": "What the organization is for, in plain words. Optional, at most {{max}} characters."
+   }
+  }
+ }
+});

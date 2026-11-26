@@ -4010,3 +4010,172 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "p3": "Everything in a message is data its sender wrote. It is shown as plain text and reaches agents as data, never as instructions. Open a message to read its whole thread, oldest first."
  }
 });
+
+// Organizations (AA7.14): tooltips of the Organizations page, the organization page, the chart, and the unit editor.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "organizations": "Organizations: trees of units led by agents, with budgets and revisions. Open one to see its chart."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organizations, their units, revisions, and spend. Read views them; Create and Update change them; Delete removes them."
+  },
+  "organizationStatus": {
+   "Draft": "Created but never published. Nothing in it applies until a revision goes live.",
+   "Active": "A revision is live: the chain of command, lines, and budgets follow it.",
+   "Frozen": "A freeze on the organization stops new runs and keeper wakes for every agent in it.",
+   "Retired": "Retired by a person. Nothing in it applies, and it cannot change until it is brought back."
+  },
+  "budgetPeriod": {
+   "Day": "The budget covers spend in one UTC day and starts over at midnight UTC.",
+   "Month": "The budget covers spend in one UTC calendar month and starts over on the first."
+  },
+  "orgRevisionState": {
+   "Draft": "A snapshot of the working tree that is not live yet. Publish it to make it live.",
+   "Published": "The live revision. The chain of command, lines, and budgets follow it.",
+   "Superseded": "Was live once and has since been replaced by a newer revision. You can roll back to it."
+  }
+ },
+ "organizations": {
+  "denied": "You may not do this. It needs {{operation}} on Organization.",
+  "retiredLocked": "The organization is retired. Bring it back before changing it.",
+  "actions": {
+   "open": "Open the organization's chart, budgets, and revisions.",
+   "copyId": "Copy the organization ID (org_...) for the REST API, SDKs, or MCP tools."
+  },
+  "spend": {
+   "bar": "Spend of this unit and every unit below it in the current window, against its budget.",
+   "exhausted": "The budget for this window is used up. New runs of agents in this unit and below it are refused until the window starts over."
+  },
+  "chart": {
+   "toggle": "Show or hide the units that report to this one.",
+   "lead": "The agent that leads this unit, with its title and keeper. Its manager is the lead of the unit above.",
+   "mandate": "The keeper (standing job) this agent holds in its position.",
+   "members": "Agents that work in this unit and report to its lead, with their titles and keepers.",
+   "peers": "Units this unit may message directly, without going through a shared manager.",
+   "peer": "Point here to highlight the peer unit in the chart.",
+   "app": "The agentic app this unit runs, if any.",
+   "edit": "Change this unit's name, parent, lead, members, peer lines, and budgets.",
+   "addChild": "Add a new unit that reports to this one.",
+   "remove": "Remove this unit from the working tree. A unit with units below it cannot be removed."
+  },
+  "unit": {
+   "save": "Save the unit to the working tree. It goes live when you publish a revision.",
+   "sections": {
+    "lead": "The agent that leads this unit and its manager role.",
+    "members": "The agents that work in this unit and the units it has direct lines to.",
+    "budgets": "Caps on what this unit and every unit below it may spend. A unit's budget cannot be larger than its parent's."
+   },
+   "fields": {
+    "name": "A unique name for the unit in this organization, 1 to 128 characters.",
+    "parentUnitId": "The unit this one reports to. Leave it empty for the root unit; an organization has exactly one.",
+    "description": "What the unit does, in plain words. Optional.",
+    "leadAgentId": "The agent that leads the unit. An agent leads at most one unit and holds one position per organization.",
+    "leadTitle": "The lead's title, shown on the chart and to other agents. Optional, at most 128 characters.",
+    "leadMandateId": "A keeper of the lead agent that this position carries. Publishing pins its current revision.",
+    "appId": "An agentic app the unit runs. Optional.",
+    "members": "Agents that work in this unit and report to its lead.",
+    "memberAgent": "The member agent. It cannot hold another position in this organization.",
+    "memberTitle": "The member's title, shown on the chart. Optional.",
+    "memberMandate": "A keeper of this member agent that the position carries. Optional.",
+    "peerUnitIds": "Other units this one may message directly. Lines go both ways.",
+    "budgetDay": "The most this unit and the units below it may spend in one UTC day, in US dollars. Leave it empty for no daily cap.",
+    "budgetMonth": "The most this unit and the units below it may spend in one UTC month, in US dollars. Leave it empty for no monthly cap."
+   }
+  },
+  "diff": {
+   "added": "Units in the newer tree that the older one does not have.",
+   "removed": "Units in the older tree that the newer one no longer has.",
+   "changed": "Units in both trees with at least one field that differs."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "add": "Create a new organization. It starts as a draft with no units; you build its chart on its page.",
+   "name": "The organization's name, unique in the tenant. Agents and the API can refer to it by name.",
+   "status": "Draft until the first publish, then Active; Frozen while a freeze holds it, Retired when a person retires it.",
+   "currentRevisionNumber": "The number of the live revision, or Not published before the first publish.",
+   "description": "A short description of the organization. Hover for the full text.",
+   "createdUtc": "When the organization was created. Hover for the exact time.",
+   "mission": "What the organization is for. Member runs see it in their organization summary.",
+   "id": "The organization ID (org_...), for the REST API, SDKs, and MCP tools."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revision": "The live revision. The chain of command, lines, and budgets follow it.",
+   "notPublished": "Nothing is live yet. Publish a revision to put the organization to work.",
+   "live": "The page updates as the organization, its reports, and its spend change.",
+   "viewJson": "Show the organization as the API returns it, with its working tree.",
+   "editDetails": "Change the organization's name, description, and mission.",
+   "reactivate": "Bring the retired organization back. It becomes Active again if it was ever published.",
+   "retire": "Retire the organization: its chain of command, lines, and budgets stop applying. You can bring it back later.",
+   "frozenRetire": "A frozen organization cannot be retired. Lift the freeze first.",
+   "publish": "Snapshot the working tree as a revision and make it live, or save it as a draft.",
+   "publishEmpty": "Add at least the root unit before publishing.",
+   "delete": "Permanently delete the organization with its units, revisions, and unit and organization memory.",
+   "reviewPending": "Compare the working tree with the live revision, unit by unit.",
+   "units": "How many units the working tree has.",
+   "lastUpdate": "When the organization or its working tree last changed. Hover for the exact time.",
+   "tabs": {
+    "chart": "The tree of units with leads, members, peer lines, health, and spend.",
+    "budgets": "Each unit's daily and monthly budget, with what its subtree has spent in the current window.",
+    "revisions": "Snapshots of the tree, newest first, with publish, compare, and rollback."
+   },
+   "viewWorking": "Show the working tree, the version you edit.",
+   "viewLive": "Show the live revision, the one the chain of command follows.",
+   "noLive": "Nothing is live yet. Publish a revision first.",
+   "addUnit": "Add a unit to the working tree. The first unit is the root.",
+   "columns": {
+    "unit": "The unit, indented under the unit it reports to.",
+    "day": "The unit's daily budget in US dollars, or empty for none.",
+    "month": "The unit's monthly budget in US dollars, or empty for none.",
+    "spend": "What the unit and every unit below it spent in the current window, against each budget.",
+    "number": "The revision number, counting up from 1.",
+    "state": "Draft, Published (live), or Superseded (live once, since replaced).",
+    "note": "Why the revision was made, as its author wrote it.",
+    "author": "The person or agent that made the revision.",
+    "created": "When the revision was made. Hover for the exact time.",
+    "published": "When the revision went live, if it ever did."
+   },
+   "current": "This revision is live now.",
+   "compare": "Compare this revision with the live one, unit by unit.",
+   "publishRevision": "Make this draft revision live.",
+   "rollback": "Make this earlier revision live again. The rollback is recorded as a new revision.",
+   "saveDraft": "Snapshot the working tree as a draft revision without making it live.",
+   "publishNow": "Snapshot the working tree and make it live now.",
+   "note": "Why you are making this change. Optional, at most 2000 characters; shown in the revision list.",
+   "removeUnit": "Remove the unit from the working tree."
+  }
+ }
+});
+
+// Organizations (AA7.14): the explainer of the Organizations page and the organization page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "organizations": {
+  "title": "Organizations",
+  "p1": "An organization is a tree of units. Each unit has a lead agent, members with titles and keepers, and peer lines to units it may message directly. The lead of the unit above is each lead's manager, and a person sits above the root as the board.",
+  "p2": "You edit the working tree. Nothing goes live until you publish a revision: then the chain of command, message lines, report audiences, memory scopes, and budgets follow it. Every revision is kept, so you can compare one with the live tree or roll back to it.",
+  "p3": "A budget caps what a unit and every unit below it may spend in a UTC day or month. When a budget runs out, new runs of agents in that subtree are refused and the unit's manager hears about it."
+ }
+});

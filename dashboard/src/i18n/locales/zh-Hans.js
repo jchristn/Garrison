@@ -6605,3 +6605,287 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "组织",
+    "tip": "由单元组成的树，包含负责人、成员、对等线路和预算，以修订版形式发布"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "组织"
+  },
+  "organizationStatus": {
+   "Draft": "草稿",
+   "Active": "活动",
+   "Frozen": "已冻结",
+   "Retired": "已停用"
+  },
+  "budgetPeriod": {
+   "Day": "日",
+   "Month": "月"
+  },
+  "orgRevisionState": {
+   "Draft": "草稿",
+   "Published": "已发布",
+   "Superseded": "已被取代"
+  }
+ },
+ "organizations": {
+  "notPublished": "未发布",
+  "actions": {
+   "open": "打开组织",
+   "copyId": "复制 ID"
+  },
+  "toasts": {
+   "copied": "已复制组织 ID。",
+   "unitAdded": "已将单元 {{name}} 添加到工作树。",
+   "unitSaved": "已保存单元 {{name}}。",
+   "unitRemoved": "已从工作树中移除单元 {{name}}。",
+   "published": "修订版 {{number}} 已上线。",
+   "drafted": "已将修订版 {{number}} 保存为草稿。",
+   "rolledBack": "已回滚到修订版 {{number}}。修订版 {{live}} 已上线。",
+   "retired": "已停用 {{name}}。",
+   "reactivated": "已恢复 {{name}}。"
+  },
+  "errors": {
+   "OneRoot": "一个组织只有一个根单元，也就是没有上级单元的那个。",
+   "ParentNotFound": "上级单元不属于此组织。",
+   "Cycle": "单元不能位于自身之下，也不能位于其下属单元之下。",
+   "UnitNameTaken": "此组织中已有其他单元使用这个名称。",
+   "LeadsTwoUnits": "此智能体已经是另一个单元的负责人。在一个组织中，一个智能体最多负责一个单元。",
+   "PositionTaken": "此智能体已在该组织中担任职位。一个智能体只能是一个单元的负责人或成员。",
+   "PeerNotFound": "某条对等线路指向的单元不属于此组织。",
+   "BudgetPeriodTaken": "一个单元在每个周期只能有一个预算。",
+   "BudgetInvalid": "预算必须是以美元计的正数金额。",
+   "BudgetExceedsParent": "单元的预算不能超过其上级单元的预算。",
+   "TooManyUnits": "此组织的单元数量已达到服务器允许的上限。",
+   "TooManyMembers": "此单元的成员数量已达到服务器允许的上限。",
+   "TooManyPeerLines": "此单元的对等线路数量已达到服务器允许的上限。",
+   "UnitHasChildren": "请先移除或移动此单元下属的单元。",
+   "OrganizationRetired": "此组织已停用。请先恢复再进行更改。",
+   "AgentInactive": "该智能体不存在或未处于活动状态。",
+   "MandateMismatch": "该守护者属于另一个智能体。请选择担任此职位的智能体的守护者。",
+   "RevisionMismatch": "该修订版属于另一个组织。",
+   "RevisionPublished": "该修订版已经发布。",
+   "RevisionNeverPublished": "只能回滚到曾经上线过的修订版。",
+   "AlreadyLive": "该修订版已经上线。",
+   "NothingToRollBack": "没有可以返回的更早的上线修订版。",
+   "StatusNotSettable": "组织只能被停用，或从停用状态恢复。其他状态由发布和冻结决定。",
+   "NameConflict": "已有其他组织使用这个名称。"
+  },
+  "spend": {
+   "noBudget": "{{period}}：已支出 {{spent}}，无预算",
+   "of": "{{period}}：{{spent}} / {{amount}}（{{percent}}）",
+   "exhausted": "预算已用完"
+  },
+  "chart": {
+   "lead": "负责人",
+   "noLead": "无负责人",
+   "members": "成员（{{count}}）",
+   "peers": "对等线路",
+   "app": "应用",
+   "collapse": "折叠 {{name}} 下属的单元",
+   "expand": "展开 {{name}} 下属的单元",
+   "addChild": "添加下属单元"
+  },
+  "unit": {
+   "addTitle": "添加单元",
+   "editTitle": "编辑单元 {{name}}",
+   "add": "添加单元",
+   "saving": "正在保存...",
+   "intro": "更改会写入工作树。在发布修订版之前，不会有任何内容上线。名称最多 {{max}} 个字符。",
+   "namePlaceholder": "计费",
+   "titlePlaceholder": "计费负责人",
+   "noParent": "无（根单元）",
+   "noLead": "尚无负责人",
+   "noMandate": "无守护者",
+   "noApp": "无应用",
+   "noPeers": "请先添加另一个单元，才能为它建立对等线路。",
+   "noBudget": "无预算",
+   "addMember": "添加成员",
+   "sections": {
+    "lead": "负责人",
+    "members": "成员和对等线路",
+    "budgets": "预算"
+   },
+   "fields": {
+    "name": "名称",
+    "parentUnitId": "汇报对象",
+    "description": "描述",
+    "leadAgentId": "负责人智能体",
+    "leadTitle": "负责人头衔",
+    "leadMandateId": "负责人守护者",
+    "appId": "应用",
+    "members": "成员",
+    "memberAgent": "智能体",
+    "memberTitle": "头衔",
+    "memberMandate": "守护者",
+    "peerUnitIds": "对等线路",
+    "budgetDay": "每日预算（USD）",
+    "budgetMonth": "每月预算（USD）"
+   },
+   "errors": {
+    "name": "请为单元输入 1 到 {{max}} 个字符的名称。",
+    "description": "描述最多 {{max}} 个字符。",
+    "title": "头衔最多 {{max}} 个字符。",
+    "memberAgent": "请为每个成员选择一个智能体，或删除空行。",
+    "duplicateAgent": "一个智能体在该单元中只能担任一个职位。",
+    "budget": "请输入大于零的金额，或留空表示不设预算。"
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "请为组织输入 1 到 {{max}} 个字符的名称。",
+    "text": "此字段最多 {{max}} 个字符。"
+   }
+  },
+  "diff": {
+   "none": "没有差异。两棵树完全相同。",
+   "empty": "（无）",
+   "between": "从 {{before}} 到 {{after}}。",
+   "added": "新增的单元（{{count}}）",
+   "removed": "移除的单元（{{count}}）",
+   "changed": "更改的单元（{{count}}）",
+   "field": "字段",
+   "fields": {
+    "name": "名称",
+    "description": "描述",
+    "parent": "汇报对象",
+    "lead": "负责人",
+    "leadTitle": "负责人头衔",
+    "leadMandate": "负责人守护者",
+    "app": "应用",
+    "members": "成员",
+    "peers": "对等线路",
+    "budgets": "预算"
+   },
+   "title": "修订版 {{number}} 与已上线组织的比较",
+   "pendingTitle": "未发布的更改",
+   "nothingLive": "尚无上线内容",
+   "working": "工作树"
+  },
+  "revisions": {
+   "label": "修订版 {{number}}",
+   "rollbackOf": "（修订版 {{number}} 的副本）"
+  },
+  "rollback": {
+   "note": "已从仪表板回滚到修订版 {{number}}。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "组织",
+   "heading": "组织 {{name}}",
+   "notFoundTitle": "未找到组织",
+   "notFoundBody": "它不存在于此租户中，或已被删除。",
+   "live": "实时更新",
+   "editDetails": "编辑详情",
+   "reactivate": "恢复",
+   "retire": "停用",
+   "publish": "发布更改",
+   "retiredBanner": "此组织已停用。其指挥链、线路和预算不再生效，在恢复之前，其中的任何内容都无法更改。",
+   "pending": "工作树有未发布的更改：新增 {{added}}，更改 {{changed}}，移除 {{removed}}。",
+   "neverPublished": "尚无上线内容。发布一个修订版，让这个组织开始运作。",
+   "reviewPending": "查看更改",
+   "units": "单元",
+   "lastUpdate": "上次更改",
+   "tabs": {
+    "chart": "组织图",
+    "budgets": "预算和支出",
+    "revisions": "修订版（{{count}}）"
+   },
+   "chartView": "显示哪棵树",
+   "viewWorking": "工作树",
+   "viewLive": "已上线",
+   "addUnit": "添加单元",
+   "addRoot": "添加根单元",
+   "workingNote": "工作树是你编辑的版本。发布修订版后才会上线。",
+   "liveNote": "已上线的修订版：指挥链、线路和预算都遵循这棵树。",
+   "noUnitsTitle": "还没有单元",
+   "noUnitsBody": "先添加由最高层智能体负责的根单元，再在其下添加单元。",
+   "budgetsNote": "每项预算限制该单元及其所有下属单元在一个 UTC 日或月内可支出的金额。支出统计的是已上线修订版下已完成运行的已知成本。",
+   "noBudgetsTitle": "没有预算",
+   "noBudgetsBody": "编辑单元，为其设置每日或每月预算。",
+   "noSpend": "没有支出记录",
+   "columns": {
+    "unit": "单元",
+    "day": "日",
+    "month": "月",
+    "spend": "支出",
+    "number": "修订版",
+    "state": "状态",
+    "note": "备注",
+    "author": "作者",
+    "created": "创建时间",
+    "published": "发布时间"
+   },
+   "noRevisionsTitle": "还没有修订版",
+   "noRevisionsBody": "发布更改，将工作树的快照保存为修订版。",
+   "current": "已上线",
+   "compare": "与已上线版本比较",
+   "publishRevision": "发布",
+   "rollback": "回滚",
+   "publishTitle": "发布更改",
+   "publishIntro": "发布会将工作树的快照保存为新修订版并使其上线，其中引用的每个守护者都使用其当前修订版。保存为草稿只保留快照，不会上线。",
+   "saveDraft": "保存为草稿",
+   "publishNow": "发布",
+   "note": "备注",
+   "diffNote": "备注：{{note}}",
+   "removeUnitTitle": "移除单元",
+   "confirmRemoveUnit": "要从工作树中移除单元 {{name}} 吗？指向它的对等线路也会一并移除。在发布之前，已上线的组织不会改变。",
+   "rollbackTitle": "回滚",
+   "confirmRollback": "要让修订版 {{number}} 重新上线，取代修订版 {{live}} 吗？工作树及其引用的守护者都会恢复到该修订版，回滚会记录为一个新修订版。",
+   "retireTitle": "停用组织",
+   "confirmRetire": "要停用 {{name}} 吗？其指挥链、线路和预算将不再生效，在恢复之前无法更改。",
+   "confirmDelete": "要删除 {{name}} 及其 {{units}} 个单元和 {{revisions}} 个修订版吗？为其单元和组织保存的记忆也会被删除。此操作无法撤销。"
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "组织",
+   "subtitle": "由单元组成的树，每个单元由一个智能体负责，并有成员、对等线路和预算。打开一个组织即可编辑组织图并发布。",
+   "add": "创建组织",
+   "create": "创建组织",
+   "edit": "编辑组织",
+   "view": "组织详情",
+   "deleteTitle": "删除组织",
+   "emptyTitle": "还没有组织",
+   "emptyBody": "创建一个组织，添加由最高层智能体负责的根单元，再在其下添加单元，然后发布。",
+   "columns": {
+    "name": "名称",
+    "status": "状态",
+    "currentRevisionNumber": "已上线修订版",
+    "description": "描述",
+    "createdUtc": "创建时间",
+    "mission": "使命",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名称",
+    "description": "描述",
+    "mission": "使命"
+   },
+   "hints": {
+    "name": "1 到 {{max}} 个字符，在租户内唯一。",
+    "description": "可选，最多 {{max}} 个字符。",
+    "mission": "用平实的语言说明组织的用途。可选，最多 {{max}} 个字符。"
+   }
+  }
+ }
+});

@@ -59,7 +59,9 @@ export const NAV_SECTIONS = [
       // provenance and delete. AA5.10: reports are what runs and people filed upward; /dashboard/reports/<id> is one
       // report with its metrics, issues, decisions, and a chart of a metric across the author's reports. AA6.12:
       // messages are mail between agents and from people, with the ones loop guards refused; /dashboard/message-threads/<id>
-      // is one thread, oldest first (a hidden tab, opened from a message). Later phases add the other autonomy pages here.
+      // is one thread, oldest first (a hidden tab, opened from a message). AA7.14: organizations are trees of units with
+      // leads, members, peer lines, and budgets; /dashboard/organizations/<id> is one organization's chart, budgets, and
+      // revisions. Later phases add the other autonomy pages here.
       {
         key: 'autonomy',
         slug: 'autonomy',
@@ -71,7 +73,8 @@ export const NAV_SECTIONS = [
           { id: 'memory', slug: 'memory' },
           { id: 'reports', slug: 'reports', detail: true },
           { id: 'messages', slug: 'messages' },
-          { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true }
+          { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true },
+          { id: 'organizations', slug: 'organizations', detail: true }
         ]
       },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },

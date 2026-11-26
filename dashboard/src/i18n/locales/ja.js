@@ -6604,3 +6604,287 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Organizations (AA7.14): the Organizations page, the organization page with its chart, unit editor, budgets, and
+// revisions, the organization enums, the Organization resource type, and the organization error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "organizations": {
+    "label": "組織",
+    "tip": "責任者、メンバー、ピアライン、予算を持つ組織単位のツリー。リビジョンとして公開します"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "組織"
+  },
+  "organizationStatus": {
+   "Draft": "下書き",
+   "Active": "稼働中",
+   "Frozen": "凍結中",
+   "Retired": "廃止"
+  },
+  "budgetPeriod": {
+   "Day": "日",
+   "Month": "月"
+  },
+  "orgRevisionState": {
+   "Draft": "下書き",
+   "Published": "公開済み",
+   "Superseded": "置き換え済み"
+  }
+ },
+ "organizations": {
+  "notPublished": "未公開",
+  "actions": {
+   "open": "組織を開く",
+   "copyId": "ID をコピー"
+  },
+  "toasts": {
+   "copied": "組織 ID をコピーしました。",
+   "unitAdded": "組織単位 {{name}} を作業ツリーに追加しました。",
+   "unitSaved": "組織単位 {{name}} を保存しました。",
+   "unitRemoved": "組織単位 {{name}} を作業ツリーから削除しました。",
+   "published": "リビジョン {{number}} が公開中になりました。",
+   "drafted": "リビジョン {{number}} を下書きとして保存しました。",
+   "rolledBack": "リビジョン {{number}} にロールバックしました。リビジョン {{live}} が公開中です。",
+   "retired": "{{name}} を廃止しました。",
+   "reactivated": "{{name}} を復帰させました。"
+  },
+  "errors": {
+   "OneRoot": "組織のルート単位は 1 つだけです。親を持たない組織単位がルートになります。",
+   "ParentNotFound": "親の組織単位がこの組織に含まれていません。",
+   "Cycle": "組織単位を自分自身や自分の配下の組織単位の下に置くことはできません。",
+   "UnitNameTaken": "この組織には同じ名前の組織単位がすでにあります。",
+   "LeadsTwoUnits": "このエージェントはすでに別の組織単位の責任者です。エージェントが率いる組織単位は、1 つの組織につき 1 つまでです。",
+   "PositionTaken": "このエージェントはすでにこの組織でポジションを持っています。エージェントは 1 つの組織単位の責任者かメンバーのどちらかにしかなれません。",
+   "PeerNotFound": "ピアラインの接続先が、この組織に含まれない組織単位になっています。",
+   "BudgetPeriodTaken": "組織単位の予算は期間ごとに 1 つです。",
+   "BudgetInvalid": "予算には米ドルで正の金額を指定してください。",
+   "BudgetExceedsParent": "組織単位の予算は、上位の組織単位の予算を超えられません。",
+   "TooManyUnits": "この組織の組織単位数は、サーバーが許可する上限に達しています。",
+   "TooManyMembers": "この組織単位のメンバー数は、サーバーが許可する上限に達しています。",
+   "TooManyPeerLines": "この組織単位のピアライン数は、サーバーが許可する上限に達しています。",
+   "UnitHasChildren": "先に配下の組織単位を削除するか移動してください。",
+   "OrganizationRetired": "この組織は廃止されています。変更する前に復帰させてください。",
+   "AgentInactive": "エージェントが存在しないか、有効ではありません。",
+   "MandateMismatch": "そのキーパーは別のエージェントのものです。このポジションのエージェントのキーパーを選んでください。",
+   "RevisionMismatch": "そのリビジョンは別の組織のものです。",
+   "RevisionPublished": "そのリビジョンはすでに公開されています。",
+   "RevisionNeverPublished": "ロールバック先にできるのは、一度でも公開中になったリビジョンだけです。",
+   "AlreadyLive": "そのリビジョンはすでに公開中です。",
+   "NothingToRollBack": "戻れる以前の公開リビジョンがありません。",
+   "StatusNotSettable": "組織に対して行えるのは、廃止と廃止からの復帰だけです。それ以外のステータスは公開と凍結によって決まります。",
+   "NameConflict": "この名前はすでに別の組織が使っています。"
+  },
+  "spend": {
+   "noBudget": "{{period}}: {{spent}} を支出、予算なし",
+   "of": "{{period}}: {{amount}} のうち {{spent}} ({{percent}})",
+   "exhausted": "予算を使い切りました"
+  },
+  "chart": {
+   "lead": "責任者",
+   "noLead": "責任者なし",
+   "members": "メンバー ({{count}})",
+   "peers": "ピアライン",
+   "app": "アプリ",
+   "collapse": "{{name}} の配下の組織単位を折りたたむ",
+   "expand": "{{name}} の配下の組織単位を展開する",
+   "addChild": "配下に組織単位を追加"
+  },
+  "unit": {
+   "addTitle": "組織単位を追加",
+   "editTitle": "組織単位 {{name}} を編集",
+   "add": "組織単位を追加",
+   "saving": "保存中...",
+   "intro": "変更は作業ツリーに入ります。リビジョンを公開するまで何も反映されません。名前は最大 {{max}} 文字です。",
+   "namePlaceholder": "請求",
+   "titlePlaceholder": "請求部門の責任者",
+   "noParent": "なし (ルート単位)",
+   "noLead": "責任者はまだいません",
+   "noMandate": "キーパーなし",
+   "noApp": "アプリなし",
+   "noPeers": "ピアラインを引くには、先に別の組織単位を追加してください。",
+   "noBudget": "予算なし",
+   "addMember": "メンバーを追加",
+   "sections": {
+    "lead": "責任者",
+    "members": "メンバーとピアライン",
+    "budgets": "予算"
+   },
+   "fields": {
+    "name": "名前",
+    "parentUnitId": "報告先",
+    "description": "説明",
+    "leadAgentId": "責任者のエージェント",
+    "leadTitle": "責任者の役職",
+    "leadMandateId": "責任者のキーパー",
+    "appId": "アプリ",
+    "members": "メンバー",
+    "memberAgent": "エージェント",
+    "memberTitle": "役職",
+    "memberMandate": "キーパー",
+    "peerUnitIds": "ピアライン",
+    "budgetDay": "1 日の予算 (USD)",
+    "budgetMonth": "1 か月の予算 (USD)"
+   },
+   "errors": {
+    "name": "組織単位の名前を 1 から {{max}} 文字で入力してください。",
+    "description": "説明は最大 {{max}} 文字です。",
+    "title": "役職は最大 {{max}} 文字です。",
+    "memberAgent": "すべてのメンバーにエージェントを選ぶか、空の行を削除してください。",
+    "duplicateAgent": "1 つのエージェントがこの組織単位で持てるポジションは 1 つだけです。",
+    "budget": "0 より大きい金額を入力してください。予算なしにする場合は空のままにします。"
+   }
+  },
+  "form": {
+   "errors": {
+    "name": "組織の名前を 1 から {{max}} 文字で入力してください。",
+    "text": "この項目は最大 {{max}} 文字です。"
+   }
+  },
+  "diff": {
+   "none": "違いはありません。2 つのツリーは同じです。",
+   "empty": "(なし)",
+   "between": "{{before}} から {{after}} への変更です。",
+   "added": "追加された組織単位 ({{count}})",
+   "removed": "削除された組織単位 ({{count}})",
+   "changed": "変更された組織単位 ({{count}})",
+   "field": "項目",
+   "fields": {
+    "name": "名前",
+    "description": "説明",
+    "parent": "報告先",
+    "lead": "責任者",
+    "leadTitle": "責任者の役職",
+    "leadMandate": "責任者のキーパー",
+    "app": "アプリ",
+    "members": "メンバー",
+    "peers": "ピアライン",
+    "budgets": "予算"
+   },
+   "title": "リビジョン {{number}} と公開中の組織の比較",
+   "pendingTitle": "未公開の変更",
+   "nothingLive": "まだ公開中のものはありません",
+   "working": "作業ツリー"
+  },
+  "revisions": {
+   "label": "リビジョン {{number}}",
+   "rollbackOf": "(リビジョン {{number}} のコピー)"
+  },
+  "rollback": {
+   "note": "ダッシュボードからリビジョン {{number}} にロールバックしました。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "title": "組織",
+   "heading": "組織 {{name}}",
+   "notFoundTitle": "組織が見つかりません",
+   "notFoundBody": "このテナントに存在しないか、削除されました。",
+   "live": "ライブ更新",
+   "editDetails": "詳細を編集",
+   "reactivate": "復帰させる",
+   "retire": "廃止",
+   "publish": "変更を公開",
+   "retiredBanner": "この組織は廃止されています。指揮系統、ライン、予算は適用されず、復帰させるまで何も変更できません。",
+   "pending": "作業ツリーに未公開の変更があります。追加 {{added}}、変更 {{changed}}、削除 {{removed}}。",
+   "neverPublished": "まだ何も公開されていません。リビジョンを公開すると、この組織が動き始めます。",
+   "reviewPending": "変更を確認",
+   "units": "組織単位",
+   "lastUpdate": "最終変更",
+   "tabs": {
+    "chart": "組織図",
+    "budgets": "予算と支出",
+    "revisions": "リビジョン ({{count}})"
+   },
+   "chartView": "表示するツリー",
+   "viewWorking": "作業ツリー",
+   "viewLive": "公開中",
+   "addUnit": "組織単位を追加",
+   "addRoot": "ルート単位を追加",
+   "workingNote": "作業ツリーは編集用です。リビジョンを公開すると反映されます。",
+   "liveNote": "公開中のリビジョンです。指揮系統、ライン、予算はこのツリーに従います。",
+   "noUnitsTitle": "組織単位はまだありません",
+   "noUnitsBody": "最上位のエージェントが率いるルート単位を追加し、その配下に組織単位を追加してください。",
+   "budgetsNote": "各予算は、その組織単位と配下のすべての組織単位が UTC の 1 日または 1 か月に使える金額の上限です。支出には、公開中のリビジョンのもとで完了した実行の既知のコストが計上されます。",
+   "noBudgetsTitle": "予算はありません",
+   "noBudgetsBody": "組織単位を編集して、1 日または 1 か月の予算を設定してください。",
+   "noSpend": "支出の記録はありません",
+   "columns": {
+    "unit": "組織単位",
+    "day": "日",
+    "month": "月",
+    "spend": "支出",
+    "number": "リビジョン",
+    "state": "状態",
+    "note": "メモ",
+    "author": "作成者",
+    "created": "作成日時",
+    "published": "公開日時"
+   },
+   "noRevisionsTitle": "リビジョンはまだありません",
+   "noRevisionsBody": "変更を公開すると、作業ツリーのスナップショットがリビジョンとして保存されます。",
+   "current": "公開中",
+   "compare": "公開中と比較",
+   "publishRevision": "公開",
+   "rollback": "ロールバック",
+   "publishTitle": "変更を公開",
+   "publishIntro": "公開すると、作業ツリーのスナップショットを新しいリビジョンとして保存して公開中にし、ツリー内のキーパーはそれぞれの現在のリビジョンで固定されます。下書きとして保存すると、スナップショットは保存されますが公開されません。",
+   "saveDraft": "下書きとして保存",
+   "publishNow": "公開",
+   "note": "メモ",
+   "diffNote": "メモ: {{note}}",
+   "removeUnitTitle": "組織単位を削除",
+   "confirmRemoveUnit": "組織単位 {{name}} を作業ツリーから削除しますか? この組織単位を指すピアラインも削除されます。公開するまで、公開中の組織は変わりません。",
+   "rollbackTitle": "ロールバック",
+   "confirmRollback": "リビジョン {{live}} に代えて、リビジョン {{number}} を再び公開中にしますか? 作業ツリーとツリー内のキーパーはそのリビジョンの状態に戻り、ロールバックは新しいリビジョンとして記録されます。",
+   "retireTitle": "組織を廃止",
+   "confirmRetire": "{{name}} を廃止しますか? 指揮系統、ライン、予算は適用されなくなり、復帰させるまで変更できません。",
+   "confirmDelete": "{{name}} を、{{units}} 個の組織単位と {{revisions}} 件のリビジョンとともに削除しますか? 組織単位と組織に保存されたメモリも削除されます。この操作は元に戻せません。"
+  }
+ },
+ "resources": {
+  "organizations": {
+   "title": "組織",
+   "subtitle": "組織単位のツリー。各組織単位はエージェントが率い、メンバー、ピアライン、予算を持ちます。開くと組織図を編集して公開できます。",
+   "add": "組織を作成",
+   "create": "組織を作成",
+   "edit": "組織を編集",
+   "view": "組織の詳細",
+   "deleteTitle": "組織を削除",
+   "emptyTitle": "組織はまだありません",
+   "emptyBody": "組織を作成し、最上位のエージェントが率いるルート単位とその配下の組織単位を追加して、公開してください。",
+   "columns": {
+    "name": "名前",
+    "status": "ステータス",
+    "currentRevisionNumber": "公開中のリビジョン",
+    "description": "説明",
+    "createdUtc": "作成日時",
+    "mission": "ミッション",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名前",
+    "description": "説明",
+    "mission": "ミッション"
+   },
+   "hints": {
+    "name": "1 から {{max}} 文字。テナント内で一意です。",
+    "description": "任意。最大 {{max}} 文字です。",
+    "mission": "組織の目的を平易な言葉で記述します。任意。最大 {{max}} 文字です。"
+   }
+  }
+ }
+});

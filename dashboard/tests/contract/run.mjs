@@ -338,6 +338,7 @@ async function seed(api) {
   await seedKeepers(api, ids);
   await seedReports(api, ids);
   await seedMessages(api, ids);
+  await seedOrganizations(api, ids);
   await seedFreezes(api, ids);
   await sleep(1500);
   return ids;
@@ -369,6 +370,36 @@ async function seedMessages(api, ids) {
       idempotencyKey: 'contract-message-1'
     })
   ).id;
+}
+
+/**
+ * Organizations (AA7.14): a root unit led by the fake agent with Day and Month budgets, a child unit led by the second
+ * agent with the third as a titled member, published as revision 1, so the chart, spend, and revision snapshot carry
+ * every field the dashboard reads.
+ */
+async function seedOrganizations(api, ids) {
+  const org = await api.post(tp('organizations'), { name: 'contract-org', description: 'Contract test organization', mission: 'Answer every contract test.' });
+  ids.organization = org.id;
+  const root = await api.post(tp(`organizations/${org.id}/units`), {
+    name: 'Leadership',
+    leadAgentId: ids.agent,
+    leadTitle: 'Chief executive',
+    budgets: [
+      { period: 'Day', amountUsd: 50 },
+      { period: 'Month', amountUsd: 1000 }
+    ]
+  });
+  ids.orgUnit = root.id;
+  await api.post(tp(`organizations/${org.id}/units`), {
+    name: 'Billing',
+    parentUnitId: root.id,
+    leadAgentId: ids.agent2,
+    members: [{ agentId: ids.agent3, title: 'Clerk' }],
+    budgets: [{ period: 'Day', amountUsd: 20 }]
+  });
+  const revision = await api.post(tp(`organizations/${org.id}/revisions`), { note: 'Contract test revision' });
+  ids.orgRevision = revision.id;
+  await api.post(tp(`organizations/${org.id}/revisions/${revision.id}/publish`), {});
 }
 
 /**
@@ -736,6 +767,15 @@ function routes(ids) {
     ['listMessages (filters)', tp(`messages?${list}&recipient=${ids.agent}&status=Queued&urgency=Normal`)],
     ['getMessage', tp(`messages/${ids.message}`)],
     ['getMessageThread', tp(`message-threads/${ids.message}`)],
+    // Organizations (AA7.14): one published organization with two units, its chart, revisions, spend, and units.
+    ['listOrganizations', tp(`organizations?${list}`)],
+    ['getOrganization', tp(`organizations/${ids.organization}`)],
+    ['listOrgUnits', tp(`organizations/${ids.organization}/units`)],
+    ['getOrgUnit', tp(`organizations/${ids.organization}/units/${ids.orgUnit}`)],
+    ['getOrgChart', tp(`organizations/${ids.organization}/chart`)],
+    ['listOrgRevisions', tp(`organizations/${ids.organization}/revisions`)],
+    ['getOrgRevision', tp(`organizations/${ids.organization}/revisions/${ids.orgRevision}`)],
+    ['getOrgSpend', tp(`organizations/${ids.organization}/spend`)],
     // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
     ['listFreezes', tp(`freezes?${list}`)],
     ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],

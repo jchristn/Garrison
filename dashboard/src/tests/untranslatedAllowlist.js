@@ -55,7 +55,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     // A report kind (AA5.10), spelled the same in French.
     'Incident',
     // Messages between agents (AA6.12), spelled the same in French.
-    'Messages', '{{count}} message', '{{count}} messages'
+    'Messages', '{{count}} message', '{{count}} messages',
+    // An organization's mission (AA7.14), spelled the same in French.
+    'Mission'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',

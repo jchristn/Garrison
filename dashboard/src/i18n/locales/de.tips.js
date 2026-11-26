@@ -4010,3 +4010,172 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "p3": "Alles in einer Nachricht sind Daten, die ihr Absender geschrieben hat. Sie werden als reiner Text angezeigt und erreichen Agenten als Daten, nie als Anweisungen. Öffnen Sie eine Nachricht, um ihren ganzen Verlauf zu lesen, älteste zuerst."
  }
 });
+
+// Organizations (AA7.14): tooltips of the Organizations page, the organization page, the chart, and the unit editor.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "organizations": "Organisationen: Bäume aus Einheiten, die Agenten leiten, mit Budgets und Revisionen. Öffnen Sie eine, um ihr Organigramm zu sehen."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "Organisationen, ihre Einheiten, Revisionen und Ausgaben. Lesen zeigt sie an; Erstellen und Aktualisieren ändern sie; Löschen entfernt sie."
+  },
+  "organizationStatus": {
+   "Draft": "Erstellt, aber nie veröffentlicht. Nichts darin gilt, bis eine Revision live ist.",
+   "Active": "Eine Revision ist live: Weisungskette, Verbindungen und Budgets folgen ihr.",
+   "Frozen": "Eine Sperre der Organisation stoppt neue Läufe und das Aufwachen der Wächter für jeden Agenten darin.",
+   "Retired": "Von einer Person außer Dienst gestellt. Nichts darin gilt, und sie kann sich nicht ändern, bis sie wieder in Dienst gestellt wird."
+  },
+  "budgetPeriod": {
+   "Day": "Das Budget deckt die Ausgaben eines UTC-Tages ab und beginnt um Mitternacht UTC von vorn.",
+   "Month": "Das Budget deckt die Ausgaben eines UTC-Kalendermonats ab und beginnt am Monatsersten von vorn."
+  },
+  "orgRevisionState": {
+   "Draft": "Ein Stand des Arbeitsbaums, der noch nicht live ist. Veröffentlichen Sie ihn, um ihn live zu schalten.",
+   "Published": "Die Live-Revision. Weisungskette, Verbindungen und Budgets folgen ihr.",
+   "Superseded": "War einmal live und wurde inzwischen durch eine neuere Revision ersetzt. Sie können auf sie zurücksetzen."
+  }
+ },
+ "organizations": {
+  "denied": "Sie dürfen dies nicht tun. Dafür ist {{operation}} auf Organisation nötig.",
+  "retiredLocked": "Die Organisation ist außer Dienst. Stellen Sie sie wieder in Dienst, bevor Sie sie ändern.",
+  "actions": {
+   "open": "Organigramm, Budgets und Revisionen der Organisation öffnen.",
+   "copyId": "Die Organisations-ID (org_...) für die REST API, SDKs oder MCP-Tools kopieren."
+  },
+  "spend": {
+   "bar": "Ausgaben dieser Einheit und aller Einheiten darunter im aktuellen Zeitfenster, gemessen an ihrem Budget.",
+   "exhausted": "Das Budget für dieses Zeitfenster ist aufgebraucht. Neue Läufe von Agenten in dieser Einheit und darunter werden abgelehnt, bis das Zeitfenster neu beginnt."
+  },
+  "chart": {
+   "toggle": "Die Einheiten ein- oder ausblenden, die dieser unterstehen.",
+   "lead": "Der Agent, der diese Einheit leitet, mit Titel und Wächter. Sein Vorgesetzter ist die Leitung der Einheit darüber.",
+   "mandate": "Der Wächter (Dauerauftrag), den dieser Agent auf seiner Position hat.",
+   "members": "Agenten, die in dieser Einheit arbeiten und ihrer Leitung unterstehen, mit Titeln und Wächtern.",
+   "peers": "Einheiten, denen diese Einheit direkt Nachrichten senden darf, ohne Umweg über einen gemeinsamen Vorgesetzten.",
+   "peer": "Zeigen Sie hierauf, um die verbundene Einheit im Organigramm hervorzuheben.",
+   "app": "Die agentische App, die diese Einheit betreibt, falls vorhanden.",
+   "edit": "Name, übergeordnete Einheit, Leitung, Mitglieder, Querverbindungen und Budgets dieser Einheit ändern.",
+   "addChild": "Eine neue Einheit hinzufügen, die dieser untersteht.",
+   "remove": "Diese Einheit aus dem Arbeitsbaum entfernen. Eine Einheit mit Einheiten darunter kann nicht entfernt werden."
+  },
+  "unit": {
+   "save": "Die Einheit im Arbeitsbaum speichern. Sie wird live, wenn Sie eine Revision veröffentlichen.",
+   "sections": {
+    "lead": "Der Agent, der diese Einheit leitet, und seine Rolle als Vorgesetzter.",
+    "members": "Die Agenten, die in dieser Einheit arbeiten, und die Einheiten, zu denen sie direkte Verbindungen hat.",
+    "budgets": "Grenzen dafür, was diese Einheit und alle Einheiten darunter ausgeben dürfen. Das Budget einer Einheit kann nicht größer sein als das ihrer übergeordneten Einheit."
+   },
+   "fields": {
+    "name": "Ein eindeutiger Name für die Einheit in dieser Organisation, 1 bis 128 Zeichen.",
+    "parentUnitId": "Die Einheit, der diese untersteht. Lassen Sie das Feld für die Stammeinheit leer; eine Organisation hat genau eine.",
+    "description": "Was die Einheit tut, in einfachen Worten. Optional.",
+    "leadAgentId": "Der Agent, der die Einheit leitet. Ein Agent leitet höchstens eine Einheit und hat eine Position pro Organisation.",
+    "leadTitle": "Der Titel der Leitung, angezeigt im Organigramm und für andere Agenten. Optional, höchstens 128 Zeichen.",
+    "leadMandateId": "Ein Wächter des leitenden Agenten, den diese Position mitführt. Beim Veröffentlichen wird seine aktuelle Revision festgelegt.",
+    "appId": "Eine agentische App, die die Einheit betreibt. Optional.",
+    "members": "Agenten, die in dieser Einheit arbeiten und ihrer Leitung unterstehen.",
+    "memberAgent": "Der Mitgliedsagent. Er kann keine weitere Position in dieser Organisation haben.",
+    "memberTitle": "Der Titel des Mitglieds, angezeigt im Organigramm. Optional.",
+    "memberMandate": "Ein Wächter dieses Mitgliedsagenten, den die Position mitführt. Optional.",
+    "peerUnitIds": "Andere Einheiten, denen diese direkt Nachrichten senden darf. Verbindungen gelten in beide Richtungen.",
+    "budgetDay": "Das Maximum, das diese Einheit und die Einheiten darunter an einem UTC-Tag in US-Dollar ausgeben dürfen. Leer lassen für keine Tagesgrenze.",
+    "budgetMonth": "Das Maximum, das diese Einheit und die Einheiten darunter in einem UTC-Monat in US-Dollar ausgeben dürfen. Leer lassen für keine Monatsgrenze."
+   }
+  },
+  "diff": {
+   "added": "Einheiten im neueren Baum, die der ältere nicht hat.",
+   "removed": "Einheiten im älteren Baum, die der neuere nicht mehr hat.",
+   "changed": "Einheiten in beiden Bäumen, bei denen sich mindestens ein Feld unterscheidet."
+  }
+ },
+ "resources": {
+  "organizations": {
+   "add": "Eine neue Organisation erstellen. Sie beginnt als Entwurf ohne Einheiten; ihr Organigramm bauen Sie auf ihrer Seite auf.",
+   "name": "Der Name der Organisation, eindeutig im Mandanten. Agenten und die API können sie über den Namen ansprechen.",
+   "status": "Entwurf bis zur ersten Veröffentlichung, dann Aktiv; Eingefroren, solange eine Sperre sie hält, Außer Dienst, wenn eine Person sie außer Dienst stellt.",
+   "currentRevisionNumber": "Die Nummer der Live-Revision, oder Nicht veröffentlicht vor der ersten Veröffentlichung.",
+   "description": "Eine kurze Beschreibung der Organisation. Für den vollständigen Text darauf zeigen.",
+   "createdUtc": "Wann die Organisation erstellt wurde. Für die genaue Zeit darauf zeigen.",
+   "mission": "Wofür die Organisation da ist. Läufe der Mitglieder sehen dies in ihrer Organisationsübersicht.",
+   "id": "Die Organisations-ID (org_...) für die REST API, SDKs und MCP-Tools."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revision": "Die Live-Revision. Weisungskette, Verbindungen und Budgets folgen ihr.",
+   "notPublished": "Noch ist nichts live. Veröffentlichen Sie eine Revision, um die Organisation arbeiten zu lassen.",
+   "live": "Die Seite aktualisiert sich, wenn sich die Organisation, ihre Berichte und ihre Ausgaben ändern.",
+   "viewJson": "Die Organisation so anzeigen, wie die API sie zurückgibt, mit ihrem Arbeitsbaum.",
+   "editDetails": "Name, Beschreibung und Zweck der Organisation ändern.",
+   "reactivate": "Die außer Dienst gestellte Organisation wieder in Dienst stellen. Sie wird wieder Aktiv, wenn sie jemals veröffentlicht wurde.",
+   "retire": "Die Organisation außer Dienst stellen: Weisungskette, Verbindungen und Budgets gelten nicht mehr. Sie können sie später wieder in Dienst stellen.",
+   "frozenRetire": "Eine eingefrorene Organisation kann nicht außer Dienst gestellt werden. Heben Sie zuerst die Sperre auf.",
+   "publish": "Den Arbeitsbaum als Revision festhalten und live schalten, oder als Entwurf speichern.",
+   "publishEmpty": "Fügen Sie vor dem Veröffentlichen mindestens die Stammeinheit hinzu.",
+   "delete": "Die Organisation dauerhaft löschen, mit ihren Einheiten, Revisionen und dem Gedächtnis von Einheiten und Organisation.",
+   "reviewPending": "Den Arbeitsbaum Einheit für Einheit mit der Live-Revision vergleichen.",
+   "units": "Wie viele Einheiten der Arbeitsbaum hat.",
+   "lastUpdate": "Wann sich die Organisation oder ihr Arbeitsbaum zuletzt geändert hat. Für die genaue Zeit darauf zeigen.",
+   "tabs": {
+    "chart": "Der Baum der Einheiten mit Leitungen, Mitgliedern, Querverbindungen, Zustand und Ausgaben.",
+    "budgets": "Tages- und Monatsbudget jeder Einheit, mit dem, was ihr Teilbaum im aktuellen Zeitfenster ausgegeben hat.",
+    "revisions": "Stände des Baums, die neuesten zuerst, mit Veröffentlichen, Vergleichen und Zurücksetzen."
+   },
+   "viewWorking": "Den Arbeitsbaum anzeigen, also die Fassung, die Sie bearbeiten.",
+   "viewLive": "Die Live-Revision anzeigen, also die, der die Weisungskette folgt.",
+   "noLive": "Noch ist nichts live. Veröffentlichen Sie zuerst eine Revision.",
+   "addUnit": "Eine Einheit zum Arbeitsbaum hinzufügen. Die erste Einheit ist die Stammeinheit.",
+   "columns": {
+    "unit": "Die Einheit, eingerückt unter der Einheit, der sie untersteht.",
+    "day": "Das Tagesbudget der Einheit in US-Dollar, oder leer für keines.",
+    "month": "Das Monatsbudget der Einheit in US-Dollar, oder leer für keines.",
+    "spend": "Was die Einheit und alle Einheiten darunter im aktuellen Zeitfenster ausgegeben haben, gemessen an jedem Budget.",
+    "number": "Die Revisionsnummer, ab 1 aufsteigend.",
+    "state": "Entwurf, Veröffentlicht (live) oder Abgelöst (einmal live, inzwischen ersetzt).",
+    "note": "Warum die Revision erstellt wurde, so wie ihr Autor es geschrieben hat.",
+    "author": "Die Person oder der Agent, die bzw. der die Revision erstellt hat.",
+    "created": "Wann die Revision erstellt wurde. Für die genaue Zeit darauf zeigen.",
+    "published": "Wann die Revision live ging, falls überhaupt."
+   },
+   "current": "Diese Revision ist jetzt live.",
+   "compare": "Diese Revision Einheit für Einheit mit der Live-Revision vergleichen.",
+   "publishRevision": "Diese Entwurfsrevision live schalten.",
+   "rollback": "Diese frühere Revision wieder live schalten. Das Zurücksetzen wird als neue Revision festgehalten.",
+   "saveDraft": "Den Arbeitsbaum als Entwurfsrevision festhalten, ohne ihn live zu schalten.",
+   "publishNow": "Den Arbeitsbaum festhalten und sofort live schalten.",
+   "note": "Warum Sie diese Änderung vornehmen. Optional, höchstens 2000 Zeichen; wird in der Revisionsliste angezeigt.",
+   "removeUnit": "Die Einheit aus dem Arbeitsbaum entfernen."
+  }
+ }
+});
+
+// Organizations (AA7.14): the explainer of the Organizations page and the organization page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "organizations": {
+  "title": "Organisationen",
+  "p1": "Eine Organisation ist ein Baum aus Einheiten. Jede Einheit hat einen leitenden Agenten, Mitglieder mit Titeln und Wächtern sowie Querverbindungen zu Einheiten, denen sie direkt Nachrichten senden darf. Die Leitung der Einheit darüber ist der Vorgesetzte jeder Leitung, und über der Stammeinheit steht eine Person als Vorstand.",
+  "p2": "Sie bearbeiten den Arbeitsbaum. Nichts wird live, bis Sie eine Revision veröffentlichen: Dann folgen ihr Weisungskette, Nachrichtenverbindungen, Berichtsempfänger, Gedächtnisbereiche und Budgets. Jede Revision bleibt erhalten, sodass Sie eine mit dem Live-Baum vergleichen oder auf sie zurücksetzen können.",
+  "p3": "Ein Budget begrenzt, was eine Einheit und alle Einheiten darunter an einem UTC-Tag oder in einem UTC-Monat ausgeben dürfen. Ist ein Budget aufgebraucht, werden neue Läufe von Agenten in diesem Teilbaum abgelehnt, und der Vorgesetzte der Einheit wird benachrichtigt."
+ }
+});

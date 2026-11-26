@@ -4009,3 +4009,172 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "p3": "訊息中的一切都是寄件者寫的資料。它以純文字顯示，並作為資料送達代理程式，絕不當作指示。開啟一則訊息即可依時間由舊到新閱讀整個討論串。"
  }
 });
+
+// Organizations (AA7.14): tooltips of the Organizations page, the organization page, the chart, and the unit editor.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "organizations": "組織：由代理程式負責的單位所組成的樹狀結構，包含預算和修訂。開啟組織即可查看組織圖。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Organization": "組織及其單位、修訂和支出。讀取可檢視；建立和更新可變更；刪除可移除。"
+  },
+  "organizationStatus": {
+   "Draft": "已建立但從未發佈。在修訂生效之前，其中的內容都不適用。",
+   "Active": "有修訂正在生效：指揮鏈、線路和預算都依照它。",
+   "Frozen": "組織的凍結會停止其中每個代理程式的新執行和守護者喚醒。",
+   "Retired": "已由人員停用。其中的內容都不適用，在恢復之前無法變更。"
+  },
+  "budgetPeriod": {
+   "Day": "預算涵蓋一個 UTC 日內的支出，並在 UTC 午夜重新計算。",
+   "Month": "預算涵蓋一個 UTC 曆月內的支出，並在每月 1 日重新計算。"
+  },
+  "orgRevisionState": {
+   "Draft": "尚未生效的工作樹快照。發佈後即可生效。",
+   "Published": "生效中的修訂。指揮鏈、線路和預算都依照它。",
+   "Superseded": "曾經生效，之後被較新的修訂取代。你可以復原到它。"
+  }
+ },
+ "organizations": {
+  "denied": "你無權執行此操作。需要組織的 {{operation}} 權限。",
+  "retiredLocked": "此組織已停用。請先恢復，再進行變更。",
+  "actions": {
+   "open": "開啟組織的組織圖、預算和修訂。",
+   "copyId": "複製組織 ID（org_...），供 REST API、SDK 或 MCP 工具使用。"
+  },
+  "spend": {
+   "bar": "此單位及其底下所有單位在目前時段內的支出，與其預算相比。",
+   "exhausted": "此時段的預算已用盡。在時段重新開始之前，此單位及其底下代理程式的新執行都會被拒絕。"
+  },
+  "chart": {
+   "toggle": "顯示或隱藏向此單位回報的單位。",
+   "lead": "負責此單位的代理程式，以及其職稱和守護者。它的主管是上層單位的負責人。",
+   "mandate": "此代理程式在其職位上擔任的守護者（長期職責）。",
+   "members": "在此單位工作並向其負責人回報的代理程式，以及其職稱和守護者。",
+   "peers": "此單位可直接傳送訊息、無需經過共同主管的單位。",
+   "peer": "將指標移到這裡，即可在組織圖中標示同級單位。",
+   "app": "此單位執行的代理式應用程式（如有）。",
+   "edit": "變更此單位的名稱、上層單位、負責人、成員、同級線路和預算。",
+   "addChild": "新增一個向此單位回報的單位。",
+   "remove": "從工作樹移除此單位。底下還有單位的單位無法移除。"
+  },
+  "unit": {
+   "save": "將單位儲存到工作樹。發佈修訂後才會生效。",
+   "sections": {
+    "lead": "負責此單位的代理程式及其主管角色。",
+    "members": "在此單位工作的代理程式，以及此單位有直接線路的單位。",
+    "budgets": "此單位及其底下所有單位可支出金額的上限。單位的預算不能大於其上層單位的預算。"
+   },
+   "fields": {
+    "name": "單位在此組織中的唯一名稱，1 到 128 個字元。",
+    "parentUnitId": "此單位回報的對象單位。根單位請留空；一個組織恰好只有一個根單位。",
+    "description": "用平實的文字說明單位的工作。選填。",
+    "leadAgentId": "負責此單位的代理程式。在每個組織中，一個代理程式最多負責一個單位，且只擔任一個職位。",
+    "leadTitle": "負責人的職稱，會顯示在組織圖上並提供給其他代理程式。選填，最多 128 個字元。",
+    "leadMandateId": "此職位所附帶的負責人代理程式守護者。發佈時會釘選其目前修訂。",
+    "appId": "此單位執行的代理式應用程式。選填。",
+    "members": "在此單位工作並向其負責人回報的代理程式。",
+    "memberAgent": "成員代理程式。它不能在此組織中擔任其他職位。",
+    "memberTitle": "成員的職稱，會顯示在組織圖上。選填。",
+    "memberMandate": "此職位所附帶的成員代理程式守護者。選填。",
+    "peerUnitIds": "此單位可直接傳送訊息的其他單位。線路是雙向的。",
+    "budgetDay": "此單位及其底下單位在一個 UTC 日內可支出的最高金額，以美元計。留空表示沒有每日上限。",
+    "budgetMonth": "此單位及其底下單位在一個 UTC 月內可支出的最高金額，以美元計。留空表示沒有每月上限。"
+   }
+  },
+  "diff": {
+   "added": "較新的樹中有、但較舊的樹中沒有的單位。",
+   "removed": "較舊的樹中有、但較新的樹中已不存在的單位。",
+   "changed": "兩棵樹中都有、且至少有一個欄位不同的單位。"
+  }
+ },
+ "resources": {
+  "organizations": {
+   "add": "建立新的組織。它一開始是沒有單位的草稿；你可以在它的頁面上建立組織圖。",
+   "name": "組織的名稱，在租用戶中不得重複。代理程式和 API 可以用名稱參照它。",
+   "status": "首次發佈前為草稿，之後為啟用中；受凍結期間為已凍結，由人員停用後為已停用。",
+   "currentRevisionNumber": "生效修訂的編號；首次發佈前顯示為未發佈。",
+   "description": "組織的簡短描述。將指標移到上方可查看全文。",
+   "createdUtc": "組織的建立時間。將指標移到上方可查看確切時間。",
+   "mission": "組織的目的。成員執行會在其組織摘要中看到它。",
+   "id": "組織 ID（org_...），供 REST API、SDK 和 MCP 工具使用。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revision": "生效中的修訂。指揮鏈、線路和預算都依照它。",
+   "notPublished": "尚無生效版本。請發佈修訂，讓組織開始運作。",
+   "live": "頁面會隨著組織、其報告和支出的變化而更新。",
+   "viewJson": "以 API 傳回的格式顯示組織，包含其工作樹。",
+   "editDetails": "變更組織的名稱、描述和使命。",
+   "reactivate": "恢復已停用的組織。如果它曾經發佈過，會重新變為啟用中。",
+   "retire": "停用組織：它的指揮鏈、線路和預算將停止適用。你之後可以恢復它。",
+   "frozenRetire": "已凍結的組織無法停用。請先解除凍結。",
+   "publish": "將工作樹快照為修訂並使其生效，或儲存為草稿。",
+   "publishEmpty": "發佈前至少要新增根單位。",
+   "delete": "永久刪除組織及其單位、修訂，以及單位和組織的記憶。",
+   "reviewPending": "逐一單位比較工作樹與生效修訂。",
+   "units": "工作樹中的單位數量。",
+   "lastUpdate": "組織或其工作樹上次變更的時間。將指標移到上方可查看確切時間。",
+   "tabs": {
+    "chart": "單位的樹狀結構，包含負責人、成員、同級線路、健康狀態和支出。",
+    "budgets": "每個單位的每日和每月預算，以及其子樹在目前時段內的支出。",
+    "revisions": "樹的快照，最新的排在前面，可發佈、比較和復原。"
+   },
+   "viewWorking": "顯示工作樹，也就是你編輯的版本。",
+   "viewLive": "顯示生效中的修訂，也就是指揮鏈所依照的版本。",
+   "noLive": "尚無生效版本。請先發佈修訂。",
+   "addUnit": "在工作樹中新增單位。第一個單位就是根單位。",
+   "columns": {
+    "unit": "單位，縮排在其回報對象單位之下。",
+    "day": "單位的每日預算（美元），留空表示無預算。",
+    "month": "單位的每月預算（美元），留空表示無預算。",
+    "spend": "此單位及其底下所有單位在目前時段內的支出，與各項預算相比。",
+    "number": "修訂編號，從 1 開始遞增。",
+    "state": "草稿、已發佈（生效中）或已取代（曾經生效，之後被取代）。",
+    "note": "作者所寫的修訂原因。",
+    "author": "建立此修訂的人員或代理程式。",
+    "created": "修訂的建立時間。將指標移到上方可查看確切時間。",
+    "published": "修訂生效的時間（如果曾經生效）。"
+   },
+   "current": "此修訂目前正在生效。",
+   "compare": "逐一單位比較此修訂與生效中的修訂。",
+   "publishRevision": "讓這個草稿修訂生效。",
+   "rollback": "讓這個較早的修訂重新生效。這次復原會記錄為一個新的修訂。",
+   "saveDraft": "將工作樹快照為草稿修訂，但不使其生效。",
+   "publishNow": "將工作樹快照並立即生效。",
+   "note": "你進行這項變更的原因。選填，最多 2000 個字元；會顯示在修訂清單中。",
+   "removeUnit": "從工作樹移除此單位。"
+  }
+ }
+});
+
+// Organizations (AA7.14): the explainer of the Organizations page and the organization page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "organizations": {
+  "title": "組織",
+  "p1": "組織是由單位組成的樹狀結構。每個單位有一個負責人代理程式、具有職稱和守護者的成員，以及通往可直接傳送訊息之單位的同級線路。每位負責人的主管是上層單位的負責人，而根單位之上則由一位人員擔任董事會。",
+  "p2": "你編輯的是工作樹。在你發佈修訂之前，不會有任何變更生效；發佈之後，指揮鏈、訊息線路、報告對象、記憶範圍和預算都會依照它。每個修訂都會保留，因此你可以將任一修訂與生效中的樹比較，或復原到它。",
+  "p3": "預算限制一個單位及其底下所有單位在一個 UTC 日或月內可支出的金額。預算用盡時，該子樹中代理程式的新執行會被拒絕，並通知該單位的主管。"
+ }
+});
