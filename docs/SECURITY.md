@@ -147,6 +147,8 @@ Organizations (resource type `Organization`, see `ORGANIZATIONS.md`): `Viewer`, 
 
 Change rules (resource type `ChangeRule`, see `EXECUTIVES.md`): `Viewer`, `Auditor`, `AgentOperator`, and `AgentDeveloper` can read them; `Editor` and `TenantAdmin` can also create, change, and delete them. Run tokens never write a rule, whatever their permissions (403 `RulesArePeopleOnly`).
 
+Evaluations (resource types `EvalSet`, `EvalRun`, `ShadowTrial`, and `CanaryRelease`, see `EVALS.md`): `Viewer` and `Auditor` can read all four; `AgentOperator` can also run and cancel evals, stop shadow trials, and abort canary releases; `AgentDeveloper` can also write and approve eval sets and start trials and releases; `Editor` and `TenantAdmin` hold every operation, including deleting draft set versions. Starting an eval run or a shadow trial also needs Execute on the agent, and starting a canary release needs Update on both deployments. Executive run tokens get Read and Create on `EvalSet` and Read and Execute on `EvalRun`, limited to their own drafts and their own eval runs; no other run token holds any of these permissions.
+
 Permission approvals (resource type `Approval`): `Viewer`, `Auditor`, `AgentDeveloper`, and `AgentOperator` can read them; `Editor`, `AgentOperator`, `ResourceAdmin`, and `TenantAdmin` can decide them (Update on `Approval`). Deciding with `remember`, which adds a rule to the deployment, also needs Update on that deployment.
 
 Built-in roles and permissions cannot be changed. Create custom roles and map permissions to them with `POST .../role-permissions`.
@@ -348,7 +350,33 @@ An executive is a unit lead whose deployment has `managementAccess: OrgSubtree`.
 
 **Rollback as the safety net.** Every executive apply, by rule or by a person, publishes a new organization revision with the draft's identifier and a revert draft holding the records as they were. Rolling the organization back past that revision restores the tree and pinned mandates and then applies the revert drafts newest first, so the agents, deployments, mandates, templates, and assets it changed go back too. Agents and deployments it created are deleted; mandates, templates, and assets it created stay for a person to remove. Every rule change, apply, and revision is audited, `OrgProposalApplied` tells subscribed endpoints each time rules applied something without a person, and `proposal.changed` shows each proposal on the organization's WebSocket channel.
 
-Some things stay closed even to a fully trusted executive: the playground (draft agent revisions) until evaluations exist, freezes, approvals, escalation answers, and any change to change rules.
+Some things stay closed even to a fully trusted executive: the playground, freezes, approvals, escalation answers, and any change to change rules. An executive can try a draft agent revision only by running an eval set against its own draft, and it cannot approve the set that grades it.
+
+## Evaluations and shadow runs
+
+[Evaluations](EVALS.md) put agents in two new positions: graded by sets that may gate their own changes, and running beside production on real inputs as shadows.
+
+**Self-graded evals.** An executive that proposes a change and then evaluates it could write an easy set, or tune its draft to the cases it can read. A set gates an executive's change only when a person approved it, or when an evaluator agent outside the proposer's subtree wrote it. A set the proposer wrote, or one written by a unit or agent below it, is refused with `EvalSetSelfAuthored`, and a draft no person approved with `EvalSetNotApproved`. Authorship is recorded by the server from the run token, and a person cannot mark a set `Evaluator`. Approval is people only (`ApprovalIsPeopleOnly`), and an approved version never changes, so a gate cannot be loosened after the fact without a person approving a new version. Executive run tokens hold only Read and Create on eval sets and Read and Execute on eval runs, and they evaluate only their own drafts, so they cannot edit a set, approve one, or run evals of anything else.
+
+**Reading the answers.** Hidden cases are redacted for every run token: input, expected text, check arguments, file contents, the agent's output, the judge's notes, and error text. Run tokens see scores and pass flags only, over REST, MCP, and the `eval-run:{id}` channel, and the case runs that hidden cases start are closed to run tokens too, since their input would give the case away. Keep some cases hidden in any set that gates an executive.
+
+**Judge injection.** The answer a judge grades is written by the agent under test, which has every reason to talk the judge into a high score. `builtin/eval-judge` frames the criteria, input, reference, and answer as data between begin and end lines that carry a random marker generated for each judgement, and tells the judge not to follow instructions inside them. The framing lowers the risk without removing it, so give the judge agent an output schema so its verdict is a typed object, no tools, and a different model from the agent it grades, and keep `ExactMatch`, `Contains`, or `JsonSchemaValid` checks next to `Judge` checks where the answer allows it.
+
+**People grading their own work.** Garrison separates agents from the sets that grade them. It does not stop a person who writes an agent from also approving its gate, because approval is an Update on the set. Where that matters, give developers Create on `EvalSet` and keep Update with reviewers.
+
+**Bypassing the gate.** An environment's eval gate is checked on agent promotions. Agentic app promotions, promotion rollbacks, and direct edits of a deployment's pinned revision are not checked, so whoever holds Update on a gated environment's deployments can move a revision there without an eval. Restrict that permission in environments that rely on the gate.
+
+**Shadow leakage.** A shadow run answers real inputs, so anything it does happens for real unless something stops it (decision AA-027). Garrison stops it in four places. The MCP gateway re-reads the run on every tool call and refuses every tool the effect journal would record, every agent tool, messaging, escalations, reports, memory writes, keeper and studio draft tools, file writes, and starting or cancelling other runs, with `ShadowRunRefused`; those tools are missing from its tool list as well. Every permission prompt a shadow run raises is denied, whatever the deployment's rules say, and Garrison turns approvals on for it where the harness can relay prompts, putting Claude Code in permission mode `default` with only Garrison's tools pre-allowed. A shadow run gets no conversation file space and cannot write one back. It has no caller, conversation, trigger, pipeline, app, mandate, or parent, and sends no run notifications, so its answer goes nowhere but the comparison.
+
+What Garrison cannot stop is a harness's built-in tools on a harness that does not relay permission prompts (Codex exec, Gemini CLI, Mux, opencode, pi, custom CLIs), and MCP servers or network calls a deployment reaches on its own. Only shadow such a deployment when its trust level, executor, and egress allowlist already keep it away from anything with side effects, or give the candidate a harness that relays approvals.
+
+**Shadow inputs.** A shadow trial copies real users' inputs and run parameters to another deployment, under the identity of the person who started the trial. Starting one needs Execute on the agent, and only people start or stop trials. The candidate must be a deployment of the same agent, so a trial cannot route one agent's inputs to an unrelated agent. Conversation turns after the first are not copied, so earlier turns are not replayed out of context.
+
+**Shadow cost.** Shadow runs are real runs and are billed like them, at the lowest priority. Their cost counts toward the agent's spend, deployment quotas, and org unit budgets, so a large sample on a busy deployment can exhaust a budget that real traffic needs. Start with a small `samplePercent` and an `endsUtc`.
+
+**Recent-input evals.** An eval run in `RecentInputs` mode replays a deployment's recent real inputs as ordinary `Eval` runs, which, unlike shadow runs, keep the deployment's tools. Use it on deployments whose tools only read or that have approvals turned on.
+
+**Canary weights.** A canary release changes deployment weights, and only people start or abort one. Starting one needs Update on both deployments. A rollback restores the weights from before the release, every move is a compare-and-set, every weight change is audited, and a rollback sends `CanaryRolledBack`.
 
 ## App sessions and anonymous use
 

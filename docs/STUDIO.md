@@ -156,6 +156,14 @@ The playground runs an agent's draft revision before anything is published. Each
 
 Users cannot create deployments in the `draft` environment (400 `ReservedEnvironment`). Deleting the agent deletes its playground copy.
 
+### Save as eval case
+
+A playground run that went the way you wanted, or the way you did not, is a test case waiting to be written down. **Save as eval case** on a finished playground run turns it into one. Pick an eval set, then adjust what the form fills in from the run: its input as the case input, its answer as the expected text, and a check (by default `ExactMatch` against the expected text; switch to `Contains`, `JsonSchemaValid`, or `Judge` with criteria when the exact wording should not matter). Mark the case hidden if the agent under test should never see it.
+
+The dashboard saves it with `POST .../eval-sets/{setId}/cases`, passing the run's identifier as `sourceRunId`, so the case remembers which run it came from. On a draft set the case is added at the end. On an approved set it lands on the set's next draft version, which needs a person's approval before it gates anything. Saving needs Update on `EvalSet`. A set built this way can be given origin `Playground` when it is created.
+
+Eval runs reuse the playground's idea: `POST .../eval-runs` with an agent revision runs every case of a set on a copy of the agent's deployment in the `draft` environment, named `eval-{agent}-r{number}`, and scores the answers. Pass `studioDraftId` to evaluate a draft's version of the agent. See [EVALS.md](EVALS.md).
+
 ## Delegated management
 
 The agent architect builds drafts by calling studio tools from inside a run. Runs normally cannot touch configuration. A deployment can grant its runs draft access with `managementAccess: Drafts`:
@@ -179,7 +187,7 @@ Every permission is also checked against the person who started the run, so the 
 
 ### Executives
 
-`managementAccess: OrgSubtree` is the second grant. It is valid only on a deployment of an agent that leads exactly one org unit, and it makes that agent the unit's [executive](EXECUTIVES.md). An executive uses the same draft tools, but its drafts are bound to the unit it leads: every item must stay inside the units below it, and hard limits refuse anything that touches the executive itself, anything above it, secrets, budget increases, or `managementAccess`. The playground stays closed to it.
+`managementAccess: OrgSubtree` is the second grant. It is valid only on a deployment of an agent that leads exactly one org unit, and it makes that agent the unit's [executive](EXECUTIVES.md). An executive uses the same draft tools, but its drafts are bound to the unit it leads: every item must stay inside the units below it, and hard limits refuse anything that touches the executive itself, anything above it, secrets, budget increases, or `managementAccess`. The playground stays closed to it, but it can run an eval set against its own draft with `garrison_run_eval` and `studioDraftId`, which writes the draft's agent as a draft revision for the eval run ([EVALS.md](EVALS.md#authorship-separation)). Hidden cases come back to it as scores only.
 
 An executive's draft records `originRunId`, `organizationId`, `executiveUnitId`, and `executiveAgentId`. Its diff adds `refusals` (each hard limit an item breaks, with its code), `ruleMatches` (each change with its classes and the change rule that covers it, or why none does), and `appliesByRule`. When every change is covered by a change rule and the person who started the run holds Create on `Manifest`, `request-apply` applies the draft at once with an approval decided by source `Rule`. Otherwise the approval waits for a person as described above. Every executive apply publishes an organization revision that a rollback can undo. See [EXECUTIVES.md](EXECUTIVES.md).
 

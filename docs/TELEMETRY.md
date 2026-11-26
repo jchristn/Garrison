@@ -89,6 +89,9 @@ Counters are created the first time something happens, so a series' first scrape
 | Is the database the bottleneck? | p95 of `garrison_db_operation_duration_seconds` by `table`, `garrison_db_errors_total`, `garrison_db_write_lock_wait_seconds` on Sqlite |
 | Are all control-plane replicas up? | `max(garrison_control_nodes{status="Ready"})` against the expected replica count, and `GET /v1.0/api/control-nodes` for which one is missing |
 | Is someone guessing credentials? | `garrison_auth_failures_total` by `reason`, `garrison_auth_rate_limited_total` |
+| Are evals passing, and how long do cases take? | `garrison_eval_runs_total` by `outcome`, p95 of `garrison_eval_case_duration_seconds` by `scorer`. A slow `Judge` p95 is the judge agent, not the agent under test |
+| Does a shadow candidate agree with production? | `garrison_shadow_comparisons_total` by `result`: the `diverged` and `candidate_failed` shares |
+| Are canaries rolling back? | `garrison_canary_transitions_total{result="rolled_back"}` against `promoted` |
 
 Cost metrics contain harness-reported cost or server estimates using operator-configured model rates. Missing prices or usage can leave cost unknown; these counters do not measure infrastructure, database hosting, collector expense or a provider invoice. Worker cost metrics contain reported harness cost, while server completion can add a configured estimate.
 
@@ -149,6 +152,10 @@ Every run belongs to one W3C trace, and the run records its ID as `traceId` (32 
 | `db <operation> <table>` | Server | `Garrison` | Whatever span is current. Statement spans are only started inside a trace, never as roots, and name the statement, never its SQL text or values |
 | `<service> <operation>` (client) | Server, worker | `Garrison` | Outbound calls: `control_plane lease` and the other node protocol calls, `kubernetes post`, `grafana probe`, `mcp_server test`, `mcp_internal post` (the MCP cluster proxy) |
 | `<service> <operation>` (background) | Server, worker | `Garrison` | A new trace per iteration of a background service: `maintenance reap_leases`, `leader_election campaign`, `backplane poll`, `worker heartbeat`, and the rest listed in the coverage matrix |
+| `eval run` | Server | `Garrison` | Whatever span is current when the leader starts driving the eval run. Tags `garrison.eval_run_id`, `garrison.eval_set`, `garrison.eval_target`; error status when the run fails ([EVALS.md](EVALS.md#telemetry)) |
+| `eval case` | Server | `Garrison` | `eval run`. Tags `garrison.eval_run_id`, `garrison.eval_case_order`, `garrison.run_id` (the case run); error status when the case errored |
+| `shadow compare` | Server | `Garrison` | The background job that compares a finished shadow run with its source. Error status when the source run is gone or the comparison throws |
+| `canary step` | Server | `Garrison` | The leader's maintenance pass. Tags `garrison.canary.step` and `garrison.canary.decision` (`Wait`, `Advance`, `Promote`, `RollBack`); error status when the step could not be evaluated |
 
 The trace ID exists even when tracing is off: if no span is recorded, Garrison generates a sampled traceparent for the run, so deep links and log searches still work once you turn exporting on. Spans carry `garrison.run_id`, `garrison.tenant`, `garrison.agent`, `garrison.harness`, and `garrison.node` where they apply, OpenTelemetry attributes (`http.route`, `db.system`, `db.collection.name`, `rpc.method`, `peer.service`) where one exists, and an explicit status: failures set `Error` with the exception type and message, never values or secrets. The worker also passes the traceparent to the harness as the `TRACEPARENT` environment variable, so a harness that understands W3C trace context can join the trace. KubernetesJob run pods do not export spans (their network is locked down); they log `run=` and `trace=` on every line instead, so Loki joins them to the same trace.
 
@@ -244,7 +251,7 @@ The packaged Grafana provisions one dashboard per section into the `Garrison` fo
 | Security and auth | `garrison-security` | node | Authentication failures by scheme and reason, rate limiting, authorization denials, tokens issued, secret decryption, Codex token refresh, audit records |
 | Integrations | `garrison-integrations` | node, service | Outbound calls by service and operation (control plane, Kubernetes, MCP servers, observability probes), their latency and errors, observability reachability |
 | Logs and traces | `garrison-logs` | component, node, tenant, agent, run | Log volume by level and component, error and warning rates, recent problem lines, trace search, telemetry pipeline health |
-| Autonomy | `garrison-autonomy` | node | Keeper ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies |
+| Autonomy | `garrison-autonomy` | node | Keeper ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies; escalations, brakes, memory, reports, messaging, organizations, executive proposals, shadow comparisons, canary transitions, eval runs, and eval case duration p95 |
 
 Dashboard JSON lives in `k8s/components/observability/dashboards` (mirrored byte for byte in the Helm chart, and mounted by Docker Compose), and `GET /v1.0/api/server-info` lists every UID under `observability.dashboards`.
 

@@ -576,6 +576,16 @@ A run of a deployment with `managementAccess: OrgSubtree` whose agent leads one 
 
 People write change rules with `garrison_get_change_rule`, `garrison_create_change_rule`, `garrison_update_change_rule`, and `garrison_delete_change_rule`, and follow executives with `garrison_list_org_proposals`, `garrison_get_org_proposal`, and `garrison_decide_org_proposal`. Runs never see these tools, and a run token is refused on every rule write. `garrison_update_change_rule` changes only the fields you pass; `classes` and `limits` replace the lists. Permissions, arguments, hard limits, and rule matching are in [docs/EXECUTIVES.md](docs/EXECUTIVES.md#mcp-tools).
 
+## Evaluations, shadow trials, and canary releases
+
+People write eval sets with `garrison_create_eval_set`, list them with `garrison_list_eval_sets`, and approve a version with `garrison_approve_eval_set`; an approved version never changes, and only people approve. `garrison_run_eval` starts an eval run of a set against an agent revision, a deployment (optionally replaying its recent inputs with `inputMode: RecentInputs`), or a studio draft, and `garrison_get_eval_run` reads its status, score, counts, and per-case results.
+
+An executive run (a deployment with `managementAccess: OrgSubtree` whose agent leads a live unit) sees `garrison_run_eval` and `garrison_get_eval_run` and no other evaluation tool. It evaluates only its own studio drafts (`studioDraftId`), reads only the eval runs its agent started, and gets hidden cases back as scores only. Other runs see none of these tools and get `NotAnExecutive` if they call one.
+
+`garrison_start_shadow_trial`, `garrison_list_shadow_trials`, `garrison_get_shadow_trial`, and `garrison_stop_shadow_trial` copy a sample of a deployment's finished runs to a candidate as shadow runs and read the agreement counts. `garrison_start_canary`, `garrison_list_canary_releases`, `garrison_get_canary_release`, and `garrison_abort_canary` move an agent's traffic to a candidate deployment in steps. These eight tools are for people only.
+
+A shadow run itself sees a reduced tool list: every tool that would cause an effect (non-read tools, agent tools, messaging, escalations, reports, memory writes, keeper and studio draft tools, file writes, and starting or cancelling runs) is hidden, and calling one anyway fails with `ShadowRunRefused`. `garrison_permission_prompt` stays available and always answers deny. Arguments, permissions, and error codes are in [docs/EVALS.md](docs/EVALS.md#mcp-tools).
+
 ## HTTP inference endpoints (v0.2.0)
 
 Architects and agent deployments can use `hrn_builtin_provider_api` with a model and a typed `inferenceEndpoint`. Supported protocols are `OpenAiCompatible` and native `Ollama`. Select authentication explicitly: `None`, `BearerToken`, `ApiKey` (header or query parameter), `Headers`, `QueryString`, or `Basic`. Each credential contains `name`, `location` (`Header` or `QueryString`), and a tenant `secretId`; responses contain references rather than secret values. Ollama Cloud uses bearer authentication; local Ollama can use no authentication. The same contract is supported by REST architect/deployment requests, MCP architect tools and deployment manifests, all four SDKs, and the dashboard. See [the endpoint contract, examples, validation, and compatibility rules](docs/PROVIDER_API.md).

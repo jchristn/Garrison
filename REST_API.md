@@ -4134,6 +4134,117 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/si
   -d '{"note": "The new dependencies budget starved the driver audit"}'
 ```
 
+### Evaluations
+
+Eval sets (AA9) are versioned lists of cases, each with an input, optional expected text, and checks scored by `ExactMatch`, `Contains`, `JsonSchemaValid`, or `Judge`. An approved version never changes: editing it, or one of its cases, answers with its next version as a draft. Eval runs score an agent revision or a deployment against a set version, each case as its own `Eval` run. Shadow trials copy a sample of a deployment's real inputs to a candidate as `Shadow` runs that cannot cause effects, and canary releases move an agent's traffic to a candidate in steps of deployment weight, rolling back when a threshold is crossed. [docs/EVALS.md](docs/EVALS.md) covers scoring, hidden cases, authorship separation, gates, sampling, and steps.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /eval-sets` | Read on `EvalSet` | `EnumerationResult<EvalSet>`, newest first, 200. Query: `state`, `origin`, `tag`, `latestOnly`, `search`, `maxResults`, `skip` |
+| `POST /eval-sets` | Create on `EvalSet` | `EvalSet` (version 1, `Draft`), 201 |
+| `GET /eval-sets/{setId}` | Read on `EvalSet` | `EvalSet`, 200 |
+| `PUT /eval-sets/{setId}` | Update on `EvalSet` | `EvalSet`, the edited draft (the next version when `{setId}` is approved), 200 |
+| `DELETE /eval-sets/{setId}` | Delete on `EvalSet` | 204 |
+| `POST /eval-sets/{setId}/approve` | Update on `EvalSet` | The approved `EvalSet`, 200 |
+| `GET /eval-sets/{setId}/cases` | Read on `EvalSet` | `EvalCase[]` in order, 200 |
+| `POST /eval-sets/{setId}/cases` | Update on `EvalSet` | `EvalCase`, 201 |
+| `GET /eval-sets/{setId}/cases/{caseId}` | Read on `EvalSet` | `EvalCase`, 200 |
+| `PUT /eval-sets/{setId}/cases/{caseId}` | Update on `EvalSet` | `EvalCase`, 200 |
+| `DELETE /eval-sets/{setId}/cases/{caseId}` | Update on `EvalSet` | `EvalSet`, the draft the case was removed from, 200 |
+| `GET /eval-runs` | Read on `EvalRun` | `EnumerationResult<EvalRun>`, newest first, 200. Query: `set`, `deployment`, `revision`, `status`, `maxResults`, `skip` |
+| `POST /eval-runs` | Execute on `EvalRun`, and Execute on the agent | `EvalRun` (`Pending`), 201 |
+| `GET /eval-runs/{evalRunId}` | Read on `EvalRun` | `EvalRun`, 200 |
+| `GET /eval-runs/{evalRunId}/results` | Read on `EvalRun` | `EvalCaseResult[]` in order, 200 |
+| `POST /eval-runs/{evalRunId}/cancel` | Execute on `EvalRun` | `EvalRun`, 200 |
+| `GET /shadow-trials` | Read on `ShadowTrial` | `EnumerationResult<ShadowTrial>`, newest first, 200. Query: `source`, `candidate`, `status`, `maxResults`, `skip` |
+| `POST /shadow-trials` | Create on `ShadowTrial`, and Execute on the agent | `ShadowTrial`, 201 |
+| `GET /shadow-trials/{trialId}` | Read on `ShadowTrial` | `ShadowTrial`, 200 |
+| `POST /shadow-trials/{trialId}/stop` | Update on `ShadowTrial` | `ShadowTrial`, 200 |
+| `GET /canary-releases` | Read on `CanaryRelease` | `EnumerationResult<CanaryRelease>`, newest first, 200. Query: `agent`, `status`, `maxResults`, `skip` |
+| `POST /canary-releases` | Create on `CanaryRelease`, and Update on both deployments | `CanaryRelease`, 201 |
+| `GET /canary-releases/{releaseId}` | Read on `CanaryRelease` | `CanaryRelease`, 200 |
+| `POST /canary-releases/{releaseId}/abort` | Update on `CanaryRelease` | `CanaryRelease`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`; another tenant's records answer 404. `{setId}` takes a version identifier (`evs_`) or a set name, which means its newest version. Run tokens of executives (deployments with `managementAccess: OrgSubtree`) may read sets, create sets (recorded with origin `Evaluator`), start eval runs of their own studio drafts, and read the eval runs their agent started; they see hidden cases and their results redacted. Every other route answers a run token 403, and shadow trial and canary routes refuse run tokens with 403 `PeopleOnly`.
+
+#### `POST /v1.0/api/tenants/{tenantId}/eval-sets`
+
+Body `EvalSetRequest`: `name` (1 to 128 characters, required), `description`, `origin` (`Human` or `Playground`; default `Human`), `judgeAgent` (identifier or name), `tags`, and `cases`. Each case takes `inputText` (required), `name`, `expectedText`, `hidden`, `checks` (`scorer`, `argument`, `weight` 0 to 100, default 1), `files` (`path` with `contentText`, or `assetId` and `assetPath`), and `sourceRunId`. `PUT .../eval-sets/{setId}` changes `description`, `judgeAgent`, and `tags`; fields left out keep their values.
+
+| | |
+|---|---|
+| Errors | 400 `ValidationFailed` with field codes `OutOfRange`, `InputRequired`, `UnknownScorer`, `InvalidJsonSchema`, `ArgumentRequired`, `TooManyCases` (past `Evaluation.MaxCasesPerSet`), `EvaluatorIsForAgents`; 409 `EvalSetExists` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/eval-sets" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "invoice-fields", "judgeAgent": "invoice-judge", "cases": [{"inputText": "Invoice 4411 from Acme, due 2026-12-01, total 1250.00 USD", "checks": [{"scorer": "Contains", "argument": "2026-12-01"}]}]}'
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/eval-sets/{setId}/approve`
+
+Approve a draft version so it can gate promotions and executive changes. People only. Errors: 403 `ApprovalIsPeopleOnly`; 409 `AlreadyApproved`, `EvalSetEmpty`. `DELETE .../eval-sets/{setId}` on an approved version answers 409 `EvalSetImmutable`. Case edits on an approved version land on its next draft version, and a race to open that version answers 409 `EvalSetVersionExists`.
+
+#### `POST /v1.0/api/tenants/{tenantId}/eval-runs`
+
+Body `EvalRunRequest`: `setId` (identifier, or a name for its latest approved version), optional `setVersion`, `targetType` (`AgentRevision` or `Deployment`; inferred from `deploymentId` when left out), `agentId` and `agentRevisionId`, or `deploymentId`, `studioDraftId`, `inputMode` (`Cases` or `RecentInputs`), `recentInputCount` (1 to 1000, default 20), `threshold` (0 to 1), and `budgetUsd`. The leader runs the cases in the background; follow the eval run with `GET`, the `eval-run:{id}` WebSocket channel, or `GET .../results`. `POST .../cancel` takes an optional `{"reason": "..."}`.
+
+| | |
+|---|---|
+| Errors | 400 `SetRequired`, `TargetRequired`, `EvalSetEmpty`, `NoRecentInputs`, `RecentInputsNeedDeployment`, `JudgeAgentRequired`; 403 without Execute on the agent, `NotAnExecutive` and `OwnDraftsOnly` for run tokens, or a hard-limit code for an executive draft that breaks one; 404 for an unknown set, agent, revision, deployment, or draft; 409 `EvalRunFinished` on cancel |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/eval-runs" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"setId": "invoice-fields", "agentId": "invoice-extractor", "threshold": 0.9, "budgetUsd": 2}'
+```
+
+```json
+{
+  "id": "evr_...",
+  "setId": "evs_...",
+  "setName": "invoice-fields",
+  "setVersion": 1,
+  "targetType": "AgentRevision",
+  "agentId": "agt_...",
+  "agentRevisionId": "arv_...",
+  "status": "Pending",
+  "inputMode": "Cases",
+  "threshold": 0.9,
+  "budgetUsd": 2,
+  "costUsd": 0,
+  "totalCases": 3,
+  "completedCases": 0,
+  "passedCases": 0,
+  "erroredCases": 0,
+  "startedByType": "User",
+  "startedByName": "admin@garrison",
+  "createdUtc": "2026-11-26T18:00:00Z"
+}
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/shadow-trials`
+
+Body: `sourceDeploymentId` and `candidateDeploymentId` (identifiers or names, two deployments of one agent), `samplePercent` (1 to 100, default 10), and optional `name`, `endsUtc`, `comparisonEvalSetId`, `useJudge`. The response carries `comparedCount`, `agreedCount`, `divergedCount`, and `candidateFailureCount`. `POST .../stop` takes an optional `{"reason": "..."}`.
+
+| | |
+|---|---|
+| Errors | 400 `ValidationFailed` with field codes `DeploymentNotFound`, `SameDeployment`, `DifferentAgent`, `DeploymentInactive`, `AgentMismatch`, `EndsInPast`, `EvalSetNotFound`, `TooLong`; 403 `PeopleOnly`, or without Execute on the agent; 409 `ShadowTrialAlreadyRunning`, `ShadowTrialNotRunning` on stop |
+
+#### `POST /v1.0/api/tenants/{tenantId}/canary-releases`
+
+Body: `agentId`, `candidateDeploymentId`, `baselineDeploymentId` (identifiers or names), `steps` (1 to 20, each `weightPercent` 1 to 100 rising to exactly 100, `minimumRuns` default 20, `minimumMinutes` default 10), `maxErrorRatePercent` (default 5), and optionally `minEvalScore` with `evalSetId`. Step one's weights apply at once: the candidate gets percent times 10 on the 0 to 1000 deployment weight scale and the baseline the rest. `POST .../abort` takes an optional `{"reason": "..."}` and restores the starting weights.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/canary-releases" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"agentId": "invoice-extractor", "candidateDeploymentId": "invoice-extractor-small", "baselineDeploymentId": "invoice-extractor", "steps": [{"weightPercent": 10, "minimumRuns": 50}, {"weightPercent": 100}], "maxErrorRatePercent": 2}'
+```
+
+| | |
+|---|---|
+| Errors | 400 `ValidationFailed` with field codes `AgentNotFound`, `DeploymentNotFound`, `DifferentAgent`, `SameDeployment`, `DeploymentInactive`, `Required`, `TooMany`, `NotIncreasing`, `LastStepNotFull`, `EvalGateIncomplete`, `EvalSetNotFound`, `TooLong`; 403 `PeopleOnly`, or without Update on both deployments; 409 `CanaryAlreadyRunning`, `CanaryNotRunning` on abort |
+
 ### Agent revisions
 
 An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
@@ -4436,7 +4547,9 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/environments" \
 
 | | |
 |---|---|
-| Errors | 400 `ValidationFailed` (1 to 16 environments; names are 1 to 32 lowercase letters, digits, and hyphens starting with a letter; `draft` is reserved); 409 `EnvironmentInUse` when a removed environment still has deployments |
+| Errors | 400 `ValidationFailed` (1 to 16 environments; names are 1 to 32 lowercase letters, digits, and hyphens starting with a letter; `draft` is reserved; `evalGateSet` at most 128 characters); 409 `EnvironmentInUse` when a removed environment still has deployments |
+
+Each entry takes `name`, `description`, and an optional eval gate: `evalGateSet`, the name of an eval set a revision must pass before it is promoted into the environment, and `evalGateThreshold`, the score from 0 to 1 that counts as passing (1 when a set is named without a threshold). Clearing `evalGateSet` clears the threshold. See [docs/EVALS.md](docs/EVALS.md#promotion-gates).
 
 #### `POST /v1.0/api/tenants/{tenantId}/promotions`
 
@@ -4469,7 +4582,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/promotions" \
 
 | | |
 |---|---|
-| Errors | 400 `UnknownEnvironment`, `NoNextEnvironment`; 403 without Execute on `Promotion` for the target; 404 for an unknown agent or revision; 409 `PromotionOrderViolation`, `RevisionNotPublished`, `NoSourceRevision`, `AmbiguousSourceRevision`, `NoTargetDeployments` |
+| Errors | 400 `UnknownEnvironment`, `NoNextEnvironment`; 403 without Execute on `Promotion` for the target; 404 for an unknown agent or revision; 409 `PromotionOrderViolation`, `RevisionNotPublished`, `NoSourceRevision`, `AmbiguousSourceRevision`, `NoTargetDeployments`, `EvalGateFailed` (the target environment's eval gate has no completed eval run of the revision at its threshold; the message names the latest eval run) |
 
 #### `POST /v1.0/api/tenants/{tenantId}/promotions/{id}/rollback`
 
@@ -6601,6 +6714,8 @@ One invocation of one deployment.
 | `effectPolicy` | `DeploymentEffectPolicyEnum` | The deployment's effect policy when the run was admitted. The lease reaper uses this value, so changing the deployment does not change how an in-flight run is handled. |
 | `nodePoolId` | `string?` | Required node pool. |
 | `kind` | `RunKindEnum` | Run kind. |
+| `evalRunId` | `string?` | The eval run this run belongs to: a case run or a judge run (kind `Eval`). See [Evaluations](#evaluations). |
+| `shadowTrialId` | `string?` | The shadow trial this run is a copy for (kind `Shadow`). |
 | `status` | `RunStatusEnum` | Status. |
 | `outcome` | `RunOutcomeEnum` | Outcome code. |
 | `priority` | `int` | Priority; higher runs first. Minimum -100, maximum 100, default 0. |
@@ -6674,7 +6789,7 @@ One invocation of one deployment.
 
 #### `RunKindEnum`
 
-`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire), `Playground` (a studio playground run), `Keeper` (one tick of a mandate), `Message` (started by urgent mail to an agent without a keeper)
+`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire), `Playground` (a studio playground run), `Keeper` (one tick of a mandate), `Message` (started by urgent mail to an agent without a keeper), `Eval` (a case run or judge run of an eval run), `Shadow` (a shadow trial's copy of a source run, which cannot cause effects)
 
 #### `RunStatusEnum`
 
@@ -7630,7 +7745,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `NotificationEventEnum`
 
-`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `Test` (test sends only)
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `CanaryRolledBack` (a canary release crossed a threshold and its weights were restored), `Test` (test sends only)
 
 #### `NotificationDeliveryStatusEnum`
 
@@ -9139,6 +9254,143 @@ An executive's draft seen from its organization (AA8.9), computed from the draft
 |---|---|---|
 | `allow` | `boolean` | True applies the proposal; false sends it back to the executive. |
 | `reason` | `string?` | At most 4000 characters. |
+
+#### `EvalSet`
+
+One version of an eval set (AA9). See [docs/EVALS.md](docs/EVALS.md#eval-sets).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`evs_`); each version has its own. |
+| `tenantId` | `string` | Tenant. |
+| `name`, `version` | `string`, `int` | Set name (1 to 128 characters) and version number (from 1); unique together in a tenant. |
+| `previousVersionId` | `string?` | The approved version this draft was copied from, or null for version 1. |
+| `description` | `string?` | At most 2000 characters. |
+| `state` | `EvalSetStateEnum` | Default `Draft`. Only drafts change in place. |
+| `origin` | `EvalSetOriginEnum` | Default `Human`; `Evaluator` is set by the server for a run token's set. |
+| `approvedById`, `approvedByName`, `approvedUtc` | `string?`, `string?`, `DateTime?` | Who approved the version and when, or null for a draft. |
+| `authoringOrgUnitId` | `string?` | Org unit of the agent that wrote the set, or null for a person's set. |
+| `authoredByType`, `authoredById`, `authoredByName`, `authoredByAgentId` | `PrincipalTypeEnum`, `string?`, `string?`, `string?` | Who wrote the version. Set by the server. |
+| `judgeAgent` | `string?` | Agent (identifier or name, at most 128 characters) that grades `Judge` checks. |
+| `tags` | `string[]` | Each at most 64 characters. |
+| `caseCount` | `int` | Cases in the version, computed on read. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
+
+#### `EvalCase`
+
+| Field | Type | Description |
+|---|---|---|
+| `id`, `tenantId`, `setId` | `string` | Identifier (`evc_`), tenant, and set version. A case copied into a new version gets a new identifier. |
+| `order` | `int` | Position in the set, set by the server. |
+| `name` | `string?` | At most 256 characters. |
+| `inputText` | `string` | Input sent to the agent. Required. Empty for a hidden case read by a run token. |
+| `hidden` | `boolean` | Default false. Run tokens see a hidden case redacted. |
+| `expectedText` | `string?` | Reference answer. `ExactMatch` and `Contains` checks without an argument compare against it. |
+| `checks` | `EvalCaseCheck[]` | Checks in order. A case without checks is scored by `ExactMatch` against `expectedText`, or by one `Judge` check when it has none. |
+| `files` | `EvalCaseFile[]` | Files of the case. |
+| `sourceRunId` | `string?` | The run the case was saved from, for example a playground run. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | UTC timestamps. |
+
+#### `EvalCaseCheck`
+
+| Field | Type | Description |
+|---|---|---|
+| `scorer` | `EvalScorerEnum` | Default `ExactMatch`. |
+| `argument` | `string?` | The expected text (`ExactMatch`), the text to find (`Contains`), a JSON Schema (`JsonSchemaValid`), or grading criteria (`Judge`). At most 65536 characters; stored as given. |
+| `weight` | `double` | Weight in the case score, 0 to 100, default 1. 0 reports the check without counting it. |
+
+#### `EvalCaseFile`
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` | Relative path with forward slashes, no `.` or `..` segments, at most 512 characters. |
+| `mediaType` | `string?` | Media type, or null to guess from the extension. |
+| `contentText` | `string?` | Inline content, or null when the file comes from an asset. |
+| `assetId`, `assetPath` | `string?` | An agent asset (`aas_`) and the file inside it, used at its latest version. Never together with `contentText`. |
+
+#### `EvalRun`
+
+| Field | Type | Description |
+|---|---|---|
+| `id`, `tenantId` | `string` | Identifier (`evr_`) and tenant. |
+| `setId`, `setName`, `setVersion` | `string`, `string`, `int` | The set version evaluated. |
+| `targetType` | `EvalRunTargetEnum` | Default `Deployment`. |
+| `agentId`, `agentRevisionId`, `deploymentId` | `string?` | What was evaluated. A deployment target records the revision the deployment runs. |
+| `studioDraftId` | `string?` | The studio draft evaluated, or null. |
+| `originRunId` | `string?` | The executive run that started it, or null. |
+| `status` | `EvalRunStatusEnum` | Default `Pending`. |
+| `inputMode` | `EvalRunInputModeEnum` | Default `Cases`. |
+| `recentInputCount` | `int` | Recent inputs replayed in `RecentInputs` mode, 1 to 1000, default 20. |
+| `score` | `double?` | Score from 0 to 1 once completed: the mean of the case scores weighted by each case's check weight. |
+| `threshold`, `passed` | `double?`, `boolean?` | The pass mark and whether the score reached it; null without a threshold. |
+| `budgetUsd`, `costUsd` | `double?`, `double` | Spending cap (0 to 100000, or null) and what the case and judge runs spent. |
+| `totalCases`, `completedCases`, `passedCases`, `erroredCases` | `int` | Counts. |
+| `failureReason` | `string?` | Why it failed or was cancelled, for example `BudgetExhausted: ...` or `TargetUnavailable: ...`. |
+| `startedByType`, `startedById`, `startedByName` | `PrincipalTypeEnum`, `string?`, `string?` | Who started it. |
+| `createdUtc`, `startedUtc`, `completedUtc`, `lastUpdateUtc` | `DateTime`, `DateTime?`, `DateTime?`, `DateTime` | UTC timestamps. |
+
+#### `EvalCaseResult`
+
+| Field | Type | Description |
+|---|---|---|
+| `id`, `tenantId`, `evalRunId` | `string` | Identifier (`evx_`), tenant, and eval run. |
+| `caseId` | `string?` | The case, or null for a replayed recent input. |
+| `order` | `int` | Position in the run, from 0; unique per eval run. |
+| `sourceRunId` | `string?` | The run whose input was replayed (`RecentInputs`), or the run the case was saved from. |
+| `runId` | `string?` | The `Eval` run that answered, or null when it could not start. |
+| `outputText` | `string?` | The answer. Null for a hidden case read by a run token. |
+| `score`, `passed` | `double`, `boolean` | Case score from 0 to 1, and whether every check with weight above 0 passed. |
+| `errorMessage` | `string?` | Why the case could not be scored. |
+| `costUsd` | `double` | What the case run and its judge runs spent. |
+| `checkResults` | `EvalCaseCheckResult[]` | One per check, in order: `scorer`, `weight`, `score`, `passed`, `judgeRunId`, and `note` (at most 4000 characters; null for a hidden case read by a run token). |
+| `createdUtc` | `DateTime` | UTC timestamp. |
+
+#### `ShadowTrial`
+
+| Field | Type | Description |
+|---|---|---|
+| `id`, `tenantId` | `string` | Identifier (`shd_`) and tenant. |
+| `name` | `string?` | At most 128 characters. |
+| `agentId` | `string?` | The source deployment's agent. |
+| `sourceDeploymentId`, `candidateDeploymentId` | `string` | Where inputs come from and where the shadow copies run. |
+| `samplePercent` | `int` | 1 to 100, default 10. |
+| `endsUtc` | `DateTime?` | When it completes, or null to run until stopped. |
+| `comparisonEvalSetId` | `string?` | Eval set whose checks compare outputs. |
+| `useJudge` | `boolean` | Whether a judge decides agreement. Default false. |
+| `status` | `ShadowTrialStatusEnum` | Default `Running`. |
+| `stopReason` | `string?` | Why it stopped. |
+| `comparedCount`, `agreedCount`, `divergedCount`, `candidateFailureCount` | `long` | Tally. |
+| `createdByType`, `createdById`, `createdByName` | `PrincipalTypeEnum`, `string?`, `string?` | Who started it. |
+| `createdUtc`, `completedUtc`, `lastUpdateUtc` | `DateTime`, `DateTime?`, `DateTime` | UTC timestamps. |
+
+#### `CanaryRelease`
+
+| Field | Type | Description |
+|---|---|---|
+| `id`, `tenantId`, `agentId` | `string` | Identifier (`cnr_`), tenant, and agent. |
+| `candidateDeploymentId`, `baselineDeploymentId` | `string` | Where traffic moves to and away from. |
+| `candidateInitialWeight`, `baselineInitialWeight` | `int` | Weights (0 to 1000) when the release started, restored on rollback or abort. |
+| `steps` | `CanaryReleaseStep[]` | 1 to 20 steps: `weightPercent` (1 to 100, rising, the last 100), `minimumRuns` (default 20), `minimumMinutes` (default 10, at most 43200). |
+| `currentStepIndex`, `stepStartedUtc` | `int`, `DateTime?` | The current step, from 0, and when it started. |
+| `maxErrorRatePercent` | `double` | 0 to 100, default 5. |
+| `minEvalScore`, `evalSetId` | `double?`, `string?` | Optional eval gate; both or neither. |
+| `status` | `CanaryStatusEnum` | Default `Running`. |
+| `rollbackReason` | `string?` | Why it rolled back or was aborted. |
+| `createdByType`, `createdById`, `createdByName` | `PrincipalTypeEnum`, `string?`, `string?` | Who started it. |
+| `createdUtc`, `completedUtc`, `lastUpdateUtc` | `DateTime`, `DateTime?`, `DateTime` | UTC timestamps. |
+
+#### Evaluation enums
+
+| Enum | Values |
+|---|---|
+| `EvalSetStateEnum` | `Draft`, `Approved` |
+| `EvalSetOriginEnum` | `Human`, `Evaluator`, `Playground` |
+| `EvalScorerEnum` | `ExactMatch`, `Contains`, `JsonSchemaValid`, `Judge` |
+| `EvalRunTargetEnum` | `AgentRevision`, `Deployment` |
+| `EvalRunInputModeEnum` | `Cases`, `RecentInputs` |
+| `EvalRunStatusEnum` | `Pending`, `Running`, `Completed`, `Failed`, `Cancelled` |
+| `ShadowTrialStatusEnum` | `Running`, `Completed`, `Stopped`, `Failed` |
+| `CanaryStatusEnum` | `Running`, `Promoted`, `RolledBack`, `Aborted` |
 
 #### `StudioGraph`
 

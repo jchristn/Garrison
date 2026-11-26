@@ -22,6 +22,7 @@ Start with the workflow you need, then use the configuration and protocol refere
 | Have the agent architect build drafts with you, keep reusable architects, and choose or write their prompts | [The agent architect](ARCHITECT.md), [architects](ARCHITECT.md#architects), [architect prompts](PROMPTS.md#architect-prompts) |
 | Put a group of agents behind one entry agent, its own chat UI, branding, and sign-in | [Agentic apps](APPS.md), [app chat UI](APP_UI.md) |
 | Version agents and move them through dev, staging, and prod, with rollback | [Revisions, environments, and promotion](REVISIONS.md) |
+| Score agents against eval sets, gate promotions on a passing score, shadow a candidate on real inputs, and roll out with a canary | [Evaluations, shadow trials, and canary releases](EVALS.md) |
 | Give agents skills, reference files, and document templates | [Agent assets](ASSETS.md) |
 | Share files across the turns and agents of a conversation | [Conversation file spaces](FILE_SPACES.md) |
 | Let orchestrators find agents, MCP tools, and host tools, and choose where a capability comes from | [Capability catalog](CAPABILITIES.md) |

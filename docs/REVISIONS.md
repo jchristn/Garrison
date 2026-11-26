@@ -37,7 +37,7 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/environments" \
   -d '{"environments": [{"name": "dev"}, {"name": "qa"}, {"name": "prod", "description": "Customer traffic"}]}'
 ```
 
-Names are 1 to 32 lowercase letters, digits, and hyphens, starting with a letter. The list holds 1 to 16 environments. `draft` is reserved for playground runs. Removing an environment that a deployment still uses answers 409 `EnvironmentInUse`.
+Names are 1 to 32 lowercase letters, digits, and hyphens, starting with a letter. The list holds 1 to 16 environments. `draft` is reserved for playground and eval runs. Each entry may also carry an [eval gate](#eval-gates) (`evalGateSet`, `evalGateThreshold`). Removing an environment that a deployment still uses answers 409 `EnvironmentInUse`.
 
 A deployment's `environment` defaults to `dev`. A value outside the list answers 400 with field code `UnknownEnvironment`.
 
@@ -61,6 +61,21 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/promotions" \
 - The revision defaults to what the source environment runs: the common pin of its deployments, or the latest published revision when they are unpinned. If they run different revisions, name one with `agentRevisionId` (409 `AmbiguousSourceRevision` otherwise). A draft answers 409 `RevisionNotPublished`.
 - A target that skips environments in the order (for example `dev` straight to `prod`) answers 409 `PromotionOrderViolation` unless the request sets `allowSkip`.
 - If the agent has no deployment in the target environment, the request answers 409 `NoTargetDeployments`.
+- If the target environment has an eval gate and the revision has not passed it, the request answers 409 `EvalGateFailed` ([below](#eval-gates)).
+
+### Eval gates
+
+An environment can require that a revision pass an eval set before it is promoted there. Set `evalGateSet` (a set name) and `evalGateThreshold` (0 to 1, default 1 when a set is named) on its entry in `PUT .../environments`:
+
+```bash
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/environments" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"environments": [{"name": "dev"}, {"name": "staging"}, {"name": "prod", "evalGateSet": "invoice-fields", "evalGateThreshold": 0.9}]}'
+```
+
+The gate uses the latest version of the set that a person approved. A promotion into the environment goes through only when a completed eval run of the revision against that version scored at least the threshold. The run may have targeted the revision itself or a deployment pinned to it. Without one, the promotion answers 409 `EvalGateFailed`, and the message names the gate, the threshold, and the latest eval run of the revision (or says it has none), so the next step is clear: run the set against the revision with `POST .../eval-runs`, look at the failing cases, and fix the agent. Approving a new version of the set moves the gate to it, and the revision has to pass the new version before its next promotion.
+
+The gate is checked on `POST .../promotions` only. App promotions, rollbacks, and pinning a revision directly on a deployment do not consult it. Eval sets, eval runs, and how scores are computed are covered in [EVALS.md](EVALS.md#promotion-gates).
 
 `POST .../promotions/{id}/rollback` restores the exact pins the promotion replaced, again in one transaction, and marks the promotion `RolledBack`. A deployment that followed the latest revision before the promotion follows it again after the rollback. A promotion can be rolled back once (409 `AlreadyRolledBack`), and a rollback cannot be rolled back (409 `NotAPromotion`).
 
@@ -78,7 +93,7 @@ Promotions and rollbacks are audited, and `GET .../promotions?agentId=` lists th
 | Save or discard a draft | Create or Delete on `AgentRevision` |
 | Publish | Execute on `AgentRevision` |
 | Read the environment list | Read on `Deployment` |
-| Replace the environment list | Update on `Tenant` |
+| Replace the environment list, including eval gates | Update on `Tenant` |
 | List promotions | Read on `Promotion` |
 | Promote or roll back | Execute on `Promotion` for the target environment |
 
