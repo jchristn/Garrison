@@ -418,8 +418,9 @@ type Deployment struct {
 	ApprovalTimeoutDecision string `json:"approvalTimeoutDecision,omitempty"`
 	// ApprovalRules are the approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow.
 	ApprovalRules []DeploymentApprovalRule `json:"approvalRules,omitempty"`
-	// ManagementAccess is ManagementAccessNone (the default when empty) or ManagementAccessDrafts, which lets run
-	// tokens edit studio drafts for the person who started the run. Deployments of agent-architect always get Drafts.
+	// ManagementAccess is ManagementAccessNone (the default when empty), ManagementAccessDrafts, which lets run
+	// tokens edit studio drafts for the person who started the run (deployments of agent-architect always get Drafts),
+	// or ManagementAccessOrgSubtree, executive authority over the subtree below the unit the agent leads.
 	ManagementAccess string `json:"managementAccess,omitempty"`
 	// ArchitectPromptTemplateID (create only) is the architect prompt to bind, by template identifier or name; nil
 	// binds builtin/agent-architect on a deployment of agent-architect. Read it back with StudioDrafts.ArchitectPrompt.

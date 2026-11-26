@@ -41,19 +41,20 @@ const (
 
 // Notification events (NotificationEndpoint.Events, NotificationDelivery.Event). Test is only sent by the test action.
 const (
-	NotificationEventRunSucceeded      = "RunSucceeded"
-	NotificationEventRunFailed         = "RunFailed"
-	NotificationEventRunCancelled      = "RunCancelled"
-	NotificationEventRunTimedOut       = "RunTimedOut"
-	NotificationEventPipelineCompleted = "PipelineCompleted"
-	NotificationEventPipelineFailed    = "PipelineFailed"
-	NotificationEventApprovalRequested = "ApprovalRequested"
-	NotificationEventEscalationRaised  = "EscalationRaised"
-	NotificationEventEscalationExpired = "EscalationExpired"
-	NotificationEventFreezeApplied     = "FreezeApplied"
-	NotificationEventMandateCapReached = "MandateCapReached"
-	NotificationEventReportUnhealthy   = "ReportUnhealthy"
-	NotificationEventTest              = "Test"
+	NotificationEventRunSucceeded       = "RunSucceeded"
+	NotificationEventRunFailed          = "RunFailed"
+	NotificationEventRunCancelled       = "RunCancelled"
+	NotificationEventRunTimedOut        = "RunTimedOut"
+	NotificationEventPipelineCompleted  = "PipelineCompleted"
+	NotificationEventPipelineFailed     = "PipelineFailed"
+	NotificationEventApprovalRequested  = "ApprovalRequested"
+	NotificationEventEscalationRaised   = "EscalationRaised"
+	NotificationEventEscalationExpired  = "EscalationExpired"
+	NotificationEventFreezeApplied      = "FreezeApplied"
+	NotificationEventMandateCapReached  = "MandateCapReached"
+	NotificationEventReportUnhealthy    = "ReportUnhealthy"
+	NotificationEventOrgProposalApplied = "OrgProposalApplied"
+	NotificationEventTest               = "Test"
 )
 
 // Notification delivery statuses (NotificationDelivery.Status).

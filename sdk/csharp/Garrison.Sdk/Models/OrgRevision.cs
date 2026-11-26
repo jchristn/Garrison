@@ -89,6 +89,17 @@ namespace Garrison.Sdk.Models
         public string? RollbackOfRevisionId { get; set; } = null;
 
         /// <summary>
+        /// For a revision recorded when an executive's draft was applied (AA8.6), the draft; otherwise null.
+        /// </summary>
+        public string? DraftId { get; set; } = null;
+
+        /// <summary>
+        /// For a revision recorded when an executive's draft was applied, a draft holding the records as they were before,
+        /// which a rollback past this revision applies so the change is undone; otherwise null.
+        /// </summary>
+        public string? RevertDraftId { get; set; } = null;
+
+        /// <summary>
         /// Principal type of the author.
         /// </summary>
         public PrincipalTypeEnum AuthorType { get; set; } = PrincipalTypeEnum.User;

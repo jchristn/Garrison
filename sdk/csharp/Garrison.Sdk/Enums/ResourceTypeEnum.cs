@@ -260,6 +260,12 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Organizations, their units, revisions, chart, and spend (AA7). Update covers units, publishing, and rollback.
         /// </summary>
-        Organization
+        Organization,
+
+        /// <summary>
+        /// Change rules that pre-authorize narrow classes of executive change (AA8). Only people create, update, or delete
+        /// them; executive runs read the rules that apply to their own subtree.
+        /// </summary>
+        ChangeRule
     }
 }

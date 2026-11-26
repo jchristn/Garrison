@@ -315,8 +315,12 @@ export type StudioDraftOperation = typeof STUDIO_DRAFT_OPERATIONS[number];
 export const STUDIO_GRAPH_OPERATIONS = ["AddMember", "RemoveMember", "Connect", "Disconnect", "SetEntry", "MoveNode"] as const;
 /** One of {@link STUDIO_GRAPH_OPERATIONS}. */
 export type StudioGraphOperation = typeof STUDIO_GRAPH_OPERATIONS[number];
-/** What a deployment's run tokens may do in the management plane. Drafts lets the agent architect edit studio drafts for the person it works for, never apply them. */
-export const MANAGEMENT_ACCESS_LEVELS = ["None", "Drafts"] as const;
+/**
+ * What a deployment's run tokens may do in the management plane. Drafts lets the agent architect edit studio drafts for
+ * the person it works for, never apply them. OrgSubtree gives an agent that leads an org unit executive authority: studio
+ * drafts limited to the units below it, applied at once only when change rules cover every change.
+ */
+export const MANAGEMENT_ACCESS_LEVELS = ["None", "Drafts", "OrgSubtree"] as const;
 /** One of {@link MANAGEMENT_ACCESS_LEVELS}. */
 export type ManagementAccess = typeof MANAGEMENT_ACCESS_LEVELS[number];
 /** Resource type name of studio drafts in permissions and the operation scope map. */
@@ -340,6 +344,10 @@ export interface StudioDraft extends Json {
   id: string; tenantId: string; title: string; ownerUserId?: string | null; ownerName?: string | null;
   conversationId?: string | null; targetApp?: string | null; version: number; status: StudioDraftStatus;
   approvalId?: string | null; publishOnApply: boolean; manifestApplyId?: string | null;
+  /** The run that created the draft, or null for a draft a person started. */
+  originRunId?: string | null;
+  /** Set on an executive's draft (an OrgSubtree run): the organization, the unit the executive leads, and its agent. */
+  organizationId?: string | null; executiveUnitId?: string | null; executiveAgentId?: string | null;
   items: StudioDraftItem[]; layout: StudioDraftNode[]; createdUtc: string; lastUpdateUtc: string;
 }
 
@@ -355,8 +363,27 @@ export interface StudioDraftCreateRequest { title?: string; fromApp?: string; co
  */
 export interface StudioDraftDiffItem { kind: string; name: string; change: string; changes: ManifestFieldChange[]; message?: string | null; errorCode?: string | null; stale: boolean; }
 
-/** A draft compared with live configuration. valid is true when nothing failed and nothing is stale. */
-export interface StudioDraftDiff { draftId: string; version: number; valid: boolean; items: StudioDraftDiffItem[]; }
+/** A hard limit an executive's draft item breaks: OutsideSubtree, SelfModification, ForbiddenKind, BudgetIncrease, or AuthorityChange. No change rule lifts it. */
+export interface ExecutiveRefusal { kind: string; name: string; code: string; message: string; }
+
+/**
+ * One change of an executive's draft with its classes and the change rule that covers it (ruleId, ruleName) or why none
+ * does (reason). subject is what the change is about; count limits count distinct subjects.
+ */
+export interface ChangeRuleMatchItem {
+  kind: string; name: string; detail?: string | null; subject: string; classes: ChangeClass[];
+  ruleId?: string | null; ruleName?: string | null; reason?: string | null;
+}
+
+/**
+ * A draft compared with live configuration. valid is true when nothing failed and nothing is stale. For an executive's
+ * draft, refusals lists the hard limits it breaks, ruleMatches each change with its covering rule, and appliesByRule is
+ * true when requesting apply would apply it at once under change rules.
+ */
+export interface StudioDraftDiff {
+  draftId: string; version: number; valid: boolean; items: StudioDraftDiffItem[];
+  refusals?: ExecutiveRefusal[]; ruleMatches?: ChangeRuleMatchItem[]; appliesByRule?: boolean;
+}
 
 /**
  * A node of a draft graph: an app or an agent. key is kind/name. entryOf and memberOf name apps. capabilities lists, for
@@ -929,8 +956,8 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "Test"] as const;
 
 /** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
 export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
@@ -2610,7 +2637,10 @@ export interface OrgRevisionMandate { mandateId: string; mandateName?: string | 
 /** A snapshot of an organization's tree. units and mandates are empty on lists. */
 export interface OrgRevision extends Json {
   id: string; tenantId: string; organizationId: string; number: number; state: OrgRevisionState; note?: string | null;
-  rollbackOfRevisionId?: string | null; authorType?: string; authorId?: string | null; authorName?: string | null;
+  rollbackOfRevisionId?: string | null;
+  /** For a revision recorded when an executive's draft was applied: the draft, and a draft holding the records as they were before, which a rollback past this revision applies. */
+  draftId?: string | null; revertDraftId?: string | null;
+  authorType?: string; authorId?: string | null; authorName?: string | null;
   units: OrgUnit[]; mandates: OrgRevisionMandate[]; publishedUtc?: string | null; createdUtc?: string;
 }
 /** A lead or member on the organization chart. */
@@ -2666,6 +2696,76 @@ export class Organizations extends Resource<Organization> {
   rollback(organization: string, request: { revisionId?: string; note?: string } = {}): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/rollback`, undefined, request); }
   /** Spend of each unit's subtree against its budgets in the current day and month windows. */
   spend(organization: string): Promise<OrgUnitSpend[]> { return this.t.request("GET", `${this.item(organization)}/spend`); }
+  /** The organization's executive proposals, newest change first, without diffs. Needs Read on Organization. */
+  listProposals(organization: string, query: { status?: StudioDraftStatus; maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<OrgProposal>> {
+    return this.t.request("GET", `${this.item(organization)}/proposals`, query as any);
+  }
+  /** Read a proposal. One not yet applied carries its diff, hard-limit refusals, and the change rule matching each change. */
+  getProposal(organization: string, draftId: string): Promise<OrgProposal> { return this.t.request("GET", `${this.item(organization)}/proposals/${seg(draftId)}`); }
+  /** Allow (apply, recorded as an org revision that a rollback undoes) or deny (back to the executive) a proposal waiting for approval. Needs Update on Approval. */
+  decideProposal(organization: string, draftId: string, request: OrgProposalDecisionRequest): Promise<OrgProposal> {
+    return this.t.request("POST", `${this.item(organization)}/proposals/${seg(draftId)}/decide`, undefined, request);
+  }
+}
+
+/** Classes of executive change a change rule may pre-authorize. A change with no class always waits for a person. */
+export type ChangeClass = "PromptRetune" | "WakeTuning" | "MandateTextEdit" | "AddWorker" | "RemoveWorker" | "ModelChange" | "DeploymentWeight";
+export const CHANGE_CLASSES: readonly ChangeClass[] = ["PromptRetune", "WakeTuning", "MandateTextEdit", "AddWorker", "RemoveWorker", "ModelChange", "DeploymentWeight"] as const;
+/** One class a change rule pre-authorizes. */
+export interface ChangeRuleClass { class: ChangeClass; }
+/**
+ * A bound a change must stay within. class must be listed on the rule. name is count (any class); minIntervalSeconds,
+ * maxIntervalSeconds, backoffFactor, or jitterPercent (WakeTuning); or weight (DeploymentWeight). Give minimum, maximum,
+ * or both, zero or more.
+ */
+export interface ChangeRuleLimit { class: ChangeClass; name: string; minimum?: number | null; maximum?: number | null; }
+/**
+ * A person's pre-authorization of narrow classes of executive change for a unit's subtree. id has the prefix cru_. In a
+ * request organizationId and unitId take an identifier or a name; organizationName and unitName are filled on read.
+ * expiresUtc is null for no expiry and must be in the future when set.
+ */
+export interface ChangeRule extends Json {
+  id: string; tenantId: string; organizationId: string; organizationName?: string | null; unitId: string; unitName?: string | null;
+  name: string; description?: string | null; active: boolean; expiresUtc?: string | null;
+  classes: ChangeRuleClass[]; limits: ChangeRuleLimit[];
+  createdByType?: string; createdById?: string | null; createdByName?: string | null; updatedByName?: string | null;
+  createdUtc?: string; lastUpdateUtc?: string;
+}
+/** Filter for {@link ChangeRules.list}. organization and unit take an identifier or a name; unit needs organization. */
+export interface ChangeRuleFilter { organization?: string; unit?: string; activeOnly?: boolean; search?: string; maxResults?: number; skip?: number; }
+/**
+ * An executive's studio draft seen from its organization. decisionSource is Rule when change rules applied it, User
+ * when a person did. ruleIds lists the rules that applied it. diff is filled only when one proposal is read and it is
+ * not applied.
+ */
+export interface OrgProposal extends Json {
+  draftId: string; title: string; status: StudioDraftStatus; version: number; organizationId: string;
+  unitId: string; unitName?: string | null; agentId: string; agentName?: string | null; originRunId?: string | null; ownerName?: string | null;
+  approvalId?: string | null; approvalStatus?: ApprovalStatus | null; decisionSource?: ApprovalSource | null;
+  decidedBy?: string | null; reason?: string | null; ruleIds: string[]; diff?: StudioDraftDiff | null;
+  createdUtc: string; lastUpdateUtc: string;
+}
+/** A person's decision on a proposal: allow applies it, deny sends it back to the executive. reason is at most 4000 characters. */
+export interface OrgProposalDecisionRequest { allow: boolean; reason?: string | null; }
+
+/**
+ * Change rules: people pre-authorize narrow classes of executive change for a unit's subtree, so an executive's draft
+ * whose every change a rule covers applies without a person. Read, Create, Update, and Delete on ChangeRule; run tokens
+ * can never write a rule (403 RulesArePeopleOnly). A refused field fails with status 400 and a field code such as
+ * UnknownLimit, ClassNotInRule, UnitNotFound, BoundRequired, MinimumAboveMaximum, or ExpiryInPast.
+ */
+export class ChangeRules {
+  constructor(private readonly t: Transport) {}
+  /** Change rules, newest first. */
+  list(filter: ChangeRuleFilter = {}): Promise<EnumerationResult<ChangeRule>> { return this.t.request("GET", this.t.tenantPath("/change-rules"), filter as any); }
+  /** Read a change rule. */
+  get(id: string): Promise<ChangeRule> { return this.t.request("GET", this.t.tenantPath(`/change-rules/${seg(id)}`)); }
+  /** Create a change rule. */
+  create(rule: Partial<ChangeRule> | Json): Promise<ChangeRule> { return this.t.request("POST", this.t.tenantPath("/change-rules"), undefined, rule); }
+  /** Replace a rule's unit, name, description, active flag, expiry, classes, and limits. Its organization does not change. */
+  update(id: string, rule: Partial<ChangeRule> | Json): Promise<ChangeRule> { return this.t.request("PUT", this.t.tenantPath(`/change-rules/${seg(id)}`), undefined, rule); }
+  /** Delete a change rule. */
+  delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.t.tenantPath(`/change-rules/${seg(id)}`)); }
 }
 
 /** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
@@ -2958,6 +3058,7 @@ export class GarrisonClient {
   readonly reports: Reports;
   readonly messages: Messages;
   readonly organizations: Organizations;
+  readonly changeRules: ChangeRules;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -3011,6 +3112,7 @@ export class GarrisonClient {
     this.reports = new Reports(t);
     this.messages = new Messages(t);
     this.organizations = new Organizations(t, "organizations");
+    this.changeRules = new ChangeRules(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

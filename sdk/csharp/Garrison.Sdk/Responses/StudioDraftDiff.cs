@@ -51,12 +51,51 @@ namespace Garrison.Sdk.Responses
             }
         }
 
+        /// <summary>
+        /// For an executive's draft (AA8.3), the hard limits it breaks; empty otherwise or when it passes. Never null.
+        /// </summary>
+        public List<ExecutiveRefusal> Refusals
+        {
+            get
+            {
+                return _Refusals;
+            }
+            set
+            {
+                _Refusals = value ?? new List<ExecutiveRefusal>();
+            }
+        }
+
+        /// <summary>
+        /// For an executive's draft (AA8.5, AA8.6), each change with its classes and the change rule that covers it or why
+        /// none does; empty for any other draft. Never null.
+        /// </summary>
+        public List<ChangeRuleMatchItem> RuleMatches
+        {
+            get
+            {
+                return _RuleMatches;
+            }
+            set
+            {
+                _RuleMatches = value ?? new List<ChangeRuleMatchItem>();
+            }
+        }
+
+        /// <summary>
+        /// For an executive's draft, whether requesting apply would apply it at once under change rules (valid, and every
+        /// change covered); false otherwise.
+        /// </summary>
+        public bool AppliesByRule { get; set; } = false;
+
         #endregion
 
         #region Private-Members
 
         private string _DraftId = String.Empty;
         private List<StudioDraftDiffItem> _Items = new List<StudioDraftDiffItem>();
+        private List<ExecutiveRefusal> _Refusals = new List<ExecutiveRefusal>();
+        private List<ChangeRuleMatchItem> _RuleMatches = new List<ChangeRuleMatchItem>();
 
         #endregion
     }

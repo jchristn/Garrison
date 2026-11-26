@@ -666,7 +666,8 @@ class StudioDraft(TypedDict, total=False):
     the prefix sdr_. status is one of STUDIO_DRAFT_STATUSES. version rises by one on every change, and every change names
     the version the caller read (409 DraftVersionConflict when it moved on). approvalId names the DraftApply approval while
     the draft waits for a decision; manifestApplyId names the manifest apply once applied. publishOnApply publishes the
-    agents the draft creates or updates."""
+    agents the draft creates or updates. originRunId names the run that created the draft; organizationId,
+    executiveUnitId, and executiveAgentId are set on an executive's draft (an OrgSubtree run) and None otherwise."""
     id: str
     tenantId: str
     title: str
@@ -679,6 +680,10 @@ class StudioDraft(TypedDict, total=False):
     approvalId: Optional[str]
     publishOnApply: bool
     manifestApplyId: Optional[str]
+    originRunId: Optional[str]
+    organizationId: Optional[str]
+    executiveUnitId: Optional[str]
+    executiveAgentId: Optional[str]
     items: List[StudioDraftItem]
     layout: List[StudioDraftNode]
     createdUtc: str
@@ -698,13 +703,40 @@ class StudioDraftDiffItem(TypedDict, total=False):
     stale: bool
 
 
+class ExecutiveRefusal(TypedDict, total=False):
+    """StudioDraftDiff["refusals"] item: a hard limit an executive's draft item breaks. No change rule lifts it. code is
+    OutsideSubtree, SelfModification, ForbiddenKind, BudgetIncrease, or AuthorityChange."""
+    kind: str
+    name: str
+    code: str
+    message: str
+
+
+class ChangeRuleMatchItem(TypedDict, total=False):
+    """StudioDraftDiff["ruleMatches"] item: one change of an executive's draft with its classes (CHANGE_CLASSES) and the
+    change rule that covers it (ruleId, ruleName) or why none does (reason). subject is what the change is about; count
+    limits count distinct subjects."""
+    kind: str
+    name: str
+    detail: Optional[str]
+    subject: str
+    classes: List[str]
+    ruleId: Optional[str]
+    ruleName: Optional[str]
+    reason: Optional[str]
+
+
 class StudioDraftDiff(TypedDict, total=False):
     """A draft compared with live configuration (a manifest dry run). valid is True when nothing failed and nothing is
-    stale."""
+    stale. For an executive's draft, refusals lists the hard limits it breaks, ruleMatches each change with its covering
+    rule, and appliesByRule is True when requesting apply would apply it at once under change rules."""
     draftId: str
     version: int
     valid: bool
     items: List[StudioDraftDiffItem]
+    refusals: List[ExecutiveRefusal]
+    ruleMatches: List[ChangeRuleMatchItem]
+    appliesByRule: bool
 
 
 class StudioGraphNode(TypedDict, total=False):
@@ -1048,7 +1080,8 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # Notification endpoints. NotificationEndpoint["events"] items (Test is only sent by the test action and cannot be
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
-                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "Test")
+                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy",
+                       "OrgProposalApplied", "Test")
 # Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
 # ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
 # mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
@@ -1078,6 +1111,8 @@ ORGANIZATION_STATUSES = ("Draft", "Active", "Frozen", "Retired")
 ORG_REVISION_STATES = ("Draft", "Published", "Superseded")
 BUDGET_PERIODS = ("Day", "Month")
 USAGE_QUOTA_SCOPES = ("Tenant", "Agent", "Deployment", "Mandate", "OrgUnit")
+# Change rules: a ChangeRule class entry's "class", a limit's "class", and ChangeRuleMatchItem["classes"].
+CHANGE_CLASSES = ("PromptRetune", "WakeTuning", "MandateTextEdit", "AddWorker", "RemoveWorker", "ModelChange", "DeploymentWeight")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -1130,9 +1165,10 @@ STUDIO_DRAFT_STATUSES = ("Open", "PendingApproval", "Applied", "Discarded")
 STUDIO_DRAFT_OPERATIONS = ("Upsert", "Delete")
 STUDIO_GRAPH_OPERATIONS = ("AddMember", "RemoveMember", "Connect", "Disconnect", "SetEntry", "MoveNode")
 STUDIO_DRAFT_RESOURCE_TYPE = "StudioDraft"
-# Deployment["managementAccess"]: None (the default) or Drafts, which lets the deployment's run tokens edit the studio
-# drafts of the person who started the run. A deployment of agent-architect always gets Drafts.
-MANAGEMENT_ACCESS = ("None", "Drafts")
+# Deployment["managementAccess"]: None (the default); Drafts, which lets the deployment's run tokens edit the studio
+# drafts of the person who started the run (a deployment of agent-architect always gets Drafts); or OrgSubtree, executive
+# authority over the subtree below the unit the deployment's agent leads.
+MANAGEMENT_ACCESS = ("None", "Drafts", "OrgSubtree")
 
 
 def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
@@ -1455,6 +1491,8 @@ class OrgRevision(TypedDict, total=False):
     state: str
     note: Optional[str]
     rollbackOfRevisionId: Optional[str]
+    draftId: Optional[str]
+    revertDraftId: Optional[str]
     authorType: str
     authorId: Optional[str]
     authorName: Optional[str]
@@ -1515,6 +1553,64 @@ class OrgUnitSpend(TypedDict, total=False):
     exhausted: bool
     windowStartUtc: str
     windowEndUtc: str
+
+
+# "class" is a Python keyword, so these two TypedDicts use the functional form. ChangeRuleClass is a ChangeRule["classes"]
+# item; its class is one of CHANGE_CLASSES. ChangeRuleLimit is a ChangeRule["limits"] item: a bound a change must stay
+# within. Its class must be listed on the rule; name is count (any class), minIntervalSeconds, maxIntervalSeconds,
+# backoffFactor, or jitterPercent (WakeTuning), or weight (DeploymentWeight). Give minimum, maximum, or both, zero or more.
+ChangeRuleClass = TypedDict("ChangeRuleClass", {"class": str})
+ChangeRuleLimit = TypedDict("ChangeRuleLimit", {"class": str, "name": str, "minimum": Optional[float], "maximum": Optional[float]}, total=False)
+
+
+class ChangeRule(TypedDict, total=False):
+    """A person's pre-authorization of narrow classes of executive change for a unit's subtree. id has the prefix cru_.
+    In a request organizationId and unitId take an identifier or a name; organizationName and unitName are filled on
+    read. expiresUtc is None for no expiry and must be in the future when set."""
+    id: str
+    tenantId: str
+    organizationId: str
+    organizationName: Optional[str]
+    unitId: str
+    unitName: Optional[str]
+    name: str
+    description: Optional[str]
+    active: bool
+    expiresUtc: Optional[str]
+    classes: List[ChangeRuleClass]
+    limits: List[ChangeRuleLimit]
+    createdByType: str
+    createdById: Optional[str]
+    createdByName: Optional[str]
+    updatedByName: Optional[str]
+    createdUtc: str
+    lastUpdateUtc: str
+
+
+class OrgProposal(TypedDict, total=False):
+    """An executive's studio draft seen from its organization. status is one of STUDIO_DRAFT_STATUSES, approvalStatus one
+    of APPROVAL_STATUSES, decisionSource one of APPROVAL_SOURCES (Rule when change rules applied it, User when a person
+    did). ruleIds lists the rules that applied it. diff is filled only when one proposal is read and it is not applied."""
+    draftId: str
+    title: str
+    status: str
+    version: int
+    organizationId: str
+    unitId: str
+    unitName: Optional[str]
+    agentId: str
+    agentName: Optional[str]
+    originRunId: Optional[str]
+    ownerName: Optional[str]
+    approvalId: Optional[str]
+    approvalStatus: Optional[str]
+    decisionSource: Optional[str]
+    decidedBy: Optional[str]
+    reason: Optional[str]
+    ruleIds: List[str]
+    diff: Optional[StudioDraftDiff]
+    createdUtc: str
+    lastUpdateUtc: str
 
 
 class Resource:
@@ -2919,6 +3015,35 @@ class Organizations(Resource):
         """Spend of each unit's subtree against its budgets in the current day and month windows (see OrgUnitSpend)."""
         return self._t.request("GET", self._item(organization) + "/spend")
 
+    def list_proposals(self, organization: str, status: Optional[str] = None, max_results: Optional[int] = None,
+                       skip: Optional[int] = None) -> Dict[str, Any]:
+        """The organization's executive proposals (see OrgProposal), newest change first, without diffs. status is one of
+        STUDIO_DRAFT_STATUSES. Needs Read on Organization."""
+        return self._t.request("GET", self._item(organization) + "/proposals", {"status": status, "maxResults": max_results, "skip": skip})
+
+    def get_proposal(self, organization: str, draft_id: str) -> Dict[str, Any]:
+        """Read a proposal. One not yet applied carries its diff, hard-limit refusals, and the change rule matching each
+        change."""
+        return self._t.request("GET", self._item(organization) + f"/proposals/{_seg(draft_id)}")
+
+    def decide_proposal(self, organization: str, draft_id: str, allow: bool, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Decide a proposal waiting for approval: allow applies it (recorded as an org revision that a rollback undoes);
+        deny sends it back to the executive. Needs Update on Approval."""
+        return self._t.request("POST", self._item(organization) + f"/proposals/{_seg(draft_id)}/decide", body={"allow": allow, "reason": reason})
+
+
+class ChangeRules(Resource):
+    """Change rules: people pre-authorize narrow classes of executive change (CHANGE_CLASSES) for a unit's subtree, so an
+    executive's draft whose every change a rule covers applies without a person. Read, Create, Update, and Delete on
+    ChangeRule; run tokens can never write a rule (403 RulesArePeopleOnly). A refused field raises GarrisonError 400 with
+    a field code such as UnknownLimit, ClassNotInRule, UnitNotFound, BoundRequired, MinimumAboveMaximum, or ExpiryInPast."""
+
+    def list(self, organization: Optional[str] = None, unit: Optional[str] = None, active_only: Optional[bool] = None,  # type: ignore[override]
+             search: Optional[str] = None, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """Change rules, newest first. organization and unit take an identifier or a name; unit needs organization."""
+        return self._t.request("GET", self._base(), {"organization": organization, "unit": unit, "activeOnly": active_only,
+                                                     "search": search, "maxResults": max_results, "skip": skip})
+
 
 class Reports:
     """Reports: list and read the reports runs filed upward, chart a metric over time, and file a report as a person.
@@ -3184,6 +3309,7 @@ class GarrisonClient:
         self.reports = Reports(t)
         self.messages = Messages(t)
         self.organizations = Organizations(t, "organizations")
+        self.change_rules = ChangeRules(t, "change-rules")
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

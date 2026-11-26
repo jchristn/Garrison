@@ -271,6 +271,27 @@ await client.Organizations.RollbackAsync(org.Id, new OrgRollbackRequest { Note =
 
 `OrgUnitSpend.Exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept `FreezeTargetKindEnum.OrgUnit` and `Organization`, memory accepts the `OrgUnit` and `Organization` scopes, `UsageQuotaScopeEnum.OrgUnit` tracks a unit's subtree, `CapabilityDescriptor.Org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `SubjectKind` `Organization`, `OrganizationId`, and `OrgRevisionId`.
 
+## Change rules and proposals
+
+A deployment with `ManagementAccessEnum.OrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (`ChangeClassEnum`: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `ChangeRules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field raises a `GarrisonException` with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`.
+
+Limit names are `count` for any class, `minIntervalSeconds`, `maxIntervalSeconds`, `backoffFactor`, and `jitterPercent` for `WakeTuning`, and `weight` for `DeploymentWeight`.
+
+```csharp
+ChangeRule rule = new ChangeRule { OrganizationId = "acme", UnitId = "engineering", Name = "wake tuning" };
+rule.Classes.Add(new ChangeRuleClass { Class = ChangeClassEnum.WakeTuning });
+rule.Limits.Add(new ChangeRuleLimit { Class = ChangeClassEnum.WakeTuning, Name = "minIntervalSeconds", Minimum = 300 });
+rule = await client.ChangeRules.CreateAsync(rule);
+EnumerationResult<ChangeRule> rules = await client.ChangeRules.ListAsync(new ChangeRuleFilter { Organization = "acme", ActiveOnly = true });
+
+EnumerationResult<OrgProposal> waiting = await client.Organizations.ListProposalsAsync("acme", StudioDraftStatusEnum.PendingApproval);
+OrgProposal proposal = await client.Organizations.GetProposalAsync("acme", waiting.Objects[0].DraftId);
+// proposal.Diff.Refusals, proposal.Diff.RuleMatches, and proposal.Diff.AppliesByRule explain why it waits.
+await client.Organizations.DecideProposalAsync("acme", proposal.DraftId, new OrgProposalDecisionRequest { Allow = true, Reason = "Looks right." });
+```
+
+`StudioDraft` carries `OriginRunId`, `OrganizationId`, `ExecutiveUnitId`, and `ExecutiveAgentId` for an executive's draft, and `OrgRevision` carries `DraftId` and `RevertDraftId` for a revision recorded when one was applied. `NotificationEventEnum.OrgProposalApplied` fires when change rules apply a proposal without a person.
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

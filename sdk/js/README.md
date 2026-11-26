@@ -229,6 +229,27 @@ await client.organizations.rollback(org.id, { note: "Undo" });
 
 `ORGANIZATION_STATUSES`, `ORG_REVISION_STATES`, `BUDGET_PERIODS`, and `PROMOTION_SUBJECT_KINDS` list the values. A spend entry's `exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, `CapabilityDescriptor.org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `subjectKind` `Organization`, `organizationId`, and `orgRevisionId`.
 
+## Change rules and proposals
+
+A deployment with `managementAccess` `OrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (`CHANGE_CLASSES`: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `client.changeRules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field fails with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`.
+
+Limit names are `count` for any class, `minIntervalSeconds`, `maxIntervalSeconds`, `backoffFactor`, and `jitterPercent` for `WakeTuning`, and `weight` for `DeploymentWeight`.
+
+```ts
+const rule = await client.changeRules.create({
+  organizationId: "acme", unitId: "engineering", name: "wake tuning",
+  classes: [{ class: "WakeTuning" }], limits: [{ class: "WakeTuning", name: "minIntervalSeconds", minimum: 300 }],
+});
+const rules = await client.changeRules.list({ organization: "acme", activeOnly: true });
+
+const waiting = await client.organizations.listProposals("acme", { status: "PendingApproval" });
+const proposal = await client.organizations.getProposal("acme", waiting.objects[0].draftId);
+// proposal.diff.refusals, proposal.diff.ruleMatches, and proposal.diff.appliesByRule explain why it waits.
+await client.organizations.decideProposal("acme", proposal.draftId, { allow: true, reason: "Looks right." });
+```
+
+`StudioDraft` carries `originRunId`, `organizationId`, `executiveUnitId`, and `executiveAgentId` for an executive's draft, and `OrgRevision` carries `draftId` and `revertDraftId` when it records one being applied. `OrgProposalApplied` in `NOTIFICATION_EVENTS` fires when change rules apply a proposal without a person.
+
 ## Streaming run events
 
 ```ts

@@ -232,6 +232,26 @@ client.organizations.rollback(org["id"], note="Undo")
 
 `ORGANIZATION_STATUSES`, `ORG_REVISION_STATES`, `BUDGET_PERIODS`, `USAGE_QUOTA_SCOPES`, and `PROMOTION_SUBJECT_KINDS` list the values. A spend entry's `exhausted` is True when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, a capability descriptor's `org` places an agent capability in its organization, and a publish or rollback writes a promotion record with `subjectKind` `Organization`, `organizationId`, and `orgRevisionId`.
 
+## Change rules and proposals
+
+A deployment with `managementAccess` `OrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (`CHANGE_CLASSES`: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `client.change_rules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field fails with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`.
+
+Limit names are `count` for any class, `minIntervalSeconds`, `maxIntervalSeconds`, `backoffFactor`, and `jitterPercent` for `WakeTuning`, and `weight` for `DeploymentWeight`.
+
+```python
+rule = client.change_rules.create({"organizationId": "acme", "unitId": "engineering", "name": "wake tuning",
+                                   "classes": [{"class": "WakeTuning"}],
+                                   "limits": [{"class": "WakeTuning", "name": "minIntervalSeconds", "minimum": 300}]})
+rules = client.change_rules.list(organization="acme", active_only=True)
+
+waiting = client.organizations.list_proposals("acme", status="PendingApproval")
+proposal = client.organizations.get_proposal("acme", waiting["objects"][0]["draftId"])
+# proposal["diff"]["refusals"], ["ruleMatches"], and ["appliesByRule"] explain why it waits.
+client.organizations.decide_proposal("acme", proposal["draftId"], allow=True, reason="Looks right.")
+```
+
+A studio draft carries `originRunId`, `organizationId`, `executiveUnitId`, and `executiveAgentId` for an executive's draft, and an org revision carries `draftId` and `revertDraftId` when it records one being applied. `OrgProposalApplied` in `NOTIFICATION_EVENTS` fires when change rules apply a proposal without a person.
+
 ## Streaming run events
 
 ```python

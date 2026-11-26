@@ -106,20 +106,24 @@ type OrgRevisionMandate struct {
 // OrgRevision is a snapshot of an organization's tree. State is an OrgRevisionState constant. Units and Mandates are
 // empty on lists.
 type OrgRevision struct {
-	ID                   string               `json:"id"`
-	TenantID             string               `json:"tenantId"`
-	OrganizationID       string               `json:"organizationId"`
-	Number               int                  `json:"number"`
-	State                string               `json:"state"`
-	Note                 *string              `json:"note,omitempty"`
-	RollbackOfRevisionID *string              `json:"rollbackOfRevisionId,omitempty"`
-	AuthorType           string               `json:"authorType,omitempty"`
-	AuthorID             *string              `json:"authorId,omitempty"`
-	AuthorName           *string              `json:"authorName,omitempty"`
-	Units                []OrgUnit            `json:"units"`
-	Mandates             []OrgRevisionMandate `json:"mandates"`
-	PublishedUTC         *string              `json:"publishedUtc,omitempty"`
-	CreatedUTC           string               `json:"createdUtc,omitempty"`
+	ID                   string  `json:"id"`
+	TenantID             string  `json:"tenantId"`
+	OrganizationID       string  `json:"organizationId"`
+	Number               int     `json:"number"`
+	State                string  `json:"state"`
+	Note                 *string `json:"note,omitempty"`
+	RollbackOfRevisionID *string `json:"rollbackOfRevisionId,omitempty"`
+	// DraftID and RevertDraftID are set on a revision recorded when an executive's draft was applied: the draft, and a
+	// draft holding the records as they were before, which a rollback past this revision applies.
+	DraftID       *string              `json:"draftId,omitempty"`
+	RevertDraftID *string              `json:"revertDraftId,omitempty"`
+	AuthorType    string               `json:"authorType,omitempty"`
+	AuthorID      *string              `json:"authorId,omitempty"`
+	AuthorName    *string              `json:"authorName,omitempty"`
+	Units         []OrgUnit            `json:"units"`
+	Mandates      []OrgRevisionMandate `json:"mandates"`
+	PublishedUTC  *string              `json:"publishedUtc,omitempty"`
+	CreatedUTC    string               `json:"createdUtc,omitempty"`
 }
 
 // OrgChartMember is a lead or member on the organization chart.

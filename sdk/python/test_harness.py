@@ -863,6 +863,62 @@ def t_organizations():
         client.agents.delete(member["id"])
 
 
+def t_change_rules():
+    # A rule pre-authorizes classes of executive change below a unit; proposals list an organization's executive drafts.
+    org = None
+    rule = None
+    try:
+        org = client.organizations.create({"name": f"sdk-py-rules-{SUFFIX}", "mission": "Exercise Python SDK change rules."})
+        root = client.organizations.create_unit(org["id"], {"name": "board", "leadAgentId": state["agent"], "leadTitle": "CEO"})
+        first = client.organizations.create_revision(org["id"], "First")
+        client.organizations.publish(org["id"], first["id"])
+
+        rule = client.change_rules.create({"organizationId": org["name"], "unitId": "board", "name": "retune-and-wake",
+                                           "description": "Prompt and wake tuning below the board.",
+                                           "classes": [{"class": "PromptRetune"}, {"class": "WakeTuning"}],
+                                           "limits": [{"class": "WakeTuning", "name": "minIntervalSeconds", "minimum": 300}]})
+        require(rule["id"].startswith("cru_") and rule["organizationId"] == org["id"] and rule["unitId"] == root["id"] and rule["unitName"] == "board"
+                and rule["active"] and len(rule["classes"]) == 2 and len(rule["limits"]) == 1, f"create a change rule: {rule}")
+        read = client.change_rules.get(rule["id"])
+        require(read["name"] == "retune-and-wake" and read["organizationName"] == org["name"] and read["limits"][0]["minimum"] == 300, f"read a change rule: {read}")
+        listed = client.change_rules.list(organization=org["id"], active_only=True)
+        require(len(listed["objects"]) == 1 and listed["objects"][0]["id"] == rule["id"], f"list change rules by organization: {listed}")
+
+        read["active"] = False
+        read["limits"] = []
+        read["classes"] = [{"class": "PromptRetune"}]
+        updated = client.change_rules.update(rule["id"], read)
+        require(not updated["active"] and len(updated["classes"]) == 1 and len(updated["limits"]) == 0, f"update a change rule: {updated}")
+
+        try:
+            client.change_rules.create({"organizationId": org["id"], "unitId": root["id"], "name": "bad", "classes": [{"class": "DeploymentWeight"}],
+                                        "limits": [{"class": "DeploymentWeight", "name": "speed", "maximum": 1}]})
+            require(False, "an unknown limit is refused")
+        except GarrisonError as e:
+            require(e.status_code == 400 and e.field_codes.get("limits[0].name") == "UnknownLimit", f"status {e.status_code} fieldCodes {e.field_codes}")
+
+        proposals = client.organizations.list_proposals(org["id"])
+        require(len(proposals["objects"]) == 0, f"no proposals yet: {proposals}")
+        try:
+            client.organizations.get_proposal(org["id"], "sdr_sdk_missing")
+            require(False, "an unknown proposal is not found")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"status {e.status_code}")
+
+        client.change_rules.delete(rule["id"])
+        try:
+            client.change_rules.get(rule["id"])
+            require(False, "a deleted change rule is not found")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"status {e.status_code}")
+        rule = None
+    finally:
+        if rule is not None:
+            client.change_rules.delete(rule["id"])
+        if org is not None:
+            client.organizations.delete(org["id"])
+
+
 def t_reports():
     # People file reports with an idempotency key; agents file through garrison_file_report.
     key = "sdk-" + uuid.uuid4().hex
@@ -1393,7 +1449,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

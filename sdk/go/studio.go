@@ -34,10 +34,13 @@ const (
 )
 
 // Management access of a deployment's run tokens (Deployment.ManagementAccess). None is the default; Drafts lets the
-// agent architect edit studio drafts for the person who started the run, and never apply them.
+// agent architect edit studio drafts for the person who started the run, and never apply them; OrgSubtree gives an
+// agent that leads an org unit executive authority: studio drafts limited to the units below it, applied at once only
+// when change rules cover every change.
 const (
-	ManagementAccessNone   = "None"
-	ManagementAccessDrafts = "Drafts"
+	ManagementAccessNone       = "None"
+	ManagementAccessDrafts     = "Drafts"
+	ManagementAccessOrgSubtree = "OrgSubtree"
 )
 
 // ResourceTypeStudioDraft is the resource type name of studio drafts in permissions and the operation scope map.
@@ -64,24 +67,29 @@ type StudioDraftNode struct {
 // StudioDraft is a set of manifest documents designed in the studio and applied only after a person approves. ID has
 // the prefix sdr_. Version rises by one on every change; every change names the version the caller read (409
 // DraftVersionConflict otherwise). ApprovalID names the DraftApply approval while one exists, and ManifestApplyID the
-// manifest apply once Applied.
+// manifest apply once Applied. OriginRunID names the run that created the draft; OrganizationID, ExecutiveUnitID, and
+// ExecutiveAgentID are set on an executive's draft (an OrgSubtree run).
 type StudioDraft struct {
-	ID              string            `json:"id"`
-	TenantID        string            `json:"tenantId"`
-	Title           string            `json:"title"`
-	OwnerUserID     *string           `json:"ownerUserId,omitempty"`
-	OwnerName       *string           `json:"ownerName,omitempty"`
-	ConversationID  *string           `json:"conversationId,omitempty"`
-	TargetApp       *string           `json:"targetApp,omitempty"`
-	Version         int               `json:"version"`
-	Status          string            `json:"status"`
-	ApprovalID      *string           `json:"approvalId,omitempty"`
-	PublishOnApply  bool              `json:"publishOnApply"`
-	ManifestApplyID *string           `json:"manifestApplyId,omitempty"`
-	Items           []StudioDraftItem `json:"items"`
-	Layout          []StudioDraftNode `json:"layout"`
-	CreatedUTC      string            `json:"createdUtc,omitempty"`
-	LastUpdateUTC   string            `json:"lastUpdateUtc,omitempty"`
+	ID               string            `json:"id"`
+	TenantID         string            `json:"tenantId"`
+	Title            string            `json:"title"`
+	OwnerUserID      *string           `json:"ownerUserId,omitempty"`
+	OwnerName        *string           `json:"ownerName,omitempty"`
+	ConversationID   *string           `json:"conversationId,omitempty"`
+	TargetApp        *string           `json:"targetApp,omitempty"`
+	Version          int               `json:"version"`
+	Status           string            `json:"status"`
+	ApprovalID       *string           `json:"approvalId,omitempty"`
+	PublishOnApply   bool              `json:"publishOnApply"`
+	ManifestApplyID  *string           `json:"manifestApplyId,omitempty"`
+	OriginRunID      *string           `json:"originRunId,omitempty"`
+	OrganizationID   *string           `json:"organizationId,omitempty"`
+	ExecutiveUnitID  *string           `json:"executiveUnitId,omitempty"`
+	ExecutiveAgentID *string           `json:"executiveAgentId,omitempty"`
+	Items            []StudioDraftItem `json:"items"`
+	Layout           []StudioDraftNode `json:"layout"`
+	CreatedUTC       string            `json:"createdUtc,omitempty"`
+	LastUpdateUTC    string            `json:"lastUpdateUtc,omitempty"`
 }
 
 // StudioDraftDiffItem compares one draft item with live configuration. Change is Create, Update, Delete, Unchanged,
@@ -98,12 +106,17 @@ type StudioDraftDiffItem struct {
 }
 
 // StudioDraftDiff is a draft compared with live configuration by manifest dry run. Valid is true when nothing failed
-// and nothing is stale.
+// and nothing is stale. For an executive's draft, Refusals lists the hard limits it breaks, RuleMatches each change
+// with its covering change rule, and AppliesByRule is true when requesting apply would apply it at once under change
+// rules.
 type StudioDraftDiff struct {
-	DraftID string                `json:"draftId"`
-	Version int                   `json:"version"`
-	Valid   bool                  `json:"valid"`
-	Items   []StudioDraftDiffItem `json:"items"`
+	DraftID       string                `json:"draftId"`
+	Version       int                   `json:"version"`
+	Valid         bool                  `json:"valid"`
+	Items         []StudioDraftDiffItem `json:"items"`
+	Refusals      []ExecutiveRefusal    `json:"refusals,omitempty"`
+	RuleMatches   []ChangeRuleMatchItem `json:"ruleMatches,omitempty"`
+	AppliesByRule bool                  `json:"appliesByRule"`
 }
 
 // StudioGraphNode is an app or agent in a draft's graph. Key is Kind/Name. InDraft is true when the draft holds the

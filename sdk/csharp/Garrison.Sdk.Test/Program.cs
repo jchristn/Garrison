@@ -1202,6 +1202,73 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("change rules", async () =>
+                {
+                    // A rule pre-authorizes classes of executive change below a unit; proposals list an organization's executive drafts.
+                    Organization? organization = null;
+                    ChangeRule? rule = null;
+                    try
+                    {
+                        organization = await client.Organizations.CreateAsync(new Organization { Name = "sdk-cs-rules-" + suffix, Mission = "Exercise C# SDK change rules." }, token).ConfigureAwait(false);
+                        OrgUnit root = await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "board", LeadAgentId = agentId, LeadTitle = "CEO" }, token).ConfigureAwait(false);
+                        OrgRevision first = await client.Organizations.CreateRevisionAsync(organization.Id, new OrgRevisionRequest { Note = "First" }, token).ConfigureAwait(false);
+                        await client.Organizations.PublishAsync(organization.Id, first.Id, token).ConfigureAwait(false);
+
+                        ChangeRule request = new ChangeRule { OrganizationId = organization.Name, UnitId = "board", Name = "retune-and-wake", Description = "Prompt and wake tuning below the board." };
+                        request.Classes.Add(new ChangeRuleClass { Class = ChangeClassEnum.PromptRetune });
+                        request.Classes.Add(new ChangeRuleClass { Class = ChangeClassEnum.WakeTuning });
+                        request.Limits.Add(new ChangeRuleLimit { Class = ChangeClassEnum.WakeTuning, Name = "minIntervalSeconds", Minimum = 300 });
+                        rule = await client.ChangeRules.CreateAsync(request, token).ConfigureAwait(false);
+                        Require(rule.Id.StartsWith("cru_", StringComparison.Ordinal) && rule.OrganizationId == organization.Id && rule.UnitId == root.Id && rule.UnitName == "board" && rule.Active && rule.Classes.Count == 2 && rule.Limits.Count == 1, "create a change rule");
+
+                        ChangeRule read = await client.ChangeRules.GetAsync(rule.Id, token).ConfigureAwait(false);
+                        Require(read.Name == "retune-and-wake" && read.OrganizationName == organization.Name && read.Limits[0].Minimum == 300, "read a change rule");
+                        EnumerationResult<ChangeRule> listed = await client.ChangeRules.ListAsync(new ChangeRuleFilter { Organization = organization.Id, ActiveOnly = true }, token).ConfigureAwait(false);
+                        Require(listed.Objects.Count == 1 && listed.Objects[0].Id == rule.Id, "list change rules by organization");
+
+                        read.Active = false;
+                        read.Limits.Clear();
+                        read.Classes.RemoveAll(c => c.Class == ChangeClassEnum.WakeTuning);
+                        ChangeRule updated = await client.ChangeRules.UpdateAsync(rule.Id, read, token).ConfigureAwait(false);
+                        Require(!updated.Active && updated.Classes.Count == 1 && updated.Limits.Count == 0, "update a change rule");
+
+                        ChangeRule bad = new ChangeRule { OrganizationId = organization.Id, UnitId = root.Id, Name = "bad" };
+                        bad.Classes.Add(new ChangeRuleClass { Class = ChangeClassEnum.DeploymentWeight });
+                        bad.Limits.Add(new ChangeRuleLimit { Class = ChangeClassEnum.DeploymentWeight, Name = "speed", Maximum = 1 });
+                        int badStatus = 0;
+                        string? badCode = null;
+                        try
+                        {
+                            await client.ChangeRules.CreateAsync(bad, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) { badStatus = e.StatusCode; e.Error?.FieldCodes?.TryGetValue("limits[0].name", out badCode); }
+                        Require(badStatus == 400 && badCode == "UnknownLimit", "an unknown limit is refused, got " + badStatus + " " + badCode);
+
+                        EnumerationResult<OrgProposal> proposals = await client.Organizations.ListProposalsAsync(organization.Id, null, null, token).ConfigureAwait(false);
+                        Require(proposals.Objects.Count == 0, "no proposals yet");
+                        try
+                        {
+                            await client.Organizations.GetProposalAsync(organization.Id, "sdr_sdk_missing", token).ConfigureAwait(false);
+                            Require(false, "an unknown proposal is not found");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { }
+
+                        await client.ChangeRules.DeleteAsync(rule.Id, token).ConfigureAwait(false);
+                        try
+                        {
+                            await client.ChangeRules.GetAsync(rule.Id, token).ConfigureAwait(false);
+                            Require(false, "a deleted change rule is not found");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { }
+                        rule = null;
+                    }
+                    finally
+                    {
+                        if (rule != null) await client.ChangeRules.DeleteAsync(rule.Id, token).ConfigureAwait(false);
+                        if (organization != null) await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

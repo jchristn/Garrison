@@ -1,0 +1,30 @@
+namespace Garrison.Sdk.Responses
+{
+    using System;
+
+    /// <summary>
+    /// A hard limit an executive's draft item breaks (AA8.3). No change rule lifts it. Not thread-safe.
+    /// </summary>
+    public class ExecutiveRefusal
+    {
+        /// <summary>
+        /// Manifest kind of the item.
+        /// </summary>
+        public string Kind { get; set; } = String.Empty;
+
+        /// <summary>
+        /// Name of the item.
+        /// </summary>
+        public string Name { get; set; } = String.Empty;
+
+        /// <summary>
+        /// OutsideSubtree, SelfModification, ForbiddenKind, BudgetIncrease, or AuthorityChange.
+        /// </summary>
+        public string Code { get; set; } = String.Empty;
+
+        /// <summary>
+        /// What is wrong, written for the executive that has to fix it.
+        /// </summary>
+        public string Message { get; set; } = String.Empty;
+    }
+}

@@ -749,6 +749,52 @@ await check("organizations", async () => {
     await client.agents.delete(member.id);
   }
 });
+await check("change rules", async () => {
+  // A rule pre-authorizes classes of executive change below a unit; proposals list an organization's executive drafts.
+  let org = null;
+  let rule = null;
+  try {
+    org = await client.organizations.create({ name: `sdk-js-rules-${suffix}`, mission: "Exercise JavaScript SDK change rules." });
+    const root = await client.organizations.createUnit(org.id, { name: "board", leadAgentId: state.agent, leadTitle: "CEO" });
+    const first = await client.organizations.createRevision(org.id, "First");
+    await client.organizations.publish(org.id, first.id);
+
+    rule = await client.changeRules.create({
+      organizationId: org.name, unitId: "board", name: "retune-and-wake", description: "Prompt and wake tuning below the board.",
+      classes: [{ class: "PromptRetune" }, { class: "WakeTuning" }], limits: [{ class: "WakeTuning", name: "minIntervalSeconds", minimum: 300 }],
+    });
+    require(rule.id.startsWith("cru_") && rule.organizationId === org.id && rule.unitId === root.id && rule.unitName === "board" && rule.active && rule.classes.length === 2 && rule.limits.length === 1, "create a change rule");
+    const read = await client.changeRules.get(rule.id);
+    require(read.name === "retune-and-wake" && read.organizationName === org.name && read.limits[0].minimum === 300, "read a change rule");
+    const listed = await client.changeRules.list({ organization: org.id, activeOnly: true });
+    require(listed.objects.length === 1 && listed.objects[0].id === rule.id, "list change rules by organization");
+
+    const updated = await client.changeRules.update(rule.id, { ...read, active: false, limits: [], classes: [{ class: "PromptRetune" }] });
+    require(!updated.active && updated.classes.length === 1 && updated.limits.length === 0, "update a change rule");
+
+    let status = 0;
+    let code = null;
+    try {
+      await client.changeRules.create({ organizationId: org.id, unitId: root.id, name: "bad", classes: [{ class: "DeploymentWeight" }], limits: [{ class: "DeploymentWeight", name: "speed", maximum: 1 }] });
+    } catch (e) { if (e instanceof GarrisonError) { status = e.statusCode; code = e.fieldCodes?.["limits[0].name"] ?? null; } else throw e; }
+    require(status === 400 && code === "UnknownLimit", `an unknown limit is refused (${status} ${code})`);
+
+    const proposals = await client.organizations.listProposals(org.id);
+    require(proposals.objects.length === 0, "no proposals yet");
+    status = 0;
+    try { await client.organizations.getProposal(org.id, "sdr_sdk_missing"); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 404, `an unknown proposal is not found (${status})`);
+
+    await client.changeRules.delete(rule.id);
+    status = 0;
+    try { await client.changeRules.get(rule.id); } catch (e) { if (e instanceof GarrisonError) status = e.statusCode; else throw e; }
+    require(status === 404, `a deleted change rule is not found (${status})`);
+    rule = null;
+  } finally {
+    if (rule) await client.changeRules.delete(rule.id);
+    if (org) await client.organizations.delete(org.id);
+  }
+});
 
 await check("freezes", async () => {
   // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.

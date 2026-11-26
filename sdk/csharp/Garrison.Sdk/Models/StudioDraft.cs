@@ -105,6 +105,27 @@ namespace Garrison.Sdk.Models
         public string? ManifestApplyId { get; set; } = null;
 
         /// <summary>
+        /// The run that created the draft, or null for a draft a person started (AA8).
+        /// </summary>
+        public string? OriginRunId { get; set; } = null;
+
+        /// <summary>
+        /// For an executive's draft (AA8.3), the organization it proposes changes to; otherwise null.
+        /// </summary>
+        public string? OrganizationId { get; set; } = null;
+
+        /// <summary>
+        /// For an executive's draft, the unit the executive leads: every item must stay strictly below it. Null for any
+        /// other draft.
+        /// </summary>
+        public string? ExecutiveUnitId { get; set; } = null;
+
+        /// <summary>
+        /// For an executive's draft, the executive's agent; otherwise null.
+        /// </summary>
+        public string? ExecutiveAgentId { get; set; } = null;
+
+        /// <summary>
         /// Items, one manifest document per resource. Never null.
         /// </summary>
         public List<StudioDraftItem> Items

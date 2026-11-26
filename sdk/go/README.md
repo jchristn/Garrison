@@ -256,6 +256,28 @@ _, err = client.Organizations.Rollback(ctx, org.ID, garrison.OrgRollbackRequest{
 
 `OrgUnitSpend.Exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, `CapabilityDescriptor.Org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `SubjectKind` `Organization` (`PromotionSubjectOrganization`), `OrganizationID`, and `OrgRevisionID`.
 
+## Change rules and proposals
+
+A deployment with `ManagementAccess` `ManagementAccessOrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (the `ChangeClass` constants: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `client.ChangeRules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field fails with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`. `ChangeRule.Active` is always sent, so set it to true for a rule in force.
+
+Limit names are `count` for any class, `minIntervalSeconds`, `maxIntervalSeconds`, `backoffFactor`, and `jitterPercent` for `WakeTuning`, and `weight` for `DeploymentWeight`.
+
+```go
+minimum := 300.0
+rule, err := client.ChangeRules.Create(ctx, garrison.ChangeRule{OrganizationID: "acme", UnitID: "engineering", Name: "wake tuning", Active: true,
+	Classes: []garrison.ChangeRuleClass{{Class: garrison.ChangeClassWakeTuning}},
+	Limits:  []garrison.ChangeRuleLimit{{Class: garrison.ChangeClassWakeTuning, Name: "minIntervalSeconds", Minimum: &minimum}}})
+rules, err := client.ChangeRules.List(ctx, garrison.ChangeRuleFilter{Organization: "acme", ActiveOnly: true})
+
+waiting, err := client.Organizations.ListProposals(ctx, "acme", garrison.OrgProposalFilter{Status: "PendingApproval"})
+proposal, err := client.Organizations.GetProposal(ctx, "acme", waiting.Objects[0].DraftID)
+// proposal.Diff.Refusals, proposal.Diff.RuleMatches, and proposal.Diff.AppliesByRule explain why it waits.
+reason := "Looks right."
+_, err = client.Organizations.DecideProposal(ctx, "acme", proposal.DraftID, garrison.OrgProposalDecisionRequest{Allow: true, Reason: &reason})
+```
+
+`StudioDraft` carries `OriginRunID`, `OrganizationID`, `ExecutiveUnitID`, and `ExecutiveAgentID` for an executive's draft, and `OrgRevision` carries `DraftID` and `RevertDraftID` when it records one being applied. `NotificationEventOrgProposalApplied` fires when change rules apply a proposal without a person.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

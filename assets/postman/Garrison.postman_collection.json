@@ -23508,6 +23508,377 @@
       ]
     },
     {
+      "name": "Change rules",
+      "description": "Change rules (AA8): people pre-authorize narrow classes of executive change (PromptRetune, WakeTuning, MandateTextEdit, AddWorker, RemoveWorker, ModelChange, DeploymentWeight) for a unit's subtree, with optional limits. A deployment with managementAccess OrgSubtree of an agent that leads a unit is an executive; a draft it proposes applies at once when a rule covers every change, and otherwise waits for a person, who decides it under the organization's proposals. Hard limits come first and no rule lifts them. This folder uses the organization the Organizations folder builds; Cleanup deletes the organization.",
+      "item": [
+        {
+          "name": "Create a change rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules"
+              ]
+            },
+            "description": "Creates a change rule on the engineering unit of the Organizations folder's organization. organizationId and unitId take an identifier or a name. The rule pre-authorizes prompt retuning and wake tuning anywhere in the unit's subtree, with wake intervals of at least 300 seconds. Only people write rules; a run token is refused with 403 RulesArePeopleOnly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{orgName}}\",\n  \"unitId\": \"engineering\",\n  \"name\": \"postman-rule-{{suffix}}\",\n  \"description\": \"Prompt and wake tuning below engineering, created by Postman\",\n  \"classes\": [\n    {\n      \"class\": \"PromptRetune\"\n    },\n    {\n      \"class\": \"WakeTuning\"\n    }\n  ],\n  \"limits\": [\n    {\n      \"class\": \"WakeTuning\",\n      \"name\": \"minIntervalSeconds\",\n      \"minimum\": 300\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('an active rule on the engineering unit', function () { pm.expect(json.id).to.match(/^cru_/); pm.expect(json.organizationId).to.eql(pm.collectionVariables.get('orgId')); pm.expect(json.unitId).to.eql(pm.collectionVariables.get('orgChildUnitId')); pm.expect(json.unitName).to.eql('engineering'); pm.expect(json.active).to.eql(true); pm.expect(json.classes.map(function (c) { return c.class; })).to.eql(['PromptRetune', 'WakeTuning']); pm.expect(json.limits.length).to.eql(1); pm.expect(json.limits[0].class).to.eql('WakeTuning'); pm.expect(json.limits[0].name).to.eql('minIntervalSeconds'); pm.expect(json.limits[0].minimum).to.eql(300); pm.expect(json.limits[0].maximum == null).to.eql(true); });",
+                  "if (json.id) pm.collectionVariables.set('changeRuleId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "An unknown limit is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules"
+              ]
+            },
+            "description": "A limit names a value the class can bound: count for any class, minIntervalSeconds, maxIntervalSeconds, backoffFactor, or jitterPercent for WakeTuning, and weight for DeploymentWeight. Any other name answers 400 with field code UnknownLimit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{orgId}}\",\n  \"unitId\": \"{{orgChildUnitId}}\",\n  \"name\": \"postman-bad-rule-{{suffix}}\",\n  \"classes\": [\n    {\n      \"class\": \"DeploymentWeight\"\n    }\n  ],\n  \"limits\": [\n    {\n      \"class\": \"DeploymentWeight\",\n      \"name\": \"speed\",\n      \"maximum\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code is UnknownLimit', function () { pm.expect(json.fieldCodes['limits[0].name']).to.eql('UnknownLimit'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get the change rule",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules/{{changeRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules",
+                "{{changeRuleId}}"
+              ]
+            },
+            "description": "Reads a change rule with its organization and unit names."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the rule with its names', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('changeRuleId')); pm.expect(json.organizationName).to.eql(pm.collectionVariables.get('orgName')); pm.expect(json.limits.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List the organization's active rules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules?organization={{orgId}}&activeOnly=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules"
+              ],
+              "query": [
+                {
+                  "key": "organization",
+                  "value": "{{orgId}}"
+                },
+                {
+                  "key": "activeOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Lists change rules, newest first. organization and unit take an identifier or a name; activeOnly limits the list to active rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the rule is listed', function () { pm.expect(json.objects.length).to.eql(1); pm.expect(json.objects[0].id).to.eql(pm.collectionVariables.get('changeRuleId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update the change rule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules/{{changeRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules",
+                "{{changeRuleId}}"
+              ]
+            },
+            "description": "Replaces the rule's unit, name, description, active flag, expiry, classes, and limits. The organization stays the same. An inactive rule never covers a change.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unitId\": \"{{orgChildUnitId}}\",\n  \"name\": \"postman-rule-{{suffix}}\",\n  \"description\": \"Prompt retuning only, paused\",\n  \"active\": false,\n  \"classes\": [\n    {\n      \"class\": \"PromptRetune\"\n    }\n  ],\n  \"limits\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('inactive, prompt retuning only', function () { pm.expect(json.active).to.eql(false); pm.expect(json.classes).to.eql([{ class: 'PromptRetune' }]); pm.expect(json.limits).to.eql([]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List proposals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/proposals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "proposals"
+              ]
+            },
+            "description": "Lists the studio drafts the organization's executives proposed, newest change first. Nothing has run with OrgSubtree access here, so the list is empty."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no proposals yet', function () { pm.expect(json.objects).to.eql([]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown proposal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/proposals/sdr_postman_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "proposals",
+                "sdr_postman_missing"
+              ]
+            },
+            "description": "A draft that is not one of the organization's proposals answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the change rule",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules/{{changeRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules",
+                "{{changeRuleId}}"
+              ]
+            },
+            "description": "Deletes the change rule. Only people delete rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the deleted change rule",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules/{{changeRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules",
+                "{{changeRuleId}}"
+              ]
+            },
+            "description": "A deleted rule answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -25068,6 +25439,40 @@
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
+        {
+          "name": "Delete change rule",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/change-rules/{{changeRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "change-rules",
+                "{{changeRuleId}}"
+              ]
+            },
+            "description": "Deletes the Change rules folder's rule if that folder stopped before deleting it; 404 when it is already gone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([204, 404]); });"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Delete organization",
           "request": {
@@ -27087,6 +27492,10 @@
     },
     {
       "key": "orgSecondRevisionId",
+      "value": ""
+    },
+    {
+      "key": "changeRuleId",
       "value": ""
     }
   ]

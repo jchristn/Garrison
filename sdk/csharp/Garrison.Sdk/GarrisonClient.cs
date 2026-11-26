@@ -209,6 +209,11 @@ namespace Garrison.Sdk
         public OrganizationsClient Organizations { get; }
 
         /// <summary>
+        /// Change rules (AA8): people pre-authorize narrow classes of executive change for a unit's subtree.
+        /// </summary>
+        public ChangeRulesClient ChangeRules { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -340,6 +345,7 @@ namespace Garrison.Sdk
             Reports = new ReportsClient(Transport);
             Messages = new MessagesClient(Transport);
             Organizations = new OrganizationsClient(Transport);
+            ChangeRules = new ChangeRulesClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

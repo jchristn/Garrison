@@ -1867,6 +1867,98 @@ func main() {
 		return nil
 	})
 
+	check("change rules", func(ctx context.Context) error {
+		// A rule pre-authorizes classes of executive change below a unit; proposals list an organization's executive drafts.
+		str := func(v string) *string { return &v }
+		num := func(v float64) *float64 { return &v }
+		org, err := client.Organizations.Create(ctx, garrison.Organization{Name: "sdk-go-rules-" + suffix, Mission: str("Exercise Go SDK change rules.")})
+		if err != nil {
+			return err
+		}
+		defer client.Organizations.Delete(ctx, org.ID)
+		root, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: str(agentID), LeadTitle: str("CEO")})
+		if err != nil {
+			return err
+		}
+		first, err := client.Organizations.CreateRevision(ctx, org.ID, "First")
+		if err != nil {
+			return err
+		}
+		if _, err := client.Organizations.Publish(ctx, org.ID, first.ID); err != nil {
+			return err
+		}
+
+		rule, err := client.ChangeRules.Create(ctx, garrison.ChangeRule{OrganizationID: org.Name, UnitID: "board", Name: "retune-and-wake", Active: true,
+			Description: str("Prompt and wake tuning below the board."),
+			Classes:     []garrison.ChangeRuleClass{{Class: garrison.ChangeClassPromptRetune}, {Class: garrison.ChangeClassWakeTuning}},
+			Limits:      []garrison.ChangeRuleLimit{{Class: garrison.ChangeClassWakeTuning, Name: "minIntervalSeconds", Minimum: num(300)}}})
+		if err != nil {
+			return err
+		}
+		deleted := false
+		defer func() {
+			if !deleted {
+				_ = client.ChangeRules.Delete(ctx, rule.ID)
+			}
+		}()
+		if !strings.HasPrefix(rule.ID, "cru_") || rule.OrganizationID != org.ID || rule.UnitID != root.ID || rule.UnitName == nil || *rule.UnitName != "board" || !rule.Active || len(rule.Classes) != 2 || len(rule.Limits) != 1 {
+			return fmt.Errorf("create a change rule: %+v", rule)
+		}
+		read, err := client.ChangeRules.Get(ctx, rule.ID)
+		if err != nil {
+			return err
+		}
+		if read.Name != "retune-and-wake" || read.OrganizationName == nil || *read.OrganizationName != org.Name || read.Limits[0].Minimum == nil || *read.Limits[0].Minimum != 300 {
+			return fmt.Errorf("read a change rule: %+v", read)
+		}
+		listed, err := client.ChangeRules.List(ctx, garrison.ChangeRuleFilter{Organization: org.ID, ActiveOnly: true})
+		if err != nil {
+			return err
+		}
+		if len(listed.Objects) != 1 || listed.Objects[0].ID != rule.ID {
+			return errors.New("list change rules by organization")
+		}
+
+		read.Active = false
+		read.Limits = []garrison.ChangeRuleLimit{}
+		read.Classes = []garrison.ChangeRuleClass{{Class: garrison.ChangeClassPromptRetune}}
+		updated, err := client.ChangeRules.Update(ctx, rule.ID, *read)
+		if err != nil {
+			return err
+		}
+		if updated.Active || len(updated.Classes) != 1 || len(updated.Limits) != 0 {
+			return fmt.Errorf("update a change rule: %+v", updated)
+		}
+
+		var apiErr *garrison.Error
+		_, err = client.ChangeRules.Create(ctx, garrison.ChangeRule{OrganizationID: org.ID, UnitID: root.ID, Name: "bad", Active: true,
+			Classes: []garrison.ChangeRuleClass{{Class: garrison.ChangeClassDeploymentWeight}},
+			Limits:  []garrison.ChangeRuleLimit{{Class: garrison.ChangeClassDeploymentWeight, Name: "speed", Maximum: num(1)}}})
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.FieldCodes["limits[0].name"] != "UnknownLimit" {
+			return fmt.Errorf("an unknown limit is refused: %v", err)
+		}
+
+		proposals, err := client.Organizations.ListProposals(ctx, org.ID, garrison.OrgProposalFilter{})
+		if err != nil {
+			return err
+		}
+		if len(proposals.Objects) != 0 {
+			return errors.New("no proposals yet")
+		}
+		if _, err := client.Organizations.GetProposal(ctx, org.ID, "sdr_sdk_missing"); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("an unknown proposal is not found: %v", err)
+		}
+
+		if err := client.ChangeRules.Delete(ctx, rule.ID); err != nil {
+			return err
+		}
+		deleted = true
+		if _, err := client.ChangeRules.Get(ctx, rule.ID); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("a deleted change rule is not found: %v", err)
+		}
+		return nil
+	})
+
 	check("notification endpoints", func(ctx context.Context) error {
 		var refused garrison.NotificationEndpoint
 		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)

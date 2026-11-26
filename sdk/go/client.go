@@ -119,6 +119,7 @@ type Client struct {
 	Reports                    *ReportsClient
 	Messages                   *MessagesClient
 	Organizations              *OrganizationsClient
+	ChangeRules                *ChangeRulesClient
 	NotificationEndpoints      *NotificationEndpointsClient
 	Environments               *EnvironmentsClient
 	Promotions                 *PromotionsClient
@@ -175,6 +176,7 @@ func NewClient(baseURL string) *Client {
 	c.Reports = &ReportsClient{c: c}
 	c.Messages = &MessagesClient{c: c}
 	c.Organizations = &OrganizationsClient{Resource{c: c, segment: "organizations"}}
+	c.ChangeRules = &ChangeRulesClient{c: c}
 	c.NotificationEndpoints = &NotificationEndpointsClient{Resource{c: c, segment: "notification-endpoints"}}
 	c.Environments = &EnvironmentsClient{c: c}
 	c.Promotions = &PromotionsClient{c: c}

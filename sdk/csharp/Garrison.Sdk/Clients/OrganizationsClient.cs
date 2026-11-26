@@ -5,6 +5,8 @@ namespace Garrison.Sdk.Clients
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Sdk.Enumeration;
+    using Garrison.Sdk.Enums;
     using Garrison.Sdk.Http;
     using Garrison.Sdk.Models;
     using Garrison.Sdk.Requests;
@@ -14,7 +16,9 @@ namespace Garrison.Sdk.Clients
     /// or name), create, update, and delete need Read, Create, Update, and Delete on Organization; units, publishing, and
     /// rollback need Update. Unit edits change the working tree; the chain of command, lines, and budgets follow the live
     /// revision only, so publish a revision to make edits take effect. A refused change raises a GarrisonException with
-    /// status 409 and a code such as OneRoot, Cycle, LeadsTwoUnits, BudgetExceedsParent, or NothingToRollBack.
+    /// status 409 and a code such as OneRoot, Cycle, LeadsTwoUnits, BudgetExceedsParent, or NothingToRollBack. Proposals
+    /// (AA8) are the studio drafts an organization's executives write for the units below them: listing and reading need
+    /// Read on Organization, deciding needs Update on Approval.
     /// </summary>
     public class OrganizationsClient : ResourceClient<Organization, Organization>
     {
@@ -190,6 +194,57 @@ namespace Garrison.Sdk.Clients
         public async Task<List<OrgUnitSpend>> SpendAsync(string id, CancellationToken token = default)
         {
             return await Transport.SendAsync<List<OrgUnitSpend>>(HttpMethod.Get, Item(id) + "/spend", token: token).ConfigureAwait(false) ?? new List<OrgUnitSpend>();
+        }
+
+        /// <summary>
+        /// List the organization's executive proposals, newest change first, without diffs.
+        /// </summary>
+        /// <param name="id">Organization identifier or name.</param>
+        /// <param name="status">Only proposals with this draft status, or null for all.</param>
+        /// <param name="query">Optional paging (MaxResults and Skip).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Page.</returns>
+        public async Task<EnumerationResult<OrgProposal>> ListProposalsAsync(string id, StudioDraftStatusEnum? status = null, EnumerationQuery? query = null, CancellationToken token = default)
+        {
+            Dictionary<string, string?> parameters = new Dictionary<string, string?>(StringComparer.Ordinal);
+            if (query != null)
+            {
+                parameters["maxResults"] = query.MaxResults.ToString();
+                parameters["skip"] = query.Skip.ToString();
+            }
+            parameters["status"] = status?.ToString();
+            return await Transport.SendAsync<EnumerationResult<OrgProposal>>(HttpMethod.Get, Item(id) + "/proposals", null, parameters, token: token).ConfigureAwait(false) ?? new EnumerationResult<OrgProposal>();
+        }
+
+        /// <summary>
+        /// Read a proposal. One not yet applied carries its diff, hard-limit refusals, and the change rule matching each
+        /// change.
+        /// </summary>
+        /// <param name="id">Organization identifier or name.</param>
+        /// <param name="draftId">Draft identifier (sdr_).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The proposal.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        public async Task<OrgProposal> GetProposalAsync(string id, string draftId, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<OrgProposal>(HttpMethod.Get, Item(id) + "/proposals/" + Segment(draftId), token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
+        /// Decide a proposal waiting for approval: allow applies it (recorded as an org revision with a revert draft, so a
+        /// rollback undoes it); deny sends it back to the executive.
+        /// </summary>
+        /// <param name="id">Organization identifier or name.</param>
+        /// <param name="draftId">Draft identifier (sdr_).</param>
+        /// <param name="request">The decision.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The proposal after the decision.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        public async Task<OrgProposal> DecideProposalAsync(string id, string draftId, OrgProposalDecisionRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return await Transport.SendAsync<OrgProposal>(HttpMethod.Post, Item(id) + "/proposals/" + Segment(draftId) + "/decide", request, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
 
         #endregion
