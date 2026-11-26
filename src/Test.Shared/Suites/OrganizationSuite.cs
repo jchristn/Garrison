@@ -56,7 +56,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "awareness", "A member run sees its chart and whoami, a non-member run is refused, org-context carries the manager, and capabilities carry the unit (" + provider + ")", ct => AwarenessAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "REST organizations, units, chart, revisions, publish, rollback, spend, scopes, role grants, and cross-tenant 404 (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "kind Organization with nested units applies and publishes, applies again Unchanged, exports and re-applies after a delete; a studio draft built with unit graph operations applies after approval (" + provider + ")", ct => ManifestsAsync(provider, ct)));
-                cases.Add(new TestCaseDescriptor(id, "channel", "An organization subscriber receives org.changed and report.filed; without Organization.Read the channel is refused (" + provider + ")", ct => ChannelAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "channel", "An organization subscriber receives spend.updated, org.changed, and report.filed; without Organization.Read the channel is refused (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Organizations (" + provider + ")", cases));
             }
             return suites;
@@ -522,6 +522,11 @@ namespace Test.Shared.Suites
             await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
             {
                 OrgFixture f = await FixtureAsync(host, "live", token).ConfigureAwait(false);
+                Run spent = RunOf(host, f.Worker);
+                spent.Status = RunStatusEnum.Succeeded;
+                spent.CompletedUtc = DateTime.UtcNow;
+                spent.CostUsd = 0.25;
+                await host.Server.Context.Database.Runs.CreateAsync(spent, token).ConfigureAwait(false);
                 using (ClientWebSocket socket = new ClientWebSocket())
                 {
                     string bearer;
@@ -532,6 +537,8 @@ namespace Test.Shared.Suites
                     await socket.ConnectAsync(new Uri(host.BaseUrl.Replace("http://", "ws://", StringComparison.Ordinal) + "/v1.0/ws?token=" + Uri.EscapeDataString(bearer)), token).ConfigureAwait(false);
                     await socket.SendAsync(Encoding.UTF8.GetBytes("{\"type\":\"subscribe\",\"channel\":\"organization:" + f.Org.Id + "\"}"), WebSocketMessageType.Text, true, token).ConfigureAwait(false);
                     await KeeperSuite.ReceiveUntilAsync(socket, "organization.subscribed", f.Org.Id, token).ConfigureAwait(false);
+                    string spend = await KeeperSuite.ReceiveUntilAsync(socket, "spend.updated", f.Ops.Id, token).ConfigureAwait(false);
+                    Assert.True(spend.Contains("0.25", StringComparison.Ordinal), "spend.updated carries the subtree's spend: " + spend);
                     await Task.Delay(1200, token).ConfigureAwait(false);
                     await host.Server.Context.Get<OrganizationService>().UpdateAsync(Admin(host), f.Org, new Organization { Name = f.Org.Name, Mission = "A new mission." }, token).ConfigureAwait(false);
                     string changed = await KeeperSuite.ReceiveUntilAsync(socket, "org.changed", "A new mission.", token).ConfigureAwait(false);

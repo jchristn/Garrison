@@ -24,9 +24,9 @@ A draft belongs to a tenant and to the person who started it (for an architect r
 Each item is one manifest document, keyed by kind and name, with an operation:
 
 - `Upsert` creates or updates the resource. The document is plain manifest YAML ([MANIFESTS.md](MANIFESTS.md)) and its kind and name must match the item's.
-- `Delete` deletes the resource when the draft is applied. Drafts can delete `Agent`, `Deployment`, `Pipeline`, and `AgenticApp`.
+- `Delete` deletes the resource when the draft is applied. Drafts can delete `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, and `Organization`.
 
-Drafts hold `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, and `NotificationEndpoint` documents. They never hold secrets: a document refers to a secret by name, and the secret itself is managed separately.
+Drafts hold `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, `Mandate`, `Organization`, and `NotificationEndpoint` documents. An organization is one `Organization` item with its units nested inside it; a unit is not an item of its own, because unit names are unique only within their organization. They never hold secrets: a document refers to a secret by name, and the secret itself is managed separately.
 
 Item document text is stored as written. It is one of the few unmanaged text columns in Garrison, because a draft can hold a document that does not validate yet.
 
@@ -70,7 +70,9 @@ A run can never decide a draft approval: 403, whatever its permissions.
 
 ## The graph
 
-`GET .../graph` draws a draft's apps: a node per app and per agent (agents the draft holds, plus members its apps refer to), each app's call edges, the apps each agent belongs to or is the entry of, the capabilities each drafted agent names, and canvas positions. Each edge carries its fan-out flag and the delegation depth it needs: one plus the longest chain of calls below the called member.
+`GET .../graph` draws a draft's apps and organizations: a node per app and per agent (agents the draft holds, plus members its apps refer to), each app's call edges, the apps each agent belongs to or is the entry of, the capabilities each drafted agent names, and canvas positions. Each edge carries its fan-out flag and the delegation depth it needs: one plus the longest chain of calls below the called member.
+
+For each `Organization` item the graph adds an `Organization` node and an `OrgUnit` node per unit, keyed `OrgUnit/{organization}/{unit}`, with its `organization`, `parentUnit` (none for the root), and `lead`. Agents list the units they lead or work in under `unitOf`, as `organization/unit`. A peer line is an edge with `kind` `Peer`, its `organization`, and unit names in `from` and `to`; app call edges have `kind` `Call`. Reporting lines follow from `parentUnit`, so a canvas can draw units nested inside their parents.
 
 `POST .../graph-operations` changes the graph with one operation at a time:
 
@@ -82,8 +84,14 @@ A run can never decide a draft approval: 403, whatever its permissions.
 | `Disconnect` | `from`, `to` | Removes an edge |
 | `SetEntry` | `agent` | Makes a member the entry agent |
 | `MoveNode` | `nodeKey`, `x`, `y` | Places a node on the canvas (layout only) |
+| `AddUnit` | `organization`, `unit`, optional `parent`, optional `agent` (the lead), optional `role` (the lead's title) | Adds a unit under `parent`, or the root when the organization has none yet; a second root is refused with `OneRoot` |
+| `RemoveUnit` | `organization`, `unit` | Removes a unit without child units (`UnitHasChildren` otherwise) and the peer lines that name it |
+| `AddUnitMember` | `organization`, `unit`, `agent`, optional `role` (the member's title) | Adds a member |
+| `RemoveUnitMember` | `organization`, `unit`, `agent` | Removes a member |
+| `ConnectUnits` | `organization`, `from`, `to` (unit names) | Adds a peer line |
+| `DisconnectUnits` | `organization`, `from`, `to` | Removes the peer line in either direction |
 
-`app` names the app and defaults to the draft's target app. An operation on an app the draft does not hold yet starts from the live app, or from a new app when none exists. Member and edge operations rewrite the draft's `AgenticApp` item, so the graph and the item text never disagree.
+`app` names the app and defaults to the draft's target app. An operation on an app the draft does not hold yet starts from the live app, or from a new app when none exists. Member and edge operations rewrite the draft's `AgenticApp` item, so the graph and the item text never disagree. Unit operations do the same to the `Organization` item named by `organization`, starting from the live organization or a new one. The diff and the manifest dry run check the whole tree, so a unit whose lead already leads another unit shows up as a failed item before anyone asks for approval. Applying a draft publishes the organization's tree unless its document says `publish: false`.
 
 ## Canvas
 

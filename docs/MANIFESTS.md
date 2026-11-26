@@ -21,7 +21,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | Always `garrison/v1` |
-| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, `Mandate`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
+| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `AgentAsset`, `Agent`, `Deployment`, `Pipeline`, `AgenticApp`, `Trigger`, `Mandate`, `Organization`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
 | `metadata.name` | The record's name, which is also how other documents refer to it. Names starting with `builtin/` are reserved |
 | `metadata.description` | Optional; becomes the record's description |
 | `spec` | The record's fields in camelCase, as in the REST API, with the conveniences listed below |
@@ -143,6 +143,7 @@ With `followReferences=true` the bundle carries everything the selection needs:
 | Pipeline | Its stage agents (with their own dependencies), pinned deployments, handoff templates, and the triggers that target it |
 | Trigger | Its agent or pipeline, deployment, and input template |
 | Mandate | Its agent and deployment |
+| Organization | The agents, mandates, and apps its units name |
 | NotificationEndpoint | Its agent and deployment |
 
 Secret values are never exported, and secrets are not documents in a bundle at all. Neither are artifact stores. Both are listed as requirements instead, in a header comment and in the first document, `kind: Bundle`:
@@ -676,6 +677,54 @@ spec:
 | `revision` | Required, with at least an `objective`. The other fields are those of a `MandateRevision` in the REST API, including `direction`, `jitterPercent`, the budgets, `changeNote`, and the default escalation target `escalationTargetKind` and `escalationTargetId` (see [Escalations](ESCALATIONS.md)) |
 
 An apply compares `revision` with the mandate's current revision. When they differ it publishes a new revision, so the keeper wakes at once with its interval reset; when they match, the revision is `Unchanged` and nothing wakes. Interval values outside the cluster bounds are adjusted before the comparison, as over REST, so a manifest asking for a 30 second minimum stays `Unchanged` on the second apply. A mandate the apply creates or changes runs as the principal that applied the manifest. A revision written by an apply has source `Human`, or `Architect` when Agent Studio applies a draft. Export writes the agent, deployment, `paused` when it is paused, and the current revision's non-default fields.
+
+### Organization
+
+An organization is a tree of org units with lead agents, members, peer lines, and budgets (see [ORGANIZATIONS.md](ORGANIZATIONS.md)). Units nest under their parents, so the document reads like the chart. Organizations are applied after mandates, so a unit can name agents and mandates from the same manifest.
+
+```yaml
+apiVersion: garrison/v1
+kind: Organization
+metadata:
+  name: support-org
+spec:
+  description: Customer support
+  mission: Answer every customer within a day.
+  units:
+    - name: leadership
+      lead: support-lead
+      leadTitle: Head of support
+      leadMandate: support-lead-keeper
+      budgets:
+        - { period: Day, amountUsd: 20 }
+      units:
+        - name: triage
+          lead: triage-lead
+          members:
+            - { agent: classifier, title: Classifier, mandate: classifier-keeper }
+          peers: [billing]
+          budgets:
+            - { period: Day, amountUsd: 5 }
+        - name: billing
+          lead: billing-lead
+          app: billing-app
+```
+
+| Field | Meaning |
+|---|---|
+| `description`, `mission` | As in the REST API |
+| `publish` | `false` writes the working tree without publishing it. Absent or `true` publishes it as a new revision when it differs from the live one |
+| `units` | The root unit, with every other unit nested under its parent in `units`. At most one root |
+| `units[].name` | Unique in the organization. A unit keeps its identifier across applies by name, so memory and history stay attached |
+| `units[].lead`, `leadTitle`, `leadMandate` | The lead agent by name, its title, and its mandate, which must belong to the lead |
+| `units[].app` | An agentic app by name |
+| `units[].members` | `agent`, optional `title`, and optional `mandate` (a mandate of that agent) |
+| `units[].peers` | Names of other units of the organization this unit has peer lines with |
+| `units[].budgets` | `period` (`Day` or `Month`, default `Day`) and `amountUsd`, more than 0 and no more than the nearest ancestor's budget for the same period |
+
+The tree is checked with the same rules as the REST API: one root, unique unit names, one position per agent, active agents, mandates owned by their agents, peers inside the organization, and child budgets within their parent's. A broken tree fails the document with the rule's code, such as `OneRoot`, `LeadsTwoUnits`, or `BudgetExceedsParent`, in the field code of `spec.units`.
+
+Applying replaces the organization's working tree with the document's units. When the document publishes, Garrison snapshots the tree as a new revision that pins the current revision of every mandate it names, makes it live, and writes a promotion record with subject Organization. A second apply of the same document is `Unchanged` and publishes nothing. An apply that fails later in the same manifest restores the earlier working tree; a revision it already published stays in the organization's history, and [rollback](ORGANIZATIONS.md) returns to the earlier one. A retired organization refuses the document with `OrganizationRetired`. Export writes the working tree with names in place of identifiers.
 
 ### NotificationEndpoint
 
