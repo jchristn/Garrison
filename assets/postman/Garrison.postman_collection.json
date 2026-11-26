@@ -20447,6 +20447,817 @@
       ]
     },
     {
+      "name": "Freezes and Kill switch",
+      "description": "Brakes (AA3): a freeze stops one agent, deployment, keeper (mandate), or app until someone lifts it. New runs in scope answer 409 Frozen, keepers in scope stop ticking, and cancelActiveRuns also cancels the runs already in scope. The autonomy kill switch stops every keeper in the tenant at once while ordinary invocations keep working. The freezes WebSocket channel streams freezes.active, freeze.applied, freeze.lifted, and killswitch.changed. A keeper's daily spend cap (budgetPerDayUsd) is set on its revision; reaching it shows status CapReached until the next UTC day.",
+      "item": [
+        {
+          "name": "Freeze the keeper",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes"
+              ]
+            },
+            "description": "Freezes the keeper from the Mandates folder. targetKind is Agent, Deployment, Mandate, or App, and targetId takes an identifier or a name. New runs in scope answer 409 Frozen and keepers in scope stop ticking; set cancelActiveRuns to also cancel the runs already in scope. The keeper shows status Frozen until the freeze is lifted. Needs Create on Freeze (TenantAdmin, Editor, or AgentOperator.Brakes); run tokens never can.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetKind\": \"Mandate\",\n  \"targetId\": \"{{mandateId}}\",\n  \"reason\": \"Postman: pause the keeper while the queue is investigated\",\n  \"cancelActiveRuns\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('active freeze of the keeper', function () { pm.expect(json.id).to.match(/^mfz_/); pm.expect(json.active).to.eql(true); pm.expect(json.targetKind).to.eql('Mandate'); pm.expect(json.targetId).to.eql(pm.collectionVariables.get('mandateId')); });",
+                  "if (json.id) pm.collectionVariables.set('freezeId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The keeper shows Frozen",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}"
+              ]
+            },
+            "description": "A frozen keeper reports status Frozen and its wakes are skipped with code Frozen."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status Frozen', function () { pm.expect(json.status).to.eql('Frozen'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Freezing it again is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes"
+              ]
+            },
+            "description": "One active freeze per target: a second one answers 409 AlreadyFrozen and names the freeze to lift.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetKind\": \"Mandate\",\n  \"targetId\": \"{{mandateId}}\",\n  \"reason\": \"second freeze\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is AlreadyFrozen', function () { pm.expect(json.code).to.eql('AlreadyFrozen'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List active freezes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes?active=true&targetKind=Mandate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes"
+              ],
+              "query": [
+                {
+                  "key": "active",
+                  "value": "true"
+                },
+                {
+                  "key": "targetKind",
+                  "value": "Mandate"
+                }
+              ]
+            },
+            "description": "Lists freezes, active first and then newest first. Filter with targetKind, targetId, and active (true for active only, false for lifted only)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lists the keeper freeze', function () { pm.expect(json.objects.map(function (f) { return f.id; })).to.include(pm.collectionVariables.get('freezeId')); pm.expect(json.objects.every(function (f) { return f.active; })).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get freeze",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes/{{freezeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes",
+                "{{freezeId}}"
+              ]
+            },
+            "description": "Reads one freeze with who applied it, why, and how many runs it cancelled."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('reads the freeze', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('freezeId')); pm.expect(json.reason).to.contain('Postman'); pm.expect(json.cancelledRunCount).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lift the keeper freeze",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes/{{freezeId}}/lift",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes",
+                "{{freezeId}}",
+                "lift"
+              ]
+            },
+            "description": "Lifts an active freeze. A frozen keeper becomes Active again with its next wake spread over a short window so that many keepers do not wake at once. Needs Update on Freeze.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Queue is healthy again\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lifted with the reason', function () { pm.expect(json.active).to.eql(false); pm.expect(json.liftReason).to.eql('Queue is healthy again'); pm.expect(json.liftedUtc).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The keeper is Active again",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mandates/{{mandateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mandates",
+                "{{mandateId}}"
+              ]
+            },
+            "description": "After the lift the keeper is Active."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status Active', function () { pm.expect(json.status).to.eql('Active'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lifting twice is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes/{{freezeId}}/lift",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes",
+                "{{freezeId}}",
+                "lift"
+              ]
+            },
+            "description": "A lifted freeze stays lifted; lifting it again answers 409 FreezeLifted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is FreezeLifted', function () { pm.expect(json.code).to.eql('FreezeLifted'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Freeze the agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes"
+              ]
+            },
+            "description": "Freezes the Postman agent by identifier. Its runs on every deployment are refused until the freeze is lifted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetKind\": \"Agent\",\n  \"targetId\": \"{{agentId}}\",\n  \"reason\": \"Postman: stop new runs\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('agent freeze', function () { pm.expect(json.targetKind).to.eql('Agent'); pm.expect(json.active).to.eql(true); });",
+                  "if (json.id) pm.collectionVariables.set('agentFreezeId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invoking a frozen agent is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "invoke"
+              ]
+            },
+            "description": "A new run of a frozen agent answers 409 Frozen before a run is created.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Hello from a frozen Postman agent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is Frozen', function () { pm.expect(json.code).to.eql('Frozen'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lift the agent freeze",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes/{{agentFreezeId}}/lift",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes",
+                "{{agentFreezeId}}",
+                "lift"
+              ]
+            },
+            "description": "Lifts the agent freeze so later folders can invoke the agent again.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Postman: done\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lifted', function () { pm.expect(json.active).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Organization freezes are not available yet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes"
+              ]
+            },
+            "description": "OrgUnit and Organization freezes arrive with organizations; until then they answer 409 OrganizationsUnavailable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetKind\": \"OrgUnit\",\n  \"targetId\": \"anything\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is OrganizationsUnavailable', function () { pm.expect(json.code).to.eql('OrganizationsUnavailable'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Freeze an unknown agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes"
+              ]
+            },
+            "description": "A target that does not exist in this tenant answers 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetKind\": \"Agent\",\n  \"targetId\": \"agt_postman_missing\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read an unknown freeze",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/freezes/mfz_postman_missing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "freezes",
+                "mfz_postman_missing"
+              ]
+            },
+            "description": "A freeze that does not exist in this tenant, or belongs to another tenant, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the kill switch",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/autonomy/kill-switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "autonomy",
+                "kill-switch"
+              ]
+            },
+            "description": "The tenant's autonomy kill switch. While it is on, no keeper ticks start and keeper runs are refused; ordinary invocations keep working."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('off', function () { pm.expect(json.enabled).to.eql(false); pm.expect(json.freezeId == null).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turn the kill switch on",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/autonomy/kill-switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "autonomy",
+                "kill-switch"
+              ]
+            },
+            "description": "Turns the kill switch on. It is held by a TenantAutonomy freeze, which appears in the freeze list. Needs Update on Freeze.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"reason\": \"Postman incident drill\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('on with a freeze', function () { pm.expect(json.enabled).to.eql(true); pm.expect(json.freezeId).to.match(/^mfz_/); pm.expect(json.reason).to.eql('Postman incident drill'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turn the kill switch off",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/autonomy/kill-switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "autonomy",
+                "kill-switch"
+              ]
+            },
+            "description": "Turns the kill switch off and lifts its freeze. Keepers wake again over a short spread.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('off', function () { pm.expect(json.enabled).to.eql(false); pm.expect(json.freezeId == null).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The kill switch needs enabled",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/autonomy/kill-switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "autonomy",
+                "kill-switch"
+              ]
+            },
+            "description": "enabled is required; a body without it answers 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"no value\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -23898,6 +24709,14 @@
     },
     {
       "key": "escalationEndpointId",
+      "value": ""
+    },
+    {
+      "key": "freezeId",
+      "value": ""
+    },
+    {
+      "key": "agentFreezeId",
       "value": ""
     }
   ]
