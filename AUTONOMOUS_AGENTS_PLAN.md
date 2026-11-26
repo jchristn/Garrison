@@ -264,7 +264,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA4 | Scoped memory: private and collective | AA1 | Done | 15 / 15 |
 | AA5 | Reports | AA1 | Done | 13 / 13 |
 | AA6 | Mailboxes and wake-on-message | AA1, AA3 | Done | 16 / 16 |
-| AA7 | Organizations | AA2, AA4, AA5, AA6 | In progress | 13 / 18 |
+| AA7 | Organizations | AA2, AA4, AA5, AA6 | In progress | 15 / 18 |
 | AA8 | Executive authority and pre-authorized change | AA7 | Not started | 0 / 14 |
 | AA9 | Evaluation, shadow, and canary (absorbs AD11) | AA1, AA3 (AA9.10 needs AA8) | Not started | 0 / 18 |
 | AA10 | The board | AA7 (AA10.4 needs AA8 and AA9) | Not started | 0 / 12 |
