@@ -158,6 +158,21 @@ await client.escalations.cancel("esc_...", "No longer needed");
 
 A keeper revision can name a default target for its escalations with `escalationTargetKind` and `escalationTargetId`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `escalationMinimumSeverity`.
 
+## Freezes and the kill switch
+
+A freeze stops one agent, deployment, keeper (mandate), or app until someone lifts it: new runs in scope fail with 409 `Frozen` and keepers in scope stop ticking. `cancelActiveRuns: true` also cancels the runs already in scope. `targetId` takes an identifier or a name. The autonomy kill switch stops every keeper in the tenant at once while ordinary invocations keep working.
+
+```ts
+const freeze = await client.freezes.apply({ targetKind: "Agent", targetId: "billing-agent", reason: "Refund loop", cancelActiveRuns: true });
+const active = await client.freezes.list({ active: true });
+await client.freezes.lift(freeze.id, "Fixed the prompt");
+
+await client.freezes.setKillSwitch(true, "Incident 42");
+const state = await client.freezes.getKillSwitch();
+```
+
+A keeper with a `budgetPerDayUsd` that reaches it shows status `CapReached` until the next UTC day, and the usage quota scope `Mandate` reports that spend. Notification endpoints can subscribe to `FreezeApplied` and `MandateCapReached`. `FreezeTargetKind` and `FREEZE_TARGET_KINDS` list the target kinds.
+
 ## Streaming run events
 
 ```ts

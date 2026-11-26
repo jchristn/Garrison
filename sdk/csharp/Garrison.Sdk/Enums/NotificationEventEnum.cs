@@ -51,6 +51,16 @@ namespace Garrison.Sdk.Enums
         EscalationExpired,
 
         /// <summary>
+        /// A freeze was applied, including turning the autonomy kill switch on (AA3).
+        /// </summary>
+        FreezeApplied,
+
+        /// <summary>
+        /// A keeper reached its daily spend cap and stops ticking until the window resets (AA3).
+        /// </summary>
+        MandateCapReached,
+
+        /// <summary>
         /// A test notification from the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

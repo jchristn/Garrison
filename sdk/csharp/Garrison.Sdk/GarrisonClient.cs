@@ -184,6 +184,11 @@ namespace Garrison.Sdk
         public EscalationsClient Escalations { get; }
 
         /// <summary>
+        /// Freezes and the autonomy kill switch (AA3): stop an agent, deployment, keeper, or app, and stop all keepers at once.
+        /// </summary>
+        public FreezesClient Freezes { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -310,6 +315,7 @@ namespace Garrison.Sdk
             Triggers = new TriggersClient(Transport);
             Mandates = new MandatesClient(Transport);
             Escalations = new EscalationsClient(Transport);
+            Freezes = new FreezesClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

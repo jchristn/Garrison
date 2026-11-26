@@ -913,8 +913,8 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "Test"] as const;
 
 /** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
 export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
@@ -964,6 +964,34 @@ export interface EscalationFilter {
 
 /** An answer: choice is one of the option keys when the escalation has options, otherwise text is required (at most 8000 characters). */
 export interface EscalationAnswerRequest { choice?: string; text?: string; }
+/** What a freeze stops. OrgUnit and Organization are refused until organizations exist; TenantAutonomy is the kill switch. */
+export type FreezeTargetKind = "Agent" | "Deployment" | "Mandate" | "App" | "OrgUnit" | "Organization" | "TenantAutonomy";
+export const FREEZE_TARGET_KINDS: readonly FreezeTargetKind[] = ["Agent", "Deployment", "Mandate", "App", "OrgUnit", "Organization", "TenantAutonomy"] as const;
+
+/** A freeze: while active, new runs in scope are refused with 409 Frozen and keepers in scope stop ticking. */
+export interface Freeze extends Json {
+  id: string; tenantId: string; targetKind: FreezeTargetKind;
+  /** The frozen resource's identifier (on apply, an identifier or a name). */
+  targetId: string; targetName?: string | null; reason?: string | null;
+  /** True when applying it also cancelled the runs already in scope. */
+  cancelActiveRuns?: boolean; cancelledRunCount?: number;
+  createdById?: string | null; createdByName?: string | null;
+  liftedById?: string | null; liftedByName?: string | null; liftReason?: string | null; liftedUtc?: string | null;
+  /** True until the freeze is lifted. */
+  active: boolean; createdUtc?: string; lastUpdateUtc?: string;
+}
+
+/** Applying a freeze. targetId takes an identifier or a name. */
+export interface FreezeRequest { targetKind: FreezeTargetKind; targetId: string; reason?: string; cancelActiveRuns?: boolean; }
+
+/** Filter for listing freezes; active ones come first, then the newest. */
+export interface FreezeFilter { targetKind?: FreezeTargetKind; targetId?: string; active?: boolean; maxResults?: number; skip?: number; }
+
+/** The tenant's autonomy kill switch. While enabled, no keeper ticks start and keeper runs are refused. */
+export interface KillSwitchState extends Json {
+  tenantId: string; enabled: boolean; freezeId?: string | null; reason?: string | null; changedByName?: string | null; changedUtc?: string | null;
+}
+
 /** State of a notification delivery. */
 export type NotificationDeliveryStatus = "Pending" | "Delivering" | "Succeeded" | "Failed";
 
@@ -2128,7 +2156,8 @@ export interface UsageQuota extends Json {
   /** False by default. Limits apply only when this and active are true. */
   enforcementEnabled?: boolean;
   id: string; tenantId: string; name: string; description?: string | null;
-  scope: "Tenant" | "Agent" | "Deployment"; resourceId: string;
+  /** Mandate counts every tick run of one keeper; a keeper's budgetPerDayUsd is tracked through it. */
+  scope: "Tenant" | "Agent" | "Deployment" | "Mandate"; resourceId: string;
   dailyRunLimit?: number | null; dailyTokenLimit?: number | null;
   dailyCostUsdLimit?: number | null; maxConcurrentRuns?: number | null;
   active: boolean; isProtected: boolean; createdUtc: string; lastUpdateUtc: string;
@@ -2403,6 +2432,27 @@ export class Escalations {
   }
 }
 
+/** Freezes and the autonomy kill switch. Reading needs Read on Freeze; applying needs Create; lifting and the kill switch need Update. */
+export class Freezes {
+  constructor(private readonly t: Transport) {}
+  /** List freezes, active first and then newest first. */
+  list(filter: FreezeFilter = {}): Promise<EnumerationResult<Freeze>> { return this.t.request("GET", this.t.tenantPath("/freezes"), filter as any); }
+  /** Read a freeze. */
+  get(id: string): Promise<Freeze> { return this.t.request("GET", this.t.tenantPath(`/freezes/${seg(id)}`)); }
+  /** Freeze an agent, deployment, mandate, or app. cancelActiveRuns also cancels the runs already in scope. */
+  apply(request: FreezeRequest): Promise<Freeze> { return this.t.request("POST", this.t.tenantPath("/freezes"), undefined, request); }
+  /** Lift an active freeze. A frozen keeper becomes Active again with its next wake spread over a short window. */
+  lift(id: string, reason?: string): Promise<Freeze> {
+    return this.t.request("POST", this.t.tenantPath(`/freezes/${seg(id)}/lift`), undefined, reason === undefined ? {} : { reason });
+  }
+  /** Read the autonomy kill switch. */
+  getKillSwitch(): Promise<KillSwitchState> { return this.t.request("GET", this.t.tenantPath("/autonomy/kill-switch")); }
+  /** Turn the autonomy kill switch on or off; ordinary invocations keep working while it is on. */
+  setKillSwitch(enabled: boolean, reason?: string): Promise<KillSwitchState> {
+    return this.t.request("PUT", this.t.tenantPath("/autonomy/kill-switch"), undefined, reason === undefined ? { enabled } : { enabled, reason });
+  }
+}
+
 /** Pipeline definitions (by identifier or name), start, and prompt preview. */
 export class Pipelines extends Resource<Pipeline> {
   /**
@@ -2654,6 +2704,7 @@ export class GarrisonClient {
   readonly triggers: Triggers;
   readonly mandates: Mandates;
   readonly escalations: Escalations;
+  readonly freezes: Freezes;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2702,6 +2753,7 @@ export class GarrisonClient {
     this.triggers = new Triggers(t, "triggers");
     this.mandates = new Mandates(t, "mandates");
     this.escalations = new Escalations(t);
+    this.freezes = new Freezes(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

@@ -1538,6 +1538,78 @@ func main() {
 		return nil
 	})
 
+	check("freezes", func(ctx context.Context) error {
+		// Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
+		before, err := client.Freezes.GetKillSwitch(ctx)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if before.Enabled {
+				_, _ = client.Freezes.SetKillSwitch(ctx, garrison.KillSwitchRequest{Enabled: true, Reason: before.Reason})
+			}
+		}()
+		first := garrison.MandateRevision{Objective: "Watch the SDK scratch queue.", MinIntervalSeconds: 3600}
+		keeper, err := client.Mandates.Create(ctx, garrison.Mandate{Name: "sdk-go-frozen-" + suffix, AgentID: agentID, DeploymentID: deploymentID, CurrentRevision: &first})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.Mandates.DeleteForce(ctx, keeper.ID, true) }()
+		why := "SDK harness"
+		freeze, err := client.Freezes.Apply(ctx, garrison.FreezeRequest{TargetKind: garrison.FreezeTargetMandate, TargetID: keeper.Name, Reason: &why})
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(freeze.ID, "mfz_") || !freeze.Active || freeze.TargetID != keeper.ID {
+			return fmt.Errorf("freeze by name did not store the mandate identifier: %+v", freeze)
+		}
+		frozen, err := client.Mandates.Get(ctx, keeper.ID)
+		if err != nil {
+			return err
+		}
+		if frozen.Status != garrison.MandateStatusFrozen {
+			return fmt.Errorf("a frozen keeper shows %s", frozen.Status)
+		}
+		active := true
+		page, err := client.Freezes.List(ctx, garrison.FreezeFilter{TargetKind: garrison.FreezeTargetMandate, TargetID: keeper.ID, Active: &active})
+		if err != nil {
+			return err
+		}
+		if len(page.Objects) != 1 || page.Objects[0].ID != freeze.ID {
+			return errors.New("list active freezes by target")
+		}
+		done := "done"
+		lifted, err := client.Freezes.Lift(ctx, freeze.ID, garrison.FreezeLiftRequest{Reason: &done})
+		if err != nil {
+			return err
+		}
+		if lifted.Active || lifted.LiftReason == nil || *lifted.LiftReason != done || lifted.LiftedUTC == nil {
+			return errors.New("lift did not record the reason")
+		}
+		resumed, err := client.Mandates.Get(ctx, keeper.ID)
+		if err != nil {
+			return err
+		}
+		if resumed.Status != garrison.MandateStatusActive {
+			return fmt.Errorf("a lifted keeper shows %s", resumed.Status)
+		}
+		on, err := client.Freezes.SetKillSwitch(ctx, garrison.KillSwitchRequest{Enabled: true, Reason: &why})
+		if err != nil {
+			return err
+		}
+		if !on.Enabled || on.FreezeID == nil {
+			return errors.New("kill switch did not turn on")
+		}
+		off, err := client.Freezes.SetKillSwitch(ctx, garrison.KillSwitchRequest{Enabled: false})
+		if err != nil {
+			return err
+		}
+		if off.Enabled || off.FreezeID != nil {
+			return errors.New("kill switch did not turn off")
+		}
+		return nil
+	})
+
 	check("notification endpoints", func(ctx context.Context) error {
 		var refused garrison.NotificationEndpoint
 		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)

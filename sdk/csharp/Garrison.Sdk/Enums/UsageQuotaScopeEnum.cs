@@ -8,6 +8,8 @@ namespace Garrison.Sdk.Enums
         /// <summary>Every run for one agent, across its deployments.</summary>
         Agent,
         /// <summary>Every run for one deployment.</summary>
-        Deployment
+        Deployment,
+        /// <summary>Every tick run of one mandate (AA3). A mandate's budgetPerDayUsd is tracked through this scope.</summary>
+        Mandate
     }
 }

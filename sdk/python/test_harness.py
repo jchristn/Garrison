@@ -749,6 +749,33 @@ def t_escalations():
             client.notification_endpoints.delete(endpoint["id"])
 
 
+def t_freezes():
+    # Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
+    mandate = None
+    before = client.freezes.get_kill_switch()
+    try:
+        mandate = client.mandates.create({"name": f"sdk-py-frozen-{SUFFIX}", "agentId": state["agent"], "deploymentId": state["deployment"],
+                                          "currentRevision": {"objective": "Watch the scratch queue.", "minIntervalSeconds": 3600}})
+        freeze = client.freezes.apply("Mandate", mandate["name"], reason="SDK harness")
+        require(freeze["id"].startswith("mfz_") and freeze["active"] and freeze["targetId"] == mandate["id"], f"freeze by name: {freeze}")
+        require(client.mandates.get(mandate["id"])["status"] == "Frozen", "a frozen keeper shows Frozen")
+        page = client.freezes.list(target_kind="Mandate", target_id=mandate["id"], active=True)
+        require([f["id"] for f in page["objects"]] == [freeze["id"]], f"list active freezes by target: {page}")
+        lifted = client.freezes.lift(freeze["id"], reason="done")
+        require(not lifted["active"] and lifted.get("liftReason") == "done" and lifted.get("liftedUtc"), f"lift: {lifted}")
+        require(client.mandates.get(mandate["id"])["status"] == "Active", "a lifted keeper is Active again")
+        require(not client.freezes.get(freeze["id"])["active"], "read a lifted freeze")
+        on = client.freezes.set_kill_switch(True, reason="SDK harness")
+        require(on["enabled"] and on.get("freezeId") and on.get("reason") == "SDK harness", f"kill switch on: {on}")
+        off = client.freezes.set_kill_switch(False)
+        require(not off["enabled"] and not off.get("freezeId"), f"kill switch off: {off}")
+    finally:
+        if before.get("enabled"):
+            client.freezes.set_kill_switch(True, reason=before.get("reason"))
+        if mandate:
+            client.mandates.delete(mandate["id"], force=True)
+
+
 def t_notifications():
     try:
         client.notification_endpoints.create({"name": f"sdk-py-local-{SUFFIX}", "url": "http://127.0.0.1:9/x", "events": ["RunFailed"]})
@@ -1258,7 +1285,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

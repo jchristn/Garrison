@@ -1030,7 +1030,7 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # Notification endpoints. NotificationEndpoint["events"] items (Test is only sent by the test action and cannot be
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
-                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "Test")
+                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "Test")
 # Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
 # ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
 # mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
@@ -1040,6 +1040,9 @@ ESCALATION_MODES = ("NonBlocking", "Blocking")
 ESCALATION_TARGET_KINDS = ("User", "Role", "Agent", "Manager")
 ESCALATION_TIMEOUT_ACTIONS = ("UseDefaultAnswer", "Cancel", "EscalateUp")
 ESCALATION_RESOLUTION_SOURCES = ("User", "Agent", "Timeout", "Raiser", "System")
+# Freezes: Freeze["targetKind"]. OrgUnit and Organization are refused until organizations exist; TenantAutonomy is the
+# kill switch, set with client.freezes.set_kill_switch.
+FREEZE_TARGET_KINDS = ("Agent", "Deployment", "Mandate", "App", "OrgUnit", "Organization", "TenantAutonomy")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -2565,6 +2568,52 @@ class Escalations:
         return self._t.request("POST", self._t.tenant_path(f"/escalations/{_seg(id)}/cancel"), body=body)
 
 
+class Freezes:
+    """Freezes and the autonomy kill switch. Reading needs Read on Freeze; applying needs Create; lifting and setting the
+    kill switch need Update. Run tokens never hold these permissions."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list(self, target_kind: Optional[str] = None, target_id: Optional[str] = None, active: Optional[bool] = None,
+             max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """GET /v1.0/api/tenants/{tenantId}/freezes, active first and then newest first. target_kind is one of
+        FREEZE_TARGET_KINDS; active True lists active freezes only, False lifted ones only."""
+        return self._t.request("GET", self._t.tenant_path("/freezes"), {
+            "targetKind": target_kind, "targetId": target_id,
+            "active": None if active is None else ("true" if active else "false"), "maxResults": max_results, "skip": skip})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        """Read a freeze."""
+        return self._t.request("GET", self._t.tenant_path(f"/freezes/{_seg(id)}"))
+
+    def apply(self, target_kind: str, target_id: str, reason: Optional[str] = None, cancel_active_runs: bool = False) -> Dict[str, Any]:
+        """Freeze an Agent, Deployment, Mandate, or App (target_id takes an identifier or a name). New runs in scope
+        raise GarrisonError 409 with code Frozen and keepers in scope stop ticking; cancel_active_runs also cancels the
+        runs already in scope."""
+        body = {"targetKind": target_kind, "targetId": target_id, "cancelActiveRuns": cancel_active_runs}
+        if reason is not None:
+            body["reason"] = reason
+        return self._t.request("POST", self._t.tenant_path("/freezes"), body=body)
+
+    def lift(self, id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Lift an active freeze. A frozen keeper becomes Active again with its next wake spread over a short window."""
+        body = {"reason": reason} if reason is not None else {}
+        return self._t.request("POST", self._t.tenant_path(f"/freezes/{_seg(id)}/lift"), body=body)
+
+    def get_kill_switch(self) -> Dict[str, Any]:
+        """Read the autonomy kill switch: enabled, freezeId, reason, changedByName, changedUtc."""
+        return self._t.request("GET", self._t.tenant_path("/autonomy/kill-switch"))
+
+    def set_kill_switch(self, enabled: bool, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Turn the autonomy kill switch on or off. While it is on, no keeper ticks start and keeper runs are refused;
+        ordinary invocations keep working."""
+        body: Dict[str, Any] = {"enabled": enabled}
+        if reason is not None:
+            body["reason"] = reason
+        return self._t.request("PUT", self._t.tenant_path("/autonomy/kill-switch"), body=body)
+
+
 class Approvals:
     """Permission approvals: list, read, decide, and evaluate a deployment's approval rules (approval check)."""
 
@@ -2788,6 +2837,7 @@ class GarrisonClient:
         self.triggers = Triggers(t, "triggers")
         self.mandates = Mandates(t, "mandates")
         self.escalations = Escalations(t)
+        self.freezes = Freezes(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

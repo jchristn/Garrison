@@ -183,6 +183,23 @@ for _, e := range open.Objects {
 
 A keeper revision can name a default target for its escalations with `EscalationTargetKind` and `EscalationTargetID`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `EscalationMinimumSeverity`.
 
+## Freezes and the kill switch
+
+A freeze stops one agent, deployment, keeper (mandate), or app until someone lifts it: new runs in scope fail with 409 `Frozen` and keepers in scope stop ticking. `CancelActiveRuns` also cancels the runs already in scope. `TargetID` takes an identifier or a name. The autonomy kill switch stops every keeper in the tenant at once while ordinary invocations keep working.
+
+```go
+why := "Refund loop"
+freeze, err := client.Freezes.Apply(ctx, garrison.FreezeRequest{TargetKind: garrison.FreezeTargetAgent, TargetID: "billing-agent", Reason: &why, CancelActiveRuns: true})
+active := true
+page, err := client.Freezes.List(ctx, garrison.FreezeFilter{Active: &active})
+_, err = client.Freezes.Lift(ctx, freeze.ID, garrison.FreezeLiftRequest{})
+
+incident := "Incident 42"
+state, err := client.Freezes.SetKillSwitch(ctx, garrison.KillSwitchRequest{Enabled: true, Reason: &incident})
+```
+
+A keeper with a `BudgetPerDayUsd` that reaches it shows status `CapReached` until the next UTC day, and the usage quota scope `Mandate` reports that spend. Notification endpoints can subscribe to `NotificationEventFreezeApplied` and `NotificationEventMandateCapReached`.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

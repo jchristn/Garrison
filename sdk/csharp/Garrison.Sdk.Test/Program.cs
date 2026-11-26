@@ -1048,6 +1048,36 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("freezes", async () =>
+                {
+                    // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
+                    Mandate? keeper = null;
+                    KillSwitchState before = await client.Freezes.GetKillSwitchAsync(token).ConfigureAwait(false);
+                    try
+                    {
+                        keeper = await client.Mandates.CreateAsync(new Mandate { Name = "sdk-cs-frozen-" + suffix, AgentId = agentId!, DeploymentId = deploymentId!, CurrentRevision = new MandateRevision { Objective = "Watch the SDK scratch queue.", MinIntervalSeconds = 3600 } }, token).ConfigureAwait(false);
+                        Freeze freeze = await client.Freezes.ApplyAsync(new Freeze { TargetKind = FreezeTargetKindEnum.Mandate, TargetId = keeper.Name, Reason = "SDK harness" }, token).ConfigureAwait(false);
+                        Require(freeze.Id.StartsWith("mfz_", StringComparison.Ordinal) && freeze.Active && freeze.TargetId == keeper.Id, "a freeze by name stores the mandate identifier");
+                        Require((await client.Mandates.GetAsync(keeper.Id, token).ConfigureAwait(false)).Status == MandateStatusEnum.Frozen, "a frozen keeper shows Frozen");
+                        EnumerationResult<Freeze> active = await client.Freezes.ListAsync(new FreezeFilter { TargetKind = FreezeTargetKindEnum.Mandate, TargetId = keeper.Id, Active = true }, token).ConfigureAwait(false);
+                        Require(active.Objects.Count == 1 && active.Objects[0].Id == freeze.Id, "list active freezes by target");
+                        Freeze lifted = await client.Freezes.LiftAsync(freeze.Id, new FreezeLiftRequest { Reason = "done" }, token).ConfigureAwait(false);
+                        Require(!lifted.Active && lifted.LiftReason == "done" && lifted.LiftedUtc != null, "lift records the reason");
+                        Require((await client.Mandates.GetAsync(keeper.Id, token).ConfigureAwait(false)).Status == MandateStatusEnum.Active, "a lifted keeper is Active again");
+                        Require(!(await client.Freezes.GetAsync(freeze.Id, token).ConfigureAwait(false)).Active, "read a lifted freeze");
+
+                        KillSwitchState on = await client.Freezes.SetKillSwitchAsync(new KillSwitchRequest { Enabled = true, Reason = "SDK harness" }, token).ConfigureAwait(false);
+                        Require(on.Enabled && on.FreezeId != null && on.Reason == "SDK harness", "kill switch turns on");
+                        KillSwitchState off = await client.Freezes.SetKillSwitchAsync(new KillSwitchRequest { Enabled = false }, token).ConfigureAwait(false);
+                        Require(!off.Enabled && off.FreezeId == null, "kill switch turns off");
+                    }
+                    finally
+                    {
+                        if (before.Enabled) await client.Freezes.SetKillSwitchAsync(new KillSwitchRequest { Enabled = true, Reason = before.Reason }, token).ConfigureAwait(false);
+                        if (keeper != null) await client.Mandates.DeleteAsync(keeper.Id, true, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

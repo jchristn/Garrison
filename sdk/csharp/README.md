@@ -81,7 +81,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `Escalations`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `Escalations`, `Freezes`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -200,6 +200,21 @@ await client.Escalations.CancelAsync("esc_...", new EscalationCancelRequest { Re
 ```
 
 A keeper revision can name a default target for its escalations with `EscalationTargetKind` and `EscalationTargetId`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `EscalationMinimumSeverity`.
+
+## Freezes and the kill switch
+
+A freeze stops one agent, deployment, keeper (mandate), or app until someone lifts it: new runs in scope fail with 409 `Frozen` and keepers in scope stop ticking. `CancelActiveRuns` also cancels the runs already in scope. `TargetId` takes an identifier or a name. The autonomy kill switch stops every keeper in the tenant at once while ordinary invocations keep working.
+
+```csharp
+Freeze freeze = await client.Freezes.ApplyAsync(new Freeze { TargetKind = FreezeTargetKindEnum.Agent, TargetId = "billing-agent", Reason = "Refund loop", CancelActiveRuns = true });
+EnumerationResult<Freeze> active = await client.Freezes.ListAsync(new FreezeFilter { Active = true });
+await client.Freezes.LiftAsync(freeze.Id, new FreezeLiftRequest { Reason = "Fixed the prompt" });
+
+await client.Freezes.SetKillSwitchAsync(new KillSwitchRequest { Enabled = true, Reason = "Incident 42" });
+KillSwitchState state = await client.Freezes.GetKillSwitchAsync();
+```
+
+A keeper with a `BudgetPerDayUsd` that reaches it shows status `CapReached` until the next UTC day; `UsageQuotaScopeEnum.Mandate` reports that spend. Notification endpoints can subscribe to `FreezeApplied` and `MandateCapReached`.
 
 ## Agent revisions and promotion
 

@@ -655,6 +655,32 @@ await check("escalations", async () => {
   }
 });
 
+await check("freezes", async () => {
+  // Freeze a scratch keeper, see it Frozen, lift it, see it Active; read and restore the kill switch.
+  let mandate;
+  const before = await client.freezes.getKillSwitch();
+  try {
+    mandate = await client.mandates.create({ name: `sdk-js-frozen-${suffix}`, agentId: state.agent, deploymentId: state.deployment,
+      currentRevision: { objective: "Watch the scratch queue.", minIntervalSeconds: 3600 } });
+    const freeze = await client.freezes.apply({ targetKind: "Mandate", targetId: mandate.name, reason: "SDK harness" });
+    require(freeze.id.startsWith("mfz_") && freeze.active && freeze.targetId === mandate.id, "freeze by name stores the mandate identifier");
+    require((await client.mandates.get(mandate.id)).status === "Frozen", "a frozen keeper shows Frozen");
+    const page = await client.freezes.list({ targetKind: "Mandate", targetId: mandate.id, active: true });
+    require(page.objects.length === 1 && page.objects[0].id === freeze.id, "list active freezes by target");
+    const lifted = await client.freezes.lift(freeze.id, "done");
+    require(!lifted.active && lifted.liftReason === "done" && lifted.liftedUtc, "lift records the reason");
+    require((await client.mandates.get(mandate.id)).status === "Active", "a lifted keeper is Active again");
+    require(!(await client.freezes.get(freeze.id)).active, "read a lifted freeze");
+    const on = await client.freezes.setKillSwitch(true, "SDK harness");
+    require(on.enabled && on.freezeId && on.reason === "SDK harness", "kill switch on");
+    const off = await client.freezes.setKillSwitch(false);
+    require(!off.enabled && !off.freezeId, "kill switch off");
+  } finally {
+    if (before.enabled) await client.freezes.setKillSwitch(true, before.reason ?? undefined);
+    if (mandate) await client.mandates.delete(mandate.id, { force: true });
+  }
+});
+
 await check("notification endpoints", async () => {
   let status = 0;
   let codes;

@@ -50,6 +50,8 @@ const (
 	NotificationEventApprovalRequested = "ApprovalRequested"
 	NotificationEventEscalationRaised  = "EscalationRaised"
 	NotificationEventEscalationExpired = "EscalationExpired"
+	NotificationEventFreezeApplied     = "FreezeApplied"
+	NotificationEventMandateCapReached = "MandateCapReached"
 	NotificationEventTest              = "Test"
 )
 
