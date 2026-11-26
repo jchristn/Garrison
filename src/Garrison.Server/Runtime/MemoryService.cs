@@ -753,7 +753,8 @@ namespace Garrison.Server.Runtime
             record.PrincipalType = writer.PrincipalType;
             record.PrincipalId = writer.PrincipalId;
             record.PrincipalName = writer.Name;
-            record.Description = entry.ScopeKind + " " + entry.ScopeId + " key " + entry.Key + ": " + action;
+            // Keys and text are never written to the audit log; the entry identifier ties the record to the entry.
+            record.Description = entry.ScopeKind + " scope " + entry.ScopeId + ": " + action;
             await _Audit.WriteAsync(record, token).ConfigureAwait(false);
         }
 

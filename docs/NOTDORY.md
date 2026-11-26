@@ -1,6 +1,6 @@
 # Optional external memory example: NotDory
 
-NotDory is a replaceable example, not a required Garrison dependency. For the provider-neutral interface and built-in persistent key/value implementation, see [agent memory](AGENT_MEMORY.md).
+NotDory is an optional example, not a required Garrison dependency, and this plan neither endorses nor integrates it (AA-004). Garrison's own memory, with private and shared scopes, works without it; see [agent memory](AGENT_MEMORY.md). An external provider plugs into that memory by implementing `IScopedMemoryStore`, which keeps the Garrison memory tools, their access policy, and the effect journal in front of it. Binding NotDory as an MCP server, as described below, is the other route: agents call NotDory directly and Garrison does not mediate those calls.
 
 [NotDory](https://notdory.ai) provides persistent agent-managed memory over MCP. The optional layer here uses its filesystem provider and SQLite metadata, so no embedding model, RecallDB, or separate database is required. Garrison still works without it. The integration was checked against the local NotDory source at `~/Code/NotDory`; images are pinned to that project's `v0.1.0` release.
 

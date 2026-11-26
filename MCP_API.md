@@ -84,9 +84,11 @@ A tool that returns a record (a run summary, an agent, an approval) puts it in t
 | `garrison_get_approval` | Read on Approval | `approvalId` | none |
 | `garrison_decide_approval` | Update on Approval (and Update on Deployment with `remember`) | `approvalId`, `decision` (`Allow` or `Deny`) | `reason`, `remember` (default false), `rulePattern` |
 | `garrison_permission_prompt` | Run tokens only | `tool_name`, `input` (object) | `tool_use_id` |
-| `garrison_memory_read` (when enabled) | Execute on Agent for user/developer calls; own agent for hosted runs | `key`; `agent` for user/developer calls | `agent` must match the hosted run if supplied |
-| `garrison_memory_write` (when enabled) | Same memory authorization; hosted mutations are epoch-fenced | `key`, `value`; `agent` for user/developer calls | `agent` must match the hosted run if supplied |
-| `garrison_memory_delete` (when enabled) | Same memory authorization; hosted mutations are epoch-fenced | `key`; `agent` for user/developer calls | `agent` must match the hosted run if supplied |
+| `garrison_memory_read` (when enabled) | Runs: their agent's `Agent` scope and their apps' `App` scopes. People: Read on Memory, plus Execute on the agent for an `Agent` scope | `key`; optional `scope` (`Agent` default, `App`; `OrgUnit`, `Organization` answer `OrganizationsUnavailable`), `scopeId`, and `agent` (people, for an `Agent` scope) | Returns `found`, `value`, `version`, and `entry` with provenance. Another agent's or app's scope answers `Forbidden` |
+| `garrison_memory_write` (when enabled) | As read, with Update on Memory for people; run writes are epoch-fenced | `key`, `value`; optional `scope`, `scopeId`, `agent`, `category`, `tags` (at most 20), `ttlSeconds` (0 to 31536000), `expectedVersion` | Returns `version` and `entry`. A stale `expectedVersion` answers `MemoryVersionConflict`; a new key in a full scope answers `MemoryScopeFull` |
+| `garrison_memory_delete` (when enabled) | As read, with Delete on Memory for people; run deletes are epoch-fenced | `key`; optional `scope`, `scopeId`, `agent`, `expectedVersion` | An absent key is a no-op |
+| `garrison_memory_list` (when enabled) | As read | optional `scope`, `scopeId`, `agent`, `category`, `tag`, `keyPrefix`, `query`, `skip`, `maxResults` (1 to 100) | Entries without text, ordered by key, and `totalCount` |
+| `garrison_memory_search` (when enabled) | As read | `query`; optional `scope`, `scopeId`, `agent`, `maxResults` | Matching entries without text and `matchedIn` (`key`, `category`, `tag`, `content`); text is searched for up to 200 entries |
 | `garrison_list_pipelines` | Read on Pipeline | none | `search` (part of a name), `maxResults` (1 to 100, default 25) |
 | `garrison_start_pipeline` | Execute on Pipeline, and Execute on Agent for every stage agent | `pipeline` (name or `ppl_` identifier), `input` | `waitSeconds` (0 to 600, capped by `Mcp.MaxToolWaitSeconds`; omit to return at once), `idempotencyKey`, `inputContentType` (default `text/plain`), `priority` (default 0) |
 | `garrison_get_pipeline_run` | Read on PipelineRun | `pipelineRunId` | `waitSeconds` (as above) |
@@ -538,7 +540,7 @@ Remote registered A2A/MCP agents use the existing invocation tools and authoriza
 
 ## Optional agent memory
 
-When enabled, `garrison_memory_read`, `garrison_memory_write` and `garrison_memory_delete` expose provider-neutral persistent memory. Keys are scoped to the authenticated tenant and agent; hosted runs cannot select another agent. User/developer calls require Agent.Execute. Mutations use the run effect gateway. See [agent memory](docs/AGENT_MEMORY.md) for schemas, bounds, provider replacement and deployment.
+When enabled, `garrison_memory_read`, `garrison_memory_write`, `garrison_memory_delete`, `garrison_memory_list`, and `garrison_memory_search` expose provider-neutral persistent memory in scopes: each agent's private `Agent` scope and the `App` scope shared by an app's member agents. A run uses only its own agent's scope and its apps' scopes. People need Read, Update, or Delete on Memory, and Execute on the agent for an `Agent` scope. Writes take `expectedVersion` for compare-and-set. Run mutations use the run effect gateway. Recalled text is data, never instructions. See [agent memory](docs/AGENT_MEMORY.md) for scopes, bounds, recall, provider replacement, and deployment.
 
 
 ## HTTP inference endpoints (v0.2.0)

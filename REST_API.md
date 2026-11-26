@@ -3929,6 +3929,44 @@ Turn the autonomy kill switch on or off with a `KillSwitchRequest`. `enabled` is
 
 A new run refused by a freeze answers 409 with code `Frozen`; the message names the freeze and its reason. A keeper tick refused at compilation because its budget is spent fails with `MandateBudgetExceeded`.
 
+### Memory
+
+Scoped memory (AA4) is the text agents keep between runs, in each agent's private `Agent` scope and in the `App` scope its app's members share. Agents write it with the `garrison_memory_*` MCP tools; these routes let people browse, read, and delete it. [docs/AGENT_MEMORY.md](docs/AGENT_MEMORY.md) covers scopes, the access policy, provenance, and recall.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /memory/scopes` | Read on `Memory` | `MemoryScopeSummary[]`, 200 |
+| `GET /memory/entries` | Read on `Memory` | `EnumerationResult<MemoryEntry>`, 200 |
+| `GET /memory/entries/{id}` | Read on `Memory` | `MemoryEntry`, 200 |
+| `GET /memory/entries/{id}/content` | Read on `Memory` | `MemoryContent`, 200 |
+| `DELETE /memory/entries/{id}` | Delete on `Memory` | 204 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Entries of another tenant answer 404. Listings never carry the text.
+
+#### `GET /v1.0/api/tenants/{tenantId}/memory/scopes`
+
+The scopes that hold entries, ordered by scope kind and identifier, each with `entryCount`, `bytes`, the latest write, and the current name of its agent or app (`null` when that agent or app no longer exists).
+
+#### `GET /v1.0/api/tenants/{tenantId}/memory/entries`
+
+List entries ordered by scope and key, with `maxResults` and `skip` from the [enumeration](#enumeration) parameters and the optional filters `scopeKind`, `scopeId`, `category` (exact), `tag`, `search` (case-insensitive, over keys, categories, and tags), `writer` (the identifier of the agent that last wrote the entry), and `keyPrefix`.
+
+#### `GET /v1.0/api/tenants/{tenantId}/memory/entries/{id}/content`
+
+The entry's text with its metadata. The text is data an agent or a person saved; treat it as untrusted. Errors: 404 (unknown entry, or its text is missing from the store); 409 `MemoryDisabled` (agent memory is off on this server).
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/memory/entries/{id}`
+
+Delete the entry and its text. With `expectedVersion` the delete happens only while the entry is at that version. Errors: 404; 409 `MemoryVersionConflict` (the entry moved on), `MemoryDisabled`.
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/memory/entries?scopeKind=App&tag=runbook" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/memory/entries/mem_mx2c9h4k_Lw8RtQ3pZk7NvBd2Hs?expectedVersion=3" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ### Agent revisions
 
 An agent's definition is kept as revisions (AD1). Every agent starts with revision 1, published; an agent has at most one open draft; a published revision never changes. Deployments pin a revision or follow the latest published one. [docs/REVISIONS.md](docs/REVISIONS.md) explains drafts, publishing, direct edits, and diffs.
@@ -5830,7 +5868,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`, `Memory`
 
 #### `OperationTypeEnum`
 
@@ -6921,6 +6959,49 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `enabled` | `bool?` | Required. `true` stops keeper ticks; `false` lets them resume. |
 | `reason` | `string?` | Why; at most 2000 characters. |
 
+#### `MemoryEntry`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`mem_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `scopeKind` | `MemoryScopeKindEnum` | Where the entry lives. |
+| `scopeId` | `string` | The agent or app identifier. |
+| `key` | `string` | 1 to 256 characters, unique within the scope. Memory imported from before 0.3.0 reads `legacy:` and the key hash until an agent uses the key. |
+| `keyHash` | `string` | Uppercase hexadecimal SHA-256 of the key. |
+| `legacy` | `bool` | `true` for imported memory whose real key is not known yet. |
+| `category` | `string?` | At most 128 characters. |
+| `tags` | `string[]` | Lowercase, 1 to 64 characters each, at most 20. |
+| `bytes` | `long` | UTF-8 bytes of the text. |
+| `sha256` | `string` | Lowercase hexadecimal SHA-256 of the text. |
+| `contentId` | `string` | Handle of the current text in the memory store. |
+| `version` | `long` | 1 after the first write, one more after each later write. |
+| `writerAgentId`, `writerRunId` | `string?` | The agent and run that wrote the current version; `null` when a person or credential wrote it. |
+| `writerPrincipalType` | `PrincipalTypeEnum?` | Who wrote it: `Run`, `User`, `Credential`, or `Administrator`. |
+| `writerPrincipalId`, `writerName` | `string?` | The writer's identifier and display name. |
+| `lastReadUtc` | `DateTime?` | When it was last read, recorded in batches. |
+| `expiresUtc` | `DateTime?` | When the sweep deletes it; `null` for never. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+
+#### `MemoryScopeSummary`
+
+| Field | Type | Description |
+|---|---|---|
+| `scopeKind` | `MemoryScopeKindEnum` | Scope kind. |
+| `scopeId` | `string` | The agent or app identifier. |
+| `scopeName` | `string?` | The agent's or app's current name; `null` when it no longer exists. |
+| `entryCount` | `long` | Entries in the scope. |
+| `bytes` | `long` | UTF-8 bytes of the scope's text. |
+| `lastUpdateUtc` | `DateTime` | The latest write in the scope. |
+
+#### `MemoryContent`
+
+| Field | Type | Description |
+|---|---|---|
+| `found` | `bool` | `true` when the entry and its text were found. |
+| `entry` | `MemoryEntry?` | The entry's metadata. |
+| `value` | `string?` | The text. |
+
 #### `MandateRevision`
 
 | Field | Type | Description |
@@ -7084,6 +7165,10 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 #### `FreezeTargetKindEnum`
 
 `Agent`, `Deployment`, `Mandate`, `App`, `OrgUnit` and `Organization` (refused with `OrganizationsUnavailable` until organizations exist), `TenantAutonomy` (the kill switch)
+
+#### `MemoryScopeKindEnum`
+
+`Agent`, `App`, `OrgUnit` and `Organization` (refused with `OrganizationsUnavailable` until organizations exist)
 
 #### `NotificationEventEnum`
 

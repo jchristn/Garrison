@@ -39,7 +39,7 @@ Start with the workflow you need, then use the configuration and protocol refere
 | Stop an agent, deployment, keeper, or app, cap a keeper's spending, or stop every keeper at once | [Brakes](BRAKES.md) |
 | Retain deliverables and inspect conversations | [Artifacts](ARTIFACTS.md), [transcript exports](TRANSCRIPTS.md) |
 | Release slots during supported approval/child waits | [Durable continuation and workspace caches](CONTINUATION.md) |
-| Recall information across runs | [Replaceable agent memory](AGENT_MEMORY.md), [optional external NotDory example](NOTDORY.md) |
+| Recall information across runs, privately or shared by an app's agents | [Agent memory](AGENT_MEMORY.md), [optional external NotDory example](NOTDORY.md) |
 | Invoke work hosted elsewhere | [Remote A2A/MCP agents](REMOTE_AGENTS.md) |
 | Execute through a compatible model API | [Provider API harness](PROVIDER_API.md) |
 
