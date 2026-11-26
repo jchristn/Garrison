@@ -275,6 +275,9 @@ namespace Garrison.Server.Services
                 organizationNode.Deleted = item.Operation == StudioDraftOperationEnum.Delete;
                 if (item.Operation != StudioDraftOperationEnum.Upsert) continue;
                 OrganizationSpec spec = OrgSpec(item.Document);
+                // Unit names match without regard to case, so peer lines are drawn to each unit's own spelling.
+                Dictionary<string, string> canonical = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (OrgUnitSpec named in AllUnits(spec.Units).Where(u => !String.IsNullOrWhiteSpace(u.Name))) canonical[named.Name!.Trim()] = named.Name!.Trim();
                 void Walk(List<OrgUnitSpec> level, string? parent)
                 {
                     foreach (OrgUnitSpec unit in level.Where(u => !String.IsNullOrWhiteSpace(u.Name)))
@@ -296,7 +299,7 @@ namespace Garrison.Server.Services
                         }
                         foreach (string peer in (unit.Peers ?? new List<string>()).Where(p => !String.IsNullOrWhiteSpace(p)))
                         {
-                            graph.Edges.Add(new StudioGraphEdge { Kind = "Peer", Organization = item.Name, From = unitName, To = peer.Trim(), FanOut = false, Depth = 0 });
+                            graph.Edges.Add(new StudioGraphEdge { Kind = "Peer", Organization = item.Name, From = unitName, To = canonical.TryGetValue(peer.Trim(), out string? peerName) ? peerName : peer.Trim(), FanOut = false, Depth = 0 });
                         }
                         Walk(unit.Units ?? new List<OrgUnitSpec>(), unitName);
                     }
